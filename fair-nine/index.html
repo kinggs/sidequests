@@ -67,6 +67,15 @@
   .empty{color:var(--bone-dim);text-align:center;padding:26px 20px;line-height:1.5}
   .foot{padding:10px 16px;font-size:13px;color:var(--bone-dim);text-align:center}
 
+  /* ---- history ---- */
+  .histchips{display:flex;gap:8px;flex-wrap:wrap;padding:12px 16px}
+  .histchips button{min-height:44px;padding:0 16px;font-size:15px;background:var(--panel)}
+  .histchips button.sel{background:var(--bone);color:#0a2a20}
+  .histlist{flex:1;overflow-y:auto;padding:0 16px 16px}
+  .hrow{flex-direction:column;align-items:flex-start;gap:3px;padding:12px 16px}
+  .hmeta{font-size:14px;color:var(--bone-dim);font-weight:600}
+  .hlive{color:#63c08a}
+
   /* ---- overlays (player form, rack done) ---- */
   .overlay{position:fixed;inset:0;background:rgba(4,14,11,.95);z-index:20;display:flex;align-items:center;justify-content:center;padding:22px}
   .card{width:100%;max-width:24rem;background:#0b241c;border:1px solid rgba(239,233,220,.15);border-radius:18px;padding:22px;display:flex;flex-direction:column;gap:16px}
@@ -217,8 +226,17 @@
     <ul class="plist" id="playerList"></ul>
     <p class="empty hidden" id="noPlayers">No players yet. Add the first two and start a session.</p>
     <div class="homebtns">
+      <button class="quiet hidden" id="watchBanner"></button>
       <button class="primary" id="newSessionBtn">New session</button>
-      <button class="quiet" id="addPlayerBtn">Add player</button>
+      <div class="row2">
+        <button class="quiet" id="addPlayerBtn">Add player</button>
+        <button class="quiet" id="historyBtn">History</button>
+      </div>
+      <div class="row2">
+        <button class="quiet" id="exportBtn">Export</button>
+        <button class="quiet" id="importBtn">Import</button>
+      </div>
+      <input type="file" id="importFile" accept="application/json,.json" class="hidden">
     </div>
   </div>
 
@@ -273,6 +291,27 @@
   </div>
 </section>
 
+<!-- ============ HISTORY ============ -->
+<section class="screen hidden" id="scrHistory">
+  <header class="apphead">
+    <h1>History</h1>
+    <button class="quiet small" id="histBack">Back</button>
+  </header>
+  <div class="histchips" id="histChips"></div>
+  <ul class="plist histlist" id="histList"></ul>
+</section>
+
+<!-- ============ IMPORT CHOICE ============ -->
+<div class="overlay hidden" id="impChoice">
+  <div class="card">
+    <h2>Import</h2>
+    <p class="thint" id="impInfo"></p>
+    <button class="primary" id="impMerge">Merge into existing</button>
+    <button class="quiet" id="impReplace">Replace everything</button>
+    <button class="quiet" id="impCancel">Cancel</button>
+  </div>
+</div>
+
 <!-- ============ LIVE SCORING (the prototype, extended) ============ -->
 <section class="screen hidden" id="scrLive">
   <div class="scores">
@@ -311,6 +350,7 @@
 <div class="done hidden" id="done">
   <h2 id="doneTitle">Rack complete</h2>
   <p id="doneBody"></p>
+  <p class="hidden" id="doneZargo"></p>
   <button id="doneNext">Start rack 2</button>
   <button class="ghost" id="doneBack">Back to the rack</button>
 </div>
@@ -319,7 +359,7 @@
 import { cloud } from "../shared/cloud.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "0.2.0";
+const APP_VERSION = "0.3.0";
 const APP_ID = "fair-nine";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 
@@ -331,7 +371,10 @@ const el = {};
  "targetsRow","tgtA","tgtB","tgtALabel","tgtBLabel","setupHint","breakBtn","startBtn",
  "sideA","sideB","nameA","nameB","rawA","rawB","subA","subB","cueA","cueB","leadLine",
  "rackNo","deadCt","audit","breakFlip","rack","undo","next","end",
- "done","doneTitle","doneBody","doneNext","doneBack","signInBig"
+ "done","doneTitle","doneBody","doneZargo","doneNext","doneBack","signInBig",
+ "watchBanner","historyBtn","exportBtn","importBtn","importFile",
+ "scrHistory","histBack","histChips","histList",
+ "impChoice","impInfo","impMerge","impReplace","impCancel"
 ].forEach(id => el[id] = $(id));
 
 function buzz(ms){ if(navigator.vibrate) navigator.vibrate(ms); }
@@ -375,8 +418,11 @@ function show(scr){
   el.scrHome.classList.toggle("hidden", scr !== "home");
   el.scrSetup.classList.toggle("hidden", scr !== "setup");
   el.scrLive.classList.toggle("hidden", scr !== "live");
+  el.scrHistory.classList.toggle("hidden", scr !== "history");
   document.body.classList.toggle("scoring", scr === "live");
 }
+
+const nameOf = id => (db.players[id] && db.players[id].name) || "(deleted)";
 
 // ---------- auth gate ----------
 let started = false;
@@ -391,6 +437,7 @@ cloud.onUser(async user => {
       await loadState();
       el.homeBody.classList.remove("hidden");
       renderHome();
+      checkLive();
     } catch(e){
       el.gateErr.textContent = (e && e.code === "permission-denied")
         ? "You're signed in, but this account isn't on the family list yet. Ask Kenny to add your email."
@@ -566,6 +613,7 @@ async function startSession(){
     playerA: setup.a, playerB: setup.b,
     nameA: a.name, nameB: b.name,
     H: eA / (1 - eA),
+    zargoBefore: { a: a.zargo, b: b.zargo },
     mode: setup.mode,
     targets,
     racksPlanned: setup.mode === "fixed" ? racks : null,
@@ -637,10 +685,11 @@ function bindBall(node, n){
   let timer = null, longFired = false, down = false, sx = 0, sy = 0;
 
   node.addEventListener("pointerdown", e => {
+    if(!live) return;   // watch mode is read-only
     down = true; longFired = false; sx = e.clientX; sy = e.clientY;
     clearTimeout(timer);
     timer = setTimeout(() => {
-      if(!down) return;
+      if(!down || !live) return;
       longFired = true;
       buzz([12,40,12]);
       push(); delete live.balls[n]; render(); sync();
@@ -649,7 +698,7 @@ function bindBall(node, n){
 
   node.addEventListener("pointerup", e => {
     clearTimeout(timer);
-    if(!down) return;
+    if(!down || !live) return;
     down = false;
     if(longFired) return;
     if(Math.abs(e.clientX - sx) > 40 || Math.abs(e.clientY - sy) > 40) return;
@@ -678,7 +727,7 @@ function push(){
 }
 
 function setTurn(p){
-  if(state.turn === p) return;
+  if(!live || state.turn === p) return;
   buzz(16);
   state.turn = p;
   render();
@@ -705,7 +754,7 @@ el.breakFlip.addEventListener("click", () => {
 el.next.addEventListener("click", rackComplete);
 el.doneBack.addEventListener("click", () => { el.done.classList.add("hidden"); });
 
-el.end.addEventListener("click", endSession);
+el.end.addEventListener("click", () => watching ? stopWatch() : endSession());
 
 function rackPoints(){
   const p = { a:0, b:0, dead:0 };
@@ -720,11 +769,11 @@ function leadValue(){
   const t = totals();
   return t.b - t.a / live.H;   // in B's units; positive means B is ahead
 }
-function leadSentence(){
-  const v = leadValue();
+function sentenceFor(v, nA, nB){
   if(Math.abs(v) < 0.5) return "Dead level";
-  return v < 0 ? `${live.nameA} ahead by ${Math.round(-v)}` : `${live.nameB} ahead by ${Math.round(v)}`;
+  return v < 0 ? `${nA} ahead by ${Math.round(-v)}` : `${nB} ahead by ${Math.round(v)}`;
 }
+function leadSentence(){ return sentenceFor(leadValue(), live.nameA, live.nameB); }
 function resolvedCount(){
   let r = 0;
   for(let k = 1; k <= 9; k++) if(live.balls[k]) r++;
@@ -735,6 +784,7 @@ function targetReached(t){
 }
 
 function rackComplete(){
+  if(!live) return;
   const p = rackPoints();
   const sum = p.a + p.b + p.dead;
   const need = LIVE_POINTS();
@@ -753,6 +803,7 @@ function rackComplete(){
     el.doneNext.onclick = finished ? () => { bankRack(); declare(); } : () => { bankRack(); nextRack(); };
     el.doneNext.classList.remove("hidden");
   }
+  el.doneZargo.classList.add("hidden");
   el.doneBack.textContent = "Back to the rack";
   el.doneBack.classList.remove("hidden");
   el.done.classList.remove("hidden");
@@ -800,35 +851,77 @@ async function endSession(){
   declare();
 }
 
+// Spec 3.3: only live points count; delta = K × racks × (actual − expected), clamped.
+// Fargo-style trust: each player's share of the move is scaled by the other's robustness,
+// so an established rating moves less than a fresh one (equal robustness = the base formula).
+function zargoOutcome(){
+  const rA = db.players[live.playerA].robustness || 0;
+  const rB = db.players[live.playerB].robustness || 0;
+  const livePts = live.banked.a + live.banked.b;
+  const eA = expectedShareA(live.zargoBefore.a, live.zargoBefore.b);
+  let d = livePts ? cfg().K * live.banked.racks * (live.banked.a / livePts - eA) : 0;
+  d = Math.max(-40, Math.min(40, d));
+  const tot = rA + rB;
+  const dA = d * (tot ? 2 * rB / tot : 1);
+  const dB = -d * (tot ? 2 * rA / tot : 1);
+  return {
+    a: { from: live.zargoBefore.a, to: live.zargoBefore.a + dA },
+    b: { from: live.zargoBefore.b, to: live.zargoBefore.b + dB }
+  };
+}
+
 function declare(){
   const t = { a: live.banked.a, b: live.banked.b };
   const lead = t.b - t.a / live.H;
   const winner = Math.abs(lead) < 0.001 ? null : (lead < 0 ? "a" : "b");
-  const sentence = winner === null ? "Dead level"
+  const z = zargoOutcome();
+  el.doneTitle.textContent = winner === null ? "Dead level"
     : `${winner === "a" ? live.nameA : live.nameB} wins`;
-  el.doneTitle.textContent = sentence;
   el.doneBody.textContent =
     `${live.banked.racks} rack${live.banked.racks === 1 ? "" : "s"}. ` +
-    `${live.nameA} ${t.a}, ${live.nameB} ${t.b}, ${live.banked.dead} dead. ` +
-    `Ratings update lands in the next build.`;
+    `${live.nameA} ${t.a}, ${live.nameB} ${t.b}, ${live.banked.dead} dead.`;
+  el.doneZargo.textContent =
+    `${live.nameA} ${Math.round(z.a.from)} → ${Math.round(z.a.to)} · ` +
+    `${live.nameB} ${Math.round(z.b.from)} → ${Math.round(z.b.to)}`;
+  el.doneZargo.classList.remove("hidden");
   el.doneNext.textContent = "Save session";
   el.doneNext.classList.remove("hidden");
-  el.doneNext.onclick = () => finish("done", t, lead, winner);
+  el.doneNext.onclick = () => finish("done", t, lead, winner, z);
   el.doneBack.textContent = "Discard";
-  el.doneBack.onclick = () => finish("discarded", t, lead, winner);
+  el.doneBack.classList.remove("hidden");
+  el.doneBack.onclick = () => finish("discarded", t, lead, winner, null);
   el.done.classList.remove("hidden");
 }
 
-async function finish(status, t, lead, winner){
-  await cloud.patch("sessions/" + live.id, {
+async function finish(status, t, lead, winner, z){
+  const patch = {
     status, endedAt: Date.now(),
     totals: { a: t.a, b: t.b, dead: live.banked.dead, lead, winner }
-  }).catch(e => console.warn(e));
+  };
+  if(status === "done" && z){
+    // Discarding never touches ratings; saving moves both and feeds robustness.
+    const pa = db.players[live.playerA], pb = db.players[live.playerB];
+    patch.zargoAfter = { a: z.a.to, b: z.b.to };
+    await savePlayer(live.playerA, {
+      zargo: z.a.to,
+      robustness: (pa.robustness || 0) + live.banked.racks,
+      sessions: (pa.sessions || 0) + 1
+    });
+    await savePlayer(live.playerB, {
+      zargo: z.b.to,
+      robustness: (pb.robustness || 0) + live.banked.racks,
+      sessions: (pb.sessions || 0) + 1
+    });
+  }
+  await cloud.patch("sessions/" + live.id, patch).catch(e => console.warn(e));
   live = null;
   el.done.classList.add("hidden");
+  el.doneZargo.classList.add("hidden");
   el.doneBack.onclick = null;
   el.doneBack.textContent = "Back to the rack";
+  renderHome();
   show("home");
+  checkLive();
 }
 
 function render(){
@@ -870,6 +963,238 @@ function render(){
     setTimeout(rackComplete, 350);
   }
 }
+
+// ---------- second-phone live view (read-only) ----------
+let watching = null;
+
+function enterWatch(id){
+  if(watching) stopWatchSub();
+  watching = { id, unsub: null };
+  el.undo.style.display = "none";
+  el.next.style.display = "none";
+  el.end.textContent = "Stop watching";
+  el.done.classList.add("hidden");
+  show("live");
+  watching.unsub = cloud.watch("sessions/" + id, doc => {
+    if(!watching) return;
+    if(!doc){ stopWatch(); return; }
+    renderWatch(doc);
+    if(doc.status !== "live") watchOver(doc);
+  });
+}
+function stopWatchSub(){ if(watching && watching.unsub) watching.unsub(); }
+function stopWatch(){
+  stopWatchSub();
+  watching = null;
+  el.undo.style.display = "";
+  el.next.style.display = "";
+  el.end.textContent = "End";
+  el.done.classList.add("hidden");
+  show("home");
+  checkLive();
+}
+function watchOver(doc){
+  const t = doc.totals || { a:0, b:0, dead:0 };
+  const w = t.winner;
+  el.doneTitle.textContent = doc.status === "discarded" ? "Session discarded"
+    : (w ? nameOf(doc[w === "a" ? "playerA" : "playerB"]) + " wins" : "Session over");
+  el.doneBody.textContent = `${nameOf(doc.playerA)} ${t.a}, ${nameOf(doc.playerB)} ${t.b}, ${t.dead} dead.`;
+  el.doneZargo.classList.add("hidden");
+  el.doneNext.textContent = "Done";
+  el.doneNext.classList.remove("hidden");
+  el.doneNext.onclick = stopWatch;
+  el.doneBack.classList.add("hidden");
+  el.done.classList.remove("hidden");
+}
+function renderWatch(doc){
+  const nA = nameOf(doc.playerA), nB = nameOf(doc.playerB);
+  const keys = Object.keys(doc.racks || {}).map(Number).filter(n => n > 0);
+  const rackNo = keys.length ? Math.max(...keys) : 1;
+  const rack = (doc.racks || {})[rackNo] || { balls: {} };
+  const turn = doc.turn || "a";
+  const t = doc.totals || { a:0, b:0, dead:0, lead:0 };
+
+  document.body.dataset.turn = turn;
+  el.sideA.classList.toggle("on", turn === "a");
+  el.sideB.classList.toggle("on", turn === "b");
+  el.nameA.textContent = nA;
+  el.nameB.textContent = nB;
+  el.cueA.textContent = turn === "a" ? "shooting" : "";
+  el.cueB.textContent = turn === "b" ? "shooting" : "";
+
+  for(let n = 1; n <= 9; n++){
+    const s = rack.balls[n], node = nodes[n];
+    node.classList.toggle("claimed", s === "a" || s === "b");
+    node.classList.toggle("dead", s === "dead");
+    node.style.setProperty("--own", s === "b" ? "var(--ochre)" : "var(--chalk)");
+  }
+
+  el.rawA.textContent = t.a;
+  el.rawB.textContent = t.b;
+  el.subA.textContent = doc.mode === "race" && doc.targets ? "target " + doc.targets.a : "";
+  el.subB.textContent = doc.mode === "race" && doc.targets ? "target " + doc.targets.b
+    : (doc.mode === "fixed" ? doc.racksPlanned + " racks" : "open");
+  el.leadLine.textContent = sentenceFor(t.lead || 0, nA, nB);
+  el.rackNo.textContent = rackNo;
+  el.deadCt.textContent = t.dead;
+  el.breakFlip.textContent = "break: " + (rack.breaker === "b" ? nB : nA);
+  el.audit.innerHTML = "";
+  el.undo.disabled = true;
+}
+
+async function checkLive(){
+  try {
+    const ss = await cloud.list("sessions", { orderBy: "startedAt", desc: true, limit: 10 });
+    const l = ss.find(s => s.status === "live" && s.startedAt > Date.now() - 24 * 3600 * 1000);
+    if(l && !live){
+      el.watchBanner.textContent = `Watch live: ${nameOf(l.playerA)} vs ${nameOf(l.playerB)}`;
+      el.watchBanner.classList.remove("hidden");
+      el.watchBanner.onclick = () => enterWatch(l.id);
+    } else {
+      el.watchBanner.classList.add("hidden");
+    }
+  } catch(e){ console.warn("[checkLive]", e); }
+}
+
+// ---------- history ----------
+let histSessions = [], histFilter = null;
+
+el.historyBtn.addEventListener("click", openHistory);
+el.histBack.addEventListener("click", () => show("home"));
+
+async function openHistory(){
+  show("history");
+  el.histList.innerHTML = '<li class="empty">Loading…</li>';
+  try {
+    histSessions = await cloud.list("sessions", { orderBy: "startedAt", desc: true, limit: 100 });
+  } catch(e){
+    el.histList.innerHTML = '<li class="empty">Couldn\'t load history.</li>';
+    return;
+  }
+  histFilter = null;
+  renderHistory();
+}
+
+function renderHistory(){
+  el.histChips.innerHTML = "";
+  const chips = [[null, "All"]].concat(
+    Object.keys(db.players).sort((x,y) => nameOf(x).localeCompare(nameOf(y))).map(id => [id, nameOf(id)]));
+  chips.forEach(([id, label]) => {
+    const b = document.createElement("button");
+    b.textContent = label;
+    b.classList.toggle("sel", histFilter === id);
+    b.addEventListener("click", () => { histFilter = id; renderHistory(); });
+    el.histChips.appendChild(b);
+  });
+
+  const rows = histSessions.filter(s =>
+    s.status !== "discarded" &&
+    (!histFilter || s.playerA === histFilter || s.playerB === histFilter));
+  el.histList.innerHTML = "";
+  if(!rows.length){
+    el.histList.innerHTML = '<li class="empty">No sessions yet.</li>';
+    return;
+  }
+  const MODE = { race: "race", fixed: "fixed racks", open: "open" };
+  rows.forEach(s => {
+    const t = s.totals || { a:0, b:0 };
+    const li = document.createElement("li");
+    const b = document.createElement("button");
+    b.className = "hrow";
+    const date = s.startedAt ? new Date(s.startedAt).toLocaleDateString(undefined,
+      { day: "numeric", month: "short", year: "numeric" }) : "";
+    const liveNow = s.status === "live";
+    const result = liveNow ? '<span class="hlive">LIVE — tap to watch</span>'
+      : (t.winner ? nameOf(s[t.winner === "a" ? "playerA" : "playerB"]) + " won" : "Level");
+    b.innerHTML =
+      `<span class="hmeta">${date} · ${MODE[s.mode] || s.mode}</span>` +
+      `<span></span>` +
+      `<span class="hmeta">${result}</span>`;
+    b.children[1].textContent = `${nameOf(s.playerA)} ${t.a} – ${t.b} ${nameOf(s.playerB)}`;
+    if(liveNow) b.addEventListener("click", () => enterWatch(s.id));
+    li.appendChild(b);
+    el.histList.appendChild(li);
+  });
+}
+
+// ---------- export / import ----------
+el.exportBtn.addEventListener("click", async () => {
+  const sessions = await cloud.list("sessions", { orderBy: "startedAt", desc: true });
+  const data = {
+    app: APP_ID, appVersion: APP_VERSION, exportedAt: new Date().toISOString(),
+    state: { players: db.players, config: cfg() },
+    sessions
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "fair-nine-" + new Date().toISOString().slice(0, 10) + ".json";
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+let pendingImport = null;
+el.importBtn.addEventListener("click", () => el.importFile.click());
+el.importFile.addEventListener("change", async () => {
+  const f = el.importFile.files[0];
+  el.importFile.value = "";
+  if(!f) return;
+  try {
+    const data = JSON.parse(await f.text());
+    if(!data.state || !data.state.players || !Array.isArray(data.sessions)) throw new Error("not a Fair Nine export");
+    pendingImport = data;
+    el.impInfo.textContent =
+      `${Object.keys(data.state.players).length} players, ${data.sessions.length} sessions` +
+      (data.exportedAt ? `, exported ${data.exportedAt.slice(0, 10)}` : "") +
+      ". Merge adds what's missing (by session id) and never overwrites. Replace wipes the cloud data first.";
+    el.impChoice.classList.remove("hidden");
+  } catch(e){
+    el.impInfo.textContent = "";
+    alert("Couldn't read that file: " + (e.message || e));
+  }
+});
+el.impCancel.addEventListener("click", () => { pendingImport = null; el.impChoice.classList.add("hidden"); });
+
+el.impMerge.addEventListener("click", async () => {
+  const imp = pendingImport;
+  el.impChoice.classList.add("hidden");
+  if(!imp) return;
+  for(const id of Object.keys(imp.state.players)){
+    if(!db.players[id]) await savePlayer(id, imp.state.players[id]);
+  }
+  const existing = new Set((await cloud.list("sessions")).map(s => s.id));
+  for(const s of imp.sessions){
+    if(s.id && !existing.has(s.id)){
+      const doc = Object.assign({}, s);
+      delete doc.id;
+      await cloud.save("sessions/" + s.id, doc);
+    }
+  }
+  pendingImport = null;
+  await loadState();
+  renderHome();
+  checkLive();
+});
+
+el.impReplace.addEventListener("click", async () => {
+  const imp = pendingImport;
+  if(!imp) return;
+  if(!confirm("Replace ALL cloud data with this file? Current players, ratings and sessions are wiped first. This can't be undone.")) return;
+  el.impChoice.classList.add("hidden");
+  for(const s of await cloud.list("sessions")) await cloud.delete("sessions/" + s.id);
+  await cloud.delete("state/main");
+  await cloud.save("state/main", { players: imp.state.players, config: imp.state.config || DEFAULT_CONFIG });
+  for(const s of imp.sessions){
+    if(!s.id) continue;
+    const doc = Object.assign({}, s);
+    delete doc.id;
+    await cloud.save("sessions/" + s.id, doc);
+  }
+  pendingImport = null;
+  await loadState();
+  renderHome();
+  checkLive();
+});
 
 if("wakeLock" in navigator){
   navigator.wakeLock.request("screen").catch(() => {});
