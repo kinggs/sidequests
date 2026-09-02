@@ -75,6 +75,17 @@
   .hrow{flex-direction:column;align-items:flex-start;gap:3px;padding:12px 16px}
   .hmeta{font-size:14px;color:var(--bone-dim);font-weight:600}
   .hlive{color:#63c08a}
+  .hitem{display:flex;align-items:stretch;gap:8px}
+  .plist .hitem>button{width:auto}
+  .hitem .hrow{flex:1 1 auto;min-width:0}
+  .hdel{flex:0 0 auto;min-height:64px;padding:0 16px;background:var(--panel);
+    color:var(--bone-dim);font-size:15px;font-weight:700;border-radius:12px}
+  .hdel.arm{color:#e8b04a;box-shadow:inset 0 0 0 1px rgba(232,176,74,.6)}
+
+  /* ---- resume / watch bar on home ---- */
+  .livebar{display:flex;flex-direction:column;gap:9px;padding:13px;border-radius:14px;
+    background:rgba(99,192,138,.1);box-shadow:inset 0 0 0 1px rgba(99,192,138,.35)}
+  .livebar>span{font-size:16px;font-weight:700;color:#63c08a;text-align:center}
 
   /* ---- overlays (player form, rack done) ---- */
   .overlay{position:fixed;inset:0;background:rgba(4,14,11,.95);z-index:20;display:flex;align-items:center;justify-content:center;padding:22px}
@@ -227,7 +238,13 @@
     <ul class="plist" id="playerList"></ul>
     <p class="empty hidden" id="noPlayers">No players yet. Add the first two and start a session.</p>
     <div class="homebtns">
-      <button class="quiet hidden" id="watchBanner"></button>
+      <div class="livebar hidden" id="liveBar">
+        <span id="liveWho"></span>
+        <div class="row2">
+          <button class="primary" id="resumeBtn">Resume scoring</button>
+          <button class="quiet" id="watchBanner">Watch</button>
+        </div>
+      </div>
       <button class="primary" id="newSessionBtn">New session</button>
       <div class="row2">
         <button class="quiet" id="addPlayerBtn">Add player</button>
@@ -361,7 +378,7 @@
 import { cloud } from "../shared/cloud.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "0.5.0";
+const APP_VERSION = "0.6.0";
 const APP_ID = "fair-nine";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 
@@ -374,7 +391,7 @@ const el = {};
  "sideA","sideB","nameA","nameB","rawA","rawB","subA","subB","cueA","cueB","leadLine",
  "rackNo","deadCt","audit","breakFlip","rack","undo","next","end",
  "done","doneTitle","doneBody","doneZargo","doneNext","doneAnyway","doneBack","signInBig",
- "watchBanner","historyBtn","exportBtn","importBtn","importFile",
+ "watchBanner","liveBar","liveWho","resumeBtn","historyBtn","exportBtn","importBtn","importFile",
  "scrHistory","histBack","histChips","histList",
  "impChoice","impInfo","impMerge","impReplace","impCancel"
 ].forEach(id => el[id] = $(id));
@@ -1106,13 +1123,69 @@ async function checkLive(){
     const ss = await cloud.list("sessions", { orderBy: "startedAt", desc: true, limit: 10 });
     const l = ss.find(s => s.status === "live" && s.startedAt > Date.now() - 24 * 3600 * 1000);
     if(l && !live){
-      el.watchBanner.textContent = `Watch live: ${nameOf(l.playerA)} vs ${nameOf(l.playerB)}`;
-      el.watchBanner.classList.remove("hidden");
+      el.liveWho.textContent = `In progress: ${nameOf(l.playerA)} vs ${nameOf(l.playerB)}`;
+      el.resumeBtn.onclick = () => resumeSession(l.id);
       el.watchBanner.onclick = () => enterWatch(l.id);
+      el.liveBar.classList.remove("hidden");
     } else {
-      el.watchBanner.classList.add("hidden");
+      el.liveBar.classList.add("hidden");
     }
   } catch(e){ console.warn("[checkLive]", e); }
+}
+
+// Pick a live session back up on this phone — after a reload, or from another handset.
+// The session document is the record; rebuild the in-memory `live` from it.
+async function resumeSession(id){
+  let doc;
+  try { doc = await cloud.load("sessions/" + id); }
+  catch(e){ console.warn("[resume]", e); alert("Couldn't load that session."); return; }
+  if(!doc){ alert("That session is gone."); await refreshHome(); return; }
+  if(doc.status !== "live"){ alert("That session has already been finished."); await refreshHome(); return; }
+
+  const a = db.players[doc.playerA], b = db.players[doc.playerB];
+  if(!a || !b){ alert("One of those players has been deleted, so this session can't be resumed."); return; }
+
+  const zb = doc.zargoBefore || { a: a.zargo, b: b.zargo };
+  const eA = expectedShareA(zb.a, zb.b);
+  const racks = doc.racks || {};
+  // Every rack below the highest key was banked; the highest one is the rack in progress.
+  const keys = Object.keys(racks).map(Number).filter(n => n > 0).sort((x, y) => x - y);
+  const cur = keys.length ? keys[keys.length - 1] : 1;
+  const banked = { a:0, b:0, dead:0, racks:0 };
+  keys.filter(n => n < cur).forEach(n => {
+    const balls = (racks[n] && racks[n].balls) || {};
+    for(const k in balls) banked[balls[k]] += VAL(+k);
+    banked.racks++;
+  });
+  const now = racks[cur] || {};
+
+  live = {
+    id,
+    playerA: doc.playerA, playerB: doc.playerB,
+    nameA: a.name, nameB: b.name,
+    H: eA / (1 - eA),
+    zargoBefore: zb,
+    mode: doc.mode,
+    targets: doc.targets,
+    racksPlanned: doc.racksPlanned,
+    breaker: now.breaker || "a",
+    rackNo: cur, rackAt: now.at || Date.now(),
+    balls: Object.assign({}, now.balls),
+    history: [],            // undo doesn't survive a reload; the racks below are already banked
+    banked,
+    autoShown: false
+  };
+  state.turn = doc.turn || live.breaker;
+  el.done.classList.add("hidden");
+  el.liveBar.classList.add("hidden");
+  show("live");
+  render();
+}
+
+async function refreshHome(){
+  renderHome();
+  show("home");
+  await checkLive();
 }
 
 // ---------- history ----------
@@ -1163,17 +1236,55 @@ function renderHistory(){
     const date = s.startedAt ? new Date(s.startedAt).toLocaleDateString(undefined,
       { day: "numeric", month: "short", year: "numeric" }) : "";
     const liveNow = s.status === "live";
-    const result = liveNow ? '<span class="hlive">LIVE — tap to watch</span>'
+    const result = liveNow ? '<span class="hlive">LIVE — tap to resume</span>'
       : (t.winner ? nameOf(s[t.winner === "a" ? "playerA" : "playerB"]) + " won" : "Level");
     b.innerHTML =
       `<span class="hmeta">${date} · ${MODE[s.mode] || s.mode}</span>` +
       `<span></span>` +
       `<span class="hmeta">${result}</span>`;
     b.children[1].textContent = `${nameOf(s.playerA)} ${t.a} – ${t.b} ${nameOf(s.playerB)}`;
-    if(liveNow) b.addEventListener("click", () => enterWatch(s.id));
+    if(liveNow) b.addEventListener("click", () => resumeSession(s.id));
+
+    li.className = "hitem";
     li.appendChild(b);
+    li.appendChild(deleteButton(s));
     el.histList.appendChild(li);
   });
+}
+
+function deleteButton(s){
+  const d = document.createElement("button");
+  d.className = "hdel";
+  d.textContent = "Delete";
+  d.setAttribute("aria-label", "Delete this session");
+  let armed = null;
+  d.addEventListener("click", async () => {
+    if(!armed){
+      armed = setTimeout(() => { armed = null; d.classList.remove("arm"); d.textContent = "Delete"; }, 5000);
+      d.classList.add("arm");
+      d.textContent = s.status === "live" ? "Bin it?" : "Sure?";
+      buzz([12]);
+      return;
+    }
+    clearTimeout(armed); armed = null;
+    d.disabled = true;
+    d.textContent = "…";
+    try { await cloud.delete("sessions/" + s.id); }
+    catch(e){
+      console.warn("[delete]", e);
+      d.disabled = false; d.classList.remove("arm"); d.textContent = "Delete";
+      alert("Couldn't delete that session.");
+      return;
+    }
+    // Ratings already earned from a saved session stay put; deleting is a tidy-up, not an undo.
+    if(live && live.id === s.id){ live = null; el.done.classList.add("hidden"); }
+    if(watching && watching.id === s.id) stopWatch();
+    histSessions = histSessions.filter(x => x.id !== s.id);
+    renderHistory();
+    renderHome();
+    checkLive();
+  });
+  return d;
 }
 
 // ---------- export / import ----------

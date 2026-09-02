@@ -95,6 +95,7 @@ New players start at **500**. A player's Zargo can be edited directly from their
 ### 5.1 Home
 - Sign-in state (Google). If signed out, a single big Sign in button and nothing else.
 - List of players with Zargo, robustness, and a provisional tag where relevant.
+- If a session is live, a bar above the buttons offers **Resume scoring** (pick it back up on this phone) and **Watch** (read-only second-phone view).
 - **New session** (primary), Add player, History, Export/Import.
 
 ### 5.2 Session setup
@@ -119,6 +120,8 @@ Add:
 
 ### 5.5 History
 Per player: reverse-chronological list of sessions — date, opponent, mode, score, result. No charts yet.
+
+A live session is tappable to resume it. Every row has a **Delete** button: one tap arms it, a second within five seconds removes the session document for good. Deleting is a tidy-up, not an undo — Zargo movement already applied when the session was saved stays applied.
 
 ---
 
@@ -174,11 +177,13 @@ Offline: Firestore's persistent cache is on; scoring works with no signal and sy
 - S7 — Be told when the table's clear and whether the rack totals 11; bank an odd total anyway if it's genuinely what happened.
 - S8 — End at any time and get a fair result, choosing whether a part-played rack counts.
 - S9 — Watch a live session from a second phone.
+- S10 — Resume a live session after a reload, or from another phone. The session document is the record, so `live` is rebuilt from it: every rack below the highest rack number is banked, the highest is the rack in progress. Undo history doesn't survive.
 
 **After**
 - A1 — See a summary with Zargo movement.
 - A2 — Discard a session.
 - A3 — Browse history per player.
+- A4 — Delete a session outright, live or finished, from History.
 
 **Data**
 - D1 — Sign in with Google; see nothing until signed in.
@@ -194,6 +199,8 @@ Offline: Firestore's persistent cache is on; scoring works with no signal and sy
 - Two new players (both at 500) → equal targets, both provisional.
 - Same player picked for both sides → block it.
 - Rack that doesn't total 11 → warned about, correctable, but bankable as-is if the scorer says so.
+- Resume a session whose player has since been deleted → refuse and say so; the record stays for History.
+- Delete the session this phone is scoring or watching → drop out of it cleanly rather than scoring into a hole.
 - Signed-in user not on the family list → sign-in succeeds but reads fail; show *"Ask Kenny to add your email"* rather than a raw error.
 
 ---
