@@ -149,8 +149,17 @@
   .cue{font-size:15px;font-weight:600;color:#fff;margin-top:7px;min-height:18px}
   .side:not(.on) .cue{color:rgba(239,233,220,.5)}
 
-  /* ---- lead sentence ---- */
-  .leadline{flex:0 0 auto;text-align:center;padding:10px 14px 0;font-size:19px;font-weight:700;min-height:29px}
+  /* ---- lead bar: swings left when A is ahead, right when B is ---- */
+  .leadwrap{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:5px;padding:8px 16px 0}
+  .leadhead{display:flex;align-items:baseline;gap:9px;min-height:34px}
+  .leadname{font-size:16px;font-weight:700;color:var(--bone-dim);text-transform:uppercase;letter-spacing:.05em}
+  .leadnum{font-size:32px;font-weight:800;line-height:1;color:#63c08a;font-variant-numeric:tabular-nums}
+  .leadnum.tied{font-size:23px;color:var(--bone-dim);font-weight:700}
+  .leadbar{position:relative;width:100%;max-width:26rem;height:12px;border-radius:6px;
+    background:rgba(0,0,0,.4);box-shadow:inset 0 0 0 1px rgba(239,233,220,.14);overflow:hidden}
+  .leadfill{position:absolute;top:0;bottom:0;left:50%;width:0;background:#63c08a;
+    transition:left .25s ease,width .25s ease}
+  .leadmid{position:absolute;left:50%;top:0;bottom:0;width:2px;margin-left:-1px;background:rgba(239,233,220,.4)}
 
   /* ---- meta strip ---- */
   .meta{flex:0 0 auto;display:flex;align-items:center;justify-content:center;gap:18px;
@@ -381,7 +390,15 @@
     </button>
   </div>
 
-  <div class="leadline" id="leadLine">Tied</div>
+  <div class="leadwrap">
+    <div class="leadhead">
+      <span class="leadname" id="leadName"></span><b class="leadnum tied" id="leadNum">Tied</b>
+    </div>
+    <div class="leadbar">
+      <div class="leadfill" id="leadFill"></div>
+      <div class="leadmid"></div>
+    </div>
+  </div>
 
   <div class="meta">
     <span>rack <b id="rackNo">1</b></span>
@@ -412,7 +429,7 @@
 import { cloud } from "../shared/cloud.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "0.8.0";
+const APP_VERSION = "0.9.0";
 const APP_ID = "fair-nine";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 
@@ -422,7 +439,7 @@ const el = {};
  "pform","pfTitle","pfName","pfColours","pfZargoRow","pfZargo","pfNote","pfSave","pfCancel",
  "scrHome","scrSetup","scrLive","setupBack","pickA","pickB","modes","lenRow","lenLabel","racksIn",
  "targetsRow","tgtA","tgtB","tgtALabel","tgtBLabel","setupHint","breakBtn","startBtn",
- "sideA","sideB","nameA","nameB","rawA","rawB","subA","subB","cueA","cueB","leadLine",
+ "sideA","sideB","nameA","nameB","rawA","rawB","subA","subB","cueA","cueB","leadName","leadNum","leadFill",
  "rackNo","deadCt","audit","breakFlip","rack","undo","next","end",
  "done","doneTitle","doneBody","doneZargo","doneNext","doneAnyway","doneBack","signInBig",
  "watchBanner","liveBar","liveWho","resumeBtn","historyBtn","exportBtn","importBtn","importFile",
@@ -887,20 +904,39 @@ function leadValue(){
   const t = totals();
   return t.b - t.a / live.H;   // in B's units; positive means B is ahead
 }
-function sentenceFor(v, nA, nB){
-  if(Math.abs(v) < 0.5) return "Tied";
-  return v < 0 ? `${nA} ahead by ${Math.round(-v)}` : `${nB} ahead by ${Math.round(v)}`;
+const clamp1 = v => Math.max(-1, Math.min(1, v));
+
+// One shape for both modes, so the bar reads the same whatever you're playing.
+// pos runs -1..+1 and is negative when player A — the left side — is ahead.
+// In race mode "ahead" means closest to your own target: that's what decides the
+// session, and it can disagree with the adjusted lead once targets are edited.
+function leadState(t, mode, targets, lead){
+  if(mode === "race" && targets && targets.a && targets.b){
+    const fA = t.a / targets.a, fB = t.b / targets.b;
+    if(Math.abs(fA - fB) < 0.005) return { pos: 0, num: "", aAhead: false };
+    const aAhead = fA > fB;
+    // stated in the leader's own target points, so it squares with their score panel
+    const gap = Math.abs(fA - fB) * (aAhead ? targets.a : targets.b);
+    return { pos: clamp1(fB - fA), num: "+" + Math.max(1, Math.round(gap)), aAhead };
+  }
+  if(Math.abs(lead) < 0.5) return { pos: 0, num: "", aAhead: false };
+  // a full rack ahead swings the bar all the way over
+  return { pos: clamp1(lead / LIVE_POINTS()), num: "+" + Math.round(Math.abs(lead)), aAhead: lead < 0 };
 }
-function leadSentence(){ return sentenceFor(leadValue(), live.nameA, live.nameB); }
-// In race mode "ahead" means closest to their own target — that's what decides the
-// session, and it can disagree with the adjusted lead once targets are edited/rounded.
-function raceSentence(t, targets, nA, nB){
-  const ra = Math.max(0, targets.a - t.a), rb = Math.max(0, targets.b - t.b);
-  const fA = t.a / targets.a, fB = t.b / targets.b;
-  if(Math.abs(fA - fB) < 0.005) return `Tied — ${nA} needs ${ra}, ${nB} needs ${rb}`;
-  return fA > fB ? `${nA} ahead — needs ${ra} (${nB} needs ${rb})`
-                 : `${nB} ahead — needs ${rb} (${nA} needs ${ra})`;
+
+function paintLead(t, mode, targets, lead, nA, nB){
+  const s = leadState(t, mode, targets, lead);
+  el.leadName.textContent = s.num ? (s.aAhead ? nA : nB) : "";
+  el.leadNum.textContent = s.num || "Tied";
+  el.leadNum.classList.toggle("tied", !s.num);
+  // fill runs from the centre out to the leader's side; a sliver stays visible when it's close
+  const w = s.pos ? Math.max(3, Math.abs(s.pos) * 50) : 0;
+  el.leadFill.style.left = (s.pos < 0 ? 50 - w : 50) + "%";
+  el.leadFill.style.width = w + "%";
 }
+
+// In race mode each panel carries that player's own run-in, next to their score.
+const needText = (got, tgt) => got >= tgt ? "target met" : `needs ${tgt - got} of ${tgt}`;
 function resolvedCount(){
   let r = 0;
   for(let k = 1; k <= 9; k++) if(live.balls[k]) r++;
@@ -1153,12 +1189,10 @@ function render(){
   const t = totals(), p = rackPoints();
   el.rawA.textContent = t.a;
   el.rawB.textContent = t.b;
-  el.subA.textContent = live.mode === "race" ? "target " + live.targets.a : "";
-  el.subB.textContent = live.mode === "race" ? "target " + live.targets.b
+  el.subA.textContent = live.mode === "race" ? needText(t.a, live.targets.a) : "";
+  el.subB.textContent = live.mode === "race" ? needText(t.b, live.targets.b)
     : (live.mode === "fixed" ? live.racksPlanned + " racks" : "open");
-  el.leadLine.textContent = live.mode === "race"
-    ? raceSentence(t, live.targets, live.nameA, live.nameB)
-    : leadSentence();
+  paintLead(t, live.mode, live.targets, leadValue(), live.nameA, live.nameB);
   el.rackNo.textContent = live.rackNo;
   el.deadCt.textContent = live.banked.dead + p.dead;
   el.breakFlip.textContent = "break: " + (live.breaker === "a" ? live.nameA : live.nameB);
@@ -1243,12 +1277,10 @@ function renderWatch(doc){
 
   el.rawA.textContent = t.a;
   el.rawB.textContent = t.b;
-  el.subA.textContent = doc.mode === "race" && doc.targets ? "target " + doc.targets.a : "";
-  el.subB.textContent = doc.mode === "race" && doc.targets ? "target " + doc.targets.b
+  el.subA.textContent = doc.mode === "race" && doc.targets ? needText(t.a, doc.targets.a) : "";
+  el.subB.textContent = doc.mode === "race" && doc.targets ? needText(t.b, doc.targets.b)
     : (doc.mode === "fixed" ? doc.racksPlanned + " racks" : "open");
-  el.leadLine.textContent = doc.mode === "race" && doc.targets
-    ? raceSentence(t, doc.targets, nA, nB)
-    : sentenceFor(t.lead || 0, nA, nB);
+  paintLead(t, doc.mode, doc.targets, t.lead || 0, nA, nB);
   el.rackNo.textContent = rackNo;
   el.deadCt.textContent = t.dead;
   el.breakFlip.textContent = "break: " + (rack.breaker === "b" ? nB : nA);

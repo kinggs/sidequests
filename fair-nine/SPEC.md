@@ -58,7 +58,7 @@ Always by adjusted comparison, so a session can stop at any moment and still be 
 lead = pointsB − pointsA / H     // in B's units; positive means B is ahead
 ```
 
-Display this as one plain sentence — *"Sarah ahead by 3"* — never as "adjusted points". Raw scores are shown alongside.
+Display this as a **lead bar**, not as "adjusted points": a green fill running from the centre of the bar out towards whoever is ahead — left for player A, right for player B — under the leader's name and the gap in large type ("SARAH  +3"). A full rack ahead (11 points) swings it all the way over; a lead too small to see keeps a visible sliver. Level reads "Tied" with an empty bar. Raw scores sit above it in the two panels.
 
 ### 3.3 Updating after a session
 
@@ -109,7 +109,7 @@ Everything in the existing `index.html` stays: diamond rack, whole-screen tint f
 
 Add:
 - Player names in the panels instead of "You / Opponent".
-- The one-line lead sentence under the scores.
+- The lead bar under the scores (§3.2).
 - Rack-end check: when all nine are resolved, show the 11-point check and a Next rack button; warn about a rack that doesn't total 11, and offer Bank it anyway alongside Back to the rack.
 - Live sync: the session document updates after every ball so a second phone can watch.
 
@@ -218,7 +218,7 @@ Offline: Firestore's persistent cache is on; scoring works with no signal and sy
 
 1. Players with Zargo and robustness in `state/main`; sign-in gate.
 2. Session setup with proposed targets.
-3. Wire the existing live scoring screen to a session document (names, lead sentence, rack-end check, per-rack `patch`).
+3. Wire the existing live scoring screen to a session document (names, lead bar, rack-end check, per-rack `patch`).
 4. Summary with Zargo update; History.
 5. Export/Import.
 6. Second-phone live view (mostly free once 3 is done).
@@ -237,10 +237,11 @@ Offline: Firestore's persistent cache is on; scoring works with no signal and sy
 - **No gate flash.** The Sign in button renders only after Firebase reports the auth state, so
   signed-in users no longer see it flicker on load.
 - **"Tied", not "Dead level"** — "dead" is reserved for dead balls.
-- **Race-mode lead sentence talks targets.** In a race, "ahead" means closest to your own
-  target ("Kenny ahead — needs 8 (Mel needs 2)"), since that decides the session and can
-  disagree with the adjusted lead once targets are rounded or edited. Fixed/open keep the
-  adjusted-lead sentence.
+- **Race-mode lead talks targets.** In a race, "ahead" means closest to your own target,
+  since that decides the session and can disagree with the adjusted lead once targets are
+  rounded or edited. The bar is driven by the gap between the two progress fractions and the
+  big number states it in the leader's own target points; each panel carries that player's
+  run-in ("needs 8 of 25", or "target met"). Fixed/open drive the bar from the adjusted lead.
 - **Ratings settle fast.** Under 3 sessions a player is "settling": against a known player
   (3+ sessions) their Zargo is solved directly from the observed point share (capped ±250,
   jumping all the way on session 1, half on 2, a third on 3) while the known player's rating
