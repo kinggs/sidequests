@@ -155,6 +155,7 @@
   .leadname{font-size:16px;font-weight:700;color:var(--bone-dim);text-transform:uppercase;letter-spacing:.05em}
   .leadnum{font-size:32px;font-weight:800;line-height:1;color:#63c08a;font-variant-numeric:tabular-nums}
   .leadnum.tied{font-size:23px;color:var(--bone-dim);font-weight:700}
+  .leadnum.word{font-size:23px}
   .leadbar{position:relative;width:100%;max-width:26rem;height:12px;border-radius:6px;
     background:rgba(0,0,0,.4);box-shadow:inset 0 0 0 1px rgba(239,233,220,.14);overflow:hidden}
   .leadfill{position:absolute;top:0;bottom:0;left:50%;width:0;background:#63c08a;
@@ -331,6 +332,7 @@
       <div class="field"><span id="tgtBLabel">Target</span><input id="tgtB" type="number" inputmode="numeric" min="1"></div>
     </div>
     <p class="thint" id="setupHint"></p>
+    <p class="thint warn hidden" id="setupWarn"></p>
     <button class="quiet" id="breakBtn">— breaks first</button>
     <button class="primary" id="startBtn" disabled>Start</button>
   </div>
@@ -429,7 +431,7 @@
 import { cloud } from "../shared/cloud.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "0.9.0";
+const APP_VERSION = "0.10.0";
 const APP_ID = "fair-nine";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 
@@ -438,7 +440,7 @@ const el = {};
 ["userBox","gate","gateErr","homeBody","playerList","noPlayers","newSessionBtn","addPlayerBtn",
  "pform","pfTitle","pfName","pfColours","pfZargoRow","pfZargo","pfNote","pfSave","pfCancel",
  "scrHome","scrSetup","scrLive","setupBack","pickA","pickB","modes","lenRow","lenLabel","racksIn",
- "targetsRow","tgtA","tgtB","tgtALabel","tgtBLabel","setupHint","breakBtn","startBtn",
+ "targetsRow","tgtA","tgtB","tgtALabel","tgtBLabel","setupHint","setupWarn","breakBtn","startBtn",
  "sideA","sideB","nameA","nameB","rawA","rawB","subA","subB","cueA","cueB","leadName","leadNum","leadFill",
  "rackNo","deadCt","audit","breakFlip","rack","undo","next","end",
  "done","doneTitle","doneBody","doneZargo","doneNext","doneAnyway","doneBack","signInBig",
@@ -708,12 +710,31 @@ function renderSetup(){
       ? "Even match — equal targets."
       : `${a.name} is expected to score ${H > 1 ? H.toFixed(1) : (1/H).toFixed(1)} points for each 1 of ${H > 1 ? b.name : a.name}'s.`;
     el.breakBtn.textContent = (setup.breaker === "a" ? a.name : b.name) + " breaks first";
+    showShortRaceWarning(a, b, eA);
   } else {
     el.setupHint.textContent = "Pick a player for each side.";
+    el.setupWarn.classList.add("hidden");
     el.breakBtn.textContent = "— breaks first";
   }
   el.startBtn.disabled = !(setup.a && setup.b);
 }
+const FAIR_RACE_MIN = 8;   // points; below this one rack can decide the session
+
+function showShortRaceWarning(a, b, eA){
+  const small = Math.min(parseInt(el.tgtA.value, 10) || 0, parseInt(el.tgtB.value, 10) || 0);
+  if(setup.mode !== "race" || !small || small >= FAIR_RACE_MIN){
+    el.setupWarn.classList.add("hidden");
+    return;
+  }
+  const under = (parseInt(el.tgtA.value, 10) || 0) <= (parseInt(el.tgtB.value, 10) || 0) ? a : b;
+  const share = Math.min(eA, 1 - eA);
+  const racks = Math.ceil(FAIR_RACE_MIN / (LIVE_POINTS() * share));
+  el.setupWarn.textContent =
+    `${under.name} only needs ${small} points, so a single rack could decide it. ` +
+    `About ${racks} racks would give both of you room to play.`;
+  el.setupWarn.classList.remove("hidden");
+}
+
 function proposeTargets(){
   const a = db.players[setup.a], b = db.players[setup.b];
   if(!a || !b || setup.mode !== "race") return;
@@ -722,7 +743,7 @@ function proposeTargets(){
   el.tgtA.value = Math.max(1, Math.round(LIVE_POINTS() * racks * eA));
   el.tgtB.value = Math.max(1, Math.round(LIVE_POINTS() * racks * (1 - eA)));
 }
-el.racksIn.addEventListener("input", proposeTargets);
+el.racksIn.addEventListener("input", () => { proposeTargets(); renderSetup(); });
 el.modes.querySelectorAll("button").forEach(b =>
   b.addEventListener("click", () => { setup.mode = b.dataset.mode; proposeTargets(); renderSetup(); }));
 el.breakBtn.addEventListener("click", () => {
@@ -913,22 +934,28 @@ const clamp1 = v => Math.max(-1, Math.min(1, v));
 function leadState(t, mode, targets, lead){
   if(mode === "race" && targets && targets.a && targets.b){
     const fA = t.a / targets.a, fB = t.b / targets.b;
-    if(Math.abs(fA - fB) < 0.005) return { pos: 0, num: "", aAhead: false };
-    const aAhead = fA > fB;
-    // stated in the leader's own target points, so it squares with their score panel
-    const gap = Math.abs(fA - fB) * (aAhead ? targets.a : targets.b);
-    return { pos: clamp1(fB - fA), num: "+" + Math.max(1, Math.round(gap)), aAhead };
+    const share = fB - fA;   // shares of the race; positive means B is ahead
+    if(Math.abs(share) < 0.005) return { pos: 0, num: "", aAhead: false };
+    const aAhead = share < 0;
+    if(fA >= 1 || fB >= 1) return { pos: aAhead ? -1 : 1, num: "target met", aAhead };
+    // Full swing at a quarter of the race clear, damped by how much has been played.
+    // With a big handicap the weaker player's target is short, so one early ball is a
+    // huge slice of it — true, but it proves little, and an undamped bar lurches on it.
+    const done = Math.min(1, (fA + fB) / 2);
+    return { pos: clamp1(share / 0.25 * done), num: Math.round(Math.abs(share) * 100) + "%", aAhead };
   }
   if(Math.abs(lead) < 0.5) return { pos: 0, num: "", aAhead: false };
   // a full rack ahead swings the bar all the way over
-  return { pos: clamp1(lead / LIVE_POINTS()), num: "+" + Math.round(Math.abs(lead)), aAhead: lead < 0 };
+  return { pos: clamp1(lead / LIVE_POINTS()), num: String(Math.round(Math.abs(lead))), aAhead: lead < 0 };
 }
 
 function paintLead(t, mode, targets, lead, nA, nB){
   const s = leadState(t, mode, targets, lead);
   el.leadName.textContent = s.num ? (s.aAhead ? nA : nB) : "";
-  el.leadNum.textContent = s.num || "Tied";
+  const numeric = /^\d/.test(s.num);
+  el.leadNum.textContent = s.num ? (numeric ? "+" + s.num : s.num) : "Tied";
   el.leadNum.classList.toggle("tied", !s.num);
+  el.leadNum.classList.toggle("word", !!s.num && !numeric);
   // fill runs from the centre out to the leader's side; a sliver stays visible when it's close
   const w = s.pos ? Math.max(3, Math.abs(s.pos) * 50) : 0;
   el.leadFill.style.left = (s.pos < 0 ? 50 - w : 50) + "%";

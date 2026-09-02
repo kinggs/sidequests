@@ -58,7 +58,7 @@ Always by adjusted comparison, so a session can stop at any moment and still be 
 lead = pointsB − pointsA / H     // in B's units; positive means B is ahead
 ```
 
-Display this as a **lead bar**, not as "adjusted points": a green fill running from the centre of the bar out towards whoever is ahead — left for player A, right for player B — under the leader's name and the gap in large type ("SARAH  +3"). A full rack ahead (11 points) swings it all the way over; a lead too small to see keeps a visible sliver. Level reads "Tied" with an empty bar. Raw scores sit above it in the two panels.
+Display this as a **lead bar**, not as "adjusted points": a green fill running from the centre of the bar out towards whoever is ahead — left for player A, right for player B — under the leader's name and the gap in large type ("SARAH  +3"). In fixed and open a full rack ahead (11 points) swings it all the way over. In a race the bar is driven by the gap between the two progress fractions and reads in shares of the race ("MEL +26%"), with full swing at a quarter-race clear, **damped by how much of the race has been played** and pegged once someone meets their target. The damping matters: with a big handicap the underdog's target is short, so their first ball is a large slice of it — true, but it proves little, and an undamped bar lurches on it. A lead too small to see keeps a visible sliver. Level reads "Tied" with an empty bar. Raw scores sit above it in the two panels.
 
 ### 3.3 Updating after a session
 
@@ -81,6 +81,14 @@ Every player shows their Zargo and robustness (`Sarah · 468 · robustness 42`).
 ### 3.5 Starter rating and override
 
 New players start at **500**. A player's Zargo can be edited directly from their profile (with a confirmation) as a starter guess for someone obviously strong or weak — Fargo does the same thing. Any session's targets can be edited before starting without touching ratings.
+
+### 3.6 Races need enough points to be a contest
+
+A race target is only as fine-grained as its own size. At an 8:1 handicap over five racks the
+underdog races to 6, so one ball is a sixth of their session and a single rack can settle it —
+the handicap is right but the resolution is wrong. Setup warns when either proposed target
+falls below **8 points**, names the player it affects, and says roughly how many racks would
+give both players room. It's a nudge, not a block: targets and rack count stay editable.
 
 ## 4. Session modes
 
@@ -240,8 +248,9 @@ Offline: Firestore's persistent cache is on; scoring works with no signal and sy
 - **Race-mode lead talks targets.** In a race, "ahead" means closest to your own target,
   since that decides the session and can disagree with the adjusted lead once targets are
   rounded or edited. The bar is driven by the gap between the two progress fractions and the
-  big number states it in the leader's own target points; each panel carries that player's
-  run-in ("needs 8 of 25", or "target met"). Fixed/open drive the bar from the adjusted lead.
+  big number states it as a share of the race — one definition for both sides, where stating
+  it in the leader's own target points made the same bar position read "+1" one way and "+4"
+  the other. Each panel carries that player's run-in ("needs 8 of 25", or "target met"). Fixed/open drive the bar from the adjusted lead.
 - **Ratings settle fast.** Under 3 sessions a player is "settling": against a known player
   (3+ sessions) their Zargo is solved directly from the observed point share (capped ±250,
   jumping all the way on session 1, half on 2, a third on 3) while the known player's rating
