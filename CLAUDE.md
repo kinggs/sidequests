@@ -13,7 +13,7 @@ sidequests/
     cloud.js              ← the ONLY file that talks to Firebase (auth + Firestore + offline)
     firebase-config.js    ← one project for all apps, filled in once
     firestore.rules       ← family allowlist; copy of what's published in the console
-  _template/              ← what /new-app copies
+  _template/              ← what /sidequest copies
   index.html              ← landing page listing every app
   <app-id>/
     index.html            ← the whole app, one file
