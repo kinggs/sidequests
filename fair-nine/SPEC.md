@@ -172,7 +172,7 @@ Offline: Firestore's persistent cache is on; scoring works with no signal and sy
 - S5 — Mark a ball dead; long-press to clear; undo anything in the session.
 - S6 — See raw scores and one sentence saying who's ahead.
 - S7 — Be told when the table's clear and whether the rack totals 11; bank an odd total anyway if it's genuinely what happened.
-- S8 — End at any time and get a fair result.
+- S8 — End at any time and get a fair result, choosing whether a part-played rack counts.
 - S9 — Watch a live session from a second phone.
 
 **After**
@@ -190,7 +190,7 @@ Offline: Firestore's persistent cache is on; scoring works with no signal and sy
 ## 8. Edge cases
 
 - Session with zero complete racks → discard silently; ratings untouched.
-- Abandoned mid-rack → that rack is dropped; complete racks count.
+- Abandoned mid-rack → the rack is dropped by default, but if anything was scored in it, End asks first and offers to count it. Complete racks always count.
 - Two new players (both at 500) → equal targets, both provisional.
 - Same player picked for both sides → block it.
 - Rack that doesn't total 11 → warned about, correctable, but bankable as-is if the scorer says so.

@@ -361,7 +361,7 @@
 import { cloud } from "../shared/cloud.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "0.4.0";
+const APP_VERSION = "0.5.0";
 const APP_ID = "fair-nine";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 
@@ -852,11 +852,47 @@ function nextRack(){
   sync();
 }
 
-async function endSession(){
-  // A complete, correct rack that just hasn't been banked still counts.
+function endSession(){
+  if(!live) return;
   const p = rackPoints();
-  if(resolvedCount() === 9 && p.a + p.b + p.dead === LIVE_POINTS()) bankRack();
-  // An incomplete rack is dropped (spec: abandoned mid-rack).
+  const resolved = resolvedCount();
+
+  // A complete, correct rack that just hasn't been banked still counts, no questions.
+  if(resolved === 9 && p.a + p.b + p.dead === LIVE_POINTS()){ bankRack(); return finishSession(); }
+  // Nothing tapped in this rack, so there's nothing to lose by dropping it.
+  if(resolved === 0) return finishSession();
+  // Part-played, or all nine down but not adding up: ask rather than bin it quietly.
+  askAboutPartRack(p, resolved);
+}
+
+// The rack in progress is worth points to someone. Dropping it is still the default
+// (spec: abandoned mid-rack), but the scorer can count it if it's a real result.
+function askAboutPartRack(p, resolved){
+  const left = 9 - resolved;
+  el.doneTitle.textContent = "End the session?";
+  el.doneBody.innerHTML = left
+    ? `Rack ${live.rackNo} isn't finished — <span class="warn">${left}</span> ` +
+      `${left === 1 ? "ball" : "balls"} still on the table, ` +
+      `${live.nameA} ${p.a}, ${live.nameB} ${p.b}, ${p.dead} dead. ` +
+      `It's dropped unless you say otherwise.`
+    : `Rack ${live.rackNo} totals <span class="warn">${p.a + p.b + p.dead}</span>, ` +
+      `not ${LIVE_POINTS()} — ${live.nameA} ${p.a}, ${live.nameB} ${p.b}, ${p.dead} dead. ` +
+      `It's dropped unless you say otherwise.`;
+  el.doneNext.textContent = "End without rack " + live.rackNo;
+  el.doneNext.onclick = () => finishSession();
+  el.doneNext.classList.remove("hidden");
+  el.doneAnyway.textContent = "Count rack " + live.rackNo + ", then end";
+  el.doneAnyway.onclick = () => { bankRack(); finishSession(); };
+  el.doneAnyway.classList.remove("hidden");
+  el.doneZargo.classList.add("hidden");
+  el.doneBack.textContent = "Back to the rack";
+  el.doneBack.onclick = null;
+  el.doneBack.classList.remove("hidden");
+  el.done.classList.remove("hidden");
+}
+
+async function finishSession(){
+  el.doneAnyway.classList.add("hidden");
   live.balls = {}; live.history = [];
 
   if(live.banked.racks === 0){
