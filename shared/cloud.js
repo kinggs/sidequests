@@ -10,6 +10,7 @@
 //   cloud.watch("sessions/abc", doc => ...);
 //   await cloud.patch("sessions/abc", { "racks.3": {...} }); // dotted field paths
 //   await cloud.list("sessions");
+//   cloud.watchList("sessions", rows => ..., { orderBy: "at" });
 //
 // All data for an app lives under /sidequests/<appId>/ in Firestore. Apps never read or
 // write outside their own namespace, so one Firebase project serves the whole repo.
@@ -124,6 +125,16 @@ export const cloud = {
     if (clauses.length) q = fs.query(q, ...clauses);
     const snap = await fs.getDocs(q);
     return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+
+  // Live updates for a whole collection. Same options as list(). Returns an unsubscribe function.
+  watchList(collectionPath, cb, { orderBy, desc = true, limit } = {}) {
+    let q = colRef(collectionPath);
+    const clauses = [];
+    if (orderBy) clauses.push(fs.orderBy(orderBy, desc ? "desc" : "asc"));
+    if (limit) clauses.push(fs.limit(limit));
+    if (clauses.length) q = fs.query(q, ...clauses);
+    return fs.onSnapshot(q, snap => cb(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
   },
 
   newId() {

@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#101418">
+<link rel="manifest" href="manifest.json">
+<title>Beer O'Clock</title>
+<style>
+  :root{
+    --bg:#101418; --panel:#1a2027; --panel-lift:#232b34;
+    --ink:#eef0f2; --ink-dim:#aab3bd; --accent:#e0a11b; --accent-ink:#181206;
+    --late:#e2603f; --ok:#4f9d72;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+  html,body{height:100%}
+  body{
+    background:var(--bg);color:var(--ink);
+    font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    font-size:18px;line-height:1.4;font-variant-numeric:tabular-nums;
+    display:flex;flex-direction:column;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    -webkit-user-select:none;user-select:none;
+  }
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;background:var(--panel)}
+  header h1{font-size:20px;font-weight:700}
+  main{flex:1;padding:16px;overflow-y:auto}
+  footer{padding:10px 16px;font-size:15px;color:var(--ink-dim);text-align:center}
+  .hidden{display:none !important}
+
+  button{
+    min-height:56px;padding:0 20px;border-radius:12px;border:none;
+    background:var(--accent);color:var(--accent-ink);font:inherit;font-weight:700;
+  }
+  button:active{filter:brightness(1.15)}
+  button.quiet{background:transparent;color:var(--ink-dim);border:1px solid rgba(255,255,255,.22)}
+  button:focus-visible{outline:3px solid #fff;outline-offset:2px}
+  .user{display:flex;align-items:center;gap:10px;font-size:15px;color:var(--ink-dim)}
+  .user img{width:32px;height:32px;border-radius:50%}
+
+  .gate{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;text-align:center;padding:40px 8px}
+  .gate p{color:var(--ink-dim)}
+  .gate button{width:100%;max-width:20rem;height:64px;font-size:19px}
+
+  /* ---- verdict banner ---- */
+  .banner{
+    background:var(--panel);border-radius:16px;padding:18px 16px;margin-bottom:16px;
+    border-left:6px solid var(--ok);
+  }
+  .banner.late{border-left-color:var(--late)}
+  .banner .lead{font-size:22px;font-weight:800;line-height:1.25}
+  .banner .sub{color:var(--ink-dim);font-size:15px;margin-top:4px}
+  .banner button{margin-top:14px;width:100%}
+
+  /* ---- habit cards ---- */
+  .card{background:var(--panel);border-radius:16px;padding:14px 16px;margin-bottom:12px}
+  .card .top{display:flex;align-items:center;gap:12px}
+  .card .emoji{font-size:30px;line-height:1}
+  .card .name{font-size:19px;font-weight:700;flex:1}
+  .card .since{font-size:15px;color:var(--ink-dim);text-align:right}
+  .card .since b{display:block;font-size:17px;color:var(--ink);font-weight:700}
+  .bar{height:10px;border-radius:6px;background:var(--panel-lift);margin:12px 0;overflow:hidden}
+  .bar i{display:block;height:100%;border-radius:6px;background:var(--ok);transition:width .25s ease}
+  .bar.late i{background:var(--late)}
+  .card .acts{display:flex;gap:10px}
+  .card .acts button{flex:1}
+  .card .acts button.rem{flex:0 0 auto;min-width:110px}
+
+  h2.sect{font-size:16px;font-weight:700;color:var(--ink-dim);text-transform:uppercase;
+    letter-spacing:.06em;margin:26px 0 10px}
+
+  /* ---- recent ---- */
+  .recent{list-style:none;display:flex;flex-direction:column;gap:8px}
+  .recent li{display:flex;align-items:center;gap:12px;background:var(--panel);border-radius:14px;padding:10px 8px 10px 14px}
+  .recent .who{flex:1;min-width:0}
+  .recent .who .l1{font-weight:600}
+  .recent .who .l2{font-size:15px;color:var(--ink-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .recent .emoji{font-size:24px}
+  .recent button{min-width:56px;min-height:56px;padding:0;background:transparent;color:var(--ink-dim);font-size:22px}
+  .empty{color:var(--ink-dim);font-size:16px;padding:6px 2px}
+
+  /* ---- intervals ---- */
+  .iv{display:flex;align-items:center;gap:10px;background:var(--panel);border-radius:14px;padding:8px 8px 8px 14px;margin-bottom:8px}
+  .iv .lbl{flex:1;font-weight:600}
+  .iv .val{min-width:5.5rem;text-align:center;font-size:17px;color:var(--ink-dim)}
+  .iv button{min-width:56px;padding:0;font-size:24px;background:var(--panel-lift);color:var(--ink)}
+
+  .row{display:flex;gap:10px;margin-top:16px}
+  .row button{flex:1}
+
+  /* ---- log sheet ---- */
+  .sheet{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;z-index:20}
+  .sheet .inner{
+    width:100%;background:var(--bg);border-radius:20px 20px 0 0;padding:20px 16px;
+    padding-bottom:calc(20px + env(safe-area-inset-bottom));max-height:92vh;overflow-y:auto;
+  }
+  .sheet h3{font-size:21px;margin-bottom:16px}
+  .sheet label{display:block;font-size:15px;color:var(--ink-dim);margin:14px 0 6px}
+  .sheet input[type=date], .sheet input[type=text]{
+    width:100%;min-height:56px;padding:0 14px;font:inherit;font-size:18px;
+    background:var(--panel);color:var(--ink);border:1px solid rgba(255,255,255,.14);border-radius:12px;
+    -webkit-user-select:text;user-select:text;
+  }
+  .chips{display:flex;gap:10px}
+  .chips button{flex:1;background:var(--panel);color:var(--ink-dim);border:1px solid rgba(255,255,255,.14)}
+  .chips button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+  .sheet .row{margin-top:20px}
+  .toast{
+    position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:30;
+    background:var(--panel-lift);color:var(--ink);padding:14px 20px;border-radius:14px;
+    font-size:16px;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:90vw;text-align:center;
+  }
+  @media (prefers-reduced-motion: reduce){ *{transition:none !important} }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Beer O'Clock</h1>
+  <div class="user" id="userBox"></div>
+</header>
+
+<main id="main">
+  <section class="gate hidden" id="gate">
+    <p id="gateMsg">Sign in to see how long it's been.</p>
+    <button id="signInBig">Sign in with Google</button>
+  </section>
+
+  <section class="hidden" id="app">
+    <div class="banner" id="banner"></div>
+    <div id="cards"></div>
+
+    <h2 class="sect">Recent</h2>
+    <ul class="recent" id="recent"></ul>
+
+    <h2 class="sect">How often</h2>
+    <div id="intervals"></div>
+
+    <div class="row">
+      <button class="quiet" id="exportBtn">Export</button>
+      <button class="quiet" id="importBtn">Import</button>
+    </div>
+    <input type="file" id="importFile" accept="application/json,.json" class="hidden">
+  </section>
+</main>
+
+<footer>Beer O'Clock <span id="version"></span></footer>
+
+<div class="sheet hidden" id="sheet">
+  <div class="inner">
+    <h3 id="sheetTitle">Log it</h3>
+    <label for="sheetDate">When</label>
+    <input type="date" id="sheetDate">
+    <label>Who was there</label>
+    <div class="chips" id="sheetWho"></div>
+    <label for="sheetNote">Where / what (optional)</label>
+    <input type="text" id="sheetNote" placeholder="The Bell, Sunday session…" autocomplete="off">
+    <div class="row">
+      <button class="quiet" id="sheetCancel">Cancel</button>
+      <button id="sheetSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { cloud } from "../shared/cloud.js";
+
+  // Bump on every change. The deploy skill checks this against the live site.
+  const APP_VERSION = "0.1.0";
+  const APP_ID = "beer-oclock";
+  document.getElementById("version").textContent = "v" + APP_VERSION;
+
+  const $ = id => document.getElementById(id);
+
+  // ---- the three habits ----
+  const ACTIVITIES = [
+    { id:"beer",  name:"Beer",       emoji:"🍺", title:"Beer o'clock",  every:7  },
+    { id:"pool",  name:"Pool",       emoji:"🎱", title:"Pool",          every:14 },
+    { id:"music", name:"Live music", emoji:"🎸", title:"Live music",    every:30 }
+  ];
+  const PEOPLE = ["Kenny", "Sergio"];
+  const DEFAULT_INTERVALS = Object.fromEntries(ACTIVITIES.map(a => [a.id, a.every]));
+
+  // ---- state ----
+  let intervals = { ...DEFAULT_INTERVALS };
+  let entries = [];              // { id, activity, at, who[], note, by }
+  let unsubs = [];
+  let sheetFor = null;
+  let sheetWho = new Set(PEOPLE);
+
+  // ---- taps: pointerup, not click ----
+  function tap(node, fn){
+    if (!node) return;
+    let down = false, sx = 0, sy = 0;
+    node.addEventListener("pointerdown", e => { down = true; sx = e.clientX; sy = e.clientY; });
+    node.addEventListener("pointercancel", () => { down = false; });
+    node.addEventListener("pointerup", e => {
+      if (!down) return;
+      down = false;
+      if (Math.abs(e.clientX - sx) > 14 || Math.abs(e.clientY - sy) > 14) return; // a scroll, not a tap
+      e.preventDefault();
+      fn(e);
+    });
+    node.addEventListener("click", e => e.preventDefault());
+  }
+
+  // ---- dates ----
+  const DAY = 86400000;
+  const startOfDay = ms => { const d = new Date(ms); d.setHours(0,0,0,0); return d.getTime(); };
+  const daysSince = ms => Math.round((startOfDay(Date.now()) - startOfDay(ms)) / DAY);
+  const pad = n => String(n).padStart(2, "0");
+  const toISO = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  // Stored at 20:00 local so a day's entries sort sensibly and "days ago" is a calendar count.
+  function fromISO(iso){
+    const [y,m,d] = iso.split("-").map(Number);
+    return new Date(y, m-1, d, 20, 0, 0).getTime();
+  }
+  function whenLabel(ms){
+    const n = daysSince(ms);
+    if (n <= 0) return "Today";
+    if (n === 1) return "Yesterday";
+    if (n < 7) return `${n} days ago`;
+    return new Date(ms).toLocaleDateString(undefined, { day:"numeric", month:"short", year:"numeric" });
+  }
+
+  // ---- status per habit ----
+  function lastFor(id){
+    let best = null;
+    for (const e of entries) if (e.activity === id && (!best || e.at > best.at)) best = e;
+    return best;
+  }
+  function statusFor(act){
+    const every = intervals[act.id] || DEFAULT_INTERVALS[act.id];
+    const last = lastFor(act.id);
+    if (!last) return { never:true, late:true, left:-999, every, since:null, fill:1,
+                        line:"Never logged", short:"Never" };
+    const since = daysSince(last.at);
+    const left = every - since;
+    const line = left > 1 ? `Due in ${left} days`
+      : left === 1 ? "Due tomorrow"
+      : left === 0 ? "Due today"
+      : `${-left} day${left === -1 ? "" : "s"} overdue`;
+    return { never:false, late:left <= 0, left, every, since, last,
+             fill: Math.max(0, Math.min(1, since / every)), line,
+             short: since === 0 ? "Today" : `${since}d ago` };
+  }
+  function mostUrgent(){
+    return ACTIVITIES.map(a => ({ act:a, st:statusFor(a) }))
+      .sort((x,y) => x.st.left - y.st.left)[0];
+  }
+
+  // ---- render ----
+  function render(){
+    renderBanner();
+    renderCards();
+    renderRecent();
+    renderIntervals();
+  }
+
+  function renderBanner(){
+    const { act, st } = mostUrgent();
+    const b = $("banner");
+    b.classList.toggle("late", st.late);
+    const lead = st.never
+      ? `${act.emoji} No ${act.name.toLowerCase()} logged yet`
+      : st.late ? `${act.emoji} ${act.title} — ${st.line.toLowerCase()}`
+                : `${act.emoji} Next up: ${act.name}`;
+    const sub = st.never ? "Tap below the moment you do it."
+      : st.late ? `Last one ${whenLabel(st.last.at).toLowerCase()}.`
+                : `${st.line}. Last one ${whenLabel(st.last.at).toLowerCase()}.`;
+    b.innerHTML = `<div class="lead"></div><div class="sub"></div><button type="button">Log ${act.name.toLowerCase()} now</button>`;
+    b.querySelector(".lead").textContent = lead;
+    b.querySelector(".sub").textContent = sub;
+    tap(b.querySelector("button"), () => openSheet(act.id));
+  }
+
+  function renderCards(){
+    const wrap = $("cards");
+    wrap.innerHTML = "";
+    for (const act of ACTIVITIES){
+      const st = statusFor(act);
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML = `
+        <div class="top">
+          <span class="emoji"></span>
+          <span class="name"></span>
+          <span class="since"><b></b><span class="sl"></span></span>
+        </div>
+        <div class="bar"><i></i></div>
+        <div class="acts">
+          <button type="button" class="log">Log it</button>
+          <button type="button" class="quiet rem">Remind</button>
+        </div>`;
+      card.querySelector(".emoji").textContent = act.emoji;
+      card.querySelector(".name").textContent = act.name;
+      card.querySelector(".since b").textContent = st.short;
+      card.querySelector(".sl").textContent = st.line;
+      card.querySelector(".bar").classList.toggle("late", st.late);
+      card.querySelector(".bar i").style.width = Math.round(st.fill * 100) + "%";
+      tap(card.querySelector(".log"), () => openSheet(act.id));
+      tap(card.querySelector(".rem"), () => remind(act, st));
+      wrap.appendChild(card);
+    }
+  }
+
+  function renderRecent(){
+    const ul = $("recent");
+    ul.innerHTML = "";
+    const rows = [...entries].sort((a,b) => b.at - a.at).slice(0, 20);
+    if (!rows.length){
+      const li = document.createElement("li");
+      li.className = "empty";
+      li.textContent = "Nothing logged yet.";
+      ul.appendChild(li);
+      return;
+    }
+    for (const e of rows){
+      const act = ACTIVITIES.find(a => a.id === e.activity) || { emoji:"•", name:e.activity };
+      const li = document.createElement("li");
+      li.innerHTML = `<span class="emoji"></span>
+        <span class="who"><div class="l1"></div><div class="l2"></div></span>
+        <button type="button" aria-label="Delete">✕</button>`;
+      li.querySelector(".emoji").textContent = act.emoji;
+      li.querySelector(".l1").textContent = `${act.name} · ${whenLabel(e.at)}`;
+      const who = (e.who && e.who.length) ? e.who.join(" & ") : "—";
+      li.querySelector(".l2").textContent = e.note ? `${who} · ${e.note}` : who;
+      tap(li.querySelector("button"), () => removeEntry(e));
+      ul.appendChild(li);
+    }
+  }
+
+  function renderIntervals(){
+    const wrap = $("intervals");
+    wrap.innerHTML = "";
+    for (const act of ACTIVITIES){
+      const n = intervals[act.id] || DEFAULT_INTERVALS[act.id];
+      const row = document.createElement("div");
+      row.className = "iv";
+      row.innerHTML = `<span class="lbl"></span>
+        <button type="button" class="minus" aria-label="Less often">−</button>
+        <span class="val"></span>
+        <button type="button" class="plus" aria-label="More often">+</button>`;
+      row.querySelector(".lbl").textContent = `${act.emoji} ${act.name}`;
+      row.querySelector(".val").textContent = n === 1 ? "1 day" : `${n} days`;
+      tap(row.querySelector(".minus"), () => setInterval_(act.id, n - (n > 14 ? 7 : 1)));
+      tap(row.querySelector(".plus"),  () => setInterval_(act.id, n + (n >= 14 ? 7 : 1)));
+      wrap.appendChild(row);
+    }
+  }
+
+  function toast(msg){
+    const t = document.createElement("div");
+    t.className = "toast";
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 2600);
+  }
+
+  // ---- the log sheet ----
+  function openSheet(actId){
+    sheetFor = actId;
+    sheetWho = new Set(PEOPLE);
+    const act = ACTIVITIES.find(a => a.id === actId);
+    $("sheetTitle").textContent = `${act.emoji} ${act.name}`;
+    $("sheetDate").value = toISO(new Date());
+    $("sheetNote").value = "";
+    renderWhoChips();
+    $("sheet").classList.remove("hidden");
+  }
+  function closeSheet(){ $("sheet").classList.add("hidden"); sheetFor = null; }
+
+  function renderWhoChips(){
+    const wrap = $("sheetWho");
+    wrap.innerHTML = "";
+    for (const p of PEOPLE){
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = p;
+      b.setAttribute("aria-pressed", sheetWho.has(p) ? "true" : "false");
+      tap(b, () => {
+        if (sheetWho.has(p)) sheetWho.delete(p); else sheetWho.add(p);
+        renderWhoChips();
+      });
+      wrap.appendChild(b);
+    }
+  }
+
+  async function saveEntry(){
+    if (!sheetFor) return;
+    const entry = {
+      activity: sheetFor,
+      at: fromISO($("sheetDate").value || toISO(new Date())),
+      who: PEOPLE.filter(p => sheetWho.has(p)),
+      note: $("sheetNote").value.trim(),
+      by: cloud.user ? cloud.user.email : null
+    };
+    const act = ACTIVITIES.find(a => a.id === sheetFor);
+    closeSheet();
+    await store.add(entry);
+    toast(`${act.emoji} ${act.name} logged`);
+  }
+
+  async function removeEntry(e){
+    await store.remove(e);
+  }
+
+  async function setInterval_(id, days){
+    const n = Math.max(1, Math.min(365, days));
+    intervals = { ...intervals, [id]: n };
+    render();
+    await store.saveSettings();
+  }
+
+  // ---- calendar reminder (.ics) ----
+  function remind(act, st){
+    const due = new Date();
+    due.setHours(18, 0, 0, 0);
+    if (st.last) {
+      const d = new Date(startOfDay(st.last.at) + st.every * DAY);
+      d.setHours(18, 0, 0, 0);
+      if (d.getTime() > Date.now()) due.setTime(d.getTime());
+    }
+    const stamp = d => `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
+    const end = new Date(due.getTime() + 2 * 3600000);
+    const utc = new Date().toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+    const ics = [
+      "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//sidequests//beer-oclock//EN", "CALSCALE:GREGORIAN",
+      "BEGIN:VEVENT",
+      `UID:${act.id}-${due.getTime()}@beer-oclock`,
+      `DTSTAMP:${utc}`,
+      `DTSTART:${stamp(due)}`,
+      `DTEND:${stamp(end)}`,
+      `SUMMARY:${act.emoji} ${act.title} with ${PEOPLE.join(" & ")}`,
+      "DESCRIPTION:Nudge from Beer O'Clock.",
+      "BEGIN:VALARM", "ACTION:DISPLAY", "DESCRIPTION:Reminder", "TRIGGER:-PT30M", "END:VALARM",
+      "END:VEVENT", "END:VCALENDAR"
+    ].join("\r\n");
+    download(`${act.id}-reminder.ics`, ics, "text/calendar");
+    toast(`Calendar invite for ${due.toLocaleDateString(undefined, { day:"numeric", month:"short" })}`);
+  }
+
+  function download(name, text, type){
+    const url = URL.createObjectURL(new Blob([text], { type: type + ";charset=utf-8" }));
+    const a = document.createElement("a");
+    a.href = url; a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 4000);
+  }
+
+  // ---- export / import ----
+  function exportAll(){
+    const data = { app: APP_ID, version: APP_VERSION, exportedAt: new Date().toISOString(), intervals, entries };
+    download(`beer-oclock-${toISO(new Date())}.json`, JSON.stringify(data, null, 2), "application/json");
+  }
+
+  async function importFile(file){
+    let data;
+    try { data = JSON.parse(await file.text()); }
+    catch { return toast("That file isn't JSON."); }
+    if (!data || !Array.isArray(data.entries)) return toast("No entries in that file.");
+    if (data.intervals) { intervals = { ...DEFAULT_INTERVALS, ...data.intervals }; await store.saveSettings(); }
+    const have = new Set(entries.map(e => `${e.activity}|${e.at}`));
+    let added = 0;
+    for (const raw of data.entries){
+      if (!raw || !raw.activity || !raw.at) continue;
+      const key = `${raw.activity}|${raw.at}`;
+      if (have.has(key)) continue;
+      have.add(key);
+      await store.add({
+        activity: String(raw.activity), at: Number(raw.at),
+        who: Array.isArray(raw.who) ? raw.who : [], note: String(raw.note || ""), by: raw.by || null
+      });
+      added++;
+    }
+    toast(added ? `Imported ${added} entr${added === 1 ? "y" : "ies"}` : "Nothing new to import");
+  }
+
+  // ---- storage ----
+  // Cloud when Firebase is set up and signed in; a plain in-memory copy otherwise, so the
+  // app still runs (and still exports) if it's ever opened without the cloud.
+  const store = {
+    get live(){ return cloud.configured() && !!cloud.user; },
+    async add(entry){
+      if (this.live) return cloud.save(`log/${cloud.newId()}`, entry);
+      entries = [...entries, { id: "local-" + Math.random().toString(36).slice(2), ...entry }];
+      render();
+    },
+    async remove(e){
+      if (this.live) return cloud.delete(`log/${e.id}`);
+      entries = entries.filter(x => x.id !== e.id);
+      render();
+    },
+    async saveSettings(){
+      if (this.live) return cloud.save("state/settings", { intervals });
+    }
+  };
+
+  // ---- wiring ----
+  tap($("sheetCancel"), closeSheet);
+  tap($("sheetSave"), saveEntry);
+  tap($("exportBtn"), exportAll);
+  tap($("importBtn"), () => $("importFile").click());
+  $("importFile").addEventListener("change", e => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (f) importFile(f);
+  });
+  $("sheet").addEventListener("pointerup", e => { if (e.target === $("sheet")) closeSheet(); });
+
+  // ---- cloud ----
+  const userBox = $("userBox");
+  await cloud.init(APP_ID);
+
+  function applyUser(user){
+    if (user) {
+      userBox.innerHTML = `<img src="${user.photoURL || ""}" alt=""><button class="quiet" id="signOut" style="min-height:44px;padding:0 14px;font-size:15px">Sign out</button>`;
+      tap($("signOut"), () => cloud.signOut());
+    } else {
+      userBox.innerHTML = "";
+    }
+    start(user);
+  }
+
+  // onUser only fires straight away when someone is signed in, so paint the signed-out
+  // state ourselves. Also what makes the app run before Firebase is set up.
+  cloud.onUser(applyUser);
+  if (!cloud.user) applyUser(null);
+
+  tap($("signInBig"), () => cloud.signIn().catch(err => {
+    $("gateMsg").textContent = "Sign-in failed: " + (err && err.code ? err.code : err);
+  }));
+
+  // ---- app ----
+  function start(user){
+    unsubs.forEach(u => { try { u(); } catch {} });
+    unsubs = [];
+
+    const gated = cloud.configured() && !user;
+    $("gate").classList.toggle("hidden", !gated);
+    $("app").classList.toggle("hidden", gated);
+    if (gated) return;
+
+    if (cloud.configured()){
+      unsubs.push(cloud.watch("state/settings", doc => {
+        intervals = { ...DEFAULT_INTERVALS, ...((doc && doc.intervals) || {}) };
+        render();
+      }));
+      unsubs.push(cloud.watchList("log", rows => {
+        entries = rows.filter(r => typeof r.at === "number");
+        render();
+      }, { orderBy: "at", desc: true, limit: 200 }));
+    }
+    render();
+  }
+
+  // ---- offline shell ----
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
+</script>
+</body>
+</html>
