@@ -78,6 +78,11 @@
   .hitem{display:flex;align-items:stretch;gap:8px}
   .plist .hitem>button{width:auto}
   .hitem .hrow{flex:1 1 auto;min-width:0}
+  .fitem{display:flex;align-items:center;gap:8px;background:var(--panel);border-radius:12px;padding-left:16px;min-height:60px}
+  .fitem>span{flex:1;font-size:16px;font-weight:600;word-break:break-all}
+  .fitem .you{flex:0 0 auto;color:var(--bone-dim);font-size:14px;padding-right:16px}
+  .famin{font:inherit;font-size:18px;color:var(--bone);background:rgba(0,0,0,.35);border:1px solid rgba(239,233,220,.25);border-radius:10px;padding:13px 14px;width:100%}
+  .card select{font:inherit;font-size:17px;font-weight:600;color:var(--bone);background:rgba(0,0,0,.35);border:1px solid rgba(239,233,220,.25);border-radius:10px;padding:12px}
   .hdel{flex:0 0 auto;min-height:64px;padding:0 16px;background:var(--panel);
     color:var(--bone-dim);font-size:15px;font-weight:700;border-radius:12px}
   .hdel.arm{color:#e8b04a;box-shadow:inset 0 0 0 1px rgba(232,176,74,.6)}
@@ -228,7 +233,7 @@
     <div class="user" id="userBox"></div>
   </header>
 
-  <div class="gate" id="gate">
+  <div class="gate hidden" id="gate">
     <button id="signInBig">Sign in with Google</button>
     <p class="dim">Family scoring for nine-ball.<br>Nothing to see until you're in.</p>
   </div>
@@ -251,6 +256,7 @@
         <button class="quiet" id="historyBtn">History</button>
       </div>
       <div class="row2">
+        <button class="quiet" id="familyBtn">Family</button>
         <button class="quiet" id="exportBtn">Export</button>
         <button class="quiet" id="importBtn">Import</button>
       </div>
@@ -268,6 +274,17 @@
     <label>Name <input id="pfName" autocomplete="off" maxlength="24"></label>
     <label>Colour</label>
     <div class="swatches" id="pfColours"></div>
+    <div class="hidden" id="pfEst" style="display:flex;flex-direction:column;gap:10px">
+      <label>Starter rating (optional)</label>
+      <p class="thint">New players start at 500. To seed something closer, imagine a race to 9
+        (first to win 9 racks) against someone already rated — what would the score likely be?</p>
+      <div class="field"><span>Against</span><select id="estRef"></select></div>
+      <div class="tgrid">
+        <div class="field"><span id="estRefName">—</span><input id="estRefScore" type="number" inputmode="numeric" min="0" max="9" value="9"></div>
+        <div class="field"><span>New player</span><input id="estNewScore" type="number" inputmode="numeric" min="0" max="9" value="9"></div>
+      </div>
+      <p class="thint" id="estOut"></p>
+    </div>
     <label class="hidden" id="pfZargoRow">Zargo (starter rating — edit only if you're sure)
       <input id="pfZargo" type="number" inputmode="numeric" step="1">
     </label>
@@ -317,6 +334,22 @@
   </header>
   <div class="histchips" id="histChips"></div>
   <ul class="plist histlist" id="histList"></ul>
+</section>
+
+<!-- ============ FAMILY ============ -->
+<section class="screen hidden" id="scrFamily">
+  <header class="apphead">
+    <h1>Family</h1>
+    <button class="quiet small" id="famBack">Back</button>
+  </header>
+  <div class="setupbody">
+    <p class="thint">Anyone listed here can sign in with that Google account and use every
+      sidequests app. Removing someone locks them out immediately but keeps their data.</p>
+    <ul class="plist" id="famList"></ul>
+    <input class="famin" id="famEmail" type="email" inputmode="email" autocomplete="off" placeholder="name@gmail.com">
+    <button class="primary" id="famAdd">Add to family</button>
+    <button class="quiet" id="famShare">Share this app</button>
+  </div>
 </section>
 
 <!-- ============ IMPORT CHOICE ============ -->
@@ -378,7 +411,7 @@
 import { cloud } from "../shared/cloud.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "0.6.0";
+const APP_VERSION = "0.7.0";
 const APP_ID = "fair-nine";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 
@@ -393,7 +426,9 @@ const el = {};
  "done","doneTitle","doneBody","doneZargo","doneNext","doneAnyway","doneBack","signInBig",
  "watchBanner","liveBar","liveWho","resumeBtn","historyBtn","exportBtn","importBtn","importFile",
  "scrHistory","histBack","histChips","histList",
- "impChoice","impInfo","impMerge","impReplace","impCancel"
+ "impChoice","impInfo","impMerge","impReplace","impCancel",
+ "familyBtn","scrFamily","famBack","famList","famEmail","famAdd","famShare",
+ "pfEst","estRef","estRefName","estRefScore","estNewScore","estOut"
 ].forEach(id => el[id] = $(id));
 
 function buzz(ms){ if(navigator.vibrate) navigator.vibrate(ms); }
@@ -438,15 +473,17 @@ function show(scr){
   el.scrSetup.classList.toggle("hidden", scr !== "setup");
   el.scrLive.classList.toggle("hidden", scr !== "live");
   el.scrHistory.classList.toggle("hidden", scr !== "history");
+  el.scrFamily.classList.toggle("hidden", scr !== "family");
   document.body.classList.toggle("scoring", scr === "live");
 }
 
 const nameOf = id => (db.players[id] && db.players[id].name) || "(deleted)";
 
 // ---------- auth gate ----------
+// The gate stays hidden until auth state is actually known, so a signed-in
+// user never sees a flash of the Sign in button while Firebase wakes up.
 let started = false;
-await cloud.init(APP_ID);
-cloud.onUser(async user => {
+async function handleUser(user){
   if(user){
     el.userBox.innerHTML = `<img src="${user.photoURL || ""}" alt=""><span>${user.displayName || user.email}</span>`;
     el.gate.classList.add("hidden");
@@ -471,7 +508,10 @@ cloud.onUser(async user => {
     el.gate.classList.remove("hidden");
     show("home");
   }
-});
+}
+await cloud.init(APP_ID);
+handleUser(cloud.user);
+cloud.onUser(handleUser);
 el.signInBig.addEventListener("click", () => cloud.signIn().catch(e => {
   el.gateErr.textContent = "Sign-in failed: " + (e.message || e);
   el.gateErr.classList.remove("hidden");
@@ -513,6 +553,7 @@ function openPlayerForm(id){
   pfColour = p ? p.colour : PALETTE[Object.keys(db.players).length % PALETTE.length];
   el.pfZargoRow.classList.toggle("hidden", !p);
   el.pfZargo.value = p ? Math.round(p.zargo) : "";
+  if(p) el.pfEst.classList.add("hidden"); else setupEstimator();
   el.pfNote.classList.add("hidden");
   el.pfColours.innerHTML = "";
   PALETTE.forEach(c => {
@@ -545,14 +586,57 @@ el.pfSave.addEventListener("click", async () => {
     await savePlayer(pfEditing, fields);
   } else {
     const id = cloud.newId();
+    const est = estUsed ? estimateZargo() : null;
     await savePlayer(id, {
       name, colour: pfColour,
-      zargo: cfg().startZargo, robustness: 0, sessions: 0, createdAt: Date.now()
+      zargo: est === null ? cfg().startZargo : est,
+      robustness: 0, sessions: 0, createdAt: Date.now()
     });
   }
   el.pform.classList.add("hidden");
   renderHome();
 });
+
+// ---- starter-rating estimate (add mode only) ----
+// A race to 9 finishing 9–n implies the stronger player wins racks 9/n times as
+// often; Zargo's scale says 100 points apart = twice the points, so the gap is
+// 100 × log2(9/n). Rough by design — it self-corrects with every rack played.
+let estUsed = false;
+function setupEstimator(){
+  const ids = Object.keys(db.players).sort((x,y) => nameOf(x).localeCompare(nameOf(y)));
+  estUsed = false;
+  el.pfEst.classList.toggle("hidden", ids.length === 0);
+  if(!ids.length) return;
+  el.estRef.innerHTML = "";
+  ids.forEach(id => {
+    const o = document.createElement("option");
+    o.value = id;
+    o.textContent = `${nameOf(id)} (${Math.round(db.players[id].zargo)})`;
+    el.estRef.appendChild(o);
+  });
+  el.estRefScore.value = 9;
+  el.estNewScore.value = 9;
+  updateEstimate(false);
+}
+function estimateZargo(){
+  const ref = db.players[el.estRef.value];
+  if(!ref) return null;
+  const rs = Math.min(9, Math.max(0.5, parseFloat(el.estRefScore.value) || 0.5));
+  const ns = Math.min(9, Math.max(0.5, parseFloat(el.estNewScore.value) || 0.5));
+  const gap = 100 * Math.log2(rs / ns);
+  return Math.round(Math.min(900, Math.max(100, ref.zargo - gap)));
+}
+function updateEstimate(touched){
+  if(touched) estUsed = true;
+  el.estRefName.textContent = db.players[el.estRef.value] ? nameOf(el.estRef.value) : "—";
+  const z = estimateZargo();
+  el.estOut.textContent = !estUsed
+    ? `Leave untouched to start at ${cfg().startZargo}.`
+    : (z === null ? "" : `Starts at ${z}. Rough is fine — it self-corrects with every rack.`);
+}
+el.estRef.addEventListener("change", () => updateEstimate(estUsed));
+el.estRefScore.addEventListener("input", () => updateEstimate(true));
+el.estNewScore.addEventListener("input", () => updateEstimate(true));
 
 // ---------- session setup ----------
 const setup = { a:null, b:null, mode:"race", breaker:"a" };
@@ -1286,6 +1370,88 @@ function deleteButton(s){
   });
   return d;
 }
+
+// ---------- family allowlist ----------
+el.familyBtn.addEventListener("click", openFamily);
+el.famBack.addEventListener("click", () => show("home"));
+
+async function openFamily(){
+  show("family");
+  el.famShare.textContent = "Share this app";
+  el.famList.innerHTML = '<li class="empty">Loading…</li>';
+  let emails;
+  try { emails = await cloud.listMembers(); }
+  catch(e){
+    el.famList.innerHTML = '<li class="empty">Couldn\'t load the family list.</li>';
+    return;
+  }
+  el.famList.innerHTML = "";
+  const me = ((cloud.user && cloud.user.email) || "").toLowerCase();
+  emails.forEach(em => {
+    const li = document.createElement("li");
+    li.className = "fitem";
+    const s = document.createElement("span");
+    s.textContent = em;
+    li.appendChild(s);
+    if(em === me){
+      // You can't lock yourself out.
+      const y = document.createElement("span");
+      y.className = "you";
+      y.textContent = "you";
+      li.appendChild(y);
+    } else {
+      li.appendChild(removeMemberButton(em));
+    }
+    el.famList.appendChild(li);
+  });
+}
+
+function removeMemberButton(em){
+  const d = document.createElement("button");
+  d.className = "hdel";
+  d.textContent = "Remove";
+  let armed = null;
+  d.addEventListener("click", async () => {
+    if(!armed){
+      armed = setTimeout(() => { armed = null; d.classList.remove("arm"); d.textContent = "Remove"; }, 5000);
+      d.classList.add("arm");
+      d.textContent = "Sure?";
+      buzz([12]);
+      return;
+    }
+    clearTimeout(armed); armed = null;
+    d.disabled = true; d.textContent = "…";
+    try { await cloud.removeMember(em); openFamily(); }
+    catch(e){
+      d.disabled = false; d.classList.remove("arm"); d.textContent = "Remove";
+      alert("Couldn't remove: " + (e.message || e));
+    }
+  });
+  return d;
+}
+
+el.famAdd.addEventListener("click", async () => {
+  const em = el.famEmail.value.trim().toLowerCase();
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){ el.famEmail.focus(); return; }
+  el.famAdd.disabled = true;
+  try {
+    await cloud.addMember(em);
+    el.famEmail.value = "";
+    await openFamily();
+  } catch(e){ alert("Couldn't add: " + (e.message || e)); }
+  el.famAdd.disabled = false;
+});
+
+el.famShare.addEventListener("click", () => {
+  const url = location.origin + location.pathname;
+  if(navigator.share){
+    navigator.share({ title: "Fair Nine", text: "Nine-ball scorer — sign in with the Gmail that's been added to the family.", url }).catch(() => {});
+  } else if(navigator.clipboard){
+    navigator.clipboard.writeText(url)
+      .then(() => { el.famShare.textContent = "Link copied"; })
+      .catch(() => {});
+  }
+});
 
 // ---------- export / import ----------
 el.exportBtn.addEventListener("click", async () => {

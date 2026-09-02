@@ -39,8 +39,8 @@ GitHub Pages serves `main` from the repo root. Nothing to configure per app.
 ## Firebase — one project, one rule set
 
 - Config lives in `shared/firebase-config.js`. Filled in once; never per app.
-- Security lives in `shared/firestore.rules`: signed-in Google users whose email is on the family list. It covers every app automatically.
-- **Adding a person:** add their Gmail address to the list in `shared/firestore.rules`, commit, then deploy the rules (below).
+- Security lives in `shared/firestore.rules`: signed-in Google users whose email has a document in the Firestore `/members` collection. It covers every app automatically, and the rules file contains no email addresses (the repo is public).
+- **Adding a person:** in-app — Fair Nine → Family — or via `cloud.addMember(email)` from any app. Instant; no rules deploy needed. Rules deploys are only for changing the rules *logic*.
 - **Deploying rules:** push to `main`. The `deploy-rules` GitHub Action deploys `shared/firestore.rules` automatically whenever it changes, from any session on any device. (Fallbacks if the Action ever breaks: desktop CLI `firebase deploy --only firestore:rules`, or paste the file into Firebase console → Firestore Database → Rules → Publish.)
 - Offline works out of the box: `cloud.js` turns on Firestore's persistent local cache, and each app's `sw.js` caches the shell.
 

@@ -1,9 +1,10 @@
 rules_version = '2';
 
 // One rule set for every app in this repo.
-// Access = you are signed in with Google AND your email is on the family list.
-// To add a person: add their Gmail address below, then paste this whole file into
-// Firebase console → Firestore → Rules → Publish. That's it, for every app at once.
+// Access = you are signed in with Google AND your email has a document in /members.
+// The family list lives in Firestore, not in this file, so the apps can manage it:
+// adding or removing a person (Fair Nine → Family) takes effect instantly, with no
+// rules deploy and no email addresses in the public repo.
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -11,10 +12,12 @@ service cloud.firestore {
     function isFamily() {
       return request.auth != null
         && request.auth.token.email_verified == true
-        && request.auth.token.email in [
-          "kenny.inggs@gmail.com",
-          "melanie.inggs@gmail.com"
-        ];
+        && exists(/databases/$(database)/documents/members/$(request.auth.token.email));
+    }
+
+    // The allowlist itself: any family member can manage it.
+    match /members/{email} {
+      allow read, write: if isFamily();
     }
 
     // Every app keeps its data under /sidequests/<appId>/...

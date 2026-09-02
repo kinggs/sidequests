@@ -222,3 +222,17 @@ Offline: Firestore's persistent cache is on; scoring works with no signal and sy
 4. Summary with Zargo update; History.
 5. Export/Import.
 6. Second-phone live view (mostly free once 3 is done).
+
+---
+
+## 11. Post-v2 decisions
+
+- **Family allowlist moved to Firestore.** `shared/firestore.rules` no longer lists emails; it
+  checks `exists(/members/<email>)`. The list is managed in-app (Home → Family): any family
+  member can add or remove a Gmail address, effect is instant, no rules deploy. You can't
+  remove your own address. A Share button sends the app link.
+- **Starter rating estimate.** Adding a player offers an optional hint: pick an existing player
+  and a likely race-to-9 score; the gap is `100 × log2(theirScore / newScore)` off the reference
+  rating. Untouched, new players still start at 500.
+- **No gate flash.** The Sign in button renders only after Firebase reports the auth state, so
+  signed-in users no longer see it flicker on load.

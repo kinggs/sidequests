@@ -128,5 +128,23 @@ export const cloud = {
 
   newId() {
     return fs.doc(colRef("_ids")).id;
+  },
+
+  // ---- family allowlist ----
+  // Lives in /members (one doc per email, doc id = the address, lowercased).
+  // Firestore rules check membership there, so changes take effect instantly.
+  async listMembers() {
+    const snap = await fs.getDocs(fs.collection(db, "members"));
+    return snap.docs.map(d => d.id).sort();
+  },
+  addMember(email) {
+    const e = String(email).trim().toLowerCase();
+    return fs.setDoc(fs.doc(db, "members", e), {
+      addedBy: currentUser ? currentUser.email : null,
+      addedAt: fs.serverTimestamp()
+    });
+  },
+  removeMember(email) {
+    return fs.deleteDoc(fs.doc(db, "members", String(email).trim().toLowerCase()));
   }
 };
