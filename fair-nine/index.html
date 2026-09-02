@@ -205,6 +205,7 @@
   .done p .warn{font-weight:700}
   .done button{height:68px;padding:0 36px;border-radius:14px;border:none;background:var(--bone);color:#0a2a20;font-size:21px;font-weight:700}
   .done .ghost{background:none;color:var(--bone-dim);border:1px solid rgba(239,233,220,.3);height:54px;font-size:18px}
+  .done .warnbtn{color:#e8b04a;border-color:rgba(232,176,74,.55)}
 </style>
 </head>
 <body data-turn="a">
@@ -352,6 +353,7 @@
   <p id="doneBody"></p>
   <p class="hidden" id="doneZargo"></p>
   <button id="doneNext">Start rack 2</button>
+  <button class="ghost warnbtn hidden" id="doneAnyway">Bank it anyway</button>
   <button class="ghost" id="doneBack">Back to the rack</button>
 </div>
 
@@ -359,7 +361,7 @@
 import { cloud } from "../shared/cloud.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "0.3.0";
+const APP_VERSION = "0.4.0";
 const APP_ID = "fair-nine";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 
@@ -371,7 +373,7 @@ const el = {};
  "targetsRow","tgtA","tgtB","tgtALabel","tgtBLabel","setupHint","breakBtn","startBtn",
  "sideA","sideB","nameA","nameB","rawA","rawB","subA","subB","cueA","cueB","leadLine",
  "rackNo","deadCt","audit","breakFlip","rack","undo","next","end",
- "done","doneTitle","doneBody","doneZargo","doneNext","doneBack","signInBig",
+ "done","doneTitle","doneBody","doneZargo","doneNext","doneAnyway","doneBack","signInBig",
  "watchBanner","historyBtn","exportBtn","importBtn","importFile",
  "scrHistory","histBack","histChips","histList",
  "impChoice","impInfo","impMerge","impReplace","impCancel"
@@ -788,24 +790,42 @@ function rackComplete(){
   const p = rackPoints();
   const sum = p.a + p.b + p.dead;
   const need = LIVE_POINTS();
+  const t = totals();
+  const finished = targetReached(t) ||
+    (live.mode === "fixed" && live.banked.racks + 1 >= live.racksPlanned);
+  const goOn = finished ? () => { bankRack(); declare(); } : () => { bankRack(); nextRack(); };
+  const goOnLabel = finished ? "Declare the result" : "Start rack " + (live.rackNo + 1);
+
   if(sum !== need){
-    el.doneTitle.textContent = "Rack doesn't add up";
-    el.doneBody.innerHTML = `This rack totals <span class="warn">${sum}</span>, not ${need}. ` +
-      `Something got mis-tapped — go back and fix it. A rack can't be banked until it adds up.`;
-    el.doneNext.classList.add("hidden");
+    // Soft warning: the total is almost always a mis-tap, but real racks go odd
+    // (a ball off the table, a ball nobody saw drop), so let it through on purpose.
+    const left = 9 - resolvedCount();
+    el.doneTitle.textContent = left
+      ? left + (left === 1 ? " ball still on the table" : " balls still on the table")
+      : "That's " + sum + ", not " + need;
+    el.doneBody.innerHTML = `${live.nameA} ${p.a}, ${live.nameB} ${p.b}, ${p.dead} dead — ` +
+      `<span class="warn">${sum}</span> instead of ${need}. ` +
+      (left ? `Bank it now and this rack counts as it stands.`
+            : `Usually a mis-tap, so it's worth a look. If the rack really did play out that way, ` +
+              `bank it as it stands.`);
+    el.doneNext.textContent = "Back to the rack";
+    el.doneNext.onclick = () => { el.done.classList.add("hidden"); };
+    el.doneNext.classList.remove("hidden");
+    el.doneAnyway.textContent = finished ? "Bank it and declare" : "Bank it anyway";
+    el.doneAnyway.onclick = goOn;
+    el.doneAnyway.classList.remove("hidden");
+    el.doneBack.classList.add("hidden");
   } else {
     el.doneTitle.textContent = "Rack " + live.rackNo + " done";
     el.doneBody.textContent = `${live.nameA} ${p.a}, ${live.nameB} ${p.b}, ${p.dead} dead. Adds up to ${need}.`;
-    const t = totals();
-    const finished = targetReached(t) ||
-      (live.mode === "fixed" && live.banked.racks + 1 >= live.racksPlanned);
-    el.doneNext.textContent = finished ? "Declare the result" : "Start rack " + (live.rackNo + 1);
-    el.doneNext.onclick = finished ? () => { bankRack(); declare(); } : () => { bankRack(); nextRack(); };
+    el.doneNext.textContent = goOnLabel;
+    el.doneNext.onclick = goOn;
     el.doneNext.classList.remove("hidden");
+    el.doneAnyway.classList.add("hidden");
+    el.doneBack.textContent = "Back to the rack";
+    el.doneBack.classList.remove("hidden");
   }
   el.doneZargo.classList.add("hidden");
-  el.doneBack.textContent = "Back to the rack";
-  el.doneBack.classList.remove("hidden");
   el.done.classList.remove("hidden");
   buzz([18,60,18]);
 }
@@ -884,6 +904,7 @@ function declare(){
     `${live.nameA} ${Math.round(z.a.from)} → ${Math.round(z.a.to)} · ` +
     `${live.nameB} ${Math.round(z.b.from)} → ${Math.round(z.b.to)}`;
   el.doneZargo.classList.remove("hidden");
+  el.doneAnyway.classList.add("hidden");
   el.doneNext.textContent = "Save session";
   el.doneNext.classList.remove("hidden");
   el.doneNext.onclick = () => finish("done", t, lead, winner, z);
@@ -917,6 +938,7 @@ async function finish(status, t, lead, winner, z){
   live = null;
   el.done.classList.add("hidden");
   el.doneZargo.classList.add("hidden");
+  el.doneAnyway.classList.add("hidden");
   el.doneBack.onclick = null;
   el.doneBack.textContent = "Back to the rack";
   renderHome();
@@ -1000,6 +1022,7 @@ function watchOver(doc){
     : (w ? nameOf(doc[w === "a" ? "playerA" : "playerB"]) + " wins" : "Session over");
   el.doneBody.textContent = `${nameOf(doc.playerA)} ${t.a}, ${nameOf(doc.playerB)} ${t.b}, ${t.dead} dead.`;
   el.doneZargo.classList.add("hidden");
+  el.doneAnyway.classList.add("hidden");
   el.doneNext.textContent = "Done";
   el.doneNext.classList.remove("hidden");
   el.doneNext.onclick = stopWatch;

@@ -28,7 +28,7 @@ This is **not** standard nine-ball. In standard rules the game ends when the 9 i
 - Play continues until **all nine balls are off the table**. Sinking the 9 early ends nothing.
 - Balls 1–8 score **1 point** each; the 9 scores **3**. Every rack is worth **11 live points**.
 - A ball pocketed on a foul or scratch is **dead**: it stays down, scores for nobody, and the shooter loses their turn.
-- A rack is complete when all nine balls have a state. `pointsA + pointsB + deadPoints === 11` always holds for a complete rack. This is a hard invariant, not a warning — surface it at rack end and don't let a rack be banked if it fails.
+- A rack is complete when all nine balls have a state. `pointsA + pointsB + deadPoints === 11` should hold for a complete rack, and normally does. Surface a **soft warning** at rack end when it doesn't — it's nearly always a mis-tap — but let the rack be banked as it stands, because real racks sometimes go odd (a ball off the table, a ball nobody saw drop). Going back to fix it is the default action; banking anyway is the clearly-labelled second option.
 - Who breaks is recorded per rack (default: alternate; the app pre-fills and the user can flip it).
 
 Point values live in config (`{ low: 1, nine: 3 }`) so the 10-point APA-style variant is one edit.
@@ -109,7 +109,7 @@ Everything in the existing `index.html` stays: diamond rack, whole-screen tint f
 Add:
 - Player names in the panels instead of "You / Opponent".
 - The one-line lead sentence under the scores.
-- Rack-end check: when all nine are resolved, show the 11-point check and a Next rack button; refuse to bank a rack that doesn't total 11.
+- Rack-end check: when all nine are resolved, show the 11-point check and a Next rack button; warn about a rack that doesn't total 11, and offer Bank it anyway alongside Back to the rack.
 - Live sync: the session document updates after every ball so a second phone can watch.
 
 ### 5.4 Session summary
@@ -171,7 +171,7 @@ Offline: Firestore's persistent cache is on; scoring works with no signal and sy
 - S4 — Tap a ball to award it to the shooter; tap the score panel to change shooter.
 - S5 — Mark a ball dead; long-press to clear; undo anything in the session.
 - S6 — See raw scores and one sentence saying who's ahead.
-- S7 — Be told when the table's clear and whether the rack totals 11.
+- S7 — Be told when the table's clear and whether the rack totals 11; bank an odd total anyway if it's genuinely what happened.
 - S8 — End at any time and get a fair result.
 - S9 — Watch a live session from a second phone.
 
@@ -193,7 +193,7 @@ Offline: Firestore's persistent cache is on; scoring works with no signal and sy
 - Abandoned mid-rack → that rack is dropped; complete racks count.
 - Two new players (both at 500) → equal targets, both provisional.
 - Same player picked for both sides → block it.
-- Rack that doesn't total 11 → cannot be banked; must be corrected.
+- Rack that doesn't total 11 → warned about, correctable, but bankable as-is if the scorer says so.
 - Signed-in user not on the family list → sign-in succeeds but reads fail; show *"Ask Kenny to add your email"* rather than a raw error.
 
 ---
