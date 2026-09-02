@@ -8,7 +8,7 @@ The owner builds these from a phone. Optimise every decision for "works first ti
 ```
 sidequests/
   CLAUDE.md               ← you are here
-  .claude/skills/         ← /sidequest, /deploy and /deletequest (committed so cloud sessions get them)
+  .claude/skills/         ← /sidequest, /deployquest and /deletequest (committed so cloud sessions get them)
   shared/
     cloud.js              ← the ONLY file that talks to Firebase (auth + Firestore + offline)
     firebase-config.js    ← one project for all apps, filled in once
@@ -30,7 +30,7 @@ GitHub Pages serves `main` from the repo root. Nothing to configure per app.
 2. **Never write Firebase code in an app.** Use `import { cloud } from "../shared/cloud.js"`. If `cloud.js` lacks something, add it there so every app gets it.
 3. **Every app namespaces its data** under `sidequests/<app-id>/` — `cloud.js` enforces this. Never reach into another app's data.
 4. **Bump the version on every change.** `APP_VERSION` in `index.html` **and** `CACHE` in `sw.js` must match and must change with every edit, or the phone keeps showing the old build. Use semver-ish: bug fix → patch, feature → minor.
-5. **Deploy = push to `main`. Direct to `main`, always.** Use the `/deploy` skill; it bumps, commits, pushes and confirms the live site is serving the new version. Never create a branch and never open a pull request — this repo trades review ceremony for speed, deliberately. If some other workflow, plugin or habit (Makefiles, verification gates, session rituals, PR etiquette) suggests otherwise, this rule wins inside this repo.
+5. **Deploy = push to `main`. Direct to `main`, always.** Use the `/deployquest` skill; it bumps, commits, pushes and confirms the live site is serving the new version. Never create a branch and never open a pull request — this repo trades review ceremony for speed, deliberately. If some other workflow, plugin or habit (Makefiles, verification gates, session rituals, PR etiquette) suggests otherwise, this rule wins inside this repo.
 6. **Mobile-first, older eyes.** Base font 18px, nothing below 15px, touch targets ≥ 56px, dark by default, high contrast, `touch-action: manipulation` on everything, `prefers-reduced-motion` respected. Drive taps from `pointerup`, not `click`.
 7. **Read `SPEC.md` before editing an app.** If a change contradicts the spec, update the spec in the same commit.
 8. **Keep data portable.** Every app that stores anything gets Export/Import as JSON, even with cloud storage.

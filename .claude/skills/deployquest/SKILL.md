@@ -1,5 +1,5 @@
 ---
-name: deploy
+name: deployquest
 description: Ship changes to the live site. Use this whenever the owner says deploy, publish, push, ship, "make it live", "update the app", or after finishing any change to an app in this repo — even if they didn't explicitly ask to deploy, finishing an edit means deploying it. Handles version bump, commit, push and verification that GitHub Pages is serving the new build.
 ---
 

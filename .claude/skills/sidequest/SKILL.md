@@ -43,7 +43,7 @@ Insert a link in the root `index.html` list, keeping alphabetical order:
 
 ## 6. Deploy
 
-Run the `/deploy` skill. It bumps nothing on a first build (version is already `0.1.0`), commits, pushes, and verifies the live URL.
+Run the `/deployquest` skill. It bumps nothing on a first build (version is already `0.1.0`), commits, pushes, and verifies the live URL.
 
 ## 7. Report
 
