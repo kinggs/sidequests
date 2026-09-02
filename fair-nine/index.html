@@ -293,6 +293,7 @@
       <button class="primary" id="pfSave">Save</button>
       <button class="quiet" id="pfCancel">Cancel</button>
     </div>
+    <button class="quiet warnbtn hidden" id="pfDelete" style="color:#e8b04a;border-color:rgba(232,176,74,.55)">Delete player</button>
   </div>
 </div>
 
@@ -380,7 +381,7 @@
     </button>
   </div>
 
-  <div class="leadline" id="leadLine">Dead level</div>
+  <div class="leadline" id="leadLine">Tied</div>
 
   <div class="meta">
     <span>rack <b id="rackNo">1</b></span>
@@ -411,7 +412,7 @@
 import { cloud } from "../shared/cloud.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "0.7.0";
+const APP_VERSION = "0.8.0";
 const APP_ID = "fair-nine";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 
@@ -428,7 +429,7 @@ const el = {};
  "scrHistory","histBack","histChips","histList",
  "impChoice","impInfo","impMerge","impReplace","impCancel",
  "familyBtn","scrFamily","famBack","famList","famEmail","famAdd","famShare",
- "pfEst","estRef","estRefName","estRefScore","estNewScore","estOut"
+ "pfEst","estRef","estRefName","estRefScore","estNewScore","estOut","pfDelete"
 ].forEach(id => el[id] = $(id));
 
 function buzz(ms){ if(navigator.vibrate) navigator.vibrate(ms); }
@@ -478,6 +479,11 @@ function show(scr){
 }
 
 const nameOf = id => (db.players[id] && db.players[id].name) || "(deleted)";
+// Deleted players stay in the data (their sessions keep their name in History)
+// but disappear from every picker and list.
+const activePlayers = () => Object.keys(db.players)
+  .filter(id => !db.players[id].deleted)
+  .sort((x, y) => nameOf(x).localeCompare(nameOf(y)));
 
 // ---------- auth gate ----------
 // The gate stays hidden until auth state is actually known, so a signed-in
@@ -519,7 +525,7 @@ el.signInBig.addEventListener("click", () => cloud.signIn().catch(e => {
 
 // ---------- home ----------
 function renderHome(){
-  const ids = Object.keys(db.players).sort((x,y) => (db.players[x].name||"").localeCompare(db.players[y].name||""));
+  const ids = activePlayers();
   el.playerList.innerHTML = "";
   el.noPlayers.classList.toggle("hidden", ids.length > 0);
   ids.forEach(id => {
@@ -538,7 +544,7 @@ function renderHome(){
 }
 el.addPlayerBtn.addEventListener("click", () => openPlayerForm(null));
 el.newSessionBtn.addEventListener("click", () => {
-  if(Object.keys(db.players).length < 2){ openPlayerForm(null); return; }
+  if(activePlayers().length < 2){ openPlayerForm(null); return; }
   openSetup();
 });
 
@@ -554,6 +560,7 @@ function openPlayerForm(id){
   el.pfZargoRow.classList.toggle("hidden", !p);
   el.pfZargo.value = p ? Math.round(p.zargo) : "";
   if(p) el.pfEst.classList.add("hidden"); else setupEstimator();
+  el.pfDelete.classList.toggle("hidden", !p);
   el.pfNote.classList.add("hidden");
   el.pfColours.innerHTML = "";
   PALETTE.forEach(c => {
@@ -572,6 +579,14 @@ function openPlayerForm(id){
   if(!p) el.pfName.focus();
 }
 el.pfCancel.addEventListener("click", () => el.pform.classList.add("hidden"));
+el.pfDelete.addEventListener("click", async () => {
+  if(!pfEditing) return;
+  const p = db.players[pfEditing];
+  if(!confirm(`Delete ${p.name} for good?\n\nThey vanish from the player list and can't be picked for new sessions. Their past sessions stay in History under their name. This can't be undone in the app.`)) return;
+  await savePlayer(pfEditing, { deleted: true });
+  el.pform.classList.add("hidden");
+  renderHome();
+});
 el.pfSave.addEventListener("click", async () => {
   const name = el.pfName.value.trim();
   if(!name){ el.pfName.focus(); return; }
@@ -603,7 +618,7 @@ el.pfSave.addEventListener("click", async () => {
 // 100 × log2(9/n). Rough by design — it self-corrects with every rack played.
 let estUsed = false;
 function setupEstimator(){
-  const ids = Object.keys(db.players).sort((x,y) => nameOf(x).localeCompare(nameOf(y)));
+  const ids = activePlayers();
   estUsed = false;
   el.pfEst.classList.toggle("hidden", ids.length === 0);
   if(!ids.length) return;
@@ -650,7 +665,7 @@ el.setupBack.addEventListener("click", () => show("home"));
 function renderSetup(){
   [["pickA","a"],["pickB","b"]].forEach(([box, side]) => {
     el[box].innerHTML = "";
-    Object.keys(db.players).sort((x,y) => db.players[x].name.localeCompare(db.players[y].name)).forEach(id => {
+    activePlayers().forEach(id => {
       const b = document.createElement("button");
       b.textContent = db.players[id].name;
       b.classList.toggle("sel", setup[side] === id);
@@ -873,10 +888,19 @@ function leadValue(){
   return t.b - t.a / live.H;   // in B's units; positive means B is ahead
 }
 function sentenceFor(v, nA, nB){
-  if(Math.abs(v) < 0.5) return "Dead level";
+  if(Math.abs(v) < 0.5) return "Tied";
   return v < 0 ? `${nA} ahead by ${Math.round(-v)}` : `${nB} ahead by ${Math.round(v)}`;
 }
 function leadSentence(){ return sentenceFor(leadValue(), live.nameA, live.nameB); }
+// In race mode "ahead" means closest to their own target — that's what decides the
+// session, and it can disagree with the adjusted lead once targets are edited/rounded.
+function raceSentence(t, targets, nA, nB){
+  const ra = Math.max(0, targets.a - t.a), rb = Math.max(0, targets.b - t.b);
+  const fA = t.a / targets.a, fB = t.b / targets.b;
+  if(Math.abs(fA - fB) < 0.005) return `Tied — ${nA} needs ${ra}, ${nB} needs ${rb}`;
+  return fA > fB ? `${nA} ahead — needs ${ra} (${nB} needs ${rb})`
+                 : `${nB} ahead — needs ${rb} (${nA} needs ${ra})`;
+}
 function resolvedCount(){
   let r = 0;
   for(let k = 1; k <= 9; k++) if(live.balls[k]) r++;
@@ -1008,23 +1032,48 @@ async function finishSession(){
   declare();
 }
 
-// Spec 3.3: only live points count; delta = K × racks × (actual − expected), clamped.
-// Fargo-style trust: each player's share of the move is scaled by the other's robustness,
-// so an established rating moves less than a fresh one (equal robustness = the base formula).
+// Ratings move in three regimes:
+//
+// 1. CALIBRATION — a new player (under SETTLE sessions) against a known one: solve the
+//    Zargo the observed point share implies, anchor on the known rating, and jump most
+//    of the way there (all the way on session 1, half on 2, a third on 3). Wild first,
+//    settled by the time they're known. The known player's rating doesn't move — they're
+//    the measuring stick.
+// 2. SETTLING — both players new: the standard formula, but boosted 4×/3×/2× while each
+//    is under SETTLE sessions, with a wider clamp.
+// 3. KNOWN — spec 3.3 as written: K × racks × (actual − expected) share of live points,
+//    clamped ±40, trust-weighted by the other player's robustness.
+const SETTLE = 3;   // sessions before a rating counts as known
 function zargoOutcome(){
-  const rA = db.players[live.playerA].robustness || 0;
-  const rB = db.players[live.playerB].robustness || 0;
+  const pa = db.players[live.playerA], pb = db.players[live.playerB];
+  const sA = pa.sessions || 0, sB = pb.sessions || 0;
+  const za = live.zargoBefore.a, zb = live.zargoBefore.b;
   const livePts = live.banked.a + live.banked.b;
-  const eA = expectedShareA(live.zargoBefore.a, live.zargoBefore.b);
-  let d = livePts ? cfg().K * live.banked.racks * (live.banked.a / livePts - eA) : 0;
+  if(!livePts) return { a:{from:za,to:za}, b:{from:zb,to:zb}, cal:null };
+  const s = Math.min(.97, Math.max(.03, live.banked.a / livePts));
+
+  const calA = sA < SETTLE && sB >= SETTLE;
+  const calB = sB < SETTLE && sA >= SETTLE;
+  if(calA || calB){
+    // share s implies a gap of 100·log2(s/(1−s)) in A's favour; cap one session at ±250
+    const gap = Math.max(-250, Math.min(250, 100 * Math.log2(s / (1 - s))));
+    if(calA){
+      const w = 1 / (1 + sA);
+      return { a:{from:za, to: za + (zb + gap - za) * w}, b:{from:zb, to:zb}, cal:"a" };
+    }
+    const w = 1 / (1 + sB);
+    return { a:{from:za, to:za}, b:{from:zb, to: zb + (za - gap - zb) * w}, cal:"b" };
+  }
+
+  const eA = expectedShareA(za, zb);
+  let d = cfg().K * live.banked.racks * (live.banked.a / livePts - eA);
   d = Math.max(-40, Math.min(40, d));
-  const tot = rA + rB;
-  const dA = d * (tot ? 2 * rB / tot : 1);
-  const dB = -d * (tot ? 2 * rA / tot : 1);
-  return {
-    a: { from: live.zargoBefore.a, to: live.zargoBefore.a + dA },
-    b: { from: live.zargoBefore.b, to: live.zargoBefore.b + dB }
-  };
+  const rA = pa.robustness || 0, rB = pb.robustness || 0, tot = rA + rB;
+  const boost = n => n < SETTLE ? SETTLE + 1 - n : 1;          // 4x, 3x, 2x, then 1x
+  const cap = n => n < SETTLE ? 120 : 40;
+  const dA = Math.max(-cap(sA), Math.min(cap(sA),  d * (tot ? 2 * rB / tot : 1) * boost(sA)));
+  const dB = Math.max(-cap(sB), Math.min(cap(sB), -d * (tot ? 2 * rA / tot : 1) * boost(sB)));
+  return { a:{from:za, to:za + dA}, b:{from:zb, to:zb + dB}, cal:null };
 }
 
 function declare(){
@@ -1032,14 +1081,15 @@ function declare(){
   const lead = t.b - t.a / live.H;
   const winner = Math.abs(lead) < 0.001 ? null : (lead < 0 ? "a" : "b");
   const z = zargoOutcome();
-  el.doneTitle.textContent = winner === null ? "Dead level"
+  el.doneTitle.textContent = winner === null ? "Tied"
     : `${winner === "a" ? live.nameA : live.nameB} wins`;
   el.doneBody.textContent =
     `${live.banked.racks} rack${live.banked.racks === 1 ? "" : "s"}. ` +
     `${live.nameA} ${t.a}, ${live.nameB} ${t.b}, ${live.banked.dead} dead.`;
   el.doneZargo.textContent =
     `${live.nameA} ${Math.round(z.a.from)} → ${Math.round(z.a.to)} · ` +
-    `${live.nameB} ${Math.round(z.b.from)} → ${Math.round(z.b.to)}`;
+    `${live.nameB} ${Math.round(z.b.from)} → ${Math.round(z.b.to)}` +
+    (z.cal ? ` · calibrating ${z.cal === "a" ? live.nameA : live.nameB}` : "");
   el.doneZargo.classList.remove("hidden");
   el.doneAnyway.classList.add("hidden");
   el.doneNext.textContent = "Save session";
@@ -1106,7 +1156,9 @@ function render(){
   el.subA.textContent = live.mode === "race" ? "target " + live.targets.a : "";
   el.subB.textContent = live.mode === "race" ? "target " + live.targets.b
     : (live.mode === "fixed" ? live.racksPlanned + " racks" : "open");
-  el.leadLine.textContent = leadSentence();
+  el.leadLine.textContent = live.mode === "race"
+    ? raceSentence(t, live.targets, live.nameA, live.nameB)
+    : leadSentence();
   el.rackNo.textContent = live.rackNo;
   el.deadCt.textContent = live.banked.dead + p.dead;
   el.breakFlip.textContent = "break: " + (live.breaker === "a" ? live.nameA : live.nameB);
@@ -1194,7 +1246,9 @@ function renderWatch(doc){
   el.subA.textContent = doc.mode === "race" && doc.targets ? "target " + doc.targets.a : "";
   el.subB.textContent = doc.mode === "race" && doc.targets ? "target " + doc.targets.b
     : (doc.mode === "fixed" ? doc.racksPlanned + " racks" : "open");
-  el.leadLine.textContent = sentenceFor(t.lead || 0, nA, nB);
+  el.leadLine.textContent = doc.mode === "race" && doc.targets
+    ? raceSentence(t, doc.targets, nA, nB)
+    : sentenceFor(t.lead || 0, nA, nB);
   el.rackNo.textContent = rackNo;
   el.deadCt.textContent = t.dead;
   el.breakFlip.textContent = "break: " + (rack.breaker === "b" ? nB : nA);
@@ -1293,8 +1347,7 @@ async function openHistory(){
 
 function renderHistory(){
   el.histChips.innerHTML = "";
-  const chips = [[null, "All"]].concat(
-    Object.keys(db.players).sort((x,y) => nameOf(x).localeCompare(nameOf(y))).map(id => [id, nameOf(id)]));
+  const chips = [[null, "All"]].concat(activePlayers().map(id => [id, nameOf(id)]));
   chips.forEach(([id, label]) => {
     const b = document.createElement("button");
     b.textContent = label;
@@ -1321,7 +1374,7 @@ function renderHistory(){
       { day: "numeric", month: "short", year: "numeric" }) : "";
     const liveNow = s.status === "live";
     const result = liveNow ? '<span class="hlive">LIVE — tap to resume</span>'
-      : (t.winner ? nameOf(s[t.winner === "a" ? "playerA" : "playerB"]) + " won" : "Level");
+      : (t.winner ? nameOf(s[t.winner === "a" ? "playerA" : "playerB"]) + " won" : "Tied");
     b.innerHTML =
       `<span class="hmeta">${date} · ${MODE[s.mode] || s.mode}</span>` +
       `<span></span>` +

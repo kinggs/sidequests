@@ -236,3 +236,15 @@ Offline: Firestore's persistent cache is on; scoring works with no signal and sy
   rating. Untouched, new players still start at 500.
 - **No gate flash.** The Sign in button renders only after Firebase reports the auth state, so
   signed-in users no longer see it flicker on load.
+- **"Tied", not "Dead level"** — "dead" is reserved for dead balls.
+- **Race-mode lead sentence talks targets.** In a race, "ahead" means closest to your own
+  target ("Kenny ahead — needs 8 (Mel needs 2)"), since that decides the session and can
+  disagree with the adjusted lead once targets are rounded or edited. Fixed/open keep the
+  adjusted-lead sentence.
+- **Ratings settle fast.** Under 3 sessions a player is "settling": against a known player
+  (3+ sessions) their Zargo is solved directly from the observed point share (capped ±250,
+  jumping all the way on session 1, half on 2, a third on 3) while the known player's rating
+  holds as the anchor; two settling players use the standard formula boosted 4×/3×/2× with a
+  ±120 clamp. From 3 sessions the spec-3.3 formula applies as written.
+- **Players can be deleted** (edit form, confirmed). Soft delete: they leave every list and
+  picker but their sessions keep their name in History.
