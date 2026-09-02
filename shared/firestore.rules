@@ -1,0 +1,30 @@
+rules_version = '2';
+
+// One rule set for every app in this repo.
+// Access = you are signed in with Google AND your email is on the family list.
+// To add a person: add their Gmail address below, then paste this whole file into
+// Firebase console → Firestore → Rules → Publish. That's it, for every app at once.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isFamily() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email in [
+          "you@gmail.com",
+          "partner@gmail.com"
+        ];
+    }
+
+    // Every app keeps its data under /sidequests/<appId>/...
+    match /sidequests/{appId}/{document=**} {
+      allow read, write: if isFamily();
+    }
+
+    // Nothing else is reachable.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

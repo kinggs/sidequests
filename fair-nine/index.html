@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Fair Nine — table test</title>
+<style>
+  :root{
+    --felt-deep:#061a14;
+    --chalk:#2f6ea8;
+    --chalk-lift:#4a8fce;
+    --ochre:#b8781c;
+    --ochre-lift:#dda03f;
+    --bone:#efe9dc;
+    --bone-dim:#bcc7c0;
+    --bs:clamp(68px, 22vw, 92px);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0;touch-action:manipulation}
+  html,body{height:100%;overscroll-behavior:none}
+  body{
+    background:var(--felt-deep);
+    color:var(--bone);
+    font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    font-variant-numeric:tabular-nums;
+    -webkit-user-select:none;user-select:none;
+    display:flex;flex-direction:column;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    transition:background-color .18s ease;
+  }
+  body[data-turn="a"]{background:#071f2c}
+  body[data-turn="b"]{background:#231705}
+
+  /* ---- scores double as the turn control ---- */
+  .scores{display:flex;flex:0 0 auto;gap:3px;background:rgba(0,0,0,.4)}
+  .side{
+    flex:1;padding:16px 14px 18px;border:none;text-align:left;font:inherit;color:var(--bone);
+    background:rgba(255,255,255,.04);position:relative;
+    transition:background-color .18s ease;
+  }
+  .side[data-p="b"]{text-align:right}
+  .side.on[data-p="a"]{background:var(--chalk)}
+  .side.on[data-p="b"]{background:var(--ochre)}
+  .side:active{filter:brightness(1.15)}
+  .side.on::after{
+    content:"";position:absolute;left:0;right:0;bottom:0;height:5px;background:rgba(255,255,255,.75);
+  }
+  .name{font-size:19px;font-weight:700;color:var(--bone-dim)}
+  .side.on .name{color:#fff}
+  .raw{font-size:60px;font-weight:700;line-height:1.02;margin-top:2px}
+  .sub{font-size:17px;font-weight:600;color:var(--bone-dim);margin-top:6px;min-height:20px}
+  .side.on .sub{color:rgba(255,255,255,.95)}
+  .cue{font-size:15px;font-weight:600;color:#fff;margin-top:7px;min-height:18px}
+  .side:not(.on) .cue{color:rgba(239,233,220,.5)}
+
+  /* ---- meta strip ---- */
+  .meta{flex:0 0 auto;display:flex;align-items:center;justify-content:center;gap:20px;
+    padding:11px;font-size:16px;color:var(--bone-dim);background:rgba(0,0,0,.22)}
+  .meta b{color:var(--bone);font-weight:700}
+  .meta button{background:none;border:none;color:var(--bone-dim);font:inherit;padding:6px 8px;text-decoration:underline}
+  .warn{color:#e8b04a}
+  .ok{color:#63c08a;font-weight:600}
+
+  /* ---- rack ---- */
+  .rack{flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;padding:12px 0}
+  .row{display:flex;gap:11px;justify-content:center}
+  .ball{
+    width:var(--bs);height:var(--bs);border-radius:50%;border:none;padding:0;position:relative;
+    background:var(--bc);cursor:pointer;
+    box-shadow:inset -6px -8px 14px rgba(0,0,0,.45), inset 5px 6px 10px rgba(255,255,255,.28), 0 3px 5px rgba(0,0,0,.4);
+    transition:transform .09s ease, background-color .14s ease, box-shadow .14s ease;
+  }
+  .ball:active{transform:scale(.9)}
+  .pip{
+    position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    width:calc(var(--bs) * .6);height:calc(var(--bs) * .6);border-radius:50%;background:#f6f2e8;
+    display:flex;align-items:center;justify-content:center;
+    font-size:calc(var(--bs) * .34);font-weight:700;color:#14110f;
+    transition:background-color .14s ease,color .14s ease,width .14s ease,height .14s ease;
+  }
+  .stripe{position:absolute;inset:0;border-radius:50%;overflow:hidden;transition:opacity .14s ease}
+  .stripe::before{content:"";position:absolute;left:0;right:0;top:19%;bottom:19%;background:var(--bc)}
+  .ball.striped{background:#f4efe3}
+
+  /* claimed: flat disc in the claiming player's colour, number straight on it */
+  .ball.claimed{
+    background:var(--own);
+    box-shadow:0 0 0 3px rgba(0,0,0,.28), 0 3px 5px rgba(0,0,0,.35);
+  }
+  .ball.claimed .stripe{opacity:0}
+  .ball.claimed .pip{
+    background:transparent;color:#fff;width:var(--bs);height:var(--bs);font-size:calc(var(--bs) * .42);
+  }
+
+  .ball.dead{background:#2c3733;box-shadow:0 0 0 3px rgba(0,0,0,.28)}
+  .ball.dead .stripe{opacity:0}
+  .ball.dead .pip{background:transparent;color:rgba(239,233,220,.35);width:var(--bs);height:var(--bs);font-size:calc(var(--bs) * .34)}
+  .ball.dead::after{
+    content:"×";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font-size:calc(var(--bs) * .78);font-weight:300;color:rgba(239,233,220,.75);
+  }
+
+  /* ---- controls ---- */
+  .controls{flex:0 0 auto;display:flex;gap:10px;padding:0 10px 14px}
+  .controls button{
+    flex:1;height:68px;border-radius:13px;border:1px solid rgba(239,233,220,.3);
+    background:rgba(255,255,255,.08);color:var(--bone);font-size:19px;font-weight:700;
+  }
+  .controls button:active{background:rgba(255,255,255,.16)}
+  .controls button:disabled{opacity:.35}
+  .controls .end{flex:0 0 96px;color:var(--bone-dim);border-color:rgba(239,233,220,.15)}
+
+  button:focus-visible{outline:3px solid #fff;outline-offset:2px}
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none !important}
+  }
+
+  /* ---- rack complete ---- */
+  .done{
+    position:fixed;inset:0;background:rgba(4,14,11,.95);z-index:10;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;padding:28px;text-align:center;
+  }
+  .done h2{font-size:32px;font-weight:700}
+  .done p{color:var(--bone-dim);font-size:19px;line-height:1.5;max-width:30ch}
+  .done button{height:68px;padding:0 36px;border-radius:14px;border:none;background:var(--bone);color:#0a2a20;font-size:21px;font-weight:700}
+  .done .ghost{background:none;color:var(--bone-dim);border:1px solid rgba(239,233,220,.3);height:54px;font-size:18px}
+  .hidden{display:none}
+</style>
+</head>
+<body data-turn="a">
+
+  <div class="scores">
+    <button class="side on" data-p="a" id="sideA">
+      <div class="name">You</div>
+      <div class="raw" id="rawA">0</div>
+      <div class="sub" id="adjA">0.0 adjusted</div>
+      <div class="cue" id="cueA">shooting</div>
+    </button>
+    <button class="side" data-p="b" id="sideB">
+      <div class="name">Opponent</div>
+      <div class="raw" id="rawB">0</div>
+      <div class="sub" id="hcapLabel">handicap 2.5</div>
+      <div class="cue" id="cueB">tap to shoot</div>
+    </button>
+  </div>
+
+  <div class="meta">
+    <span>rack <b id="rackNo">1</b></span>
+    <span>dead <b id="deadCt">0</b></span>
+    <span id="audit"></span>
+    <button id="hcapBtn">handicap</button>
+  </div>
+
+  <div class="rack" id="rack"></div>
+
+  <div class="controls">
+    <button id="undo" disabled>Undo</button>
+    <button id="next">Next rack</button>
+    <button class="end" id="end">End</button>
+  </div>
+
+  <div class="done hidden" id="done">
+    <h2 id="doneTitle">Rack complete</h2>
+    <p id="doneBody"></p>
+    <button id="doneNext">Start rack 2</button>
+    <button class="ghost" id="doneBack">Back to the rack</button>
+  </div>
+
+<script>
+(function(){
+  var COLOURS = {1:"#f2c204",2:"#1b4fa0",3:"#cf1b1b",4:"#6b2fa0",5:"#e8730c",
+                 6:"#0f7a3d",7:"#7a1f1f",8:"#14110f",9:"#f2c204"};
+  var ROWS = [[1],[2,3],[4,9,5],[6,7],[8]];
+  var VAL = function(n){ return n === 9 ? 3 : 1; };
+
+  var state = {
+    turn: "a",
+    handicap: 2.5,
+    rackNo: 1,
+    balls: {},
+    session: {a:0, b:0},
+    history: []
+  };
+
+  var el = {
+    rack: document.getElementById("rack"),
+    undo: document.getElementById("undo"),
+    next: document.getElementById("next"),
+    end:  document.getElementById("end"),
+    rawA: document.getElementById("rawA"),
+    rawB: document.getElementById("rawB"),
+    adjA: document.getElementById("adjA"),
+    hcapLabel: document.getElementById("hcapLabel"),
+    cueA: document.getElementById("cueA"),
+    cueB: document.getElementById("cueB"),
+    sideA: document.getElementById("sideA"),
+    sideB: document.getElementById("sideB"),
+    rackNo: document.getElementById("rackNo"),
+    deadCt: document.getElementById("deadCt"),
+    audit: document.getElementById("audit"),
+    hcap: document.getElementById("hcapBtn"),
+    done: document.getElementById("done"),
+    doneTitle: document.getElementById("doneTitle"),
+    doneBody: document.getElementById("doneBody"),
+    doneNext: document.getElementById("doneNext"),
+    doneBack: document.getElementById("doneBack")
+  };
+
+  function buzz(ms){ if(navigator.vibrate) navigator.vibrate(ms); }
+
+  var nodes = {};
+  ROWS.forEach(function(row){
+    var r = document.createElement("div");
+    r.className = "row";
+    row.forEach(function(n){
+      var b = document.createElement("button");
+      b.className = "ball" + (n === 9 ? " striped" : "");
+      b.style.setProperty("--bc", COLOURS[n]);
+      b.setAttribute("aria-label", "Ball " + n);
+      if(n === 9) b.innerHTML = '<span class="stripe"></span>';
+      var pip = document.createElement("span");
+      pip.className = "pip";
+      pip.textContent = n;
+      b.appendChild(pip);
+      bindBall(b, n);
+      r.appendChild(b);
+      nodes[n] = b;
+    });
+    el.rack.appendChild(r);
+  });
+
+  function bindBall(node, n){
+    var timer = null, longFired = false, down = false, sx = 0, sy = 0;
+
+    node.addEventListener("pointerdown", function(e){
+      down = true; longFired = false; sx = e.clientX; sy = e.clientY;
+      clearTimeout(timer);
+      timer = setTimeout(function(){
+        if(!down) return;
+        longFired = true;
+        buzz([12,40,12]);
+        push(); delete state.balls[n]; render();
+      }, 450);
+    });
+
+    node.addEventListener("pointerup", function(e){
+      clearTimeout(timer);
+      if(!down) return;
+      down = false;
+      if(longFired) return;
+      // ignore if the finger slid off the ball
+      if(Math.abs(e.clientX - sx) > 40 || Math.abs(e.clientY - sy) > 40) return;
+      buzz(9);
+      push();
+      cycle(n);
+      render();
+    });
+
+    node.addEventListener("pointercancel", function(){
+      clearTimeout(timer); down = false;
+    });
+
+    // the browser's synthesized click is no longer used for anything
+    node.addEventListener("click", function(e){ e.preventDefault(); });
+  }
+
+  function cycle(n){
+    var cur = state.balls[n];
+    if(!cur)                      state.balls[n] = state.turn;
+    else if(cur === state.turn)   state.balls[n] = "dead";
+    else if(cur === "dead")       delete state.balls[n];
+    else                          state.balls[n] = state.turn;
+  }
+
+  function push(){
+    state.history.push(JSON.stringify(state.balls));
+    if(state.history.length > 60) state.history.shift();
+  }
+
+  function setTurn(p){
+    if(state.turn === p) return;
+    buzz(16);
+    state.turn = p;
+    render();
+  }
+  function tapBind(node, fn){
+    var down = false, sx = 0, sy = 0;
+    node.addEventListener("pointerdown", function(e){
+      down = true; sx = e.clientX; sy = e.clientY;
+    });
+    node.addEventListener("pointercancel", function(){ down = false; });
+    node.addEventListener("pointerup", function(e){
+      if(!down) return;
+      down = false;
+      if(Math.abs(e.clientX - sx) > 40 || Math.abs(e.clientY - sy) > 40) return;
+      fn();
+    });
+    node.addEventListener("click", function(e){ e.preventDefault(); });
+  }
+
+  tapBind(el.sideA, function(){ setTurn("a"); });
+  tapBind(el.sideB, function(){ setTurn("b"); });
+
+  el.undo.addEventListener("click", function(){
+    if(!state.history.length) return;
+    buzz(9);
+    state.balls = JSON.parse(state.history.pop());
+    render();
+  });
+
+  el.hcap.addEventListener("click", function(){
+    var v = prompt("Handicap ratio — how many points you score for each one of theirs", state.handicap);
+    var f = parseFloat(v);
+    if(f && f > 0){ state.handicap = f; render(); }
+  });
+
+  el.next.addEventListener("click", rackComplete);
+  el.doneBack.addEventListener("click", function(){ el.done.classList.add("hidden"); });
+  el.doneNext.addEventListener("click", startNextRack);
+
+  el.end.addEventListener("click", function(){
+    var t = totals();
+    var adjA = t.a / state.handicap, adjB = t.b;
+    var lead = adjA > adjB ? "You win" : (adjB > adjA ? "Opponent wins" : "Dead level");
+    el.doneTitle.textContent = lead;
+    el.doneBody.textContent = state.rackNo + " racks. You " + t.a + " (" + adjA.toFixed(1) +
+      " adjusted) against " + t.b + ". This is where the app would update the handicap and save the session.";
+    el.doneNext.textContent = "Start over";
+    el.doneNext.onclick = function(){ location.reload(); };
+    el.doneBack.classList.add("hidden");
+    el.done.classList.remove("hidden");
+  });
+
+  function rackPoints(){
+    var p = {a:0, b:0, dead:0};
+    for(var n in state.balls) p[state.balls[n]] += VAL(+n);
+    return p;
+  }
+  function totals(){
+    var p = rackPoints();
+    return {a: state.session.a + p.a, b: state.session.b + p.b};
+  }
+
+  function rackComplete(){
+    var p = rackPoints();
+    var sum = p.a + p.b + p.dead;
+    el.doneTitle.textContent = "Rack " + state.rackNo + " done";
+    el.doneBody.textContent = sum === 11
+      ? "You " + p.a + ", opponent " + p.b + ", " + p.dead + " dead. Adds up to 11."
+      : "This rack totals " + sum + ", not 11. Something got mis-tapped — go back and fix it, or carry on anyway.";
+    el.doneNext.textContent = "Start rack " + (state.rackNo + 1);
+    el.doneNext.onclick = startNextRack;
+    el.doneBack.classList.remove("hidden");
+    el.done.classList.remove("hidden");
+    buzz([18,60,18]);
+  }
+
+  function startNextRack(){
+    var p = rackPoints();
+    state.session.a += p.a;
+    state.session.b += p.b;
+    state.balls = {};
+    state.history = [];
+    state.rackNo++;
+    el.done.classList.add("hidden");
+    render();
+  }
+
+  function render(){
+    document.body.dataset.turn = state.turn;
+    el.sideA.classList.toggle("on", state.turn === "a");
+    el.sideB.classList.toggle("on", state.turn === "b");
+    el.cueA.textContent = state.turn === "a" ? "shooting" : "tap to shoot";
+    el.cueB.textContent = state.turn === "b" ? "shooting" : "tap to shoot";
+
+    for(var n = 1; n <= 9; n++){
+      var s = state.balls[n], node = nodes[n];
+      node.classList.toggle("claimed", s === "a" || s === "b");
+      node.classList.toggle("dead", s === "dead");
+      node.style.setProperty("--own", s === "b" ? "var(--ochre)" : "var(--chalk)");
+    }
+
+    var t = totals(), p = rackPoints();
+    el.rawA.textContent = t.a;
+    el.rawB.textContent = t.b;
+    el.adjA.textContent = (t.a / state.handicap).toFixed(1) + " adjusted";
+    el.hcapLabel.textContent = "handicap " + state.handicap;
+    el.rackNo.textContent = state.rackNo;
+    el.deadCt.textContent = p.dead;
+
+    var resolved = 0;
+    for(var k = 1; k <= 9; k++) if(state.balls[k]) resolved++;
+    el.audit.innerHTML = resolved === 9 ? '<span class="ok">table clear</span>' : "";
+    el.undo.disabled = !state.history.length;
+  }
+
+  render();
+
+  if("wakeLock" in navigator){
+    navigator.wakeLock.request("screen").catch(function(){});
+    document.addEventListener("visibilitychange", function(){
+      if(document.visibilityState === "visible") navigator.wakeLock.request("screen").catch(function(){});
+    });
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#101418">
+<link rel="manifest" href="manifest.json">
+<title>__APP_NAME__</title>
+<style>
+  :root{
+    --bg:#101418; --panel:#1a2027; --ink:#eef0f2; --ink-dim:#aab3bd; --accent:#4a8fce;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+  html,body{height:100%}
+  body{
+    background:var(--bg);color:var(--ink);
+    font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    font-size:18px;line-height:1.4;
+    display:flex;flex-direction:column;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    -webkit-user-select:none;user-select:none;
+  }
+  header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:var(--panel)}
+  header h1{font-size:20px;font-weight:700}
+  main{flex:1;padding:16px}
+  footer{padding:10px 16px;font-size:13px;color:var(--ink-dim);text-align:center}
+  button{
+    min-height:56px;padding:0 20px;border-radius:12px;border:none;
+    background:var(--accent);color:#fff;font:inherit;font-weight:700;
+  }
+  button.quiet{background:transparent;color:var(--ink-dim);border:1px solid rgba(255,255,255,.2)}
+  button:focus-visible{outline:3px solid #fff;outline-offset:2px}
+  .user{display:flex;align-items:center;gap:10px;font-size:15px;color:var(--ink-dim)}
+  .user img{width:32px;height:32px;border-radius:50%}
+  @media (prefers-reduced-motion: reduce){ *{transition:none !important} }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>__APP_NAME__</h1>
+  <div class="user" id="userBox">
+    <button class="quiet" id="signIn">Sign in</button>
+  </div>
+</header>
+
+<main id="main">
+  <p>Hello. Replace this with the app.</p>
+</main>
+
+<footer>__APP_NAME__ <span id="version"></span></footer>
+
+<script type="module">
+  import { cloud } from "../shared/cloud.js";
+
+  // Bump on every change. The deploy skill checks this against the live site.
+  const APP_VERSION = "0.1.0";
+  const APP_ID = "__APP_ID__";
+  document.getElementById("version").textContent = "v" + APP_VERSION;
+
+  // ---- cloud ----
+  const userBox = document.getElementById("userBox");
+  await cloud.init(APP_ID);
+
+  cloud.onUser(user => {
+    if (user) {
+      userBox.innerHTML = `<img src="${user.photoURL || ""}" alt=""><span>${user.displayName || user.email}</span>
+        <button class="quiet" id="signOut">Sign out</button>`;
+      document.getElementById("signOut").onclick = () => cloud.signOut();
+      start(user);
+    } else {
+      userBox.innerHTML = `<button class="quiet" id="signIn">Sign in</button>`;
+      document.getElementById("signIn").onclick = () => cloud.signIn();
+    }
+  });
+
+  if (!cloud.configured()) start(null); // lets the app run before Firebase is set up
+
+  // ---- app ----
+  async function start(user) {
+    // Example: load and save one document.
+    // const state = (await cloud.load("state/main")) || { count: 0 };
+    // await cloud.save("state/main", { count: state.count + 1 });
+  }
+
+  // ---- offline shell ----
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
+</script>
+</body>
+</html>
