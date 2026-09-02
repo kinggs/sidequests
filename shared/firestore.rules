@@ -13,7 +13,7 @@ service cloud.firestore {
         && request.auth.token.email_verified == true
         && request.auth.token.email in [
           "kenny.inggs@gmail.com",
-          "wife@gmail.com"
+          "melanie.inggs@gmail.com"
         ];
     }
 
