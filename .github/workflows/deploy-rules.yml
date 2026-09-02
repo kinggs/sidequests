@@ -1,0 +1,29 @@
+# Deploys shared/firestore.rules to Firebase whenever it changes on main,
+# so rules edits work from any device — phone cloud sessions included.
+# Auth: FIREBASE_SERVICE_ACCOUNT repo secret (rules-deployer@kennys-sidequests,
+# Firebase Rules Admin + Firebase Viewer only).
+name: Deploy Firestore rules
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - shared/firestore.rules
+      - firebase.json
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write service account key
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
+
+      - name: Deploy rules
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
+        run: npx firebase-tools deploy --only firestore:rules --project kennys-sidequests --non-interactive

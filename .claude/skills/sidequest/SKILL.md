@@ -1,5 +1,5 @@
 ---
-name: new-app
+name: sidequest
 description: Scaffold, build and deploy a brand-new app in this repo from a plain-language description. Use this whenever the owner says they want a new app, tool, tracker, scorer, calculator, list, timer, or "something that does X" — even if they don't say the word "app". Also use it when they paste or describe a spec for something that doesn't have a folder here yet.
 ---
 

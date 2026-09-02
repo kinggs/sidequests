@@ -8,7 +8,7 @@ The owner builds these from a phone. Optimise every decision for "works first ti
 ```
 sidequests/
   CLAUDE.md               ← you are here
-  .claude/skills/         ← /new-app and /deploy (committed so cloud sessions get them)
+  .claude/skills/         ← /sidequest, /deploy and /deletequest (committed so cloud sessions get them)
   shared/
     cloud.js              ← the ONLY file that talks to Firebase (auth + Firestore + offline)
     firebase-config.js    ← one project for all apps, filled in once
@@ -41,7 +41,7 @@ GitHub Pages serves `main` from the repo root. Nothing to configure per app.
 - Config lives in `shared/firebase-config.js`. Filled in once; never per app.
 - Security lives in `shared/firestore.rules`: signed-in Google users whose email is on the family list. It covers every app automatically.
 - **Adding a person:** add their Gmail address to the list in `shared/firestore.rules`, commit, then deploy the rules (below).
-- **Deploying rules:** from the desktop CLI, run `firebase deploy --only firestore:rules` (the Firebase CLI is installed and logged in there; `firebase.json` and `.firebaserc` are set up). Cloud sessions can't do this — no Firebase login — so from a cloud session the fallback remains: edit the file, then ask the owner to paste `shared/firestore.rules` into Firebase console → Firestore Database → Rules → Publish.
+- **Deploying rules:** push to `main`. The `deploy-rules` GitHub Action deploys `shared/firestore.rules` automatically whenever it changes, from any session on any device. (Fallbacks if the Action ever breaks: desktop CLI `firebase deploy --only firestore:rules`, or paste the file into Firebase console → Firestore Database → Rules → Publish.)
 - Offline works out of the box: `cloud.js` turns on Firestore's persistent local cache, and each app's `sw.js` caches the shell.
 
 ## Working style
@@ -49,4 +49,5 @@ GitHub Pages serves `main` from the repo root. Nothing to configure per app.
 - Small commits, one intent each, messages in plain English ("Make the swap button taller").
 - After any change, sanity-check by reading the file back for unbalanced tags and a matching version bump.
 - If a request is ambiguous, pick the simplest interpretation, do it, and say what you assumed. Don't stall on questions.
-- When asked for a new app, use `/new-app`.
+- When asked for a new app, use `/sidequest`. When asked to remove one, use `/deletequest` (it confirms first).
+- Changing `shared/firestore.rules` needs no CLI or console: push to `main` and a GitHub Action deploys the rules automatically.
