@@ -84,6 +84,8 @@
   .legend i{display:inline-block;width:12px;height:12px;border-radius:50%;vertical-align:-1px;margin-right:6px}
   .legend i.sent{background:var(--accent)}
   .legend i.proj{border:2px solid var(--ink-dim)}
+  .legend i.big{width:18px;height:18px;vertical-align:-4px}
+  .chart .legend{flex-wrap:wrap;gap:10px 18px}
   .session{margin:10px 8px 6px;font-size:16px;color:var(--ink-dim);min-height:1.4em}
   .session b{color:var(--ink)}
   .session ul{list-style:none;margin-top:4px}
@@ -185,7 +187,7 @@
   import { cloud } from "../shared/cloud.js";
 
   // Bump on every change. The deploy skill checks this against the live site.
-  const APP_VERSION = "0.2.0";
+  const APP_VERSION = "0.3.0";
   const APP_ID = "bloc-11";
   document.getElementById("version").textContent = "v" + APP_VERSION;
 
@@ -388,17 +390,21 @@
     box.appendChild(gradeBars(sends));
   }
 
-  // One dot per climb, grade on y, date on x; a line through each session's hardest send.
+  // One bubble per (session, grade, outcome), grade on y, date on x, sized by how many
+  // climbs it stands for (1 to BUBBLE_CAP); a line through each session's hardest send.
+  const BUBBLE_CAP = 6;
+  const bubbleR = n => 5 + (Math.min(n, BUBBLE_CAP) - 1) / (BUBBLE_CAP - 1) * 11;   // 5px .. 16px
   function chart(mine){
     const wrap = document.createElement("div");
     wrap.className = "chart";
     const W = Math.max(280, Math.min(640, ($("progress").clientWidth || 340) - 16));
-    const H = 220, L = 44, R = 14, T = 12, B = 30;
+    const H = 236, L = 44, R = 20, T = 20, B = 30;
     const iw = W - L - R, ih = H - T - B;
 
     const days = [...new Set(mine.map(c => startOfDay(c.at)))].sort((a, b) => a - b);
     let x0 = days[0], x1 = days[days.length - 1];
     if (x1 - x0 < 14 * DAY){ const mid = (x0 + x1) / 2; x0 = mid - 7 * DAY; x1 = mid + 7 * DAY; }
+    { const pad = (x1 - x0) * 0.07; x0 -= pad; x1 += pad; }   // room for the biggest bubble at either end
     const X = t => L + (t - x0) / (x1 - x0) * iw;
     const Y = g => T + ih - (g - 1) / 7 * ih;
 
@@ -431,16 +437,20 @@
     if (best.length > 1){
       s += `<polyline fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" opacity=".7" points="${best.map(p => `${X(p.d)},${Y(p.g)}`).join(" ")}"/>`;
     }
-    // dots, one per (day, grade, result); projects hollow, sends filled
-    const seen = new Set();
+    // bubbles, one per (day, grade, result), sized by count; projects hollow, sends filled.
+    // Hollow rings go down first so a filled send at the same spot sits on top of them.
+    const groups = new Map();
     for (const c of mine){
-      const d = startOfDay(c.at), key = `${d}|${c.grade}|${c.result}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      const proj = c.result !== "sent";
-      s += proj
-        ? `<circle cx="${X(d)}" cy="${Y(c.grade)}" r="5" fill="var(--panel)" stroke="var(--ink-dim)" stroke-width="2"/>`
-        : `<circle cx="${X(d)}" cy="${Y(c.grade)}" r="5.5" fill="var(--accent)" stroke="var(--panel)" stroke-width="2"/>`;
+      const key = `${startOfDay(c.at)}|${c.grade}|${c.result === "sent" ? "sent" : "proj"}`;
+      groups.set(key, (groups.get(key) || 0) + 1);
+    }
+    const bubbles = [...groups].map(([key, n]) => { const [d, g, r] = key.split("|"); return { d: Number(d), g: Number(g), proj: r === "proj", n }; })
+      .sort((a, b) => (a.proj === b.proj ? b.n - a.n : a.proj ? -1 : 1));   // rings first, then sends, big before small
+    for (const b of bubbles){
+      const r = bubbleR(b.n);
+      s += b.proj
+        ? `<circle cx="${X(b.d)}" cy="${Y(b.g)}" r="${r}" fill="var(--panel)" fill-opacity=".6" stroke="var(--ink-dim)" stroke-width="2"/>`
+        : `<circle cx="${X(b.d)}" cy="${Y(b.g)}" r="${r}" fill="var(--accent)" fill-opacity=".85" stroke="var(--panel)" stroke-width="2"/>`;
     }
     // tap targets: one column per session
     for (const d of days){
@@ -448,7 +458,7 @@
       s += `<rect class="hit" data-day="${d}" x="${x - 22}" y="${T - 6}" width="44" height="${ih + 12}" fill="transparent" ${openSession === d ? 'stroke="var(--grid)" rx="8"' : ""}/>`;
     }
     s += `</svg>`;
-    wrap.innerHTML = s + `<div class="legend"><span><i class="sent"></i>Sent</span><span><i class="proj"></i>Projecting</span></div><div class="session"></div>`;
+    wrap.innerHTML = s + `<div class="legend"><span><i class="sent"></i>Sent</span><span><i class="proj"></i>Projecting</span><span><i class="sent big"></i>Bigger = more climbs</span></div><div class="session"></div>`;
     wrap.querySelectorAll(".hit").forEach(r => tap(r, () => {
       const d = Number(r.dataset.day);
       openSession = openSession === d ? null : d;
@@ -457,13 +467,21 @@
 
     const sess = wrap.querySelector(".session");
     if (openSession !== null && days.includes(openSession)){
-      const rows = mine.filter(c => startOfDay(c.at) === openSession).sort((a, b) => b.grade - a.grade);
+      // Same grouping as the bubbles: "3× Sent a 3 · the cave one · slab"
+      const rows = new Map();
+      for (const c of mine.filter(c => startOfDay(c.at) === openSession)){
+        const key = `${c.grade}|${c.result === "sent" ? "sent" : "proj"}`;
+        const row = rows.get(key) || { grade: c.grade, sent: c.result === "sent", n: 0, notes: [] };
+        row.n++; if (c.note) row.notes.push(c.note);
+        rows.set(key, row);
+      }
+      const list = [...rows.values()].sort((a, b) => (b.grade - a.grade) || (b.sent - a.sent));
       sess.innerHTML = `<b></b><ul></ul>`;
       sess.querySelector("b").textContent = whenLabel(openSession);
       const ul = sess.querySelector("ul");
-      for (const c of rows){
+      for (const r of list){
         const li = document.createElement("li");
-        li.textContent = `${c.result === "sent" ? "Sent" : "Projecting"} ${gradeWord(c.grade)}${c.note ? " · " + c.note : ""}`;
+        li.textContent = `${r.n > 1 ? r.n + "× " : ""}${r.sent ? "Sent" : "Projecting"} ${gradeWord(r.grade)}${r.notes.length ? " · " + r.notes.join(" · ") : ""}`;
         ul.appendChild(li);
       }
     } else {

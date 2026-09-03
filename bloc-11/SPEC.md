@@ -36,10 +36,13 @@ One page, top to bottom:
    by default, tap anyone else to log for them), an 8-tile grade grid, an optional note ("the 5 in the cave"), a date that
    defaults to today, and two big buttons: **Sent it** and **Projecting**. Either one saves.
 2. **Progress** — pick a climber. Three tiles (hardest send, hardest grade being projected
-   above that, total sends with this month's count), then a timeline: one dot per climb
-   (filled = sent, hollow = projecting), grade on the y-axis, date on the x-axis, and a line
-   through the hardest send of each session. Tap a session to see its climbs listed under
-   the chart. Below that, sends per grade as horizontal bars.
+   above that, total sends with this month's count), then a timeline: one bubble per
+   grade per session (filled = sent, hollow = projecting), grade on the y-axis, date on the
+   x-axis. A bubble grows with the number of climbs it stands for and maxes out at six, so
+   six 3s in one session is the biggest bubble; rings sit under filled bubbles so a grade
+   that was both sent and projected reads as overlapping circles. A line runs through the
+   hardest send of each session. Tap a session to see its climbs grouped and counted under
+   the chart ("3× Sent a 3 · the cave one"). Below that, sends per grade as horizontal bars.
 3. **Recent** — the latest climbs, newest first, each with an armed two-tap delete.
 4. **Climbers** — the list, an add form (name + optional Gmail), remove, and a Share button
    for the app link. Giving a Gmail also adds it to the family allowlist so that person can
