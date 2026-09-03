@@ -1,6 +1,7 @@
 // Network-first shell cache. Bump CACHE whenever index.html changes so old copies are dropped.
-const CACHE = "fair-nine-v0.10.0";
-const SHELL = ["./", "./index.html", "./manifest.json"];
+const CACHE = "fair-nine-v0.11.0";
+const SHELL = ["./", "./index.html", "./manifest.json",
+               "./icon.svg", "./icon-192.png", "./icon-512.png", "./icon-maskable-512.png"];
 
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));

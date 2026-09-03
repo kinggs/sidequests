@@ -213,6 +213,26 @@ Offline: Firestore's persistent cache is on; scoring works with no signal and sy
 
 ---
 
+## 8b. Fitting the phone
+
+The live screen never scrolls: score panels, lead bar, meta strip and controls are fixed, and
+the rack takes what's left. Ball size is therefore driven by **height as well as width** —
+`clamp(46px, min(21vw, (100dvh - 396px) / 5), 92px)` — so the controls stay on screen instead
+of being pushed off the bottom. `dvh`, not `%` or `vh`, because it tracks the real visible
+area as Chrome's URL bar shows and hides. Under 700px tall a media query drops the shooter cue
+(the panel tint already says whose shot it is), shrinks the score and the controls, and
+re-budgets the ball size against the smaller chrome.
+
+**Installing.** The manifest is `display: standalone` with PNG icons at 192 and 512 plus a
+maskable 512 — Chrome needs real PNG icons to build a WebAPK, and without one it offers only
+a bookmark-style shortcut, which always opens in a tab with the URL bar showing. A shortcut
+added before those icons existed stays a shortcut: remove it and install again.
+
+**Wake lock.** The app holds exactly one screen wake lock, taken when the scoring screen opens
+and released when it closes. Android drops the lock whenever the tab is hidden, so the
+sentinel's `release` event and `visibilitychange` re-take it. Failure is silent — scoring works
+without it.
+
 ## 9. Out of scope
 
 - Charts and trend lines.

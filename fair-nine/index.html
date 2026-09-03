@@ -16,10 +16,17 @@
     --bone:#efe9dc;
     --bone-dim:#bcc7c0;
     --panel:rgba(255,255,255,.06);
-    --bs:clamp(68px, 22vw, 92px);
+    --rack-gap:clamp(5px, 1.3vh, 11px);
+    /* Five rows of balls plus four gaps and the rack's own padding have to fit whatever
+       the fixed chrome leaves: score panels ~156, lead bar 56, meta 36, controls 82,
+       rack padding 12, four gaps up to 44 — call it 390. dvh tracks the real visible
+       area, so this holds whether or not Chrome's URL bar is showing. */
+    --bs:clamp(46px, min(21vw, (100dvh - 396px) / 5), 92px);
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0;touch-action:manipulation}
-  html,body{height:100%;overscroll-behavior:none}
+  html{height:100%}
+  body{height:100dvh;overscroll-behavior:none}
+  @supports not (height: 100dvh){ body{height:100%} }
   body{
     background:var(--felt-deep);
     color:var(--bone);
@@ -34,7 +41,7 @@
   body[data-turn="a"].scoring{background:#071f2c}
   body[data-turn="b"].scoring{background:#231705}
 
-  .screen{flex:1;display:flex;flex-direction:column;min-height:0}
+  .screen{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden}
   .hidden{display:none !important}
   .dim{color:var(--bone-dim)}
 
@@ -130,7 +137,7 @@
   /* ---- scores double as the turn control (prototype, kept) ---- */
   .scores{display:flex;flex:0 0 auto;gap:3px;background:rgba(0,0,0,.4)}
   .side{
-    flex:1;padding:16px 14px 18px;border:none;border-radius:0;min-height:0;text-align:left;font:inherit;color:var(--bone);
+    flex:1;padding:12px 14px 13px;border:none;border-radius:0;min-height:0;text-align:left;font:inherit;color:var(--bone);
     background:rgba(255,255,255,.04);position:relative;font-weight:400;
     transition:background-color .18s ease;
   }
@@ -143,14 +150,14 @@
   }
   .name{font-size:19px;font-weight:700;color:var(--bone-dim)}
   .side.on .name{color:#fff}
-  .raw{font-size:60px;font-weight:700;line-height:1.02;margin-top:2px}
+  .raw{font-size:clamp(42px, 13vw, 60px);font-weight:700;line-height:1.02;margin-top:2px}
   .sub{font-size:17px;font-weight:600;color:var(--bone-dim);margin-top:6px;min-height:20px}
   .side.on .sub{color:rgba(255,255,255,.95)}
   .cue{font-size:15px;font-weight:600;color:#fff;margin-top:7px;min-height:18px}
   .side:not(.on) .cue{color:rgba(239,233,220,.5)}
 
   /* ---- lead bar: swings left when A is ahead, right when B is ---- */
-  .leadwrap{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:5px;padding:8px 16px 0}
+  .leadwrap{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 16px 0}
   .leadhead{display:flex;align-items:baseline;gap:9px;min-height:34px}
   .leadname{font-size:16px;font-weight:700;color:var(--bone-dim);text-transform:uppercase;letter-spacing:.05em}
   .leadnum{font-size:32px;font-weight:800;line-height:1;color:#63c08a;font-variant-numeric:tabular-nums}
@@ -162,17 +169,29 @@
     transition:left .25s ease,width .25s ease}
   .leadmid{position:absolute;left:50%;top:0;bottom:0;width:2px;margin-left:-1px;background:rgba(239,233,220,.4)}
 
+  /* On a short screen something has to give: the shooter cue is already shown by the
+     whole-panel tint, and the controls matter more than a 60px score. */
+  @media (max-height: 700px){
+    :root{--bs:clamp(46px, min(21vw, (100dvh - 325px) / 5), 92px)}
+    .cue{display:none}
+    .raw{font-size:clamp(38px, 11vw, 48px)}
+    .side{padding:9px 14px 10px}
+    .leadhead{min-height:30px}
+    .leadnum{font-size:27px}
+    .controls button{height:60px}
+  }
+
   /* ---- meta strip ---- */
   .meta{flex:0 0 auto;display:flex;align-items:center;justify-content:center;gap:18px;
-    padding:11px;font-size:16px;color:var(--bone-dim);background:transparent}
+    padding:7px 11px;font-size:16px;color:var(--bone-dim);background:transparent}
   .meta b{color:var(--bone);font-weight:700}
   .meta button{background:none;border:none;color:var(--bone-dim);font:inherit;font-weight:600;min-height:0;padding:6px 8px;text-decoration:underline;border-radius:0}
   .warn{color:#e8b04a}
   .ok{color:#63c08a;font-weight:600}
 
   /* ---- rack (prototype, kept) ---- */
-  .rack{flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;padding:12px 0}
-  .row{display:flex;gap:11px;justify-content:center}
+  .rack{flex:1 1 0;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--rack-gap);padding:6px 0}
+  .row{display:flex;gap:var(--rack-gap);justify-content:center}
   .ball{
     width:var(--bs);height:var(--bs);border-radius:50%;border:none;padding:0;position:relative;min-height:0;
     background:var(--bc);cursor:pointer;
@@ -431,7 +450,7 @@
 import { cloud } from "../shared/cloud.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "0.10.0";
+const APP_VERSION = "0.11.0";
 const APP_ID = "fair-nine";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 
@@ -488,6 +507,36 @@ function savePlayer(id, fields){
 }
 
 // ---------- screens ----------
+// Keep the screen awake while scoring. The old version fired one request at load and
+// another on every visibilitychange without tracking the sentinel, so it leaked locks and
+// never noticed the OS dropping one. Hold exactly one, and re-take it when it goes.
+let wake = null, wakeWanted = false;
+
+async function takeWakeLock(){
+  if(!("wakeLock" in navigator) || !wakeWanted || wake) return;
+  if(document.visibilityState !== "visible") return;   // a request while hidden always rejects
+  try {
+    wake = await navigator.wakeLock.request("screen");
+    // Android drops the lock on tab switch or screen off; visibilitychange re-takes it.
+    wake.addEventListener("release", () => { wake = null; });
+  } catch(e){ wake = null; }   // unsupported, low battery, or denied — scoring still works
+}
+
+async function dropWakeLock(){
+  wakeWanted = false;
+  const w = wake; wake = null;
+  if(w) try { await w.release(); } catch(e){}
+}
+
+function keepAwake(on){
+  wakeWanted = on;
+  if(on) takeWakeLock(); else dropWakeLock();
+}
+
+document.addEventListener("visibilitychange", () => {
+  if(document.visibilityState === "visible") takeWakeLock();
+});
+
 function show(scr){
   el.scrHome.classList.toggle("hidden", scr !== "home");
   el.scrSetup.classList.toggle("hidden", scr !== "setup");
@@ -495,6 +544,7 @@ function show(scr){
   el.scrHistory.classList.toggle("hidden", scr !== "history");
   el.scrFamily.classList.toggle("hidden", scr !== "family");
   document.body.classList.toggle("scoring", scr === "live");
+  keepAwake(scr === "live");
 }
 
 const nameOf = id => (db.players[id] && db.players[id].name) || "(deleted)";
@@ -1643,13 +1693,6 @@ el.impReplace.addEventListener("click", async () => {
   renderHome();
   checkLive();
 });
-
-if("wakeLock" in navigator){
-  navigator.wakeLock.request("screen").catch(() => {});
-  document.addEventListener("visibilitychange", () => {
-    if(document.visibilityState === "visible") navigator.wakeLock.request("screen").catch(() => {});
-  });
-}
 
 if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
 </script>
