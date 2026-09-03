@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#101418">
+<link rel="manifest" href="manifest.json">
+<title>Bloc 11</title>
+<style>
+  :root{
+    --bg:#101418; --panel:#1a2027; --panel-lift:#232b34;
+    --ink:#eef0f2; --ink-dim:#aab3bd; --accent:#f0983a; --accent-ink:#1a1006;
+    --grid:rgba(255,255,255,.10); --danger:#e2603f;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+  html,body{height:100%}
+  body{
+    background:var(--bg);color:var(--ink);
+    font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    font-size:18px;line-height:1.4;font-variant-numeric:tabular-nums;
+    display:flex;flex-direction:column;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    -webkit-user-select:none;user-select:none;
+  }
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;background:var(--panel)}
+  header h1{font-size:20px;font-weight:700}
+  main{flex:1;padding:16px;overflow-y:auto;max-width:40rem;width:100%;margin:0 auto}
+  footer{padding:10px 16px;font-size:15px;color:var(--ink-dim);text-align:center}
+  .hidden{display:none !important}
+
+  button{
+    min-height:56px;padding:0 20px;border-radius:12px;border:none;
+    background:var(--accent);color:var(--accent-ink);font:inherit;font-weight:700;
+  }
+  button:active{filter:brightness(1.15)}
+  button.quiet{background:transparent;color:var(--ink-dim);border:1px solid rgba(255,255,255,.22)}
+  button.lift{background:var(--panel-lift);color:var(--ink)}
+  button:disabled{opacity:.45}
+  button:focus-visible{outline:3px solid #fff;outline-offset:2px}
+  .user{display:flex;align-items:center;gap:10px;font-size:15px;color:var(--ink-dim)}
+  .user img{width:32px;height:32px;border-radius:50%}
+
+  input[type=text],input[type=email],input[type=date]{
+    width:100%;min-height:56px;padding:0 14px;font:inherit;font-size:18px;
+    background:var(--panel);color:var(--ink);border:1px solid rgba(255,255,255,.14);border-radius:12px;
+    -webkit-user-select:text;user-select:text;
+  }
+  label{display:block;font-size:15px;color:var(--ink-dim);margin:14px 0 6px}
+
+  .gate{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;text-align:center;padding:40px 8px}
+  .gate p{color:var(--ink-dim)}
+  .gate button{width:100%;max-width:20rem;height:64px;font-size:19px}
+
+  h2.sect{font-size:16px;font-weight:700;color:var(--ink-dim);text-transform:uppercase;
+    letter-spacing:.06em;margin:28px 0 10px}
+  h2.sect:first-child{margin-top:4px}
+  .empty{color:var(--ink-dim);font-size:16px;padding:6px 2px}
+  .hint{color:var(--ink-dim);font-size:15px;margin-top:8px}
+
+  /* ---- chips (climbers) ---- */
+  .chips{display:flex;flex-wrap:wrap;gap:10px}
+  .chips button{flex:1 1 auto;min-width:5rem;background:var(--panel);color:var(--ink-dim);border:1px solid rgba(255,255,255,.14)}
+  .chips button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+
+  /* ---- grade grid ---- */
+  .grades{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px}
+  .grades button{min-height:68px;font-size:28px;background:var(--panel);color:var(--ink);border:1px solid rgba(255,255,255,.14);padding:0}
+  .grades button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+  .grades button small{display:block;font-size:15px;font-weight:600;line-height:1;margin-top:2px;color:inherit;opacity:.85}
+
+  .row{display:flex;gap:10px;margin-top:16px}
+  .row button{flex:1}
+  .row button.big{min-height:64px;font-size:19px}
+
+  /* ---- progress ---- */
+  .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0}
+  .tile{background:var(--panel);border-radius:14px;padding:12px 10px;text-align:center}
+  .tile b{display:block;font-size:28px;font-weight:800;line-height:1.1}
+  .tile span{display:block;font-size:15px;line-height:1.25;color:var(--ink-dim);margin-top:6px}
+  .tile em{font-style:normal}
+  .chart{background:var(--panel);border-radius:16px;padding:12px 8px 6px}
+  .chart svg{display:block;width:100%;height:auto;overflow:visible}
+  .chart .legend{display:flex;gap:18px;justify-content:center;font-size:15px;color:var(--ink-dim);padding:4px 0 6px}
+  .legend i{display:inline-block;width:12px;height:12px;border-radius:50%;vertical-align:-1px;margin-right:6px}
+  .legend i.sent{background:var(--accent)}
+  .legend i.proj{border:2px solid var(--ink-dim)}
+  .session{margin:10px 8px 6px;font-size:16px;color:var(--ink-dim);min-height:1.4em}
+  .session b{color:var(--ink)}
+  .session ul{list-style:none;margin-top:4px}
+  .session li{padding:2px 0}
+  .bars{margin-top:12px}
+  .brow{display:flex;align-items:center;gap:10px;min-height:32px}
+  .brow .g{width:3.2rem;text-align:right;font-weight:700;font-size:17px}
+  .brow .track{flex:1;height:14px;background:var(--panel-lift);border-radius:7px;overflow:hidden}
+  .brow .track i{display:block;height:100%;background:var(--accent);border-radius:7px 4px 4px 7px;transition:width .25s ease}
+  .brow .n{width:2.6rem;font-size:16px;color:var(--ink-dim)}
+
+  /* ---- recent ---- */
+  .recent{list-style:none;display:flex;flex-direction:column;gap:8px}
+  .recent li{display:flex;align-items:center;gap:12px;background:var(--panel);border-radius:14px;padding:10px 8px 10px 14px}
+  .recent .grade{font-size:24px;font-weight:800;min-width:2.4rem;text-align:center}
+  .recent .grade.proj{color:var(--ink-dim);font-weight:600}
+  .recent .who{flex:1;min-width:0}
+  .recent .who .l1{font-weight:600}
+  .recent .who .l2{font-size:15px;color:var(--ink-dim)}
+  .recent button{min-width:60px;min-height:56px;padding:0 6px;background:transparent;color:var(--ink-dim);font-size:15px}
+  .recent button:not(.arm){font-size:22px}
+  .recent button.arm,.people button.arm{background:var(--danger);color:#fff}
+
+  /* ---- climbers ---- */
+  .people{list-style:none;display:flex;flex-direction:column;gap:8px}
+  .people li{display:flex;align-items:center;gap:12px;background:var(--panel);border-radius:14px;padding:10px 8px 10px 14px}
+  .people .who{flex:1;min-width:0}
+  .people .who .l2{font-size:15px;color:var(--ink-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .people .you{font-size:15px;color:var(--ink-dim)}
+  .people button{min-width:90px;background:transparent;color:var(--ink-dim);border:1px solid rgba(255,255,255,.22);font-size:16px}
+  .addbox{background:var(--panel);border-radius:16px;padding:6px 14px 16px;margin-top:12px}
+  .addbox input{background:var(--bg)}
+
+  .toast{
+    position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:30;
+    background:var(--panel-lift);color:var(--ink);padding:14px 20px;border-radius:14px;
+    font-size:16px;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:90vw;text-align:center;
+  }
+  @media (prefers-reduced-motion: reduce){ *{transition:none !important} }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Bloc 11</h1>
+  <div class="user" id="userBox"></div>
+</header>
+
+<main id="main">
+  <section class="gate hidden" id="gate">
+    <p id="gateMsg">Sign in to log your climbs.</p>
+    <button id="signInBig">Sign in with Google</button>
+  </section>
+
+  <section class="hidden" id="app">
+    <h2 class="sect">Log a climb</h2>
+    <div class="chips" id="whoChips"></div>
+    <div class="grades" id="grades"></div>
+    <label for="note">Which route? (optional)</label>
+    <input type="text" id="note" placeholder="the 5 in the cave" autocomplete="off">
+    <label for="when">When</label>
+    <input type="date" id="when">
+    <div class="row">
+      <button class="quiet big" id="projBtn">Projecting</button>
+      <button class="big" id="sentBtn">Sent it</button>
+    </div>
+
+    <h2 class="sect">Progress</h2>
+    <div class="chips" id="progChips"></div>
+    <div id="progress"></div>
+
+    <h2 class="sect">Recent</h2>
+    <ul class="recent" id="recent"></ul>
+
+    <h2 class="sect">Climbers</h2>
+    <ul class="people" id="people"></ul>
+    <div class="addbox">
+      <label for="newName">Name</label>
+      <input type="text" id="newName" placeholder="Sergio" autocomplete="off">
+      <label for="newEmail">Their Gmail, so they can sign in (optional)</label>
+      <input type="email" id="newEmail" placeholder="name@gmail.com" autocomplete="off" inputmode="email">
+      <div class="row">
+        <button class="quiet" id="shareBtn">Share link</button>
+        <button id="addBtn">Add climber</button>
+      </div>
+    </div>
+
+    <div class="row">
+      <button class="quiet" id="exportBtn">Export</button>
+      <button class="quiet" id="importBtn">Import</button>
+    </div>
+    <input type="file" id="importFile" accept="application/json,.json" class="hidden">
+  </section>
+</main>
+
+<footer>Bloc 11 <span id="version"></span></footer>
+
+<script type="module">
+  import { cloud } from "../shared/cloud.js";
+
+  // Bump on every change. The deploy skill checks this against the live site.
+  const APP_VERSION = "0.1.0";
+  const APP_ID = "bloc-11";
+  document.getElementById("version").textContent = "v" + APP_VERSION;
+
+  const $ = id => document.getElementById(id);
+
+  // ---- the grading system: 1–6, then chilli, then skull ----
+  const GRADES = [
+    { v:1, label:"1" }, { v:2, label:"2" }, { v:3, label:"3" }, { v:4, label:"4" },
+    { v:5, label:"5" }, { v:6, label:"6" },
+    { v:7, label:"🌶️", name:"Chilli" }, { v:8, label:"💀", name:"Skull" }
+  ];
+  const gradeOf = v => GRADES.find(g => g.v === v) || { v, label:String(v) };
+  const gradeShort = v => gradeOf(v).label;
+  const gradeWord = v => { const g = gradeOf(v); return `a ${g.name ? g.name.toLowerCase() : g.label}`; };
+
+  // ---- state ----
+  let climbers = {};          // id -> { name, email, createdAt, deleted }
+  let climbs = [];            // { id, climber, grade, result, note, at, by }
+  let unsubs = [];
+  let who = null;             // climber id selected in the log form
+  let grade = null;           // grade selected in the log form
+  let progWho = null;         // climber shown in Progress
+  let openSession = null;     // day (epoch ms) expanded under the chart
+
+  const activeClimbers = () => Object.entries(climbers)
+    .filter(([, c]) => c && !c.deleted)
+    .map(([id, c]) => ({ id, ...c }))
+    .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+  const nameOf = id => (climbers[id] && climbers[id].name) || "Someone";
+  const myClimberId = () => {
+    const me = ((cloud.user && cloud.user.email) || "").toLowerCase();
+    const hit = me && activeClimbers().find(c => (c.email || "").toLowerCase() === me);
+    return hit ? hit.id : null;
+  };
+
+  // ---- taps: pointerup, not click ----
+  function tap(node, fn){
+    if (!node) return;
+    let down = false, sx = 0, sy = 0;
+    node.addEventListener("pointerdown", e => { down = true; sx = e.clientX; sy = e.clientY; });
+    node.addEventListener("pointercancel", () => { down = false; });
+    node.addEventListener("pointerup", e => {
+      if (!down) return;
+      down = false;
+      if (Math.abs(e.clientX - sx) > 14 || Math.abs(e.clientY - sy) > 14) return; // a scroll, not a tap
+      e.preventDefault();
+      fn(e);
+    });
+    node.addEventListener("click", e => e.preventDefault());
+  }
+  function buzz(ms){ if (navigator.vibrate) navigator.vibrate(ms); }
+
+  // ---- dates ----
+  const DAY = 86400000;
+  const startOfDay = ms => { const d = new Date(ms); d.setHours(0,0,0,0); return d.getTime(); };
+  const daysSince = ms => Math.round((startOfDay(Date.now()) - startOfDay(ms)) / DAY);
+  const pad = n => String(n).padStart(2, "0");
+  const toISO = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  // Stored at 20:00 local so a day's climbs sort sensibly and sessions group by calendar day.
+  function fromISO(iso){
+    const [y,m,d] = iso.split("-").map(Number);
+    return new Date(y, m-1, d, 20, 0, 0).getTime();
+  }
+  const shortDate = ms => new Date(ms).toLocaleDateString(undefined, { day:"numeric", month:"short" });
+  function whenLabel(ms){
+    const n = daysSince(ms);
+    if (n <= 0) return "Today";
+    if (n === 1) return "Yesterday";
+    if (n < 7) return new Date(ms).toLocaleDateString(undefined, { weekday:"long" });
+    return new Date(ms).toLocaleDateString(undefined, { day:"numeric", month:"short", year:"numeric" });
+  }
+
+  // ---- render ----
+  function render(){
+    renderWho();
+    renderGrades();
+    renderProgress();
+    renderRecent();
+    renderPeople();
+  }
+
+  function chipRow(wrap, selectedId, onPick){
+    wrap.innerHTML = "";
+    const list = activeClimbers();
+    if (!list.length){
+      const p = document.createElement("p");
+      p.className = "empty";
+      p.textContent = "Add a climber below to get started.";
+      wrap.appendChild(p);
+      return;
+    }
+    for (const c of list){
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = c.name;
+      b.setAttribute("aria-pressed", c.id === selectedId ? "true" : "false");
+      tap(b, () => onPick(c.id));
+      wrap.appendChild(b);
+    }
+  }
+
+  function renderWho(){
+    const list = activeClimbers();
+    if (!who || !climbers[who] || climbers[who].deleted) who = myClimberId() || (list[0] && list[0].id) || null;
+    chipRow($("whoChips"), who, id => { who = id; renderWho(); });
+  }
+
+  function renderGrades(){
+    const wrap = $("grades");
+    wrap.innerHTML = "";
+    for (const g of GRADES){
+      const b = document.createElement("button");
+      b.type = "button";
+      b.innerHTML = `<span></span>${g.name ? "<small></small>" : ""}`;
+      b.querySelector("span").textContent = g.label;
+      if (g.name) b.querySelector("small").textContent = g.name;
+      b.setAttribute("aria-pressed", grade === g.v ? "true" : "false");
+      b.setAttribute("aria-label", g.name || `Grade ${g.label}`);
+      tap(b, () => { grade = grade === g.v ? null : g.v; renderGrades(); });
+      wrap.appendChild(b);
+    }
+  }
+
+  // ---- progress ----
+  function renderProgress(){
+    const list = activeClimbers();
+    if (!progWho || !climbers[progWho] || climbers[progWho].deleted) progWho = who || (list[0] && list[0].id) || null;
+    chipRow($("progChips"), progWho, id => { progWho = id; openSession = null; renderProgress(); });
+    const box = $("progress");
+    box.innerHTML = "";
+    if (!progWho) return;
+
+    const mine = climbs.filter(c => c.climber === progWho).sort((a, b) => a.at - b.at);
+    if (!mine.length){
+      const p = document.createElement("p");
+      p.className = "empty";
+      p.textContent = `Nothing logged for ${nameOf(progWho)} yet.`;
+      box.appendChild(p);
+      return;
+    }
+    const sends = mine.filter(c => c.result === "sent");
+    const projects = mine.filter(c => c.result !== "sent");
+    const hardest = sends.reduce((m, c) => Math.max(m, c.grade), 0);
+    const working = projects.filter(c => c.grade > hardest).reduce((m, c) => Math.max(m, c.grade), 0);
+    const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0,0,0,0);
+    const thisMonth = sends.filter(c => c.at >= monthStart.getTime()).length;
+
+    const tiles = document.createElement("div");
+    tiles.className = "tiles";
+    tiles.innerHTML = `
+      <div class="tile"><b></b><span>hardest<br>send</span></div>
+      <div class="tile"><b></b><span>working<br>on</span></div>
+      <div class="tile"><b></b><span>sends<br><em></em></span></div>`;
+    const bs = tiles.querySelectorAll("b");
+    bs[0].textContent = hardest ? gradeShort(hardest) : "—";
+    bs[1].textContent = working ? gradeShort(working) : "—";
+    bs[2].textContent = String(sends.length);
+    tiles.querySelector("em").textContent = `${thisMonth} this month`;
+    box.appendChild(tiles);
+
+    box.appendChild(chart(mine));
+    box.appendChild(gradeBars(sends));
+  }
+
+  // One dot per climb, grade on y, date on x; a line through each session's hardest send.
+  function chart(mine){
+    const wrap = document.createElement("div");
+    wrap.className = "chart";
+    const W = Math.max(280, Math.min(640, ($("progress").clientWidth || 340) - 16));
+    const H = 220, L = 44, R = 14, T = 12, B = 30;
+    const iw = W - L - R, ih = H - T - B;
+
+    const days = [...new Set(mine.map(c => startOfDay(c.at)))].sort((a, b) => a - b);
+    let x0 = days[0], x1 = days[days.length - 1];
+    if (x1 - x0 < 14 * DAY){ const mid = (x0 + x1) / 2; x0 = mid - 7 * DAY; x1 = mid + 7 * DAY; }
+    const X = t => L + (t - x0) / (x1 - x0) * iw;
+    const Y = g => T + ih - (g - 1) / 7 * ih;
+
+    let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Climbs over time">`;
+    // grid + y labels
+    for (const g of GRADES){
+      s += `<line x1="${L}" x2="${W - R}" y1="${Y(g.v)}" y2="${Y(g.v)}" stroke="var(--grid)" stroke-width="1"/>`;
+      s += `<text x="${L - 10}" y="${Y(g.v) + 5}" text-anchor="end" font-size="15" fill="var(--ink-dim)">${g.label}</text>`;
+    }
+    // x ticks: first and last session, plus month starts in between
+    const ticks = new Map();
+    ticks.set(days[0], shortDate(days[0]));
+    if (days.length > 1) ticks.set(days[days.length - 1], shortDate(days[days.length - 1]));
+    const m = new Date(x0); m.setDate(1); m.setHours(0,0,0,0); m.setMonth(m.getMonth() + 1);
+    while (m.getTime() < x1){
+      const t = m.getTime();
+      if (![...ticks.keys()].some(k => Math.abs(X(k) - X(t)) < 44)) ticks.set(t, m.toLocaleDateString(undefined, { month:"short" }));
+      m.setMonth(m.getMonth() + 1);
+    }
+    for (const [t, label] of ticks){
+      const x = X(t);
+      const anchor = x < L + 20 ? "start" : x > W - R - 20 ? "end" : "middle";
+      s += `<text x="${x}" y="${H - 8}" text-anchor="${anchor}" font-size="15" fill="var(--ink-dim)">${label}</text>`;
+    }
+    // line through each session's hardest send
+    const best = days.map(d => {
+      const sent = mine.filter(c => startOfDay(c.at) === d && c.result === "sent");
+      return sent.length ? { d, g: Math.max(...sent.map(c => c.grade)) } : null;
+    }).filter(Boolean);
+    if (best.length > 1){
+      s += `<polyline fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" opacity=".7" points="${best.map(p => `${X(p.d)},${Y(p.g)}`).join(" ")}"/>`;
+    }
+    // dots, one per (day, grade, result); projects hollow, sends filled
+    const seen = new Set();
+    for (const c of mine){
+      const d = startOfDay(c.at), key = `${d}|${c.grade}|${c.result}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const proj = c.result !== "sent";
+      s += proj
+        ? `<circle cx="${X(d)}" cy="${Y(c.grade)}" r="5" fill="var(--panel)" stroke="var(--ink-dim)" stroke-width="2"/>`
+        : `<circle cx="${X(d)}" cy="${Y(c.grade)}" r="5.5" fill="var(--accent)" stroke="var(--panel)" stroke-width="2"/>`;
+    }
+    // tap targets: one column per session
+    for (const d of days){
+      const x = X(d);
+      s += `<rect class="hit" data-day="${d}" x="${x - 22}" y="${T - 6}" width="44" height="${ih + 12}" fill="transparent" ${openSession === d ? 'stroke="var(--grid)" rx="8"' : ""}/>`;
+    }
+    s += `</svg>`;
+    wrap.innerHTML = s + `<div class="legend"><span><i class="sent"></i>Sent</span><span><i class="proj"></i>Projecting</span></div><div class="session"></div>`;
+    wrap.querySelectorAll(".hit").forEach(r => tap(r, () => {
+      const d = Number(r.dataset.day);
+      openSession = openSession === d ? null : d;
+      renderProgress();
+    }));
+
+    const sess = wrap.querySelector(".session");
+    if (openSession !== null && days.includes(openSession)){
+      const rows = mine.filter(c => startOfDay(c.at) === openSession).sort((a, b) => b.grade - a.grade);
+      sess.innerHTML = `<b></b><ul></ul>`;
+      sess.querySelector("b").textContent = whenLabel(openSession);
+      const ul = sess.querySelector("ul");
+      for (const c of rows){
+        const li = document.createElement("li");
+        li.textContent = `${c.result === "sent" ? "Sent" : "Projecting"} ${gradeWord(c.grade)}${c.note ? " · " + c.note : ""}`;
+        ul.appendChild(li);
+      }
+    } else {
+      sess.textContent = days.length > 1 ? "Tap a session to see what was climbed." : "";
+    }
+    return wrap;
+  }
+
+  function gradeBars(sends){
+    const wrap = document.createElement("div");
+    wrap.className = "bars";
+    const counts = GRADES.map(g => ({ g, n: sends.filter(c => c.grade === g.v).length }));
+    const max = Math.max(1, ...counts.map(c => c.n));
+    const top = counts.reduce((m, c, i) => c.n ? i : m, -1);
+    for (let i = 0; i <= top; i++){
+      const { g, n } = counts[i];
+      const row = document.createElement("div");
+      row.className = "brow";
+      row.innerHTML = `<span class="g"></span><span class="track"><i></i></span><span class="n"></span>`;
+      row.querySelector(".g").textContent = g.label;
+      row.querySelector(".track i").style.width = Math.round(n / max * 100) + "%";
+      row.querySelector(".n").textContent = n ? `×${n}` : "";
+      wrap.appendChild(row);
+    }
+    return wrap;
+  }
+
+  // ---- recent ----
+  function renderRecent(){
+    const ul = $("recent");
+    ul.innerHTML = "";
+    const rows = [...climbs].sort((a, b) => b.at - a.at).slice(0, 40);
+    if (!rows.length){
+      const li = document.createElement("li");
+      li.className = "empty";
+      li.textContent = "Nothing logged yet.";
+      ul.appendChild(li);
+      return;
+    }
+    for (const c of rows){
+      const proj = c.result !== "sent";
+      const li = document.createElement("li");
+      li.innerHTML = `<span class="grade"></span>
+        <span class="who"><div class="l1"></div><div class="l2"></div></span>
+        <button type="button" aria-label="Delete">✕</button>`;
+      const g = li.querySelector(".grade");
+      g.textContent = gradeShort(c.grade);
+      g.classList.toggle("proj", proj);
+      li.querySelector(".l1").textContent = `${nameOf(c.climber)} · ${proj ? "projecting" : "sent"} ${gradeWord(c.grade)}`;
+      li.querySelector(".l2").textContent = c.note ? `${whenLabel(c.at)} · ${c.note}` : whenLabel(c.at);
+      armed(li.querySelector("button"), "✕", () => store.remove(c));
+      ul.appendChild(li);
+    }
+  }
+
+  // Two-tap delete: first tap arms it for five seconds, second tap does it.
+  function armed(btn, label, fn){
+    let timer = null;
+    tap(btn, async () => {
+      if (!timer){
+        timer = setTimeout(() => { timer = null; btn.classList.remove("arm"); btn.textContent = label; }, 5000);
+        btn.classList.add("arm");
+        btn.textContent = "Sure?";
+        buzz(12);
+        return;
+      }
+      clearTimeout(timer); timer = null;
+      btn.disabled = true; btn.textContent = "…";
+      try { await fn(); }
+      catch (e){ btn.disabled = false; btn.classList.remove("arm"); btn.textContent = label; toast("Couldn't do that: " + (e.message || e)); }
+    });
+  }
+
+  // ---- climbers ----
+  function renderPeople(){
+    const ul = $("people");
+    ul.innerHTML = "";
+    const list = activeClimbers();
+    if (!list.length){
+      const li = document.createElement("li");
+      li.className = "empty";
+      li.textContent = "No climbers yet. Add yourself first.";
+      ul.appendChild(li);
+      return;
+    }
+    const me = ((cloud.user && cloud.user.email) || "").toLowerCase();
+    for (const c of list){
+      const li = document.createElement("li");
+      li.innerHTML = `<span class="who"><div class="l1"></div><div class="l2"></div></span>`;
+      li.querySelector(".l1").textContent = c.name;
+      li.querySelector(".l2").textContent = c.email || "no sign-in email";
+      if (c.email && c.email.toLowerCase() === me){
+        const y = document.createElement("span");
+        y.className = "you";
+        y.textContent = "you";
+        li.appendChild(y);
+      } else {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.textContent = "Remove";
+        armed(b, "Remove", () => store.removeClimber(c.id));
+        li.appendChild(b);
+      }
+      ul.appendChild(li);
+    }
+  }
+
+  async function addClimber(){
+    const name = $("newName").value.trim();
+    const email = $("newEmail").value.trim().toLowerCase();
+    if (!name){ $("newName").focus(); return; }
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ toast("That email doesn't look right."); $("newEmail").focus(); return; }
+    $("addBtn").disabled = true;
+    try {
+      const id = await store.addClimber({ name, email, createdAt: Date.now() });
+      $("newName").value = ""; $("newEmail").value = "";
+      if (!who) who = id;
+      let msg = `${name} added`;
+      if (email && store.live){
+        try { await cloud.addMember(email); msg += " · they can sign in now"; }
+        catch (e){ msg += " · couldn't add their email to the family list"; }
+      }
+      toast(msg);
+    } catch (e){ toast("Couldn't add: " + (e.message || e)); }
+    $("addBtn").disabled = false;
+  }
+
+  function share(){
+    const url = location.origin + location.pathname;
+    if (navigator.share){
+      navigator.share({ title:"Bloc 11", text:"Our climbing log — sign in with the Gmail that's been added.", url }).catch(() => {});
+    } else if (navigator.clipboard){
+      navigator.clipboard.writeText(url).then(() => toast("Link copied")).catch(() => {});
+    }
+  }
+
+  // ---- logging ----
+  async function logClimb(result){
+    if (!who){ toast("Add a climber first."); return; }
+    if (!grade){ toast("Pick a grade first."); buzz(20); return; }
+    const entry = {
+      climber: who,
+      grade,
+      result,
+      note: $("note").value.trim(),
+      at: fromISO($("when").value || toISO(new Date())),
+      by: cloud.user ? cloud.user.email : null
+    };
+    const said = `${nameOf(who)} ${result === "sent" ? "sent" : "is projecting"} ${gradeWord(grade)}`;
+    grade = null;
+    $("note").value = "";
+    renderGrades();
+    buzz(result === "sent" ? [20, 40, 20] : 20);
+    try { await store.add(entry); toast(result === "sent" ? `${said} 🎉` : said); }
+    catch (e){ toast("Couldn't save: " + (e.message || e)); }
+  }
+
+  function toast(msg){
+    const t = document.createElement("div");
+    t.className = "toast";
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 2600);
+  }
+
+  function download(name, text, type){
+    const url = URL.createObjectURL(new Blob([text], { type: type + ";charset=utf-8" }));
+    const a = document.createElement("a");
+    a.href = url; a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 4000);
+  }
+
+  // ---- export / import ----
+  function exportAll(){
+    const data = { app: APP_ID, version: APP_VERSION, exportedAt: new Date().toISOString(), climbers, climbs };
+    download(`bloc-11-${toISO(new Date())}.json`, JSON.stringify(data, null, 2), "application/json");
+  }
+
+  async function importFile(file){
+    let data;
+    try { data = JSON.parse(await file.text()); }
+    catch { return toast("That file isn't JSON."); }
+    if (!data || !Array.isArray(data.climbs)) return toast("No climbs in that file.");
+    let people = 0;
+    if (data.climbers && typeof data.climbers === "object"){
+      const fresh = {};
+      for (const [id, c] of Object.entries(data.climbers)){
+        if (!c || !c.name || climbers[id]) continue;
+        fresh[id] = { name: String(c.name), email: String(c.email || ""), createdAt: Number(c.createdAt) || Date.now(), deleted: !!c.deleted };
+        people++;
+      }
+      if (people) await store.saveClimbers({ ...climbers, ...fresh });
+    }
+    const have = new Set(climbs.map(c => `${c.climber}|${c.grade}|${c.result}|${c.at}|${c.note || ""}`));
+    let added = 0;
+    for (const raw of data.climbs){
+      if (!raw || !raw.climber || !raw.grade || !raw.at) continue;
+      const entry = {
+        climber: String(raw.climber), grade: Number(raw.grade), result: raw.result === "sent" ? "sent" : "project",
+        note: String(raw.note || ""), at: Number(raw.at), by: raw.by || null
+      };
+      const key = `${entry.climber}|${entry.grade}|${entry.result}|${entry.at}|${entry.note}`;
+      if (have.has(key)) continue;
+      have.add(key);
+      await store.add(entry);
+      added++;
+    }
+    toast(added || people ? `Imported ${added} climb${added === 1 ? "" : "s"}, ${people} climber${people === 1 ? "" : "s"}` : "Nothing new to import");
+  }
+
+  // ---- storage ----
+  // Cloud when Firebase is set up and signed in; a plain in-memory copy otherwise, so the
+  // app still runs (and still exports) if it's ever opened without the cloud.
+  const store = {
+    get live(){ return cloud.configured() && !!cloud.user; },
+    async add(entry){
+      if (this.live) return cloud.save(`climbs/${cloud.newId()}`, entry);
+      climbs = [...climbs, { id: "local-" + Math.random().toString(36).slice(2), ...entry }];
+      render();
+    },
+    async remove(c){
+      if (this.live) return cloud.delete(`climbs/${c.id}`);
+      climbs = climbs.filter(x => x.id !== c.id);
+      render();
+    },
+    async saveClimbers(next){
+      climbers = next;
+      if (this.live) return cloud.save("state/main", { climbers: next });
+      render();
+    },
+    async addClimber(c){
+      const id = this.live ? cloud.newId() : "local-" + Math.random().toString(36).slice(2);
+      await this.saveClimbers({ ...climbers, [id]: c });
+      return id;
+    },
+    async removeClimber(id){
+      if (!climbers[id]) return;
+      await this.saveClimbers({ ...climbers, [id]: { ...climbers[id], deleted: true } });
+    }
+  };
+
+  // ---- wiring ----
+  tap($("sentBtn"), () => logClimb("sent"));
+  tap($("projBtn"), () => logClimb("project"));
+  tap($("addBtn"), addClimber);
+  tap($("shareBtn"), share);
+  tap($("exportBtn"), exportAll);
+  tap($("importBtn"), () => $("importFile").click());
+  $("importFile").addEventListener("change", e => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (f) importFile(f);
+  });
+  $("newName").addEventListener("keydown", e => { if (e.key === "Enter") $("newEmail").focus(); });
+  $("newEmail").addEventListener("keydown", e => { if (e.key === "Enter") addClimber(); });
+  $("when").value = toISO(new Date());
+
+  // ---- cloud ----
+  const userBox = $("userBox");
+  await cloud.init(APP_ID);
+
+  function applyUser(user){
+    if (user) {
+      userBox.innerHTML = `${user.photoURL ? `<img src="${user.photoURL}" alt="">` : ""}<button class="quiet" id="signOut" style="min-height:44px;padding:0 14px;font-size:15px">Sign out</button>`;
+      tap($("signOut"), () => cloud.signOut());
+    } else {
+      userBox.innerHTML = "";
+    }
+    start(user);
+  }
+
+  // onUser only fires straight away when someone is signed in, so paint the signed-out
+  // state ourselves. Also what makes the app run before Firebase is set up.
+  cloud.onUser(applyUser);
+  if (!cloud.user) applyUser(null);
+
+  tap($("signInBig"), () => cloud.signIn().catch(err => {
+    $("gateMsg").textContent = "Sign-in failed: " + (err && err.code ? err.code : err);
+  }));
+
+  // ---- app ----
+  function start(user){
+    unsubs.forEach(u => { try { u(); } catch {} });
+    unsubs = [];
+
+    const gated = cloud.configured() && !user;
+    $("gate").classList.toggle("hidden", !gated);
+    $("app").classList.toggle("hidden", gated);
+    if (gated) return;
+
+    if (cloud.configured()){
+      unsubs.push(cloud.watch("state/main", doc => {
+        climbers = (doc && doc.climbers) || {};
+        render();
+      }));
+      unsubs.push(cloud.watchList("climbs", rows => {
+        climbs = rows.filter(r => typeof r.at === "number" && typeof r.grade === "number");
+        render();
+      }, { orderBy: "at", desc: true, limit: 1000 }));
+    }
+    render();
+  }
+
+  // ---- offline shell ----
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
+</script>
+</body>
+</html>
