@@ -185,7 +185,7 @@
   import { cloud } from "../shared/cloud.js";
 
   // Bump on every change. The deploy skill checks this against the live site.
-  const APP_VERSION = "0.1.0";
+  const APP_VERSION = "0.2.0";
   const APP_ID = "bloc-11";
   document.getElementById("version").textContent = "v" + APP_VERSION;
 
@@ -210,16 +210,54 @@
   let progWho = null;         // climber shown in Progress
   let openSession = null;     // day (epoch ms) expanded under the chart
 
+  const myEmail = () => ((cloud.user && cloud.user.email) || "").toLowerCase();
+  const isMe = c => !!myEmail() && (c.email || "").toLowerCase() === myEmail();
+  // The signed-in person comes first, then everyone else in the order they were added.
   const activeClimbers = () => Object.entries(climbers)
     .filter(([, c]) => c && !c.deleted)
     .map(([id, c]) => ({ id, ...c }))
-    .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+    .sort((a, b) => (isMe(b) - isMe(a)) || (a.createdAt || 0) - (b.createdAt || 0));
   const nameOf = id => (climbers[id] && climbers[id].name) || "Someone";
   const myClimberId = () => {
-    const me = ((cloud.user && cloud.user.email) || "").toLowerCase();
-    const hit = me && activeClimbers().find(c => (c.email || "").toLowerCase() === me);
+    const hit = activeClimbers().find(isMe);
     return hit ? hit.id : null;
   };
+
+  // ---- you are a climber by default ----
+  // On sign-in, make sure the signed-in person exists as a climber: link their email to a
+  // climber with the same first name (added earlier without an email), or add them fresh.
+  // Then the log form points at them until you tap someone else.
+  let meHandled = null;      // email already sorted out this sign-in
+  let stateLoaded = false;   // don't add anyone before the climber list has arrived
+  async function ensureMe(){
+    const u = cloud.user;
+    if (!u || !u.email || !store.live || !stateLoaded) return;
+    const email = u.email.toLowerCase();
+    if (meHandled === email) return;
+    if (myClimberId()){ meHandled = email; return; }
+    meHandled = email;
+    const lower = x => String(x || "").trim().toLowerCase();
+    const first = (u.displayName || email.split("@")[0]).trim().split(/\s+/)[0];
+    const byName = () => activeClimbers().find(c => !c.email && (lower(c.name) === lower(first) || lower(c.name) === lower(u.displayName)));
+    let match = byName();
+    if (!match){
+      // Give the server a moment so a fresh phone doesn't add a duplicate before the list lands.
+      await new Promise(r => setTimeout(r, 2500));
+      if (myClimberId()) return;
+      match = byName();
+    }
+    try {
+      if (match){
+        await store.saveClimbers({ ...climbers, [match.id]: { ...climbers[match.id], email } });
+        toast(`You're ${match.name} — logging for you unless you tap someone else`);
+      } else {
+        await store.addClimber({ name: first, email, createdAt: Date.now() });
+        toast(`Added you as ${first} — tap a name to log for someone else`);
+      }
+    } catch (e){ meHandled = null; toast("Couldn't set you up as a climber: " + (e.message || e)); return; }
+    who = myClimberId();
+    render();
+  }
 
   // ---- taps: pointerup, not click ----
   function tap(node, fn){
@@ -280,7 +318,7 @@
     for (const c of list){
       const b = document.createElement("button");
       b.type = "button";
-      b.textContent = c.name;
+      b.textContent = isMe(c) ? `${c.name} (you)` : c.name;
       b.setAttribute("aria-pressed", c.id === selectedId ? "true" : "false");
       tap(b, () => onPick(c.id));
       wrap.appendChild(b);
@@ -511,13 +549,12 @@
       ul.appendChild(li);
       return;
     }
-    const me = ((cloud.user && cloud.user.email) || "").toLowerCase();
     for (const c of list){
       const li = document.createElement("li");
       li.innerHTML = `<span class="who"><div class="l1"></div><div class="l2"></div></span>`;
       li.querySelector(".l1").textContent = c.name;
       li.querySelector(".l2").textContent = c.email || "no sign-in email";
-      if (c.email && c.email.toLowerCase() === me){
+      if (isMe(c)){
         const y = document.createElement("span");
         y.className = "you";
         y.textContent = "you";
@@ -712,6 +749,7 @@
   function start(user){
     unsubs.forEach(u => { try { u(); } catch {} });
     unsubs = [];
+    who = null; progWho = null; meHandled = null; stateLoaded = false;
 
     const gated = cloud.configured() && !user;
     $("gate").classList.toggle("hidden", !gated);
@@ -721,7 +759,9 @@
     if (cloud.configured()){
       unsubs.push(cloud.watch("state/main", doc => {
         climbers = (doc && doc.climbers) || {};
+        stateLoaded = true;
         render();
+        ensureMe();
       }));
       unsubs.push(cloud.watchList("climbs", rows => {
         climbs = rows.filter(r => typeof r.at === "number" && typeof r.grade === "number");

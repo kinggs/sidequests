@@ -32,8 +32,8 @@ Labels live in one `GRADES` table so renaming or adding a tier is one edit.
 
 One page, top to bottom:
 
-1. **Log a climb** — climber chips (single select; defaults to the signed-in person, then the
-   last one used), an 8-tile grade grid, an optional note ("the 5 in the cave"), a date that
+1. **Log a climb** — climber chips (single select; the signed-in person is first and selected
+   by default, tap anyone else to log for them), an 8-tile grade grid, an optional note ("the 5 in the cave"), a date that
    defaults to today, and two big buttons: **Sent it** and **Projecting**. Either one saves.
 2. **Progress** — pick a climber. Three tiles (hardest send, hardest grade being projected
    above that, total sends with this month's count), then a timeline: one dot per climb
@@ -75,4 +75,10 @@ Offline logging works through Firestore's persistent cache and syncs later.
 - Two outcomes only: sent, or projecting. Sending a route you were projecting is a new
   "sent" entry, not an edit of the old one — the timeline shows both.
 - Climbers are people, not accounts: a climber can be logged for without ever signing in.
+- **You are a climber by default.** On sign-in the app looks for a climber with your email;
+  failing that, a climber with your first name and no email gets your email attached (so a
+  "Rolf" added from Kenny's phone becomes Rolf's own row the first time he signs in); failing
+  that, you're added under your Google first name. The log form then points at you until you
+  tap someone else. It waits a moment for the climber list before adding anyone, so a fresh
+  phone doesn't create a duplicate.
 - Deleting a climb is a two-tap arm-and-confirm, not an undo.

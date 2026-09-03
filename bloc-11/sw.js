@@ -1,5 +1,5 @@
 // Network-first shell cache. Bump CACHE whenever index.html changes so old copies are dropped.
-const CACHE = "bloc-11-v0.1.0";
+const CACHE = "bloc-11-v0.2.0";
 const SHELL = ["./", "./index.html", "./manifest.json"];
 
 self.addEventListener("install", e => {
