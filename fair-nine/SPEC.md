@@ -58,7 +58,7 @@ Always by adjusted comparison, so a session can stop at any moment and still be 
 lead = pointsB − pointsA / H     // in B's units; positive means B is ahead
 ```
 
-Display this as a **lead bar**, not as "adjusted points": a green fill running from the centre of the bar out towards whoever is ahead — left for player A, right for player B — under the leader's name and the gap in large type ("SARAH  +3"). In fixed and open a full rack ahead (11 points) swings it all the way over. In a race the bar is driven by the gap between the two progress fractions and reads in shares of the race ("MEL +26%"), with full swing at a quarter-race clear, **damped by how much of the race has been played** and pegged once someone meets their target. The damping matters: with a big handicap the underdog's target is short, so their first ball is a large slice of it — true, but it proves little, and an undamped bar lurches on it. A lead too small to see keeps a visible sliver. Level reads "Tied" with an empty bar. Raw scores sit above it in the two panels.
+Display this as a **lead bar**, not as "adjusted points": a green fill running from the centre of the bar out towards whoever is ahead — left for player A, right for player B — under the leader's name and the gap in large type ("MEL  +26%"). Every mode reads the same way. Each player has a **quota**; the bar is driven by the gap between the two players' progress fractions towards their own quota, and the big number states that gap as a share of the session. In a **race** the quotas are the targets, and the bar pegs once someone meets theirs ("target met"). In **fixed** the quotas are each player's expected share of the live points over the planned racks. In **open** they are the same over the racks played so far, with a floor at the default five so an early whitewash reads +40% (as it would in a five-rack race) rather than +200%; from the sixth rack on the number shrinks a little at each new rack because the session it's a share of has grown. In fixed and open the gap is the adjusted `lead` divided by a positive constant, so the player shown ahead is always the one who would win if the session stopped now. Full swing at a quarter of the session clear, **damped by how much of the session has been played**. The damping matters: with a big handicap the underdog's quota is short, so their first ball is a large slice of it — true, but it proves little, and an undamped bar lurches on it. The number is capped at +100%. A lead too small to see keeps a visible sliver. Level reads "Tied" with an empty bar. Raw scores sit above it in the two panels.
 
 ### 3.3 Updating after a session
 
@@ -265,12 +265,15 @@ without it.
 - **No gate flash.** The Sign in button renders only after Firebase reports the auth state, so
   signed-in users no longer see it flicker on load.
 - **"Tied", not "Dead level"** — "dead" is reserved for dead balls.
-- **Race-mode lead talks targets.** In a race, "ahead" means closest to your own target,
-  since that decides the session and can disagree with the adjusted lead once targets are
-  rounded or edited. The bar is driven by the gap between the two progress fractions and the
-  big number states it as a share of the race — one definition for both sides, where stating
+- **The lead bar talks quotas, in every mode.** In a race, "ahead" means closest to your own
+  target, since that decides the session and can disagree with the adjusted lead once targets
+  are rounded or edited. The bar is driven by the gap between the two progress fractions and the
+  big number states it as a share of the session — one definition for both sides, where stating
   it in the leader's own target points made the same bar position read "+1" one way and "+4"
-  the other. Each panel carries that player's run-in ("needs 8 of 25", or "target met"). Fixed/open drive the bar from the adjusted lead.
+  the other. Fixed and open used to show the adjusted lead in points ("+3"), which read
+  differently from the race percentage; they now use the same progress-fraction gap, with each
+  player's quota being their expected share of the session's live points (§3.2). Each race
+  panel carries that player's run-in ("needs 8 of 25", or "target met").
 - **Ratings settle fast.** Under 3 sessions a player is "settling": against a known player
   (3+ sessions) their Zargo is solved directly from the observed point share (capped ±250,
   jumping all the way on session 1, half on 2, a third on 3) while the known player's rating

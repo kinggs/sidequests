@@ -450,7 +450,7 @@
 import { cloud } from "../shared/cloud.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "0.11.0";
+const APP_VERSION = "0.12.0";
 const APP_ID = "fair-nine";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 
@@ -492,6 +492,7 @@ let db = { players:{}, config: DEFAULT_CONFIG };
 const cfg = () => db.config || DEFAULT_CONFIG;
 const VAL = n => n === 9 ? cfg().points.nine : cfg().points.low;
 const LIVE_POINTS = () => 8 * cfg().points.low + cfg().points.nine;
+const DEFAULT_RACKS = 5;   // the setup default, and the notional length of an open session
 
 function expectedShareA(za, zb){ return 1 / (1 + Math.pow(2, (zb - za) / 100)); }
 
@@ -788,7 +789,7 @@ function showShortRaceWarning(a, b, eA){
 function proposeTargets(){
   const a = db.players[setup.a], b = db.players[setup.b];
   if(!a || !b || setup.mode !== "race") return;
-  const racks = Math.max(1, parseInt(el.racksIn.value, 10) || 5);
+  const racks = Math.max(1, parseInt(el.racksIn.value, 10) || DEFAULT_RACKS);
   const eA = expectedShareA(a.zargo, b.zargo);
   el.tgtA.value = Math.max(1, Math.round(LIVE_POINTS() * racks * eA));
   el.tgtB.value = Math.max(1, Math.round(LIVE_POINTS() * racks * (1 - eA)));
@@ -808,7 +809,7 @@ let live = null;
 
 async function startSession(){
   const a = db.players[setup.a], b = db.players[setup.b];
-  const racks = Math.max(1, parseInt(el.racksIn.value, 10) || 5);
+  const racks = Math.max(1, parseInt(el.racksIn.value, 10) || DEFAULT_RACKS);
   const targets = setup.mode === "race"
     ? { a: Math.max(1, parseInt(el.tgtA.value, 10) || 1), b: Math.max(1, parseInt(el.tgtB.value, 10) || 1) }
     : null;
@@ -818,7 +819,7 @@ async function startSession(){
     id,
     playerA: setup.a, playerB: setup.b,
     nameA: a.name, nameB: b.name,
-    H: eA / (1 - eA),
+    H: eA / (1 - eA), eA,
     zargoBefore: { a: a.zargo, b: b.zargo },
     mode: setup.mode,
     targets,
@@ -977,30 +978,44 @@ function leadValue(){
 }
 const clamp1 = v => Math.max(-1, Math.min(1, v));
 
-// One shape for both modes, so the bar reads the same whatever you're playing.
-// pos runs -1..+1 and is negative when player A — the left side — is ahead.
-// In race mode "ahead" means closest to your own target: that's what decides the
-// session, and it can disagree with the adjusted lead once targets are edited.
-function leadState(t, mode, targets, lead){
-  if(mode === "race" && targets && targets.a && targets.b){
-    const fA = t.a / targets.a, fB = t.b / targets.b;
-    const share = fB - fA;   // shares of the race; positive means B is ahead
-    if(Math.abs(share) < 0.005) return { pos: 0, num: "", aAhead: false };
-    const aAhead = share < 0;
-    if(fA >= 1 || fB >= 1) return { pos: aAhead ? -1 : 1, num: "target met", aAhead };
-    // Full swing at a quarter of the race clear, damped by how much has been played.
-    // With a big handicap the weaker player's target is short, so one early ball is a
-    // huge slice of it — true, but it proves little, and an undamped bar lurches on it.
-    const done = Math.min(1, (fA + fB) / 2);
-    return { pos: clamp1(share / 0.25 * done), num: Math.round(Math.abs(share) * 100) + "%", aAhead };
-  }
-  if(Math.abs(lead) < 0.5) return { pos: 0, num: "", aAhead: false };
-  // a full rack ahead swings the bar all the way over
-  return { pos: clamp1(lead / LIVE_POINTS()), num: String(Math.round(Math.abs(lead))), aAhead: lead < 0 };
+// One shape for every mode, so the bar reads the same whatever you're playing.
+// Each player has a quota; the bar shows the gap between the two players' progress
+// towards their own quota, as a share of the session ("MEL +26%"). pos runs -1..+1
+// and is negative when player A — the left side — is ahead.
+//   race:  the quotas are the targets. "Ahead" means closest to your own target, since
+//          that decides the session and can disagree with the adjusted lead once targets
+//          are rounded or edited.
+//   fixed: each player's expected share of the live points over the planned racks.
+//   open:  the same over the racks played so far — at least the default five, so an
+//          early whitewash reads +40%, as it would in a five-rack race, not +200%.
+// In fixed and open the gap is the adjusted lead divided by a positive constant, so the
+// leader here is always the player who would win if the session stopped now.
+function quotas(ctx){
+  if(ctx.mode === "race") return ctx.targets && ctx.targets.a && ctx.targets.b ? ctx.targets : null;
+  const racks = ctx.mode === "fixed" ? (ctx.racksPlanned || DEFAULT_RACKS)
+    : Math.max(DEFAULT_RACKS, ctx.rackNo || 1);
+  const pts = LIVE_POINTS() * racks;
+  return { a: pts * ctx.eA, b: pts * (1 - ctx.eA) };
+}
+function leadState(t, ctx){
+  const tied = { pos: 0, num: "", aAhead: false };
+  const q = quotas(ctx);
+  if(!q) return tied;
+  const fA = t.a / q.a, fB = t.b / q.b;
+  const share = fB - fA;   // shares of the session; positive means B is ahead
+  if(Math.abs(share) < 0.005) return tied;
+  const aAhead = share < 0;
+  if(ctx.mode === "race" && (fA >= 1 || fB >= 1)) return { pos: aAhead ? -1 : 1, num: "target met", aAhead };
+  // Full swing at a quarter of the session clear, damped by how much has been played.
+  // With a big handicap the weaker player's quota is short, so one early ball is a
+  // huge slice of it — true, but it proves little, and an undamped bar lurches on it.
+  const done = Math.min(1, (fA + fB) / 2);
+  const pct = Math.min(100, Math.round(Math.abs(share) * 100));
+  return { pos: clamp1(share / 0.25 * done), num: pct + "%", aAhead };
 }
 
-function paintLead(t, mode, targets, lead, nA, nB){
-  const s = leadState(t, mode, targets, lead);
+function paintLead(t, ctx, nA, nB){
+  const s = leadState(t, ctx);
   el.leadName.textContent = s.num ? (s.aAhead ? nA : nB) : "";
   const numeric = /^\d/.test(s.num);
   el.leadNum.textContent = s.num ? (numeric ? "+" + s.num : s.num) : "Tied";
@@ -1269,7 +1284,7 @@ function render(){
   el.subA.textContent = live.mode === "race" ? needText(t.a, live.targets.a) : "";
   el.subB.textContent = live.mode === "race" ? needText(t.b, live.targets.b)
     : (live.mode === "fixed" ? live.racksPlanned + " racks" : "open");
-  paintLead(t, live.mode, live.targets, leadValue(), live.nameA, live.nameB);
+  paintLead(t, live, live.nameA, live.nameB);
   el.rackNo.textContent = live.rackNo;
   el.deadCt.textContent = live.banked.dead + p.dead;
   el.breakFlip.textContent = "break: " + (live.breaker === "a" ? live.nameA : live.nameB);
@@ -1357,7 +1372,9 @@ function renderWatch(doc){
   el.subA.textContent = doc.mode === "race" && doc.targets ? needText(t.a, doc.targets.a) : "";
   el.subB.textContent = doc.mode === "race" && doc.targets ? needText(t.b, doc.targets.b)
     : (doc.mode === "fixed" ? doc.racksPlanned + " racks" : "open");
-  paintLead(t, doc.mode, doc.targets, t.lead || 0, nA, nB);
+  const zb = doc.zargoBefore || { a: 500, b: 500 };
+  paintLead(t, { mode: doc.mode, targets: doc.targets, racksPlanned: doc.racksPlanned, rackNo,
+    eA: expectedShareA(zb.a, zb.b) }, nA, nB);
   el.rackNo.textContent = rackNo;
   el.deadCt.textContent = t.dead;
   el.breakFlip.textContent = "break: " + (rack.breaker === "b" ? nB : nA);
@@ -1410,7 +1427,7 @@ async function resumeSession(id){
     id,
     playerA: doc.playerA, playerB: doc.playerB,
     nameA: a.name, nameB: b.name,
-    H: eA / (1 - eA),
+    H: eA / (1 - eA), eA,
     zargoBefore: zb,
     mode: doc.mode,
     targets: doc.targets,
