@@ -123,23 +123,50 @@
   .slot.v0{background:var(--miss)} .slot.v1{background:var(--single);color:#fff} .slot.v2{background:var(--double);color:#1a1006} .slot.v3{background:var(--treble);color:var(--accent-ink)}
   .prev{font-size:15px;color:var(--ink-dim);min-height:1.4em;margin-top:6px}
   .prev b{color:var(--ink)}
-  .pad{display:grid;grid-template-columns:1fr 1fr;gap:10px;flex:none}
-  .pad button{min-height:clamp(64px,11dvh,96px);font-size:22px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;line-height:1.1}
+  /* Single, double and treble side by side in board order, the way every other darts app
+     puts them, so muscle memory carries over. Miss and Undo sit underneath. */
+  .pad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;flex:none}
+  .pad button{min-height:clamp(70px,12dvh,104px);font-size:26px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;line-height:1.05}
   .pad button small{font-size:15px;font-weight:600;opacity:.85}
-  .pad .miss{background:var(--miss);color:var(--ink)}
   .pad .single{background:var(--single);color:#fff}
   .pad .double{background:var(--double);color:#1a1006}
   .pad .treble{background:var(--treble);color:var(--accent-ink)}
   .under{display:flex;gap:10px;flex:none}
-  .under button{flex:1;min-height:56px}
-  .under .quit{flex:0 0 auto;min-width:110px}
-  .under .quit.arm{background:var(--danger);color:#fff;border-color:transparent}
+  .under button{flex:1;min-height:clamp(60px,9dvh,84px);font-size:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1}
+  .under button small{font-size:15px;font-weight:600;opacity:.85}
+  .under .undo{background:transparent;color:var(--ink);border:1px solid rgba(255,255,255,.22)}
+  .under .miss{background:var(--miss);color:var(--ink)}
+  .quitrow{display:flex;flex:none}
+  .quitrow button{flex:1;min-height:56px;font-size:16px}
+  .quitrow .quit.arm{background:var(--danger);color:#fff;border-color:transparent}
+  @media (max-height:700px){
+    .stage .on{display:none}
+    .slot{width:56px;height:56px;font-size:26px}
+    .prev{margin-top:2px}
+    .finish .big{font-size:clamp(56px,13dvh,90px)}
+    .finish .sub{font-size:16px}
+    .guidehead{margin:2px 0 6px}
+  }
 
   /* ---- finish ---- */
-  .finish{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;min-height:0;gap:10px;text-align:center}
-  .finish .big{font-size:clamp(84px,22dvh,150px);font-weight:800;line-height:1}
+  /* The score and the buttons are fixed; the guide in between scrolls if it has to. */
+  .finish{display:flex;flex-direction:column;flex:1;min-height:0;gap:8px;text-align:center}
+  .finish .head{flex:none;display:flex;flex-direction:column;gap:4px;padding-top:4px}
+  .finish .big{font-size:clamp(64px,17dvh,120px);font-weight:800;line-height:1}
   .finish .sub{color:var(--ink-dim);font-size:17px}
-  .finish .row{width:100%;margin-top:18px}
+  .finish .band{font-size:21px;font-weight:800;color:var(--accent)}
+  .finish .next{color:var(--ink-dim);font-size:15px}
+  .finish .scroll{flex:1;min-height:0;overflow-y:auto;margin-top:4px}
+  .finish .row{width:100%;margin-top:10px;flex:none}
+  .guidehead{flex:none;font-size:15px;font-weight:700;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.06em;margin:6px 0 8px}
+  ul.guide{list-style:none;display:flex;flex-direction:column;gap:6px;text-align:left}
+  ul.guide li{display:flex;align-items:baseline;gap:12px;background:var(--panel);border-radius:12px;padding:8px 12px;border:2px solid transparent}
+  ul.guide li.on{border-color:var(--accent);background:var(--panel-lift)}
+  ul.guide .r{font-weight:800;font-size:16px;min-width:4.6rem;color:var(--ink-dim)}
+  ul.guide li.on .r{color:var(--accent)}
+  ul.guide .n{flex:1;font-size:16px}
+  ul.guide li.on .n{font-weight:700}
+  ul.guide .n small{display:block;color:var(--ink-dim);font-size:15px;font-weight:400;line-height:1.3}
 
   .toast{
     position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:30;
@@ -204,6 +231,7 @@
       <button class="quiet" id="importBtn">Import</button>
     </div>
     <input type="file" id="importFile" accept="application/json,.json" class="hidden">
+    <div id="installHere"></div>
   </section>
 
   <section class="game hidden" id="game">
@@ -218,21 +246,31 @@
       <div class="prev" id="gPrev"></div>
     </div>
     <div class="pad">
-      <button type="button" class="miss" data-v="0">Miss<small>0</small></button>
-      <button type="button" class="single" data-v="1">Single<small>1</small></button>
-      <button type="button" class="double" data-v="2">Double<small>2</small></button>
-      <button type="button" class="treble" data-v="3">Treble<small>3</small></button>
+      <button type="button" class="single" data-v="1"><span id="lS">S1</span><small>+1</small></button>
+      <button type="button" class="double" data-v="2"><span id="lD">D1</span><small>+2</small></button>
+      <button type="button" class="treble" data-v="3"><span id="lT">T1</span><small>+3</small></button>
     </div>
     <div class="under">
-      <button type="button" class="lift" id="undoBtn">Undo</button>
+      <button type="button" class="undo" id="undoBtn">Undo</button>
+      <button type="button" class="miss" data-v="0">Miss<small>0</small></button>
+    </div>
+    <div class="quitrow">
       <button type="button" class="quiet quit" id="quitBtn">Abandon</button>
     </div>
   </section>
 
   <section class="finish hidden" id="finish">
-    <div class="sub" id="fWho"></div>
-    <div class="big" id="fScore">0</div>
-    <div class="sub" id="fNote"></div>
+    <div class="head">
+      <div class="sub" id="fWho"></div>
+      <div class="big" id="fScore">0</div>
+      <div class="sub" id="fNote"></div>
+      <div class="band" id="fBand"></div>
+      <div class="next" id="fNext"></div>
+    </div>
+    <h2 class="guidehead">Guide to your performance</h2>
+    <div class="scroll">
+      <ul class="guide" id="fGuide"></ul>
+    </div>
     <div class="row">
       <button class="quiet" id="doneBtn">Done</button>
       <button id="againBtn">Play again</button>
@@ -244,9 +282,10 @@
 
 <script type="module">
   import { cloud } from "../shared/cloud.js";
+  import { phone } from "../shared/phone.js";
 
   // Bump on every change. The deploy skill checks this against the live site.
-  const APP_VERSION = "0.2.0";
+  const APP_VERSION = "0.3.0";
   const APP_ID = "around-the-clock";
   document.getElementById("version").textContent = "v" + APP_VERSION;
 
@@ -369,29 +408,10 @@
     document.body.classList.toggle("playing", which !== "home");
   }
 
-  // Installed from a manifest that asks for fullscreen, the app has no status bar at all.
-  // Opened in a browser tab, or from an older home-screen shortcut, the game screen asks for
-  // fullscreen itself on the Start/Resume tap (it needs a tap). Never fatal if refused.
-  function goFullscreen(){
-    if (matchMedia("(display-mode: fullscreen)").matches || document.fullscreenElement) return;
-    const el = document.documentElement;
-    const req = el.requestFullscreen || el.webkitRequestFullscreen;
-    if (!req) return;
-    try { const r = req.call(el, { navigationUI: "hide" }); if (r && r.catch) r.catch(() => {}); } catch {}
-  }
-
-  // Keep the screen awake while the app is open. Hold exactly one lock; Android drops it
-  // when the app goes to the background or the screen turns off, so re-take it on return.
-  let wake = null;
-  async function keepAwake(){
-    if (!("wakeLock" in navigator) || wake || document.visibilityState !== "visible") return;
-    try {
-      wake = await navigator.wakeLock.request("screen");
-      wake.addEventListener("release", () => { wake = null; });
-    } catch { wake = null; }   // unsupported, low battery, or refused — scoring still works
-  }
-  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") keepAwake(); });
-  keepAwake();
+  // Fullscreen, the wake lock and the install button all live in shared/phone.js so every
+  // app in the repo behaves the same way on a handset.
+  phone.keepAwake(true);
+  phone.mountInstall($("installHere"), { label: "Install on this phone" });
 
   // ---- home ----
   function renderHome(){
@@ -463,6 +483,40 @@
   // ---- progress ----
   const doneFor = id => games.filter(g => g.status === "done" && g.player === id).sort((a, b) => a.at - b.at);
   const avg = arr => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+
+  // Roughly where a score sits. Anchored on the two numbers this drill is always quoted
+  // with — 60 is a single on every dart, and a regular player aims at 75–80 — with the
+  // rest spaced out from there. Edit the list and the finish screen follows.
+  const BANDS = [
+    { at: 130, name: "Professional territory", note: "A treble on better than one dart in three, all the way round." },
+    { at: 110, name: "County standard",        note: "Trebles coming steadily on every part of the board." },
+    { at: 90,  name: "Strong league player",   note: "Well past the target most club players set themselves." },
+    { at: 75,  name: "Regular player",         note: "The 75–80 a club player aims at." },
+    { at: 60,  name: "Solid club standard",    note: "Sixty is a single on every single dart." },
+    { at: 45,  name: "Finding the numbers",    note: "Most darts landing on the number you're on." },
+    { at: 0,   name: "Building the round",     note: "The awkward numbers count the same as the 20 — keep going." }
+  ];
+  const bandFor = score => BANDS.find(b => score >= b.at);
+  const bandRange = i => i === 0 ? BANDS[0].at + "+" : `${BANDS[i].at}–${BANDS[i - 1].at - 1}`;
+
+  function renderGuide(score){
+    const ul = $("fGuide");
+    ul.innerHTML = "";
+    const mine = bandFor(score);
+    BANDS.forEach((b, i) => {
+      const li = document.createElement("li");
+      const here = b === mine;
+      li.classList.toggle("on", here);
+      li.innerHTML = `<span class="r"></span><span class="n"><span></span><small></small></span>`;
+      li.querySelector(".r").textContent = bandRange(i);
+      li.querySelector(".n span").textContent = b.name;
+      // Only the band you landed in explains itself; the rest stay one line each so the
+      // whole ladder fits, and yours is scrolled into view below.
+      if (here) li.querySelector("small").textContent = b.note;
+      else li.querySelector("small").remove();
+      ul.appendChild(li);
+    });
+  }
   const fmtAvg = n => (Math.round(n * 10) / 10).toString();
 
   function renderProgress(){
@@ -634,7 +688,7 @@
     };
     store.saveGame(live).catch(e => toast("Couldn't save: " + (e.message || e)));
     remember(live.id);
-    goFullscreen();
+    phone.fullscreen();
     show("game");
     renderGame();
   }
@@ -644,7 +698,7 @@
     if (!g) return;
     live = { ...g, darts: [...g.darts] };
     remember(live.id);
-    goFullscreen();
+    phone.fullscreen();
     show("game");
     renderGame();
   }
@@ -658,7 +712,11 @@
     $("gTotal").textContent = String(sum(darts));
     $("gDart").textContent = `Dart ${Math.min(darts.length + 1, TOTAL_DARTS)} of ${TOTAL_DARTS}`;
     $("gDir").textContent = dirLabel(live.direction);
-    $("gNum").textContent = String(nums[Math.min(idx, NUMBERS - 1)]);
+    const on = nums[Math.min(idx, NUMBERS - 1)];
+    $("gNum").textContent = String(on);
+    $("lS").textContent = "S" + on;
+    $("lD").textContent = "D" + on;
+    $("lT").textContent = "T" + on;
     const cur = darts.slice(idx * DARTS_PER, idx * DARTS_PER + DARTS_PER);
     for (let i = 0; i < DARTS_PER; i++){
       const el = $("s" + i);
@@ -712,8 +770,8 @@
     buzz([30, 40, 30, 40, 60]);
     try { await store.saveGame(finished); }
     catch (e){ toast("Couldn't save: " + (e.message || e)); }
-    renderFinish();
     show("finish");
+    renderFinish();
   }
 
   function renderFinish(){
@@ -728,6 +786,17 @@
     else if (g.score > Math.max(...others)) note += ` · new best (was ${Math.max(...others)})`;
     else note += ` · best ${Math.max(...others)} · average ${fmtAvg(avg(others.slice(-10)))}`;
     $("fNote").textContent = note;
+
+    const band = bandFor(g.score);
+    $("fBand").textContent = band.name;
+    const up = BANDS[BANDS.indexOf(band) - 1];
+    $("fNext").textContent = up
+      ? `${up.at - g.score} more for ${up.name.toLowerCase()}`
+      : "Nothing above this — that's the top of the guide.";
+    renderGuide(g.score);
+    // Put your own row where you can see it, whatever the height of the phone.
+    const row = $("fGuide").querySelector("li.on");
+    if (row && row.scrollIntoView) requestAnimationFrame(() => row.scrollIntoView({ block: "center" }));
   }
 
   async function abandonGame(){
@@ -844,7 +913,7 @@
   tap($("startBtn"), startGame);
   tap($("resumeBtn"), () => resumeGame());
   $("dirSeg").querySelectorAll("button").forEach(b => tap(b, () => { store.saveDirection(b.dataset.dir).catch(() => {}); renderDir(); }));
-  $("game").querySelectorAll(".pad button").forEach(b => tap(b, () => throwDart(Number(b.dataset.v))));
+  $("game").querySelectorAll("[data-v]").forEach(b => tap(b, () => throwDart(Number(b.dataset.v))));
   tap($("undoBtn"), undo);
   armed($("quitBtn"), "Abandon", abandonGame);
   tap($("doneBtn"), leaveToHome);

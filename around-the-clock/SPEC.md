@@ -37,10 +37,13 @@ One page, two states.
 2. **Game** — fixed to the screen, never scrolls. Top: the running total, large, with the
    player's name and "dart n of 60". Middle: the current number, huge, and three slots that
    fill with 0/1/2/3 as the darts go in; under them the previous number's three darts and
-   what they added, so a slip is easy to spot. Bottom: four big buttons, **Miss 0 · Single 1
-   · Double 2 · Treble 3**, then **Undo** (steps back one dart, across number boundaries,
-   all the way to the first dart) and a quiet armed **Abandon**. When the sixtieth dart
-   lands, a finish panel shows the score against the player's best and average, with
+   what they added, so a slip is easy to spot. Bottom: five buttons in two rows. **S1 · D1 ·
+   T1** across the top, in that order, labelled with the number you're on — S20 D20 T20 when
+   you're on the 20 — because that's how every other darts app lays it out and the muscle
+   memory should carry over. Underneath, **Undo** on the left (steps back one dart, across
+   number boundaries, all the way to the first) and **Miss** on the right. A quiet armed
+   **Abandon** sits below them. When the sixtieth dart lands, a finish panel shows the score
+   against the player's best and average, the band it falls in, and the full guide, with
    **Play again** and **Done**.
 
 A game in progress is written to the cloud after every dart, so a reload — or another
@@ -60,6 +63,27 @@ back into the game with no tap. A game started on another phone is offered throu
   still gets a clean game screen.
 - **The screen stays awake** while the app is open (Screen Wake Lock), re-taken whenever
   the app comes back to the foreground. Nothing breaks if the phone refuses it.
+
+## Guide to your performance
+
+The finish panel puts the score in a band and says how far the next one is, then lists all
+seven so the whole ladder is visible with the achieved one picked out:
+
+| Score | Band |
+|---|---|
+| 130+ | Professional territory |
+| 110–129 | County standard |
+| 90–109 | Strong league player |
+| 75–89 | Regular player |
+| 60–74 | Solid club standard |
+| 45–59 | Finding the numbers |
+| 0–44 | Building the round |
+
+The two anchors are the ones this drill is always quoted with: 60 is a single on every dart,
+and a club player aims at 75–80. The rest are spaced out from there and are a guide, not
+gospel — they live in one `BANDS` list at the top of the script, so changing them is a
+one-line edit. Note this app scores a double 2 where some versions of the drill score it 1,
+so scores here run slightly higher than a table written for that version.
 
 ## Data model
 
