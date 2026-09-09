@@ -44,7 +44,22 @@ One page, two states.
    **Play again** and **Done**.
 
 A game in progress is written to the cloud after every dart, so a reload — or another
-phone — picks it back up exactly where it was.
+phone — picks it back up exactly where it was. The phone that was playing it also remembers
+which game that was, so reopening the app (screen off, app killed, reload) drops straight
+back into the game with no tap. A game started on another phone is offered through the
+**Resume** banner instead. Done or Abandon forgets it.
+
+## On the phone
+
+- **Installs as a real app, fullscreen.** The manifest asks for `fullscreen` (falling back
+  to `standalone`), portrait, and ships PNG icons (192, 512, maskable 512) as well as the
+  SVG — without real PNGs Chrome makes a plain shortcut that opens in a browser tab, which
+  is why an earlier install showed the URL bar. An older shortcut has to be removed and
+  re-added to pick this up. As a belt and braces, the Start and Resume taps ask the browser
+  for fullscreen themselves when the app isn't already in it, so a tab or an old shortcut
+  still gets a clean game screen.
+- **The screen stays awake** while the app is open (Screen Wake Lock), re-taken whenever
+  the app comes back to the foreground. Nothing breaks if the phone refuses it.
 
 ## Data model
 

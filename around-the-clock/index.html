@@ -4,7 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#101418">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
 <title>Around the Clock</title>
 <style>
   :root{
@@ -242,7 +246,7 @@
   import { cloud } from "../shared/cloud.js";
 
   // Bump on every change. The deploy skill checks this against the live site.
-  const APP_VERSION = "0.1.0";
+  const APP_VERSION = "0.2.0";
   const APP_ID = "around-the-clock";
   document.getElementById("version").textContent = "v" + APP_VERSION;
 
@@ -365,6 +369,30 @@
     document.body.classList.toggle("playing", which !== "home");
   }
 
+  // Installed from a manifest that asks for fullscreen, the app has no status bar at all.
+  // Opened in a browser tab, or from an older home-screen shortcut, the game screen asks for
+  // fullscreen itself on the Start/Resume tap (it needs a tap). Never fatal if refused.
+  function goFullscreen(){
+    if (matchMedia("(display-mode: fullscreen)").matches || document.fullscreenElement) return;
+    const el = document.documentElement;
+    const req = el.requestFullscreen || el.webkitRequestFullscreen;
+    if (!req) return;
+    try { const r = req.call(el, { navigationUI: "hide" }); if (r && r.catch) r.catch(() => {}); } catch {}
+  }
+
+  // Keep the screen awake while the app is open. Hold exactly one lock; Android drops it
+  // when the app goes to the background or the screen turns off, so re-take it on return.
+  let wake = null;
+  async function keepAwake(){
+    if (!("wakeLock" in navigator) || wake || document.visibilityState !== "visible") return;
+    try {
+      wake = await navigator.wakeLock.request("screen");
+      wake.addEventListener("release", () => { wake = null; });
+    } catch { wake = null; }   // unsupported, low battery, or refused — scoring still works
+  }
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") keepAwake(); });
+  keepAwake();
+
   // ---- home ----
   function renderHome(){
     renderWho();
@@ -407,6 +435,23 @@
 
   // A game left mid-way (on this phone or another) is offered back rather than lost.
   const liveGames = () => games.filter(g => g.status === "live").sort((a, b) => b.at - a.at);
+
+  // The game this phone was playing is remembered locally, so when the app is reopened
+  // (screen off, app killed, reload) it drops straight back in without a tap. A game
+  // started on another phone is only offered, via the Resume banner.
+  const LIVE_KEY = APP_ID + ".live";
+  const remember = id => { try { id ? localStorage.setItem(LIVE_KEY, id) : localStorage.removeItem(LIVE_KEY); } catch {} };
+  const remembered = () => { try { return localStorage.getItem(LIVE_KEY); } catch { return null; } };
+  let autoResumed = false;   // once per load: after Done or Abandon, Home stays Home
+  function autoResume(){
+    if (autoResumed || live || finished) return;
+    autoResumed = true;
+    const id = remembered();
+    if (!id) return;
+    const g = games.find(x => x.id === id);
+    if (g && g.status === "live" && g.darts.length < TOTAL_DARTS) resumeGame(g);
+    else remember(null);   // finished or deleted elsewhere, or never made it to the cloud
+  }
   function renderResume(){
     const g = liveGames()[0];
     $("resume").classList.toggle("hidden", !g);
@@ -588,14 +633,18 @@
       score: 0, at: Date.now(), endedAt: null, status: "live", by: cloud.user ? cloud.user.email : null
     };
     store.saveGame(live).catch(e => toast("Couldn't save: " + (e.message || e)));
+    remember(live.id);
+    goFullscreen();
     show("game");
     renderGame();
   }
 
-  function resumeGame(){
-    const g = liveGames()[0];
+  function resumeGame(which){
+    const g = which || liveGames()[0];
     if (!g) return;
     live = { ...g, darts: [...g.darts] };
+    remember(live.id);
+    goFullscreen();
     show("game");
     renderGame();
   }
@@ -659,6 +708,7 @@
     live.endedAt = Date.now();
     finished = live;
     live = null;
+    remember(null);
     buzz([30, 40, 30, 40, 60]);
     try { await store.saveGame(finished); }
     catch (e){ toast("Couldn't save: " + (e.message || e)); }
@@ -683,6 +733,7 @@
   async function abandonGame(){
     const g = live;
     live = null;
+    remember(null);
     show("home");
     renderHome();
     if (g) await store.removeGame(g.id);
@@ -690,6 +741,7 @@
 
   function leaveToHome(){
     live = null; finished = null;
+    remember(null);
     show("home");
     renderHome();
   }
@@ -790,7 +842,7 @@
 
   // ---- wiring ----
   tap($("startBtn"), startGame);
-  tap($("resumeBtn"), resumeGame);
+  tap($("resumeBtn"), () => resumeGame());
   $("dirSeg").querySelectorAll("button").forEach(b => tap(b, () => { store.saveDirection(b.dataset.dir).catch(() => {}); renderDir(); }));
   $("game").querySelectorAll(".pad button").forEach(b => tap(b, () => throwDart(Number(b.dataset.v))));
   tap($("undoBtn"), undo);
@@ -836,7 +888,7 @@
   function start(user){
     unsubs.forEach(u => { try { u(); } catch {} });
     unsubs = [];
-    who = null; progWho = null; meHandled = null; stateLoaded = false; live = null; finished = null;
+    who = null; progWho = null; meHandled = null; stateLoaded = false; live = null; finished = null; autoResumed = false;
 
     const gated = cloud.configured() && !user;
     $("gate").classList.toggle("hidden", !gated);
@@ -859,7 +911,8 @@
           .map(r => ({ ...r, darts: r.darts.map(Number), score: typeof r.score === "number" ? r.score : sum(r.darts.map(Number)) }));
         // The game on this phone is the truth while it's being played; the list only
         // matters for Home. If someone else deleted it out from under us, drop out cleanly.
-        if (live && !games.some(g => g.id === live.id) && live.darts.length){ toast("That game was deleted elsewhere."); live = null; show("home"); }
+        if (live && !games.some(g => g.id === live.id) && live.darts.length){ toast("That game was deleted elsewhere."); live = null; remember(null); show("home"); }
+        if (!live) autoResume();
         if (!live) renderHome();
       }, { orderBy: "at", desc: true, limit: 500 }));
     }
