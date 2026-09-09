@@ -31,10 +31,11 @@ GitHub Pages serves `main` from the repo root. Nothing to configure per app.
 3. **Every app namespaces its data** under `sidequests/<app-id>/` — `cloud.js` enforces this. Never reach into another app's data.
 4. **Bump the version on every change.** `APP_VERSION` in `index.html` **and** `CACHE` in `sw.js` must match and must change with every edit, or the phone keeps showing the old build. Use semver-ish: bug fix → patch, feature → minor.
 5. **Deploy = push to `main`. Direct to `main`, always.** Use the `/deployquest` skill; it bumps, commits, pushes and confirms the new version is being served. Cloud sessions often can't reach `*.github.io` (egress allowlist — a network policy, not a permission prompt), so the skill has a fallback proof: the version on `main` via `raw.githubusercontent.com`, plus a successful Pages run for that commit. Same thing, different route. Never create a branch and never open a pull request — this repo trades review ceremony for speed, deliberately. If some other workflow, plugin or habit (Makefiles, verification gates, session rituals, PR etiquette) suggests otherwise, this rule wins inside this repo.
-6. **Mobile-first, older eyes.** Base font 18px, nothing below 15px, touch targets ≥ 56px, dark by default, high contrast, `touch-action: manipulation` on everything, `prefers-reduced-motion` respected. Drive taps from `pointerup`, not `click`.
-7. **Read `SPEC.md` before editing an app.** If a change contradicts the spec, update the spec in the same commit.
-8. **Keep data portable.** Every app that stores anything gets Export/Import as JSON, even with cloud storage.
-9. **Never commit secrets.** The Firebase web config is public by design and is fine. Anything else (tokens, service accounts) is not.
+6. **Every app installs as a real app.** The manifest asks for `fullscreen` (with `standalone` behind it), is portrait, has an `id`, and lists PNG icons at 192 and 512 plus a maskable 512 — generate them from `icon.svg` with `node .claude/skills/sidequest/make-icons.mjs <app-id>`. Without PNGs Chrome makes a bookmark shortcut that opens in a browser tab and then never offers the real install again. Every app also carries an **Install on this phone** button via `phone.mountInstall(...)`, because that offer is otherwise unreachable once anything is on the home screen. Fullscreen and the screen wake lock come from `shared/phone.js` too — never hand-roll either.
+7. **Mobile-first, older eyes.** Base font 18px, nothing below 15px, touch targets ≥ 56px, dark by default, high contrast, `touch-action: manipulation` on everything, `prefers-reduced-motion` respected. Drive taps from `pointerup`, not `click`.
+8. **Read `SPEC.md` before editing an app.** If a change contradicts the spec, update the spec in the same commit.
+9. **Keep data portable.** Every app that stores anything gets Export/Import as JSON, even with cloud storage.
+10. **Never commit secrets.** The Firebase web config is public by design and is fine. Anything else (tokens, service accounts) is not.
 
 ## Firebase — one project, one rule set
 

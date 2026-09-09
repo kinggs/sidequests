@@ -4,7 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#101418">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
 <title>__APP_NAME__</title>
 <style>
   :root{
@@ -46,17 +50,29 @@
 
 <main id="main">
   <p>Hello. Replace this with the app.</p>
+
+  <!-- Keep this somewhere on the main screen. Chrome stops offering to install once
+       anything is on the home screen, so the app has to offer it itself. -->
+  <div id="installHere"></div>
 </main>
 
 <footer>__APP_NAME__ <span id="version"></span></footer>
 
 <script type="module">
   import { cloud } from "../shared/cloud.js";
+  import { phone } from "../shared/phone.js";
 
   // Bump on every change. The deploy skill checks this against the live site.
   const APP_VERSION = "0.1.0";
   const APP_ID = "__APP_ID__";
   document.getElementById("version").textContent = "v" + APP_VERSION;
+
+  // ---- on a phone ----
+  // The Install button hides itself once the app is installed.
+  phone.mountInstall(document.getElementById("installHere"), { label: "Install on this phone" });
+  // If the app has a screen you stare at while doing something else, hold the screen on
+  // for it — phone.keepAwake(true) on the way in, phone.keepAwake(false) on the way out —
+  // and call phone.fullscreen() from the tap that opens it, for when the app is in a tab.
 
   // ---- cloud ----
   const userBox = document.getElementById("userBox");
