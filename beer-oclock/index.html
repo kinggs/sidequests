@@ -4,7 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#101418">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
 <title>Beer O'Clock</title>
 <style>
   :root{
@@ -106,6 +110,7 @@
   .chips button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:transparent}
   .sheet .row{margin-top:20px}
   .toast{
+    pointer-events:none;
     position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:30;
     background:var(--panel-lift);color:var(--ink);padding:14px 20px;border-radius:14px;
     font-size:16px;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:90vw;text-align:center;
@@ -141,6 +146,7 @@
       <button class="quiet" id="importBtn">Import</button>
     </div>
     <input type="file" id="importFile" accept="application/json,.json" class="hidden">
+    <div id="installHere"></div>
   </section>
 </main>
 
@@ -164,9 +170,10 @@
 
 <script type="module">
   import { cloud } from "../shared/cloud.js";
+  import { phone } from "../shared/phone.js";
 
   // Bump on every change. The deploy skill checks this against the live site.
-  const APP_VERSION = "0.1.0";
+  const APP_VERSION = "0.2.0";
   const APP_ID = "beer-oclock";
   document.getElementById("version").textContent = "v" + APP_VERSION;
 
@@ -500,6 +507,7 @@
   // ---- wiring ----
   tap($("sheetCancel"), closeSheet);
   tap($("sheetSave"), saveEntry);
+  phone.mountInstall($("installHere"), { label: "Install on this phone" });
   tap($("exportBtn"), exportAll);
   tap($("importBtn"), () => $("importFile").click());
   $("importFile").addEventListener("change", e => {

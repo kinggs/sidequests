@@ -231,7 +231,18 @@ added before those icons existed stays a shortcut: remove it and install again.
 **Wake lock.** The app holds exactly one screen wake lock, taken when the scoring screen opens
 and released when it closes. Android drops the lock whenever the tab is hidden, so the
 sentinel's `release` event and `visibilitychange` re-take it. Failure is silent — scoring works
-without it.
+without it. That logic now lives in `shared/phone.js` and is called with `keepAwake(on)`, so
+Around the Clock and anything later get the identical behaviour.
+
+## 8c. On the phone
+
+Installs as a real app, not a browser shortcut: the manifest ships PNG icons (192, 512 and a
+maskable 512 drawn from `icon.svg`), an id, portrait orientation, and asks for `fullscreen`
+with `standalone` behind it. Without the PNGs Chrome quietly makes a plain shortcut that
+opens in a tab with the URL bar showing — and then never offers the real install again, which
+is why there's an **Install on this phone** button on the home screen. It comes from
+`shared/phone.js`, along with fullscreen and the wake lock, so every app here behaves the
+same way. An older home-screen shortcut has to be removed and re-added to pick this up.
 
 ## 9. Out of scope
 

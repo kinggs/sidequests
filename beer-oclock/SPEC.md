@@ -55,6 +55,16 @@ is a calendar-day count, not a 24-hour one.
 
 Both are watched live, so logging on one phone updates the other immediately.
 
+## On the phone
+
+Installs as a real app, not a browser shortcut: the manifest ships PNG icons (192, 512 and a
+maskable 512 drawn from `icon.svg`), an id, portrait orientation, and asks for `fullscreen`
+with `standalone` behind it. Without the PNGs Chrome quietly makes a plain shortcut that
+opens in a tab with the URL bar showing — and then never offers the real install again, which
+is why there's an **Install on this phone** button on the home screen. It comes from
+`shared/phone.js`, along with fullscreen and the wake lock, so every app here behaves the
+same way. An older home-screen shortcut has to be removed and re-added to pick this up.
+
 ## Out of scope
 
 - Push notifications, geofencing, anything that needs a backend.
