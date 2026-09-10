@@ -459,7 +459,7 @@ import { phone } from "../shared/phone.js";
 import { people } from "../shared/people.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "0.14.0";
+const APP_VERSION = "0.14.1";
 const APP_ID = "fair-nine";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 
@@ -593,8 +593,8 @@ async function handleUser(user){
     el.gate.classList.add("hidden");
     if(started) return;
     started = true;
-    people.start({ legacy: () => stateLoaded ? db.players : null, onError: e => console.warn("[people]", e) });
     try {
+      people.start({ legacy: () => stateLoaded ? db.players : null, onError: e => console.warn("[people]", e) });
       await loadState();
       el.homeBody.classList.remove("hidden");
       renderHome();

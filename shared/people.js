@@ -221,6 +221,7 @@ function sync(){
 function start(o = {}){
   stop();
   opts = o; meHandled = null; tried.clear();
+  if (!cloud.shared) return healStale();
   if (!cloud.configured() || !cloud.user) return stop;
   unsub = cloud.shared.watchList(COL, (rows, meta) => {
     const next = {};
@@ -240,6 +241,19 @@ function stop(){
   if (unsub){ try { unsub(); } catch {} }
   unsub = null; all = {}; seen = ""; confirmed = false;
 }
+// A half-updated page: the browser's cache handed over an older cloud.js than this
+// people.js. Fetch the current one past the cache and reload — once, so it can't loop.
+function healStale(){
+  report(new Error("This phone had an old copy of cloud.js — reloading"));
+  try {
+    if (!sessionStorage.getItem("people.healed")){
+      sessionStorage.setItem("people.healed", "1");
+      fetch(new URL("./cloud.js", import.meta.url), { cache: "reload" }).finally(() => location.reload());
+    }
+  } catch {}
+  return stop;
+}
+
 // The app's own data changed (its old list just loaded): adopt and link again if needed.
 function poke(){
   wrote = false;
