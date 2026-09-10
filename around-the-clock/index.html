@@ -32,7 +32,7 @@
   main{flex:1;min-height:0;padding:16px;overflow-y:auto;max-width:40rem;width:100%;margin:0 auto}
   body.playing main{overflow:hidden;padding:10px 12px;display:flex;flex-direction:column}
   footer{padding:8px 16px;font-size:15px;color:var(--ink-dim);text-align:center;flex:none}
-  body.playing footer{display:none}
+  body.playing footer,body.playing header{display:none}
   .hidden{display:none !important}
 
   button{
@@ -47,13 +47,6 @@
   .user{display:flex;align-items:center;gap:10px;font-size:15px;color:var(--ink-dim)}
   .user img{width:32px;height:32px;border-radius:50%}
 
-  input[type=text],input[type=email]{
-    width:100%;min-height:56px;padding:0 14px;font:inherit;font-size:18px;
-    background:var(--panel);color:var(--ink);border:1px solid rgba(255,255,255,.14);border-radius:12px;
-    -webkit-user-select:text;user-select:text;
-  }
-  label{display:block;font-size:15px;color:var(--ink-dim);margin:14px 0 6px}
-
   .gate{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;text-align:center;padding:40px 8px}
   .gate p{color:var(--ink-dim)}
   .gate button{width:100%;max-width:20rem;height:64px;font-size:19px}
@@ -63,10 +56,12 @@
   h2.sect:first-child{margin-top:4px}
   .empty{color:var(--ink-dim);font-size:16px;padding:6px 2px}
   .hint{color:var(--ink-dim);font-size:15px;margin-top:8px}
+  .dot{display:inline-block;width:14px;height:14px;border-radius:50%;flex:none;box-shadow:0 0 0 2px rgba(0,0,0,.35)}
 
   /* ---- chips (players) ---- */
   .chips{display:flex;flex-wrap:wrap;gap:10px}
-  .chips button{flex:1 1 auto;min-width:5rem;background:var(--panel);color:var(--ink-dim);border:1px solid rgba(255,255,255,.14)}
+  .chips button{flex:1 1 auto;min-width:5rem;display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    background:var(--panel);color:var(--ink-dim);border:1px solid rgba(255,255,255,.14)}
   .chips button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:transparent}
 
   .row{display:flex;gap:10px;margin-top:12px}
@@ -76,7 +71,7 @@
   .seg button{flex:1;border-radius:0;background:var(--panel);color:var(--ink-dim);font-size:18px}
   .seg button[aria-pressed="true"]{background:var(--panel-lift);color:var(--ink)}
   .resume{background:var(--panel);border-radius:14px;padding:14px;margin-bottom:14px;display:flex;align-items:center;gap:12px}
-  .resume .t{flex:1}
+  .resume .t{flex:1;min-width:0}
   .resume .t small{display:block;color:var(--ink-dim);font-size:15px}
 
   /* ---- progress ---- */
@@ -95,25 +90,37 @@
   .list .score.live{color:var(--accent);font-size:17px}
   .list .who{flex:1;min-width:0}
   .list .who .l1{font-weight:600}
-  .list .who .l2{font-size:15px;color:var(--ink-dim)}
+  .list .who .l2{font-size:15px;color:var(--ink-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .list .dot{width:18px;height:18px}
   .list button{min-width:60px;min-height:56px;padding:0 6px;background:transparent;color:var(--ink-dim);font-size:15px}
   .list button.x:not(.arm){font-size:22px}
   .list button.arm{background:var(--danger);color:#fff}
-  .list button.go{border:1px solid rgba(255,255,255,.22);min-width:90px;font-size:16px}
   .people button{min-width:90px;border:1px solid rgba(255,255,255,.22);font-size:16px}
-  .people .you{font-size:15px;color:var(--ink-dim);padding-right:8px}
-  .addbox{background:var(--panel);border-radius:16px;padding:6px 14px 16px;margin-top:12px}
-  .addbox input{background:var(--bg)}
 
   /* ---- the game screen ---- */
   .game{display:flex;flex-direction:column;flex:1;min-height:0;gap:8px}
-  .top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;background:var(--panel);border-radius:14px;padding:8px 14px;flex:none}
-  .top .total{font-size:44px;font-weight:800;line-height:1}
-  .top .total small{font-size:15px;font-weight:600;color:var(--ink-dim);display:block;margin-bottom:2px}
-  .top .meta{text-align:right;font-size:15px;color:var(--ink-dim);line-height:1.35}
-  .top .meta b{color:var(--ink);font-size:17px}
+  /* One panel per player; tap one to hand them the darts. */
+  .top{display:flex;gap:8px;flex:none}
+  .pl{flex:1 1 0;min-width:0;min-height:0;padding:8px 12px 9px;border-radius:14px;background:var(--panel);color:var(--ink);
+    display:flex;flex-direction:column;align-items:flex-start;text-align:left;font-weight:400;line-height:1.3}
+  .pl .nm{display:flex;align-items:center;gap:7px;max-width:100%;font-size:16px;font-weight:700;color:var(--ink-dim)}
+  .pl .nm .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pl .ln{display:flex;flex-wrap:wrap;align-items:baseline;column-gap:8px}
+  .pl .sc{font-size:40px;font-weight:800;line-height:1.05}
+  .pl .at{font-size:15px;font-weight:600;color:var(--ink-dim)}
+  .pl.on{background:var(--accent);color:var(--accent-ink)}
+  .pl.on .nm,.pl.on .at{color:var(--accent-ink)}
+  /* Three or four across: the name needs every pixel, so the dot goes. */
+  .top.many .pl{padding:7px 8px}
+  .top.many .nm{font-size:15px}
+  .top.many .nm .dot{display:none}
+  .top.many .sc{font-size:30px}
+  .gline{display:flex;justify-content:space-between;gap:12px;font-size:15px;color:var(--ink-dim);padding:0 4px;flex:none}
+  .gline b{color:var(--ink);font-weight:700}
   .stage{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
   .stage .on{font-size:15px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.08em}
+  .stage .on.who{font-size:22px;font-weight:800;color:var(--accent);text-transform:none;letter-spacing:0;
+    max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .stage .num{font-size:clamp(84px,24dvh,168px);font-weight:800;line-height:.95}
   .slots{display:flex;gap:10px;margin-top:8px}
   .slot{width:64px;height:64px;border-radius:14px;background:var(--panel);display:flex;align-items:center;justify-content:center;
@@ -121,7 +128,7 @@
   .slot.next{border-color:var(--accent)}
   .slot.hit{color:var(--ink)}
   .slot.v0{background:var(--miss)} .slot.v1{background:var(--single);color:#fff} .slot.v2{background:var(--double);color:#1a1006} .slot.v3{background:var(--treble);color:var(--accent-ink)}
-  .prev{font-size:15px;color:var(--ink-dim);min-height:1.4em;margin-top:6px}
+  .prev{font-size:15px;color:var(--ink-dim);min-height:1.4em;margin-top:6px;text-align:center}
   .prev b{color:var(--ink)}
   /* Single, double and treble side by side in board order, the way every other darts app
      puts them, so muscle memory carries over. Miss and Undo sit underneath. */
@@ -140,11 +147,16 @@
   .quitrow button{flex:1;min-height:56px;font-size:16px}
   .quitrow .quit.arm{background:var(--danger);color:#fff;border-color:transparent}
   @media (max-height:700px){
-    .stage .on{display:none}
+    .stage .on:not(.who){display:none}
+    .stage .on.who{font-size:19px}
+    .pl .sc{font-size:34px}
+    .top.many .sc{font-size:27px}
     .slot{width:56px;height:56px;font-size:26px}
     .prev{margin-top:2px}
     .finish .big{font-size:clamp(56px,13dvh,90px)}
     .finish .sub{font-size:16px}
+    .results .s{font-size:28px}
+    .results li{padding:5px 12px}
     .guidehead{margin:2px 0 6px}
   }
 
@@ -158,6 +170,12 @@
   .finish .next{color:var(--ink-dim);font-size:15px}
   .finish .scroll{flex:1;min-height:0;overflow-y:auto;margin-top:4px}
   .finish .row{width:100%;margin-top:10px;flex:none}
+  .results{list-style:none;display:flex;flex-direction:column;gap:8px;margin:4px 0 2px;text-align:left}
+  .results li{display:flex;align-items:center;gap:12px;background:var(--panel);border-radius:14px;padding:8px 14px;border:2px solid transparent}
+  .results li.win{border-color:var(--accent)}
+  .results .n{flex:1;min-width:0;font-size:19px;font-weight:700}
+  .results .n small{display:block;font-size:15px;font-weight:600;color:var(--ink-dim)}
+  .results .s{font-size:36px;font-weight:800;line-height:1}
   .guidehead{flex:none;font-size:15px;font-weight:700;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.06em;margin:6px 0 8px}
   ul.guide{list-style:none;display:flex;flex-direction:column;gap:6px;text-align:left}
   ul.guide li{display:flex;align-items:baseline;gap:12px;background:var(--panel);border-radius:12px;padding:8px 12px;border:2px solid transparent}
@@ -198,6 +216,7 @@
 
     <h2 class="sect">180 Around the Clock</h2>
     <div class="chips" id="whoChips"></div>
+    <p class="hint" id="whoHint"></p>
     <div class="seg" id="dirSeg">
       <button type="button" data-dir="up" aria-pressed="true">1 → 20</button>
       <button type="button" data-dir="down" aria-pressed="false">20 → 1</button>
@@ -216,16 +235,11 @@
 
     <h2 class="sect">Players</h2>
     <ul class="list people" id="people"></ul>
-    <div class="addbox">
-      <label for="newName">Name</label>
-      <input type="text" id="newName" placeholder="Sergio" autocomplete="off">
-      <label for="newEmail">Their Gmail, so they can sign in (optional)</label>
-      <input type="email" id="newEmail" placeholder="name@gmail.com" autocomplete="off" inputmode="email">
-      <div class="row">
-        <button class="quiet" id="shareBtn">Share link</button>
-        <button id="addBtn">Add player</button>
-      </div>
+    <div class="row">
+      <button class="quiet" id="shareBtn">Share link</button>
+      <button id="addBtn">Add player</button>
     </div>
+    <p class="hint">Players are shared by every sidequests app — add someone once and they're in all of them.</p>
 
     <div class="row">
       <button class="quiet" id="exportBtn">Export</button>
@@ -236,12 +250,10 @@
   </section>
 
   <section class="game hidden" id="game">
-    <div class="top">
-      <div class="total"><small id="gPlayer"></small><span id="gTotal">0</span></div>
-      <div class="meta"><b id="gDart"></b><br><span id="gDir"></span></div>
-    </div>
+    <div class="top" id="gTop"></div>
+    <div class="gline"><span id="gDart"></span><span id="gDir"></span></div>
     <div class="stage">
-      <div class="on">on</div>
+      <div class="on" id="gOn">on</div>
       <div class="num" id="gNum">1</div>
       <div class="slots"><div class="slot" id="s0"></div><div class="slot" id="s1"></div><div class="slot" id="s2"></div></div>
       <div class="prev" id="gPrev"></div>
@@ -264,6 +276,7 @@
     <div class="head">
       <div class="sub" id="fWho"></div>
       <div class="big" id="fScore">0</div>
+      <ul class="results hidden" id="fResults"></ul>
       <div class="sub" id="fNote"></div>
       <div class="band" id="fBand"></div>
       <div class="next" id="fNext"></div>
@@ -284,9 +297,10 @@
 <script type="module">
   import { cloud } from "../shared/cloud.js";
   import { phone } from "../shared/phone.js";
+  import { people } from "../shared/people.js";
 
   // Bump on every change. The deploy skill checks this against the live site.
-  const APP_VERSION = "0.3.0";
+  const APP_VERSION = "0.4.0";
   const APP_ID = "around-the-clock";
   document.getElementById("version").textContent = "v" + APP_VERSION;
 
@@ -295,60 +309,71 @@
   // ---- the drill ----
   const GAME = "atc180";
   const DARTS_PER = 3, NUMBERS = 20, TOTAL_DARTS = DARTS_PER * NUMBERS, MAX = 180;
+  const MAX_PLAYERS = 4;
   const order = dir => Array.from({ length: NUMBERS }, (_, i) => dir === "down" ? NUMBERS - i : i + 1);
   const dirLabel = dir => dir === "down" ? "20 → 1" : "1 → 20";
   const sum = arr => arr.reduce((a, b) => a + b, 0);
   const HIT = ["Miss", "Single", "Double", "Treble"];
 
   // ---- state ----
-  let players = {};           // id -> { name, email, createdAt, deleted }
-  let games = [];             // { id, game, player, direction, darts, score, at, endedAt, status, by }
+  // Players are the household's shared people (shared/people.js); this app only stores games.
+  let rawGames = [];          // game documents as stored
+  let games = [];             // the same, normalised — see normalise()
+  let legacyPlayers = null;   // this app's own player list from before people were shared; null until loaded
   let direction = "up";
   let unsubs = [];
-  let who = null;             // player selected on Home
+  let picked = [];            // who's playing next, in throwing order
+  let pickTouched = false;    // once a name is tapped, stop defaulting to just you
   let progWho = null;         // player shown in Progress
-  let live = null;            // the game being played on this phone: { id, player, direction, darts, at, status, by }
+  let live = null;            // the game being played on this phone (normalised shape)
   let finished = null;        // the game just completed, shown on the finish panel
 
-  const myEmail = () => ((cloud.user && cloud.user.email) || "").toLowerCase();
-  const isMe = p => !!myEmail() && (p.email || "").toLowerCase() === myEmail();
-  const activePlayers = () => Object.entries(players)
-    .filter(([, p]) => p && !p.deleted)
-    .map(([id, p]) => ({ id, ...p }))
-    .sort((a, b) => (isMe(b) - isMe(a)) || (a.createdAt || 0) - (b.createdAt || 0));
-  const nameOf = id => (players[id] && players[id].name) || "Someone";
-  const myPlayerId = () => { const hit = activePlayers().find(isMe); return hit ? hit.id : null; };
+  const nameOf = id => people.nameOf(id);
+  const activeIds = () => people.active().map(p => p.id);
 
-  // ---- you are a player by default (same approach as Bloc 11) ----
-  let meHandled = null;
-  let stateLoaded = false;
-  async function ensureMe(){
-    const u = cloud.user;
-    if (!u || !u.email || !store.live || !stateLoaded) return;
-    const email = u.email.toLowerCase();
-    if (meHandled === email) return;
-    if (myPlayerId()){ meHandled = email; return; }
-    meHandled = email;
-    const lower = x => String(x || "").trim().toLowerCase();
-    const first = (u.displayName || email.split("@")[0]).trim().split(/\s+/)[0];
-    const byName = () => activePlayers().find(p => !p.email && (lower(p.name) === lower(first) || lower(p.name) === lower(u.displayName)));
-    let match = byName();
-    if (!match){
-      await new Promise(r => setTimeout(r, 2500));   // let a fresh phone's list land before adding anyone
-      if (myPlayerId()) return;
-      match = byName();
+  // ---- one shape for every game ----
+  // A game has players in throwing order and each player's darts:
+  //   { players: [id…], throws: { id: [0-3 …] }, turn: <index>, log: [index per dart] }
+  // Games from before multiplayer stored one `player` and a flat `darts` array; they read
+  // as a one-player game. Ids go through people.resolve, so a player who was merged or
+  // adopted into the shared list still finds every game they ever played.
+  function normalise(r){
+    const multi = Array.isArray(r.players) && r.throws && typeof r.throws === "object";
+    const ids = multi ? r.players.map(String) : [String(r.player)];
+    const players = [], throws = {};
+    for (const raw of ids){
+      const src = (multi ? r.throws[raw] : r.darts) || [];
+      let id = people.resolve(raw);
+      if (throws[id]) id = raw;     // two seats later merged into one person: keep both rows
+      players.push(id);
+      throws[id] = src.map(Number).filter(v => v >= 0 && v <= 3).slice(0, TOTAL_DARTS);
     }
-    try {
-      if (match){
-        await store.savePlayers({ ...players, [match.id]: { ...players[match.id], email } });
-        toast(`You're ${match.name}`);
-      } else {
-        await store.addPlayer({ name: first, email, createdAt: Date.now() });
-        toast(`Added you as ${first}`);
-      }
-    } catch (e){ meHandled = null; toast("Couldn't set you up as a player: " + (e.message || e)); return; }
-    who = myPlayerId();
-    renderHome();
+    const n = players.length;
+    return {
+      id: r.id, game: String(r.game || GAME), players, throws,
+      turn: Number.isInteger(r.turn) && r.turn >= 0 && r.turn < n ? r.turn : 0,
+      log: Array.isArray(r.log) ? r.log.map(Number).filter(i => Number.isInteger(i) && i >= 0 && i < n) : [],
+      direction: r.direction === "down" ? "down" : "up",
+      at: Number(r.at), endedAt: r.endedAt ? Number(r.endedAt) : null,
+      status: r.status === "live" ? "live" : "done", by: r.by || null
+    };
+  }
+  const isGameDoc = r => r && typeof r.at === "number" &&
+    ((Array.isArray(r.players) && r.throws && typeof r.throws === "object") || (r.player && Array.isArray(r.darts)));
+  const scoreOf = (g, id) => sum(g.throws[id] || []);
+  const dartsIn = g => g.players.reduce((n, id) => n + g.throws[id].length, 0);
+  const isOver = g => g.players.every(id => g.throws[id].length >= TOTAL_DARTS);
+  const ranked = g => [...g.players].sort((a, b) => scoreOf(g, b) - scoreOf(g, a));
+  const clone = g => ({ ...g, players: [...g.players], log: [...g.log],
+    throws: Object.fromEntries(g.players.map(id => [id, [...g.throws[id]]])) });
+  function toDoc(g){
+    const scores = {};
+    g.players.forEach(id => { scores[id] = scoreOf(g, id); });
+    return { game: g.game, players: g.players, throws: g.throws, scores, turn: g.turn, log: g.log,
+      direction: g.direction, at: g.at, endedAt: g.endedAt, status: g.status, by: g.by };
+  }
+  function refreshGames(){
+    games = rawGames.filter(isGameDoc).map(normalise).filter(g => Number.isFinite(g.at) && g.players.length);
   }
 
   // ---- taps: pointerup, not click ----
@@ -424,9 +449,9 @@
     renderPeople();
   }
 
-  function chipRow(wrap, selectedId, onPick){
+  function chipRow(wrap, isOn, onPick, badge){
     wrap.innerHTML = "";
-    const list = activePlayers();
+    const list = people.active();
     if (!list.length){
       const p = document.createElement("p");
       p.className = "empty";
@@ -437,17 +462,32 @@
     for (const p of list){
       const b = document.createElement("button");
       b.type = "button";
-      b.textContent = isMe(p) ? `${p.name} (you)` : p.name;
-      b.setAttribute("aria-pressed", p.id === selectedId ? "true" : "false");
+      b.innerHTML = `<i class="dot"></i><span></span>`;
+      b.querySelector(".dot").style.background = people.colourOf(p.id);
+      const n = badge ? badge(p.id) : null;
+      b.querySelector("span").textContent = (n ? n + " · " : "") + (people.isMe(p.id) ? `${p.name} (you)` : p.name);
+      b.setAttribute("aria-pressed", isOn(p.id) ? "true" : "false");
       tap(b, () => onPick(p.id));
       wrap.appendChild(b);
     }
   }
 
+  // Tap names to make the lineup, in throwing order. One name is a solo game, as before.
   function renderWho(){
-    const list = activePlayers();
-    if (!who || !players[who] || players[who].deleted) who = myPlayerId() || (list[0] && list[0].id) || null;
-    chipRow($("whoChips"), who, id => { who = id; renderWho(); });
+    const ids = activeIds();
+    picked = picked.filter(id => ids.includes(id));
+    if (!pickTouched){ const me = people.meId() || ids[0]; picked = me ? [me] : []; }
+    chipRow($("whoChips"), id => picked.includes(id), id => {
+      pickTouched = true;
+      if (picked.includes(id)) picked = picked.filter(x => x !== id);
+      else if (picked.length >= MAX_PLAYERS){ toast(`${MAX_PLAYERS} players at most`); return; }
+      else picked = [...picked, id];
+      renderWho();
+    }, id => picked.length > 1 && picked.includes(id) ? picked.indexOf(id) + 1 : null);
+    $("whoHint").textContent = picked.length > 1
+      ? `${picked.map(nameOf).join(", then ")} — three darts each, then it passes on by itself.`
+      : "Tap more names for a match, in throwing order (up to four).";
+    $("startBtn").textContent = picked.length > 1 ? `Start · ${picked.length} players` : "Start";
   }
 
   function renderDir(){
@@ -470,19 +510,29 @@
     const id = remembered();
     if (!id) return;
     const g = games.find(x => x.id === id);
-    if (g && g.status === "live" && g.darts.length < TOTAL_DARTS) resumeGame(g);
+    if (g && g.status === "live" && !isOver(g)) resumeGame(g);
     else remember(null);   // finished or deleted elsewhere, or never made it to the cloud
   }
   function renderResume(){
     const g = liveGames()[0];
     $("resume").classList.toggle("hidden", !g);
     if (!g) return;
-    $("resumeL1").textContent = `${nameOf(g.player)} · ${sum(g.darts)} after ${g.darts.length} dart${g.darts.length === 1 ? "" : "s"}`;
+    if (g.players.length === 1){
+      const d = g.throws[g.players[0]];
+      $("resumeL1").textContent = `${nameOf(g.players[0])} · ${sum(d)} after ${d.length} dart${d.length === 1 ? "" : "s"}`;
+    } else {
+      $("resumeL1").textContent = g.players.map(id => `${nameOf(id)} ${scoreOf(g, id)}`).join(" · ");
+    }
     $("resumeL2").textContent = `${dirLabel(g.direction)} · ${whenLabel(g.at)}`;
   }
 
   // ---- progress ----
-  const doneFor = id => games.filter(g => g.status === "done" && g.player === id).sort((a, b) => a.at - b.at);
+  // Every finished game, one row per player in it.
+  function doneFor(id){
+    return games.filter(g => g.status === "done" && g.players.includes(id))
+      .map(g => ({ id: g.id, at: g.at, score: scoreOf(g, id) }))
+      .sort((a, b) => a.at - b.at);
+  }
   const avg = arr => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
 
   // Roughly where a score sits. Anchored on the two numbers this drill is always quoted
@@ -500,30 +550,30 @@
   const bandFor = score => BANDS.find(b => score >= b.at);
   const bandRange = i => i === 0 ? BANDS[0].at + "+" : `${BANDS[i].at}–${BANDS[i - 1].at - 1}`;
 
-  function renderGuide(score){
+  // The whole ladder, with every player's band picked out. On your own, your band explains
+  // itself; in a match, each picked-out band says who landed in it.
+  function renderGuide(list){
     const ul = $("fGuide");
     ul.innerHTML = "";
-    const mine = bandFor(score);
+    const solo = list.length === 1;
     BANDS.forEach((b, i) => {
+      const here = list.filter(x => bandFor(x.score) === b);
       const li = document.createElement("li");
-      const here = b === mine;
-      li.classList.toggle("on", here);
+      li.classList.toggle("on", here.length > 0);
       li.innerHTML = `<span class="r"></span><span class="n"><span></span><small></small></span>`;
       li.querySelector(".r").textContent = bandRange(i);
       li.querySelector(".n span").textContent = b.name;
-      // Only the band you landed in explains itself; the rest stay one line each so the
-      // whole ladder fits, and yours is scrolled into view below.
-      if (here) li.querySelector("small").textContent = b.note;
-      else li.querySelector("small").remove();
+      if (!here.length) li.querySelector("small").remove();
+      else li.querySelector("small").textContent = solo ? b.note : here.map(x => `${nameOf(x.id)} ${x.score}`).join(" · ");
       ul.appendChild(li);
     });
   }
   const fmtAvg = n => (Math.round(n * 10) / 10).toString();
 
   function renderProgress(){
-    const list = activePlayers();
-    if (!progWho || !players[progWho] || players[progWho].deleted) progWho = who || (list[0] && list[0].id) || null;
-    chipRow($("progChips"), progWho, id => { progWho = id; renderProgress(); });
+    const ids = activeIds();
+    if (!progWho || !ids.includes(progWho)) progWho = picked[0] || people.meId() || ids[0] || null;
+    chipRow($("progChips"), id => id === progWho, id => { progWho = id; renderProgress(); });
     const box = $("progress");
     box.innerHTML = "";
     if (!progWho) return;
@@ -601,17 +651,25 @@
     }
     for (const g of rows){
       const isLive = g.status === "live";
+      const solo = g.players.length === 1;
+      const order = ranked(g);
       const li = document.createElement("li");
       li.innerHTML = `<span class="score"></span>
         <span class="who"><div class="l1"></div><div class="l2"></div></span>
         <button type="button" class="x" aria-label="Delete">✕</button>`;
       const sc = li.querySelector(".score");
-      sc.textContent = isLive ? "live" : String(g.score);
+      sc.textContent = isLive ? "live" : String(scoreOf(g, order[0]));
       sc.classList.toggle("live", isLive);
-      li.querySelector(".l1").textContent = `${nameOf(g.player)} · ${dirLabel(g.direction)}`;
-      li.querySelector(".l2").textContent = isLive
-        ? `${whenLabel(g.at)} · ${sum(g.darts)} after ${g.darts.length} darts`
-        : `${whenLabel(g.at)} · ${g.darts.filter(d => d === 3).length} trebles · ${g.darts.filter(d => d === 0).length} misses`;
+      if (solo){
+        const d = g.throws[g.players[0]];
+        li.querySelector(".l1").textContent = `${nameOf(g.players[0])} · ${dirLabel(g.direction)}`;
+        li.querySelector(".l2").textContent = isLive
+          ? `${whenLabel(g.at)} · ${sum(d)} after ${d.length} darts`
+          : `${whenLabel(g.at)} · ${d.filter(v => v === 3).length} trebles · ${d.filter(v => v === 0).length} misses`;
+      } else {
+        li.querySelector(".l1").textContent = order.map(id => `${nameOf(id)} ${scoreOf(g, id)}`).join(" · ");
+        li.querySelector(".l2").textContent = `${whenLabel(g.at)} · ${dirLabel(g.direction)}${isLive ? " · in progress" : ""}`;
+      }
       armed(li.querySelector("button"), "✕", () => store.removeGame(g.id));
       ul.appendChild(li);
     }
@@ -621,7 +679,7 @@
   function renderPeople(){
     const ul = $("people");
     ul.innerHTML = "";
-    const list = activePlayers();
+    const list = people.active();
     if (!list.length){
       const li = document.createElement("li");
       li.className = "empty";
@@ -631,44 +689,23 @@
     }
     for (const p of list){
       const li = document.createElement("li");
-      li.innerHTML = `<span class="who"><div class="l1"></div><div class="l2"></div></span>`;
-      li.querySelector(".l1").textContent = p.name;
+      li.innerHTML = `<i class="dot"></i><span class="who"><div class="l1"></div><div class="l2"></div></span><button type="button">Edit</button>`;
+      li.querySelector(".dot").style.background = people.colourOf(p.id);
+      li.querySelector(".l1").textContent = people.isMe(p.id) ? `${p.name} (you)` : p.name;
       const n = doneFor(p.id).length;
       li.querySelector(".l2").textContent = `${n} game${n === 1 ? "" : "s"}${p.email ? " · " + p.email : ""}`;
-      if (isMe(p)){
-        const y = document.createElement("span");
-        y.className = "you";
-        y.textContent = "you";
-        li.appendChild(y);
-      } else {
-        const b = document.createElement("button");
-        b.type = "button";
-        b.textContent = "Remove";
-        armed(b, "Remove", () => store.removePlayer(p.id));
-        li.appendChild(b);
-      }
+      tap(li.querySelector("button"), () => people.edit(p.id, { noun: "player" }));
       ul.appendChild(li);
     }
   }
 
   async function addPlayer(){
-    const name = $("newName").value.trim();
-    const email = $("newEmail").value.trim().toLowerCase();
-    if (!name){ $("newName").focus(); return; }
-    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ toast("That email doesn't look right."); $("newEmail").focus(); return; }
-    $("addBtn").disabled = true;
-    try {
-      const id = await store.addPlayer({ name, email, createdAt: Date.now() });
-      $("newName").value = ""; $("newEmail").value = "";
-      if (!who) who = id;
-      let msg = `${name} added`;
-      if (email && store.live){
-        try { await cloud.addMember(email); msg += " · they can sign in now"; }
-        catch (e){ msg += " · couldn't add their email to the family list"; }
-      }
-      toast(msg);
-    } catch (e){ toast("Couldn't add: " + (e.message || e)); }
-    $("addBtn").disabled = false;
+    const id = await people.edit(null, { noun: "player" });
+    if (!id) return;
+    toast(`${nameOf(id)} added`);
+    // Someone new is usually about to throw: put them in the lineup.
+    if (!picked.includes(id) && picked.length < MAX_PLAYERS){ pickTouched = true; picked = [...picked, id]; }
+    renderHome();
   }
 
   function share(){
@@ -681,39 +718,76 @@
   }
 
   // ---- the game ----
-  function startGame(){
-    if (!who){ toast("Add a player first."); return; }
+  function startGame(lineup){
+    const ids = (lineup || picked).map(id => people.resolve(id)).filter((id, i, a) => {
+      const p = people.get(id);
+      return p && !p.deleted && a.indexOf(id) === i;
+    });
+    if (!ids.length){ toast("Pick who's playing first."); return; }
     live = {
-      id: store.newId(), game: GAME, player: who, direction, darts: [],
-      score: 0, at: Date.now(), endedAt: null, status: "live", by: cloud.user ? cloud.user.email : null
+      id: store.newId(), game: GAME, players: ids, throws: Object.fromEntries(ids.map(id => [id, []])),
+      turn: 0, log: [], direction, at: Date.now(), endedAt: null, status: "live", by: cloud.user ? cloud.user.email : null
     };
     store.saveGame(live).catch(e => toast("Couldn't save: " + (e.message || e)));
     remember(live.id);
     phone.fullscreen();
     show("game");
+    buildTop();
     renderGame();
   }
 
   function resumeGame(which){
     const g = which || liveGames()[0];
     if (!g) return;
-    live = { ...g, darts: [...g.darts] };
+    live = clone(g);
+    if (live.throws[live.players[live.turn]].length >= TOTAL_DARTS) live.turn = nextTurn(live.turn);
     remember(live.id);
     phone.fullscreen();
     show("game");
+    buildTop();
     renderGame();
+  }
+
+  // The scores across the top: one panel per player. In a match, tapping a panel hands
+  // that player the darts — for when someone threw out of turn or the scorer slipped.
+  function buildTop(){
+    const top = $("gTop");
+    top.innerHTML = "";
+    top.classList.toggle("many", live.players.length > 2);
+    live.players.forEach((id, i) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "pl";
+      b.innerHTML = `<span class="nm"><i class="dot"></i><span class="t"></span></span><span class="ln"><b class="sc">0</b><small class="at"></small></span>`;
+      b.querySelector(".dot").style.background = people.colourOf(id);
+      b.querySelector(".t").textContent = nameOf(id);
+      if (live.players.length > 1) tap(b, () => handTo(i));
+      top.appendChild(b);
+    });
   }
 
   function renderGame(){
     if (!live) return;
-    const darts = live.darts;
-    const idx = Math.floor(darts.length / DARTS_PER);
+    const multi = live.players.length > 1;
+    const id = live.players[live.turn];
+    const darts = live.throws[id];
     const nums = order(live.direction);
-    $("gPlayer").textContent = nameOf(live.player);
-    $("gTotal").textContent = String(sum(darts));
+    const idx = Math.min(Math.floor(darts.length / DARTS_PER), NUMBERS - 1);
+
+    $("gTop").querySelectorAll(".pl").forEach((b, i) => {
+      const d = live.throws[live.players[i]];
+      b.classList.toggle("on", multi && i === live.turn);
+      b.querySelector(".sc").textContent = String(sum(d));
+      b.querySelector(".at").textContent = !multi ? ""
+        : d.length >= TOTAL_DARTS ? "done" : `on ${nums[Math.floor(d.length / DARTS_PER)]}`;
+    });
     $("gDart").textContent = `Dart ${Math.min(darts.length + 1, TOTAL_DARTS)} of ${TOTAL_DARTS}`;
     $("gDir").textContent = dirLabel(live.direction);
-    const on = nums[Math.min(idx, NUMBERS - 1)];
+
+    const onEl = $("gOn");
+    onEl.textContent = multi ? nameOf(id) : "on";
+    onEl.classList.toggle("who", multi);
+    const on = nums[idx];
     $("gNum").textContent = String(on);
     $("lS").textContent = "S" + on;
     $("lD").textContent = "D" + on;
@@ -725,77 +799,148 @@
       if (i < cur.length){ el.textContent = String(cur[i]); el.classList.add("hit", "v" + cur[i]); }
       else { el.textContent = "·"; if (i === cur.length) el.classList.add("next"); }
     }
+
+    // Underneath, the last complete visit so a slip is easy to spot: yours on your own; in a
+    // match, the one just thrown by whoever handed over, until the next player starts.
     const prev = $("gPrev");
-    if (idx > 0){
-      const p = darts.slice((idx - 1) * DARTS_PER, idx * DARTS_PER);
+    const last = live.log.length ? live.log[live.log.length - 1] : null;
+    const whoPrev = multi && last !== null && last !== live.turn ? live.players[last] : id;
+    const pd = live.throws[whoPrev];
+    const pi = Math.floor(pd.length / DARTS_PER) - 1;
+    if (pi >= 0){
+      const p = pd.slice(pi * DARTS_PER, pi * DARTS_PER + DARTS_PER);
       prev.innerHTML = `<b></b> · <span></span> · +<b></b>`;
       const bs = prev.querySelectorAll("b");
-      bs[0].textContent = String(nums[idx - 1]);
+      bs[0].textContent = String(nums[pi]);
       prev.querySelector("span").textContent = p.map(v => HIT[v]).join(", ");
       bs[1].textContent = String(sum(p));
+      if (multi) prev.prepend(document.createTextNode(`${nameOf(whoPrev)} · `));
     } else {
-      prev.textContent = "Three darts, then it moves on by itself.";
+      prev.textContent = multi ? "Three darts each, then it passes on by itself." : "Three darts, then it moves on by itself.";
     }
-    $("undoBtn").disabled = darts.length === 0;
+    $("undoBtn").disabled = dartsIn(live) === 0;
   }
 
-  function throwDart(v){
-    if (!live || live.darts.length >= TOTAL_DARTS) return;
-    live.darts.push(v);
-    buzz(v === 3 ? [15, 30, 15] : 10);
-    if (live.darts.length >= TOTAL_DARTS) return finishGame();
+  // The next player round the table who still has darts to throw.
+  function nextTurn(from){
+    const n = live.players.length;
+    for (let k = 1; k <= n; k++){
+      const i = (from + k) % n;
+      if (live.throws[live.players[i]].length < TOTAL_DARTS) return i;
+    }
+    return from;
+  }
+
+  function handTo(i){
+    if (!live || i === live.turn) return;
+    const id = live.players[i];
+    if (live.throws[id].length >= TOTAL_DARTS){ toast(`${nameOf(id)} has finished`); return; }
+    live.turn = i;
+    buzz(16);
     renderGame();
     persistLive();
   }
 
+  function throwDart(v){
+    if (!live) return;
+    const d = live.throws[live.players[live.turn]];
+    if (d.length >= TOTAL_DARTS) return;
+    d.push(v);
+    live.log.push(live.turn);
+    if (isOver(live)) return finishGame();
+    // Third dart of the visit: pass the darts on by itself.
+    let passed = false;
+    if (d.length % DARTS_PER === 0){
+      const n = nextTurn(live.turn);
+      passed = n !== live.turn;
+      live.turn = n;
+    }
+    buzz(passed ? [15, 60, 15, 60, 15] : v === 3 ? [15, 30, 15] : 10);
+    renderGame();
+    persistLive();
+  }
+
+  // One dart back, whoever threw it, across numbers and across players — and the darts go
+  // back to them.
   function undo(){
-    if (!live || !live.darts.length) return;
-    live.darts.pop();
+    if (!live || !dartsIn(live)) return;
+    let i = live.log.length ? live.log.pop() : live.turn;
+    if (!live.throws[live.players[i]].length) i = live.players.findIndex(id => live.throws[id].length);
+    live.throws[live.players[i]].pop();
+    live.turn = i;
     buzz(8);
     renderGame();
     persistLive();
   }
 
   function persistLive(){
-    live.score = sum(live.darts);
     store.saveGame(live).catch(e => toast("Couldn't save: " + (e.message || e)));
   }
 
-  async function finishGame(){
-    live.score = sum(live.darts);
+  function finishGame(){
     live.status = "done";
     live.endedAt = Date.now();
     finished = live;
     live = null;
     remember(null);
     buzz([30, 40, 30, 40, 60]);
-    try { await store.saveGame(finished); }
-    catch (e){ toast("Couldn't save: " + (e.message || e)); }
     show("finish");
     renderFinish();
+    store.saveGame(finished).catch(e => toast("Couldn't save: " + (e.message || e)));
   }
 
   function renderFinish(){
     const g = finished;
     if (!g) return;
-    $("fWho").textContent = `${nameOf(g.player)} · ${dirLabel(g.direction)}`;
-    $("fScore").textContent = String(g.score);
-    const others = doneFor(g.player).filter(x => x.id !== g.id).map(x => x.score);
-    const trebles = g.darts.filter(d => d === 3).length;
-    let note = `${trebles} treble${trebles === 1 ? "" : "s"} · ${g.darts.filter(d => d === 0).length} misses`;
-    if (!others.length) note += " · first game on the board";
-    else if (g.score > Math.max(...others)) note += ` · new best (was ${Math.max(...others)})`;
-    else note += ` · best ${Math.max(...others)} · average ${fmtAvg(avg(others.slice(-10)))}`;
-    $("fNote").textContent = note;
+    const multi = g.players.length > 1;
+    $("fScore").classList.toggle("hidden", multi);
+    $("fResults").classList.toggle("hidden", !multi);
+    for (const k of ["fNote", "fBand", "fNext"]) $(k).classList.toggle("hidden", multi);
+    const bestBefore = id => {
+      const others = doneFor(id).filter(x => x.id !== g.id).map(x => x.score);
+      return others.length ? { best: Math.max(...others), avg: avg(others.slice(-10)) } : null;
+    };
 
-    const band = bandFor(g.score);
-    $("fBand").textContent = band.name;
-    const up = BANDS[BANDS.indexOf(band) - 1];
-    $("fNext").textContent = up
-      ? `${up.at - g.score} more for ${up.name.toLowerCase()}`
-      : "Nothing above this — that's the top of the guide.";
-    renderGuide(g.score);
-    // Put your own row where you can see it, whatever the height of the phone.
+    if (!multi){
+      const id = g.players[0], d = g.throws[id], score = scoreOf(g, id);
+      $("fWho").textContent = `${nameOf(id)} · ${dirLabel(g.direction)}`;
+      $("fScore").textContent = String(score);
+      const was = bestBefore(id);
+      const trebles = d.filter(v => v === 3).length;
+      let note = `${trebles} treble${trebles === 1 ? "" : "s"} · ${d.filter(v => v === 0).length} misses`;
+      if (!was) note += " · first game on the board";
+      else if (score > was.best) note += ` · new best (was ${was.best})`;
+      else note += ` · best ${was.best} · average ${fmtAvg(was.avg)}`;
+      $("fNote").textContent = note;
+      const band = bandFor(score);
+      $("fBand").textContent = band.name;
+      const up = BANDS[BANDS.indexOf(band) - 1];
+      $("fNext").textContent = up
+        ? `${up.at - score} more for ${up.name.toLowerCase()}`
+        : "Nothing above this — that's the top of the guide.";
+      renderGuide([{ id, score }]);
+    } else {
+      const order = ranked(g);
+      const top = scoreOf(g, order[0]);
+      const tied = order.filter(id => scoreOf(g, id) === top).length > 1;
+      $("fWho").textContent = `${tied ? `Tied on ${top}` : `${nameOf(order[0])} wins`} · ${dirLabel(g.direction)}`;
+      const ul = $("fResults");
+      ul.innerHTML = "";
+      for (const id of order){
+        const score = scoreOf(g, id), was = bestBefore(id);
+        const li = document.createElement("li");
+        li.classList.toggle("win", score === top);
+        li.innerHTML = `<i class="dot"></i><span class="n"><span></span><small></small></span><b class="s"></b>`;
+        li.querySelector(".dot").style.background = people.colourOf(id);
+        li.querySelector(".n span").textContent = nameOf(id);
+        li.querySelector("small").textContent = bandFor(score).name +
+          (!was ? " · first game" : score > was.best ? ` · new best (was ${was.best})` : "");
+        li.querySelector(".s").textContent = String(score);
+        ul.appendChild(li);
+      }
+      renderGuide(order.map(id => ({ id, score: scoreOf(g, id) })));
+    }
+    // Put the picked-out row where you can see it, whatever the height of the phone.
     const row = $("fGuide").querySelector("li.on");
     if (row && row.scrollIntoView) requestAnimationFrame(() => row.scrollIntoView({ block: "center" }));
   }
@@ -814,6 +959,13 @@
     remember(null);
     show("home");
     renderHome();
+  }
+
+  function playAgain(){
+    const g = finished;
+    finished = null;
+    if (g){ picked = [...g.players]; pickTouched = true; direction = g.direction; }
+    startGame(picked);
   }
 
   function toast(msg){
@@ -835,7 +987,11 @@
 
   // ---- export / import ----
   function exportAll(){
-    const data = { app: APP_ID, version: APP_VERSION, exportedAt: new Date().toISOString(), players, games };
+    const data = {
+      app: APP_ID, version: APP_VERSION, exportedAt: new Date().toISOString(),
+      people: people.all(),
+      games: games.map(g => ({ id: g.id, ...toDoc(g) }))
+    };
     download(`around-the-clock-${toISO(new Date())}.json`, JSON.stringify(data, null, 2), "application/json");
   }
 
@@ -844,33 +1000,27 @@
     try { data = JSON.parse(await file.text()); }
     catch { return toast("That file isn't JSON."); }
     if (!data || !Array.isArray(data.games)) return toast("No games in that file.");
-    let people = 0;
-    if (data.players && typeof data.players === "object"){
-      const fresh = {};
-      for (const [id, p] of Object.entries(data.players)){
-        if (!p || !p.name || players[id]) continue;
-        fresh[id] = { name: String(p.name), email: String(p.email || ""), createdAt: Number(p.createdAt) || Date.now(), deleted: !!p.deleted };
-        people++;
-      }
-      if (people) await store.savePlayers({ ...players, ...fresh });
-    }
-    const have = new Set(games.map(g => g.id));
+    // People first, so the games' ids resolve: `people` from this version's exports,
+    // `players` from exports made before people were shared.
+    const before = people.active().length;
+    people.adopt(data.people);
+    people.adopt(data.players);
+    const newPeople = Math.max(0, people.active().length - before);
+    const have = new Set(rawGames.map(g => g.id));
     let added = 0;
     for (const raw of data.games){
-      if (!raw || !raw.player || !Array.isArray(raw.darts) || !raw.at) continue;
-      const darts = raw.darts.map(Number).filter(v => v >= 0 && v <= 3).slice(0, TOTAL_DARTS);
-      const g = {
-        id: raw.id && !have.has(raw.id) ? String(raw.id) : store.newId(),
-        game: String(raw.game || GAME), player: String(raw.player), direction: raw.direction === "down" ? "down" : "up",
-        darts, score: sum(darts), at: Number(raw.at), endedAt: raw.endedAt ? Number(raw.endedAt) : null,
-        status: raw.status === "live" && darts.length < TOTAL_DARTS ? "live" : "done", by: raw.by || null
-      };
-      if (raw.id && have.has(raw.id)) continue;
+      if (!isGameDoc(raw)) continue;
+      if (raw.id && have.has(String(raw.id))) continue;
+      const g = normalise({ ...raw, id: raw.id ? String(raw.id) : store.newId() });
+      if (!g.players.length || !Number.isFinite(g.at)) continue;
+      if (g.status === "live" && isOver(g)) g.status = "done";
       have.add(g.id);
       await store.saveGame(g);
       added++;
     }
-    toast(added || people ? `Imported ${added} game${added === 1 ? "" : "s"}, ${people} player${people === 1 ? "" : "s"}` : "Nothing new to import");
+    toast(added || newPeople
+      ? `Imported ${added} game${added === 1 ? "" : "s"}, ${newPeople} new player${newPeople === 1 ? "" : "s"}`
+      : "Nothing new to import");
   }
 
   // ---- storage ----
@@ -880,29 +1030,16 @@
     get live(){ return cloud.configured() && !!cloud.user; },
     newId(){ return this.live ? cloud.newId() : "local-" + Math.random().toString(36).slice(2); },
     async saveGame(g){
-      const { id, ...doc } = g;
-      if (this.live) return cloud.save(`games/${id}`, doc);
-      games = [...games.filter(x => x.id !== id), { ...g }];
+      if (this.live) return cloud.save(`games/${g.id}`, toDoc(g));
+      rawGames = [...rawGames.filter(x => x.id !== g.id), { id: g.id, ...toDoc(g) }];
+      refreshGames();
       if (!document.body.classList.contains("playing")) renderHome();
     },
     async removeGame(id){
       if (this.live) return cloud.delete(`games/${id}`);
-      games = games.filter(x => x.id !== id);
+      rawGames = rawGames.filter(x => x.id !== id);
+      refreshGames();
       renderHome();
-    },
-    async savePlayers(next){
-      players = next;
-      if (this.live) return cloud.save("state/main", { players: next });
-      renderHome();
-    },
-    async addPlayer(p){
-      const id = this.newId();
-      await this.savePlayers({ ...players, [id]: p });
-      return id;
-    },
-    async removePlayer(id){
-      if (!players[id]) return;
-      await this.savePlayers({ ...players, [id]: { ...players[id], deleted: true } });
     },
     async saveDirection(dir){
       direction = dir;
@@ -911,14 +1048,14 @@
   };
 
   // ---- wiring ----
-  tap($("startBtn"), startGame);
+  tap($("startBtn"), () => startGame());
   tap($("resumeBtn"), () => resumeGame());
   $("dirSeg").querySelectorAll("button").forEach(b => tap(b, () => { store.saveDirection(b.dataset.dir).catch(() => {}); renderDir(); }));
   $("game").querySelectorAll("[data-v]").forEach(b => tap(b, () => throwDart(Number(b.dataset.v))));
   tap($("undoBtn"), undo);
   armed($("quitBtn"), "Abandon", abandonGame);
   tap($("doneBtn"), leaveToHome);
-  tap($("againBtn"), () => { who = finished ? finished.player : who; direction = finished ? finished.direction : direction; finished = null; startGame(); });
+  tap($("againBtn"), playAgain);
   tap($("addBtn"), addPlayer);
   tap($("shareBtn"), share);
   tap($("exportBtn"), exportAll);
@@ -928,8 +1065,16 @@
     e.target.value = "";
     if (f) importFile(f);
   });
-  $("newName").addEventListener("keydown", e => { if (e.key === "Enter") $("newEmail").focus(); });
-  $("newEmail").addEventListener("keydown", e => { if (e.key === "Enter") addPlayer(); });
+
+  // A rename, a merge or someone new on another phone (or in another app) shows up here.
+  // (Auto-resume waits for the games list itself; the people list often lands first.)
+  people.onChange(() => {
+    refreshGames();
+    if (live){
+      $("gTop").querySelectorAll(".pl .t").forEach((t, i) => { t.textContent = nameOf(live.players[i]); });
+      renderGame();
+    } else renderHome();
+  });
 
   // ---- cloud ----
   const userBox = $("userBox");
@@ -958,7 +1103,7 @@
   function start(user){
     unsubs.forEach(u => { try { u(); } catch {} });
     unsubs = [];
-    who = null; progWho = null; meHandled = null; stateLoaded = false; live = null; finished = null; autoResumed = false;
+    picked = []; pickTouched = false; progWho = null; live = null; finished = null; autoResumed = false; legacyPlayers = null;
 
     const gated = cloud.configured() && !user;
     $("gate").classList.toggle("hidden", !gated);
@@ -968,20 +1113,23 @@
     show("home");
 
     if (cloud.configured()){
+      unsubs.push(people.start({
+        legacy: () => legacyPlayers,
+        onMe: ({ name, added }) => { toast(added ? `Added you as ${name}` : `You're ${name}`); if (!live) renderHome(); },
+        onError: e => toast("Couldn't save to the cloud: " + (e.message || e))
+      }));
       unsubs.push(cloud.watch("state/main", doc => {
-        players = (doc && doc.players) || {};
+        legacyPlayers = (doc && doc.players) || {};
         if (doc && (doc.direction === "up" || doc.direction === "down")) direction = doc.direction;
-        stateLoaded = true;
+        people.poke();
         if (!live) renderHome();
-        ensureMe();
       }));
       unsubs.push(cloud.watchList("games", rows => {
-        games = rows
-          .filter(r => typeof r.at === "number" && Array.isArray(r.darts))
-          .map(r => ({ ...r, darts: r.darts.map(Number), score: typeof r.score === "number" ? r.score : sum(r.darts.map(Number)) }));
+        rawGames = rows.filter(isGameDoc);
+        refreshGames();
         // The game on this phone is the truth while it's being played; the list only
         // matters for Home. If someone else deleted it out from under us, drop out cleanly.
-        if (live && !games.some(g => g.id === live.id) && live.darts.length){ toast("That game was deleted elsewhere."); live = null; remember(null); show("home"); }
+        if (live && !games.some(g => g.id === live.id) && dartsIn(live)){ toast("That game was deleted elsewhere."); live = null; remember(null); show("home"); }
         if (!live) autoResume();
         if (!live) renderHome();
       }, { orderBy: "at", desc: true, limit: 500 }));
