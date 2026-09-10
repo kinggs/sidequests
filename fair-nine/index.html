@@ -20,6 +20,7 @@
     --bone:#efe9dc;
     --bone-dim:#bcc7c0;
     --panel:rgba(255,255,255,.06);
+    --pk-card:#0b241c;   /* the shared people sheet from shared/people.js */
     --rack-gap:clamp(5px, 1.3vh, 11px);
     /* Five rows of balls plus four gaps and the rack's own padding have to fit whatever
        the fixed chrome leaves: score panels ~156, lead bar 56, meta 36, controls 82,
@@ -327,6 +328,7 @@
       <button class="primary" id="pfSave">Save</button>
       <button class="quiet" id="pfCancel">Cancel</button>
     </div>
+    <button class="quiet hidden" id="pfShared">Set a Gmail, or merge a double entry</button>
     <button class="quiet warnbtn hidden" id="pfDelete" style="color:#e8b04a;border-color:rgba(232,176,74,.55)">Delete player</button>
   </div>
 </div>
@@ -454,9 +456,10 @@
 <script type="module">
 import { cloud } from "../shared/cloud.js";
 import { phone } from "../shared/phone.js";
+import { people } from "../shared/people.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "0.13.0";
+const APP_VERSION = "0.14.0";
 const APP_ID = "fair-nine";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 
@@ -473,7 +476,7 @@ const el = {};
  "scrHistory","histBack","histChips","histList",
  "impChoice","impInfo","impMerge","impReplace","impCancel",
  "familyBtn","scrFamily","famBack","famList","famEmail","famAdd","famShare",
- "pfEst","estRef","estRefName","estRefScore","estNewScore","estOut","pfDelete"
+ "pfEst","estRef","estRefName","estRefScore","estNewScore","estOut","pfDelete","pfShared"
 ].forEach(id => el[id] = $(id));
 
 function buzz(ms){ if(navigator.vibrate) navigator.vibrate(ms); }
@@ -502,15 +505,52 @@ const DEFAULT_RACKS = 5;   // the setup default, and the notional length of an o
 
 function expectedShareA(za, zb){ return 1 / (1 + Math.pow(2, (zb - za) / 100)); }
 
+// Players are the household's shared people (shared/people.js): names and colours are the
+// same in every app. db.players keeps only what's Fair Nine's own — zargo, robustness,
+// sessions — keyed by the person's id. Entries from before the list was shared also carry
+// a name and colour; people.js adopts those into the shared list.
+let stateLoaded = false;
 async function loadState(){
   const s = await cloud.load("state/main");
   if(s && s.players){ db = { players: s.players, config: s.config || DEFAULT_CONFIG }; }
   else { db = { players:{}, config: DEFAULT_CONFIG }; await cloud.save("state/main", db); }
+  stateLoaded = true;
+  people.poke();
+  rekeyStats();
 }
 
 function savePlayer(id, fields){
   db.players[id] = Object.assign(db.players[id] || {}, fields);
   return cloud.save("state/main", { players: { [id]: fields } });
+}
+
+// A player: the shared person plus their numbers here. Someone added in another app, who
+// has never played pool, starts at the starter rating.
+function P(id){
+  const person = people.get(id);
+  if(!person) return null;
+  const st = db.players[person.id] || {};
+  return {
+    id: person.id, name: person.name, colour: people.colourOf(person.id), deleted: !!person.deleted,
+    zargo: Number.isFinite(st.zargo) ? st.zargo : cfg().startZargo,
+    robustness: st.robustness || 0, sessions: st.sessions || 0
+  };
+}
+const hasRating = id => { const st = db.players[people.resolve(id)]; return !!st && Number.isFinite(st.zargo); };
+
+// When an old Fair Nine id turns out to be someone another app already had, or two entries
+// are merged, the numbers follow them to the id that survives. If both ids have numbers,
+// the better-established rating wins.
+function rekeyStats(){
+  if(!stateLoaded) return;
+  for(const [old, st] of Object.entries(db.players)){
+    const id = people.resolve(old);
+    if(id === old || !st || !Number.isFinite(st.zargo)) continue;
+    const cur = db.players[id];
+    if(cur && Number.isFinite(cur.zargo) && (cur.sessions || 0) >= (st.sessions || 0)) continue;
+    savePlayer(id, { zargo: st.zargo, robustness: st.robustness || 0, sessions: st.sessions || 0 })
+      .catch(e => console.warn("[rekey]", e));
+  }
 }
 
 // ---------- screens ----------
@@ -529,12 +569,19 @@ function show(scr){
   if(scr === "live") phone.fullscreen();
 }
 
-const nameOf = id => (db.players[id] && db.players[id].name) || "(deleted)";
-// Deleted players stay in the data (their sessions keep their name in History)
-// but disappear from every picker and list.
-const activePlayers = () => Object.keys(db.players)
-  .filter(id => !db.players[id].deleted)
+// Session documents keep the ids they were started with; nameOf reads any of them as the
+// person they are now. Deleted players keep their name in History but leave every picker.
+const nameOf = id => people.nameOf(id, "(deleted)");
+const activePlayers = () => people.active().map(p => p.id)
   .sort((x, y) => nameOf(x).localeCompare(nameOf(y)));
+
+// A rename, merge or new face from another phone or another app shows up here.
+people.onChange(() => {
+  if(!started || !stateLoaded) return;
+  rekeyStats();
+  if(!el.scrHome.classList.contains("hidden")) renderHome();
+  if(!el.scrSetup.classList.contains("hidden")) renderSetup();
+});
 
 // ---------- auth gate ----------
 // The gate stays hidden until auth state is actually known, so a signed-in
@@ -546,6 +593,7 @@ async function handleUser(user){
     el.gate.classList.add("hidden");
     if(started) return;
     started = true;
+    people.start({ legacy: () => stateLoaded ? db.players : null, onError: e => console.warn("[people]", e) });
     try {
       await loadState();
       el.homeBody.classList.remove("hidden");
@@ -559,6 +607,8 @@ async function handleUser(user){
     }
   } else {
     started = false;
+    stateLoaded = false;
+    people.stop();
     el.userBox.innerHTML = "";
     el.homeBody.classList.add("hidden");
     el.gateErr.classList.add("hidden");
@@ -578,15 +628,16 @@ el.signInBig.addEventListener("click", () => cloud.signIn().catch(e => {
 function renderHome(){
   const ids = activePlayers();
   el.playerList.innerHTML = "";
-  el.noPlayers.classList.toggle("hidden", ids.length > 0);
+  el.noPlayers.classList.toggle("hidden", ids.length > 0 || !people.ready);
   ids.forEach(id => {
-    const p = db.players[id];
+    const p = P(id);
     const li = document.createElement("li");
     const b = document.createElement("button");
-    const prov = (p.robustness || 0) < cfg().provisionalRacks;
-    b.innerHTML = `<span class="pdot" style="background:${p.colour}"></span>
+    const prov = p.robustness < cfg().provisionalRacks;
+    b.innerHTML = `<span class="pdot"></span>
       <span class="pname"></span>
-      <span class="pstats">${Math.round(p.zargo)} · robustness ${p.robustness || 0}${prov ? '<br><span class="prov">provisional</span>' : ""}</span>`;
+      <span class="pstats">${Math.round(p.zargo)} · robustness ${p.robustness}${prov ? '<br><span class="prov">provisional</span>' : ""}</span>`;
+    b.querySelector(".pdot").style.background = p.colour;
     b.querySelector(".pname").textContent = p.name;
     b.addEventListener("click", () => openPlayerForm(id));
     li.appendChild(b);
@@ -600,18 +651,20 @@ el.newSessionBtn.addEventListener("click", () => {
 });
 
 // ---------- player form ----------
-const PALETTE = ["#cf1b1b","#e8730c","#f2c204","#0f7a3d","#2f9e8f","#4a8fce","#6b2fa0","#c2497e"];
+// Name and colour are shared by every app; the Zargo is Fair Nine's own.
+const PALETTE = people.PALETTE;
 let pfEditing = null, pfColour = PALETTE[5];
 function openPlayerForm(id){
   pfEditing = id;
-  const p = id ? db.players[id] : null;
+  const p = id ? P(id) : null;
   el.pfTitle.textContent = p ? "Edit " + p.name : "Add player";
   el.pfName.value = p ? p.name : "";
-  pfColour = p ? p.colour : PALETTE[Object.keys(db.players).length % PALETTE.length];
+  pfColour = p ? p.colour : people.nextColour();
   el.pfZargoRow.classList.toggle("hidden", !p);
   el.pfZargo.value = p ? Math.round(p.zargo) : "";
   if(p) el.pfEst.classList.add("hidden"); else setupEstimator();
-  el.pfDelete.classList.toggle("hidden", !p);
+  el.pfDelete.classList.toggle("hidden", !p || people.isMe(id));   // you can't delete yourself
+  el.pfShared.classList.toggle("hidden", !p);
   el.pfNote.classList.add("hidden");
   el.pfColours.innerHTML = "";
   PALETTE.forEach(c => {
@@ -630,11 +683,17 @@ function openPlayerForm(id){
   if(!p) el.pfName.focus();
 }
 el.pfCancel.addEventListener("click", () => el.pform.classList.add("hidden"));
+// A sign-in Gmail, and merging someone added twice, live in the sheet every app shares.
+el.pfShared.addEventListener("click", () => {
+  const id = pfEditing;
+  el.pform.classList.add("hidden");
+  people.edit(id, { noun: "player" });
+});
 el.pfDelete.addEventListener("click", async () => {
   if(!pfEditing) return;
-  const p = db.players[pfEditing];
-  if(!confirm(`Delete ${p.name} for good?\n\nThey vanish from the player list and can't be picked for new sessions. Their past sessions stay in History under their name. This can't be undone in the app.`)) return;
-  await savePlayer(pfEditing, { deleted: true });
+  const p = P(pfEditing);
+  if(!confirm(`Delete ${p.name} for good?\n\nPlayers are shared by every sidequests app, so they leave the lists in all of them and can't be picked for new sessions. Their past sessions stay in History under their name. This can't be undone in the app.`)) return;
+  people.remove(pfEditing);
   el.pform.classList.add("hidden");
   renderHome();
 });
@@ -642,22 +701,21 @@ el.pfSave.addEventListener("click", async () => {
   const name = el.pfName.value.trim();
   if(!name){ el.pfName.focus(); return; }
   if(pfEditing){
-    const p = db.players[pfEditing];
+    const p = P(pfEditing);
     const z = parseInt(el.pfZargo.value, 10);
-    const fields = { name, colour: pfColour };
     if(Number.isFinite(z) && z !== Math.round(p.zargo)){
       if(!confirm(`Set ${name}'s Zargo to ${z}? This overrides the earned rating.`)) return;
-      fields.zargo = z;
+      savePlayer(p.id, { zargo: z }).catch(e => console.warn(e));
     }
-    await savePlayer(pfEditing, fields);
+    people.update(p.id, { name, colour: pfColour });
   } else {
-    const id = cloud.newId();
+    // The list is shared with the other apps, so the Melanie being added may already be there.
+    const twin = people.active().find(q => q.name.trim().toLowerCase() === name.toLowerCase());
+    if(twin && !confirm(`There's already a ${twin.name} — every sidequests app uses the same list. Add another ${name} anyway?`)) return;
     const est = estUsed ? estimateZargo() : null;
-    await savePlayer(id, {
-      name, colour: pfColour,
-      zargo: est === null ? cfg().startZargo : est,
-      robustness: 0, sessions: 0, createdAt: Date.now()
-    });
+    const id = people.add({ name, colour: pfColour });
+    savePlayer(id, { zargo: est === null ? cfg().startZargo : est, robustness: 0, sessions: 0 })
+      .catch(e => console.warn(e));
   }
   el.pform.classList.add("hidden");
   renderHome();
@@ -669,7 +727,7 @@ el.pfSave.addEventListener("click", async () => {
 // 100 × log2(9/n). Rough by design — it self-corrects with every rack played.
 let estUsed = false;
 function setupEstimator(){
-  const ids = activePlayers();
+  const ids = activePlayers().filter(hasRating);   // only someone who's actually played makes a yardstick
   estUsed = false;
   el.pfEst.classList.toggle("hidden", ids.length === 0);
   if(!ids.length) return;
@@ -677,7 +735,7 @@ function setupEstimator(){
   ids.forEach(id => {
     const o = document.createElement("option");
     o.value = id;
-    o.textContent = `${nameOf(id)} (${Math.round(db.players[id].zargo)})`;
+    o.textContent = `${nameOf(id)} (${Math.round(P(id).zargo)})`;
     el.estRef.appendChild(o);
   });
   el.estRefScore.value = 9;
@@ -685,7 +743,7 @@ function setupEstimator(){
   updateEstimate(false);
 }
 function estimateZargo(){
-  const ref = db.players[el.estRef.value];
+  const ref = P(el.estRef.value);
   if(!ref) return null;
   const rs = Math.min(9, Math.max(0.5, parseFloat(el.estRefScore.value) || 0.5));
   const ns = Math.min(9, Math.max(0.5, parseFloat(el.estNewScore.value) || 0.5));
@@ -694,7 +752,7 @@ function estimateZargo(){
 }
 function updateEstimate(touched){
   if(touched) estUsed = true;
-  el.estRefName.textContent = db.players[el.estRef.value] ? nameOf(el.estRef.value) : "—";
+  el.estRefName.textContent = P(el.estRef.value) ? nameOf(el.estRef.value) : "—";
   const z = estimateZargo();
   el.estOut.textContent = !estUsed
     ? `Leave untouched to start at ${cfg().startZargo}.`
@@ -718,7 +776,7 @@ function renderSetup(){
     el[box].innerHTML = "";
     activePlayers().forEach(id => {
       const b = document.createElement("button");
-      b.textContent = db.players[id].name;
+      b.textContent = nameOf(id);
       b.classList.toggle("sel", setup[side] === id);
       const other = side === "a" ? "b" : "a";
       b.disabled = setup[other] === id;      // same player on both sides is blocked
@@ -732,7 +790,7 @@ function renderSetup(){
   el.lenLabel.textContent = setup.mode === "race" ? "Rough length, racks" : "Racks to play";
   el.targetsRow.classList.toggle("hidden", setup.mode !== "race");
 
-  const a = db.players[setup.a], b = db.players[setup.b];
+  const a = P(setup.a), b = P(setup.b);
   el.tgtALabel.textContent = a ? a.name + "'s target" : "Target A";
   el.tgtBLabel.textContent = b ? b.name + "'s target" : "Target B";
   if(a && b){
@@ -768,7 +826,7 @@ function showShortRaceWarning(a, b, eA){
 }
 
 function proposeTargets(){
-  const a = db.players[setup.a], b = db.players[setup.b];
+  const a = P(setup.a), b = P(setup.b);
   if(!a || !b || setup.mode !== "race") return;
   const racks = Math.max(1, parseInt(el.racksIn.value, 10) || DEFAULT_RACKS);
   const eA = expectedShareA(a.zargo, b.zargo);
@@ -789,7 +847,7 @@ el.startBtn.addEventListener("click", startSession);
 let live = null;
 
 async function startSession(){
-  const a = db.players[setup.a], b = db.players[setup.b];
+  const a = P(setup.a), b = P(setup.b);
   const racks = Math.max(1, parseInt(el.racksIn.value, 10) || DEFAULT_RACKS);
   const targets = setup.mode === "race"
     ? { a: Math.max(1, parseInt(el.tgtA.value, 10) || 1), b: Math.max(1, parseInt(el.tgtB.value, 10) || 1) }
@@ -1154,7 +1212,7 @@ async function finishSession(){
 //    clamped ±40, trust-weighted by the other player's robustness.
 const SETTLE = 3;   // sessions before a rating counts as known
 function zargoOutcome(){
-  const pa = db.players[live.playerA], pb = db.players[live.playerB];
+  const pa = P(live.playerA), pb = P(live.playerB);
   const sA = pa.sessions || 0, sB = pb.sessions || 0;
   const za = live.zargoBefore.a, zb = live.zargoBefore.b;
   const livePts = live.banked.a + live.banked.b;
@@ -1217,7 +1275,7 @@ async function finish(status, t, lead, winner, z){
   };
   if(status === "done" && z){
     // Discarding never touches ratings; saving moves both and feeds robustness.
-    const pa = db.players[live.playerA], pb = db.players[live.playerB];
+    const pa = P(live.playerA), pb = P(live.playerB);
     patch.zargoAfter = { a: z.a.to, b: z.b.to };
     await savePlayer(live.playerA, {
       zargo: z.a.to,
@@ -1387,8 +1445,13 @@ async function resumeSession(id){
   if(!doc){ alert("That session is gone."); await refreshHome(); return; }
   if(doc.status !== "live"){ alert("That session has already been finished."); await refreshHome(); return; }
 
-  const a = db.players[doc.playerA], b = db.players[doc.playerB];
-  if(!a || !b){ alert("One of those players has been deleted, so this session can't be resumed."); return; }
+  // Read the session's ids as whoever those people are now.
+  const ida = people.resolve(doc.playerA), idb = people.resolve(doc.playerB);
+  const a = P(ida), b = P(idb);
+  if(!a || !b || a.deleted || b.deleted || ida === idb){
+    alert("One of those players has been deleted or merged, so this session can't be resumed.");
+    return;
+  }
 
   const zb = doc.zargoBefore || { a: a.zargo, b: b.zargo };
   const eA = expectedShareA(zb.a, zb.b);
@@ -1406,7 +1469,7 @@ async function resumeSession(id){
 
   live = {
     id,
-    playerA: doc.playerA, playerB: doc.playerB,
+    playerA: ida, playerB: idb,
     nameA: a.name, nameB: b.name,
     H: eA / (1 - eA), eA,
     zargoBefore: zb,
@@ -1465,7 +1528,7 @@ function renderHistory(){
 
   const rows = histSessions.filter(s =>
     s.status !== "discarded" &&
-    (!histFilter || s.playerA === histFilter || s.playerB === histFilter));
+    (!histFilter || people.resolve(s.playerA) === histFilter || people.resolve(s.playerB) === histFilter));
   el.histList.innerHTML = "";
   if(!rows.length){
     el.histList.innerHTML = '<li class="empty">No sessions yet.</li>';
@@ -1621,6 +1684,7 @@ el.exportBtn.addEventListener("click", async () => {
   const data = {
     app: APP_ID, appVersion: APP_VERSION, exportedAt: new Date().toISOString(),
     state: { players: db.players, config: cfg() },
+    people: people.all(),
     sessions
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
@@ -1657,8 +1721,13 @@ el.impMerge.addEventListener("click", async () => {
   const imp = pendingImport;
   el.impChoice.classList.add("hidden");
   if(!imp) return;
-  for(const id of Object.keys(imp.state.players)){
-    if(!db.players[id]) await savePlayer(id, imp.state.players[id]);
+  // Names go to the shared list (`people` in this version's exports; older ones carry them
+  // on the players); the ratings stay here.
+  people.adopt(imp.people);
+  people.adopt(imp.state.players);
+  for(const [id, st] of Object.entries(imp.state.players)){
+    if(!db.players[id] && st && Number.isFinite(st.zargo))
+      await savePlayer(id, { zargo: st.zargo, robustness: st.robustness || 0, sessions: st.sessions || 0 });
   }
   const existing = new Set((await cloud.list("sessions")).map(s => s.id));
   for(const s of imp.sessions){
@@ -1677,10 +1746,12 @@ el.impMerge.addEventListener("click", async () => {
 el.impReplace.addEventListener("click", async () => {
   const imp = pendingImport;
   if(!imp) return;
-  if(!confirm("Replace ALL cloud data with this file? Current players, ratings and sessions are wiped first. This can't be undone.")) return;
+  if(!confirm("Replace ALL Fair Nine data with this file? Current ratings and sessions are wiped first. (The player list is shared with the other apps, so nobody is removed from it.) This can't be undone.")) return;
   el.impChoice.classList.add("hidden");
   for(const s of await cloud.list("sessions")) await cloud.delete("sessions/" + s.id);
   await cloud.delete("state/main");
+  people.adopt(imp.people);
+  people.adopt(imp.state.players);
   await cloud.save("state/main", { players: imp.state.players, config: imp.state.config || DEFAULT_CONFIG });
   for(const s of imp.sessions){
     if(!s.id) continue;

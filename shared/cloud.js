@@ -14,6 +14,8 @@
 //
 // All data for an app lives under /sidequests/<appId>/ in Firestore. Apps never read or
 // write outside their own namespace, so one Firebase project serves the whole repo.
+// The one exception is the household's list of people, at /sidequests/_shared/people/,
+// which every app reaches through shared/people.js (built on cloud.shared below).
 
 import { firebaseConfig, FIREBASE_VERSION } from "./firebase-config.js";
 
@@ -51,6 +53,20 @@ function colRef(path) {
   const parts = path.split("/").filter(Boolean);
   if (parts.length % 2 !== 1) throw new Error("Collection paths need an odd number of segments: " + path);
   return fs.collection(db, "sidequests", appId, ...parts);
+}
+
+// Household-wide data that belongs to no single app — so far, the list of people. It sits
+// beside the apps at /sidequests/_shared/, so the family rule already covers it.
+const SHARED = "_shared";
+function sharedRef(path) {
+  const parts = path.split("/").filter(Boolean);
+  if (parts.length % 2 !== 0) throw new Error("Document paths need an even number of segments: " + path);
+  return fs.doc(db, "sidequests", SHARED, ...parts);
+}
+function sharedColRef(path) {
+  const parts = path.split("/").filter(Boolean);
+  if (parts.length % 2 !== 1) throw new Error("Collection paths need an odd number of segments: " + path);
+  return fs.collection(db, "sidequests", SHARED, ...parts);
 }
 
 export const cloud = {
@@ -139,6 +155,24 @@ export const cloud = {
 
   newId() {
     return fs.doc(colRef("_ids")).id;
+  },
+
+  // ---- shared by every app ----
+  // Apps don't call these directly; shared/people.js does.
+  shared: {
+    save(path, data) {
+      return fs.setDoc(sharedRef(path), { ...data, _updatedAt: fs.serverTimestamp() }, { merge: true });
+    },
+    newId() {
+      return fs.doc(sharedColRef("_ids")).id;
+    },
+    // cb(rows, { fromCache }). fromCache stays true until the server has answered, so a
+    // caller can tell "not in the list" from "the list hasn't arrived on this phone yet".
+    watchList(collectionPath, cb, onError) {
+      return fs.onSnapshot(sharedColRef(collectionPath), { includeMetadataChanges: true },
+        snap => cb(snap.docs.map(d => ({ id: d.id, ...d.data() })), { fromCache: snap.metadata.fromCache }),
+        e => { console.warn("[cloud.shared]", e); if (onError) onError(e); });
+    }
   },
 
   // ---- family allowlist ----

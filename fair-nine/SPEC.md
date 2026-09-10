@@ -140,7 +140,7 @@ All under `sidequests/fair-nine/`.
 ```
 state/main
   players: {
-    <playerId>: { name, colour, zargo, robustness, sessions, createdAt }
+    <personId>: { zargo, robustness, sessions }   // name and colour live in the shared people list (§11)
   }
   config: { points: { low: 1, nine: 3 }, K: 8, provisionalRacks: 30, startZargo: 500 }
 
@@ -292,3 +292,14 @@ same way. An older home-screen shortcut has to be removed and re-added to pick t
   ±120 clamp. From 3 sessions the spec-3.3 formula applies as written.
 - **Players can be deleted** (edit form, confirmed). Soft delete: they leave every list and
   picker but their sessions keep their name in History.
+- **Players are the household's shared people.** Names and colours come from one list in
+  `shared/people.js` (`/sidequests/_shared/people/`), the same list Around the Clock and
+  Bloc 11 use, so Melanie is added once for every app. `state/main.players` now keeps only
+  Fair Nine's own numbers — zargo, robustness, sessions — keyed by the person's id. Everyone
+  on the shared list shows here, at the starter rating until they play. On first run the old
+  Fair Nine players were adopted into the list: matched by name to someone another app
+  already had (their rating follows them to that id) or added as they were. Sessions keep
+  the ids they started with and are read through `people.resolve`, so merges in any app
+  carry History with them. Deleting a player removes them from every app, and you can't
+  delete yourself. Adding a name that's already on the list asks first. The starter-rating
+  hint only offers players who have a rating to measure against.

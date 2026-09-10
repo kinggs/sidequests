@@ -44,19 +44,26 @@ One page, top to bottom:
    hardest send of each session. Tap a session to see its climbs grouped and counted under
    the chart ("3× Sent a 3 · the cave one"). Below that, sends per grade as horizontal bars.
 3. **Recent** — the latest climbs, newest first, each with an armed two-tap delete.
-4. **Climbers** — the list, an add form (name + optional Gmail), remove, and a Share button
-   for the app link. Giving a Gmail also adds it to the family allowlist so that person can
-   sign in straight away.
+4. **Climbers** — the household's shared people list (the same one Fair Nine and Around the
+   Clock use), each with a colour dot. **Add climber** and **Edit** open the shared sheet from
+   `shared/people.js`: name, colour, optional Gmail, merge a double entry into the right
+   person, or remove from every app. Plus a Share button for the app link. Giving a Gmail
+   also adds it to the family allowlist so that person can sign in straight away.
 5. **Export / Import** — everything as one JSON file.
 
 ## Data model
 
-Everything under `sidequests/bloc-11/` via `shared/cloud.js`.
+Climbers live in the shared people list, `sidequests/_shared/people/<id>`, via
+`shared/people.js`. Everything else is under `sidequests/bloc-11/` via `shared/cloud.js`.
 
-- `state/main` — `{ climbers: { <id>: { name, email, createdAt, deleted } } }`
-  Removal is a soft delete so old climbs keep their name.
+- `state/main` — `{ climbers: { <id>: { name, email, createdAt, deleted } } }` from before
+  people were shared. The app no longer writes it; on first run people.js adopted these into
+  the shared list under the same ids (Kenny matched by email to the Kenny another app already
+  had). Removal is a soft delete so old climbs keep their name.
 - `climbs/<id>` — one document per route climbed:
-  `{ climber: <climberId>, grade: 1–8, result: "sent"|"project", note: "", at: <epoch ms>, by: <email> }`
+  `{ climber: <personId>, grade: 1–8, result: "sent"|"project", note: "", at: <epoch ms>, by: <email> }`
+  Climber ids are always read through `people.resolve`, so a climber who was adopted or
+  merged keeps every climb without the documents being rewritten.
 
 `at` is stored at 20:00 local on the chosen day (same convention as Beer O'Clock) so a
 day's climbs sort sensibly and sessions group by calendar day.
@@ -92,6 +99,7 @@ same way. An older home-screen shortcut has to be removed and re-added to pick t
   failing that, a climber with your first name and no email gets your email attached (so a
   "Rolf" added from Kenny's phone becomes Rolf's own row the first time he signs in); failing
   that, you're added under your Google first name. The log form then points at you until you
-  tap someone else. It waits a moment for the climber list before adding anyone, so a fresh
-  phone doesn't create a duplicate.
+  tap someone else. It waits until the server has answered with the people list before adding
+  anyone, so a fresh phone doesn't create a duplicate. (This now lives in `shared/people.js`,
+  so it's the same in every app.)
 - Deleting a climb is a two-tap arm-and-confirm, not an undo.

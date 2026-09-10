@@ -114,14 +114,14 @@
   .recent button.arm,.people button.arm{background:var(--danger);color:#fff}
 
   /* ---- climbers ---- */
+  .dot{display:inline-block;width:14px;height:14px;border-radius:50%;flex:none;box-shadow:0 0 0 2px rgba(0,0,0,.35)}
+  .chips button{display:inline-flex;align-items:center;justify-content:center;gap:8px}
   .people{list-style:none;display:flex;flex-direction:column;gap:8px}
   .people li{display:flex;align-items:center;gap:12px;background:var(--panel);border-radius:14px;padding:10px 8px 10px 14px}
+  .people .dot{width:18px;height:18px}
   .people .who{flex:1;min-width:0}
   .people .who .l2{font-size:15px;color:var(--ink-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .people .you{font-size:15px;color:var(--ink-dim)}
   .people button{min-width:90px;background:transparent;color:var(--ink-dim);border:1px solid rgba(255,255,255,.22);font-size:16px}
-  .addbox{background:var(--panel);border-radius:16px;padding:6px 14px 16px;margin-top:12px}
-  .addbox input{background:var(--bg)}
 
   .toast{
     pointer-events:none;
@@ -167,16 +167,11 @@
 
     <h2 class="sect">Climbers</h2>
     <ul class="people" id="people"></ul>
-    <div class="addbox">
-      <label for="newName">Name</label>
-      <input type="text" id="newName" placeholder="Sergio" autocomplete="off">
-      <label for="newEmail">Their Gmail, so they can sign in (optional)</label>
-      <input type="email" id="newEmail" placeholder="name@gmail.com" autocomplete="off" inputmode="email">
-      <div class="row">
-        <button class="quiet" id="shareBtn">Share link</button>
-        <button id="addBtn">Add climber</button>
-      </div>
+    <div class="row">
+      <button class="quiet" id="shareBtn">Share link</button>
+      <button id="addBtn">Add climber</button>
     </div>
+    <p class="hint">Climbers are shared by every sidequests app — add someone once and they're in all of them.</p>
 
     <div class="row">
       <button class="quiet" id="exportBtn">Export</button>
@@ -192,9 +187,10 @@
 <script type="module">
   import { cloud } from "../shared/cloud.js";
   import { phone } from "../shared/phone.js";
+  import { people } from "../shared/people.js";
 
   // Bump on every change. The deploy skill checks this against the live site.
-  const APP_VERSION = "0.4.0";
+  const APP_VERSION = "0.5.0";
   const APP_ID = "bloc-11";
   document.getElementById("version").textContent = "v" + APP_VERSION;
 
@@ -211,62 +207,25 @@
   const gradeWord = v => { const g = gradeOf(v); return `a ${g.name ? g.name.toLowerCase() : g.label}`; };
 
   // ---- state ----
-  let climbers = {};          // id -> { name, email, createdAt, deleted }
-  let climbs = [];            // { id, climber, grade, result, note, at, by }
+  // Climbers are the household's shared people (shared/people.js): the same list, names and
+  // colours in every app. This app only stores climbs, keyed by the person's id. You're a
+  // climber by default — people.js links you by email or first name, or adds you.
+  let legacyClimbers = null;  // this app's own climber list from before people were shared; null until loaded
+  let rawClimbs = [];         // as stored
+  let climbs = [];            // { id, climber, grade, result, note, at, by }, climber resolved to a person
   let unsubs = [];
   let who = null;             // climber id selected in the log form
   let grade = null;           // grade selected in the log form
   let progWho = null;         // climber shown in Progress
   let openSession = null;     // day (epoch ms) expanded under the chart
 
-  const myEmail = () => ((cloud.user && cloud.user.email) || "").toLowerCase();
-  const isMe = c => !!myEmail() && (c.email || "").toLowerCase() === myEmail();
   // The signed-in person comes first, then everyone else in the order they were added.
-  const activeClimbers = () => Object.entries(climbers)
-    .filter(([, c]) => c && !c.deleted)
-    .map(([id, c]) => ({ id, ...c }))
-    .sort((a, b) => (isMe(b) - isMe(a)) || (a.createdAt || 0) - (b.createdAt || 0));
-  const nameOf = id => (climbers[id] && climbers[id].name) || "Someone";
-  const myClimberId = () => {
-    const hit = activeClimbers().find(isMe);
-    return hit ? hit.id : null;
-  };
-
-  // ---- you are a climber by default ----
-  // On sign-in, make sure the signed-in person exists as a climber: link their email to a
-  // climber with the same first name (added earlier without an email), or add them fresh.
-  // Then the log form points at them until you tap someone else.
-  let meHandled = null;      // email already sorted out this sign-in
-  let stateLoaded = false;   // don't add anyone before the climber list has arrived
-  async function ensureMe(){
-    const u = cloud.user;
-    if (!u || !u.email || !store.live || !stateLoaded) return;
-    const email = u.email.toLowerCase();
-    if (meHandled === email) return;
-    if (myClimberId()){ meHandled = email; return; }
-    meHandled = email;
-    const lower = x => String(x || "").trim().toLowerCase();
-    const first = (u.displayName || email.split("@")[0]).trim().split(/\s+/)[0];
-    const byName = () => activeClimbers().find(c => !c.email && (lower(c.name) === lower(first) || lower(c.name) === lower(u.displayName)));
-    let match = byName();
-    if (!match){
-      // Give the server a moment so a fresh phone doesn't add a duplicate before the list lands.
-      await new Promise(r => setTimeout(r, 2500));
-      if (myClimberId()) return;
-      match = byName();
-    }
-    try {
-      if (match){
-        await store.saveClimbers({ ...climbers, [match.id]: { ...climbers[match.id], email } });
-        toast(`You're ${match.name} — logging for you unless you tap someone else`);
-      } else {
-        await store.addClimber({ name: first, email, createdAt: Date.now() });
-        toast(`Added you as ${first} — tap a name to log for someone else`);
-      }
-    } catch (e){ meHandled = null; toast("Couldn't set you up as a climber: " + (e.message || e)); return; }
-    who = myClimberId();
-    render();
-  }
+  const activeClimbers = () => people.active();
+  const isMe = c => people.isMe(c.id);
+  const nameOf = id => people.nameOf(id);
+  const myClimberId = () => people.meId();
+  // Old climbs may name an id that has since been merged or adopted; read them as the person.
+  const refreshClimbs = () => { climbs = rawClimbs.map(c => ({ ...c, climber: people.resolve(c.climber) })); };
 
   // ---- taps: pointerup, not click ----
   function tap(node, fn){
@@ -327,16 +286,20 @@
     for (const c of list){
       const b = document.createElement("button");
       b.type = "button";
-      b.textContent = isMe(c) ? `${c.name} (you)` : c.name;
+      b.innerHTML = `<i class="dot"></i><span></span>`;
+      b.querySelector(".dot").style.background = people.colourOf(c.id);
+      b.querySelector("span").textContent = isMe(c) ? `${c.name} (you)` : c.name;
       b.setAttribute("aria-pressed", c.id === selectedId ? "true" : "false");
       tap(b, () => onPick(c.id));
       wrap.appendChild(b);
     }
   }
 
+  const isActive = id => !!id && activeClimbers().some(c => c.id === id);
+
   function renderWho(){
     const list = activeClimbers();
-    if (!who || !climbers[who] || climbers[who].deleted) who = myClimberId() || (list[0] && list[0].id) || null;
+    if (!isActive(who)) who = myClimberId() || (list[0] && list[0].id) || null;
     chipRow($("whoChips"), who, id => { who = id; renderWho(); });
   }
 
@@ -359,7 +322,7 @@
   // ---- progress ----
   function renderProgress(){
     const list = activeClimbers();
-    if (!progWho || !climbers[progWho] || climbers[progWho].deleted) progWho = who || (list[0] && list[0].id) || null;
+    if (!isActive(progWho)) progWho = who || (list[0] && list[0].id) || null;
     chipRow($("progChips"), progWho, id => { progWho = id; openSession = null; renderProgress(); });
     const box = $("progress");
     box.innerHTML = "";
@@ -574,45 +537,24 @@
       ul.appendChild(li);
       return;
     }
+    // Edit opens the shared sheet: rename, colour, Gmail, merge a double entry, or remove.
     for (const c of list){
       const li = document.createElement("li");
-      li.innerHTML = `<span class="who"><div class="l1"></div><div class="l2"></div></span>`;
-      li.querySelector(".l1").textContent = c.name;
+      li.innerHTML = `<i class="dot"></i><span class="who"><div class="l1"></div><div class="l2"></div></span><button type="button">Edit</button>`;
+      li.querySelector(".dot").style.background = people.colourOf(c.id);
+      li.querySelector(".l1").textContent = isMe(c) ? `${c.name} (you)` : c.name;
       li.querySelector(".l2").textContent = c.email || "no sign-in email";
-      if (isMe(c)){
-        const y = document.createElement("span");
-        y.className = "you";
-        y.textContent = "you";
-        li.appendChild(y);
-      } else {
-        const b = document.createElement("button");
-        b.type = "button";
-        b.textContent = "Remove";
-        armed(b, "Remove", () => store.removeClimber(c.id));
-        li.appendChild(b);
-      }
+      tap(li.querySelector("button"), () => people.edit(c.id, { noun: "climber" }));
       ul.appendChild(li);
     }
   }
 
   async function addClimber(){
-    const name = $("newName").value.trim();
-    const email = $("newEmail").value.trim().toLowerCase();
-    if (!name){ $("newName").focus(); return; }
-    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ toast("That email doesn't look right."); $("newEmail").focus(); return; }
-    $("addBtn").disabled = true;
-    try {
-      const id = await store.addClimber({ name, email, createdAt: Date.now() });
-      $("newName").value = ""; $("newEmail").value = "";
-      if (!who) who = id;
-      let msg = `${name} added`;
-      if (email && store.live){
-        try { await cloud.addMember(email); msg += " · they can sign in now"; }
-        catch (e){ msg += " · couldn't add their email to the family list"; }
-      }
-      toast(msg);
-    } catch (e){ toast("Couldn't add: " + (e.message || e)); }
-    $("addBtn").disabled = false;
+    const id = await people.edit(null, { noun: "climber" });
+    if (!id) return;
+    if (!who) who = id;
+    toast(`${nameOf(id)} added`);
+    render();
   }
 
   function share(){
@@ -664,7 +606,7 @@
 
   // ---- export / import ----
   function exportAll(){
-    const data = { app: APP_ID, version: APP_VERSION, exportedAt: new Date().toISOString(), climbers, climbs };
+    const data = { app: APP_ID, version: APP_VERSION, exportedAt: new Date().toISOString(), people: people.all(), climbs };
     download(`bloc-11-${toISO(new Date())}.json`, JSON.stringify(data, null, 2), "application/json");
   }
 
@@ -673,22 +615,18 @@
     try { data = JSON.parse(await file.text()); }
     catch { return toast("That file isn't JSON."); }
     if (!data || !Array.isArray(data.climbs)) return toast("No climbs in that file.");
-    let people = 0;
-    if (data.climbers && typeof data.climbers === "object"){
-      const fresh = {};
-      for (const [id, c] of Object.entries(data.climbers)){
-        if (!c || !c.name || climbers[id]) continue;
-        fresh[id] = { name: String(c.name), email: String(c.email || ""), createdAt: Number(c.createdAt) || Date.now(), deleted: !!c.deleted };
-        people++;
-      }
-      if (people) await store.saveClimbers({ ...climbers, ...fresh });
-    }
+    // People first, so the climbs' ids resolve: `people` from this version's exports,
+    // `climbers` from exports made before people were shared.
+    const before = activeClimbers().length;
+    people.adopt(data.people);
+    people.adopt(data.climbers);
+    const newPeople = Math.max(0, activeClimbers().length - before);
     const have = new Set(climbs.map(c => `${c.climber}|${c.grade}|${c.result}|${c.at}|${c.note || ""}`));
     let added = 0;
     for (const raw of data.climbs){
       if (!raw || !raw.climber || !raw.grade || !raw.at) continue;
       const entry = {
-        climber: String(raw.climber), grade: Number(raw.grade), result: raw.result === "sent" ? "sent" : "project",
+        climber: people.resolve(String(raw.climber)), grade: Number(raw.grade), result: raw.result === "sent" ? "sent" : "project",
         note: String(raw.note || ""), at: Number(raw.at), by: raw.by || null
       };
       const key = `${entry.climber}|${entry.grade}|${entry.result}|${entry.at}|${entry.note}`;
@@ -697,7 +635,7 @@
       await store.add(entry);
       added++;
     }
-    toast(added || people ? `Imported ${added} climb${added === 1 ? "" : "s"}, ${people} climber${people === 1 ? "" : "s"}` : "Nothing new to import");
+    toast(added || newPeople ? `Imported ${added} climb${added === 1 ? "" : "s"}, ${newPeople} new climber${newPeople === 1 ? "" : "s"}` : "Nothing new to import");
   }
 
   // ---- storage ----
@@ -707,27 +645,15 @@
     get live(){ return cloud.configured() && !!cloud.user; },
     async add(entry){
       if (this.live) return cloud.save(`climbs/${cloud.newId()}`, entry);
-      climbs = [...climbs, { id: "local-" + Math.random().toString(36).slice(2), ...entry }];
+      rawClimbs = [...rawClimbs, { id: "local-" + Math.random().toString(36).slice(2), ...entry }];
+      refreshClimbs();
       render();
     },
     async remove(c){
       if (this.live) return cloud.delete(`climbs/${c.id}`);
-      climbs = climbs.filter(x => x.id !== c.id);
+      rawClimbs = rawClimbs.filter(x => x.id !== c.id);
+      refreshClimbs();
       render();
-    },
-    async saveClimbers(next){
-      climbers = next;
-      if (this.live) return cloud.save("state/main", { climbers: next });
-      render();
-    },
-    async addClimber(c){
-      const id = this.live ? cloud.newId() : "local-" + Math.random().toString(36).slice(2);
-      await this.saveClimbers({ ...climbers, [id]: c });
-      return id;
-    },
-    async removeClimber(id){
-      if (!climbers[id]) return;
-      await this.saveClimbers({ ...climbers, [id]: { ...climbers[id], deleted: true } });
     }
   };
 
@@ -744,9 +670,10 @@
     e.target.value = "";
     if (f) importFile(f);
   });
-  $("newName").addEventListener("keydown", e => { if (e.key === "Enter") $("newEmail").focus(); });
-  $("newEmail").addEventListener("keydown", e => { if (e.key === "Enter") addClimber(); });
   $("when").value = toISO(new Date());
+
+  // A rename, a merge or someone new on another phone (or in another app) shows up here.
+  people.onChange(() => { refreshClimbs(); render(); });
 
   // ---- cloud ----
   const userBox = $("userBox");
@@ -775,7 +702,7 @@
   function start(user){
     unsubs.forEach(u => { try { u(); } catch {} });
     unsubs = [];
-    who = null; progWho = null; meHandled = null; stateLoaded = false;
+    who = null; progWho = null; legacyClimbers = null;
 
     const gated = cloud.configured() && !user;
     $("gate").classList.toggle("hidden", !gated);
@@ -783,14 +710,23 @@
     if (gated) return;
 
     if (cloud.configured()){
+      unsubs.push(people.start({
+        legacy: () => legacyClimbers,
+        onMe: ({ name, added }) => {
+          toast(added ? `Added you as ${name} — tap a name to log for someone else` : `You're ${name} — logging for you unless you tap someone else`);
+          who = myClimberId();
+          render();
+        },
+        onError: e => toast("Couldn't save to the cloud: " + (e.message || e))
+      }));
       unsubs.push(cloud.watch("state/main", doc => {
-        climbers = (doc && doc.climbers) || {};
-        stateLoaded = true;
+        legacyClimbers = (doc && doc.climbers) || {};
+        people.poke();
         render();
-        ensureMe();
       }));
       unsubs.push(cloud.watchList("climbs", rows => {
-        climbs = rows.filter(r => typeof r.at === "number" && typeof r.grade === "number");
+        rawClimbs = rows.filter(r => typeof r.at === "number" && typeof r.grade === "number");
+        refreshClimbs();
         render();
       }, { orderBy: "at", desc: true, limit: 1000 }));
     }
