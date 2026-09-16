@@ -164,7 +164,7 @@
     <div class="row">
       <button class="primary big" id="startBtn">Start</button>
     </div>
-    <p class="note hint">Three darts at each number. Single 1 · Double 2 · Treble 3 · anything else 0. Max 180.</p>
+    <p class="note hint">Three darts at each number. Single 1 · Double 1 (a poor throw) · Treble 3 · anything else 0. Max 180.</p>
 
     <h2 class="lbl sect">Progress</h2>
     <div class="chips" id="progChips"></div>
@@ -200,7 +200,7 @@
     </div>
     <div class="pad">
       <button type="button" class="single" data-v="1"><span id="lS">S1</span><small>+1</small></button>
-      <button type="button" class="double" data-v="2"><span id="lD">D1</span><small>+2</small></button>
+      <button type="button" class="double" data-v="2"><span id="lD">D1</span><small>+1</small></button>
       <button type="button" class="treble" data-v="3"><span id="lT">T1</span><small>+3</small></button>
     </div>
     <div class="under">
@@ -240,7 +240,7 @@
   import { people } from "../shared/people.js";
 
   // Bump on every change. The deploy skill checks this against the live site.
-  const APP_VERSION = "0.6.0";
+  const APP_VERSION = "0.7.0";
   const APP_ID = "around-the-clock";
   document.getElementById("version").textContent = "v" + APP_VERSION;
 
@@ -252,8 +252,11 @@
   const MAX_PLAYERS = 4;
   const order = dir => Array.from({ length: NUMBERS }, (_, i) => dir === "down" ? NUMBERS - i : i + 1);
   const dirLabel = dir => dir === "down" ? "20 → 1" : "1 → 20";
-  const sum = arr => arr.reduce((a, b) => a + b, 0);
   const HIT = ["Miss", "Single", "Double", "Treble"];
+  // A dart is stored as what it hit (0 miss, 1 single, 2 double, 3 treble); this is what each
+  // scores. A double is a poor throw at the treble, so it scores the same as a single.
+  const POINTS = [0, 1, 1, 3];
+  const points = darts => darts.reduce((a, v) => a + POINTS[v], 0);
 
   // ---- state ----
   // Players are the household's shared people (shared/people.js); this app only stores games.
@@ -300,7 +303,7 @@
   }
   const isGameDoc = r => r && typeof r.at === "number" &&
     ((Array.isArray(r.players) && r.throws && typeof r.throws === "object") || (r.player && Array.isArray(r.darts)));
-  const scoreOf = (g, id) => sum(g.throws[id] || []);
+  const scoreOf = (g, id) => points(g.throws[id] || []);
   const dartsIn = g => g.players.reduce((n, id) => n + g.throws[id].length, 0);
   const isOver = g => g.players.every(id => g.throws[id].length >= TOTAL_DARTS);
   const ranked = g => [...g.players].sort((a, b) => scoreOf(g, b) - scoreOf(g, a));
@@ -461,7 +464,7 @@
     if (!g) return;
     if (g.players.length === 1){
       const d = g.throws[g.players[0]];
-      $("resumeL1").textContent = `${nameOf(g.players[0])} · ${sum(d)} after ${d.length} dart${d.length === 1 ? "" : "s"}`;
+      $("resumeL1").textContent = `${nameOf(g.players[0])} · ${points(d)} after ${d.length} dart${d.length === 1 ? "" : "s"}`;
     } else {
       $("resumeL1").textContent = g.players.map(id => `${nameOf(id)} ${scoreOf(g, id)}`).join(" · ");
     }
@@ -606,7 +609,7 @@
         const d = g.throws[g.players[0]];
         li.querySelector(".l1").textContent = `${nameOf(g.players[0])} · ${dirLabel(g.direction)}`;
         li.querySelector(".l2").textContent = isLive
-          ? `${whenLabel(g.at)} · ${sum(d)} after ${d.length} darts`
+          ? `${whenLabel(g.at)} · ${points(d)} after ${d.length} darts`
           : `${whenLabel(g.at)} · ${d.filter(v => v === 3).length} trebles · ${d.filter(v => v === 0).length} misses`;
       } else {
         li.querySelector(".l1").textContent = order.map(id => `${nameOf(id)} ${scoreOf(g, id)}`).join(" · ");
@@ -719,7 +722,7 @@
     $("gTop").querySelectorAll(".pl").forEach((b, i) => {
       const d = live.throws[live.players[i]];
       b.classList.toggle("on", multi && i === live.turn);
-      b.querySelector(".sc").textContent = String(sum(d));
+      b.querySelector(".sc").textContent = String(points(d));
       b.querySelector(".at").textContent = !multi ? ""
         : d.length >= TOTAL_DARTS ? "done" : `on ${nums[Math.floor(d.length / DARTS_PER)]}`;
     });
@@ -738,7 +741,7 @@
     for (let i = 0; i < DARTS_PER; i++){
       const el = $("s" + i);
       el.className = "slot";
-      if (i < cur.length){ el.textContent = String(cur[i]); el.classList.add("hit", "v" + cur[i]); }
+      if (i < cur.length){ el.textContent = String(POINTS[cur[i]]); el.classList.add("hit", "v" + cur[i]); }
       else { el.textContent = "·"; if (i === cur.length) el.classList.add("next"); }
     }
 
@@ -755,7 +758,7 @@
       const bs = prev.querySelectorAll("b");
       bs[0].textContent = String(nums[pi]);
       prev.querySelector("span").textContent = p.map(v => HIT[v]).join(", ");
-      bs[1].textContent = String(sum(p));
+      bs[1].textContent = String(points(p));
       if (multi) prev.prepend(document.createTextNode(`${nameOf(whoPrev)} · `));
     } else {
       prev.textContent = multi ? "Three darts each, then it passes on by itself." : "Three darts, then it moves on by itself.";

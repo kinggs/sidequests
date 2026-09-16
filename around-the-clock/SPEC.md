@@ -23,8 +23,11 @@ Bloc 11 — so someone added in any app is here too.
 
 - Go **up** (1 → 20) or **down** (20 → 1). Pick before starting; the app remembers the last
   choice. Everyone in a match goes the same way.
-- Three darts at each number. Only that number scores: **single 1, double 2, treble 3**,
-  anything else **0**. Twenty numbers × three darts × three points = **180**, the max.
+- Three darts at each number, aiming at the treble. Only that number scores: **single 1,
+  double 1, treble 3**, anything else **0**. A double is a poor throw at the treble, so it
+  scores the same as a single ([darts501](https://darts501.com/180AroundtheClock.html), and the
+  [Portsmouth Darts Academy rules sheet](https://portsmouthdartsacademy.co.uk/wp-content/uploads/2019/02/180-Around-the-Clock.pdf)).
+  Twenty numbers × three darts × three points = **180**, the max.
 - After the third dart the app moves to the next number by itself. After the twentieth
   number that player is done; the game is over and saved when everyone is.
 - **In a match** the third dart also passes the darts on: the next player throws their three
@@ -60,7 +63,7 @@ One page, three states.
    throw out of turn or a scorer's slip — it never skips anyone who has finished). Under the
    panels, "dart n of 60" for the thrower and the direction. Middle: in a match, the
    thrower's name in large accent type; then the current number, huge, and three slots that
-   fill with 0/1/2/3 as the darts go in; under them the last complete visit and what it
+   fill with each dart's points (0, 1 or 3) in the colour of what it hit as the darts go in; under them the last complete visit and what it
    added, so a slip is easy to spot — on your own, your previous number; in a match, the
    visit just thrown by whoever handed over, until the next player starts. Bottom: five
    buttons in two rows. **S1 · D1 · T1** across the top, in that order, labelled with the
@@ -112,8 +115,7 @@ seven so the whole ladder is visible with the achieved one picked out:
 The two anchors are the ones this drill is always quoted with: 60 is a single on every dart,
 and a club player aims at 75–80. The rest are spaced out from there and are a guide, not
 gospel — they live in one `BANDS` list at the top of the script, so changing them is a
-one-line edit. Note this app scores a double 2 where some versions of the drill score it 1,
-so scores here run slightly higher than a table written for that version.
+one-line edit.
 
 ## Data model
 
@@ -125,7 +127,7 @@ Players live in the shared people list, `sidequests/_shared/people/<id>`, via
   shared (`{ <id>: { name, email, createdAt, deleted } }`). The app no longer writes
   `players`; on first run people.js adopted them into the shared list under the same ids.
 - `games/<id>` — one document per game, solo or match:
-  `{ game: "atc180", players: [<personId> …], throws: { <personId>: [0-3 …] }, scores: { <personId>: n }, turn: <index into players>, log: [<player index per dart, in throwing order>], direction, at: <epoch ms>, endedAt, status: "live"|"done", by: <email> }`
+  `{ game: "atc180", players: [<personId> …], throws: { <personId>: [0-3 …] } (what each dart hit: 0 miss, 1 single, 2 double, 3 treble; points come from `POINTS`), scores: { <personId>: n }, turn: <index into players>, log: [<player index per dart, in throwing order>], direction, at: <epoch ms>, endedAt, status: "live"|"done", by: <email> }`
 
 `throws` is the whole record; `scores` is stored too so lists don't have to add it up. `log`
 is what lets Undo step back across players. Games from before multiplayer have
@@ -143,6 +145,9 @@ share the collection later.
 
 ## Decisions (assumed, not specified)
 
+- **A double scores 1** (0.7.0), as the published drill has it. Until then the app scored it
+  2. Darts are stored as what they hit, not their points, so every past game was rescored
+  at once; scores with doubles in them dropped by one per double.
 - A fourth button, **Miss**, for a dart that doesn't hit the number. Without it there's no
   way to log a zero.
 - The app auto-advances after three darts rather than waiting for a "next" tap, as asked;
