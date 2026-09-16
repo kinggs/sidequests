@@ -88,7 +88,7 @@
   .hmeta{font-size:14px;color:var(--bone-dim);font-weight:600}
   .hlive{color:#63c08a}
   .hitem{display:flex;align-items:stretch;gap:8px}
-  .plist .hitem>button{width:auto}
+  .plist .hitem>button,.plist .fitem>button{width:auto}   /* not the list's full-width row button */
   .hitem .hrow{flex:1 1 auto;min-width:0}
   .fitem{display:flex;align-items:center;gap:8px;background:var(--panel);border-radius:12px;padding-left:16px;min-height:60px}
   .fitem>span{flex:1;font-size:16px;font-weight:600;word-break:break-all}
@@ -286,7 +286,7 @@
 
   <div class="gate hidden" id="gate">
     <button id="signInBig">Sign in with Google</button>
-    <p class="dim">Family scoring for nine-ball.<br>Nothing to see until you're in.</p>
+    <p class="dim">Invite-only pool scoring.<br>Nothing to see until you're in.</p>
   </div>
   <p class="gate-err hidden" id="gateErr"></p>
 
@@ -307,7 +307,7 @@
         <button class="quiet" id="historyBtn">History</button>
       </div>
       <div class="row2">
-        <button class="quiet" id="familyBtn">Family</button>
+        <button class="quiet" id="familyBtn">Invites</button>
         <button class="quiet" id="exportBtn">Export</button>
         <button class="quiet" id="importBtn">Import</button>
       </div>
@@ -406,18 +406,18 @@
   <ul class="plist histlist" id="histList"></ul>
 </section>
 
-<!-- ============ FAMILY ============ -->
+<!-- ============ INVITES (the members allowlist) ============ -->
 <section class="screen hidden" id="scrFamily">
   <header class="apphead">
-    <h1>Family</h1>
+    <h1>Invites</h1>
     <button class="quiet small" id="famBack">Back</button>
   </header>
   <div class="setupbody">
-    <p class="thint">Anyone listed here can sign in with that Google account and use every
+    <p class="thint">Invite someone by their Gmail. Anyone listed here can sign in with that Google account and use every
       sidequests app. Removing someone locks them out immediately but keeps their data.</p>
     <ul class="plist" id="famList"></ul>
     <input class="famin" id="famEmail" type="email" inputmode="email" autocomplete="off" placeholder="name@gmail.com">
-    <button class="primary" id="famAdd">Add to family</button>
+    <button class="primary" id="famAdd">Invite</button>
     <button class="quiet" id="famShare">Share this app</button>
   </div>
 </section>
@@ -506,7 +506,7 @@ import { phone } from "../shared/phone.js";
 import { people } from "../shared/people.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "1.2.0";
+const APP_VERSION = "1.2.1";
 const APP_ID = "fair-nine";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 
@@ -726,7 +726,7 @@ async function handleUser(user){
       checkLive();
     } catch(e){
       el.gateErr.textContent = (e && e.code === "permission-denied")
-        ? "You're signed in, but this account isn't on the family list yet. Ask Kenny to add your email."
+        ? "You're signed in, but this account hasn't been invited yet. Ask Kenny to add your Gmail under Invites."
         : "Couldn't load the cloud data: " + (e.message || e);
       el.gateErr.classList.remove("hidden");
     }
@@ -2110,7 +2110,7 @@ function deleteButton(s){
   return d;
 }
 
-// ---------- family allowlist ----------
+// ---------- invites (the members allowlist) ----------
 el.familyBtn.addEventListener("click", openFamily);
 el.famBack.addEventListener("click", () => show("home"));
 
@@ -2121,7 +2121,7 @@ async function openFamily(){
   let emails;
   try { emails = await cloud.listMembers(); }
   catch(e){
-    el.famList.innerHTML = '<li class="empty">Couldn\'t load the family list.</li>';
+    el.famList.innerHTML = '<li class="empty">Couldn\'t load the invite list.</li>';
     return;
   }
   el.famList.innerHTML = "";
@@ -2184,7 +2184,7 @@ el.famAdd.addEventListener("click", async () => {
 el.famShare.addEventListener("click", () => {
   const url = location.origin + location.pathname;
   if(navigator.share){
-    navigator.share({ title: "Rack It", text: "Pool scorer — sign in with the Gmail that's been added to the family.", url }).catch(() => {});
+    navigator.share({ title: "Rack It", text: "Pool scorer — sign in with the Gmail you were invited with.", url }).catch(() => {});
   } else if(navigator.clipboard){
     navigator.clipboard.writeText(url)
       .then(() => { el.famShare.textContent = "Link copied"; })

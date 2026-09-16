@@ -168,7 +168,7 @@ produces the numbers ZARGO.md describes.
       Two-tap delete as today. A finished match opens its summary.
 - [ ] **Summary** gains **Copy for Cuescore**: both names, discipline, race and score as
       one line, plus a link to `https://cuescore.com/challenges/`.
-- [ ] **More**: Members (was Family, same mechanism), Export, Import, Install on this
+- [ ] **More**: Invites (was Family, renamed in 1.2.1, same mechanism), Export, Import, Install on this
       phone, About Zargo (SPEC §3 in plain words, and that it is not Fargo), Sign out.
 - [ ] Remove the old Home button pile and the History chips. Every old path still reaches
       its screen from one of the four tabs.
@@ -270,6 +270,10 @@ Parked: nothing new.
 **1.2.0 (owner request):** Trad-Nine setup offers Race to 3, 5, 7 and N. N shows a number box
 (1 to 30) and Start stays disabled until it holds a valid number. The setup hint now calls
 near-level ratings even, instead of "1.0 racks for each 1".
+
+**1.2.1 (owner request):** Family is now **Invites** on every label (screen, button, sign-in
+error, share text). Its list rows were squashed to a letter per line: `.plist button`'s
+full-width rule also hit the Remove button, so it now gets `width: auto` like History's.
 
 ### After Session 3
 _not started_

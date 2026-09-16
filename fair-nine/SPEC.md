@@ -274,7 +274,7 @@ same way. An older home-screen shortcut has to be removed and re-added to pick t
 ## 11. Post-v2 decisions
 
 - **Family allowlist moved to Firestore.** `shared/firestore.rules` no longer lists emails; it
-  checks `exists(/members/<email>)`. The list is managed in-app (Home → Family): any family
+  checks `exists(/members/<email>)`. The list is managed in-app (Home → Invites, called Family before 1.2.1): any family
   member can add or remove a Gmail address, effect is instant, no rules deploy. You can't
   remove your own address. A Share button sends the app link.
 - **Starter rating estimate.** Adding a player offers an optional hint: pick an existing player
@@ -431,7 +431,7 @@ credentials and screen-scraping. So, in v3:
 
 ### 12.7 Beyond the household
 
-The app stays invite-only. The Family screen already does what a club needs: any member can
+The app stays invite-only. The Invites screen already does what a club needs: any member can
 add another member's Gmail, and only members can read anything. If club members join, the
 shared people list becomes the club's list too: one flat list, no grouping. Club grouping is
 a possible later change, not a v3 one.
@@ -496,7 +496,7 @@ A bottom bar with four tabs, each a thumb-reach 56px target, replaces the button
 | **Play** | start a match, or get back to the one that's on | the live match if there is one, else setup |
 | **Ratings** | everyone, ranked by Zargo | the list; tap a name for their page |
 | **Matches** | every match, newest first, live ones on top | the list; tap a row to resume, watch or review |
-| **More** | everything that isn't playing | Members, Export, Import, Install, About Zargo, Sign out |
+| **More** | everything that isn't playing | Invites, Export, Import, Install, About Zargo, Sign out |
 
 The app opens on **Ratings** when nothing is live and on **Play** when something is. A live
 match also shows as a slim bar above the tabs on every screen, with Resume and Watch, so the
@@ -505,7 +505,7 @@ scorer's phone and a watcher's phone both get back in one tap.
 ### 13.2 Words
 
 - **Match**, not session. Nobody at a table says session.
-- **Members**, not Family, once the list holds people from the club. The CLAUDE.md name for
+- **Invites**, not Family (renamed in 1.2.1), since the list will hold people from the club. The CLAUDE.md name for
   the mechanism doesn't change; only the label does.
 - **Zargo** is always shown with its robustness and, on the person's page, one sentence on
   what it means and how it moves. "Provisional" stays as the word for under 30.
@@ -554,6 +554,6 @@ rack strip, controls. Rack end and the match summary are one design for every ga
 
 ### 13.7 More
 
-Members (add by Gmail, remove, share the app link), Export, Import, Install on this phone,
+Invites (add by Gmail, remove, share the app link), Export, Import, Install on this phone,
 About Zargo (the §3 maths in plain words), and Sign out. Nothing here is needed to play, so
 it can live one tap away.
