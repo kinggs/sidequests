@@ -192,6 +192,9 @@ taps, and a new club member can be added, rated and matched without a word of ex
 - Golden-Nine match time limit. DUYA pairs every rack count with a time limit (e.g. 35 racks
   or 210 minutes, whichever comes first; a tie at time plays one more rack). Would need a
   match clock on the live screen and a time field in setup.
+- Players carry a Gmail from Add player, are claimed on first sign-in ("Which player are
+  you?"), and show their Google photo in a ring of their colour. SPEC §13.8. Mostly
+  `shared/people.js`; fits beside Session 4's person pages.
 - End a fixed-rack Golden-Nine match early once the trailing player can't catch up, as
   reported from DUYA broadcasts. Simple with handicap off (points behind > 10 × racks left,
   plus fouls); with the scoring handicap it has to be worked out on quotas.

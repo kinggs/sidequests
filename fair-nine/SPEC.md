@@ -557,3 +557,56 @@ rack strip, controls. Rack end and the match summary are one design for every ga
 Invites (add by Gmail, remove, share the app link), Export, Import, Install on this phone,
 About Zargo (the §3 maths in plain words), and Sign out. Nothing here is needed to play, so
 it can live one tap away.
+
+### 13.8 Players carry a Gmail, get claimed, and show their Google photo
+
+**Status:** planned, not scheduled in V3-PLAN yet. Most of it lands in `shared/people.js`, so
+Around the Clock and Bloc 11 get it too.
+
+**What exists today (1.2.1).** A person can carry an `email`. The shared people sheet offers
+"Their Gmail, so they can sign in", and saving one also invites that address. On sign-in,
+`ensureMe()` links the Google account to the person with the same email. With no email match
+it guesses: the first person with no email whose name matches the Google first name. Failing
+that, it adds a new person. Rack It's own **Add player** form asks only for name, colour and
+starter rating, so players added there have no Gmail until someone edits them. No photo is
+stored.
+
+**1. Gmail when adding.** Rack It's Add player form asks for **Their Gmail** right under the
+name, and saving it invites them (as the shared sheet already does). The field is optional,
+because some club players won't use Google, and the form says so in one line: "Add it so
+they can sign in and claim this player." ⚠ Owner to confirm optional rather than required.
+
+**2. Claiming on sign-in.** A person record gains `uid` (the Firebase user id) and
+`claimedAt`. On a user's first sign-in:
+- **Email match:** claimed silently, as today, plus `uid` and `claimedAt` written.
+- **No email match:** instead of the first-name guess, one card asks **"Which player are
+  you?"**. It lists the unclaimed players (no `uid`), each with name and colour, plus **"I'm
+  not on the list"**, which adds them under their Google name. Picking a player writes their
+  email, `uid` and `claimedAt`. The name guess goes, because on a club-sized list it links
+  the wrong Rolf.
+- **Already claimed:** a player with a `uid` can't be claimed by another account. The edit
+  sheet shows "Claimed by <email>" and offers **Unclaim** (confirmed) for mistakes.
+- Stored match records don't change. They key on person ids, and a claim only fills in
+  fields on an existing person.
+
+**3. Photos.** On every sign-in the claimed person's `photoURL` is written from the Google
+profile, since Google changes those links. Other people's photos are therefore the last one
+each person signed in with. Nobody who never signs in gets a photo.
+
+**4. How a player looks.** Everywhere a colour dot marks a player today — Home and the
+Ratings list, the person page, pickers, Invites — `people.js` renders one **avatar**:
+- The photo in a circle, inside a 3px **ring in the player's colour**, with a 2px dark gap
+  so the ring reads against both photo and background. The colour keeps the identity the
+  live screen uses.
+- No photo, or a photo that fails to load: a filled circle in their colour with their
+  initial, in white or near-black, whichever contrasts.
+- 36px in lists, 72px on the person page. Decorative (`alt=""`) where the name sits beside
+  it.
+- One helper, `people.avatar(id, size)`, so every app draws the same thing.
+
+**Privacy.** Emails, uids and photo links sit in Firestore under the members-only rules, not
+in the repo. The photo image loads from Google's servers, which see each viewer's request, as
+with any Google profile picture.
+
+⚠ **Open:** optional or required Gmail (above); whether players who aren't members should
+get an avatar in Cuescore copy-outs (no, until Session 4 says otherwise).
