@@ -9,6 +9,8 @@ on people. See §12.9. Code and Firestore paths still say "session".
 **v3 session 3 (1.3.0) shipped:** the one-screen setup, the Off · Scoring · Racks levers, a
 Golden-Nine race to points, and players with a Gmail, a claim and a photo. See §12.11.
 **1.4.0:** Golden-Nine and Trad-Nine show a ball drop, balls 1 to 9, logged but never scored (§12.12).
+**v3 session 4 (1.5.0) shipped:** four tabs, a person page, Matches, a match summary with Copy for
+Cuescore, and More. See §13.9.
 
 A phone-first scorer for social nine-ball between any two players in a household, with a self-correcting handicap (the **Zargo** rating) so mismatched players stay evenly matched. Scores sync to the cloud so any family phone can score or review.
 
@@ -717,4 +719,41 @@ rules, which let any member write any person.
 **Privacy.** Emails, uids and photo links sit in Firestore under the members-only rules, not
 in the repo. The photo image loads from Google's servers, which see each viewer's request, as
 with any Google profile picture.
+
+### 13.9 The tabs as built (1.5.0)
+
+- **Tabs.** Play · Ratings · Matches · More along the bottom, 60px tall. The sign-in screen and
+  the live screen have no tab bar. The app opens on **Play** when a match started in the last
+  24 hours is still live, otherwise on **Ratings**. Play keeps your picks when you look at
+  another tab and starts a fresh setup after a match has begun.
+- **Live strip.** Above the tabs on every page while a match is live and this phone isn't
+  scoring or watching it: "Kenny v Melanie · Trad-Nine", **Resume**, **Watch**. Matches are
+  watched as one live list (the newest 300), so the strip, Matches, a person's page and a
+  summary update without a reload. Stop watching returns to the page you came from.
+- **Ratings.** Ranked by Zargo with a rank number, avatar, "(you)", "No Gmail", Zargo and
+  robustness, and provisional. People who haven't played go last, by name, unranked, marked
+  "not played yet". Add player sits under the list.
+- **A person's page.** A 72px avatar, Zargo with robustness, one line on what the number
+  means ("Against someone on 497, Kenny would expect to win two racks for every one"), Edit
+  (Rack It's player form: name, Gmail, colour, starter rating, delete, and the shared sheet),
+  Cuescore (read-only, with Add or Change on your own page), the win record per game (won,
+  lost, tied, finished matches only) and their matches.
+- **Matches.** Live first (last 24 hours), then newest. Each row shows when (a time today, else
+  a date), game, length and handicap, the names and score, and who won. A race in racks shows
+  racks, head start included. Discarded matches don't show. Delete is two taps as before,
+  and the list isn't redrawn while a Delete is armed. A live row resumes; a finished one
+  opens its summary.
+- **Summary.** Winner, game, length, when, the score line, the Zargo movement, the racks that
+  counted (an 11-Point-Nine part-rack dropped at End is left out), and **Copy for Cuescore**
+  with a link to cuescore.com/challenges/. Saving a match opens its summary.
+- **Copy for Cuescore** is one line with the score in racks, since Cuescore records frames:
+  `Kenny 5–0 Melanie · 9-Ball · race to 5 · Sep 16, 2026`. Golden-Nine and 11-Point-Nine say
+  "9-Ball (Golden Nine)" and "9-Ball (11-Point-Nine)" and add the points. The race reads
+  "race to 7 v 4", adds "Melanie started 3 up" for a head start, or gives points or a rack
+  count. With no clipboard access, the button selects the line instead. ⚠ Check the shape
+  against Cuescore's real challenge form.
+- **More.** Invites, Export and Import, Install on this phone, About Zargo (§3 and ZARGO.md in
+  plain words, and that it isn't Fargo), Sign out, and the version. The signed-in account
+  shows in the header.
+- Hint text is 15px, up from 14, to meet the house minimum.
 

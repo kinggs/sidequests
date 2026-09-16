@@ -176,24 +176,24 @@ in, claims themselves, and shows their photo in their colour ring.
 
 **Read:** SPEC §13.1, §13.2, §13.4 to §13.7, §12.6.
 
-- [ ] Bottom bar with four tabs: **Play · Ratings · Matches · More**, 56px targets, safe-area
+- [x] Bottom bar with four tabs: **Play · Ratings · Matches · More**, 56px targets, safe-area
       padding. Opens on Ratings, or on Play when a match is live. A slim live-match bar
       above the tabs on every screen with Resume and Watch.
-- [ ] **Ratings**: the ranked list. Tap a row → **person page**: Zargo with robustness and
+- [x] **Ratings**: the ranked list. Tap a row → **person page**: Zargo with robustness and
       one sentence on what it means, win record per game, their matches, Edit (the shared
       people sheet plus starter rating; Cuescore link on your own page only). Delete stays
       there, confirmed. Avatars from Session 3 on every row and the page header.
-- [ ] **Matches**: live first, then newest; row shows names, score, game, when, winner.
+- [x] **Matches**: live first, then newest; row shows names, score, game, when, winner.
       Two-tap delete as today. A finished match opens its summary.
-- [ ] **Summary** gains **Copy for Cuescore**: both names, discipline, race and score as
+- [x] **Summary** gains **Copy for Cuescore**: both names, discipline, race and score as
       one line, plus a link to `https://cuescore.com/challenges/`.
-- [ ] **More**: Invites (was Family, renamed in 1.2.1, same mechanism), Export, Import, Install on this
+- [x] **More**: Invites (was Family, renamed in 1.2.1, same mechanism), Export, Import, Install on this
       phone, About Zargo (SPEC §3 in plain words, and that it is not Fargo), Sign out.
-- [ ] Remove the old Home button pile and the History chips. Every old path still reaches
+- [x] Remove the old Home button pile and the History chips. Every old path still reaches
       its screen from one of the four tabs.
-- [ ] Wake lock, fullscreen and install unchanged; check on the phone that the bar does not
+- [x] Wake lock, fullscreen and install unchanged; check on the phone that the bar does not
       overlap the live screen's controls (the live screen is full-bleed and hides the bar).
-- [ ] Version bump, `/deployquest`, Handover.
+- [x] Version bump, `/deployquest`, Handover.
 
 **Done when:** the owner can do everything they could before from the four tabs, in fewer
 taps, and a new club member can be added, rated and matched without a word of explanation.
@@ -350,4 +350,28 @@ under the 56px rule, to keep one row.
 56px tall and a fifth of the screen wide. It fits down to a 640px-tall screen.
 
 ### After Session 4
-_not started_
+**Shipped 1.5.0.** Everything on the list is done. SPEC §13.9 records the decisions.
+
+- **Testing.** Same scratch copy with an in-memory `cloud.js`, at 390px wide. Checked landing
+  on Ratings, and on Play after a reload mid-match with the live strip on every tab. Played a
+  Trad-Nine race resumed from the strip, then saved it, which opened its summary. Also the
+  person page (your own and someone else's), keeping picks across tabs, Matches with a
+  two-tap delete, About, Invites and back, Add player, and Watch from a second frame with Stop
+  returning to Matches. An 11-Point-Nine match ended with a dropped part-rack left the rack
+  out of the summary. Sign out and back in. ⚠ Not yet played on the phone against Firestore,
+  and Copy for Cuescore hasn't been pasted into Cuescore.
+- **Choices I made where the plan was open.**
+  - Tapping a live row resumes it; Watch lives on the strip.
+  - Discarding a match goes to Ratings; saving one opens its summary.
+  - The summary's scores are racks, since Cuescore records frames.
+  - Discipline is "9-Ball" for all three games, with the variant in brackets.
+  - People who haven't played go last and unranked.
+  - A Cuescore id shows as "Player 1234567", not a link: a URL built from the number alone
+    is unverified.
+
+Parked:
+- The live strip and Matches redraw on every scoring write from another phone. That's fine
+  at household size; throttle it if a club watches.
+- Match rows are centred text, as History's were.
+- Carried from earlier: avatars in the other apps, the "target met" label in plain races,
+  the Golden-Nine split check, and Next rack wrapping at 390px.

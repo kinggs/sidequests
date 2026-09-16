@@ -74,16 +74,12 @@
   .nogmail{font-size:15px;font-weight:600;color:#e8b04a}
   .pstats{font-size:15px;color:var(--bone-dim);font-weight:600;text-align:right;line-height:1.35}
   .prov{color:#e8b04a}
-  .homebtns{display:flex;flex-direction:column;gap:10px;margin-top:auto}
-  .homebtns .primary{height:68px;font-size:20px}
   .empty{color:var(--bone-dim);text-align:center;padding:26px 20px;line-height:1.5}
-  .foot{padding:10px 16px;font-size:13px;color:var(--bone-dim);text-align:center}
+  .foot{padding:10px 16px;font-size:15px;color:var(--bone-dim);text-align:center}
+  .prank{flex:0 0 1.4em;font-size:15px;color:var(--bone-dim);text-align:right}
 
   /* ---- history ---- */
-  .histchips{display:flex;gap:8px;flex-wrap:wrap;padding:12px 16px}
-  .histchips button{min-height:44px;padding:0 16px;font-size:15px;background:var(--panel)}
-  .histchips button.sel{background:var(--bone);color:#0a2a20}
-  .histlist{flex:1;overflow-y:auto;padding:0 16px 16px}
+  .histlist{flex:1;overflow-y:auto;padding:16px}
   .hrow{flex-direction:column;align-items:flex-start;gap:3px;padding:12px 16px}
   .hmeta{font-size:14px;color:var(--bone-dim);font-weight:600}
   .hlive{color:#63c08a}
@@ -101,10 +97,36 @@
     color:var(--bone-dim);font-size:15px;font-weight:700;border-radius:12px}
   .hdel.arm{color:#e8b04a;box-shadow:inset 0 0 0 1px rgba(232,176,74,.6)}
 
-  /* ---- resume / watch bar on home ---- */
-  .livebar{display:flex;flex-direction:column;gap:9px;padding:13px;border-radius:14px;
-    background:rgba(99,192,138,.1);box-shadow:inset 0 0 0 1px rgba(99,192,138,.35)}
-  .livebar>span{font-size:16px;font-weight:700;color:#63c08a;text-align:center}
+  /* ---- the live-match strip and the four tabs, below every page but the live screen ---- */
+  .livestrip{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:5px 10px;
+    background:rgba(99,192,138,.12);box-shadow:inset 0 1px 0 rgba(99,192,138,.35)}
+  .livestrip>span{flex:1;min-width:0;font-size:15px;font-weight:700;color:#63c08a;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .livestrip button{min-height:56px;padding:0 14px;font-size:16px}
+  .tabbar{flex:0 0 auto;display:flex;background:rgba(0,0,0,.45);box-shadow:inset 0 1px 0 rgba(239,233,220,.12)}
+  .tabbar button{flex:1;min-height:60px;border-radius:0;background:none;color:var(--bone-dim);
+    font-size:16px;font-weight:700;padding:0 4px;position:relative}
+  .tabbar button.sel{color:var(--bone)}
+  .tabbar button.sel::before{content:"";position:absolute;left:24%;right:24%;top:0;height:4px;
+    border-radius:0 0 4px 4px;background:var(--chalk-lift)}
+
+  /* ---- a person's page, a match summary, More ---- */
+  .perhead{display:flex;align-items:center;gap:16px}
+  .pername{font-size:24px;font-weight:800;line-height:1.2}
+  .perz{font-size:17px;color:var(--bone-dim);font-weight:600;margin-top:2px}
+  .perz b{font-size:30px;color:var(--bone);font-weight:800}
+  .sechead{font-size:15px;font-weight:700;color:var(--bone-dim);text-transform:uppercase;letter-spacing:.06em;margin-top:6px}
+  .reclist{list-style:none;display:flex;flex-direction:column;gap:6px}
+  .reclist li{display:flex;justify-content:space-between;gap:12px;background:var(--panel);border-radius:12px;
+    padding:12px 16px;font-size:17px;font-weight:600}
+  .reclist li span:last-child{color:var(--bone-dim);text-align:right}
+  .prose p{font-size:18px;line-height:1.5}
+  .sumwin{font-size:28px;font-weight:800}
+  .copybox{font-size:16px;line-height:1.45;background:rgba(0,0,0,.35);border-radius:10px;padding:12px 14px;
+    -webkit-user-select:text;user-select:text;word-break:break-word}
+  .linkbtn{display:flex;align-items:center;justify-content:center;min-height:56px;border-radius:13px;
+    border:1px solid rgba(239,233,220,.3);color:var(--bone);font-weight:700;text-decoration:none}
+  .linkbtn:focus-visible{outline:3px solid #fff;outline-offset:2px}
 
   /* ---- overlays (player form, rack done) ---- */
   .overlay{position:fixed;inset:0;background:rgba(4,14,11,.95);z-index:20;display:flex;align-items:center;justify-content:center;padding:22px;overflow-y:auto}
@@ -154,7 +176,7 @@
   .tgrid{display:flex;gap:12px}
   .tgrid .field{flex:1;flex-direction:column;align-items:stretch;text-align:center}
   .tgrid .field input{width:100%}
-  .thint{font-size:14px;color:var(--bone-dim);line-height:1.4}
+  .thint{font-size:15px;color:var(--bone-dim);line-height:1.4}
   #raceForm{flex-direction:column}
   #raceForm button{min-height:56px;padding:6px 12px;line-height:1.3}
   #breakBtn{width:100%;background:var(--panel);border-radius:14px}
@@ -318,46 +340,45 @@
 </head>
 <body data-turn="a">
 
-<!-- ============ HOME ============ -->
-<section class="screen" id="scrHome">
-  <header class="apphead">
-    <h1>Rack It</h1>
-    <div class="user" id="userBox"></div>
-  </header>
-
+<!-- ============ SIGN IN ============ -->
+<section class="screen" id="scrGate">
+  <header class="apphead"><h1>Rack It</h1></header>
   <div class="gate hidden" id="gate">
     <button id="signInBig">Sign in with Google</button>
     <p class="dim">Invite-only pool scoring.<br>Nothing to see until you're in.</p>
   </div>
   <p class="gate-err hidden" id="gateErr"></p>
+  <footer class="foot">Rack It <span id="version"></span></footer>
+</section>
 
-  <div class="homebody hidden" id="homeBody">
+<!-- ============ RATINGS ============ -->
+<section class="screen hidden" id="scrRatings">
+  <header class="apphead"><h1>Ratings</h1></header>
+  <div class="homebody">
     <ul class="plist" id="playerList"></ul>
     <p class="empty hidden" id="noPlayers">No players yet. Add the first two and start a match.</p>
-    <div class="homebtns">
-      <div class="livebar hidden" id="liveBar">
-        <span id="liveWho"></span>
-        <div class="row2">
-          <button class="primary" id="resumeBtn">Resume scoring</button>
-          <button class="quiet" id="watchBanner">Watch</button>
-        </div>
-      </div>
-      <button class="primary" id="newSessionBtn">New match</button>
-      <div class="row2">
-        <button class="quiet" id="addPlayerBtn">Add player</button>
-        <button class="quiet" id="historyBtn">History</button>
-      </div>
-      <div class="row2">
-        <button class="quiet" id="familyBtn">Invites</button>
-        <button class="quiet" id="exportBtn">Export</button>
-        <button class="quiet" id="importBtn">Import</button>
-      </div>
-      <input type="file" id="importFile" accept="application/json,.json" class="hidden">
-      <div id="installHere"></div>
-    </div>
+    <button class="quiet" id="addPlayerBtn">Add player</button>
   </div>
+</section>
 
-  <footer class="foot">Rack It <span id="version"></span></footer>
+<!-- ============ A PERSON'S PAGE ============ -->
+<section class="screen hidden" id="scrPerson">
+  <header class="apphead">
+    <h1>Player</h1>
+    <button class="quiet small" id="perBack">Back</button>
+  </header>
+  <div class="homebody">
+    <div class="perhead" id="perHead"></div>
+    <p class="thint" id="perAbout"></p>
+    <button class="quiet" id="perEdit">Edit</button>
+    <h3 class="sechead">Cuescore</h3>
+    <p id="perCue"></p>
+    <button class="quiet hidden" id="perCueEdit">Add your Cuescore link</button>
+    <h3 class="sechead">Record</h3>
+    <ul class="reclist" id="perRecord"></ul>
+    <h3 class="sechead">Matches</h3>
+    <ul class="plist" id="perMatches"></ul>
+  </div>
 </section>
 
 <!-- ============ PLAYER FORM ============ -->
@@ -399,7 +420,6 @@
 <section class="screen hidden" id="scrSetup">
   <header class="apphead">
     <h1>New match</h1>
-    <button class="quiet small" id="setupBack">Back</button>
   </header>
   <div class="setupbody">
     <div class="modes" id="games">
@@ -470,14 +490,74 @@
   </div>
 </section>
 
-<!-- ============ HISTORY ============ -->
-<section class="screen hidden" id="scrHistory">
-  <header class="apphead">
-    <h1>History</h1>
-    <button class="quiet small" id="histBack">Back</button>
-  </header>
-  <div class="histchips" id="histChips"></div>
+<!-- ============ MATCHES ============ -->
+<section class="screen hidden" id="scrMatches">
+  <header class="apphead"><h1>Matches</h1></header>
   <ul class="plist histlist" id="histList"></ul>
+</section>
+
+<!-- ============ A MATCH'S SUMMARY ============ -->
+<section class="screen hidden" id="scrSummary">
+  <header class="apphead">
+    <h1>Match</h1>
+    <button class="quiet small" id="sumBack">Back</button>
+  </header>
+  <div class="homebody">
+    <p class="sumwin" id="sumWinner"></p>
+    <p class="thint" id="sumMeta"></p>
+    <p id="sumScore"></p>
+    <p class="dim" id="sumZargo"></p>
+    <h3 class="sechead">Racks</h3>
+    <ul class="reclist" id="sumRacks"></ul>
+    <h3 class="sechead">Cuescore</h3>
+    <p class="copybox" id="sumCopyText"></p>
+    <button class="primary" id="sumCopy">Copy for Cuescore</button>
+    <a class="linkbtn" href="https://cuescore.com/challenges/" target="_blank" rel="noopener">Open Cuescore challenges</a>
+  </div>
+</section>
+
+<!-- ============ MORE ============ -->
+<section class="screen hidden" id="scrMore">
+  <header class="apphead">
+    <h1>More</h1>
+    <div class="user" id="userBox"></div>
+  </header>
+  <div class="homebody">
+    <button class="quiet" id="familyBtn">Invites</button>
+    <div class="row2">
+      <button class="quiet" id="exportBtn">Export</button>
+      <button class="quiet" id="importBtn">Import</button>
+    </div>
+    <input type="file" id="importFile" accept="application/json,.json" class="hidden">
+    <div id="installHere"></div>
+    <button class="quiet" id="aboutBtn">About Zargo</button>
+    <button class="quiet" id="signOutBtn">Sign out</button>
+    <footer class="foot">Rack It <span id="versionMore"></span></footer>
+  </div>
+</section>
+
+<!-- ============ ABOUT ZARGO ============ -->
+<section class="screen hidden" id="scrAbout">
+  <header class="apphead">
+    <h1>About Zargo</h1>
+    <button class="quiet small" id="aboutBack">Back</button>
+  </header>
+  <div class="homebody prose">
+    <p><b>Zargo is Rack It's own rating.</b> Everyone starts at 500.</p>
+    <p>It's odds on a rack. When two players are 100 apart, the higher one is expected to win two racks for
+      every one the other wins. 200 apart, four for every one. Level ratings, one for one.</p>
+    <p>Every saved match moves both ratings by how the racks went against those odds. Winning when you were
+      expected to moves you a little; an upset moves you more. In 11-Point-Nine a rack counts by the share of
+      its points you took. In Golden-Nine and Trad-Nine it counts by who won it, at half the weight. One match
+      moves a settled rating by 40 at most.</p>
+    <p>A handicap never changes what you earn. Level, split targets or a head start: the rating learns from
+      the racks as they happened, and the handicap only makes the match close.</p>
+    <p><b>Robustness</b> is how many racks sit behind a rating. Under 30 it's provisional: still used for
+      handicaps, but it moves quickly. A new player's first three matches against someone established move
+      them most of the way to where their results put them.</p>
+    <p><b>It isn't Fargo.</b> Zargo borrows FargoRate's scale and its idea of robustness, but a Zargo of 500
+      and a FargoRate of 500 are unrelated numbers, and Cuescore's rating is different again.</p>
+  </div>
 </section>
 
 <!-- ============ INVITES (the members allowlist) ============ -->
@@ -567,6 +647,18 @@
   </div>
 </section>
 
+<div class="livestrip hidden" id="liveBar">
+  <span id="liveWho"></span>
+  <button class="primary" id="resumeBtn">Resume</button>
+  <button class="quiet" id="watchBanner">Watch</button>
+</div>
+<nav class="tabbar hidden" id="tabbar">
+  <button data-tab="play">Play</button>
+  <button data-tab="ratings">Ratings</button>
+  <button data-tab="matches">Matches</button>
+  <button data-tab="more">More</button>
+</nav>
+
 <div class="done hidden" id="done">
   <h2 id="doneTitle">Rack complete</h2>
   <p id="doneBody"></p>
@@ -582,22 +674,27 @@ import { phone } from "../shared/phone.js";
 import { people } from "../shared/people.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "1.4.1";
+const APP_VERSION = "1.5.0";
 const APP_ID = "fair-nine";
 document.getElementById("version").textContent = "v" + APP_VERSION;
+document.getElementById("versionMore").textContent = "v" + APP_VERSION;
 
 const $ = id => document.getElementById(id);
 const el = {};
-["userBox","gate","gateErr","homeBody","playerList","noPlayers","newSessionBtn","addPlayerBtn",
+["userBox","gate","gateErr","playerList","noPlayers","addPlayerBtn",
+ "scrGate","scrRatings","scrPerson","scrMatches","scrSummary","scrMore","scrAbout","tabbar",
+ "perHead","perAbout","perEdit","perCue","perCueEdit","perRecord","perMatches","perBack",
+ "sumBack","sumWinner","sumMeta","sumScore","sumZargo","sumRacks","sumCopyText","sumCopy",
+ "aboutBtn","aboutBack","signOutBtn","versionMore",
  "pform","pfTitle","pfName","pfEmail","pfEmailLabel","pfEmailNote","pfColours","pfZargoRow","pfZargo","pfNote","pfSave","pfCancel",
- "scrHome","scrSetup","scrLive","setupBack","pickA","pickB","modes","lenRow","lenLabel","racksIn",
+ "scrSetup","scrLive","pickA","pickB","modes","lenRow","lenLabel","racksIn",
  "targetsRow","tgtA","tgtB","tgtALabel","tgtBLabel","setupHint","setupWarn","breakBtn","breakWho","startBtn",
  "foldLen","foldHcp","lenHead","hcpHead","lenSummary","hcpSummary","goldLen","hcps","raceForm","formTargets","formStart","raceNLabel",
  "sideA","sideB","nameA","nameB","rawA","rawB","subA","subB","cueA","cueB","leadName","leadNum","leadFill",
  "rackNo","deadCt","audit","breakFlip","rack","undo","next","end",
  "done","doneTitle","doneBody","doneZargo","doneNext","doneAnyway","doneBack","signInBig",
- "watchBanner","liveBar","liveWho","resumeBtn","historyBtn","exportBtn","importBtn","importFile",
- "scrHistory","histBack","histChips","histList",
+ "watchBanner","liveBar","liveWho","resumeBtn","exportBtn","importBtn","importFile",
+ "histList",
  "impChoice","impInfo","impMerge","impReplace","impCancel",
  "familyBtn","scrFamily","famBack","famList","famEmail","famAdd","famShare",
  "pfEst","estRef","estRefName","estRefScore","estNewScore","estOut","pfDelete","pfShared",
@@ -773,19 +870,58 @@ function rekeyStats(){
 // shared/phone.js holds it so every app in the repo does this the same way.
 const keepAwake = on => phone.keepAwake(on);
 
+// Four tabs (SPEC §13.1). Each page belongs to one; the live screen and the sign-in gate
+// belong to none, so they hide the tab bar and the live strip.
+const SCREENS = { gate: "scrGate", ratings: "scrRatings", person: "scrPerson", setup: "scrSetup",
+  matches: "scrMatches", summary: "scrSummary", more: "scrMore", family: "scrFamily", about: "scrAbout",
+  live: "scrLive" };
+const TAB_OF = { ratings: "ratings", person: "ratings", setup: "play", matches: "matches", summary: "matches",
+  more: "more", family: "more", about: "more" };
+let current = "gate", lastPage = "ratings";
 function show(scr){
-  el.scrHome.classList.toggle("hidden", scr !== "home");
-  el.scrSetup.classList.toggle("hidden", scr !== "setup");
-  el.scrLive.classList.toggle("hidden", scr !== "live");
-  el.scrHistory.classList.toggle("hidden", scr !== "history");
-  el.scrFamily.classList.toggle("hidden", scr !== "family");
+  current = scr;
+  if(TAB_OF[scr]) lastPage = scr;
+  for(const [k, id] of Object.entries(SCREENS)) el[id].classList.toggle("hidden", k !== scr);
+  el.tabbar.classList.toggle("hidden", !TAB_OF[scr]);
+  el.tabbar.querySelectorAll("button").forEach(b => b.classList.toggle("sel", b.dataset.tab === TAB_OF[scr]));
+  paintLiveBar();
   document.body.classList.toggle("scoring", scr === "live");
   keepAwake(scr === "live");
   if(scr === "live") phone.fullscreen();
 }
+// Re-render a page from the current data, then show it.
+function openPage(scr){
+  if(scr === "ratings") renderRatings();
+  if(scr === "person") return renderPerson() && show("person");
+  if(scr === "setup") renderSetup();
+  if(scr === "matches") renderMatches();
+  if(scr === "summary") return renderSummary() && show("summary");
+  if(scr === "family") return openFamily();
+  show(scr);
+}
+// Whatever page is showing, drawn again: after a save, a rename, an import.
+function rerender(){
+  if(current === "ratings") renderRatings();
+  if(current === "person" && !renderPerson()) openPage("ratings");
+  if(current === "setup") renderSetup();
+  if(current === "matches") renderMatches();
+  if(current === "summary" && !renderSummary()) openPage("matches");
+}
+
+let setupFresh = true;   // Play starts a new setup after a match; otherwise it keeps your picks
+el.tabbar.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+  const tab = b.dataset.tab;
+  if(tab === "play"){
+    if(setupFresh){ setupFresh = false; openSetup(); } else openPage("setup");
+    if(activePlayers().length < 2) openPlayerForm(null);
+  }
+  if(tab === "ratings") openPage("ratings");
+  if(tab === "matches") openPage("matches");
+  if(tab === "more") openPage("more");
+}));
 
 // Session documents keep the ids they were started with; nameOf reads any of them as the
-// person they are now. Deleted players keep their name in History but leave every picker.
+// person they are now. Deleted players keep their name in Matches but leave every picker.
 const nameOf = id => people.nameOf(id, "(deleted)");
 const activePlayers = () => people.active().map(p => p.id)
   .sort((x, y) => nameOf(x).localeCompare(nameOf(y)));
@@ -794,9 +930,41 @@ const activePlayers = () => people.active().map(p => p.id)
 people.onChange(() => {
   if(!started || !stateLoaded) return;
   rekeyStats();
-  if(!el.scrHome.classList.contains("hidden")) renderHome();
-  if(!el.scrSetup.classList.contains("hidden")) renderSetup();
+  rerender();
+  paintLiveBar();
 });
+
+// ---------- every match, watched ----------
+// One live list feeds Matches, a person's page, a summary and the live strip, so a match
+// started on another phone shows up without a reload.
+let matches = [], unsubMatches = null, liveDoc = null, landed = false;
+const LIVE_WINDOW = 24 * 3600 * 1000;
+function watchMatches(){
+  if(unsubMatches) unsubMatches();
+  unsubMatches = cloud.watchList("sessions", rows => {
+    matches = rows;
+    liveDoc = rows.find(x => x.status === "live" && x.startedAt > Date.now() - LIVE_WINDOW) || null;
+    // Opens on Play when a match is on, otherwise on Ratings.
+    if(!landed){ landed = true; if(current === "gate") liveDoc ? openSetupTab() : openPage("ratings"); }
+    paintLiveBar();
+    if(current === "matches" && !armedDeletes) renderMatches();
+    if(current === "person") renderPerson();
+    if(current === "summary") renderSummary();
+  }, { orderBy: "startedAt", desc: true, limit: 300 });
+}
+function openSetupTab(){ setupFresh = false; openSetup(); }
+
+// The slim bar above the tabs: the match that's on, with Resume and Watch.
+function paintLiveBar(){
+  const on = !!liveDoc && !live && !watching && !!TAB_OF[current];
+  el.liveBar.classList.toggle("hidden", !on);
+  if(!on) return;
+  const l = liveDoc;
+  el.liveWho.textContent = `${nameOf(l.playerA)} v ${nameOf(l.playerB)} · ${GAME_LABEL[gameOf(l)]}`;
+  el.resumeBtn.onclick = () => resumeSession(l.id);
+  el.watchBanner.onclick = () => enterWatch(l.id);
+}
+const checkLive = paintLiveBar;
 
 // ---------- auth gate ----------
 // The gate stays hidden until auth state is actually known, so a signed-in
@@ -804,31 +972,35 @@ people.onChange(() => {
 let started = false;
 async function handleUser(user){
   if(user){
-    el.userBox.innerHTML = `<img src="${user.photoURL || ""}" alt=""><span>${user.displayName || user.email}</span>`;
+    el.userBox.innerHTML = `<img alt="" referrerpolicy="no-referrer"><span></span>`;
+    if(user.photoURL) el.userBox.querySelector("img").src = user.photoURL;
+    else el.userBox.querySelector("img").remove();
+    el.userBox.querySelector("span").textContent = user.displayName || user.email;
     el.gate.classList.add("hidden");
     if(started) return;
     started = true;
     try {
       people.start({ legacy: () => stateLoaded ? db.players : null, onError: e => console.warn("[people]", e) });
       await loadState();
-      el.homeBody.classList.remove("hidden");
-      renderHome();
-      checkLive();
+      landed = false;
+      watchMatches();
     } catch(e){
       el.gateErr.textContent = (e && e.code === "permission-denied")
         ? "You're signed in, but this account hasn't been invited yet. Ask Kenny to add your Gmail under Invites."
         : "Couldn't load the cloud data: " + (e.message || e);
       el.gateErr.classList.remove("hidden");
+      show("gate");
     }
   } else {
     started = false;
     stateLoaded = false;
     people.stop();
+    if(unsubMatches){ unsubMatches(); unsubMatches = null; }
+    matches = []; liveDoc = null;
     el.userBox.innerHTML = "";
-    el.homeBody.classList.add("hidden");
     el.gateErr.classList.add("hidden");
     el.gate.classList.remove("hidden");
-    show("home");
+    show("gate");
   }
 }
 await cloud.init(APP_ID);
@@ -838,32 +1010,37 @@ el.signInBig.addEventListener("click", () => cloud.signIn().catch(e => {
   el.gateErr.textContent = "Sign-in failed: " + (e.message || e);
   el.gateErr.classList.remove("hidden");
 }));
+el.signOutBtn.addEventListener("click", () => cloud.signOut());
 
-// ---------- home ----------
-function renderHome(){
-  const ids = activePlayers();
+// ---------- ratings ----------
+// Everyone, ranked by Zargo. People who haven't played yet go last, by name, unranked.
+const fmtRob = n => String(Math.round((n || 0) * 10) / 10);
+function renderRatings(){
+  const played = id => P(id).sessions > 0;
+  const ids = activePlayers().sort((x, y) =>
+    (played(y) - played(x)) || (played(x) ? P(y).zargo - P(x).zargo : 0) || nameOf(x).localeCompare(nameOf(y)));
   el.playerList.innerHTML = "";
   el.noPlayers.classList.toggle("hidden", ids.length > 0 || !people.ready);
+  let rank = 0;
   ids.forEach(id => {
     const p = P(id);
     const li = document.createElement("li");
     const b = document.createElement("button");
     const prov = p.robustness < cfg().provisionalRacks;
-    b.innerHTML = `<span class="pname"><span></span></span>
-      <span class="pstats">${Math.round(p.zargo)} · robustness ${p.robustness}${prov ? '<br><span class="prov">provisional</span>' : ""}</span>`;
-    b.prepend(people.avatar(id, 36));
-    b.querySelector(".pname span").textContent = p.name;
+    b.innerHTML = `<span class="prank"></span><span class="pname"><span></span></span><span class="pstats"></span>`;
+    b.querySelector(".prank").textContent = played(id) ? ++rank : "";
+    b.querySelector(".prank").after(people.avatar(id, 36));
+    b.querySelector(".pname span").textContent = p.name + (people.isMe(id) ? " (you)" : "");
     if(!p.email) b.querySelector(".pname").insertAdjacentHTML("beforeend", '<span class="nogmail">No Gmail</span>');
-    b.addEventListener("click", () => openPlayerForm(id));
+    b.querySelector(".pstats").innerHTML = played(id)
+      ? `${Math.round(p.zargo)} · robustness ${fmtRob(p.robustness)}${prov ? '<br><span class="prov">provisional</span>' : ""}`
+      : `${Math.round(p.zargo)} · not played yet`;
+    b.addEventListener("click", () => openPerson(id));
     li.appendChild(b);
     el.playerList.appendChild(li);
   });
 }
 el.addPlayerBtn.addEventListener("click", () => openPlayerForm(null));
-el.newSessionBtn.addEventListener("click", () => {
-  if(activePlayers().length < 2){ openPlayerForm(null); return; }
-  openSetup();
-});
 
 // ---------- player form ----------
 // Name and colour are shared by every app; the Zargo is Fair Nine's own.
@@ -922,10 +1099,10 @@ el.pfShared.addEventListener("click", () => {
 el.pfDelete.addEventListener("click", async () => {
   if(!pfEditing) return;
   const p = P(pfEditing);
-  if(!confirm(`Delete ${p.name} for good?\n\nPlayers are shared by every sidequests app, so they leave the lists in all of them and can't be picked for new matches. Their past matches stay in History under their name. This can't be undone in the app.`)) return;
+  if(!confirm(`Delete ${p.name} for good?\n\nPlayers are shared by every sidequests app, so they leave the lists in all of them and can't be picked for new matches. Their past matches stay in Matches under their name. This can't be undone in the app.`)) return;
   people.remove(pfEditing);
   el.pform.classList.add("hidden");
-  renderHome();
+  rerender();
 });
 el.pfSave.addEventListener("click", async () => {
   const name = el.pfName.value.trim();
@@ -960,7 +1137,7 @@ el.pfSave.addEventListener("click", async () => {
       .catch(e => console.warn(e));
   }
   el.pform.classList.add("hidden");
-  renderHome();
+  rerender();
 });
 
 // ---- starter-rating estimate (add mode only) ----
@@ -1082,7 +1259,6 @@ function openSetup(){
   el.scrSetup.querySelector(".setupbody").scrollTop = 0;
   loadRecent();
 }
-el.setupBack.addEventListener("click", () => show("home"));
 el.lenHead.addEventListener("click", () => el.foldLen.classList.toggle("open"));
 el.hcpHead.addEventListener("click", () => el.foldHcp.classList.toggle("open"));
 el.games.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
@@ -1355,6 +1531,7 @@ async function startSession(){
   if(!plan) return;
   const game = setup.game, handicap = setup.handicap;
   const { mode, targets, racks } = plan;
+  setupFresh = true;
   // The Racks lever's head start: racks the underdog has already won when the match begins.
   const start = handicap === "racks" ? plan.start : null;
   const eA = expectedShareA(a.zargo, b.zargo);
@@ -1975,7 +2152,7 @@ async function finishSession(){
       .catch(e => console.warn(e));
     live = null;
     el.done.classList.add("hidden");
-    show("home");
+    openPage("ratings");
     return;
   }
   declare();
@@ -2136,15 +2313,15 @@ async function finish(status, t, lead, winner, z, weight){
     });
   }
   await cloud.patch("sessions/" + live.id, patch).catch(e => console.warn(e));
+  const id = live.id;
   live = null;
   el.done.classList.add("hidden");
   el.doneZargo.classList.add("hidden");
   el.doneAnyway.classList.add("hidden");
   el.doneBack.onclick = null;
   el.doneBack.textContent = "Back to the rack";
-  renderHome();
-  show("home");
-  checkLive();
+  // A saved match opens its summary, ready to copy to Cuescore; a discarded one goes to Ratings.
+  if(status === "done") openSummary(id, "matches"); else openPage("ratings");
 }
 
 function render(){
@@ -2265,8 +2442,7 @@ function stopWatch(){
   el.next.style.display = "";
   el.end.textContent = "End";
   el.done.classList.add("hidden");
-  show("home");
-  checkLive();
+  openPage(lastPage);
 }
 function watchOver(doc){
   const t = doc.totals || { a:0, b:0, dead:0 };
@@ -2336,22 +2512,6 @@ function renderWatch(doc){
   el.undo.disabled = true;
 }
 
-async function checkLive(){
-  try {
-    const ss = await cloud.list("sessions", { orderBy: "startedAt", desc: true, limit: 10 });
-    const l = ss.find(s => s.status === "live" && s.startedAt > Date.now() - 24 * 3600 * 1000);
-    if(l && !live){
-      el.liveWho.textContent = `In progress: ${nameOf(l.playerA)} vs ${nameOf(l.playerB)}` +
-        (gameOf(l) === "league" ? "" : " · " + GAME_LABEL[gameOf(l)]);
-      el.resumeBtn.onclick = () => resumeSession(l.id);
-      el.watchBanner.onclick = () => enterWatch(l.id);
-      el.liveBar.classList.remove("hidden");
-    } else {
-      el.liveBar.classList.add("hidden");
-    }
-  } catch(e){ console.warn("[checkLive]", e); }
-}
-
 // Pick a live session back up on this phone — after a reload, or from another handset.
 // The session document is the record; rebuild the in-memory `live` from it.
 async function resumeSession(id){
@@ -2404,106 +2564,86 @@ async function resumeSession(id){
   };
   state.turn = doc.turn || live.breaker;
   el.done.classList.add("hidden");
-  el.liveBar.classList.add("hidden");
   show("live");
   render();
 }
 
-async function refreshHome(){
-  renderHome();
-  show("home");
-  await checkLive();
+function refreshHome(){ openPage(lastPage); }
+
+// ---------- matches ----------
+// Live first, then newest (SPEC §13.5). Discarded matches don't show.
+const MODE = { race: "race", fixed: "fixed racks", open: "open" };
+const HCP = { off: "no handicap", scoring: "", racks: "racks handicap" };
+function lengthText(s){
+  const len = racesRacks(s) && s.targets ? "race to " + Math.max(s.targets.a, s.targets.b)
+    : gameOf(s) === "golden" && s.mode === "race" && s.targets ? "race to points"
+    : gameOf(s) === "golden" && s.racksPlanned ? s.racksPlanned + " racks"
+    : MODE[s.mode] || s.mode;
+  const h = gameOf(s) === "standard" && handicapOf(s) === "off" ? "" : HCP[handicapOf(s)];
+  return len + (h ? " · " + h : "");
+}
+// Today's matches by time, older ones by date.
+function whenText(ms){
+  if(!ms) return "";
+  const d = new Date(ms), now = new Date();
+  if(d.toDateString() === now.toDateString()) return "Today " + d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: d.getFullYear() === now.getFullYear() ? undefined : "numeric" });
+}
+// The score as the table saw it: racks (head start included) in a race of racks, else points.
+function boardScore(s){
+  const t = s.totals || { a:0, b:0 };
+  return racesRacks(s) ? { a: t.racksA ?? t.a ?? 0, b: t.racksB ?? t.b ?? 0 } : { a: t.a || 0, b: t.b || 0 };
+}
+const isLiveNow = s => s.status === "live" && s.startedAt > Date.now() - LIVE_WINDOW;
+const shownMatches = () => matches.filter(s => s.status !== "discarded")
+  .sort((x, y) => (isLiveNow(y) - isLiveNow(x)) || (y.startedAt || 0) - (x.startedAt || 0));
+
+// One row: names and score, game, when, who won. Live rows resume; finished rows open their summary.
+function matchRow(s, { del = true, from = "matches" } = {}){
+  const t = s.totals || {};
+  const sc = boardScore(s);
+  const li = document.createElement("li");
+  const b = document.createElement("button");
+  b.className = "hrow";
+  const result = s.status === "live" ? '<span class="hlive">LIVE — tap to resume</span>'
+    : (t.winner ? nameOf(s[t.winner === "a" ? "playerA" : "playerB"]) + " won" : "Tied");
+  b.innerHTML = `<span class="hmeta">${whenText(s.startedAt)} · ${GAME_LABEL[gameOf(s)]} · ${lengthText(s)}</span>` +
+    `<span></span><span class="hmeta">${result}</span>`;
+  b.children[1].textContent = `${nameOf(s.playerA)} ${sc.a} – ${sc.b} ${nameOf(s.playerB)}`;
+  b.addEventListener("click", () => s.status === "live" ? resumeSession(s.id) : openSummary(s.id, from));
+  li.className = "hitem";
+  li.appendChild(b);
+  if(del) li.appendChild(deleteButton(s));
+  return li;
 }
 
-// ---------- history ----------
-let histSessions = [], histFilter = null;
-
-el.historyBtn.addEventListener("click", openHistory);
-el.histBack.addEventListener("click", () => show("home"));
-
-async function openHistory(){
-  show("history");
-  el.histList.innerHTML = '<li class="empty">Loading…</li>';
-  try {
-    histSessions = await cloud.list("sessions", { orderBy: "startedAt", desc: true, limit: 100 });
-  } catch(e){
-    el.histList.innerHTML = '<li class="empty">Couldn\'t load history.</li>';
-    return;
-  }
-  histFilter = null;
-  renderHistory();
-}
-
-function renderHistory(){
-  el.histChips.innerHTML = "";
-  const chips = [[null, "All"]].concat(activePlayers().map(id => [id, nameOf(id)]));
-  chips.forEach(([id, label]) => {
-    const b = document.createElement("button");
-    b.textContent = label;
-    b.classList.toggle("sel", histFilter === id);
-    b.addEventListener("click", () => { histFilter = id; renderHistory(); });
-    el.histChips.appendChild(b);
-  });
-
-  const rows = histSessions.filter(s =>
-    s.status !== "discarded" &&
-    (!histFilter || people.resolve(s.playerA) === histFilter || people.resolve(s.playerB) === histFilter));
+function renderMatches(){
+  const rows = shownMatches();
   el.histList.innerHTML = "";
-  if(!rows.length){
-    el.histList.innerHTML = '<li class="empty">No matches yet.</li>';
-    return;
-  }
-  const MODE = { race: "race", fixed: "fixed racks", open: "open" };
-  const HCP = { off: "no handicap", scoring: "", racks: "racks handicap" };
-  const lengthText = s => {
-    const len = racesRacks(s) && s.targets ? "race to " + Math.max(s.targets.a, s.targets.b)
-      : gameOf(s) === "golden" && s.mode === "race" && s.targets ? "race to points"
-      : gameOf(s) === "golden" && s.racksPlanned ? s.racksPlanned + " racks"
-      : MODE[s.mode] || s.mode;
-    const h = gameOf(s) === "standard" && handicapOf(s) === "off" ? "" : HCP[handicapOf(s)];
-    return len + (h ? " · " + h : "");
-  };
-  rows.forEach(s => {
-    const t0 = s.totals || { a:0, b:0 };
-    // A race in racks is scored in racks (head start included); everything else in points.
-    const t = racesRacks(s) ? { a: t0.racksA ?? t0.a, b: t0.racksB ?? t0.b, winner: t0.winner } : t0;
-    const li = document.createElement("li");
-    const b = document.createElement("button");
-    b.className = "hrow";
-    const date = s.startedAt ? new Date(s.startedAt).toLocaleDateString(undefined,
-      { day: "numeric", month: "short", year: "numeric" }) : "";
-    const liveNow = s.status === "live";
-    const result = liveNow ? '<span class="hlive">LIVE — tap to resume</span>'
-      : (t.winner ? nameOf(s[t.winner === "a" ? "playerA" : "playerB"]) + " won" : "Tied");
-    b.innerHTML =
-      `<span class="hmeta">${date} · ${GAME_LABEL[gameOf(s)]} · ${lengthText(s)}</span>` +
-      `<span></span>` +
-      `<span class="hmeta">${result}</span>`;
-    b.children[1].textContent = `${nameOf(s.playerA)} ${t.a} – ${t.b} ${nameOf(s.playerB)}`;
-    if(liveNow) b.addEventListener("click", () => resumeSession(s.id));
-
-    li.className = "hitem";
-    li.appendChild(b);
-    li.appendChild(deleteButton(s));
-    el.histList.appendChild(li);
-  });
+  if(!rows.length){ el.histList.innerHTML = '<li class="empty">No matches yet.</li>'; return; }
+  rows.forEach(s => el.histList.appendChild(matchRow(s)));
 }
 
+// Two taps: arm, then delete within five seconds. While one is armed the list isn't redrawn,
+// so a ball scored on another phone doesn't disarm it.
+let armedDeletes = 0;
 function deleteButton(s){
   const d = document.createElement("button");
   d.className = "hdel";
   d.textContent = "Delete";
   d.setAttribute("aria-label", "Delete this match");
   let armed = null;
+  const disarm = () => { if(armed){ clearTimeout(armed); armed = null; armedDeletes = Math.max(0, armedDeletes - 1); } };
   d.addEventListener("click", async () => {
     if(!armed){
-      armed = setTimeout(() => { armed = null; d.classList.remove("arm"); d.textContent = "Delete"; }, 5000);
+      armedDeletes++;
+      armed = setTimeout(() => { disarm(); d.classList.remove("arm"); d.textContent = "Delete"; if(current === "matches") renderMatches(); }, 5000);
       d.classList.add("arm");
       d.textContent = s.status === "live" ? "Bin it?" : "Sure?";
       buzz([12]);
       return;
     }
-    clearTimeout(armed); armed = null;
+    disarm();
     d.disabled = true;
     d.textContent = "…";
     try { await cloud.delete("sessions/" + s.id); }
@@ -2513,20 +2653,175 @@ function deleteButton(s){
       alert("Couldn't delete that match.");
       return;
     }
-    // Ratings already earned from a saved session stay put; deleting is a tidy-up, not an undo.
+    // Ratings already earned from a saved match stay put; deleting is a tidy-up, not an undo.
     if(live && live.id === s.id){ live = null; el.done.classList.add("hidden"); }
     if(watching && watching.id === s.id) stopWatch();
-    histSessions = histSessions.filter(x => x.id !== s.id);
-    renderHistory();
-    renderHome();
-    checkLive();
+    matches = matches.filter(x => x.id !== s.id);
+    if(liveDoc && liveDoc.id === s.id) liveDoc = null;
+    rerender();
+    paintLiveBar();
   });
   return d;
 }
 
+// ---------- a match's summary ----------
+let summaryId = null, summaryFrom = "matches";
+function openSummary(id, from){
+  summaryId = id;
+  summaryFrom = from || "matches";
+  el.sumCopy.textContent = "Copy for Cuescore";
+  if(renderSummary()){ show("summary"); return; }
+  // Not in the watched list yet (just saved, or older than it reaches): read it once.
+  cloud.load("sessions/" + id).then(doc => {
+    if(!doc){ alert("That match is gone."); return openPage(summaryFrom); }
+    matches = matches.concat([{ id, ...doc }]);
+    if(renderSummary()) show("summary");
+  }).catch(e => { console.warn("[summary]", e); alert("Couldn't load that match."); });
+}
+el.sumBack.addEventListener("click", () => openPage(summaryFrom));
+
+// The racks that counted: every Golden-Nine and Trad-Nine rack with a winner; for 11-Point-Nine,
+// all racks unless the last was dropped at End (then the totals don't include it).
+function countedRacks(s){
+  const racks = s.racks || {}, t = s.totals || {};
+  let rows = Object.keys(racks).map(Number).filter(n => n > 0).sort((x, y) => x - y).map(n => ({ n, rec: racks[n] }));
+  if(gameOf(s) !== "league") return rows.filter(r => r.rec && r.rec.winner);
+  const sum = rows.reduce((acc, r) => { const p = leagueRackPoints(r.rec && r.rec.balls); return { a: acc.a + p.a, b: acc.b + p.b }; }, { a:0, b:0 });
+  if(rows.length && (sum.a !== (t.a || 0) || sum.b !== (t.b || 0))) rows = rows.slice(0, -1);
+  return rows;
+}
+
+function renderSummary(){
+  const s = matches.find(x => x.id === summaryId);
+  if(!s || s.status === "discarded") return false;
+  const nA = nameOf(s.playerA), nB = nameOf(s.playerB), t = s.totals || {}, game = gameOf(s);
+  el.sumWinner.textContent = s.status === "live" ? "Still being played"
+    : t.winner ? `${t.winner === "a" ? nA : nB} won` : "Tied";
+  el.sumMeta.textContent = `${GAME_LABEL[game]} · ${lengthText(s)} · ${whenText(s.startedAt)}`;
+  el.sumScore.textContent = scoreLine(s, nA, nB, t);
+  const zb = s.zargoBefore, za = s.zargoAfter;
+  el.sumZargo.textContent = zb && za
+    ? `Zargo: ${nA} ${Math.round(zb.a)} → ${Math.round(za.a)} · ${nB} ${Math.round(zb.b)} → ${Math.round(za.b)}`
+    : "Zargo didn't move.";
+  el.sumRacks.innerHTML = "";
+  for(const { n, rec } of countedRacks(s)){
+    const li = document.createElement("li");
+    const left = document.createElement("span"), right = document.createElement("span");
+    left.textContent = "Rack " + n;
+    if(game === "league"){
+      const p = leagueRackPoints(rec.balls);
+      right.textContent = `${nA} ${p.a}, ${nB} ${p.b}` + (p.dead ? `, ${p.dead} dead` : "");
+    } else {
+      const r = rackOf(rec), p = gameRackPoints(game, r);
+      right.textContent = `${r.winner === "a" ? nA : nB} · ${KIND_LABEL[r.kind] || "Win"}` +
+        (game === "golden" ? ` · ${p.a}–${p.b}` : "");
+    }
+    li.append(left, right);
+    el.sumRacks.appendChild(li);
+  }
+  if(!el.sumRacks.children.length) el.sumRacks.innerHTML = '<li><span>No racks counted</span></li>';
+  el.sumCopyText.textContent = cuescoreLine(s);
+  return true;
+}
+
+// One line in the shape Cuescore's challenge form wants (SPEC §12.6): the two names, the
+// discipline, the race and the score in racks, since Cuescore records frames.
+const DISCIPLINE = { standard: "9-Ball", golden: "9-Ball (Golden Nine)", league: "9-Ball (11-Point-Nine)" };
+function cuescoreLine(s){
+  const nA = nameOf(s.playerA), nB = nameOf(s.playerB), t = s.totals || {}, game = gameOf(s);
+  const tg = s.targets, st = startOf(s);
+  const race = racesRacks(s) && tg
+      ? (tg.a === tg.b ? `race to ${tg.a}` : `race to ${tg.a} v ${tg.b}`) +
+        (st.a || st.b ? `, ${st.a ? nA : nB} started ${st.a || st.b} up` : "")
+    : s.mode === "race" && tg ? (tg.a === tg.b ? `race to ${tg.a} points` : `race to ${tg.a} v ${tg.b} points`)
+    : s.mode === "fixed" && s.racksPlanned ? `${s.racksPlanned} racks`
+    : "open";
+  const racksA = t.racksA ?? (game === "standard" ? t.a : 0) ?? 0, racksB = t.racksB ?? (game === "standard" ? t.b : 0) ?? 0;
+  const points = game === "standard" ? "" : ` (points ${t.a || 0}–${t.b || 0})`;
+  const date = s.startedAt ? new Date(s.startedAt).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "";
+  return `${nA} ${racksA}–${racksB} ${nB} · ${DISCIPLINE[game]} · ${race}${points} · ${date}`;
+}
+el.sumCopy.addEventListener("click", async () => {
+  const text = el.sumCopyText.textContent;
+  try {
+    await navigator.clipboard.writeText(text);
+    el.sumCopy.textContent = "Copied";
+  } catch(e){
+    // No clipboard (an older browser, or not allowed): select the line so it can be copied by hand.
+    const r = document.createRange();
+    r.selectNodeContents(el.sumCopyText);
+    const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+    el.sumCopy.textContent = "Selected: copy it from the box";
+  }
+});
+
+// ---------- a person's page ----------
+// Zargo with what it means, a win record per game, their matches, and Edit (SPEC §13.4).
+let personId = null;
+function openPerson(id){ personId = id; if(renderPerson()) show("person"); }
+el.perBack.addEventListener("click", () => openPage("ratings"));
+el.perEdit.addEventListener("click", () => personId && openPlayerForm(personId));
+el.perCueEdit.addEventListener("click", async () => {
+  if(!personId) return;
+  await people.edit(personId, { noun: "player", cuescore: true });
+  rerender();
+});
+
+function renderPerson(){
+  const id = people.resolve(personId);
+  const person = people.get(id), p = P(id);
+  if(!person || !p || person.deleted) return false;
+  personId = id;
+  const me = people.isMe(id);
+  const prov = p.robustness < cfg().provisionalRacks;
+  el.scrPerson.querySelector("h1").textContent = p.name;
+
+  el.perHead.innerHTML = `<div><div class="pername"></div><div class="perz"></div></div>`;
+  el.perHead.prepend(people.avatar(id, 72));
+  el.perHead.querySelector(".pername").textContent = p.name + (me ? " (you)" : "");
+  el.perHead.querySelector(".perz").innerHTML = `Zargo <b>${Math.round(p.zargo)}</b><br>` +
+    (p.sessions ? `robustness ${fmtRob(p.robustness)}${prov ? ' · <span class="prov">provisional</span>' : ""}` : "not played yet");
+  const z = Math.round(p.zargo);
+  el.perAbout.textContent = `Against someone on ${z - 100}, ${p.name} would expect to win two racks for every one. ` +
+    (!p.sessions ? "It starts moving with their first saved match."
+      : prov ? `Only ${fmtRob(p.robustness)} racks so far, so it still moves quickly.`
+      : "It moves a little after every saved match.");
+
+  // Cuescore: your own link is yours to set; anyone else's reads only (SPEC §13.8).
+  el.perCue.textContent = person.cuescoreId ? `Player ${person.cuescoreId}` : "Not added";
+  el.perCueEdit.classList.toggle("hidden", !me);
+  el.perCueEdit.textContent = person.cuescoreId ? "Change your Cuescore link" : "Add your Cuescore link";
+
+  const theirs = shownMatches().filter(s => people.resolve(s.playerA) === id || people.resolve(s.playerB) === id);
+  el.perRecord.innerHTML = "";
+  for(const game of ["standard", "golden", "league"]){
+    const done = theirs.filter(s => s.status === "done" && gameOf(s) === game);
+    if(!done.length) continue;
+    let w = 0, l = 0, d = 0;
+    for(const s of done){
+      const side = people.resolve(s.playerA) === id ? "a" : "b";
+      const win = s.totals && s.totals.winner;
+      if(!win) d++; else if(win === side) w++; else l++;
+    }
+    const li = document.createElement("li");
+    li.innerHTML = "<span></span><span></span>";
+    li.children[0].textContent = GAME_LABEL[game];
+    li.children[1].textContent = `won ${w}, lost ${l}` + (d ? `, tied ${d}` : "");
+    el.perRecord.appendChild(li);
+  }
+  if(!el.perRecord.children.length) el.perRecord.innerHTML = "<li><span>No finished matches yet</span></li>";
+
+  el.perMatches.innerHTML = "";
+  theirs.forEach(s => el.perMatches.appendChild(matchRow(s, { del: false, from: "person" })));
+  if(!theirs.length) el.perMatches.innerHTML = '<li class="empty">No matches yet.</li>';
+  return true;
+}
+
 // ---------- invites (the members allowlist) ----------
 el.familyBtn.addEventListener("click", openFamily);
-el.famBack.addEventListener("click", () => show("home"));
+el.famBack.addEventListener("click", () => openPage("more"));
+el.aboutBtn.addEventListener("click", () => show("about"));
+el.aboutBack.addEventListener("click", () => openPage("more"));
 
 async function openFamily(){
   show("family");
@@ -2679,8 +2974,7 @@ el.impMerge.addEventListener("click", async () => {
   }
   pendingImport = null;
   await loadState();
-  renderHome();
-  checkLive();
+  rerender();
 });
 
 el.impReplace.addEventListener("click", async () => {
@@ -2701,8 +2995,7 @@ el.impReplace.addEventListener("click", async () => {
   }
   pendingImport = null;
   await loadState();
-  renderHome();
-  checkLive();
+  rerender();
 });
 
 if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");

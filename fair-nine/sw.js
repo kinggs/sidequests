@@ -1,5 +1,5 @@
 // Network-first shell cache. Bump CACHE whenever index.html changes so old copies are dropped.
-const CACHE = "fair-nine-v1.4.1";
+const CACHE = "fair-nine-v1.5.0";
 const SHELL = ["./", "./index.html", "./manifest.json",
                "./icon.svg", "./icon-192.png", "./icon-512.png", "./icon-maskable-512.png"];
 
