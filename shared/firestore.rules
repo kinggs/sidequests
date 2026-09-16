@@ -2,9 +2,13 @@ rules_version = '2';
 
 // One rule set for every app in this repo.
 // Access = you are signed in with Google AND your email has a document in /members.
-// The family list lives in Firestore, not in this file, so the apps can manage it:
-// adding or removing a person (Fair Nine → Family) takes effect instantly, with no
-// rules deploy and no email addresses in the public repo.
+// The members list lives in Firestore, not in this file, so the apps can manage it:
+// adding a person (Rack It → More → Invites) takes effect instantly, with no rules
+// deploy and no email addresses in the public repo.
+//
+// One member is the owner: their /members document carries role: "owner", set by hand in
+// the Firebase console. Only the owner removes a member or changes a member's role, and
+// only the owner does the things in Rack It that can't be undone (below).
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -15,14 +19,43 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/members/$(request.auth.token.email));
     }
 
-    // The allowlist itself: any family member can manage it.
-    match /members/{email} {
-      allow read, write: if isFamily();
+    function isOwner() {
+      return isFamily()
+        && get(/databases/$(database)/documents/members/$(request.auth.token.email)).data.get('role', '') == 'owner';
     }
 
-    // Every app keeps its data under /sidequests/<appId>/...
+    // The allowlist. Any member invites (and re-invites, which only touches addedBy and
+    // addedAt); nobody but the owner removes anyone or sets a role.
+    match /members/{email} {
+      allow read: if isFamily();
+      allow create: if isFamily() && !request.resource.data.keys().hasAny(['role']);
+      allow update: if isOwner()
+        || (isFamily() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['addedBy', 'addedAt']));
+      allow delete: if isOwner();
+    }
+
+    // Every app keeps its data under /sidequests/<appId>/... (people under _shared).
+    // Rack It's writes are spelled out below instead.
     match /sidequests/{appId}/{document=**} {
-      allow read, write: if isFamily();
+      allow read: if isFamily();
+      allow write: if isFamily() && appId != 'rack-it';
+    }
+
+    // Rack It. Any member scores: state/main, new matches and live ones. Only the owner
+    // deletes a match or changes one that's saved (which is what Rebuild ratings does).
+    // Any member sets a new player's starter rating; only the owner changes or deletes one.
+    // A new collection here needs its own rule, or nobody can write it.
+    match /sidequests/rack-it/state/{doc} {
+      allow write: if isFamily();
+    }
+    match /sidequests/rack-it/matches/{id} {
+      allow create: if isFamily();
+      allow update: if isOwner() || (isFamily() && resource.data.get('status', '') != 'done');
+      allow delete: if isOwner();
+    }
+    match /sidequests/rack-it/starters/{id} {
+      allow create: if isFamily();
+      allow update, delete: if isOwner();
     }
 
     // Nothing else is reachable.

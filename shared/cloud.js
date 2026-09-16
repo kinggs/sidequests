@@ -14,6 +14,7 @@
 //
 // Add ?mock to an app's URL to run it against shared/cloud-memory.js instead: no Firebase,
 // a fake signed-in member, data kept in this browser. That's how sessions test an app.
+//   cloud.role()                          // "owner" | "member" | null
 //
 // All data for an app lives under /sidequests/<appId>/ in Firestore. Apps never read or
 // write outside their own namespace, so one Firebase project serves the whole repo.
@@ -188,16 +189,26 @@ export const cloud = {
   // ---- family allowlist ----
   // Lives in /members (one doc per email, doc id = the address, lowercased).
   // Firestore rules check membership there, so changes take effect instantly.
+  // One member carries role: "owner", set by hand in the Firebase console. The rules keep
+  // removing a member, and each app's undo-proof actions, to the owner (firestore.rules).
   async listMembers() {
     const snap = await fs.getDocs(fs.collection(db, "members"));
     return snap.docs.map(d => d.id).sort();
   },
+  // "owner", "member", or null when signed out or not invited. Apps hide owner-only
+  // actions from everyone else; the rules refuse them anyway.
+  async role() {
+    if (!currentUser || !currentUser.email) return null;
+    const snap = await fs.getDoc(fs.doc(db, "members", currentUser.email.toLowerCase()));
+    return snap.exists() ? (snap.data().role === "owner" ? "owner" : "member") : null;
+  },
+  // Merged, so inviting someone again never wipes their role.
   addMember(email) {
     const e = String(email).trim().toLowerCase();
     return fs.setDoc(fs.doc(db, "members", e), {
       addedBy: currentUser ? currentUser.email : null,
       addedAt: fs.serverTimestamp()
-    });
+    }, { merge: true });
   },
   removeMember(email) {
     return fs.deleteDoc(fs.doc(db, "members", String(email).trim().toLowerCase()));

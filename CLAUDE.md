@@ -44,6 +44,7 @@ GitHub Pages serves `main` from the repo root. Nothing to configure per app.
 - Config lives in `shared/firebase-config.js`. Filled in once; never per app.
 - Security lives in `shared/firestore.rules`: signed-in Google users whose email has a document in the Firestore `/members` collection. It covers every app automatically, and the rules file contains no email addresses (the repo is public).
 - **Adding a person:** in-app — Rack It (the `rack-it` app) → More → Invites — or via `cloud.addMember(email)` from any app. Instant; no rules deploy needed. Rules deploys are only for changing the rules *logic*.
+- **The owner:** one member's `/members` document carries `role: "owner"`, set by hand in the Firebase console. Only the owner removes a member, and the rules keep an app's can't-be-undone writes (Rack It: deleting or rewriting saved matches, changing starter ratings) to the owner. Apps read it with `cloud.role()` and hide those buttons from everyone else. A new Rack It collection needs its own rule. `?mock` is an owner; `?mock&role=member` isn't.
 - **Deploying rules:** push to `main`. The `deploy-rules` GitHub Action deploys `shared/firestore.rules` automatically whenever it changes, from any session on any device. (Fallbacks if the Action ever breaks: desktop CLI `firebase deploy --only firestore:rules`, or paste the file into Firebase console → Firestore Database → Rules → Publish.)
 - Offline works out of the box: `cloud.js` turns on Firestore's persistent local cache, and each app's `sw.js` caches the shell.
 

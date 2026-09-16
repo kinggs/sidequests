@@ -5,11 +5,13 @@
 //   /sidequests/rack-it/?mock                      signed in as a fake member, data kept
 //   /sidequests/rack-it/?mock=reset                wipe the fake data first
 //   /sidequests/rack-it/?mock&seed=../x.json       start from an app's JSON export (when empty)
+//   /sidequests/rack-it/?mock&role=member          the fake user as a plain member (default: owner)
 //
 // Same surface as cloud.js, including `shared` and the members calls. The data lives in this
 // browser's localStorage, so it survives a reload (resume) and another tab sees every write
 // (watch). Watchers fire on every write, from this tab or another. Firestore's rules aren't
-// modelled: the fake user can read and write everything.
+// modelled: the fake user can read and write everything, and role only changes what an app
+// shows. Check an owner-only rule against shared/firestore.rules, not here.
 //
 // A seed is an app export: `state` becomes state/main, `people` the shared people, and every
 // other top-level array of { id } or map of id → object becomes that collection.
@@ -140,9 +142,12 @@ export const memory = {
       if (!Object.keys(store.docs).length) await seedFrom(q.get("seed")).catch(e => console.warn("[cloud-memory] seed", e));
       url.searchParams.delete("seed");
     }
+    const role = q.get("role");
+    url.searchParams.delete("role");
     history.replaceState(null, "", url.toString().replace("mock=&", "mock&").replace(/mock=$/, "mock"));
     const members = `members/${USER.email}`;
-    if (!store.docs[members]) { store.docs[members] = { addedBy: null, addedAt: Date.now() }; persist(); }
+    if (!store.docs[members]) { store.docs[members] = { addedBy: null, addedAt: Date.now(), role: "owner" }; persist(); }
+    if (role === "owner" || role === "member") { store.docs[members] = { ...store.docs[members], role }; persist(); }
     currentUser = store.signedOut ? null : { ...USER };
     console.info("[cloud-memory] fake cloud for", id, "as", USER.email);
     await new Promise(r => setTimeout(r, 0));
@@ -198,9 +203,15 @@ export const memory = {
   },
 
   async listMembers(){ read(); return rowsOf("members").map(r => r.id).sort(); },
+  async role(){
+    read();
+    const m = currentUser && store.docs["members/" + currentUser.email];
+    return m ? (m.role === "owner" ? "owner" : "member") : null;
+  },
   addMember(email){
     const e = String(email).trim().toLowerCase();
-    return write("members/" + e, { addedBy: currentUser ? currentUser.email : null, addedAt: Date.now() });
+    read();
+    return write("members/" + e, { ...store.docs["members/" + e], addedBy: currentUser ? currentUser.email : null, addedAt: Date.now() });
   },
   removeMember(email){ return write("members/" + String(email).trim().toLowerCase(), null); }
 };
