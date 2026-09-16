@@ -303,3 +303,116 @@ same way. An older home-screen shortcut has to be removed and re-added to pick t
   carry History with them. Deleting a player removes them from every app, and you can't
   delete yourself. Adding a name that's already on the list asks first. The starter-rating
   hint only offers players who have a rating to measure against.
+
+---
+
+## 12. Planned v3 — three games, one app
+
+**Status:** planning. Nothing here is built. This section supersedes "Anything but nine-ball"
+in §9. The rating side of the plan is in [`ZARGO.md`](ZARGO.md).
+
+### 12.1 Why modes, not a new app
+
+Golden Nine and standard nine-ball differ from the league game in what a rack records and how
+it scores. Everything around the rack — players, session document, live sync, resume, watch,
+History, Export, the quota-driven lead bar — is the same, so they become **games** inside Fair
+Nine. Every session carries `game: "league" | "golden" | "standard"`; stored sessions without
+one are league. The app id and URL stay `fair-nine` because renaming breaks installs.
+
+### 12.2 The games
+
+| | League | Golden Nine | Standard |
+|---|---|---|---|
+| A rack records | state of balls 1–9 | winner, win kind, fouls per player, breaker | winner, win kind, fouls per player, breaker |
+| Points | 1 each, 9 is 3 | 10 / 7 / 4 to the winner, 1, 1, 2 for fouls | one rack |
+| Rack ends | all nine balls resolved | winner tapped, or a third foul | winner tapped |
+| Default length | 5 racks | fixed racks, extra rack on a tie | race to N |
+| Default break | alternate | winner breaks | ⚠ alternate or winner |
+| Handicap levers | scoring, racks | scoring, racks | racks |
+
+**Golden Nine, as the DUYA Legends Tour standard rules state it** (the source is the
+[English rules page](https://alison-chang.com/duya-legends-tour-golden-nine-standard-rules/)):
+
+- Break and run, "Big Golden": **10**. Table run, "Small Golden": **7** — a legal 9 on the
+  break, the breaker pocketing the 9 by combination during their inning, or a player who takes
+  over with the 1 and the 9 still on the table and clears (a combination on the 9 doesn't count).
+  Any other win: **4**.
+- A player's first and second foul in a rack give the opponent **1 point each**. The third
+  gives **2 points** and the rack is lost. ⚠ The rules don't say whether the opponent also
+  gets the 4-point win. We read the 1 + 1 + 2 = 4 as *being* the win, so a three-foul rack
+  is worth 4 to the winner, the same as a normal win. This is one config value if the club
+  plays it differently.
+- Intentional fouls are forbidden: the first loses the rack and gives the opponent **10**,
+  the second loses the match. The app records this from a long-press menu, not a big button.
+- Matches are a scheduled number of racks; a tie after the last rack is settled by one more.
+  Winner breaks. A 45-second shot clock with one 30-second extension per rack exists in the
+  rules; the app leaves the clock out of v3.
+- Other balls off the table stay off; only the 9 is respotted. Ball in hand after a foul.
+
+**Standard nine-ball:** WPA scoring, one rack is one rack, race to N. Fouls can be recorded
+per player per rack for the same look as Golden Nine, and never affect the result.
+
+### 12.3 The live screen per game
+
+The league screen is unchanged. Golden Nine and standard share one simpler screen built from
+the same pieces: two score panels with the shooter tint, the lead bar, a **foul** tap under
+each player (a small counter showing the points it gave away), and at rack end three big
+**how did you win** buttons under the winner's side. Golden Nine: Big Golden, Small Golden,
+Win. Standard: Break and run, 9 on the break, Win. The same three-button pattern in both games
+is deliberate. Undo, resume, watch and per-rack `patch` writes work as they do today.
+
+### 12.4 Setup changes
+
+- A **game** picker above the players. The app remembers the last game.
+- **Handicap: off / scoring / racks.** With racks, setup shows the race chart from `ZARGO.md`
+  as "race to 7 vs race to 4" and as a head start, both editable. With scoring, quotas as
+  today. Off still feeds ratings.
+- Length: racks (with the tie-break extra rack for Golden Nine) or race to N.
+- Who breaks first, with the game's default pre-filled.
+
+### 12.5 Data
+
+```
+sessions/<id>
+  game: "league" | "golden" | "standard"
+  handicap: "off" | "scoring" | "racks"
+  racks: {
+    "1": { balls: {...}, breaker, at }                                   // league
+    "1": { winner: "a", kind: "big" | "small" | "win" | "fouls" | "intentional",
+           fouls: { a: 0, b: 2 }, breaker, at }                          // golden
+    "1": { winner: "a", kind: "run" | "nine" | "win", fouls: { a, b }, breaker, at }  // standard
+  }
+  totals: { a, b, racksA, racksB, dead, lead, winner }
+
+state/main.config.games.<game>: { points, w, defaults }
+```
+
+### 12.6 Cuescore
+
+Cuescore is where Sessions Billiard Club already lives: leagues, rankings and challenge
+matches. Its [API](https://api.cuescore.com/) is read-only and in beta; challenges are created
+and scored by hand inside a logged-in account, and no write or import path is documented. A
+static app can't hold a Cuescore session, and automating it would mean a backend with stored
+credentials and screen-scraping. So, in v3:
+
+- Each person can carry a `cuescoreId`, found by name through the read API and confirmed by
+  tapping the right match.
+- Session summary gets **Copy for Cuescore**: the two names, discipline, race and score in
+  the shape the challenge form wants, plus a link to Cuescore's challenges page.
+- A new player's starter Zargo can be hinted from their Cuescore rating (ZARGO.md, item 10).
+- Automatic upload stays out until Cuescore offers a write API. ⚠ Worth an email to their
+  support asking whether one is planned.
+
+### 12.7 Beyond the household
+
+The app stays invite-only. The Family screen already does what a club needs: any member can
+add another member's Gmail, and only members can read anything. If club members join, the
+shared people list becomes the club's list. ⚠ Whether to group people by club is an open
+question in `ZARGO.md`.
+
+### 12.8 Open questions
+
+- ⚠ Three-foul rack worth 4 in total (our reading) or 4 + 4?
+- ⚠ Standard nine-ball at Sessions: alternate or winner breaks, and the usual race length?
+- ⚠ Keep the name Fair Nine now that it holds three games?
+- ⚠ One flat people list for household and club, or grouped?
