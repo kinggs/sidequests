@@ -145,10 +145,28 @@ every game that supports them.
       points) finishes the rack first, as in an 11-Point-Nine race; the lead bar and
       `matchResult` already handle a Golden-Nine race. ⚠ The split assumes point share ≈
       rack-win share (ZARGO.md), so check it against a few real matches.
+- [ ] **Players carry a Gmail, get claimed, show their photo** (owner: important). All of
+      SPEC §13.8, mostly in `shared/people.js`:
+  - [ ] Gmail **required** on Add player and in the shared people sheet; saving invites.
+        Existing players without one show "No Gmail" and can't be saved without it.
+  - [ ] Claim on first sign-in: `uid` and `claimedAt` on the person. Email match links
+        silently; otherwise a **"Which player are you?"** card lists unclaimed players plus
+        "I'm not on the list". Remove the first-name guess in `ensureMe()`. A claimed player
+        can't be claimed by another account; the edit sheet offers Unclaim, confirmed.
+  - [ ] Write the Google `photoURL` to the claimed person on every sign-in.
+  - [ ] `people.avatar(id, size)`: photo in a circle inside a 3px ring of the player's
+        colour, with a 2px dark gap; no photo or a failed load → colour circle with their
+        initial. Replace every colour dot (Home list, pickers, Invites) with it.
+  - [ ] Cuescore link: editable only when editing yourself, never on Add player; read-only
+        on anyone else. Rack It's "Gmail, Cuescore link, or merge" button passes
+        `cuescore: true` only for you.
+  - [ ] `people.js` behaviour changes for every app: bump Around the Clock and Bloc 11
+        versions too, and check their add sheets still work.
 - [ ] Version bump, `/deployquest`, Handover.
 
-**Done when:** a repeat of last night's match is Game, two names, Start; and each lever
-produces the numbers ZARGO.md describes.
+**Done when:** a repeat of last night's match is Game, two names, Start; each lever
+produces the numbers ZARGO.md describes; a new player can't be added without a Gmail, signs
+in, claims themselves, and shows their photo in their colour ring.
 
 ---
 
@@ -163,7 +181,8 @@ produces the numbers ZARGO.md describes.
       above the tabs on every screen with Resume and Watch.
 - [ ] **Ratings**: the ranked list. Tap a row → **person page**: Zargo with robustness and
       one sentence on what it means, win record per game, their matches, Edit (the shared
-      people sheet plus starter rating and Cuescore link). Delete stays there, confirmed.
+      people sheet plus starter rating; Cuescore link on your own page only). Delete stays
+      there, confirmed. Avatars from Session 3 on every row and the page header.
 - [ ] **Matches**: live first, then newest; row shows names, score, game, when, winner.
       Two-tap delete as today. A finished match opens its summary.
 - [ ] **Summary** gains **Copy for Cuescore**: both names, discipline, race and score as
@@ -192,9 +211,6 @@ taps, and a new club member can be added, rated and matched without a word of ex
 - Golden-Nine match time limit. DUYA pairs every rack count with a time limit (e.g. 35 racks
   or 210 minutes, whichever comes first; a tie at time plays one more rack). Would need a
   match clock on the live screen and a time field in setup.
-- Players carry a Gmail from Add player, are claimed on first sign-in ("Which player are
-  you?"), and show their Google photo in a ring of their colour. SPEC §13.8. Mostly
-  `shared/people.js`; fits beside Session 4's person pages.
 - End a fixed-rack Golden-Nine match early once the trailing player can't catch up, as
   reported from DUYA broadcasts. Simple with handicap off (points behind > 10 × racks left,
   plus fouls); with the scoring handicap it has to be worked out on quotas.

@@ -423,6 +423,7 @@ credentials and screen-scraping. So, in v3:
   people sheet: paste the profile URL and the trailing number is kept. The sheet shows the
   field only when an app asks (`people.edit(id, { cuescore: true })`), so the darts and
   climbing apps are unchanged. Finding it by name through the read API is a later option.
+  From Session 3 each person fills in only their own (§13.8, item 5).
 - Session summary gets **Copy for Cuescore**: the two names, discipline, race and score in
   the shape the challenge form wants, plus a link to Cuescore's challenges page.
 - A new player's starter Zargo can be hinted from their Cuescore rating (ZARGO.md, item 10).
@@ -536,7 +537,7 @@ last night's match is Game, two names, Start.
 The Ratings list is the old Home list, ranked, with the same row: name, colour, Zargo,
 robustness, provisional tag. Tapping a row opens **their page**: Zargo with the one-line
 explanation, win records per game, their matches, and Edit (name, colour, starter rating,
-Gmail, Cuescore id, merge, delete). This replaces the History chips and the edit-only path
+Gmail, merge, delete; the Cuescore link on your own page only, §13.8). This replaces the History chips and the edit-only path
 to a rating.
 
 ### 13.5 Matches
@@ -560,8 +561,8 @@ it can live one tap away.
 
 ### 13.8 Players carry a Gmail, get claimed, and show their Google photo
 
-**Status:** planned, not scheduled in V3-PLAN yet. Most of it lands in `shared/people.js`, so
-Around the Clock and Bloc 11 get it too.
+**Status:** scheduled in V3-PLAN Session 3 (owner: important). Most of it lands in
+`shared/people.js`, so Around the Clock and Bloc 11 get it too.
 
 **What exists today (1.2.1).** A person can carry an `email`. The shared people sheet offers
 "Their Gmail, so they can sign in", and saving one also invites that address. On sign-in,
@@ -571,10 +572,14 @@ that, it adds a new person. Rack It's own **Add player** form asks only for name
 starter rating, so players added there have no Gmail until someone edits them. No photo is
 stored.
 
-**1. Gmail when adding.** Rack It's Add player form asks for **Their Gmail** right under the
-name, and saving it invites them (as the shared sheet already does). The field is optional,
-because some club players won't use Google, and the form says so in one line: "Add it so
-they can sign in and claim this player." ⚠ Owner to confirm optional rather than required.
+**1. Gmail is required.** Every new player needs a Gmail: Rack It's Add player form asks for
+**Their Gmail** right under the name, and so does the shared people sheet, in every app. Save
+stays disabled until it looks like an email, and saving invites them (as the sheet already
+does). One line says why: "They sign in with this and claim the player." A Gmail already on
+someone else is refused, as today.
+- **Existing players with no Gmail** keep playing and keep their records. Their row shows
+  **"No Gmail"**, and editing them can't be saved without adding one.
+- A player merged into another keeps the survivor's Gmail, as `merge` does today.
 
 **2. Claiming on sign-in.** A person record gains `uid` (the Firebase user id) and
 `claimedAt`. On a user's first sign-in:
@@ -588,6 +593,8 @@ they can sign in and claim this player." ⚠ Owner to confirm optional rather th
   sheet shows "Claimed by <email>" and offers **Unclaim** (confirmed) for mistakes.
 - Stored match records don't change. They key on person ids, and a claim only fills in
   fields on an existing person.
+- With Gmail required, the "Which player are you?" card mostly catches people invited
+  straight from Invites and players added before 1.2.1 with no Gmail.
 
 **3. Photos.** On every sign-in the claimed person's `photoURL` is written from the Google
 profile, since Google changes those links. Other people's photos are therefore the last one
@@ -604,8 +611,13 @@ Ratings list, the person page, pickers, Invites — `people.js` renders one **av
   it.
 - One helper, `people.avatar(id, size)`, so every app draws the same thing.
 
+**5. Cuescore link is optional and your own.** Nobody sets another person's Cuescore link. The
+"Cuescore profile link" field shows only when you edit **yourself** (`people.isMe(id)`), and
+never on Add player. On anyone else's edit sheet, and on their person page (Session 4), it is
+read-only: their link, or "Not added". ⚠ This is enforced in the app, not by the Firestore
+rules, which let any member write any person.
+
 **Privacy.** Emails, uids and photo links sit in Firestore under the members-only rules, not
 in the repo. The photo image loads from Google's servers, which see each viewer's request, as
 with any Google profile picture.
 
-⚠ **Open:** whether the Gmail is optional or required (item 1).
