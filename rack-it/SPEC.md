@@ -4,14 +4,15 @@ A phone-first scorer for three cue games between any two players, with one ratin
 of them (**Zargo**) and handicaps that keep a mismatched pair close. Matches sync to the cloud,
 so any invited phone can score, resume or watch. Invite-only: members sign in with Google.
 
-This spec is the app as it is (2.1.1). The rating's reasoning is in [`ZARGO.md`](ZARGO.md); the
+This spec is the app as it is (2.1.2). The rating's reasoning is in [`ZARGO.md`](ZARGO.md); the
 build sessions and their handovers are in [`V3-PLAN.md`](V3-PLAN.md); the look (dark system v2)
 is in [`design/DESIGN.md`](design/DESIGN.md).
 
 **Files.** `index.html` (the app), `zargo.js` (the rating engine, pure), `zargo.test.mjs` (its
-tests: `node --test` from the repo root), `sw.js`, `manifest.json`, icons, and
-`space-grotesk-600.woff2` and `space-grotesk-700.woff2` (the numerals and labels, self-hosted so
-they work with no signal). `design/` is reference only.
+tests: `node --test` from the repo root), `sw.js`, `manifest.json`, icons. The shared look,
+tokens and the Space Grotesk fonts (self-hosted so they work with no signal) come from
+`shared/theme.css` and `shared/fonts/`; `index.html` keeps only Rack It's own parts. `design/`
+is reference only.
 
 ---
 
@@ -364,7 +365,7 @@ matches/<id>
   but a last one that End dropped (no balls at all, or points not in `totals`).
 - Writes: racks with `cloud.patch` per rack; `state/main` and `starters` with `cloud.save`.
 - Offline: Firestore's persistent cache is on; `sw.js` caches the shell (`index.html`,
-  `zargo.js`, the two fonts, manifest, icons), network first.
+  `zargo.js`, `shared/theme.css` and the two fonts, manifest, icons), network first.
 
 **Export** downloads one JSON file: `app: "rack-it"`, `state`, `people`, `starters`, `matches`.
 It holds email addresses, so it never goes in the repo. **Import** accepts `app` `"rack-it"` or

@@ -230,7 +230,6 @@ agreement matters less than every token and every component reading the same eve
 - WPA 8-ball and Heyball: same shape as Trad-Nine, add a game entry and a win-kind list.
 - Club grouping of people.
 - Protecting `uid` and `email` on people documents by rule (Session 6 ⚠).
-- A shared `shared/theme.css` if the other two apps ever take Rack It's design.
 - Cuescore rating as a starter hint via `api.cuescore.com` (⚠ CORS from a static page is
   untested).
 - Fitting the 11-Point-Nine point-share-to-rack-odds mapping (ZARGO.md challenge 1).
@@ -240,7 +239,6 @@ agreement matters less than every token and every component reading the same eve
 - End a fixed-rack Golden-Nine match early once the trailing player can't catch up, as
   reported from DUYA broadcasts. Simple with handicap off (points behind > 10 × racks left,
   plus fouls); with the scoring handicap it has to be worked out on quotas.
-- Avatars in Around the Clock and Bloc 11 (their lists keep colour dots).
 - The lead bar in a plain race still shows the lead ("+16 points") after a target is met,
   where the scoring bar says "target met".
 - The live strip and Matches redraw on every scoring write from another phone. Fine at
