@@ -232,7 +232,7 @@
     font-size:calc(var(--bs) * .78);font-weight:300;color:rgba(239,233,220,.75);
   }
 
-  /* ---- Golden Nine and 9-ball: a foul and three ways to win under each player ---- */
+  /* ---- Golden-Nine and Trad-Nine: a foul and three ways to win under each player ---- */
   .winarea{flex:1 1 0;min-height:0;display:flex;gap:10px;padding:8px 10px 12px}
   .wincol{flex:1;display:flex;flex-direction:column;gap:8px;min-height:0}
   .wincol button{flex:1 1 0;min-height:56px;max-height:96px;padding:4px 8px;border-radius:13px;
@@ -356,9 +356,9 @@
   </header>
   <div class="setupbody">
     <div class="modes" id="games">
-      <button data-game="league">League</button>
-      <button data-game="golden">Golden Nine</button>
-      <button data-game="standard">9-ball</button>
+      <button data-game="standard">Trad-Nine</button>
+      <button data-game="golden">Golden-Nine</button>
+      <button data-game="league">11-Point-Nine</button>
     </div>
     <div class="pick">
       <div class="pickcol ca"><h3>Blue side</h3><div id="pickA" style="display:flex;flex-direction:column;gap:8px"></div></div>
@@ -498,7 +498,7 @@ import { phone } from "../shared/phone.js";
 import { people } from "../shared/people.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "1.1.0";
+const APP_VERSION = "1.1.1";
 const APP_ID = "fair-nine";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 
@@ -565,9 +565,9 @@ const handicapOf = doc => (doc && doc.handicap) || "scoring";
 const withMatchFields = doc => Object.assign({}, doc, { game: gameOf(doc), handicap: handicapOf(doc) });
 const DEFAULT_RACKS = 5;   // the setup default, and the notional length of an open session
 
-const GAME_LABEL = { league: "League", golden: "Golden Nine", standard: "9-ball" };
-// The three ways to win a rack in Golden Nine and 9-ball, in button order (SPEC §12.3).
-// "fouls" and "intentional" also end a Golden Nine rack, but from the Foul button.
+const GAME_LABEL = { league: "11-Point-Nine", golden: "Golden-Nine", standard: "Trad-Nine" };
+// The three ways to win a rack in Golden-Nine and Trad-Nine, in button order (SPEC §12.3).
+// "fouls" and "intentional" also end a Golden-Nine rack, but from the Foul button.
 const WIN_KINDS = {
   golden:   [["big", "Big Golden"], ["small", "Small Golden"], ["win", "Win"]],
   standard: [["run", "Break & run"], ["nine", "9 on the break"], ["win", "Win"]]
@@ -579,16 +579,16 @@ const newRack = () => ({ winner: null, kind: null, fouls: { a: 0, b: 0 } });
 const rackOf = rec => ({ winner: (rec && rec.winner) || null, kind: (rec && rec.kind) || null,
   fouls: { a: (rec && rec.fouls && rec.fouls.a) || 0, b: (rec && rec.fouls && rec.fouls.b) || 0 } });
 
-// Golden Nine points from a player's fouls: 1, 1, then 2 (the third also loses the rack).
+// Golden-Nine points from a player's fouls: 1, 1, then 2 (the third also loses the rack).
 function foulPoints(n){
   const f = cfg().games.golden.points.foul;
   let s = 0;
   for(let i = 0; i < n; i++) s += f[Math.min(i, f.length - 1)];
   return s;
 }
-// What one rack of a non-league game is worth to each side. Golden Nine: the opponent's
+// What one rack of a non-league game is worth to each side. Golden-Nine: the opponent's
 // fouls plus the win (a three-foul rack's 1 + 1 + 2 is the win, so it adds nothing more).
-// 9-ball: one rack is one rack; fouls never score.
+// Trad-Nine: one rack is one rack; fouls never score.
 function gameRackPoints(game, rack){
   const p = { a:0, b:0, dead:0 };
   if(game === "standard"){ if(rack.winner) p[rack.winner] = 1; return p; }
@@ -604,7 +604,7 @@ function leagueRackPoints(balls){
   for(const k in (balls || {})) p[balls[k]] += VAL(+k);
   return p;
 }
-// Bank one complete rack. A League rack's winner is whoever took more live points.
+// Bank one complete rack. An 11-Point-Nine rack's winner is whoever took more live points.
 function bankInto(banked, game, p, rack){
   const winner = game === "league" ? (p.a > p.b ? "a" : p.b > p.a ? "b" : null) : rack.winner;
   banked.a += p.a; banked.b += p.b; banked.dead += p.dead;
@@ -886,8 +886,8 @@ function storedGame(){
   try { const g = localStorage.getItem(GAME_KEY); return GAME_LABEL[g] ? g : "league"; }
   catch(e){ return "league"; }
 }
-// Each game's length default: League a rough 5-rack race (as before), Golden Nine 5 fixed
-// racks, 9-ball a race to 5 racks.
+// Each game's length default: 11-Point-Nine a rough 5-rack race (as before), Golden-Nine 5 fixed
+// racks, Trad-Nine a race to 5 racks.
 function applyGameDefaults(){
   setup.mode = setup.game === "golden" ? "fixed" : "race";
   setup.raceTo = 5;
@@ -946,7 +946,7 @@ function renderSetup(){
   if(a && b){
     const eA = expectedShareA(a.zargo, b.zargo);
     const H = eA / (1 - eA);
-    // Zargo is odds on a rack, so the same H reads as points in League and racks elsewhere.
+    // Zargo is odds on a rack, so the same H reads as points in 11-Point-Nine and racks elsewhere.
     const unit = league ? "points" : "racks";
     const odds = H.toFixed(2) === "1.00" ? ""
       : `${H > 1 ? a.name : b.name} is expected to ${league ? "score" : "win"} ` +
@@ -1006,7 +1006,7 @@ async function startSession(){
   const a = P(setup.a), b = P(setup.b);
   const game = setup.game;
   const racks = Math.max(1, parseInt(el.racksIn.value, 10) || DEFAULT_RACKS);
-  // 9-ball has no points to share, so until the Racks lever it is a level race.
+  // Trad-Nine has no points to share, so until the Racks lever it is a level race.
   const mode = game === "golden" ? "fixed" : setup.mode;
   const targets = game === "standard" ? { a: setup.raceTo, b: setup.raceTo }
     : mode === "race"
@@ -1132,7 +1132,7 @@ function cycle(n){
   else                          live.balls[n] = state.turn;
 }
 
-// Undo snapshots the current rack: the balls in League, fouls and the win elsewhere.
+// Undo snapshots the current rack: the balls in 11-Point-Nine, fouls and the win elsewhere.
 function push(){
   live.history.push(JSON.stringify(live.game === "league" ? live.balls : live.rack));
   if(live.history.length > 60) live.history.shift();
@@ -1142,7 +1142,7 @@ function pop(){
   if(live.game === "league") live.balls = snap; else live.rack = snap;
 }
 
-// ---- Golden Nine and 9-ball: foul and win buttons ----
+// ---- Golden-Nine and Trad-Nine: foul and win buttons ----
 const winCols = { a: el.winArea.querySelector('.wincol[data-p="a"]'), b: el.winArea.querySelector('.wincol[data-p="b"]') };
 
 function foul(side){
@@ -1150,7 +1150,7 @@ function foul(side){
   buzz(9);
   push();
   live.rack.fouls[side]++;
-  // Golden Nine: the third foul gives 2 and the rack (1 + 1 + 2 is the win).
+  // Golden-Nine: the third foul gives 2 and the rack (1 + 1 + 2 is the win).
   if(live.game === "golden" && live.rack.fouls[side] >= 3){
     live.rack.winner = other(side);
     live.rack.kind = "fouls";
@@ -1183,7 +1183,7 @@ function undoWin(){
   sync();
 }
 
-// Intentional foul (Golden Nine only), from a long-press on Foul: confirmed first, because
+// Intentional foul (Golden-Nine only), from a long-press on Foul: confirmed first, because
 // it costs the rack and 10 points, and a second one costs the match.
 function askIntentional(side){
   if(!live || live.game !== "golden" || live.rack.winner) return;
@@ -1243,7 +1243,7 @@ function paintWinArea(game, rack){
     const f = col.querySelector(".foul");
     const n = rack.fouls[side];
     f.classList.toggle("has", n > 0);
-    // Golden Nine shows what the fouls gave away; 9-ball only counts them.
+    // Golden-Nine shows what the fouls gave away; Trad-Nine only counts them.
     f.innerHTML = !n ? "Foul"
       : game === "golden" ? `Foul <small>${n} · gave ${foulPoints(n)}</small>`
       : `Foul <small>${n} this rack</small>`;
@@ -1286,7 +1286,7 @@ el.doneBack.addEventListener("click", () => { el.done.classList.add("hidden"); }
 
 el.end.addEventListener("click", () => watching ? stopWatch() : endSession());
 
-// Points in the rack in progress. In 9-ball a "point" is a rack won, so totals are racks.
+// Points in the rack in progress. In Trad-Nine a "point" is a rack won, so totals are racks.
 function rackPoints(){
   if(!live) return { a:0, b:0, dead:0 };
   return live.game === "league" ? leagueRackPoints(live.balls) : gameRackPoints(live.game, live.rack);
@@ -1319,9 +1319,9 @@ const clamp1 = v => Math.max(-1, Math.min(1, v));
 //          early whitewash reads +40%, as it would in a five-rack race, not +200%.
 // In fixed and open the gap is the adjusted lead divided by a positive constant, so the
 // leader here is always the player who would win if the session stopped now.
-//   Golden Nine: a rack is worth 4 to 10, so the session's size is the points scored so far,
+//   Golden-Nine: a rack is worth 4 to 10, so the session's size is the points scored so far,
 //          shared out by the expected rack-win share — floored at a plain win per planned
-//          rack, so an early rack reads +40% as it does in League rather than +100%.
+//          rack, so an early rack reads +40% as it does in 11-Point-Nine rather than +100%.
 function quotas(ctx, t){
   if(ctx.mode === "race") return ctx.targets && ctx.targets.a && ctx.targets.b ? ctx.targets : null;
   const racks = ctx.mode === "fixed" ? (ctx.racksPlanned || DEFAULT_RACKS)
@@ -1432,7 +1432,7 @@ function rackComplete(){
   buzz([18,60,18]);
 }
 
-// Golden Nine and 9-ball: a win tap (or a third foul) ends the rack. No 11-point check,
+// Golden-Nine and Trad-Nine: a win tap (or a third foul) ends the rack. No 11-point check,
 // straight to the next rack, with the tap still undoable from here.
 function gameRackEnd(){
   if(!live || !live.rack.winner) return;
@@ -1462,12 +1462,12 @@ function gameRackEnd(){
   buzz([18,60,18]);
 }
 
-// Golden Nine's scheduled racks can end level; the rules settle that with one more rack.
+// Golden-Nine's scheduled racks can end level; the rules settle that with one more rack.
 function lastRackBanked(){
   const t = { a: live.banked.a, b: live.banked.b };
   if(live.game !== "golden" || live.mode !== "fixed" || matchResult(t).winner !== null) return declare();
   el.doneTitle.textContent = `Tied after ${live.banked.racks} racks`;
-  el.doneBody.textContent = `${live.nameA} ${t.a}, ${live.nameB} ${t.b}. Golden Nine settles a tie with one more rack.`;
+  el.doneBody.textContent = `${live.nameA} ${t.a}, ${live.nameB} ${t.b}. Golden-Nine settles a tie with one more rack.`;
   el.doneZargo.classList.add("hidden");
   el.doneNext.textContent = "Play a deciding rack";
   el.doneNext.onclick = () => {
@@ -1488,7 +1488,7 @@ function bankRack(){
 }
 
 function nextRack(extra){
-  // Golden Nine: the winner of the last rack breaks. League and 9-ball alternate.
+  // Golden-Nine: the winner of the last rack breaks. 11-Point-Nine and Trad-Nine alternate.
   const last = live.banked.points[live.banked.points.length - 1];
   live.balls = {};
   live.rack = newRack();
@@ -1518,7 +1518,7 @@ function endSession(){
   askAboutPartRack(p, resolved);
 }
 
-// Golden Nine and 9-ball: a rack with a winner counts; one without has no result, so it's
+// Golden-Nine and Trad-Nine: a rack with a winner counts; one without has no result, so it's
 // dropped, and End says so when fouls were already given in it.
 function endGameSession(){
   if(live.rack.winner){ bankRack(); return finishSession(); }
@@ -1583,11 +1583,11 @@ async function finishSession(){
 
 // Zargo is odds on a rack (ZARGO.md). Every complete rack gives A a result r in 0..1 and a
 // weight w for how much that rack tells us:
-//   League: r is A's share of the rack's live points. The game's w is spread over the racks
+//   11-Point-Nine: r is A's share of the rack's live points. The game's w is spread over the racks
 //           in proportion to the live points each carried, so a rack full of dead balls
 //           counts for less. The weights still sum to w × racks, which makes the update
 //           below exactly spec 3.3's K × racks × (pooled share − expected).
-//   Golden Nine and 9-ball: r is 1 if A won the rack, else 0, with the game's w per rack.
+//   Golden-Nine and Trad-Nine: r is 1 if A won the rack, else 0, with the game's w per rack.
 //           Points, fouls and the kind of win don't enter it.
 function rackResults(game, points){
   const w = cfg().games[game].w;
@@ -1649,9 +1649,9 @@ function zargoOutcome(results){
   return { a:{from:za, to:za + dA}, b:{from:zb, to:zb + dB}, cal:null };
 }
 
-// Who won. League and Golden Nine with the scoring handicap: the adjusted lead. Handicap
-// off: the plain difference. A race outside League goes to whoever met their target. In
-// Golden Nine a second intentional foul loses the match whatever the score.
+// Who won. 11-Point-Nine and Golden-Nine with the scoring handicap: the adjusted lead. Handicap
+// off: the plain difference. A race outside 11-Point-Nine goes to whoever met their target. In
+// Golden-Nine a second intentional foul loses the match whatever the score.
 function matchResult(t){
   const lead = live.handicap === "off" ? t.b - t.a : t.b - t.a / live.H;
   const byLead = Math.abs(lead) < 0.001 ? null : (lead < 0 ? "a" : "b");
@@ -1793,7 +1793,7 @@ function render(){
   }
 }
 
-// League shows the diamond rack; Golden Nine and 9-ball swap it for the foul and win buttons.
+// 11-Point-Nine shows the diamond rack; Golden-Nine and Trad-Nine swap it for the foul and win buttons.
 function showGameArea(game){
   const league = game === "league";
   el.rack.classList.toggle("hidden", !league);
@@ -1801,7 +1801,7 @@ function showGameArea(game){
   el.deadWrap.classList.toggle("hidden", !league);
   el.next.classList.toggle("hidden", !league);
 }
-// Panels for Golden Nine and 9-ball: the score (points, or racks in 9-ball) and underneath
+// Panels for Golden-Nine and Trad-Nine: the score (points, or racks in Trad-Nine) and underneath
 // either the run-in to a race target or the racks won.
 function paintGamePanels(game, ctx, t, r){
   const racksText = n => n + (n === 1 ? " rack" : " racks");

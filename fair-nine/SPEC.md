@@ -3,7 +3,8 @@
 **v3 session 1 (1.0.0) shipped:** the name Rack It, "match" in every label, `game` and
 `handicap` on match documents, `config.games`, the per-rack Zargo update, and a Cuescore link
 on people. See §12.9. Code and Firestore paths still say "session".
-**v3 session 2 (1.1.0) shipped:** Golden Nine and 9-ball, end to end. See §12.10.
+**v3 session 2 (1.1.0) shipped:** Golden-Nine and Trad-Nine, end to end. See §12.10.
+**1.1.1:** the games are now called Trad-Nine, Golden-Nine and 11-Point-Nine (§13.2).
 
 A phone-first scorer for social nine-ball between any two players in a household, with a self-correcting handicap (the **Zargo** rating) so mismatched players stay evenly matched. Scores sync to the cloud so any family phone can score or review.
 
@@ -28,7 +29,7 @@ A phone-first scorer for social nine-ball between any two players in a household
 
 ## 2. Rules of the house variant
 
-This is **not** standard nine-ball. In standard rules the game ends when the 9 is legally pocketed. In this household's league variant:
+This is **not** standard nine-ball. In standard rules the game ends when the 9 is legally pocketed. In this household's 11-Point-Nine variant:
 
 - Play continues until **all nine balls are off the table**. Sinking the 9 early ends nothing.
 - Balls 1–8 score **1 point** each; the 9 scores **3**. Every rack is worth **11 live points**.
@@ -42,7 +43,7 @@ Point values live in config (`{ low: 1, nine: 3 }`) so the 10-point APA-style va
 
 ## 3. Zargo ratings and handicap
 
-Zargo borrows FargoRate's scale and its trust measure, and swaps what's being measured. Fargo rates **game wins** in races; this league scores **point share** within racks, so Zargo rates point share. A Zargo 500 and a Fargo 500 are unrelated numbers and the app's About text says so.
+Zargo borrows FargoRate's scale and its trust measure, and swaps what's being measured. Fargo rates **game wins** in races; this 11-Point-Nine scores **point share** within racks, so Zargo rates point share. A Zargo 500 and a Fargo 500 are unrelated numbers and the app's About text says so.
 
 ### 3.1 Expected share
 
@@ -293,7 +294,7 @@ same way. An older home-screen shortcut has to be removed and re-added to pick t
 - **Ratings settle fast.** Under 3 sessions a player is "settling": against a known player
   (3+ sessions) their Zargo is solved directly from the observed point share (capped ±250,
   jumping all the way on session 1, half on 2, a third on 3; since v3 "observed mean `r`",
-  which for League is the same number) while the known player's rating
+  which for 11-Point-Nine is the same number) while the known player's rating
   holds as the anchor; two settling players use the standard formula boosted 4×/3×/2× with a
   ±120 clamp. From 3 sessions the spec-3.3 formula applies as written.
 - **Players can be deleted** (edit form, confirmed). Soft delete: they leave every list and
@@ -320,15 +321,15 @@ sessions in [`V3-PLAN.md`](V3-PLAN.md).
 
 ### 12.1 Why modes, not a new app
 
-Golden Nine and standard nine-ball differ from the league game in what a rack records and how
+Golden-Nine and Trad-Nine differ from the 11-Point-Nine game in what a rack records and how
 it scores. Everything around the rack — players, session document, live sync, resume, watch,
 History, Export, the quota-driven lead bar — is the same, so they become **games** inside Fair
 Nine. Every session carries `game: "league" | "golden" | "standard"`; stored sessions without
-one are league. The app id and URL stay `fair-nine` because renaming breaks installs.
+one are 11-Point-Nine. The app id and URL stay `fair-nine` because renaming breaks installs.
 
 ### 12.2 The games
 
-| | League | Golden Nine | Standard |
+| | 11-Point-Nine | Golden-Nine | Trad-Nine |
 |---|---|---|---|
 | A rack records | state of balls 1–9 | winner, win kind, fouls per player, breaker | winner, win kind, fouls per player, breaker |
 | Points | 1 each, 9 is 3 | 10 / 7 / 4 to the winner, 1, 1, 2 for fouls | one rack |
@@ -337,7 +338,7 @@ one are league. The app id and URL stay `fair-nine` because renaming breaks inst
 | Default break | alternate | winner breaks | alternate |
 | Handicap levers | scoring, racks | scoring, racks | racks |
 
-**Golden Nine, as the DUYA Legends Tour standard rules state it** (the source is the
+**Golden-Nine, as the DUYA Legends Tour standard rules state it** (the source is the
 [English rules page](https://alison-chang.com/duya-legends-tour-golden-nine-standard-rules/)):
 
 - Break and run, "Big Golden": **10**. Table run, "Small Golden": **7** — a legal 9 on the
@@ -356,17 +357,17 @@ one are league. The app id and URL stay `fair-nine` because renaming breaks inst
   rules; the app leaves the clock out of v3.
 - Other balls off the table stay off; only the 9 is respotted. Ball in hand after a foul.
 
-**Standard nine-ball:** WPA scoring, one rack is one rack, race to 5 or 7 with alternate
+**Trad-Nine:** WPA scoring, one rack is one rack, race to 5 or 7 with alternate
 break, as played at Sessions. Fouls can be recorded per player per rack for the same look as
-Golden Nine, and never affect the result.
+Golden-Nine, and never affect the result.
 
 ### 12.3 The live screen per game
 
-The league screen is unchanged. Golden Nine and standard share one simpler screen built from
+The 11-Point-Nine screen is unchanged. Golden-Nine and Trad-Nine share one simpler screen built from
 the same pieces: two score panels with the shooter tint, the lead bar, a **foul** tap under
 each player (a small counter showing the points it gave away), and at rack end three big
-**how did you win** buttons under the winner's side. Golden Nine: Big Golden, Small Golden,
-Win. Standard: Break and run, 9 on the break, Win. The same three-button pattern in both games
+**how did you win** buttons under the winner's side. Golden-Nine: Big Golden, Small Golden,
+Win. Trad-Nine: Break and run, 9 on the break, Win. The same three-button pattern in both games
 is deliberate. Undo, resume, watch and per-rack `patch` writes work as they do today.
 
 ### 12.4 Setup changes
@@ -375,7 +376,7 @@ is deliberate. Undo, resume, watch and per-rack `patch` writes work as they do t
 - **Handicap: off / scoring / racks.** With racks, setup shows the race chart from `ZARGO.md`
   as "race to 7 vs race to 4" and as a head start, both editable. With scoring, quotas as
   today. Off still feeds ratings.
-- Length: racks (with the tie-break extra rack for Golden Nine) or race to N.
+- Length: racks (with the tie-break extra rack for Golden-Nine) or race to N.
 - Who breaks first, with the game's default pre-filled.
 
 ### 12.5 Data
@@ -385,7 +386,7 @@ sessions/<id>
   game: "league" | "golden" | "standard"
   handicap: "off" | "scoring" | "racks"
   racks: {
-    "1": { balls: {...}, breaker, at }                                   // league
+    "1": { balls: {...}, breaker, at }                                   // 11-Point-Nine
     "1": { winner: "a", kind: "big" | "small" | "win" | "fouls" | "intentional",
            fouls: { a: 0, b: 2 }, breaker, at }                          // golden
     "1": { winner: "a", kind: "run" | "nine" | "win", fouls: { a, b }, breaker, at }  // standard
@@ -430,40 +431,40 @@ The app is called **Rack It** from v3. The folder, URL, manifest id and Firestor
 stay `fair-nine`, because changing any of them breaks installed copies or orphans the data.
 The rating keeps its own name, **Zargo**, and the app says so wherever a rating is shown.
 
-### 12.9 League racks are weighted by their live points
+### 12.9 11-Point-Nine racks are weighted by their live points
 
-ZARGO.md gives a League rack `w = 1`. Taken literally, per-rack shares averaged with equal weight
+ZARGO.md gives an 11-Point-Nine rack `w = 1`. Taken literally, per-rack shares averaged with equal weight
 differ from §3.3's pooled share whenever racks carry different live points (dead balls). So
-1.0.0 spreads the League `w` over a match's racks in proportion to each rack's live points:
+1.0.0 spreads the 11-Point-Nine `w` over a match's racks in proportion to each rack's live points:
 `w_i = w × live_i / mean live per rack`. The weights still sum to `w × racks`, so robustness
 and the update equal §3.3 exactly, and a rack mostly lost to dead balls says less. Checked
 against seven stored matches (several with dead balls): identical to floating-point precision.
 
-### 12.10 Golden Nine and 9-ball as built (1.1.0)
+### 12.10 Golden-Nine and Trad-Nine as built (1.1.0)
 
 - **Setup.** Game chips above the players, remembered per phone in `localStorage`
-  (`fair-nine.game`). League keeps its race / fixed / open picker unchanged. Golden Nine is
-  fixed racks (default 5) with the scoring handicap. 9-ball is a level race to 5 or 7 with
+  (`fair-nine.game`). 11-Point-Nine keeps its race / fixed / open picker unchanged. Golden-Nine is
+  fixed racks (default 5) with the scoring handicap. Trad-Nine is a level race to 5 or 7 with
   `handicap: "off"`: it has no points to share, and the Racks lever is Session 3.
 - **Live screen.** The diamond rack is swapped for a Foul button and three win buttons under
-  each player. Foul shows that rack's count and, in Golden Nine, the points it gave away. A
-  foul passes the shot to the opponent (ball in hand). Golden Nine's intentional foul is a
+  each player. Foul shows that rack's count and, in Golden-Nine, the points it gave away. A
+  foul passes the shot to the opponent (ball in hand). Golden-Nine's intentional foul is a
   long-press on Foul and asks first. Next rack is hidden, since a win tap ends the rack.
-- **Rack end.** A win tap, or a third Golden Nine foul, shows the rack card with **Start rack
-  N** and **Undo that**. Golden Nine: the rack winner breaks next. After the last scheduled
+- **Rack end.** A win tap, or a third Golden-Nine foul, shows the rack card with **Start rack
+  N** and **Undo that**. Golden-Nine: the rack winner breaks next. After the last scheduled
   rack a tie offers **Play a deciding rack** (adds one to `racksPlanned`, written to the
   match) or **Call it a tie**. A second intentional foul by one player ends the match for the
   other, whatever the score. End during a rack with no winner drops that rack, and says so
   if fouls had already given points.
-- **Who wins.** Handicap scoring: the adjusted lead, as League. Handicap off: the plain
-  difference. A non-League race goes to whoever met their own target.
-- **Lead bar.** Golden Nine's quotas are the expected rack-win share of the points scored so
-  far, floored at 4 points per planned rack, so a first rack reads +40% as it does in League
+- **Who wins.** Handicap scoring: the adjusted lead, as 11-Point-Nine. Handicap off: the plain
+  difference. A Golden-Nine or Trad-Nine race goes to whoever met their own target.
+- **Lead bar.** Golden-Nine's quotas are the expected rack-win share of the points scored so
+  far, floored at 4 points per planned rack, so a first rack reads +40% as it does in 11-Point-Nine
   rather than +100%. Handicap off shows the plain lead in racks ("MEL +1 rack"), full swing
   at a lead the size of the race.
-- **Totals** carry `racksA` and `racksB` in every game. A League rack counts to whoever took
-  more of its live points. In 9-ball `a` and `b` are racks.
-- **Rating.** Golden Nine and 9-ball racks give `r = 1` or `0` by winner, with the game's `w`
+- **Totals** carry `racksA` and `racksB` in every game. An 11-Point-Nine rack counts to whoever took
+  more of its live points. In Trad-Nine `a` and `b` are racks.
+- **Rating.** Golden-Nine and Trad-Nine racks give `r = 1` or `0` by winner, with the game's `w`
   (0.5). Checked in a test build against hand-worked ZARGO.md numbers for both games.
 
 ---
@@ -497,8 +498,9 @@ scorer's phone and a watcher's phone both get back in one tap.
   the mechanism doesn't change; only the label does.
 - **Zargo** is always shown with its robustness and, on the person's page, one sentence on
   what it means and how it moves. "Provisional" stays as the word for under 30.
-- The three games are labelled **League**, **Golden Nine** and **9-ball**, in that order,
-  because that is the order the household plays them.
+- The three games are labelled **Trad-Nine**, **Golden-Nine** and **11-Point-Nine**, in that
+  order (renamed in 1.1.1 from 9-ball, Golden Nine and League). Stored `game` values stay
+  `"standard"`, `"golden"` and `"league"`.
 
 ### 13.3 Play: setup that fits one screen
 
@@ -508,8 +510,8 @@ One page, defaults first, Start pinned to the bottom so it never scrolls away:
 2. **Players** — the two columns as today, "you" pre-selected on the blue side, most recent
    opponents first on the amber side. Beyond about eight people the columns become a
    searchable list; not needed yet.
-3. **Length** — one field with the game's default (League 5 racks, Golden Nine 5 racks with
-   a tie-break, 9-ball race to 5). Tapping shows the alternatives (race, fixed, open; 5 or 7).
+3. **Length** — one field with the game's default (11-Point-Nine 5 racks, Golden-Nine 5 racks with
+   a tie-break, Trad-Nine race to 5). Tapping shows the alternatives (race, fixed, open; 5 or 7).
 4. **Handicap** — chips: **Off · Scoring · Racks**, with the proposal underneath in one line
    ("Kenny to 7, Melanie to 4" or "Melanie starts 2 up"), editable by tapping it.
 5. **Break** — one button, the game's default pre-filled.
@@ -535,7 +537,7 @@ movement, and **Copy for Cuescore**.
 
 ### 13.6 Live match
 
-The League screen is unchanged. Golden Nine and 9-ball share the simpler screen in §12.3.
+The 11-Point-Nine screen is unchanged. Golden-Nine and Trad-Nine share the simpler screen in §12.3.
 The screen chrome is the same in all three: names and scores in the two panels, lead bar,
 rack strip, controls. Rack end and the match summary are one design for every game.
 

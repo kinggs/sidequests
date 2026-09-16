@@ -23,7 +23,7 @@ handover note below, so the next session starts from the truth.
 
 ## Ground rules for all four sessions
 
-- **The league game must behave identically after every session.** Same taps, same numbers.
+- **The 11-Point-Nine game must behave identically after every session.** Same taps, same numbers.
   Before touching ratings, Export a JSON and keep it in the scratchpad; after, Import it
   into a scratch check or recompute one old session and confirm the Zargo movement matches.
 - **Deploy at the end of the session, not the start of the next.** A session that can't
@@ -41,7 +41,7 @@ handover note below, so the next session starts from the truth.
 
 **Goal:** the app is called Rack It, every match knows which game it is, and the rating
 update is the per-rack, weighted formula from ZARGO.md. Nothing visible changes except the
-name and the word "match". League results and ratings are numerically identical.
+name and the word "match". 11-Point-Nine results and ratings are numerically identical.
 
 **Read:** SPEC §12.1, §12.5, §12.8, §13.2; ZARGO.md "The definition" and "Challenges" 5 and 8.
 
@@ -52,7 +52,7 @@ name and the word "match". League results and ratings are numerically identical.
       paths do not change. Icon: keep the shape, change the lettering only if trivial.
 - [x] "Session" becomes "match" in every label the user sees. Code names can stay.
 - [x] `game` on every session document: `"league" | "golden" | "standard"`. Reading a
-      document without one treats it as league. New matches write `"league"`.
+      document without one treats it as 11-Point-Nine. New matches write `"league"`.
 - [x] `handicap` on every session document: `"off" | "scoring" | "racks"`. Existing
       documents read as `"scoring"` (that is what they were). Setup still writes `"scoring"`.
 - [x] `state/main.config.games`: `{ league: { points: { low: 1, nine: 3 }, w: 1 },
@@ -60,48 +60,48 @@ name and the word "match". League results and ratings are numerically identical.
       w: 0.5 }, standard: { w: 0.5 } }`. Migrate the old `config.points` into
       `games.league.points` and keep reading either.
 - [x] Rating update rewritten per rack: `delta = K × Σ w_i × (r_i − pA)`, clamp ±40,
-      `robustness += Σ w_i`. For league `r_i` is the rack's live point share and `w = 1`, so
+      `robustness += Σ w_i`. For 11-Point-Nine `r_i` is the rack's live point share and `w = 1`, so
       the result equals the old formula. Prove it: recompute the Zargo movement for three
-      stored league sessions and compare with their stored `zargoBefore`/`zargoAfter`.
+      stored 11-Point-Nine sessions and compare with their stored `zargoBefore`/`zargoAfter`.
 - [x] Settling (SPEC §11 "Ratings settle fast") uses observed mean `r` instead of observed
-      point share. Same numbers for league.
+      point share. Same numbers for 11-Point-Nine.
 - [x] `shared/people.js`: a `cuescoreId` field, editable in the shared add/edit sheet as
       "Cuescore profile link": paste the URL, the app keeps the trailing number. Bump
       nothing in other apps unless the sheet's layout changed for them.
 - [x] Version `1.0.0` in `index.html` and `sw.js`. `/deployquest`.
 - [x] Handover written.
 
-**Done when:** the phone shows "Rack It", a league match scores and rates exactly as before,
+**Done when:** the phone shows "Rack It", an 11-Point-Nine match scores and rates exactly as before,
 and Export shows `game` and `handicap` on every session.
 
 ---
 
-## Session 2 — Golden Nine and 9-ball
+## Session 2 — Golden-Nine and Trad-Nine
 
 **Goal:** all three games can be played end to end, with the existing scoring handicap where
 it applies. Setup grows a game picker; the live screen gains the shared simpler layout.
 
 **Read:** SPEC §12.2, §12.3, §12.5; ZARGO.md "The definition".
 
-- [x] Setup: **Game** chips above the players — League · Golden Nine · 9-ball. Remembered
-      in `localStorage`. Length defaults per game: League 5 racks (as now), Golden Nine
-      fixed 5 racks, 9-ball race to 5 racks (7 offered). Break default: League and 9-ball
-      alternate, Golden Nine winner breaks.
-- [x] Live screen for Golden Nine and 9-ball, built from the existing pieces (panels, tint,
+- [x] Setup: **Game** chips above the players — 11-Point-Nine · Golden-Nine · Trad-Nine. Remembered
+      in `localStorage`. Length defaults per game: 11-Point-Nine 5 racks (as now), Golden-Nine
+      fixed 5 racks, Trad-Nine race to 5 racks (7 offered). Break default: 11-Point-Nine and Trad-Nine
+      alternate, Golden-Nine winner breaks.
+- [x] Live screen for Golden-Nine and Trad-Nine, built from the existing pieces (panels, tint,
       lead bar, meta strip, controls) with the rack area replaced by: a **Foul** button under
       each player showing that rack's foul count and what it gave away, and three **win**
-      buttons for each side. Golden Nine: Big Golden 10 · Small Golden 7 · Win 4. 9-ball:
+      buttons for each side. Golden-Nine: Big Golden 10 · Small Golden 7 · Win 4. Trad-Nine:
       Break & run · 9 on the break · Win. Tapping a win button ends the rack for that side.
-- [x] Golden Nine scoring: fouls give the opponent 1, 1, then 2 and the rack (kind
+- [x] Golden-Nine scoring: fouls give the opponent 1, 1, then 2 and the rack (kind
       `"fouls"`, worth 4 in total, no extra win points). Intentional foul from a long-press
       on Foul: rack lost, opponent +10, kind `"intentional"`; a second one ends the match.
-      9-ball: fouls counted, never scored.
-- [x] Rack records as SPEC §12.5. Written with `cloud.patch` per rack like league. Undo
+      Trad-Nine: fouls counted, never scored.
+- [x] Rack records as SPEC §12.5. Written with `cloud.patch` per rack like 11-Point-Nine. Undo
       covers foul taps and win taps.
 - [x] Rack end: no 11-point check for the new games; straight to "Start rack N". Golden
       Nine fixed racks: if tied after the last rack, offer one more.
-- [x] Lead bar: Golden Nine scoring handicap uses quotas = expected rack-win share × the
-      match's points so far (fixed) or the race targets (race). 9-ball shows racks won and
+- [x] Lead bar: Golden-Nine scoring handicap uses quotas = expected rack-win share × the
+      match's points so far (fixed) or the race targets (race). Trad-Nine shows racks won and
       the race targets; with handicap off both games show plain scores and a lead of racks.
 - [x] Match summary and History rows show the game. Totals gain `racksA`, `racksB`.
 - [x] Rating update per rack for both games: `r ∈ {0, 1}` by rack winner, `w = 0.5`.
@@ -109,7 +109,7 @@ it applies. Setup grows a game picker; the live screen gains the shared simpler 
 - [x] Export/Import round-trips the new rack shapes.
 - [x] Version bump, `/deployquest`, Handover.
 
-**Done when:** one full Golden Nine match and one 9-ball race can be scored on the phone,
+**Done when:** one full Golden-Nine match and one Trad-Nine race can be scored on the phone,
 saved, seen in History, and move Zargo by the amount ZARGO.md predicts.
 
 ---
@@ -124,18 +124,18 @@ every game that supports them.
 - [ ] Setup layout as §13.3: Game, Players ("you" pre-selected on blue, recent opponents
       first on amber), then Length, Handicap and Break each as a single row showing its
       default, expanding on tap. Start pinned to the bottom; the page above it scrolls.
-- [ ] **Handicap chips: Off · Scoring · Racks.** Scoring is unavailable for 9-ball; Racks
+- [ ] **Handicap chips: Off · Scoring · Racks.** Scoring is unavailable for Trad-Nine; Racks
       is available for every game with a rack count or race.
 - [ ] **Race chart:** given `pA`, find the pair of targets (each 1 to 15) whose race-win
       probability is nearest to even, by a small dynamic programme over racks. Show it two
       ways: "Kenny to 7, Melanie to 4" and "Melanie starts 3 up in a race to 7". Both
       numbers editable, both stored. In a race, the head-start form pre-loads `racksB`.
-- [ ] League **Racks** lever: race in racks, not points, with the chart; the 11-point rack
+- [ ] 11-Point-Nine **Racks** lever: race in racks, not points, with the chart; the 11-point rack
       is decided by live points.
 - [ ] Handicap off: no quotas, no targets beyond the plain race; the lead bar shows a plain
       lead. Ratings still update from raw results (ZARGO.md: handicap never enters the
       update). Confirm by playing one match each way.
-- [ ] The §3.6 "enough points to be a contest" warning still fires for League scoring.
+- [ ] The §3.6 "enough points to be a contest" warning still fires for 11-Point-Nine scoring.
 - [ ] Version bump, `/deployquest`, Handover.
 
 **Done when:** a repeat of last night's match is Game, two names, Start; and each lever
@@ -174,12 +174,12 @@ taps, and a new club member can be added, rated and matched without a word of ex
 
 ## Parked (not in any session)
 
-- Shot clock for Golden Nine (45 s + one 30 s extension per rack).
-- WPA 8-ball and Heyball: same shape as 9-ball, add a game entry and a win-kind list.
+- Shot clock for Golden-Nine (45 s + one 30 s extension per rack).
+- WPA 8-ball and Heyball: same shape as Trad-Nine, add a game entry and a win-kind list.
 - Club grouping of people.
 - Cuescore rating as a starter hint via `api.cuescore.com` (⚠ CORS from a static page is
   untested).
-- Fitting the league point-share-to-rack-odds mapping (ZARGO.md challenge 1).
+- Fitting the 11-Point-Nine point-share-to-rack-odds mapping (ZARGO.md challenge 1).
 
 ## Handover
 
@@ -189,10 +189,10 @@ anything the next session must know.
 ### After Session 1
 **Shipped 1.0.0.** Everything on the list is done. Things the next session must know:
 
-- **League weights.** A League rack's `w` is spread over the match by live points
+- **11-Point-Nine weights.** An 11-Point-Nine rack's `w` is spread over the match by live points
   (`w × live_i / mean`), not a flat 1 per rack. A flat 1 only equals the old formula when every
   rack has 11 live points; with dead balls it drifts. The spread version is exact. See SPEC §12.9.
-  Golden Nine and 9-ball use `w` as it stands, per rack.
+  Golden-Nine and Trad-Nine use `w` as it stands, per rack.
 - **Proof.** I replayed the 8 stored `done` matches in the signed-in browser (read-only). For 7,
   a search found the history values (matches played and robustness at the time) that reproduce
   the stored `zargoAfter`. From the same inputs, the new function gave identical numbers
@@ -201,9 +201,9 @@ anything the next session must know.
   scratchpad: the Claude Code safety check blocks copying the data out of the browser. The owner
   says the data isn't critical (3 players: Kenny ≈505, Melanie ≈325, Squirge ≈490).
 - **Code shape for Session 2.** `rackResults(game, points)` returns `[{ r, w }]` per complete rack
-  and is the only place a new game hooks into the rating; it returns `[]` for non-league games
+  and is the only place a new game hooks into the rating; it returns `[]` for Golden-Nine and Trad-Nine
   today. `zargoOutcome(results)` and `weightOf(results)` are game-agnostic. `live.banked.points`
-  holds `{ a, b }` per banked league rack, rebuilt on resume. `live.game` and `live.handicap` are
+  holds `{ a, b }` per banked 11-Point-Nine rack, rebuilt on resume. `live.game` and `live.handicap` are
   set on start and resume.
 - **Data.** `gameOf(doc)`, `handicapOf(doc)` and `withMatchFields(doc)` default old documents.
   Export and Import fill the fields in; Firestore documents are not backfilled. `config.games` is
@@ -222,31 +222,35 @@ Parked: nothing new.
 the next session must know:
 
 - **Testing.** I played every path in a local copy with an in-memory stand-in for `cloud.js`,
-  so no real data or rating was touched: a full Golden Nine match (fouls, three-foul rack,
+  so no real data or rating was touched: a full Golden-Nine match (fouls, three-foul rack,
   Undo that, winner breaks), intentional fouls including the second one that ends the match,
-  a tie and its deciding rack, End during a rack, a 9-ball race to 5 with a resume from the
-  document part-way, Watch from a second tab, Export then Import (Merge), and a League match
-  for regression. Zargo moved exactly as ZARGO.md predicts: 9-ball 5–2, Kenny 597.3 → 598.3
-  and Mel 508 → 505.4. League unchanged (−0.364 = 8 × (5/11 − 0.5)). ⚠ Not yet played on
+  a tie and its deciding rack, End during a rack, a Trad-Nine race to 5 with a resume from the
+  document part-way, Watch from a second tab, Export then Import (Merge), and an 11-Point-Nine match
+  for regression. Zargo moved exactly as ZARGO.md predicts: Trad-Nine 5–2, Kenny 597.3 → 598.3
+  and Mel 508 → 505.4. 11-Point-Nine unchanged (−0.364 = 8 × (5/11 − 0.5)). ⚠ Not yet played on
   the phone against Firestore.
-- **Choices I made where the plan was open.** Golden Nine quotas have a floor of 4 points per
+- **Choices I made where the plan was open.** Golden-Nine quotas have a floor of 4 points per
   planned rack (the plan said "points so far", which reads +100% after the first rack).
-  A foul passes the shot to the opponent. Golden Nine isn't offered as a race yet; the lead
-  bar and `matchResult` already handle one. League `racksA`/`racksB` count by live points.
+  A foul passes the shot to the opponent. Golden-Nine isn't offered as a race yet; the lead
+  bar and `matchResult` already handle one. 11-Point-Nine `racksA`/`racksB` count by live points.
 - **Code shape for Session 3.** `live.rack` is `{ winner, kind, fouls }` for the new games;
   `live.banked` is `newBanked()` with `racksA`, `racksB` and `points: [{ a, b, winner, kind }]`.
   `bankInto()` is used by both banking and resume. `matchResult(t)` decides the winner for
   every game. `leadState` sends `handicap: "off"` to `plainLead(ctx)`, which needs
-  `ctx.racks`. 9-ball writes `targets: { a, b }`, so a Racks lever only has to write unequal
+  `ctx.racks`. Trad-Nine writes `targets: { a, b }`, so a Racks lever only has to write unequal
   targets, or pre-load `racksB` for a head start (`racksWon()` and resume would need to
   include it).
 - **Setup.** `setup.game`, `setup.raceTo` (5 or 7 chips) and `applyGameDefaults()`. The
-  League "expected to score" hint now names the stronger player in both halves of the sentence
+  11-Point-Nine "expected to score" hint now names the stronger player in both halves of the sentence
   (it used to name A twice when B was stronger).
 - `bankRack()` now writes the rack before moving it into `banked`. Before, a watcher briefly
   saw that rack counted twice.
 
 Parked: nothing new.
+
+**1.1.1 (owner request):** the games are renamed on screen to **Trad-Nine · Golden-Nine ·
+11-Point-Nine**, in that chip order, and these docs use the new names. Stored `game` values
+(`"standard"`, `"golden"`, `"league"`) and all code names are unchanged.
 
 ### After Session 3
 _not started_
