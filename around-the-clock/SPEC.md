@@ -30,6 +30,15 @@ Bloc 11 — so someone added in any app is here too.
 - **In a match** the third dart also passes the darts on: the next player throws their three
   at their own number, and so on round the table. Each player works through their own 1–20.
 
+## Look
+
+`shared/theme.css` (dark system v2, as Rack It). Players show as avatars (their Google photo
+in a ring of their colour, or their initial) on chips, in the Players list, on the game
+panels (hidden when three or four are playing) and in match results. Green is the app's accent
+and only marks data: the thrower's panel and name, the next dart's slot, the score line, the
+band you landed in. Picking players and the direction is a neutral light fill. Single, double
+and treble keep their own colours.
+
 ## Screens
 
 One page, three states.
@@ -45,7 +54,7 @@ One page, three states.
    sheet — name, colour, optional Gmail, merge a double entry, remove from every app — plus
    Share link), and **Export / Import**.
 2. **Game** — fixed to the screen, never scrolls; the app header is hidden to give it room.
-   Top: one panel per player with their name, colour dot and running total, large; in a
+   Top: one panel per player with their avatar, name and running total, large; in a
    match each panel also says the number that player is on, the thrower's panel is lit in
    the accent colour, and **tapping another player's panel hands them the darts** (for a
    throw out of turn or a scorer's slip — it never skips anyone who has finished). Under the

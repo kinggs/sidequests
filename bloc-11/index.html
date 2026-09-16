@@ -3,138 +3,67 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#101418">
+<meta name="theme-color" content="#0A0D11">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>Bloc 11</title>
+<link rel="stylesheet" href="../shared/theme.css">
 <style>
-  :root{
-    --bg:#101418; --panel:#1a2027; --panel-lift:#232b34;
-    --ink:#eef0f2; --ink-dim:#aab3bd; --accent:#f0983a; --accent-ink:#1a1006;
-    --grid:rgba(255,255,255,.10); --danger:#e2603f;
-  }
-  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
-  html,body{height:100%}
-  body{
-    background:var(--bg);color:var(--ink);
-    font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-    font-size:18px;line-height:1.4;font-variant-numeric:tabular-nums;
-    display:flex;flex-direction:column;
-    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
-    -webkit-user-select:none;user-select:none;
-  }
-  header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;background:var(--panel)}
-  header h1{font-size:20px;font-weight:700}
-  main{flex:1;padding:16px;overflow-y:auto;max-width:40rem;width:100%;margin:0 auto}
-  footer{padding:10px 16px;font-size:15px;color:var(--ink-dim);text-align:center}
-  .hidden{display:none !important}
-
-  button{
-    min-height:56px;padding:0 20px;border-radius:12px;border:none;
-    background:var(--accent);color:var(--accent-ink);font:inherit;font-weight:700;
-  }
-  button:active{filter:brightness(1.15)}
-  button.quiet{background:transparent;color:var(--ink-dim);border:1px solid rgba(255,255,255,.22)}
-  button.lift{background:var(--panel-lift);color:var(--ink)}
-  button:disabled{opacity:.45}
-  button:focus-visible{outline:3px solid #fff;outline-offset:2px}
-  .user{display:flex;align-items:center;gap:10px;font-size:15px;color:var(--ink-dim)}
-  .user img{width:32px;height:32px;border-radius:50%}
-
-  input[type=text],input[type=email],input[type=date]{
-    width:100%;min-height:56px;padding:0 14px;font:inherit;font-size:18px;
-    background:var(--panel);color:var(--ink);border:1px solid rgba(255,255,255,.14);border-radius:12px;
-    -webkit-user-select:text;user-select:text;
-  }
-  label{display:block;font-size:15px;color:var(--ink-dim);margin:14px 0 6px}
-
-  .gate{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;text-align:center;padding:40px 8px}
-  .gate p{color:var(--ink-dim)}
-  .gate button{width:100%;max-width:20rem;height:64px;font-size:19px}
-
-  h2.sect{font-size:16px;font-weight:700;color:var(--ink-dim);text-transform:uppercase;
-    letter-spacing:.06em;margin:28px 0 10px}
-  h2.sect:first-child{margin-top:4px}
-  .empty{color:var(--ink-dim);font-size:16px;padding:6px 2px}
-  .hint{color:var(--ink-dim);font-size:15px;margin-top:8px}
-
-  /* ---- chips (climbers) ---- */
-  .chips{display:flex;flex-wrap:wrap;gap:10px}
-  .chips button{flex:1 1 auto;min-width:5rem;background:var(--panel);color:var(--ink-dim);border:1px solid rgba(255,255,255,.14)}
-  .chips button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+  /* Bloc 11 on shared/theme.css. Orange is this app's accent and only marks its data: a send,
+     the hardest-send line, the grade bars. Choosing a climber or a grade is neutral. */
+  :root{ --accent:#F0983A; --accent-ink:#1A1006; }
+  main{flex:1;min-height:0;padding:4px 16px 16px;overflow-y:auto;max-width:40rem;width:100%;margin:0 auto}
+  .sect{color:var(--dim);margin:28px 0 10px}
+  .sect:first-child{margin-top:4px}
+  .hint{margin-top:8px}
+  label{display:block;font-size:.8333rem;font-weight:600;color:var(--dim);margin:14px 0 6px}
+  .userbtn{min-height:var(--tap);padding:0 16px;font-size:.8333rem}
+  .gate p{color:var(--dim)}
 
   /* ---- grade grid ---- */
-  .grades{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px}
-  .grades button{min-height:68px;font-size:28px;background:var(--panel);color:var(--ink);border:1px solid rgba(255,255,255,.14);padding:0}
-  .grades button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:transparent}
-  .grades button small{display:block;font-size:15px;font-weight:600;line-height:1;margin-top:2px;color:inherit;opacity:.85}
+  .grades{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
+  .grades button{min-height:72px;padding:0;background:var(--ink-1);color:var(--text);border-radius:var(--r-card);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1}
+  .grades button>span{font-family:var(--grot);font-size:1.6667rem;font-weight:600}
+  .grades button small{font-size:.8333rem;font-weight:600;margin-top:2px;color:inherit}
+  .grades button[aria-pressed="true"]{background:var(--text);color:var(--ink-0)}
 
-  .row{display:flex;gap:10px;margin-top:16px}
+  .row{display:flex;gap:14px;margin-top:16px}
   .row button{flex:1}
-  .row button.big{min-height:64px;font-size:19px}
+  .row button.big{min-height:var(--tap-lg);font-size:1.0556rem}
 
   /* ---- progress ---- */
-  .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0}
-  .tile{background:var(--panel);border-radius:14px;padding:12px 10px;text-align:center}
-  .tile b{display:block;font-size:28px;font-weight:800;line-height:1.1}
-  .tile span{display:block;font-size:15px;line-height:1.25;color:var(--ink-dim);margin-top:6px}
+  .tiles{margin:12px 0}
   .tile em{font-style:normal}
-  .chart{background:var(--panel);border-radius:16px;padding:12px 8px 6px}
-  .chart svg{display:block;width:100%;height:auto;overflow:visible}
-  .chart .legend{display:flex;gap:18px;justify-content:center;font-size:15px;color:var(--ink-dim);padding:4px 0 6px}
+  .chart .legend{display:flex;flex-wrap:wrap;gap:10px 18px;justify-content:center;font-size:.8333rem;color:var(--dim);padding:4px 0 6px}
   .legend i{display:inline-block;width:12px;height:12px;border-radius:50%;vertical-align:-1px;margin-right:6px}
   .legend i.sent{background:var(--accent)}
-  .legend i.proj{border:2px solid var(--ink-dim)}
+  .legend i.proj{border:2px solid var(--dim)}
   .legend i.big{width:18px;height:18px;vertical-align:-4px}
-  .chart .legend{flex-wrap:wrap;gap:10px 18px}
-  .session{margin:10px 8px 6px;font-size:16px;color:var(--ink-dim);min-height:1.4em}
-  .session b{color:var(--ink)}
+  .session{margin:10px 8px 6px;font-size:.8889rem;color:var(--dim);min-height:1.4em}
+  .session b{color:var(--text)}
   .session ul{list-style:none;margin-top:4px}
   .session li{padding:2px 0}
   .bars{margin-top:12px}
   .brow{display:flex;align-items:center;gap:10px;min-height:32px}
-  .brow .g{width:3.2rem;text-align:right;font-weight:700;font-size:17px}
-  .brow .track{flex:1;height:14px;background:var(--panel-lift);border-radius:7px;overflow:hidden}
+  .brow .g{width:3.2rem;text-align:right;font-family:var(--grot);font-weight:600;font-size:.9444rem}
+  .brow .track{flex:1;height:14px;background:var(--ink-2);border-radius:7px;overflow:hidden}
   .brow .track i{display:block;height:100%;background:var(--accent);border-radius:7px 4px 4px 7px;transition:width .25s ease}
-  .brow .n{width:2.6rem;font-size:16px;color:var(--ink-dim)}
+  .brow .n{width:2.6rem;font-size:.8889rem;color:var(--dim)}
 
-  /* ---- recent ---- */
-  .recent{list-style:none;display:flex;flex-direction:column;gap:8px}
-  .recent li{display:flex;align-items:center;gap:12px;background:var(--panel);border-radius:14px;padding:10px 8px 10px 14px}
-  .recent .grade{font-size:24px;font-weight:800;min-width:2.4rem;text-align:center}
-  .recent .grade.proj{color:var(--ink-dim);font-weight:600}
-  .recent .who{flex:1;min-width:0}
-  .recent .who .l1{font-weight:600}
-  .recent .who .l2{font-size:15px;color:var(--ink-dim)}
-  .recent button{min-width:60px;min-height:56px;padding:0 6px;background:transparent;color:var(--ink-dim);font-size:15px}
-  .recent button:not(.arm){font-size:22px}
-  .recent button.arm,.people button.arm{background:var(--danger);color:#fff}
-
-  /* ---- climbers ---- */
-  .dot{display:inline-block;width:14px;height:14px;border-radius:50%;flex:none;box-shadow:0 0 0 2px rgba(0,0,0,.35)}
-  .chips button{display:inline-flex;align-items:center;justify-content:center;gap:8px}
-  .people{list-style:none;display:flex;flex-direction:column;gap:8px}
-  .people li{display:flex;align-items:center;gap:12px;background:var(--panel);border-radius:14px;padding:10px 8px 10px 14px}
-  .people .dot{width:18px;height:18px}
-  .people .who{flex:1;min-width:0}
-  .people .who .l2{font-size:15px;color:var(--ink-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .people button{min-width:90px;background:transparent;color:var(--ink-dim);border:1px solid rgba(255,255,255,.22);font-size:16px}
-
-  .toast{
-    pointer-events:none;
-    position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:30;
-    background:var(--panel-lift);color:var(--ink);padding:14px 20px;border-radius:14px;
-    font-size:16px;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:90vw;text-align:center;
-  }
-  @media (prefers-reduced-motion: reduce){ *{transition:none !important} }
+  /* ---- recent: the grade, in orange when it was sent ---- */
+  .rows .grade{flex:none;min-width:2.6rem;text-align:center;font-family:var(--grot);font-size:1.4444rem;font-weight:600;color:var(--accent)}
+  .rows .grade.proj{color:var(--dim)}
+  .rows .x{background:transparent;color:var(--dim);font-size:1.2222rem}
+  .rows .x.arm{font-size:.8889rem;background:var(--warn);color:var(--ink-0)}
 </style>
 </head>
 <body>
 
-<header>
+<header class="apphead">
   <h1>Bloc 11</h1>
   <div class="user" id="userBox"></div>
 </header>
@@ -142,11 +71,11 @@
 <main id="main">
   <section class="gate hidden" id="gate">
     <p id="gateMsg">Sign in to log your climbs.</p>
-    <button id="signInBig">Sign in with Google</button>
+    <button class="primary" id="signInBig">Sign in with Google</button>
   </section>
 
   <section class="hidden" id="app">
-    <h2 class="sect">Log a climb</h2>
+    <h2 class="lbl sect">Log a climb</h2>
     <div class="chips" id="whoChips"></div>
     <div class="grades" id="grades"></div>
     <label for="note">Which route? (optional)</label>
@@ -155,23 +84,23 @@
     <input type="date" id="when">
     <div class="row">
       <button class="quiet big" id="projBtn">Projecting</button>
-      <button class="big" id="sentBtn">Sent it</button>
+      <button class="primary big" id="sentBtn">Sent it</button>
     </div>
 
-    <h2 class="sect">Progress</h2>
+    <h2 class="lbl sect">Progress</h2>
     <div class="chips" id="progChips"></div>
     <div id="progress"></div>
 
-    <h2 class="sect">Recent</h2>
-    <ul class="recent" id="recent"></ul>
+    <h2 class="lbl sect">Recent</h2>
+    <ul class="rows" id="recent"></ul>
 
-    <h2 class="sect">Climbers</h2>
-    <ul class="people" id="people"></ul>
+    <h2 class="lbl sect">Climbers</h2>
+    <ul class="rows" id="people"></ul>
     <div class="row">
       <button class="quiet" id="shareBtn">Share link</button>
-      <button id="addBtn">Add climber</button>
+      <button class="primary" id="addBtn">Add climber</button>
     </div>
-    <p class="hint">Climbers are shared by every sidequests app — add someone once and they're in all of them.</p>
+    <p class="note hint">Climbers are shared by every sidequests app — add someone once and they're in all of them.</p>
 
     <div class="row">
       <button class="quiet" id="exportBtn">Export</button>
@@ -182,7 +111,7 @@
   </section>
 </main>
 
-<footer>Bloc 11 <span id="version"></span></footer>
+<footer class="foot">Bloc 11 <span id="version"></span></footer>
 
 <script type="module">
   import { cloud } from "../shared/cloud.js";
@@ -190,7 +119,7 @@
   import { people } from "../shared/people.js";
 
   // Bump on every change. The deploy skill checks this against the live site.
-  const APP_VERSION = "0.6.0";
+  const APP_VERSION = "0.7.0";
   const APP_ID = "bloc-11";
   document.getElementById("version").textContent = "v" + APP_VERSION;
 
@@ -286,9 +215,9 @@
     for (const c of list){
       const b = document.createElement("button");
       b.type = "button";
-      b.innerHTML = `<i class="dot"></i><span></span>`;
-      b.querySelector(".dot").style.background = people.colourOf(c.id);
-      b.querySelector("span").textContent = isMe(c) ? `${c.name} (you)` : c.name;
+      const nm = document.createElement("span");
+      nm.textContent = isMe(c) ? `${c.name} (you)` : c.name;
+      b.append(people.avatar(c.id, 40), nm);
       b.setAttribute("aria-pressed", c.id === selectedId ? "true" : "false");
       tap(b, () => onPick(c.id));
       wrap.appendChild(b);
@@ -346,9 +275,9 @@
     const tiles = document.createElement("div");
     tiles.className = "tiles";
     tiles.innerHTML = `
-      <div class="tile"><b></b><span>hardest<br>send</span></div>
-      <div class="tile"><b></b><span>working<br>on</span></div>
-      <div class="tile"><b></b><span>sends<br><em></em></span></div>`;
+      <div class="tile"><b></b><span class="lbl">hardest<br>send</span></div>
+      <div class="tile"><b></b><span class="lbl">working<br>on</span></div>
+      <div class="tile"><b></b><span class="lbl">sends<br><em></em></span></div>`;
     const bs = tiles.querySelectorAll("b");
     bs[0].textContent = hardest ? gradeShort(hardest) : "—";
     bs[1].textContent = working ? gradeShort(working) : "—";
@@ -381,8 +310,8 @@
     let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Climbs over time">`;
     // grid + y labels
     for (const g of GRADES){
-      s += `<line x1="${L}" x2="${W - R}" y1="${Y(g.v)}" y2="${Y(g.v)}" stroke="var(--grid)" stroke-width="1"/>`;
-      s += `<text x="${L - 10}" y="${Y(g.v) + 5}" text-anchor="end" font-size="15" fill="var(--ink-dim)">${g.label}</text>`;
+      s += `<line x1="${L}" x2="${W - R}" y1="${Y(g.v)}" y2="${Y(g.v)}" stroke="var(--line)" stroke-width="1"/>`;
+      s += `<text x="${L - 10}" y="${Y(g.v) + 5}" text-anchor="end" font-size="15" fill="var(--dim)">${g.label}</text>`;
     }
     // x ticks: first and last session, plus month starts in between
     const ticks = new Map();
@@ -397,7 +326,7 @@
     for (const [t, label] of ticks){
       const x = X(t);
       const anchor = x < L + 20 ? "start" : x > W - R - 20 ? "end" : "middle";
-      s += `<text x="${x}" y="${H - 8}" text-anchor="${anchor}" font-size="15" fill="var(--ink-dim)">${label}</text>`;
+      s += `<text x="${x}" y="${H - 8}" text-anchor="${anchor}" font-size="15" fill="var(--dim)">${label}</text>`;
     }
     // line through each session's hardest send
     const best = days.map(d => {
@@ -419,13 +348,13 @@
     for (const b of bubbles){
       const r = bubbleR(b.n);
       s += b.proj
-        ? `<circle cx="${X(b.d)}" cy="${Y(b.g)}" r="${r}" fill="var(--panel)" fill-opacity=".6" stroke="var(--ink-dim)" stroke-width="2"/>`
-        : `<circle cx="${X(b.d)}" cy="${Y(b.g)}" r="${r}" fill="var(--accent)" fill-opacity=".85" stroke="var(--panel)" stroke-width="2"/>`;
+        ? `<circle cx="${X(b.d)}" cy="${Y(b.g)}" r="${r}" fill="var(--ink-1)" fill-opacity=".6" stroke="var(--dim)" stroke-width="2"/>`
+        : `<circle cx="${X(b.d)}" cy="${Y(b.g)}" r="${r}" fill="var(--accent)" fill-opacity=".85" stroke="var(--ink-1)" stroke-width="2"/>`;
     }
     // tap targets: one column per session
     for (const d of days){
       const x = X(d);
-      s += `<rect class="hit" data-day="${d}" x="${x - 22}" y="${T - 6}" width="44" height="${ih + 12}" fill="transparent" ${openSession === d ? 'stroke="var(--grid)" rx="8"' : ""}/>`;
+      s += `<rect class="hit" data-day="${d}" x="${x - 22}" y="${T - 6}" width="44" height="${ih + 12}" fill="transparent" ${openSession === d ? 'stroke="var(--line)" rx="8"' : ""}/>`;
     }
     s += `</svg>`;
     wrap.innerHTML = s + `<div class="legend"><span><i class="sent"></i>Sent</span><span><i class="proj"></i>Projecting</span><span><i class="sent big"></i>Bigger = more climbs</span></div><div class="session"></div>`;
@@ -496,7 +425,7 @@
       const li = document.createElement("li");
       li.innerHTML = `<span class="grade"></span>
         <span class="who"><div class="l1"></div><div class="l2"></div></span>
-        <button type="button" aria-label="Delete">✕</button>`;
+        <button type="button" class="x" aria-label="Delete">✕</button>`;
       const g = li.querySelector(".grade");
       g.textContent = gradeShort(c.grade);
       g.classList.toggle("proj", proj);
@@ -540,8 +469,8 @@
     // Edit opens the shared sheet: rename, colour, Gmail, merge a double entry, or remove.
     for (const c of list){
       const li = document.createElement("li");
-      li.innerHTML = `<i class="dot"></i><span class="who"><div class="l1"></div><div class="l2"></div></span><button type="button">Edit</button>`;
-      li.querySelector(".dot").style.background = people.colourOf(c.id);
+      li.innerHTML = `<span class="who"><div class="l1"></div><div class="l2"></div></span><button type="button" class="quiet">Edit</button>`;
+      li.prepend(people.avatar(c.id, 40));
       li.querySelector(".l1").textContent = isMe(c) ? `${c.name} (you)` : c.name;
       li.querySelector(".l2").textContent = c.email || "No Gmail";
       tap(li.querySelector("button"), () => people.edit(c.id, { noun: "climber" }));
@@ -681,7 +610,7 @@
 
   function applyUser(user){
     if (user) {
-      userBox.innerHTML = `${user.photoURL ? `<img src="${user.photoURL}" alt="">` : ""}<button class="quiet" id="signOut" style="min-height:44px;padding:0 14px;font-size:15px">Sign out</button>`;
+      userBox.innerHTML = `${user.photoURL ? `<img src="${user.photoURL}" alt="">` : ""}<button class="quiet userbtn" id="signOut">Sign out</button>`;
       tap($("signOut"), () => cloud.signOut());
     } else {
       userBox.innerHTML = "";

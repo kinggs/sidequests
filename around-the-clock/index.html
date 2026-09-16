@@ -3,149 +3,97 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#101418">
+<meta name="theme-color" content="#0A0D11">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>Around the Clock</title>
+<link rel="stylesheet" href="../shared/theme.css">
 <style>
+  /* Around the Clock on shared/theme.css. Green is this app's accent and only marks its data:
+     who's throwing, the next dart, the score line, your band. Picking players is neutral.
+     Single, double and treble keep their own colours, like a dartboard's. */
   :root{
-    --bg:#101418; --panel:#1a2027; --panel-lift:#232b34;
-    --ink:#eef0f2; --ink-dim:#aab3bd; --accent:#3ec96f; --accent-ink:#06170c;
-    --grid:rgba(255,255,255,.10); --danger:#e2603f;
-    --miss:#2b333c; --single:#2f6f9e; --double:#c98a2c; --treble:#3ec96f;
+    --accent:#3EC96F; --accent-ink:#06170C;
+    --miss:var(--ink-2); --single:#2F6F9E; --double:#C98A2C; --treble:#3EC96F;
   }
-  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
-  html,body{height:100%}
-  body{
-    background:var(--bg);color:var(--ink);
-    font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-    font-size:18px;line-height:1.4;font-variant-numeric:tabular-nums;
-    display:flex;flex-direction:column;height:100dvh;
-    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
-    -webkit-user-select:none;user-select:none;
-  }
-  header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;background:var(--panel);flex:none}
-  header h1{font-size:20px;font-weight:700}
-  main{flex:1;min-height:0;padding:16px;overflow-y:auto;max-width:40rem;width:100%;margin:0 auto}
+  main{flex:1;min-height:0;padding:4px 16px 16px;overflow-y:auto;max-width:40rem;width:100%;margin:0 auto}
   body.playing main{overflow:hidden;padding:10px 12px;display:flex;flex-direction:column}
-  footer{padding:8px 16px;font-size:15px;color:var(--ink-dim);text-align:center;flex:none}
   body.playing footer,body.playing header{display:none}
-  .hidden{display:none !important}
+  .sect{color:var(--dim);margin:28px 0 10px}
+  .sect:first-child,.resume.hidden+.sect{margin-top:4px}
+  .hint{margin-top:8px}
+  .userbtn{min-height:var(--tap);padding:0 16px;font-size:.8333rem}
+  .gate p{color:var(--dim)}
 
-  button{
-    min-height:56px;padding:0 20px;border-radius:12px;border:none;
-    background:var(--accent);color:var(--accent-ink);font:inherit;font-weight:700;
-  }
-  button:active{filter:brightness(1.15)}
-  button.quiet{background:transparent;color:var(--ink-dim);border:1px solid rgba(255,255,255,.22)}
-  button.lift{background:var(--panel-lift);color:var(--ink)}
-  button:disabled{opacity:.45}
-  button:focus-visible{outline:3px solid #fff;outline-offset:2px}
-  .user{display:flex;align-items:center;gap:10px;font-size:15px;color:var(--ink-dim)}
-  .user img{width:32px;height:32px;border-radius:50%}
-
-  .gate{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;text-align:center;padding:40px 8px}
-  .gate p{color:var(--ink-dim)}
-  .gate button{width:100%;max-width:20rem;height:64px;font-size:19px}
-
-  h2.sect{font-size:16px;font-weight:700;color:var(--ink-dim);text-transform:uppercase;
-    letter-spacing:.06em;margin:28px 0 10px}
-  h2.sect:first-child{margin-top:4px}
-  .empty{color:var(--ink-dim);font-size:16px;padding:6px 2px}
-  .hint{color:var(--ink-dim);font-size:15px;margin-top:8px}
-  .dot{display:inline-block;width:14px;height:14px;border-radius:50%;flex:none;box-shadow:0 0 0 2px rgba(0,0,0,.35)}
-
-  /* ---- chips (players) ---- */
-  .chips{display:flex;flex-wrap:wrap;gap:10px}
-  .chips button{flex:1 1 auto;min-width:5rem;display:inline-flex;align-items:center;justify-content:center;gap:8px;
-    background:var(--panel);color:var(--ink-dim);border:1px solid rgba(255,255,255,.14)}
-  .chips button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:transparent}
-
-  .row{display:flex;gap:10px;margin-top:12px}
+  .row{display:flex;gap:14px;margin-top:12px}
   .row button{flex:1}
-  .row button.big{min-height:68px;font-size:20px}
-  .seg{display:flex;gap:0;margin-top:12px;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,.14)}
-  .seg button{flex:1;border-radius:0;background:var(--panel);color:var(--ink-dim);font-size:18px}
-  .seg button[aria-pressed="true"]{background:var(--panel-lift);color:var(--ink)}
-  .resume{background:var(--panel);border-radius:14px;padding:14px;margin-bottom:14px;display:flex;align-items:center;gap:12px}
+  .row button.big{min-height:var(--tap-lg);font-size:1.1111rem}
+  .seg{margin-top:12px}
+  .chips button .n{flex:none;font-family:var(--grot);font-weight:600}
+  .resume{background:var(--ink-1);border-radius:var(--r-card);padding:12px 12px 12px 16px;margin-bottom:14px;display:flex;align-items:center;gap:12px}
   .resume .t{flex:1;min-width:0}
-  .resume .t small{display:block;color:var(--ink-dim);font-size:15px}
+  .resume .t small{display:block;color:var(--dim);font-size:.8333rem}
 
   /* ---- progress ---- */
-  .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0}
-  .tile{background:var(--panel);border-radius:14px;padding:12px 10px;text-align:center}
-  .tile b{display:block;font-size:30px;font-weight:800;line-height:1.1}
-  .tile span{display:block;font-size:15px;line-height:1.25;color:var(--ink-dim);margin-top:6px}
-  .chart{background:var(--panel);border-radius:16px;padding:12px 8px 6px}
-  .chart svg{display:block;width:100%;height:auto;overflow:visible}
-  .chart .cap{font-size:15px;color:var(--ink-dim);text-align:center;padding:6px 0 4px}
+  .tiles{margin:12px 0}
+  .chart .cap{font-size:.8333rem;color:var(--dim);text-align:center;padding:6px 0 4px}
 
   /* ---- lists ---- */
-  .list{list-style:none;display:flex;flex-direction:column;gap:8px}
-  .list li{display:flex;align-items:center;gap:12px;background:var(--panel);border-radius:14px;padding:10px 8px 10px 14px}
-  .list .score{font-size:26px;font-weight:800;min-width:3rem;text-align:center}
-  .list .score.live{color:var(--accent);font-size:17px}
-  .list .who{flex:1;min-width:0}
-  .list .who .l1{font-weight:600}
-  .list .who .l2{font-size:15px;color:var(--ink-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .list .dot{width:18px;height:18px}
-  .list button{min-width:60px;min-height:56px;padding:0 6px;background:transparent;color:var(--ink-dim);font-size:15px}
-  .list button.x:not(.arm){font-size:22px}
-  .list button.arm{background:var(--danger);color:#fff}
-  .people button{min-width:90px;border:1px solid rgba(255,255,255,.22);font-size:16px}
+  .rows .score{flex:none;min-width:3rem;text-align:center;font-family:var(--grot);font-size:1.4444rem;font-weight:600}
+  .rows .score.live{color:var(--accent);font-size:.9444rem;font-weight:700}
+  .rows .x{background:transparent;color:var(--dim);font-size:1.2222rem}
+  .rows .x.arm{font-size:.8889rem;background:var(--warn);color:var(--ink-0)}
 
-  /* ---- the game screen ---- */
+  /* ---- the game screen: fixed px, never scrolls ---- */
   .game{display:flex;flex-direction:column;flex:1;min-height:0;gap:8px}
-  /* One panel per player; tap one to hand them the darts. */
+  /* One panel per player; tap one to hand them the darts. The thrower's is lit green. */
   .top{display:flex;gap:8px;flex:none}
-  .pl{flex:1 1 0;min-width:0;min-height:0;padding:8px 12px 9px;border-radius:14px;background:var(--panel);color:var(--ink);
+  .pl{flex:1 1 0;min-width:0;min-height:0;padding:8px 12px 9px;border-radius:var(--r-ctl);background:var(--ink-1);color:var(--text);
     display:flex;flex-direction:column;align-items:flex-start;text-align:left;font-weight:400;line-height:1.3}
-  .pl .nm{display:flex;align-items:center;gap:7px;max-width:100%;font-size:16px;font-weight:700;color:var(--ink-dim)}
+  .pl .nm{display:flex;align-items:center;gap:8px;max-width:100%;font-size:16px;font-weight:700;color:var(--dim)}
   .pl .nm .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .pl .ln{display:flex;flex-wrap:wrap;align-items:baseline;column-gap:8px}
-  .pl .sc{font-size:40px;font-weight:800;line-height:1.05}
-  .pl .at{font-size:15px;font-weight:600;color:var(--ink-dim)}
+  .pl .sc{font-family:var(--grot);font-size:40px;font-weight:600;letter-spacing:-.02em;line-height:1.05}
+  .pl .at{font-size:15px;font-weight:600;color:var(--dim)}
   .pl.on{background:var(--accent);color:var(--accent-ink)}
   .pl.on .nm,.pl.on .at{color:var(--accent-ink)}
-  /* Three or four across: the name needs every pixel, so the dot goes. */
+  /* Three or four across: the name needs every pixel, so the avatar goes. */
   .top.many .pl{padding:7px 8px}
   .top.many .nm{font-size:15px}
-  .top.many .nm .dot{display:none}
+  .top.many .nm .pk-av{display:none}
   .top.many .sc{font-size:30px}
-  .gline{display:flex;justify-content:space-between;gap:12px;font-size:15px;color:var(--ink-dim);padding:0 4px;flex:none}
-  .gline b{color:var(--ink);font-weight:700}
+  .gline{display:flex;justify-content:space-between;gap:12px;font-size:15px;color:var(--dim);padding:0 4px;flex:none}
+  .gline b{color:var(--text);font-weight:700}
   .stage{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
-  .stage .on{font-size:15px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.08em}
-  .stage .on.who{font-size:22px;font-weight:800;color:var(--accent);text-transform:none;letter-spacing:0;
+  .stage .on{font-family:var(--grot);font-size:14px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.1em}
+  .stage .on.who{font-family:inherit;font-size:22px;font-weight:800;color:var(--accent);text-transform:none;letter-spacing:0;
     max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .stage .num{font-size:clamp(84px,24dvh,168px);font-weight:800;line-height:.95}
+  .stage .num{font-family:var(--grot);font-size:clamp(84px,24dvh,168px);font-weight:600;letter-spacing:-.03em;line-height:.95}
   .slots{display:flex;gap:10px;margin-top:8px}
-  .slot{width:64px;height:64px;border-radius:14px;background:var(--panel);display:flex;align-items:center;justify-content:center;
-    font-size:30px;font-weight:800;color:var(--ink-dim);border:2px solid transparent}
+  .slot{width:64px;height:64px;border-radius:var(--r-ctl);background:var(--ink-1);display:flex;align-items:center;justify-content:center;
+    font-family:var(--grot);font-size:30px;font-weight:600;color:var(--dim);border:2px solid transparent}
   .slot.next{border-color:var(--accent)}
-  .slot.hit{color:var(--ink)}
+  .slot.hit{color:var(--text)}
   .slot.v0{background:var(--miss)} .slot.v1{background:var(--single);color:#fff} .slot.v2{background:var(--double);color:#1a1006} .slot.v3{background:var(--treble);color:var(--accent-ink)}
-  .prev{font-size:15px;color:var(--ink-dim);min-height:1.4em;margin-top:6px;text-align:center}
-  .prev b{color:var(--ink)}
+  .prev{font-size:15px;color:var(--dim);min-height:1.4em;margin-top:6px;text-align:center}
+  .prev b{color:var(--text)}
   /* Single, double and treble side by side in board order, the way every other darts app
      puts them, so muscle memory carries over. Miss and Undo sit underneath. */
   .pad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;flex:none}
   .pad button{min-height:clamp(70px,12dvh,104px);font-size:26px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;line-height:1.05}
-  .pad button small{font-size:15px;font-weight:600;opacity:.85}
+  .pad button small{font-family:var(--grot);font-size:15px;font-weight:600}
   .pad .single{background:var(--single);color:#fff}
   .pad .double{background:var(--double);color:#1a1006}
   .pad .treble{background:var(--treble);color:var(--accent-ink)}
   .under{display:flex;gap:10px;flex:none}
   .under button{flex:1;min-height:clamp(60px,9dvh,84px);font-size:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1}
-  .under button small{font-size:15px;font-weight:600;opacity:.85}
-  .under .undo{background:transparent;color:var(--ink);border:1px solid rgba(255,255,255,.22)}
-  .under .miss{background:var(--miss);color:var(--ink)}
+  .under button small{font-family:var(--grot);font-size:15px;font-weight:600}
+  .under .miss{background:var(--miss);color:var(--text)}
   .quitrow{display:flex;flex:none}
   .quitrow button{flex:1;min-height:56px;font-size:16px}
-  .quitrow .quit.arm{background:var(--danger);color:#fff;border-color:transparent}
   @media (max-height:700px){
     .stage .on:not(.who){display:none}
     .stage .on.who{font-size:19px}
@@ -164,40 +112,32 @@
   /* The score and the buttons are fixed; the guide in between scrolls if it has to. */
   .finish{display:flex;flex-direction:column;flex:1;min-height:0;gap:8px;text-align:center}
   .finish .head{flex:none;display:flex;flex-direction:column;gap:4px;padding-top:4px}
-  .finish .big{font-size:clamp(64px,17dvh,120px);font-weight:800;line-height:1}
-  .finish .sub{color:var(--ink-dim);font-size:17px}
+  .finish .big{font-family:var(--grot);font-size:clamp(64px,17dvh,120px);font-weight:600;letter-spacing:-.03em;line-height:1}
+  .finish .sub{color:var(--dim);font-size:17px}
   .finish .band{font-size:21px;font-weight:800;color:var(--accent)}
-  .finish .next{color:var(--ink-dim);font-size:15px}
+  .finish .next{color:var(--dim);font-size:15px}
   .finish .scroll{flex:1;min-height:0;overflow-y:auto;margin-top:4px}
   .finish .row{width:100%;margin-top:10px;flex:none}
   .results{list-style:none;display:flex;flex-direction:column;gap:8px;margin:4px 0 2px;text-align:left}
-  .results li{display:flex;align-items:center;gap:12px;background:var(--panel);border-radius:14px;padding:8px 14px;border:2px solid transparent}
+  .results li{display:flex;align-items:center;gap:12px;background:var(--ink-1);border-radius:var(--r-ctl);padding:8px 14px;border:2px solid transparent}
   .results li.win{border-color:var(--accent)}
   .results .n{flex:1;min-width:0;font-size:19px;font-weight:700}
-  .results .n small{display:block;font-size:15px;font-weight:600;color:var(--ink-dim)}
-  .results .s{font-size:36px;font-weight:800;line-height:1}
-  .guidehead{flex:none;font-size:15px;font-weight:700;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.06em;margin:6px 0 8px}
+  .results .n small{display:block;font-size:15px;font-weight:600;color:var(--dim)}
+  .results .s{font-family:var(--grot);font-size:36px;font-weight:600;line-height:1}
+  .guidehead{flex:none;color:var(--dim);margin:6px 0 8px}
   ul.guide{list-style:none;display:flex;flex-direction:column;gap:6px;text-align:left}
-  ul.guide li{display:flex;align-items:baseline;gap:12px;background:var(--panel);border-radius:12px;padding:8px 12px;border:2px solid transparent}
-  ul.guide li.on{border-color:var(--accent);background:var(--panel-lift)}
-  ul.guide .r{font-weight:800;font-size:16px;min-width:4.6rem;color:var(--ink-dim)}
+  ul.guide li{display:flex;align-items:baseline;gap:12px;background:var(--ink-1);border-radius:var(--r-chip);padding:8px 12px;border:2px solid transparent}
+  ul.guide li.on{border-color:var(--accent);background:var(--ink-2)}
+  ul.guide .r{font-family:var(--grot);font-weight:600;font-size:16px;min-width:4.6rem;color:var(--dim)}
   ul.guide li.on .r{color:var(--accent)}
   ul.guide .n{flex:1;font-size:16px}
   ul.guide li.on .n{font-weight:700}
-  ul.guide .n small{display:block;color:var(--ink-dim);font-size:15px;font-weight:400;line-height:1.3}
-
-  .toast{
-    pointer-events:none;
-    position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:30;
-    background:var(--panel-lift);color:var(--ink);padding:14px 20px;border-radius:14px;
-    font-size:16px;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:90vw;text-align:center;
-  }
-  @media (prefers-reduced-motion: reduce){ *{transition:none !important} }
+  ul.guide .n small{display:block;color:var(--dim);font-size:15px;font-weight:400;line-height:1.3}
 </style>
 </head>
 <body>
 
-<header>
+<header class="apphead">
   <h1>Around the Clock</h1>
   <div class="user" id="userBox"></div>
 </header>
@@ -205,41 +145,41 @@
 <main id="main">
   <section class="gate hidden" id="gate">
     <p id="gateMsg">Sign in to keep your scores.</p>
-    <button id="signInBig">Sign in with Google</button>
+    <button class="primary" id="signInBig">Sign in with Google</button>
   </section>
 
   <section class="hidden" id="home">
     <div class="resume hidden" id="resume">
       <div class="t"><b id="resumeL1"></b><small id="resumeL2"></small></div>
-      <button class="lift" id="resumeBtn">Resume</button>
+      <button class="primary" id="resumeBtn">Resume</button>
     </div>
 
-    <h2 class="sect">180 Around the Clock</h2>
+    <h2 class="lbl sect">180 Around the Clock</h2>
     <div class="chips" id="whoChips"></div>
-    <p class="hint" id="whoHint"></p>
+    <p class="note hint" id="whoHint"></p>
     <div class="seg" id="dirSeg">
       <button type="button" data-dir="up" aria-pressed="true">1 → 20</button>
       <button type="button" data-dir="down" aria-pressed="false">20 → 1</button>
     </div>
     <div class="row">
-      <button class="big" id="startBtn">Start</button>
+      <button class="primary big" id="startBtn">Start</button>
     </div>
-    <p class="hint">Three darts at each number. Single 1 · Double 2 · Treble 3 · anything else 0. Max 180.</p>
+    <p class="note hint">Three darts at each number. Single 1 · Double 2 · Treble 3 · anything else 0. Max 180.</p>
 
-    <h2 class="sect">Progress</h2>
+    <h2 class="lbl sect">Progress</h2>
     <div class="chips" id="progChips"></div>
     <div id="progress"></div>
 
-    <h2 class="sect">Recent</h2>
-    <ul class="list" id="recent"></ul>
+    <h2 class="lbl sect">Recent</h2>
+    <ul class="rows" id="recent"></ul>
 
-    <h2 class="sect">Players</h2>
-    <ul class="list people" id="people"></ul>
+    <h2 class="lbl sect">Players</h2>
+    <ul class="rows" id="people"></ul>
     <div class="row">
       <button class="quiet" id="shareBtn">Share link</button>
-      <button id="addBtn">Add player</button>
+      <button class="primary" id="addBtn">Add player</button>
     </div>
-    <p class="hint">Players are shared by every sidequests app — add someone once and they're in all of them.</p>
+    <p class="note hint">Players are shared by every sidequests app — add someone once and they're in all of them.</p>
 
     <div class="row">
       <button class="quiet" id="exportBtn">Export</button>
@@ -264,7 +204,7 @@
       <button type="button" class="treble" data-v="3"><span id="lT">T1</span><small>+3</small></button>
     </div>
     <div class="under">
-      <button type="button" class="undo" id="undoBtn">Undo</button>
+      <button type="button" class="quiet undo" id="undoBtn">Undo</button>
       <button type="button" class="miss" data-v="0">Miss<small>0</small></button>
     </div>
     <div class="quitrow">
@@ -281,18 +221,18 @@
       <div class="band" id="fBand"></div>
       <div class="next" id="fNext"></div>
     </div>
-    <h2 class="guidehead">Guide to your performance</h2>
+    <h2 class="lbl guidehead">Guide to your performance</h2>
     <div class="scroll">
       <ul class="guide" id="fGuide"></ul>
     </div>
     <div class="row">
       <button class="quiet" id="doneBtn">Done</button>
-      <button id="againBtn">Play again</button>
+      <button class="primary" id="againBtn">Play again</button>
     </div>
   </section>
 </main>
 
-<footer>Around the Clock <span id="version"></span></footer>
+<footer class="foot">Around the Clock <span id="version"></span></footer>
 
 <script type="module">
   import { cloud } from "../shared/cloud.js";
@@ -300,7 +240,7 @@
   import { people } from "../shared/people.js";
 
   // Bump on every change. The deploy skill checks this against the live site.
-  const APP_VERSION = "0.5.0";
+  const APP_VERSION = "0.6.0";
   const APP_ID = "around-the-clock";
   document.getElementById("version").textContent = "v" + APP_VERSION;
 
@@ -462,10 +402,12 @@
     for (const p of list){
       const b = document.createElement("button");
       b.type = "button";
-      b.innerHTML = `<i class="dot"></i><span></span>`;
-      b.querySelector(".dot").style.background = people.colourOf(p.id);
       const n = badge ? badge(p.id) : null;
-      b.querySelector("span").textContent = (n ? n + " · " : "") + (people.isMe(p.id) ? `${p.name} (you)` : p.name);
+      const nm = document.createElement("span");
+      nm.textContent = people.isMe(p.id) ? `${p.name} (you)` : p.name;
+      b.append(people.avatar(p.id, 40), nm);
+      // In a match, the throwing order goes before the name.
+      if (n){ const o = document.createElement("span"); o.className = "n"; o.textContent = n; b.insertBefore(o, nm); }
       b.setAttribute("aria-pressed", isOn(p.id) ? "true" : "false");
       tap(b, () => onPick(p.id));
       wrap.appendChild(b);
@@ -593,9 +535,9 @@
     const tiles = document.createElement("div");
     tiles.className = "tiles";
     tiles.innerHTML = `
-      <div class="tile"><b></b><span>best</span></div>
-      <div class="tile"><b></b><span>last<br>game</span></div>
-      <div class="tile"><b></b><span>average<br>last ${last10.length}</span></div>`;
+      <div class="tile"><b></b><span class="lbl">best</span></div>
+      <div class="tile"><b></b><span class="lbl">last<br>game</span></div>
+      <div class="tile"><b></b><span class="lbl">average<br>last ${last10.length}</span></div>`;
     const bs = tiles.querySelectorAll("b");
     bs[0].textContent = String(best);
     bs[1].textContent = String(scores[scores.length - 1]);
@@ -618,20 +560,20 @@
 
     let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Scores over time">`;
     for (let v = 0; v <= top; v += top / 4){
-      s += `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--grid)" stroke-width="1"/>`;
-      s += `<text x="${L - 8}" y="${Y(v) + 5}" text-anchor="end" font-size="15" fill="var(--ink-dim)">${Math.round(v)}</text>`;
+      s += `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)" stroke-width="1"/>`;
+      s += `<text x="${L - 8}" y="${Y(v) + 5}" text-anchor="end" font-size="15" fill="var(--dim)">${Math.round(v)}</text>`;
     }
     const first = mine[0].at, last = mine[n - 1].at;
-    s += `<text x="${X(0)}" y="${H - 8}" text-anchor="${n === 1 ? "middle" : "start"}" font-size="15" fill="var(--ink-dim)">${shortDate(first)}</text>`;
+    s += `<text x="${X(0)}" y="${H - 8}" text-anchor="${n === 1 ? "middle" : "start"}" font-size="15" fill="var(--dim)">${shortDate(first)}</text>`;
     if (n > 1 && startOfDay(first) !== startOfDay(last))
-      s += `<text x="${X(n - 1)}" y="${H - 8}" text-anchor="end" font-size="15" fill="var(--ink-dim)">${shortDate(last)}</text>`;
+      s += `<text x="${X(n - 1)}" y="${H - 8}" text-anchor="end" font-size="15" fill="var(--dim)">${shortDate(last)}</text>`;
     if (n > 1){
       const roll = mine.map((_, i) => avg(mine.slice(Math.max(0, i - 9), i + 1).map(g => g.score)));
-      s += `<polyline fill="none" stroke="var(--ink-dim)" stroke-width="2" stroke-dasharray="4 5" opacity=".8" points="${roll.map((v, i) => `${X(i)},${Y(v)}`).join(" ")}"/>`;
+      s += `<polyline fill="none" stroke="var(--dim)" stroke-width="2" stroke-dasharray="4 5" opacity=".8" points="${roll.map((v, i) => `${X(i)},${Y(v)}`).join(" ")}"/>`;
       s += `<polyline fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" opacity=".8" points="${mine.map((g, i) => `${X(i)},${Y(g.score)}`).join(" ")}"/>`;
     }
     for (let i = 0; i < n; i++)
-      s += `<circle cx="${X(i)}" cy="${Y(mine[i].score)}" r="${n > 30 ? 3.5 : 5.5}" fill="var(--accent)" stroke="var(--panel)" stroke-width="2"/>`;
+      s += `<circle cx="${X(i)}" cy="${Y(mine[i].score)}" r="${n > 30 ? 3.5 : 5.5}" fill="var(--accent)" stroke="var(--ink-1)" stroke-width="2"/>`;
     s += `</svg>`;
     wrap.innerHTML = s + `<div class="cap">${n === 1 ? "One game so far" : `${n} games · dotted line is the rolling average`}</div>`;
     return wrap;
@@ -689,8 +631,8 @@
     }
     for (const p of list){
       const li = document.createElement("li");
-      li.innerHTML = `<i class="dot"></i><span class="who"><div class="l1"></div><div class="l2"></div></span><button type="button">Edit</button>`;
-      li.querySelector(".dot").style.background = people.colourOf(p.id);
+      li.innerHTML = `<span class="who"><div class="l1"></div><div class="l2"></div></span><button type="button" class="quiet">Edit</button>`;
+      li.prepend(people.avatar(p.id, 40));
       li.querySelector(".l1").textContent = people.isMe(p.id) ? `${p.name} (you)` : p.name;
       const n = doneFor(p.id).length;
       li.querySelector(".l2").textContent = `${n} game${n === 1 ? "" : "s"} · ${p.email || "No Gmail"}`;
@@ -758,8 +700,8 @@
       const b = document.createElement("button");
       b.type = "button";
       b.className = "pl";
-      b.innerHTML = `<span class="nm"><i class="dot"></i><span class="t"></span></span><span class="ln"><b class="sc">0</b><small class="at"></small></span>`;
-      b.querySelector(".dot").style.background = people.colourOf(id);
+      b.innerHTML = `<span class="nm"><span class="t"></span></span><span class="ln"><b class="sc">0</b><small class="at"></small></span>`;
+      b.querySelector(".nm").prepend(people.avatar(id, 28));
       b.querySelector(".t").textContent = nameOf(id);
       if (live.players.length > 1) tap(b, () => handTo(i));
       top.appendChild(b);
@@ -930,8 +872,8 @@
         const score = scoreOf(g, id), was = bestBefore(id);
         const li = document.createElement("li");
         li.classList.toggle("win", score === top);
-        li.innerHTML = `<i class="dot"></i><span class="n"><span></span><small></small></span><b class="s"></b>`;
-        li.querySelector(".dot").style.background = people.colourOf(id);
+        li.innerHTML = `<span class="n"><span></span><small></small></span><b class="s"></b>`;
+        li.prepend(people.avatar(id, 40));
         li.querySelector(".n span").textContent = nameOf(id);
         li.querySelector("small").textContent = bandFor(score).name +
           (!was ? " · first game" : score > was.best ? ` · new best (was ${was.best})` : "");
@@ -1082,7 +1024,7 @@
 
   function applyUser(user){
     if (user) {
-      userBox.innerHTML = `${user.photoURL ? `<img src="${user.photoURL}" alt="">` : ""}<button class="quiet" id="signOut" style="min-height:44px;padding:0 14px;font-size:15px">Sign out</button>`;
+      userBox.innerHTML = `${user.photoURL ? `<img src="${user.photoURL}" alt="">` : ""}<button class="quiet userbtn" id="signOut">Sign out</button>`;
       tap($("signOut"), () => cloud.signOut());
     } else {
       userBox.innerHTML = "";

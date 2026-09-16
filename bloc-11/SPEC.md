@@ -45,11 +45,16 @@ One page, top to bottom:
    the chart ("3× Sent a 3 · the cave one"). Below that, sends per grade as horizontal bars.
 3. **Recent** — the latest climbs, newest first, each with an armed two-tap delete.
 4. **Climbers** — the household's shared people list (the same one Fair Nine and Around the
-   Clock use), each with a colour dot. **Add climber** and **Edit** open the shared sheet from
+   Clock use), each with their avatar. **Add climber** and **Edit** open the shared sheet from
    `shared/people.js`: name, colour, optional Gmail, merge a double entry into the right
    person, or remove from every app. Plus a Share button for the app link. Giving a Gmail
    also adds it to the family allowlist so that person can sign in straight away.
 5. **Export / Import** — everything as one JSON file.
+
+**Look.** `shared/theme.css` (dark system v2, as Rack It). Climbers show as avatars (their
+Google photo in a ring of their colour, or their initial) on chips and in the Climbers list.
+Orange is the app's accent and only marks data: sent grades in Recent, sends on the chart, the
+hardest-send line and the grade bars. Picking a climber or a grade is a neutral light fill.
 
 ## Data model
 
