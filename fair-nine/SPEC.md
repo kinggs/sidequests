@@ -556,8 +556,8 @@ Racks isn't offered. A target reached on foul points mid-rack still finishes the
 
 ### 12.12 The ball drop (1.4.0, owner request)
 
-Golden-Nine and Trad-Nine show balls 1 to 9 in a row across the bottom of the live screen,
-above Undo and End, as a live stream does.
+Golden-Nine and Trad-Nine show balls 1 to 9 across the bottom of the live screen, above Undo
+and End, as a live stream does: 1 to 5 on the first row, 6 to 9 centred beneath (1.4.1).
 
 - **Tap a ball** and it's potted by whoever is shooting: it leaves the row and an empty slot
   keeps the other balls in place. **Tap the slot** to put it back. Undo covers both.
@@ -569,10 +569,11 @@ above Undo and End, as a live stream does.
   11-Point-Nine) and `pottedAt` (`{ "3": <ms> }`, which gives the order). Both are written with
   the rack's usual `patch`, so resume and Watch show the row as it stands. A new rack starts
   with all nine back. Records without them read as an empty log.
-- **Sizing.** The row takes the rack's `.ball` look with the ball size set to fit nine across
-  (about 36px on a 390px phone, 44px at most). Each tap target is a ninth of the width by 56px
-  tall: narrower than the house 56px minimum, the price of one row of nine. The win buttons
-  give up the height, down to their 56px minimum on a 600px-tall screen.
+- **Sizing.** Two rows, so every tap target is a fifth of the width by 56px tall (74×56 on a
+  390px phone), within the house minimum; the balls take the rack's `.ball` look at 44px. The
+  win buttons give up the height, down to their 56px minimum on a 640px-tall screen; below
+  700px tall the win area's padding tightens to make room. (1.4.0 had one row of nine, with
+  targets about 43px wide.)
 - 11-Point-Nine keeps its diamond rack; the row isn't shown there.
 
 ---

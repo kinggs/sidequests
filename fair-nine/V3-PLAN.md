@@ -346,5 +346,8 @@ It's logged to the rack as `balls` and `pottedAt` for replays, and it's optional
 touches the score or ends a rack. SPEC §12.12. Tap targets are a ninth of the screen wide,
 under the 56px rule, to keep one row.
 
+**1.4.1 (owner request):** the ball drop is two rows, 1 to 5 over 6 to 9, so every target is
+56px tall and a fifth of the screen wide. It fits down to a 640px-tall screen.
+
 ### After Session 4
 _not started_
