@@ -1,15 +1,17 @@
 # Zargo — one rating across cue games
 
-**Status:** the definition and the 11-Point-Nine update are built (Rack It 1.0.0), and so are the
-Golden-Nine and Trad-Nine updates (1.1.0), and so are the handicap levers (1.3.0, SPEC §12.11). This is the plan for taking Zargo from "point share in the
-household's 11-point nine-ball" to one rating that every cue game in Fair Nine feeds, in the
-way FargoRate pools 8-ball, 9-ball and 10-ball into one number. Open questions are marked ⚠.
+**Status:** built. The definition and the per-rack update (Rack It 1.0.0), Golden-Nine and
+Trad-Nine (1.1.0), the handicap levers (1.3.0), and replayable ratings (2.0.0). The code is
+[`zargo.js`](zargo.js), a pure module proven by `zargo.test.mjs`. This doc took Zargo from
+"point share in the household's 11-point nine-ball" to one rating that every cue game in Rack
+It feeds, in the way FargoRate pools 8-ball, 9-ball and 10-ball into one number. Open questions
+are marked ⚠.
 
 ## What we borrow from Fargo
 
 | Fargo idea | Zargo today | Zargo planned |
 |---|---|---|
-| One rating per player across all pool games | one game only | every game in Fair Nine feeds it |
+| One rating per player across all pool games | one game only | every game in Rack It feeds it |
 | 100 points apart = the stronger player wins twice as many games | 100 apart = twice the **points** | 100 apart = twice the **racks** |
 | Robustness = games counted; provisional until enough | racks counted, provisional under 30 | weighted racks, provisional under 30 |
 | Newcomers move more than established players | settling logic (spec §11) | same, made game-aware |

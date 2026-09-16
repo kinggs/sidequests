@@ -11,6 +11,7 @@ sidequests/
   .claude/skills/         ← /sidequest, /deployquest and /deletequest (committed so cloud sessions get them)
   shared/
     cloud.js              ← the ONLY file that talks to Firebase (auth + Firestore + offline)
+    cloud-memory.js       ← the fake cloud behind ?mock, for testing any app without Firebase
     firebase-config.js    ← one project for all apps, filled in once
     firestore.rules       ← family allowlist; copy of what's published in the console
     people.js             ← the household's people, shared by every app (list, "you", add/edit sheet)
@@ -27,7 +28,7 @@ GitHub Pages serves `main` from the repo root. Nothing to configure per app.
 
 ## Rules — follow these exactly
 
-1. **One file per app.** All HTML, CSS and JS live in `<app-id>/index.html`. No frameworks, no npm, no bundler, no build step. External libraries only via CDN `<script>`/`import`, and only when the app truly needs one.
+1. **One file per app.** All HTML, CSS and JS live in `<app-id>/index.html`. No frameworks, no npm, no bundler, no build step. External libraries only via CDN `<script>`/`import`, and only when the app truly needs one. The one exception: an app may keep pure, browser-free logic in one module beside `index.html` (`rack-it/zargo.js`) with a `node --test` file next to it, when the logic is worth proving outside a browser. Run the tests with `node --test` from the repo root.
 2. **Never write Firebase code in an app.** Use `import { cloud } from "../shared/cloud.js"`. If `cloud.js` lacks something, add it there so every app gets it.
 3. **Every app namespaces its data** under `sidequests/<app-id>/` — `cloud.js` enforces this. Never reach into another app's data. The one shared thing is **people**: any app that tracks who played, climbed or scored uses `shared/people.js` — one household list at `sidequests/_shared/people/`, with its own add/edit/merge sheet — and keys its records by person id, reading stored ids back through `people.resolve()`. Never give an app its own player list; Melanie gets added once.
 4. **Bump the version on every change.** `APP_VERSION` in `index.html` **and** `CACHE` in `sw.js` must match and must change with every edit, or the phone keeps showing the old build. Use semver-ish: bug fix → patch, feature → minor.
@@ -42,7 +43,7 @@ GitHub Pages serves `main` from the repo root. Nothing to configure per app.
 
 - Config lives in `shared/firebase-config.js`. Filled in once; never per app.
 - Security lives in `shared/firestore.rules`: signed-in Google users whose email has a document in the Firestore `/members` collection. It covers every app automatically, and the rules file contains no email addresses (the repo is public).
-- **Adding a person:** in-app — Rack It (the `fair-nine` app) → Invites — or via `cloud.addMember(email)` from any app. Instant; no rules deploy needed. Rules deploys are only for changing the rules *logic*.
+- **Adding a person:** in-app — Rack It (the `rack-it` app) → More → Invites — or via `cloud.addMember(email)` from any app. Instant; no rules deploy needed. Rules deploys are only for changing the rules *logic*.
 - **Deploying rules:** push to `main`. The `deploy-rules` GitHub Action deploys `shared/firestore.rules` automatically whenever it changes, from any session on any device. (Fallbacks if the Action ever breaks: desktop CLI `firebase deploy --only firestore:rules`, or paste the file into Firebase console → Firestore Database → Rules → Publish.)
 - Offline works out of the box: `cloud.js` turns on Firestore's persistent local cache, and each app's `sw.js` caches the shell.
 
@@ -50,6 +51,7 @@ GitHub Pages serves `main` from the repo root. Nothing to configure per app.
 
 - Small commits, one intent each, messages in plain English ("Make the swap button taller").
 - After any change, sanity-check by reading the file back for unbalanced tags and a matching version bump.
+- **Test with `?mock`.** Open any app with `?mock` in the URL (served locally, e.g. `python3 -m http.server`) and `cloud.init` swaps in `shared/cloud-memory.js`: a fake signed-in member, data kept in that browser, watchers across tabs. `?mock=reset` wipes it; `&seed=<url>` starts from a JSON export. Never test against real Firestore data.
 - If a request is ambiguous, pick the simplest interpretation, do it, and say what you assumed. Don't stall on questions.
 - When asked for a new app, use `/sidequest`. When asked to remove one, use `/deletequest` (it confirms first).
 - Changing `shared/firestore.rules` needs no CLI or console: push to `main` and a GitHub Action deploys the rules automatically.

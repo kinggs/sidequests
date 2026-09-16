@@ -4,7 +4,7 @@
 > applied in **Session 6**, after Session 5 has moved the app to `rack-it/`. Where the two
 > disagree, the plan wins:
 >
-> - Paths: `fair-nine/` here means `rack-it/`, and the app id becomes `rack-it` (rename runbook).
+> - Paths now say `rack-it/`: Session 5 moved the app there and made the app id `rack-it`.
 > - The `.dc.html` mockups named below were not exported; the PNGs beside this file are the
 >   reference render.
 > - Delete on a match summary and on a player is owner-only from Session 6, behind the hold
@@ -17,7 +17,7 @@
 > - ⚠ The renders truncate names ("GARE…") and wrap sub-lines ("needs 5 of 14"). Fit first
 >   names and sub-lines on one line at 390px before accepting the 62px score.
 
-Implementation guidance for `fair-nine/index.html` (app id stays `fair-nine`; product name is
+Implementation guidance for `rack-it/index.html` (app id `rack-it`; product name is
 **Rack It**). Mockups: `Rack It.dc.html` (new, options 1a–1e) and `Rack It — Current.dc.html`
 (today, for comparison).
 
@@ -85,7 +85,7 @@ across the middle instead of the `×` glyph (the glyph reads as a close button).
 Two faces. System stack for everything you read; **Space Grotesk 600/700** for everything you
 glance at — scores, ratings, all-caps labels, page titles.
 
-Ship it as one self-hosted `space-grotesk-600.woff2` (plus 700) in `fair-nine/`, `@font-face` in
+Ship it as one self-hosted `space-grotesk-600.woff2` (plus 700) in `rack-it/`, `@font-face` in
 the `<style>` block, and add both files to the `sw.js` cache list. No CDN — the app has to work
 in a pub with no signal. If you'd rather not add files, `system-ui` at the same sizes is an
 acceptable fallback; nothing else depends on it.
@@ -272,5 +272,5 @@ people sheet matches.
 6. Ratings / Matches / live strip / tab bar.
 7. Self-hosted Grotesk + `sw.js` cache list, if you want the numerals.
 
-Update `fair-nine/SPEC.md` in the same commits where behaviour changes: §12.3 (win area),
+Update `rack-it/SPEC.md` in the same commits where behaviour changes: §12.3 (win area),
 §13.1 (tabs), §13.3 (setup), and add the hold-to-confirm rule.
