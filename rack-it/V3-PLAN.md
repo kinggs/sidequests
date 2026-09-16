@@ -147,11 +147,13 @@ screen, and the things that must not be casually undone (matches, starter rating
 need the owner.
 
 **Read:** `rack-it/design/DESIGN.md` first (its note at the top says where the plan overrides
-it), then the six PNGs beside it, the consolidated SPEC, `shared/phone.js`. DESIGN.md §6 gives
+it, and §7 Legibility overrides the rest), then the PNGs beside it, the consolidated SPEC, `shared/phone.js`. DESIGN.md §6 gives
 the commit order; follow it.
 
-- [ ] **Owner decision, before starting:** 13px all-caps labels (DESIGN.md) or the 15px
-      floor (CLAUDE.md rule 7). Record it in the rule and in DESIGN.md's note.
+- [x] **Owner decision, before starting:** 13px all-caps labels (DESIGN.md) or the 15px
+      floor (CLAUDE.md rule 7). **Decided: 14px tracked all-caps labels**, as the design's
+      legibility pass proposes; everything else 15px or more. Recorded in rule 7 and in
+      DESIGN.md's note.
 - [ ] **Tokens first.** Colours, type scale, spacing and radii from DESIGN.md replace the
       `:root` block. Every component follows: buttons, chips, rows, panels, tab bar, avatar
       ring, lead bar, balls. Check the house minimums survive: 18px base, nothing under
@@ -208,7 +210,9 @@ Unchanged: the people list at `_shared/people/`, person ids, the stored `game` v
 
 **Landed 2026-09-16** in `rack-it/design/` (moved from `fair-nine/design/` in Session 5):
 `DESIGN.md`, an implementation spec with tokens, live-screen redlines and a commit order, and
-six 390×844 artboards at 2x. The redesign lives in a regular claude.ai/design project, not a
+390×844 artboards at 2x. A second export the same afternoon added §7 Legibility (higher-contrast
+greys, 14px smallest type, bigger targets) and `02-legibility.png`, and renumbered the
+artboards `01`, `02`, `04`–`08`. The redesign lives in a regular claude.ai/design project, not a
 design-system project, so Claude Code's sync tool can't read it; further exports go the same
 way, by hand into that folder. The folder is reference only: `sw.js` doesn't cache it and the
 app never links to it.

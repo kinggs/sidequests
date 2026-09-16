@@ -1,19 +1,21 @@
 # Rack It — dark system v2
 
-> **Read with `V3-PLAN.md`.** This spec was written by claude.ai/design against 1.5.0 and is
-> applied in **Session 6**, after Session 5 has moved the app to `rack-it/`. Where the two
+> **Read with `V3-PLAN.md`.** claude.ai/design wrote this spec against 1.5.0; Session 6 applies
+> it to `rack-it/`. The second export (2026-09-16, 14:51) added §7 Legibility and
+> `02-legibility.png`, updated `01`, and renumbered the rest. Where this doc and the plan
 > disagree, the plan wins:
 >
 > - Paths now say `rack-it/`: Session 5 moved the app there and made the app id `rack-it`.
 > - The `.dc.html` mockups named below were not exported; the PNGs beside this file are the
 >   reference render.
+> - **§7 wins over §1–§6.** Every "13px" label below is 14px, and the greys are §7's.
+>   `04`–`08` still show the earlier greys and 13px labels.
+> - **Owner decision (Session 6): tracked all-caps labels may be 14px.** Everything else stays
+>   at 15px or more. CLAUDE.md rule 7 says the same.
 > - Delete on a match summary and on a player is owner-only from Session 6, behind the hold
 >   described here. Rebuild ratings (Session 5) is owner-only too.
 > - Named new files for CLAUDE.md rule 1: `design/` (reference, never cached by `sw.js`) and
 >   the two `space-grotesk-*.woff2` files if the numerals are kept.
-> - ⚠ 13px tracked labels are below CLAUDE.md rule 7's 15px floor. The owner decides before
->   Session 6: amend the rule for all-caps labels, or set labels to 15px. Tab labels and the
->   match bar are the ones that matter for older eyes.
 > - ⚠ The renders truncate names ("GARE…") and wrap sub-lines ("needs 5 of 14"). Fit first
 >   names and sub-lines on one line at 390px before accepting the 62px score.
 
@@ -271,6 +273,50 @@ people sheet matches.
 5. Setup: one settings card, segmented game picker, odds sentence in the footer.
 6. Ratings / Matches / live strip / tab bar.
 7. Self-hosted Grotesk + `sw.js` cache list, if you want the numerals.
+8. The legibility pass in §7 — greys, sizes, targets. Safe to do first if you prefer.
 
 Update `rack-it/SPEC.md` in the same commits where behaviour changes: §12.3 (win area),
 §13.1 (tabs), §13.3 (setup), and add the hold-to-confirm rule.
+
+---
+
+## 7. Legibility — for eyes past 40, without an accessibility mode
+
+Nothing in this section changes the layout. The greys move up, the smallest sizes go away, the
+targets grow.
+
+### Greys, re-cut
+
+```css
+--text:#E8EDF3;    /* 15.4:1 — unchanged */
+--text-2:#C3CEDA;  /* 11.0:1 — idle score, chip text (was #7E8B99 at 3.3) */
+--dim:#A8B6C4;     /*  8.0:1 — sub-lines, meta (was #90A0B2 at 6.2) */
+--faint:#8D9BAA;   /*  5.6:1 — ranks, disabled (was #5E6B79 at 3.1) */
+```
+
+Floor: **7:1 for anything read while playing**, 4.5:1 for everything else — one notch above
+WCAG AA across the board, which is roughly what a 45-year-old eye in a dim room needs to match a
+25-year-old's AA. `--faint` is never used for body text again.
+
+### Sizes and targets
+
+- Smallest type in the app is **14px** tracked caps (was 13). Body stays 18.
+- Score sub-lines 16 → **17px**, weight 700 when on a colour fill.
+- Match-bar lead 15 → **17px**; score-head names 14 → **15px**.
+- Turn bar 4 → **5px**; lead rail 6 → **8px**; centre notch to 40% white.
+- Controls 72 → **76px**, Undo 104 wide; every other target ≥ **60px**.
+- 14px between adjacent controls; nothing important within 12px of a screen edge.
+
+### Rules
+
+1. **No state is colour-only** — ball states differ in shape, the lead shows a number, a
+   provisional rating says "provisional", a foul shows its count.
+2. **No text below full opacity.** Dim means a dim colour, never `opacity` — opacity on text over
+   a tinted ground is where contrast quietly dies.
+3. **No text on a gradient or photo.**
+4. **Respect the system text size** everywhere except the live screen: size type in `rem` off an
+   18px root so OS font scaling works. The live screen stays fixed — it already carries the
+   largest type in the app, and its layout is height-critical.
+5. **Numerals are always tabular** (`font-variant-numeric: tabular-nums`) so a changing score
+   doesn't shift on the page.
+
