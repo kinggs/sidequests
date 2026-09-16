@@ -270,6 +270,19 @@
   .wincol .win.chosen{background:var(--chalk);color:#fff}
   .wincol[data-p="b"] .win.chosen{background:var(--ochre)}
 
+  /* ---- Golden-Nine and Trad-Nine: the ball drop, 1 to 9 across the bottom, as on a stream ----
+     Reuses the rack's .ball look with --bs set to what nine cells across the screen allow. */
+  .drop{flex:0 0 auto;display:flex;padding:0 6px 10px;
+    --bs:min(calc((100vw - 12px) / 9 - 6px), 44px)}
+  .dcell{flex:1 1 0;min-width:0;min-height:56px;height:56px;padding:0;border-radius:10px;background:none;
+    display:flex;align-items:center;justify-content:center;position:relative}
+  .dcell .ball{display:block;pointer-events:none;transition:opacity .15s ease, transform .15s ease}
+  .dcell::before{content:"";position:absolute;left:50%;top:50%;width:var(--bs);height:var(--bs);
+    margin:calc(var(--bs) / -2) 0 0 calc(var(--bs) / -2);border-radius:50%;
+    box-shadow:inset 0 0 0 2px rgba(239,233,220,.14);opacity:0;transition:opacity .15s ease}
+  .dcell.gone .ball{opacity:0;transform:scale(.6)}
+  .dcell.gone::before{opacity:1}
+
   /* ---- controls (prototype, kept) ---- */
   .controls{flex:0 0 auto;display:flex;gap:10px;padding:0 10px 14px}
   .controls button{
@@ -538,6 +551,8 @@
     </div>
   </div>
 
+  <div class="drop hidden" id="drop" aria-label="Balls on the table"></div>
+
   <div class="controls">
     <button id="undo" disabled>Undo</button>
     <button id="next">Next rack</button>
@@ -560,7 +575,7 @@ import { phone } from "../shared/phone.js";
 import { people } from "../shared/people.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "1.3.0";
+const APP_VERSION = "1.4.0";
 const APP_ID = "fair-nine";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 
@@ -579,7 +594,7 @@ const el = {};
  "impChoice","impInfo","impMerge","impReplace","impCancel",
  "familyBtn","scrFamily","famBack","famList","famEmail","famAdd","famShare",
  "pfEst","estRef","estRefName","estRefScore","estNewScore","estOut","pfDelete","pfShared",
- "games","raceLen","raceNRow","raceN","deadWrap","winArea"
+ "games","raceLen","raceNRow","raceN","deadWrap","winArea","drop"
 ].forEach(id => el[id] = $(id));
 
 function buzz(ms){ if(navigator.vibrate) navigator.vibrate(ms); }
@@ -638,9 +653,21 @@ const WIN_KINDS = {
 const KIND_LABEL = { big: "Big Golden", small: "Small Golden", win: "Win", run: "Break & run",
   nine: "9 on the break", fouls: "Three fouls", intentional: "Intentional foul" };
 const other = side => side === "a" ? "b" : "a";
-const newRack = () => ({ winner: null, kind: null, fouls: { a: 0, b: 0 } });
-const rackOf = rec => ({ winner: (rec && rec.winner) || null, kind: (rec && rec.kind) || null,
-  fouls: { a: (rec && rec.fouls && rec.fouls.a) || 0, b: (rec && rec.fouls && rec.fouls.b) || 0 } });
+// balls and pottedAt are the ball drop: who potted which ball, and when, for a replay. They
+// never enter the score.
+const newRack = () => ({ winner: null, kind: null, fouls: { a: 0, b: 0 }, balls: {}, pottedAt: {} });
+function rackOf(rec){
+  const balls = {}, pottedAt = {};
+  for(let n = 1; n <= 9; n++){
+    const by = rec && rec.balls && rec.balls[n];
+    if(by !== "a" && by !== "b") continue;
+    balls[n] = by;
+    pottedAt[n] = (rec.pottedAt && rec.pottedAt[n]) || 0;
+  }
+  return { winner: (rec && rec.winner) || null, kind: (rec && rec.kind) || null,
+    fouls: { a: (rec && rec.fouls && rec.fouls.a) || 0, b: (rec && rec.fouls && rec.fouls.b) || 0 },
+    balls, pottedAt };
+}
 
 // Golden-Nine points from a player's fouls: 1, 1, then 2 (the third also loses the rack).
 function foulPoints(n){
@@ -1368,7 +1395,8 @@ function sync(extra){
   const t = totals(), p = rackPoints(), r = racksWon();
   const rec = live.game === "league"
     ? { balls: live.balls, breaker: live.breaker, at: live.rackAt }
-    : { winner: live.rack.winner, kind: live.rack.kind, fouls: live.rack.fouls, breaker: live.breaker, at: live.rackAt };
+    : { winner: live.rack.winner, kind: live.rack.kind, fouls: live.rack.fouls,
+        balls: live.rack.balls, pottedAt: live.rack.pottedAt, breaker: live.breaker, at: live.rackAt };
   cloud.patch("sessions/" + live.id, Object.assign({
     ["racks." + live.rackNo]: rec,
     turn: state.turn,
@@ -1444,7 +1472,7 @@ function cycle(n){
   else                          live.balls[n] = state.turn;
 }
 
-// Undo snapshots the current rack: the balls in 11-Point-Nine, fouls and the win elsewhere.
+// Undo snapshots the current rack: the balls in 11-Point-Nine; fouls, the ball drop and the win elsewhere.
 function push(){
   live.history.push(JSON.stringify(live.game === "league" ? live.balls : live.rack));
   if(live.history.length > 60) live.history.shift();
@@ -1547,6 +1575,36 @@ const intentionalsBy = (banked, side) =>
     win(side, WIN_KINDS[live.game][+b.dataset.i][0]);
   }));
 });
+
+// The ball drop. Tapping a ball pots it for whoever is shooting and it leaves the strip;
+// tapping its empty slot puts it back. A log for replays, never the score: potting the 9
+// doesn't win the rack, and a potted ball doesn't change the shooter.
+const dropCells = {};
+for(let n = 1; n <= 9; n++){
+  const cell = document.createElement("button");
+  cell.className = "dcell";
+  cell.innerHTML = `<span class="ball${n === 9 ? " striped" : ""}">${n === 9 ? '<span class="stripe"></span>' : ""}<span class="pip">${n}</span></span>`;
+  cell.querySelector(".ball").style.setProperty("--bc", COLOURS[n]);
+  tapBind(cell, () => dropBall(n));
+  el.drop.appendChild(cell);
+  dropCells[n] = cell;
+}
+function dropBall(n){
+  if(!live || live.game === "league" || live.rack.winner) return;   // watching, or the rack is over
+  buzz(9);
+  push();
+  if(live.rack.balls[n]){ delete live.rack.balls[n]; delete live.rack.pottedAt[n]; }
+  else { live.rack.balls[n] = state.turn; live.rack.pottedAt[n] = Date.now(); }
+  render();
+  sync();
+}
+function paintDrop(rack){
+  for(let n = 1; n <= 9; n++){
+    const by = rack.balls[n];
+    dropCells[n].classList.toggle("gone", !!by);
+    dropCells[n].setAttribute("aria-label", by ? `Ball ${n}, potted. Tap to put it back` : `Ball ${n}`);
+  }
+}
 
 // Paint the foul and win buttons for a game and a rack, live or watched.
 function paintWinArea(game, rack){
@@ -2095,6 +2153,7 @@ function render(){
   if(!league){
     const t = totals(), r = racksWon();
     paintWinArea(live.game, live.rack);
+    paintDrop(live.rack);
     paintGamePanels(live.game, live, t, r);
     paintLead(t, Object.assign({}, live, { racks: r }), live.nameA, live.nameB);
     el.rackNo.textContent = live.rackNo + (live.mode === "fixed" ? " of " + live.racksPlanned : "");
@@ -2144,6 +2203,7 @@ function showGameArea(game){
   const league = game === "league";
   el.rack.classList.toggle("hidden", !league);
   el.winArea.classList.toggle("hidden", league);
+  el.drop.classList.toggle("hidden", league);
   el.deadWrap.classList.toggle("hidden", !league);
   el.next.classList.toggle("hidden", !league);
 }
@@ -2237,6 +2297,7 @@ function renderWatch(doc){
     const ctx = { game, handicap: handicapOf(doc), mode: doc.mode, targets: doc.targets, start: doc.start,
       racksPlanned: doc.racksPlanned, rackNo, eA: expectedShareA(zb.a, zb.b), racks: r };
     paintWinArea(game, rackOf(rack));
+    paintDrop(rackOf(rack));
     paintGamePanels(game, ctx, t, r);
     paintLead(t, ctx, nA, nB);
     el.rackNo.textContent = rackNo + (doc.mode === "fixed" && doc.racksPlanned ? " of " + doc.racksPlanned : "");

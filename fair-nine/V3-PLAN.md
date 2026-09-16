@@ -340,5 +340,11 @@ Parked:
 - The 11-Point-Nine live controls wrap "Next rack" onto two lines at 390px wide. This predates
   Session 3.
 
+**1.4.0 (owner request):** Golden-Nine and Trad-Nine have a ball drop: balls 1 to 9 across the
+bottom of the live screen. A tap pots a ball for the shooter; tapping its slot puts it back.
+It's logged to the rack as `balls` and `pottedAt` for replays, and it's optional: it never
+touches the score or ends a rack. SPEC §12.12. Tap targets are a ninth of the screen wide,
+under the 56px rule, to keep one row.
+
 ### After Session 4
 _not started_

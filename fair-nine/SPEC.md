@@ -8,6 +8,7 @@ on people. See §12.9. Code and Firestore paths still say "session".
 **1.2.0:** Trad-Nine also offers Race to 3 and Race to N (§12.10).
 **v3 session 3 (1.3.0) shipped:** the one-screen setup, the Off · Scoring · Racks levers, a
 Golden-Nine race to points, and players with a Gmail, a claim and a photo. See §12.11.
+**1.4.0:** Golden-Nine and Trad-Nine show a ball drop, balls 1 to 9, logged but never scored (§12.12).
 
 A phone-first scorer for social nine-ball between any two players in a household, with a self-correcting handicap (the **Zargo** rating) so mismatched players stay evenly matched. Scores sync to the cloud so any family phone can score or review.
 
@@ -318,7 +319,7 @@ same way. An older home-screen shortcut has to be removed and re-added to pick t
 
 ## 12. Planned v3 — three games, one app
 
-**Status:** being built; §12.9 to §12.11 record what has shipped. This section supersedes "Anything but nine-ball"
+**Status:** being built; §12.9 to §12.12 record what has shipped. This section supersedes "Anything but nine-ball"
 in §9. The rating side of the plan is in [`ZARGO.md`](ZARGO.md); the build is split into four
 sessions in [`V3-PLAN.md`](V3-PLAN.md).
 
@@ -401,8 +402,9 @@ sessions/<id>
   racks: {
     "1": { balls: {...}, breaker, at }                                   // 11-Point-Nine
     "1": { winner: "a", kind: "big" | "small" | "win" | "fouls" | "intentional",
-           fouls: { a: 0, b: 2 }, breaker, at }                          // golden
-    "1": { winner: "a", kind: "run" | "nine" | "win", fouls: { a, b }, breaker, at }  // standard
+           fouls: { a: 0, b: 2 }, balls, pottedAt, breaker, at }         // golden
+    "1": { winner: "a", kind: "run" | "nine" | "win", fouls: { a, b }, balls, pottedAt, breaker, at }  // standard
+    // balls: { "3": "a" } who potted each ball; pottedAt: { "3": <ms> } when (§12.12)
   }
   totals: { a, b, racksA, racksB, dead, lead, winner }
 
@@ -551,6 +553,27 @@ Racks isn't offered. A target reached on foul points mid-rack still finishes the
 - **Cuescore link.** Rack It passes `cuescore: true` for everyone. The sheet makes the link
   editable only on your own entry, shows it read-only ("Not added" when empty) on anyone
   else's, and never offers it on Add.
+
+### 12.12 The ball drop (1.4.0, owner request)
+
+Golden-Nine and Trad-Nine show balls 1 to 9 in a row across the bottom of the live screen,
+above Undo and End, as a live stream does.
+
+- **Tap a ball** and it's potted by whoever is shooting: it leaves the row and an empty slot
+  keeps the other balls in place. **Tap the slot** to put it back. Undo covers both.
+- **It's optional and never scores.** Nothing waits on it and nothing warns about balls left
+  on the table. Potting the 9 doesn't win the rack, a potted ball doesn't change the shooter,
+  and the rack still ends only on a win tap or a third Golden-Nine foul. Taps after the rack
+  has a winner are ignored.
+- **Logged for replays.** The rack record gains `balls` (`{ "3": "a" }`, the same shape as
+  11-Point-Nine) and `pottedAt` (`{ "3": <ms> }`, which gives the order). Both are written with
+  the rack's usual `patch`, so resume and Watch show the row as it stands. A new rack starts
+  with all nine back. Records without them read as an empty log.
+- **Sizing.** The row takes the rack's `.ball` look with the ball size set to fit nine across
+  (about 36px on a 390px phone, 44px at most). Each tap target is a ninth of the width by 56px
+  tall: narrower than the house 56px minimum, the price of one row of nine. The win buttons
+  give up the height, down to their 56px minimum on a 600px-tall screen.
+- 11-Point-Nine keeps its diamond rack; the row isn't shown there.
 
 ---
 
