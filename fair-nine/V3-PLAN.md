@@ -1,0 +1,199 @@
+# Rack It v3 — working doc for four build sessions
+
+Fair Nine becomes **Rack It**: three cue games, one Zargo rating, a phone-first layout that
+holds a club. This doc is the handover between four consecutive Claude Code sessions. Each
+session ends with the app **deployed and working**, then ticks its boxes and writes its
+handover note below, so the next session starts from the truth.
+
+**Start every session with:** "Read `fair-nine/V3-PLAN.md` and do Session N."
+
+## Read first, every session
+
+1. `CLAUDE.md` — the repo rules. Direct to `main`, one file per app, bump `APP_VERSION` and
+   `CACHE` together, deploy with `/deployquest`.
+2. `fair-nine/SPEC.md` — §1 to §11 is the app as it stands; **§12** is the three-game plan,
+   **§13** the new information architecture. Update the spec in the same commit when a
+   decision here changes it.
+3. `fair-nine/ZARGO.md` — the rating across games: definition, per-game `r` and `w`, the
+   session update, the handicap levers, the known challenges.
+4. The **Handover** section at the bottom of this doc, for what the previous session left.
+5. `fair-nine/index.html` itself. Read the whole file before changing it. It is one file
+   (about 1,800 lines); the live scoring screen is a prototype the owner likes, so extend it,
+   never rebuild it.
+
+## Ground rules for all four sessions
+
+- **The league game must behave identically after every session.** Same taps, same numbers.
+  Before touching ratings, Export a JSON and keep it in the scratchpad; after, Import it
+  into a scratch check or recompute one old session and confirm the Zargo movement matches.
+- **Deploy at the end of the session, not the start of the next.** A session that can't
+  finish its list deploys what works and writes the rest into Handover.
+- **Version:** Session 1 lands `1.0.0` (the rename). Later sessions bump minor.
+- **No new files in the app folder** except what the spec names. No frameworks.
+- **Don't build ahead.** Each session's list is the whole of that session. Ideas go in
+  Handover under "Parked".
+- Ask the owner nothing that the spec, ZARGO.md or this doc already answers. If something is
+  genuinely open, pick the simplest reading, do it, and say so in Handover.
+
+---
+
+## Session 1 — Foundation: the name, games in the data, Zargo per rack
+
+**Goal:** the app is called Rack It, every match knows which game it is, and the rating
+update is the per-rack, weighted formula from ZARGO.md. Nothing visible changes except the
+name and the word "match". League results and ratings are numerically identical.
+
+**Read:** SPEC §12.1, §12.5, §12.8, §13.2; ZARGO.md "The definition" and "Challenges" 5 and 8.
+
+- [ ] Rename: `<title>`, the `<h1>`, footer, share text, export filename and the "not a Fair
+      Nine export" check accept both names. `manifest.json` `name` and `short_name` become
+      "Rack It"; **`id` and `start_url` stay `/sidequests/fair-nine/`**. Landing page
+      `index.html` at the repo root lists "Rack It". Folder, URL, `APP_ID` and Firestore
+      paths do not change. Icon: keep the shape, change the lettering only if trivial.
+- [ ] "Session" becomes "match" in every label the user sees. Code names can stay.
+- [ ] `game` on every session document: `"league" | "golden" | "standard"`. Reading a
+      document without one treats it as league. New matches write `"league"`.
+- [ ] `handicap` on every session document: `"off" | "scoring" | "racks"`. Existing
+      documents read as `"scoring"` (that is what they were). Setup still writes `"scoring"`.
+- [ ] `state/main.config.games`: `{ league: { points: { low: 1, nine: 3 }, w: 1 },
+      golden: { points: { big: 10, small: 7, win: 4, foul: [1, 1, 2], intentional: 10 },
+      w: 0.5 }, standard: { w: 0.5 } }`. Migrate the old `config.points` into
+      `games.league.points` and keep reading either.
+- [ ] Rating update rewritten per rack: `delta = K × Σ w_i × (r_i − pA)`, clamp ±40,
+      `robustness += Σ w_i`. For league `r_i` is the rack's live point share and `w = 1`, so
+      the result equals the old formula. Prove it: recompute the Zargo movement for three
+      stored league sessions and compare with their stored `zargoBefore`/`zargoAfter`.
+- [ ] Settling (SPEC §11 "Ratings settle fast") uses observed mean `r` instead of observed
+      point share. Same numbers for league.
+- [ ] `shared/people.js`: a `cuescoreId` field, editable in the shared add/edit sheet as
+      "Cuescore profile link": paste the URL, the app keeps the trailing number. Bump
+      nothing in other apps unless the sheet's layout changed for them.
+- [ ] Version `1.0.0` in `index.html` and `sw.js`. `/deployquest`.
+- [ ] Handover written.
+
+**Done when:** the phone shows "Rack It", a league match scores and rates exactly as before,
+and Export shows `game` and `handicap` on every session.
+
+---
+
+## Session 2 — Golden Nine and 9-ball
+
+**Goal:** all three games can be played end to end, with the existing scoring handicap where
+it applies. Setup grows a game picker; the live screen gains the shared simpler layout.
+
+**Read:** SPEC §12.2, §12.3, §12.5; ZARGO.md "The definition".
+
+- [ ] Setup: **Game** chips above the players — League · Golden Nine · 9-ball. Remembered
+      in `localStorage`. Length defaults per game: League 5 racks (as now), Golden Nine
+      fixed 5 racks, 9-ball race to 5 racks (7 offered). Break default: League and 9-ball
+      alternate, Golden Nine winner breaks.
+- [ ] Live screen for Golden Nine and 9-ball, built from the existing pieces (panels, tint,
+      lead bar, meta strip, controls) with the rack area replaced by: a **Foul** button under
+      each player showing that rack's foul count and what it gave away, and three **win**
+      buttons for each side. Golden Nine: Big Golden 10 · Small Golden 7 · Win 4. 9-ball:
+      Break & run · 9 on the break · Win. Tapping a win button ends the rack for that side.
+- [ ] Golden Nine scoring: fouls give the opponent 1, 1, then 2 and the rack (kind
+      `"fouls"`, worth 4 in total, no extra win points). Intentional foul from a long-press
+      on Foul: rack lost, opponent +10, kind `"intentional"`; a second one ends the match.
+      9-ball: fouls counted, never scored.
+- [ ] Rack records as SPEC §12.5. Written with `cloud.patch` per rack like league. Undo
+      covers foul taps and win taps.
+- [ ] Rack end: no 11-point check for the new games; straight to "Start rack N". Golden
+      Nine fixed racks: if tied after the last rack, offer one more.
+- [ ] Lead bar: Golden Nine scoring handicap uses quotas = expected rack-win share × the
+      match's points so far (fixed) or the race targets (race). 9-ball shows racks won and
+      the race targets; with handicap off both games show plain scores and a lead of racks.
+- [ ] Match summary and History rows show the game. Totals gain `racksA`, `racksB`.
+- [ ] Rating update per rack for both games: `r ∈ {0, 1}` by rack winner, `w = 0.5`.
+      Resume and Watch work for both games.
+- [ ] Export/Import round-trips the new rack shapes.
+- [ ] Version bump, `/deployquest`, Handover.
+
+**Done when:** one full Golden Nine match and one 9-ball race can be scored on the phone,
+saved, seen in History, and move Zargo by the amount ZARGO.md predicts.
+
+---
+
+## Session 3 — Handicap levers and the one-screen setup
+
+**Goal:** setup fits one screen with Start pinned, and the three handicap levers work for
+every game that supports them.
+
+**Read:** SPEC §13.3; ZARGO.md "Handicap levers".
+
+- [ ] Setup layout as §13.3: Game, Players ("you" pre-selected on blue, recent opponents
+      first on amber), then Length, Handicap and Break each as a single row showing its
+      default, expanding on tap. Start pinned to the bottom; the page above it scrolls.
+- [ ] **Handicap chips: Off · Scoring · Racks.** Scoring is unavailable for 9-ball; Racks
+      is available for every game with a rack count or race.
+- [ ] **Race chart:** given `pA`, find the pair of targets (each 1 to 15) whose race-win
+      probability is nearest to even, by a small dynamic programme over racks. Show it two
+      ways: "Kenny to 7, Melanie to 4" and "Melanie starts 3 up in a race to 7". Both
+      numbers editable, both stored. In a race, the head-start form pre-loads `racksB`.
+- [ ] League **Racks** lever: race in racks, not points, with the chart; the 11-point rack
+      is decided by live points.
+- [ ] Handicap off: no quotas, no targets beyond the plain race; the lead bar shows a plain
+      lead. Ratings still update from raw results (ZARGO.md: handicap never enters the
+      update). Confirm by playing one match each way.
+- [ ] The §3.6 "enough points to be a contest" warning still fires for League scoring.
+- [ ] Version bump, `/deployquest`, Handover.
+
+**Done when:** a repeat of last night's match is Game, two names, Start; and each lever
+produces the numbers ZARGO.md describes.
+
+---
+
+## Session 4 — Tabs, people pages, Matches, More, Cuescore
+
+**Goal:** the §13 information architecture. Nothing about scoring changes.
+
+**Read:** SPEC §13.1, §13.2, §13.4 to §13.7, §12.6.
+
+- [ ] Bottom bar with four tabs: **Play · Ratings · Matches · More**, 56px targets, safe-area
+      padding. Opens on Ratings, or on Play when a match is live. A slim live-match bar
+      above the tabs on every screen with Resume and Watch.
+- [ ] **Ratings**: the ranked list. Tap a row → **person page**: Zargo with robustness and
+      one sentence on what it means, win record per game, their matches, Edit (the shared
+      people sheet plus starter rating and Cuescore link). Delete stays there, confirmed.
+- [ ] **Matches**: live first, then newest; row shows names, score, game, when, winner.
+      Two-tap delete as today. A finished match opens its summary.
+- [ ] **Summary** gains **Copy for Cuescore**: both names, discipline, race and score as
+      one line, plus a link to `https://cuescore.com/challenges/`.
+- [ ] **More**: Members (was Family, same mechanism), Export, Import, Install on this
+      phone, About Zargo (SPEC §3 in plain words, and that it is not Fargo), Sign out.
+- [ ] Remove the old Home button pile and the History chips. Every old path still reaches
+      its screen from one of the four tabs.
+- [ ] Wake lock, fullscreen and install unchanged; check on the phone that the bar does not
+      overlap the live screen's controls (the live screen is full-bleed and hides the bar).
+- [ ] Version bump, `/deployquest`, Handover.
+
+**Done when:** the owner can do everything they could before from the four tabs, in fewer
+taps, and a new club member can be added, rated and matched without a word of explanation.
+
+---
+
+## Parked (not in any session)
+
+- Shot clock for Golden Nine (45 s + one 30 s extension per rack).
+- WPA 8-ball and Heyball: same shape as 9-ball, add a game entry and a win-kind list.
+- Club grouping of people.
+- Cuescore rating as a starter hint via `api.cuescore.com` (⚠ CORS from a static page is
+  untested).
+- Fitting the league point-share-to-rack-odds mapping (ZARGO.md challenge 1).
+
+## Handover
+
+Each session appends a short note here: what shipped (version), what was skipped and why,
+anything the next session must know.
+
+### After Session 1
+_not started_
+
+### After Session 2
+_not started_
+
+### After Session 3
+_not started_
+
+### After Session 4
+_not started_

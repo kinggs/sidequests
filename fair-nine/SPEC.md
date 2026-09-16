@@ -309,7 +309,8 @@ same way. An older home-screen shortcut has to be removed and re-added to pick t
 ## 12. Planned v3 — three games, one app
 
 **Status:** planning. Nothing here is built. This section supersedes "Anything but nine-ball"
-in §9. The rating side of the plan is in [`ZARGO.md`](ZARGO.md).
+in §9. The rating side of the plan is in [`ZARGO.md`](ZARGO.md); the build is split into four
+sessions in [`V3-PLAN.md`](V3-PLAN.md).
 
 ### 12.1 Why modes, not a new app
 
