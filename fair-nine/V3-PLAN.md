@@ -136,6 +136,15 @@ every game that supports them.
       lead. Ratings still update from raw results (ZARGO.md: handicap never enters the
       update). Confirm by playing one match each way.
 - [ ] The §3.6 "enough points to be a contest" warning still fires for 11-Point-Nine scoring.
+- [ ] **Golden-Nine race to a points target** as a Length option beside fixed racks (fixed
+      racks stays the default, as in the DUYA rules; SPEC §12.2). Chips as Trad-Nine's: a
+      default of **Race to 35** plus Race to N typed in (1 to 200). Handicap off: both race
+      to N. Scoring: split the pair's combined `2N` by expected rack-win share, e.g. Kenny
+      `round(2N × pA)` vs Melanie `round(2N × (1 − pA))`, both editable, both stored in
+      `targets`. Racks: not offered for a points race. A target reached mid-rack (foul
+      points) finishes the rack first, as in an 11-Point-Nine race; the lead bar and
+      `matchResult` already handle a Golden-Nine race. ⚠ The split assumes point share ≈
+      rack-win share (ZARGO.md), so check it against a few real matches.
 - [ ] Version bump, `/deployquest`, Handover.
 
 **Done when:** a repeat of last night's match is Game, two names, Start; and each lever
@@ -180,6 +189,12 @@ taps, and a new club member can be added, rated and matched without a word of ex
 - Cuescore rating as a starter hint via `api.cuescore.com` (⚠ CORS from a static page is
   untested).
 - Fitting the 11-Point-Nine point-share-to-rack-odds mapping (ZARGO.md challenge 1).
+- Golden-Nine match time limit. DUYA pairs every rack count with a time limit (e.g. 35 racks
+  or 210 minutes, whichever comes first; a tie at time plays one more rack). Would need a
+  match clock on the live screen and a time field in setup.
+- End a fixed-rack Golden-Nine match early once the trailing player can't catch up, as
+  reported from DUYA broadcasts. Simple with handicap off (points behind > 10 × racks left,
+  plus fouls); with the scoring handicap it has to be worked out on quotas.
 
 ## Handover
 

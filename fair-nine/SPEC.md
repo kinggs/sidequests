@@ -335,7 +335,7 @@ one are 11-Point-Nine. The app id and URL stay `fair-nine` because renaming brea
 | A rack records | state of balls 1–9 | winner, win kind, fouls per player, breaker | winner, win kind, fouls per player, breaker |
 | Points | 1 each, 9 is 3 | 10 / 7 / 4 to the winner, 1, 1, 2 for fouls | one rack |
 | Rack ends | all nine balls resolved | winner tapped, or a third foul | winner tapped |
-| Default length | 5 racks | fixed racks, extra rack on a tie | race to 5 (3, 7 or a typed N offered) |
+| Default length | 5 racks | fixed racks, extra rack on a tie (race to points planned) | race to 5 (3, 7 or a typed N offered) |
 | Default break | alternate | winner breaks | alternate |
 | Handicap levers | scoring, racks | scoring, racks | racks |
 
@@ -356,6 +356,16 @@ one are 11-Point-Nine. The app id and URL stay `fair-nine` because renaming brea
 - Matches are a scheduled number of racks; a tie after the last rack is settled by one more.
   Winner breaks. A 45-second shot clock with one 30-second extension per rack exists in the
   rules; the app leaves the clock out of v3.
+- **In practice** (checked Sept 2026): the rules set no points target. The organiser picks a
+  rack count and a time limit, and the match ends at whichever comes first. The April 2026
+  Qingdao station ran 15 racks / 90 min in qualifying, 20 / 120 and 25 / 150 in double
+  elimination, 30 / 180 in the finals, **35 / 210 in the semi-finals** and 40 / 240 in the
+  final ([schedule](https://77billiards.com/2026/04/13/duya-legends-golden-nine-international-classic-qingdao-station-schedule-and-tournament-information/)).
+  Players report that a match stops once the trailing player can't catch up
+  ([AzBilliards thread](https://forums.azbilliards.com/threads/golden-nineball.589711/)).
+  ⚠ A Vietnamese "Golden Nine Points Chase" event may be a race to a score; its format
+  wasn't readable. Rack It keeps fixed racks as the default and adds a points race as a
+  house option (V3-PLAN Session 3); the time limit and early finish are parked.
 - Other balls off the table stay off; only the 9 is respotted. Ball in hand after a foul.
 
 **Trad-Nine:** WPA scoring, one rack is one rack, race to 5 (or 3, 7, or any N) with alternate
