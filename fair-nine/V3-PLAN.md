@@ -213,9 +213,11 @@ committed instead of rebuilt each session. Nothing about scoring or the screens 
 **Read:** this section, the "Rename runbook" below, ZARGO.md, SPEC §12.5 and §12.9 to §12.11
 (the data and the rating decisions), `shared/cloud.js`, `shared/people.js`.
 
-**Before the session (owner):** open Rack It 1.5.0 on the phone, More → Export, keep the
-JSON file. It is the migration. The old data also stays untouched at `sidequests/fair-nine/`
-in Firestore, and 1.5.0 stays in git, so nothing is lost if the import goes wrong.
+**Before the session (owner): done.** The 1.5.0 export is at
+`~/Downloads/rack-it-2026-09-16.json` on the owner's laptop (18 matches, 9 people, the
+ratings). It holds email addresses, so it never goes in the repo. It is the migration. The old
+data also stays untouched at `sidequests/fair-nine/` in Firestore, and 1.5.0 stays in git, so
+nothing is lost if the import goes wrong.
 
 - [ ] **The move.** `git mv fair-nine rack-it`, then the runbook below: `APP_ID`, manifest
       `id`, `CACHE`, the `localStorage` key, the landing page, CLAUDE.md, the skills' examples,
@@ -283,9 +285,12 @@ drift, and SPEC.md reads as one document.
 screen, and the things that must not be casually undone (matches, starter ratings, members)
 need the owner.
 
-**Read:** `rack-it/DESIGN.md` and the artboards in `rack-it/design/` (see "Design handoff"
-below), the consolidated SPEC, `shared/phone.js`.
+**Read:** `rack-it/design/DESIGN.md` first (its note at the top says where the plan overrides
+it), then the six PNGs beside it, the consolidated SPEC, `shared/phone.js`. DESIGN.md §6 gives
+the commit order; follow it.
 
+- [ ] **Owner decision, before starting:** 13px all-caps labels (DESIGN.md) or the 15px
+      floor (CLAUDE.md rule 7). Record it in the rule and in DESIGN.md's note.
 - [ ] **Tokens first.** Colours, type scale, spacing and radii from DESIGN.md replace the
       `:root` block. Every component follows: buttons, chips, rows, panels, tab bar, avatar
       ring, lead bar, balls. Check the house minimums survive: 18px base, nothing under
@@ -342,29 +347,14 @@ browser-free logic in one module beside `index.html` (`rack-it/zargo.js`) with a
 
 ---
 
-## Design handoff (before Session 6)
+## Design handoff
 
-The redesign lives in a regular claude.ai/design project, not a design-system project, so
-this session's sync tool can't read it. The handoff is an export, done by the owner:
-
-1. In claude.ai/design, export every artboard as **HTML** and as **PNG**. If the project
-   has a tokens or theme file, export that too.
-2. Put them in `rack-it/design/`, one file per artboard, named for the screen
-   (`ratings.html`, `live-golden.png`). The folder is reference only; `sw.js` doesn't cache
-   it and the app never links to it.
-3. Write `rack-it/DESIGN.md` (or have the design session write it):
-   - **Tokens:** every colour with its role, the type scale in px, spacing steps, radii,
-     shadows. Values, not names alone.
-   - **Components:** button (primary, quiet, danger), chip, list row, score panel, tab bar,
-     avatar ring, lead bar, ball, sheet. State per component: default, selected, disabled,
-     pressed.
-   - **Screens:** one short block each. What's on it, what changed from 1.5.0, which
-     artboard shows it.
-   - **Non-negotiables**, copied from CLAUDE.md rule 7 and SPEC "Fitting the phone", so the
-     implementer has them beside the pictures.
-4. If the design is still being iterated, give claude.ai/design the same non-negotiables,
-   the screen list from SPEC §13, and the device: an Android phone at 390×844, installed
-   fullscreen, dark, used at arm's length by older eyes.
+**Landed 2026-09-16** in `fair-nine/design/` (moves to `rack-it/design/` in Session 5):
+`DESIGN.md`, an implementation spec with tokens, live-screen redlines and a commit order, and
+six 390×844 artboards at 2x. The redesign lives in a regular claude.ai/design project, not a
+design-system project, so Claude Code's sync tool can't read it; further exports go the same
+way, by hand into that folder. The folder is reference only: `sw.js` doesn't cache it and the
+app never links to it.
 
 Opus translates the artboards into the one-file app; it does not copy their markup. Pixel
 agreement matters less than every token and every component reading the same everywhere.
