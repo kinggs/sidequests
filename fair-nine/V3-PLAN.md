@@ -1,7 +1,7 @@
-# Rack It v3 — working doc for four build sessions
+# Rack It v3 — working doc for the build sessions
 
 Fair Nine becomes **Rack It**: three cue games, one Zargo rating, a phone-first layout that
-holds a club. This doc is the handover between four consecutive Claude Code sessions. Each
+holds a club. This doc is the handover between consecutive Claude Code sessions. Each
 session ends with the app **deployed and working**, then ticks its boxes and writes its
 handover note below, so the next session starts from the truth.
 
@@ -18,18 +18,21 @@ handover note below, so the next session starts from the truth.
    session update, the handicap levers, the known challenges.
 4. The **Handover** section at the bottom of this doc, for what the previous session left.
 5. `fair-nine/index.html` itself. Read the whole file before changing it. It is one file
-   (about 1,800 lines); the live scoring screen is a prototype the owner likes, so extend it,
-   never rebuild it.
+   (about 3,000 lines); the live scoring screen is a prototype the owner likes, so extend it,
+   never rebuild it. **Session 6 retires this rule:** the redesign may change the live
+   screen's interaction, within the list of behaviours that must survive.
 
-## Ground rules for all four sessions
+## Ground rules for every session
 
 - **The 11-Point-Nine game must behave identically after every session.** Same taps, same numbers.
   Before touching ratings, Export a JSON and keep it in the scratchpad; after, Import it
   into a scratch check or recompute one old session and confirm the Zargo movement matches.
 - **Deploy at the end of the session, not the start of the next.** A session that can't
   finish its list deploys what works and writes the rest into Handover.
-- **Version:** Session 1 lands `1.0.0` (the rename). Later sessions bump minor.
-- **No new files in the app folder** except what the spec names. No frameworks.
+- **Version:** Session 1 lands `1.0.0` (the rename). Later sessions bump minor. Session 5
+  lands `2.0.0` (the move to `rack-it/`), Session 6 `2.1.0`.
+- **No new files in the app folder** except what the spec names. No frameworks. From
+  Session 5, `zargo.js` and its test file are named (see the rename runbook).
 - **Don't build ahead.** Each session's list is the whole of that session. Ideas go in
   Handover under "Parked".
 - Ask the owner nothing that the spec, ZARGO.md or this doc already answers. If something is
@@ -200,11 +203,181 @@ taps, and a new club member can be added, rated and matched without a word of ex
 
 ---
 
+## Session 5 — Foundation: Rack It moves home, replayable ratings, a test harness
+
+**Goal:** the app lives at `rack-it/` in every sense (URL, manifest id, Firestore, code),
+its rating engine is a pure module with tests, every Zargo can be rebuilt from the match
+history, the spec describes the app as it is, and the browser stand-in used for testing is
+committed instead of rebuilt each session. Nothing about scoring or the screens changes.
+
+**Read:** this section, the "Rename runbook" below, ZARGO.md, SPEC §12.5 and §12.9 to §12.11
+(the data and the rating decisions), `shared/cloud.js`, `shared/people.js`.
+
+**Before the session (owner):** open Rack It 1.5.0 on the phone, More → Export, keep the
+JSON file. It is the migration. The old data also stays untouched at `sidequests/fair-nine/`
+in Firestore, and 1.5.0 stays in git, so nothing is lost if the import goes wrong.
+
+- [ ] **The move.** `git mv fair-nine rack-it`, then the runbook below: `APP_ID`, manifest
+      `id`, `CACHE`, the `localStorage` key, the landing page, CLAUDE.md, the skills' examples,
+      and every path in the docs.
+- [ ] **`matches/`, not `sessions/`.** New matches are written to `matches/<id>`. Import
+      writes there too, keeping document ids. Code names may follow (`startMatch`,
+      `finishMatch`) where the rename is mechanical; don't chase every variable.
+- [ ] **Export/Import is the migration.** Export writes `app: "rack-it"`. Import accepts
+      `app` of `"fair-nine"` or `"rack-it"`, and Replace mode is what the owner uses once.
+      Test it against a synthetic export in the harness, then the owner imports the real
+      file on the phone.
+- [ ] **The stub.** `fair-nine/` keeps only `index.html` and `sw.js`. The page says Rack It
+      has moved, links to `../rack-it/`, and tells the reader to remove the old icon and tap
+      Install on the new page. The worker deletes every cache, unregisters itself and
+      reloads its clients. No manifest, no icons. `/deletequest fair-nine` a month later.
+- [ ] **`rack-it/zargo.js`.** A pure ES module, no DOM, no `cloud`: `expectedShareA`,
+      `rackResults(game, points, cfg)`, `weightOf`, `zargoOutcome(before, results, cfg)`
+      taking `{ za, zb, sessionsA, sessionsB, robustnessA, robustnessB }` instead of reading
+      `live` and `P()`, `raceWin`, `raceChart`, and `replay(matches, starters, cfg)`.
+      `index.html` imports it. CLAUDE.md rule 1 gains the exception (runbook).
+- [ ] **`rack-it/zargo.test.mjs`**, run with `node --test rack-it/`. Fixtures are synthetic:
+      no export of real data goes in the repo. Cover the hand-worked numbers already in this
+      doc (Trad-Nine 5–2: 597.3 → 598.3 and 508 → 505.4; an 11-Point-Nine match at −0.364),
+      an 11-Point-Nine match with dead balls (SPEC §12.9), calibration, and a replay of a
+      six-match fixture whose end state is computed by hand.
+- [ ] **Starter ratings get their own document.** `starters/<personId>: { zargo, setAt,
+      setBy }`. Add player's starter and the person page's override write it, and still
+      write `state/main` so the number shows at once. A replay starts everyone from their
+      starter, else `config.startZargo`.
+- [ ] **Rebuild ratings.** `replay()` orders `done` matches by `endedAt`, runs
+      `zargoOutcome` per match with the running sessions and robustness, and returns the
+      players' end state plus each match's before/after. More → **Rebuild ratings** shows
+      the diff per player first ("Kenny 505 → 507"), then Apply writes `state/main.players`
+      and each match's `zargoBefore`/`zargoAfter`. Deleting a match rebuilds afterwards, so
+      a deleted match no longer leaves its movement behind (update SPEC §5.5's sentence).
+      ⚠ The first rebuild will move numbers a little: Session 1 found one stored match that
+      no history reproduces. The owner reads the diff and accepts it.
+- [ ] **`shared/cloud-memory.js`.** The in-memory stand-in Sessions 2 to 4 each rebuilt,
+      committed: the same surface as `cloud.js` including `shared` and the members calls,
+      watchers that fire on every write, a fake signed-in user, and optional seeding from a
+      JSON export. `cloud.init` switches to it when the URL has `?mock`, so no app code
+      changes and any app can be tried with fake data. Say in `CLAUDE.md` that `?mock` is
+      how sessions test.
+- [ ] **Spec consolidation.** Rewrite `SPEC.md` as Rack It as it is: concepts, the three
+      games, Zargo (pointing at ZARGO.md), setup, the live screen, the four tabs, people and
+      claiming, data, Cuescore, fitting the phone, out of scope, and a short decisions log.
+      Drop v2's screens, modes, build order and "changes from v1". Every "as built" fact
+      that still holds moves into its section as plain present tense. Under 400 lines.
+      Sessions 1 to 4 in this doc collapse to one "What shipped" paragraph each; their
+      handovers keep only what is still true and not in the spec.
+- [ ] Version `2.0.0` in `index.html` and `sw.js`. `/deployquest`. Handover.
+- [ ] **Owner:** import the JSON, reinstall from the new URL, play one real match of each
+      game against Firestore, and rebuild ratings once. Tick this here. Four sessions have
+      shipped without this step; it's the one that matters.
+
+**Done when:** the phone shows Rack It at `/sidequests/rack-it/`, the old icon leads to the
+stub, `node --test` passes, Rebuild ratings reproduces the live numbers to within the noted
+drift, and SPEC.md reads as one document.
+
+---
+
+## Session 6 — The design, and an owner
+
+**Goal:** the claude.ai/design redesign is the app, on every screen including the live
+screen, and the things that must not be casually undone (matches, starter ratings, members)
+need the owner.
+
+**Read:** `rack-it/DESIGN.md` and the artboards in `rack-it/design/` (see "Design handoff"
+below), the consolidated SPEC, `shared/phone.js`.
+
+- [ ] **Tokens first.** Colours, type scale, spacing and radii from DESIGN.md replace the
+      `:root` block. Every component follows: buttons, chips, rows, panels, tab bar, avatar
+      ring, lead bar, balls. Check the house minimums survive: 18px base, nothing under
+      15px, 56px targets, contrast, `prefers-reduced-motion`.
+- [ ] **Screens** in the order a player meets them: sign-in, Ratings, setup, live, rack
+      end, summary, person page, Matches, More, Invites. One commit per screen where that
+      is natural.
+- [ ] **The live screen may change its interaction.** This retires "extend, never rebuild"
+      (ground rules). What must survive, whatever it looks like: tap awards a ball to the
+      shooter, dead balls, long-press to clear, match-wide undo, the shooter tint, the
+      foul and three win buttons, the ball drop, a per-rack `cloud.patch`, Resume, Watch,
+      never scrolling (SPEC "Fitting the phone"), wake lock and fullscreen from
+      `shared/phone.js`. Test each in the harness at 390×844, then on the phone.
+- [ ] **Owner role.** `members/<email>.role: "owner"`, set once in the Firebase console for
+      the owner's address. `firestore.rules` gains `isOwner()`. Owner only: delete a match,
+      update a match whose `status` is already `done` (which makes Rebuild owner-only),
+      write `starters/*`, delete a member. Any member still adds a member and writes live
+      matches. ⚠ People documents stay writable by any member; protecting `uid` and `email`
+      by rule is possible but fiddly, so it's a later step. Push deploys the rules.
+- [ ] Every app's Invites list hides Remove from non-owners. Rack It hides Delete, the
+      starter override and Rebuild from them, with one line saying why.
+- [ ] Version `2.1.0`. `/deployquest`. Handover. Owner plays one real match on the phone.
+
+**Done when:** the phone looks like the artboards, a new club member can score a match but
+can't delete one, and the owner can.
+
+---
+
+## Rename runbook (Session 5)
+
+Chrome can't move an installed app to a new manifest URL, so everyone reinstalls once.
+Three phones today; do it before the club installs.
+
+| What | From | To |
+|---|---|---|
+| Folder and URL | `fair-nine/` | `rack-it/` |
+| `APP_ID`, `cloud.init` | `"fair-nine"` | `"rack-it"` |
+| Firestore | `sidequests/fair-nine/{state,sessions}` | `sidequests/rack-it/{state,matches,starters}` |
+| Manifest `id` | `/sidequests/fair-nine/` | `/sidequests/rack-it/` |
+| `CACHE` | `fair-nine-v1.5.0` | `rack-it-v2.0.0` |
+| `localStorage` | `fair-nine.game` | `rack-it.game` |
+| Export `app` | `fair-nine` | `rack-it` (Import accepts both) |
+| Landing page | `./fair-nine/` | `./rack-it/` |
+| CLAUDE.md | "Rack It (the `fair-nine` app)" | `rack-it`; rule 1 gains the module exception; `?mock` noted |
+| Skills | examples naming `fair-nine` | `rack-it` |
+| These docs | every `fair-nine/` path | `rack-it/` |
+
+Unchanged: the people list at `_shared/people/`, person ids, the stored `game` values
+(`"league"`, `"golden"`, `"standard"`), the icon.
+
+**CLAUDE.md rule 1, new wording:** one file per app, except that an app may keep pure,
+browser-free logic in one module beside `index.html` (`rack-it/zargo.js`) with a
+`node --test` file next to it, when the logic is worth proving outside a browser.
+
+---
+
+## Design handoff (before Session 6)
+
+The redesign lives in a regular claude.ai/design project, not a design-system project, so
+this session's sync tool can't read it. The handoff is an export, done by the owner:
+
+1. In claude.ai/design, export every artboard as **HTML** and as **PNG**. If the project
+   has a tokens or theme file, export that too.
+2. Put them in `rack-it/design/`, one file per artboard, named for the screen
+   (`ratings.html`, `live-golden.png`). The folder is reference only; `sw.js` doesn't cache
+   it and the app never links to it.
+3. Write `rack-it/DESIGN.md` (or have the design session write it):
+   - **Tokens:** every colour with its role, the type scale in px, spacing steps, radii,
+     shadows. Values, not names alone.
+   - **Components:** button (primary, quiet, danger), chip, list row, score panel, tab bar,
+     avatar ring, lead bar, ball, sheet. State per component: default, selected, disabled,
+     pressed.
+   - **Screens:** one short block each. What's on it, what changed from 1.5.0, which
+     artboard shows it.
+   - **Non-negotiables**, copied from CLAUDE.md rule 7 and SPEC "Fitting the phone", so the
+     implementer has them beside the pictures.
+4. If the design is still being iterated, give claude.ai/design the same non-negotiables,
+   the screen list from SPEC §13, and the device: an Android phone at 390×844, installed
+   fullscreen, dark, used at arm's length by older eyes.
+
+Opus translates the artboards into the one-file app; it does not copy their markup. Pixel
+agreement matters less than every token and every component reading the same everywhere.
+
+---
+
 ## Parked (not in any session)
 
 - Shot clock for Golden-Nine (45 s + one 30 s extension per rack).
 - WPA 8-ball and Heyball: same shape as Trad-Nine, add a game entry and a win-kind list.
 - Club grouping of people.
+- Protecting `uid` and `email` on people documents by rule (Session 6 ⚠).
+- A shared `shared/theme.css` if the other two apps ever take Rack It's design.
 - Cuescore rating as a starter hint via `api.cuescore.com` (⚠ CORS from a static page is
   untested).
 - Fitting the 11-Point-Nine point-share-to-rack-odds mapping (ZARGO.md challenge 1).
