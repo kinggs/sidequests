@@ -411,6 +411,87 @@ add another member's Gmail, and only members can read anything. If club members 
 shared people list becomes the club's list too: one flat list, no grouping. Club grouping is
 a possible later change, not a v3 one.
 
-### 12.8 Open questions
+### 12.8 Name
 
-- ⚠ The app's name, now that it holds three games. Not club-specific.
+The app is called **Rack It** from v3. The folder, URL, manifest id and Firestore namespace
+stay `fair-nine`, because changing any of them breaks installed copies or orphans the data.
+The rating keeps its own name, **Zargo**, and the app says so wherever a rating is shown.
+
+---
+
+## 13. Planned v3 — information architecture
+
+A phone-first pass over how the app is organised, done before v3 is built so the new games
+land in a shape that already fits them. Today Home is a player list above six equal buttons,
+setup is one long page, and History is one list for everyone. That works for a household and
+one game. It won't for three games, a handicap choice, and a club's worth of people.
+
+### 13.1 Four places, one bar
+
+A bottom bar with four tabs, each a thumb-reach 56px target, replaces the button pile:
+
+| Tab | What it is | First thing you see |
+|---|---|---|
+| **Play** | start a match, or get back to the one that's on | the live match if there is one, else setup |
+| **Ratings** | everyone, ranked by Zargo | the list; tap a name for their page |
+| **Matches** | every match, newest first, live ones on top | the list; tap a row to resume, watch or review |
+| **More** | everything that isn't playing | Members, Export, Import, Install, About Zargo, Sign out |
+
+The app opens on **Ratings** when nothing is live and on **Play** when something is. A live
+match also shows as a slim bar above the tabs on every screen, with Resume and Watch, so the
+scorer's phone and a watcher's phone both get back in one tap.
+
+### 13.2 Words
+
+- **Match**, not session. Nobody at a table says session.
+- **Members**, not Family, once the list holds people from the club. The CLAUDE.md name for
+  the mechanism doesn't change; only the label does.
+- **Zargo** is always shown with its robustness and, on the person's page, one sentence on
+  what it means and how it moves. "Provisional" stays as the word for under 30.
+- The three games are labelled **League**, **Golden Nine** and **9-ball**, in that order,
+  because that is the order the household plays them.
+
+### 13.3 Play: setup that fits one screen
+
+One page, defaults first, Start pinned to the bottom so it never scrolls away:
+
+1. **Game** — three chips. The last game played is pre-selected.
+2. **Players** — the two columns as today, "you" pre-selected on the blue side, most recent
+   opponents first on the amber side. Beyond about eight people the columns become a
+   searchable list; not needed yet.
+3. **Length** — one field with the game's default (League 5 racks, Golden Nine 5 racks with
+   a tie-break, 9-ball race to 5). Tapping shows the alternatives (race, fixed, open; 5 or 7).
+4. **Handicap** — chips: **Off · Scoring · Racks**, with the proposal underneath in one line
+   ("Kenny to 7, Melanie to 4" or "Melanie starts 2 up"), editable by tapping it.
+5. **Break** — one button, the game's default pre-filled.
+6. **Start**.
+
+Steps 3 to 5 sit behind their defaults: each is a single row until tapped, so a repeat of
+last night's match is Game, two names, Start.
+
+### 13.4 Ratings and a person's page
+
+The Ratings list is the old Home list, ranked, with the same row: name, colour, Zargo,
+robustness, provisional tag. Tapping a row opens **their page**: Zargo with the one-line
+explanation, win records per game, their matches, and Edit (name, colour, starter rating,
+Gmail, Cuescore id, merge, delete). This replaces the History chips and the edit-only path
+to a rating.
+
+### 13.5 Matches
+
+One list, live first, then newest first. Each row: the two names and score, game, when, and
+who won. Filtering by person lives on the person's page, not here. Delete stays the two-tap
+arm-and-confirm on the row. Tapping a finished match opens its summary: result, racks, Zargo
+movement, and **Copy for Cuescore**.
+
+### 13.6 Live match
+
+The League screen is unchanged. Golden Nine and 9-ball share the simpler screen in §12.3.
+The screen chrome is the same in all three: names and scores in the two panels, lead bar,
+rack strip, controls. Rack end and the match summary are one design for every game.
+
+### 13.7 More
+
+Members (add by Gmail, remove, share the app link), Export, Import, Install on this phone,
+About Zargo (the §3 maths in plain words), and Sign out. Nothing here is needed to play, so
+it can live one tap away.
