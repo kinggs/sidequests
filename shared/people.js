@@ -377,9 +377,9 @@ function armed(btn, label, sure, fn){
 }
 
 // ---- the shared add / edit sheet ----
-// Colours come from the app's own CSS variables where it has them (--panel, --bg, --ink,
-// --ink-dim, --accent, --accent-ink, --danger); --pk-card overrides the card if --panel
-// is see-through.
+// Colours come from shared/theme.css (or the app's own CSS variables where it has them:
+// --panel, --bg, --ink, --ink-dim, --danger). --pk-card overrides the card if --panel is
+// see-through; --pk-go and --pk-go-ink colour Save, falling back to --accent.
 const CSS = `
 .pk-ov{position:fixed;inset:0;z-index:25;background:rgba(0,0,0,.78);display:flex;align-items:center;justify-content:center;
   padding:max(16px,env(safe-area-inset-top)) 14px max(16px,env(safe-area-inset-bottom));overflow-y:auto}
@@ -394,7 +394,7 @@ const CSS = `
   background:var(--bg,#101418);border:1px solid rgba(255,255,255,.2);border-radius:12px;-webkit-user-select:text;user-select:text}
 .pk-card button{min-height:56px;padding:0 18px;border-radius:12px;border:1px solid transparent;font:inherit;font-size:18px;font-weight:700}
 .pk-card button:focus-visible{outline:3px solid #fff;outline-offset:2px}
-.pk-card .pk-go{background:var(--accent,#4a8fce);color:var(--accent-ink,#fff)}
+.pk-card .pk-go{background:var(--pk-go,var(--accent,#4a8fce));color:var(--pk-go-ink,var(--accent-ink,#fff))}
 .pk-card .pk-quiet{background:transparent;color:var(--ink-dim,#aab3bd);border-color:rgba(255,255,255,.26)}
 .pk-card .pk-arm{background:var(--danger,#e2603f);color:#fff;border-color:transparent}
 .pk-row{display:flex;gap:10px;margin-top:10px}

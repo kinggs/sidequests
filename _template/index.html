@@ -3,48 +3,29 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#101418">
+<meta name="theme-color" content="#0A0D11">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>__APP_NAME__</title>
+<link rel="stylesheet" href="../shared/theme.css">
 <style>
-  :root{
-    --bg:#101418; --panel:#1a2027; --ink:#eef0f2; --ink-dim:#aab3bd; --accent:#4a8fce;
-  }
-  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
-  html,body{height:100%}
-  body{
-    background:var(--bg);color:var(--ink);
-    font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-    font-size:18px;line-height:1.4;
-    display:flex;flex-direction:column;
-    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
-    -webkit-user-select:none;user-select:none;
-  }
-  header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:var(--panel)}
-  header h1{font-size:20px;font-weight:700}
-  main{flex:1;padding:16px}
-  footer{padding:10px 16px;font-size:13px;color:var(--ink-dim);text-align:center}
-  button{
-    min-height:56px;padding:0 20px;border-radius:12px;border:none;
-    background:var(--accent);color:#fff;font:inherit;font-weight:700;
-  }
-  button.quiet{background:transparent;color:var(--ink-dim);border:1px solid rgba(255,255,255,.2)}
-  button:focus-visible{outline:3px solid #fff;outline-offset:2px}
-  .user{display:flex;align-items:center;gap:10px;font-size:15px;color:var(--ink-dim)}
-  .user img{width:32px;height:32px;border-radius:50%}
-  @media (prefers-reduced-motion: reduce){ *{transition:none !important} }
+  /* The look, the fonts and the shared parts (buttons, chips, card rows, tiles, inputs, the
+     page header) come from shared/theme.css. Set this app's accent, which only ever marks
+     its data; add only what's this app's own below. */
+  :root{ --accent:#23D3B0; --accent-ink:#032721; }
+  main{flex:1;min-height:0;padding:4px 16px 16px;overflow-y:auto;max-width:40rem;width:100%;margin:0 auto}
+  .userbtn{flex:none;min-height:var(--tap);padding:0 16px;font-size:.8333rem;white-space:nowrap}
 </style>
 </head>
 <body>
 
-<header>
+<header class="apphead">
   <h1>__APP_NAME__</h1>
   <div class="user" id="userBox">
-    <button class="quiet" id="signIn">Sign in</button>
+    <button class="quiet userbtn" id="signIn">Sign in</button>
   </div>
 </header>
 
@@ -56,7 +37,7 @@
   <div id="installHere"></div>
 </main>
 
-<footer>__APP_NAME__ <span id="version"></span></footer>
+<footer class="foot">__APP_NAME__ <span id="version"></span></footer>
 
 <script type="module">
   import { cloud } from "../shared/cloud.js";
@@ -80,12 +61,11 @@
 
   cloud.onUser(user => {
     if (user) {
-      userBox.innerHTML = `<img src="${user.photoURL || ""}" alt=""><span>${user.displayName || user.email}</span>
-        <button class="quiet" id="signOut">Sign out</button>`;
+      userBox.innerHTML = `${user.photoURL ? `<img src="${user.photoURL}" alt="">` : ""}<button class="quiet userbtn" id="signOut">Sign out</button>`;
       document.getElementById("signOut").onclick = () => cloud.signOut();
       start(user);
     } else {
-      userBox.innerHTML = `<button class="quiet" id="signIn">Sign in</button>`;
+      userBox.innerHTML = `<button class="quiet userbtn" id="signIn">Sign in</button>`;
       document.getElementById("signIn").onclick = () => cloud.signIn();
     }
   });

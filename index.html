@@ -3,16 +3,19 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0A0D11">
 <title>Sidequests</title>
+<link rel="stylesheet" href="shared/theme.css">
 <style>
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{background:#101418;color:#eef0f2;font-family:ui-sans-serif,system-ui,sans-serif;font-size:19px;padding:28px 20px;max-width:32rem;margin:0 auto}
-  h1{font-size:24px;margin-bottom:20px}
-  ul{list-style:none}
-  li a{display:block;padding:18px 16px;margin-bottom:10px;background:#1a2027;border-radius:12px;color:#eef0f2;text-decoration:none;font-weight:600}
-  li a:active{background:#232b34}
-  p{color:#aab3bd;font-size:15px;margin-top:20px;line-height:1.45}
-  p b{color:#eef0f2}
+  body{height:auto;min-height:100dvh;padding:28px 16px;max-width:32rem;margin:0 auto}
+  h1{font-family:var(--grot);font-size:1.4444rem;font-weight:600;letter-spacing:-.02em;margin-bottom:18px}
+  ul{list-style:none;display:flex;flex-direction:column;gap:8px}
+  li a{display:flex;align-items:center;min-height:72px;padding:0 18px;background:var(--ink-1);border-radius:var(--r-card);
+    color:var(--text);text-decoration:none;font-weight:600;touch-action:manipulation}
+  li a:active{background:var(--ink-2)}
+  li a:focus-visible{outline:3px solid var(--text);outline-offset:2px}
+  p{color:var(--dim);font-size:.8333rem;margin-top:20px;line-height:1.45}
+  p b{color:var(--text)}
 </style>
 </head>
 <body>

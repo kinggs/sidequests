@@ -26,7 +26,7 @@ sed -i "s/__APP_ID__/$APP_ID/g; s/__APP_NAME__/$APP_NAME/g; s/__APP_INITIAL__/${
 ## 2b. Draw the icon, then make the PNGs
 
 Edit `icon.svg` into something that reads at thumbnail size: a filled rounded rect in the
-panel colour, then one simple shape in the app's accent. No text, no fine lines.
+card colour (`#121821`), then one simple shape in the app's accent. No text, no fine lines.
 
 Then make the PNGs the manifest points at — **this step is not optional**:
 
@@ -47,6 +47,12 @@ Capture the brief before building. Short is fine, but it must cover: purpose, wh
 ## 4. Build
 
 Replace the `<main>` and the `start()` function in `index.html` with the actual app. Follow every rule in `CLAUDE.md` — especially: one file, `cloud.js` for all storage, big touch targets, `pointerup` not `click`, version stamp in the footer.
+
+The look comes from `shared/theme.css`, which the template already links. Pick the app's
+`--accent` and use it only for the app's data. Build from the theme's parts before writing
+new CSS: `.apphead`, `.lbl` headings, `.primary` and `.quiet` buttons, `.seg`, `.chips`
+(with `people.avatar(id, 40)`), `.rows` card rows, `.tiles`, `.chart`, inputs, `.toast`,
+`.note`. Big figures take `font-family: var(--grot)`.
 
 Keep the phone kit the template gives you:
 
