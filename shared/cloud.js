@@ -2,7 +2,7 @@
 //
 // Every app calls:
 //   import { cloud } from "../shared/cloud.js";
-//   await cloud.init("fair-nine");          // appId = the app's folder name
+//   await cloud.init("rack-it");            // appId = the app's folder name
 //   cloud.onUser(user => ...);            // null when signed out
 //   cloud.signIn(); cloud.signOut();
 //   await cloud.save("state/main", {...}); // path is relative to sidequests/<appId>/
@@ -11,6 +11,9 @@
 //   await cloud.patch("sessions/abc", { "racks.3": {...} }); // dotted field paths
 //   await cloud.list("sessions");
 //   cloud.watchList("sessions", rows => ..., { orderBy: "at" });
+//
+// Add ?mock to an app's URL to run it against shared/cloud-memory.js instead: no Firebase,
+// a fake signed-in member, data kept in this browser. That's how sessions test an app.
 //
 // All data for an app lives under /sidequests/<appId>/ in Firestore. Apps never read or
 // write outside their own namespace, so one Firebase project serves the whole repo.
@@ -75,6 +78,13 @@ export const cloud = {
   },
 
   async init(id) {
+    // ?mock in the URL: swap in the in-memory stand-in (shared/cloud-memory.js) — a fake
+    // signed-in member and fake data, for trying any app without touching Firestore.
+    if (!this.mock && typeof location !== "undefined" && new URLSearchParams(location.search).has("mock")) {
+      const { memory } = await import("./cloud-memory.js");
+      Object.defineProperties(this, Object.getOwnPropertyDescriptors(memory));
+      return this.init(id);
+    }
     appId = id;
     if (!this.configured()) {
       console.warn("[cloud] firebase-config.js not filled in; running without cloud");
