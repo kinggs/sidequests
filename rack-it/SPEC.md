@@ -4,7 +4,7 @@ A phone-first scorer for three cue games between any two players, with one ratin
 of them (**Zargo**) and handicaps that keep a mismatched pair close. Matches sync to the cloud,
 so any invited phone can score, resume or watch. Invite-only: members sign in with Google.
 
-This spec is the app as it is (2.1.0). The rating's reasoning is in [`ZARGO.md`](ZARGO.md); the
+This spec is the app as it is (2.1.1). The rating's reasoning is in [`ZARGO.md`](ZARGO.md); the
 build sessions and their handovers are in [`V3-PLAN.md`](V3-PLAN.md); the look (dark system v2)
 is in [`design/DESIGN.md`](design/DESIGN.md).
 
@@ -174,8 +174,9 @@ players", "Set the length first"):
 1. **Game**, a segmented control (the third segment reads "11-Point" to fit). The last game
    picked is remembered per phone (`localStorage` `rack-it.game`).
 2. **Players:** Teal side and Coral side columns with avatars. You're pre-selected on teal; the
-   coral column lists the teal player's most recent opponents first, then everyone by name. The
-   same player can't be on both sides.
+   coral column lists the teal player's most recent opponents first, then everyone by name.
+   Tapping the player who's on the other side swaps the two, and the break stays with whoever
+   had it.
 3. **Length**, **Handicap** and **Break**: one settings card, a row each showing the current
    choice. Length and Handicap open on tap; Break flips on tap (teal breaks first by default).
 4. The handicap row shows the proposal and, open, the targets, both editable. The odds sentence

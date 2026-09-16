@@ -196,7 +196,6 @@
   .picks button{min-height:64px;background:var(--ink-1);display:flex;align-items:center;gap:10px;padding:0 10px;text-align:left;
     border-radius:var(--r-card);font-weight:600}
   .picks button>span:last-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .picks button:disabled .pk-av{filter:grayscale(1) brightness(.6)}
   .pickcol.ca .picks button.sel{background:var(--a);color:var(--a-ink)}
   .pickcol.cb .picks button.sel{background:var(--b);color:var(--b-ink)}
   .settings{background:var(--ink-1);border-radius:var(--r-card);overflow:hidden}
@@ -738,7 +737,7 @@ import { phone } from "../shared/phone.js";
 import { people } from "../shared/people.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "2.1.0";
+const APP_VERSION = "2.1.1";
 const APP_ID = "rack-it";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 document.getElementById("versionMore").textContent = "v" + APP_VERSION;
@@ -1449,8 +1448,7 @@ function renderSetup(){
       n.textContent = nameOf(id);
       b.append(people.avatar(id, 40), n);
       b.classList.toggle("sel", setup[side] === id);
-      b.disabled = setup[other(side)] === id;      // same player on both sides is blocked
-      b.addEventListener("click", () => { setup[side] = id; proposeTargets(); renderSetup(); });
+      b.addEventListener("click", () => pickSide(side, id));
       el[box].appendChild(b);
     });
   });
@@ -1543,6 +1541,19 @@ function renderSetup(){
   }
   el.startBtn.disabled = !(a && b && plan);
   el.startBtn.textContent = !(a && b) ? "Pick two players" : plan ? "Start" : "Set the length first";
+}
+// Picking the player who's already on the other side swaps the two sides. The break stays
+// with the person who had it.
+function pickSide(side, id){
+  const opp = other(side);
+  if(setup[opp] === id){
+    setup[opp] = setup[side];
+    setup[side] = id;
+    if(setup[opp]) setup.breaker = other(setup.breaker);
+    else setup.breaker = "a";
+  } else setup[side] = id;
+  proposeTargets();
+  renderSetup();
 }
 const FAIR_RACE_MIN = 8;   // points; below this one rack can decide the session
 
