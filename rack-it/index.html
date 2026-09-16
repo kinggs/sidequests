@@ -688,7 +688,7 @@ import { phone } from "../shared/phone.js";
 import { people } from "../shared/people.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "2.0.0";
+const APP_VERSION = "2.0.1";
 const APP_ID = "rack-it";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 document.getElementById("versionMore").textContent = "v" + APP_VERSION;
@@ -894,8 +894,8 @@ function watchMatches(){
   unsubMatches = cloud.watchList("matches", rows => {
     matches = rows;
     liveDoc = rows.find(x => x.status === "live" && x.startedAt > Date.now() - LIVE_WINDOW) || null;
-    // Opens on Play when a match is on, otherwise on Ratings.
-    if(!landed){ landed = true; if(current === "gate") liveDoc ? openSetupTab() : openPage("ratings"); }
+    // Always opens on Play; a live match shows in the strip above the tabs.
+    if(!landed){ landed = true; if(current === "gate") openSetupTab(); }
     paintLiveBar();
     if(current === "matches" && !armedDeletes) renderMatches();
     if(current === "person") renderPerson();
@@ -1322,6 +1322,8 @@ function renderSetup(){
   // ---- players: you first on blue, the blue player's recent opponents first on amber ----
   const ids = activePlayers();
   const me = people.meId();
+  // The people list can arrive after setup opens: pre-select you once it does.
+  if(!setup.a && !setup.b && me && ids.includes(me)) setup.a = me;
   const orderA = ids.slice().sort((x, y) => (y === me) - (x === me));
   const orderB = opponentsFirst(ids, setup.a);
   [["pickA","a",orderA],["pickB","b",orderB]].forEach(([box, side, order]) => {

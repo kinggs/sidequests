@@ -4,7 +4,7 @@ A phone-first scorer for three cue games between any two players, with one ratin
 of them (**Zargo**) and handicaps that keep a mismatched pair close. Matches sync to the cloud,
 so any invited phone can score, resume or watch. Invite-only: members sign in with Google.
 
-This spec is the app as it is (2.0.0). The rating's reasoning is in [`ZARGO.md`](ZARGO.md); the
+This spec is the app as it is (2.0.1). The rating's reasoning is in [`ZARGO.md`](ZARGO.md); the
 build sessions and their handovers are in [`V3-PLAN.md`](V3-PLAN.md); the redesign to come is in
 [`design/`](design/DESIGN.md).
 
@@ -234,8 +234,7 @@ drops it out cleanly.
 ## 7. The four tabs
 
 **Play · Ratings · Matches · More**, 60px tall, along the bottom of every page but sign-in and
-the live screen. The app opens on **Play** when a match started in the last 24 hours is still
-live, otherwise on **Ratings**. While a match is live and this phone isn't scoring or watching
+the live screen. The app always opens on **Play** (owner's call, 2.0.1). While a match is live and this phone isn't scoring or watching
 it, a **live strip** above the tabs shows "Kenny v Melanie · Trad-Nine" with **Resume** and
 **Watch**. The newest 300 matches are watched as one live list, so the strip, Matches, a
 person's page and a summary update without a reload.
@@ -397,3 +396,4 @@ account, so a static app can't upload results.
 | 2.0.0 | Moved to `rack-it/` with data under `matches/`; the move is Export and Import. |
 | 2.0.0 | Rating engine is a pure tested module (CLAUDE.md rule 1's exception). |
 | 2.0.0 | Starter ratings get documents; ratings can be rebuilt; deleting a saved match rebuilds. |
+| 2.0.1 | The app opens on Play, not Ratings. |
