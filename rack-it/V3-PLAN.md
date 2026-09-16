@@ -154,28 +154,30 @@ the commit order; follow it.
       floor (CLAUDE.md rule 7). **Decided: 14px tracked all-caps labels**, as the design's
       legibility pass proposes; everything else 15px or more. Recorded in rule 7 and in
       DESIGN.md's note.
-- [ ] **Tokens first.** Colours, type scale, spacing and radii from DESIGN.md replace the
+- [x] **Tokens first.** Colours, type scale, spacing and radii from DESIGN.md replace the
       `:root` block. Every component follows: buttons, chips, rows, panels, tab bar, avatar
       ring, lead bar, balls. Check the house minimums survive: 18px base, nothing under
       15px, 56px targets, contrast, `prefers-reduced-motion`.
-- [ ] **Screens** in the order a player meets them: sign-in, Ratings, setup, live, rack
+- [x] **Screens** in the order a player meets them: sign-in, Ratings, setup, live, rack
       end, summary, person page, Matches, More, Invites. One commit per screen where that
       is natural.
-- [ ] **The live screen may change its interaction.** This retires "extend, never rebuild"
+- [x] **The live screen may change its interaction.** This retires "extend, never rebuild"
       (ground rules). What must survive, whatever it looks like: tap awards a ball to the
       shooter, dead balls, long-press to clear, match-wide undo, the shooter tint, the
       foul and three win buttons, the ball drop, a per-rack `cloud.patch`, Resume, Watch,
       never scrolling (SPEC "Fitting the phone"), wake lock and fullscreen from
       `shared/phone.js`. Test each in the harness at 390×844, then on the phone.
-- [ ] **Owner role.** `members/<email>.role: "owner"`, set once in the Firebase console for
+- [x] **Owner role.** `members/<email>.role: "owner"`, set once in the Firebase console for
       the owner's address. `firestore.rules` gains `isOwner()`. Owner only: delete a match,
       update a match whose `status` is already `done` (which makes Rebuild owner-only),
       write `starters/*`, delete a member. Any member still adds a member and writes live
       matches. ⚠ People documents stay writable by any member; protecting `uid` and `email`
       by rule is possible but fiddly, so it's a later step. Push deploys the rules.
-- [ ] Every app's Invites list hides Remove from non-owners. Rack It hides Delete, the
+- [x] Every app's Invites list hides Remove from non-owners. Rack It hides Delete, the
       starter override and Rebuild from them, with one line saying why.
-- [ ] Version `2.1.0`. `/deployquest`. Handover. Owner plays one real match on the phone.
+- [x] Version `2.1.0`. `/deployquest`. Handover.
+- [ ] **Owner:** set your `role: "owner"` in the Firebase console (Handover, step 1), then play
+      one real match on the phone.
 
 **Done when:** the phone looks like the artboards, a new club member can score a match but
 can't delete one, and the owner can.
@@ -241,14 +243,17 @@ agreement matters less than every token and every component reading the same eve
 - Avatars in Around the Clock and Bloc 11 (their lists keep colour dots).
 - The lead bar in a plain race still shows the lead ("+16 points") after a target is met,
   where the scoring bar says "target met".
-- The 11-Point-Nine live controls wrap "Next rack" onto two lines at 390px wide.
 - The live strip and Matches redraw on every scoring write from another phone. Fine at
   household size; throttle it if a club watches.
-- Match rows are centred text.
 - The Golden-Nine points-race split (point share ≈ rack-win share) and Copy for Cuescore's
   line against the real challenge form both still need checking with real matches.
-- `shared/firestore.rules` still says "Fair Nine → Family" in a comment. Left alone so a
-  comment doesn't trigger a rules deploy; Session 6 edits that file anyway.
+- ⚠ **A foul can meet a Golden-Nine points target mid-rack** (found in Session 6). The panel says
+  "target met" but the rack plays on, and End drops the rack with its foul points. Needs a rules
+  call: does reaching the target on a foul end the match there, or only a rack win? Until then
+  it behaves as before.
+- 11-Point-Nine over fixed racks or open with the scoring handicap still shows raw points and no
+  quota live, as Golden-Nine did before 2.1.0. Left alone: 11-Point-Nine must not change.
+- The design's hold on Delete could extend to Unclaim and Remove (both two taps today).
 
 ## Handover
 
@@ -334,4 +339,69 @@ rewritten as one document (399 lines).
   replaced the `…Session` names. `planRebuild()` and `applyRebuild(plan)` are the owner-only
   pieces for Session 6; `saveStarter(id, zargo)` is the only starter write.
 
-Parked: the `firestore.rules` comment (above).
+Parked: the `firestore.rules` comment (above). Done in Session 6.
+
+### After Session 6
+
+**Shipped 2.1.0.** The redesign is the app on every screen, and an owner role guards what can't
+be undone. The owner step below comes first.
+
+- **Owner, in this order:**
+  1. Firebase console → Firestore Database → `members` → your own address → **Add field**
+     `role` (string) = `owner`. Until then the new rules treat you as a member: no Delete, no
+     Rebuild, no Replace on import, no starter override, no Remove. Nothing is lost; the
+     buttons come back on the next open.
+  2. If Session 5's import (Replace) and first Rebuild haven't happened yet, do them now, after
+     step 1. Replace deletes matches, which is owner-only now.
+  3. Open Rack It on the phone. It updates to 2.1.0 (More shows the version). Play one real
+     match, ideally Golden-Nine with the scoring handicap, and tick the Owner box above.
+- **The design import.** The second claude.ai/design export (`Rack-it design evolution (1).zip`)
+  replaced `design/`: §7 Legibility, `02-legibility.png`, a new `01`, and the rest renumbered
+  `04`–`08`. DESIGN.md keeps the plan's note at the top, now saying §7 wins over §1–§6.
+- **Golden-Nine's handicap (owner's report).** The scoring handicap was applied correctly: the
+  result and the lead bar already used the adjusted lead. It just didn't show on the panels,
+  as 11-Point-Nine's targets do. Now, over fixed racks, the underdog's sub-line reads
+  "×3.4 = 38" and the match bar's lead is in those points. A points race already showed
+  "needs N of M". No scoring or rating code changed.
+- **Testing.** All in the harness, headless Chromium at 390×844, plus 360×640, 375×667 and
+  412×915:
+  - `node --test`: 15 pass. Ratings code is untouched; a saved 11-Point-Nine match's
+    `zargoAfter` equals `zargo.js` exactly.
+  - Every survival item: tap to the shooter, dead, long-press clear, Undo, turn tint and bar,
+    foul and three wins, ball drop, End by hold (early release cancels), Resume after a
+    reload, Watch with Stop watching, and no scrolling at any of the four sizes.
+  - As owner (`?mock`) and as member (`?mock&role=member`): Delete, override, Rebuild, Replace
+    and Remove show or hide, each with its line.
+  - `shared/firestore.rules` against the Firestore emulator: 29 cases, all pass (member v owner
+    on members, matches live and done, starters, other apps, outsiders). The emulator ran from
+    the scratchpad with a downloaded JRE; nothing was added to the repo.
+  - Around the Clock and Bloc 11 load under `?mock` with no errors.
+  - ⚠ Not yet run on the phone, and not against real Firestore.
+- **Choices I made where the plan was open.**
+  - **Legibility (§7) over §1–§6** throughout: greys `--text-2 #C3CEDA`, `--dim #A8B6C4`,
+    `--faint #8D9BAA`; 14px caps; controls 76; other targets 60; turn bar 5; rail 8. The
+    live-screen chrome is 273px (was 335), so balls are 90px on a 390×844 phone.
+  - **Starters:** any member may *create* `starters/<id>` (so Add player's estimate still
+    works); only the owner updates or deletes one.
+  - **Members:** `addMember` now merges, so re-inviting the owner can't wipe `role`. The rules
+    let a member re-invite (touching only `addedBy` and `addedAt`) but never set `role`.
+  - **Rules shape:** the generic `/sidequests/{appId}` rule no longer writes to `rack-it`;
+    Rack It's three collections have their own rules. A new Rack It collection needs one.
+  - **Also owner-only in the app:** Delete player (the design says so) and Import's Replace (its
+    deletes would fail anyway). Unclaim, in the shared people sheet, is unchanged.
+  - **Dead ball:** the number struck through by a bar, as DESIGN.md says (the new `01` draws it
+    under the number). Dark balls 2, 4, 7 and 8 get the hairline ring.
+  - **Sub-lines on colour** are solid player ink at 700, not 75% opacity (§7 rule 2).
+  - **Unselected tabs** are `--dim`, not `--faint`, since tab labels matter for older eyes.
+  - **"11-Point"** in the game picker only, so the three segments fit; every other label keeps
+    "11-Point-Nine".
+  - **Match rows:** the winner's name is bold as well as bright, and a tie says "tied", so the
+    result isn't colour-only.
+  - **Match bar** at 360px: the rack label and the lead each wrap to a second line instead of
+    truncating. Only a long name with a head-start race and dead balls still clips.
+  - `?mock` is an owner by default; `&role=member` switches, and it persists in the fake data.
+- **Code shape.** `holdBind(node, fn, { tap, holding })` is the hold; `paintTurn`, `paintOwn`,
+  `paintLead(t, ctx, nA, nB, num)`, `paintMatchBar` and `breakLabel` paint the live chrome for
+  both scoring and Watch. `golden9Handicap(ctx)` decides the Golden-Nine sub-line. `owner` and
+  `paintOwner()` hold the role; `loadRole()` runs after `loadState()`. `deleteMatch(s)` replaced
+  the per-row delete button.

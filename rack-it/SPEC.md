@@ -4,12 +4,14 @@ A phone-first scorer for three cue games between any two players, with one ratin
 of them (**Zargo**) and handicaps that keep a mismatched pair close. Matches sync to the cloud,
 so any invited phone can score, resume or watch. Invite-only: members sign in with Google.
 
-This spec is the app as it is (2.0.1). The rating's reasoning is in [`ZARGO.md`](ZARGO.md); the
-build sessions and their handovers are in [`V3-PLAN.md`](V3-PLAN.md); the redesign to come is in
-[`design/`](design/DESIGN.md).
+This spec is the app as it is (2.1.0). The rating's reasoning is in [`ZARGO.md`](ZARGO.md); the
+build sessions and their handovers are in [`V3-PLAN.md`](V3-PLAN.md); the look (dark system v2)
+is in [`design/DESIGN.md`](design/DESIGN.md).
 
 **Files.** `index.html` (the app), `zargo.js` (the rating engine, pure), `zargo.test.mjs` (its
-tests: `node --test` from the repo root), `sw.js`, `manifest.json`, icons. `design/` is reference only.
+tests: `node --test` from the repo root), `sw.js`, `manifest.json`, icons, and
+`space-grotesk-600.woff2` and `space-grotesk-700.woff2` (the numerals and labels, self-hosted so
+they work with no signal). `design/` is reference only.
 
 ---
 
@@ -150,14 +152,14 @@ points** (one rack could decide it) and suggests a length; it doesn't block.
 **Off.** An 11-Point-Nine race is both to `round(11 × racks / 2)`; a Golden-Nine race to points
 is both to N; Trad-Nine races level.
 
-**The lead bar** sits under the scores: a green fill from the centre towards whoever is ahead,
-their name and the gap in large type. With a quota it reads the gap between the two players'
+**The lead** shows twice: the lead rail under the scores fills from the centre towards whoever
+is ahead, in their colour, and the match bar names them with the gap ("Melanie +26%"). With a quota it reads the gap between the two players'
 progress towards their own quota, as a share of the match ("MEL +26%"), capped at +100%; full
 swing at a quarter of the match clear, damped by how much has been played, so an underdog's
 first ball doesn't lurch it. In a race it pegs at **target met**; "ahead" means closest to your
 own target. A head start reads as the shorter target it equals. Off shows a plain lead: racks
 in Trad-Nine ("MEL +1 rack"), points in the games scored by points ("KENNY +6 points"), full
-swing at the race size or half the match's points. Level reads **Tied** with an empty bar.
+swing at the race size or half the match's points. Level leaves both empty.
 
 **Who wins.** Scoring: the adjusted lead `pointsB − pointsA / H`, `H = pA / (1 − pA)`. Off: the
 plain difference. A race: whoever met their target (racks in a race in racks, points otherwise).
@@ -169,16 +171,17 @@ intentional foul loses the match whatever the score.
 One page, defaults first, **Start** pinned below it and naming what's missing ("Pick two
 players", "Set the length first"):
 
-1. **Game** chips. The last game picked is remembered per phone (`localStorage` `rack-it.game`).
-2. **Players:** Blue side and Amber side columns with avatars. You're pre-selected on blue; the
-   amber column lists the blue player's most recent opponents first, then everyone by name. The
+1. **Game**, a segmented control (the third segment reads "11-Point" to fit). The last game
+   picked is remembered per phone (`localStorage` `rack-it.game`).
+2. **Players:** Teal side and Coral side columns with avatars. You're pre-selected on teal; the
+   coral column lists the teal player's most recent opponents first, then everyone by name. The
    same player can't be on both sides.
-3. **Length**, **Handicap** and **Break**: one row each showing the current choice. Length and
-   Handicap open on tap; Break flips on tap (blue breaks first by default).
-4. The handicap row shows the proposal in one line and the targets, both editable. The hint
-   says how many racks (or points, in 11-Point-Nine) the favourite expects for each one of the
-   other's, "Near-level ratings, so an even match" when close, and with Racks the chance the
-   higher-rated player wins the race as set.
+3. **Length**, **Handicap** and **Break**: one settings card, a row each showing the current
+   choice. Length and Handicap open on tap; Break flips on tap (teal breaks first by default).
+4. The handicap row shows the proposal and, open, the targets, both editable. The odds sentence
+   sits above **Start** at all times: how many racks (or points, in 11-Point-Nine) the favourite
+   expects for each one of the other's, "Near-level ratings, so an even match" when close, and
+   with Racks the chance the higher-rated player wins the race as set.
 
 The handicap isn't remembered: each game starts at its default. A repeat of last night is Game,
 two names, Start. Play keeps your picks while you look at another tab and starts fresh after a
@@ -188,29 +191,45 @@ match has begun.
 
 Full-bleed: no tab bar. The screen holds a wake lock and asks for fullscreen (`shared/phone.js`).
 
-**Shared chrome.** Two score panels with names (blue left, amber right); **tap a panel to make
-that player the shooter**, and the whole screen tints to their colour. Under each score, the
-run-in to a race target ("needs 4 of 7", "target met") or the racks won. The lead bar. A meta
-strip: rack number (and "of N" when fixed), dead balls in 11-Point-Nine, the rack's points when
-racing in racks, and **break: name**, which flips on tap. Controls: **Undo** (everything in the
-current rack, up to 60 steps), **Next rack** (11-Point-Nine only), **End**.
+**Shared chrome**, top to bottom:
+- A 5px **turn bar** in the shooter's colour.
+- The **score head**: two panels, teal left and coral right. The shooter's panel fills with their
+  colour and shows a dot by the name; **tap a panel to make that player the shooter**. Turn
+  always shows three ways at once: turn bar, filled panel, and the screen's ground tint. Under
+  each score, the run-in to a race target ("needs 4 of 7", "target met") or the racks won.
+- The 8px **lead rail** (§4).
+- The **match bar**: "Rack 3" (and "of 5" when fixed, "· 1 dead" in 11-Point-Nine, "· 12–9 pts"
+  when racing in racks), the lead in the leader's colour, and the **break chip** ("Break ⇄ G",
+  the breaker's initial), which flips on tap. "Table clear" takes the lead's place when all
+  nine are down.
+- Controls, three sizes so they can't be confused by feel: **Undo** (everything in the current
+  rack, up to 60 steps), **Next rack** (11-Point-Nine only; elsewhere Undo takes its room), and
+  **End**, which you **hold for 600ms** (a fill rises; let go to cancel; a buzz when it lands).
 
 **11-Point-Nine.** The diamond rack of balls 1–9, sized by height as well as width. Tap a ball:
 untouched → the shooter's; the shooter's → dead; dead → untouched; the other player's → the
-shooter's. Claimed balls fill with the player's colour; dead balls go grey with a cross.
+shooter's. Claimed balls go flat in the player's colour; dead balls go grey with the number
+struck through. Dark balls (2, 4, 7, 8) carry a hairline ring so their edge shows.
 **Long-press** clears a ball. When all nine are resolved the rack-end card shows the 11-point
 check with **Start rack N** (or **Declare the result**), or the odd-total warning (§2.1).
 
-**Golden-Nine and Trad-Nine.** The rack area becomes a column under each player: **Foul** (that
-rack's count, and in Golden-Nine what it gave away) and three win buttons (Golden-Nine: Big
-Golden +10, Small Golden +7, Win +4; Trad-Nine: Break & run, 9 on the break, Win). A foul passes
-the shot to the opponent. A win tap, or a third Golden-Nine foul, ends the rack and shows the
+**Golden-Nine and Trad-Nine.** The rack area becomes a row of two **Foul** buttons (that rack's
+count, and in Golden-Nine what it gave away; amber once there's a foul), then a column per
+player captioned "Gareth wins it", with three win buttons (Golden-Nine: Big Golden +10, Small
+Golden +7, Win +4; Trad-Nine: Break & run, 9 on the break, Win). A foul passes the shot to the
+opponent. A win tap, or a third Golden-Nine foul, ends the rack and shows the
 card with **Start rack N** and **Undo that**. Golden-Nine's intentional foul is a long-press on
 Foul, confirmed. After the last scheduled Golden-Nine rack a tie offers **Play a deciding rack**
 (adds one to `racksPlanned`) or **Call it a tie**.
 
-**The ball drop** (Golden-Nine and Trad-Nine): balls 1–5 over 6–9 above the controls, as on a
-stream. Tap a ball and it's potted by the shooter; its slot stays empty, and tapping the slot
+**Golden-Nine's scoring handicap, live.** Over fixed racks there is no target to run in to, so
+the underdog's panel shows their points times the favourite's odds instead ("×3.4 = 38", or
+"counts ×3.4" before they score), and the match bar's lead is in those points ("Melanie +20").
+That is the comparison that decides the match (§4, Who wins). Near-level ratings show nothing
+extra. A Golden-Nine race to points shows "needs N of M", as 11-Point-Nine does.
+
+**The ball drop** (Golden-Nine and Trad-Nine): balls 1–5 over 6–9 above the controls, under a
+hairline, as on a stream. Tap a ball and it's potted by the shooter; its slot stays empty, and tapping the slot
 puts it back. It's a log for replays, never the score: potting the 9 wins nothing, the shooter
 doesn't change, taps after the rack has a winner are ignored, and a new rack starts full. Undo
 covers it.
@@ -234,31 +253,51 @@ drops it out cleanly.
 ## 7. The four tabs
 
 **Play · Ratings · Matches · More**, 60px tall, along the bottom of every page but sign-in and
-the live screen. The app always opens on **Play** (owner's call, 2.0.1). While a match is live and this phone isn't scoring or watching
-it, a **live strip** above the tabs shows "Kenny v Melanie · Trad-Nine" with **Resume** and
-**Watch**. The newest 300 matches are watched as one live list, so the strip, Matches, a
+the live screen: labels in caps, the selected tab in teal with a bar above it. The app always
+opens on **Play** (owner's call, 2.0.1). While a match is live and this phone isn't scoring or
+watching it, a **live strip** above the tabs shows "Live · Kenny 14–9 Melanie" with **Resume**
+and **Watch**. The newest 300 matches are watched as one live list, so the strip, Matches, a
 person's page and a summary update without a reload.
 
-**Ratings.** Everyone, ranked by Zargo: rank, avatar, name ("(you)"), "No Gmail" where missing,
-Zargo, robustness, provisional. People who haven't played go last, by name, unranked, "not
-played yet". **Add player** under the list. Tap a row for their page.
+**Ratings.** Everyone, ranked by Zargo, one card each: rank, avatar, name ("you"), and the Zargo
+right-aligned in large figures. Under the name, robustness in words: "41 racks behind it", or in
+amber "provisional · 22 racks", "provisional · no Gmail" or "no Gmail". People who haven't played
+go last, by name, unranked, "not played yet", their number dimmed. **Add player** under the
+list. Tap a row for their page.
 
 **A person's page.** 72px avatar, Zargo with robustness, one line on what the number means
 ("Against someone on 497, Kenny would expect to win two racks for every one"), **Edit** (name,
-Gmail, colour, starter rating override, delete, and the shared sheet), Cuescore (read-only;
+Gmail, colour, the shared sheet, and for the owner the starter rating override and **Hold to
+delete player**; anyone else sees one line saying those are the owner's), Cuescore (read-only;
 Add or Change on your own page), the win record per game (finished matches) and their matches.
 
-**Matches.** Live (last 24 hours) first, then newest. Each row: when (a time today, else a date),
-game, length and handicap, names and score (racks in a race in racks, head start included), and
-who won. Discarded matches don't show. **Delete** is two taps within five seconds; the list isn't
-redrawn while one is armed. A live row resumes; a finished one opens its summary.
+**Matches.** Live (last 24 hours) first, then newest. Each row: names and score (racks in a race
+in racks, head start included) with the winner's name in bold, then a caps line with game,
+length and handicap, and when (a time today, else a date), or "tied". A live row is tinted teal
+and reads "Live · 11-Point-Nine · rack 3". Discarded matches don't show. No Delete in the list:
+a live row resumes; a finished one opens its summary.
 
 **Summary.** Winner, game, length, when, the score line, the Zargo movement, the racks that
-counted, and **Copy for Cuescore** (§10).
+counted, **Copy for Cuescore** (§10), and for the owner **Hold to delete match** (anyone else
+sees why it isn't there).
 
-**More.** Invites, Export and Import, Rebuild ratings, Install on this phone, About Zargo, Sign
-out, the version; the account shows in the header. **Invites** is the members allowlist: add a
-Gmail, remove one (two taps, never yourself), **Share this app**; rows show whose Gmail it is.
+**More.** Invites, Export and Import, Rebuild ratings (owner), Install on this phone, About
+Zargo, Sign out, the version; the account shows in the header. A member sees one line naming
+the owner's actions instead of Rebuild. **Invites** is the members allowlist: add a Gmail,
+remove one (owner only, two taps, never yourself), **Share this app**; rows show whose Gmail it
+is. Import's **Replace everything** is the owner's too.
+
+### 7.1 The owner
+
+One member is the **owner**: `members/<email>.role: "owner"`, set by hand in the Firebase console.
+Only the owner deletes a match, changes a saved match (so only the owner rebuilds ratings or
+replaces everything on import), changes or deletes a starter rating, deletes a player, and
+removes an invite. `shared/firestore.rules` enforces the Firestore writes; the app hides the
+buttons from everyone else, with a line saying why. Any member still scores, saves, adds a
+player (with a starter estimate) and invites. ⚠ People documents stay writable by any member.
+
+**Hold to confirm.** End, deleting a match and deleting a player are a 600ms hold with a
+rising fill, never a dialog. Under reduced motion the fill appears at once.
 
 ## 8. People, Gmail and claiming
 
@@ -279,14 +318,15 @@ id. Stored ids are read through `people.resolve`, so a merge in any app carries 
   `claimedAt`, `photoURL` and the Gmail, so the right person can claim them.
 - **Avatar** (`people.avatar(id, size)`): the photo in a 3px ring of the player's colour with a
   2px dark gap, or their initial on their colour. 36px in lists, 72px on a person's page.
-- **Deleting** a player is soft and shared by every app: they leave every list and picker, their
-  matches keep their name. You can't delete yourself.
+- **Deleting** a player (owner only) is soft and shared by every app: they leave every list and
+  picker, their matches keep their name. You can't delete yourself.
 - ⚠ Any member can write any person; the Cuescore rule below is enforced in the app only.
 
 ## 9. Data
 
 All under `sidequests/rack-it/` in Firestore, via `shared/cloud.js`. Members-only by
-`shared/firestore.rules`.
+`shared/firestore.rules`, with the owner's writes in §7.1. `cloud.role()` reads your own
+`members` document.
 
 ```
 state/main
@@ -323,7 +363,7 @@ matches/<id>
   but a last one that End dropped (no balls at all, or points not in `totals`).
 - Writes: racks with `cloud.patch` per rack; `state/main` and `starters` with `cloud.save`.
 - Offline: Firestore's persistent cache is on; `sw.js` caches the shell (`index.html`,
-  `zargo.js`, manifest, icons), network first.
+  `zargo.js`, the two fonts, manifest, icons), network first.
 
 **Export** downloads one JSON file: `app: "rack-it"`, `state`, `people`, `starters`, `matches`.
 It holds email addresses, so it never goes in the repo. **Import** accepts `app` `"rack-it"` or
@@ -337,7 +377,8 @@ starters and `state/main` first. People go to the shared list by adoption, never
 it was. `fair-nine/` now holds only a "Rack It has moved" page and a service worker that
 clears Fair Nine's caches, unregisters itself and reloads its windows.
 
-**Testing.** `?mock` runs against `shared/cloud-memory.js` (CLAUDE.md): fake member, fake data.
+**Testing.** `?mock` runs against `shared/cloud-memory.js` (CLAUDE.md): a fake owner, fake data.
+`?mock&role=member` makes the fake user a plain member. The rules aren't modelled there.
 
 ## 10. Cuescore
 
@@ -357,15 +398,23 @@ account, so a static app can't upload results.
 
 ## 11. Fitting the phone
 
-- **Never scrolls while scoring.** Panels, lead bar, meta strip and controls are fixed; the rack
-  takes what's left. Ball size: `clamp(46px, min(21vw, (100dvh − 396px) / 5), 92px)`, `dvh`
-  because it tracks Chrome's URL bar. Under 700px tall the shooter cue goes (the tint already
-  says it), the score and controls shrink, and the Golden-Nine and Trad-Nine win area tightens.
-- **Ball drop sizing.** Two rows, so every target is a fifth of the width by 56px (74×56 on a
-  390px phone), balls at 44px. The win buttons give up the height, down to their 56px minimum
-  on a 640px-tall screen.
-- **House minimums.** 18px base, nothing under 15px, targets 56px or more, dark, high contrast,
-  `touch-action: manipulation`, `prefers-reduced-motion` respected, taps on `pointerup`.
+- **Never scrolls while scoring.** Turn bar 5, score head 136, lead rail 8, match bar 48 and
+  controls 76 (+16) are fixed; the rack takes what's left. Ball size:
+  `clamp(52px, min(23vw, (100dvh − 349px − safe areas) / 5), 96px)`, `dvh` because it tracks
+  Chrome's URL bar (90px on a 390×844 phone). Under 700px tall the score head drops to 116 (score
+  52px), the match bar to 44 and the controls to 64, and the win area tightens. On a narrow
+  phone the match bar's label and lead each take a second line rather than lose words.
+- **Ball drop sizing.** Two rows, so every target is a fifth of the width by 60px (56 on a short
+  phone), balls at 46px. The win buttons give up the height, down to their 56px minimum on a
+  640px-tall screen.
+- **House minimums.** 18px base; nothing under 15px except tracked caps labels at 14px (owner's
+  call, 2.1.0); targets 56px or more (60 on every page but the live screen's balls, 76 for the
+  primary controls); dark; greys at 7:1 or better for anything read while playing and 4.5:1
+  elsewhere, never dimmed with opacity; `touch-action: manipulation`; `prefers-reduced-motion`
+  respected; taps on `pointerup`. Type is in `rem` off an 18px root so the phone's text size
+  applies, except on the live screen, which stays in px.
+- **Colour.** Teal is side A and coral side B, and a player's colour only ever means that
+  player. Amber only ever means careful or incomplete. No state rests on colour alone.
 - **Installing.** The manifest asks for `fullscreen` then `standalone`, portrait, id
   `/sidequests/rack-it/`, with PNG icons at 192, 512 and maskable 512; without PNGs Chrome makes
   a shortcut that opens in a tab. More carries **Install on this phone**. Chrome can't move an
@@ -378,7 +427,7 @@ account, so a static app can't upload results.
 - Charts and trend lines; shot-level stats beyond who broke and the ball drop.
 - A per-game rating, and an 11-Point-Nine point-share-to-rack-odds mapping (ZARGO.md ⚠).
 - Uploading to Cuescore, and Cuescore ratings as starter hints.
-- Club grouping; owner-only actions (Session 6); Golden-Nine's shot clock, time limit, early finish.
+- Club grouping; Golden-Nine's shot clock, time limit, early finish.
 - WPA 8-ball and Heyball (same shape as Trad-Nine when wanted).
 
 ## 13. Decisions log
@@ -397,3 +446,7 @@ account, so a static app can't upload results.
 | 2.0.0 | Rating engine is a pure tested module (CLAUDE.md rule 1's exception). |
 | 2.0.0 | Starter ratings get documents; ratings can be rebuilt; deleting a saved match rebuilds. |
 | 2.0.1 | The app opens on Play, not Ratings. |
+| 2.1.0 | Dark system v2 from claude.ai/design: teal and coral sides, Space Grotesk figures, the live screen's chrome down from 335px to 273px. Caps labels may be 14px. |
+| 2.1.0 | End, delete match and delete player are holds, not dialogs. Delete leaves the Matches list for the summary. |
+| 2.1.0 | An owner role: only the owner deletes or rewrites history, sets starters after the fact, or removes an invite. |
+| 2.1.0 | Golden-Nine's scoring handicap shows live, as the underdog's handicapped points. |

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<meta name="theme-color" content="#061a14">
+<meta name="theme-color" content="#0A0D11">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -11,331 +11,375 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>Rack It</title>
 <style>
+  /* Rack It dark system v2 (design/DESIGN.md, with §7 Legibility). Two colour rules: a
+     player's colour only ever means that player (teal side A, coral side B), and amber only
+     ever means careful or incomplete. Surfaces step by colour, never by shadow. */
+  @font-face{font-family:"Space Grotesk";font-weight:600;font-display:swap;src:url(space-grotesk-600.woff2) format("woff2")}
+  @font-face{font-family:"Space Grotesk";font-weight:700;font-display:swap;src:url(space-grotesk-700.woff2) format("woff2")}
   :root{
-    --felt-deep:#061a14;
-    --chalk:#2f6ea8;
-    --chalk-lift:#4a8fce;
-    --ochre:#b8781c;
-    --ochre-lift:#dda03f;
-    --bone:#efe9dc;
-    --bone-dim:#bcc7c0;
-    --panel:rgba(255,255,255,.06);
-    --pk-card:#0b241c;   /* the shared people sheet from shared/people.js */
-    --rack-gap:clamp(5px, 1.3vh, 11px);
-    /* Five rows of balls plus four gaps and the rack's own padding have to fit whatever
-       the fixed chrome leaves: score panels ~156, lead bar 56, meta 36, controls 82,
-       rack padding 12, four gaps up to 44 — call it 390. dvh tracks the real visible
-       area, so this holds whether or not Chrome's URL bar is showing. */
-    --bs:clamp(46px, min(21vw, (100dvh - 396px) / 5), 92px);
+    --ink-0:#0A0D11;      /* app ground, tab bar, match bar */
+    --ink-1:#121821;      /* rows, cards, idle score panel */
+    --ink-2:#1B232E;      /* inputs, secondary buttons, chips */
+    --line:rgba(232,237,243,.10);
+    --ground-a:#07201C;   /* the body tint while that player shoots */
+    --ground-b:#23100B;
+    --text:#E8EDF3;       /* 15.4:1 */
+    --text-2:#C3CEDA;     /* 11:1, idle scores and chip text */
+    --dim:#A8B6C4;        /* 8:1, sub-lines and meta */
+    --faint:#8D9BAA;      /* 5.6:1, ranks and disabled, never body text */
+    --a:#23D3B0; --a-ink:#032721; --a-soft:#0F2A26;
+    --b:#FF6B52; --b-ink:#2B0A03; --b-soft:#2A130E;
+    --warn:#FFC14D;
+    --r-chip:12px; --r-ctl:14px; --r-card:18px;
+    --tap:60px; --tap-lg:76px;
+    --grot:"Space Grotesk",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    /* the shared people sheet (shared/people.js) */
+    --pk-card:#121821; --bg:var(--ink-0); --ink:var(--text); --ink-dim:var(--dim);
+    --accent:var(--a); --accent-ink:var(--a-ink); --danger:var(--warn);
+    --rack-gap:clamp(6px, 1.4vh, 12px);
+    /* Five rows of balls have to fit what the live screen's fixed chrome leaves: turn bar 5,
+       score head 136, lead rail 8, match bar 48, controls 76 + 16, plus the rack's padding
+       and four gaps, about 60. dvh tracks the visible area with or without Chrome's URL bar. */
+    --bs:clamp(52px, min(23vw, (100dvh - 349px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) / 5), 96px);
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0;touch-action:manipulation}
-  html{height:100%}
+  /* Type is in rem off an 18px root so the phone's own text size works, everywhere but the
+     live screen, which is height-critical and already carries the largest type. */
+  html{height:100%;font-size:112.5%}
   body{height:100dvh;overscroll-behavior:none}
   @supports not (height: 100dvh){ body{height:100%} }
   body{
-    background:var(--felt-deep);
-    color:var(--bone);
+    background:var(--ink-0);
+    color:var(--text);
     font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
     font-variant-numeric:tabular-nums;
-    font-size:18px;
+    font-size:1rem;line-height:1.5;
     -webkit-user-select:none;user-select:none;
     display:flex;flex-direction:column;
     padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
     transition:background-color .18s ease;
   }
-  body[data-turn="a"].scoring{background:#071f2c}
-  body[data-turn="b"].scoring{background:#231705}
+  body.scoring[data-turn="a"]{background:var(--ground-a)}
+  body.scoring[data-turn="b"]{background:var(--ground-b)}
 
   .screen{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden}
   .hidden{display:none !important}
-  .dim{color:var(--bone-dim)}
+  .dim{color:var(--dim)}
+  .fig{font-family:var(--grot);font-weight:600;letter-spacing:-.02em}
+  /* The tracked all-caps label: 14px, the only type below 15px (owner's call, CLAUDE.md rule 7). */
+  .lbl{font-family:var(--grot);font-size:.7778rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;line-height:1.3}
 
-  /* ---- home & setup chrome ---- */
-  .apphead{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px;background:rgba(0,0,0,.25)}
-  .apphead h1{font-size:22px;font-weight:700}
-  .user{display:flex;align-items:center;gap:10px;font-size:15px;color:var(--bone-dim)}
-  .user img{width:34px;height:34px;border-radius:50%}
-  button{font:inherit;color:var(--bone);border:none;border-radius:13px;background:var(--panel);min-height:56px;padding:0 20px;font-weight:700}
-  button:active{filter:brightness(1.2)}
-  button:disabled{opacity:.35}
-  button:focus-visible{outline:3px solid #fff;outline-offset:2px}
-  .primary{background:var(--chalk);color:#fff}
-  .quiet{background:transparent;color:var(--bone-dim);border:1px solid rgba(239,233,220,.3)}
-  .small{min-height:44px;padding:0 14px;font-size:15px}
+  /* ---- page chrome ---- */
+  .apphead{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 16px 14px;min-height:76px}
+  .apphead h1{font-family:var(--grot);font-size:1.4444rem;font-weight:600;letter-spacing:-.02em;line-height:1.2;
+    min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .apphead .lbl{color:var(--faint)}
+  .user{display:flex;align-items:center;gap:10px;font-size:.8333rem;color:var(--dim);min-width:0}
+  .user span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .user img{width:36px;height:36px;border-radius:50%}
+  button{font:inherit;font-weight:700;color:var(--text);border:none;border-radius:var(--r-ctl);background:var(--ink-2);
+    min-height:var(--tap);padding:0 20px;line-height:1.25}
+  button:active{filter:brightness(1.18)}
+  button:disabled{color:var(--faint);background:var(--ink-1)}
+  button:focus-visible{outline:3px solid var(--text);outline-offset:2px}
+  .primary{background:var(--text);color:var(--ink-0)}
+  .primary:disabled{background:var(--ink-2);color:var(--dim)}
+  .quiet{background:transparent;color:var(--text-2);box-shadow:inset 0 0 0 1px rgba(232,237,243,.18)}
+  .quiet:disabled{background:transparent}
+  .back{min-height:var(--tap);padding:0 18px;font-size:.9444rem}
+  .warnbtn{color:var(--warn);box-shadow:inset 0 0 0 1px rgba(255,193,77,.45)}
+  .note{font-size:.8333rem;color:var(--dim);line-height:1.45}
 
   .gate{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:28px;text-align:center}
-  .gate button{width:100%;max-width:22rem;height:68px;font-size:20px;background:var(--chalk)}
-  .gate-err{padding:16px 24px;text-align:center;color:#e8b04a;font-size:17px;line-height:1.5}
+  .gate button{width:100%;max-width:22rem;min-height:var(--tap-lg);font-size:1.1111rem}
+  .gate-err{padding:16px 24px;text-align:center;color:var(--warn);font-size:.9444rem;line-height:1.5}
 
-  .homebody{flex:1;display:flex;flex-direction:column;padding:16px;gap:16px;overflow-y:auto}
-  .plist{list-style:none;display:flex;flex-direction:column;gap:9px}
-  .plist button{display:flex;align-items:center;gap:14px;width:100%;min-height:64px;padding:0 16px;text-align:left;background:var(--panel);font-weight:600}
-  .pname{flex:1;font-size:19px;display:flex;flex-direction:column;min-width:0}
-  .nogmail{font-size:15px;font-weight:600;color:#e8b04a}
-  .pstats{font-size:15px;color:var(--bone-dim);font-weight:600;text-align:right;line-height:1.35}
-  .prov{color:#e8b04a}
-  .empty{color:var(--bone-dim);text-align:center;padding:26px 20px;line-height:1.5}
-  .foot{padding:10px 16px;font-size:15px;color:var(--bone-dim);text-align:center}
-  .prank{flex:0 0 1.4em;font-size:15px;color:var(--bone-dim);text-align:right}
+  .homebody{flex:1;display:flex;flex-direction:column;padding:4px 16px 16px;gap:14px;overflow-y:auto}
+  .plist{list-style:none;display:flex;flex-direction:column;gap:8px}
+  .empty{color:var(--dim);text-align:center;padding:26px 20px;line-height:1.5}
+  .foot{padding:10px 16px;font-size:.8333rem;color:var(--dim);text-align:center}
 
-  /* ---- history ---- */
-  .histlist{flex:1;overflow-y:auto;padding:16px}
-  .hrow{flex-direction:column;align-items:flex-start;gap:3px;padding:12px 16px}
-  .hmeta{font-size:14px;color:var(--bone-dim);font-weight:600}
-  .hlive{color:#63c08a}
-  .hitem{display:flex;align-items:stretch;gap:8px}
-  .plist .hitem>button,.plist .fitem>button{width:auto}   /* not the list's full-width row button */
-  .hitem .hrow{flex:1 1 auto;min-width:0}
-  .fitem{display:flex;align-items:center;gap:8px;background:var(--panel);border-radius:12px;padding-left:16px;min-height:60px}
-  .fitem>span{flex:1;font-size:16px;font-weight:600;word-break:break-all}
-  .fitem>.pk-av{flex:0 0 auto}
-  .fitem>span small{display:block;font-size:15px;color:var(--bone-dim);font-weight:600;word-break:normal}
-  .fitem .you{flex:0 0 auto;color:var(--bone-dim);font-size:14px;padding-right:16px}
-  .famin{font:inherit;font-size:18px;color:var(--bone);background:rgba(0,0,0,.35);border:1px solid rgba(239,233,220,.25);border-radius:10px;padding:13px 14px;width:100%}
-  .card select{font:inherit;font-size:17px;font-weight:600;color:var(--bone);background:rgba(0,0,0,.35);border:1px solid rgba(239,233,220,.25);border-radius:10px;padding:12px}
-  .hdel{flex:0 0 auto;min-height:64px;padding:0 16px;background:var(--panel);
-    color:var(--bone-dim);font-size:15px;font-weight:700;border-radius:12px}
-  .hdel.arm{color:#e8b04a;box-shadow:inset 0 0 0 1px rgba(232,176,74,.6)}
+  /* ---- Ratings rows ---- */
+  .prow{display:flex;align-items:center;gap:14px;width:100%;min-height:76px;padding:10px 16px 10px 12px;text-align:left;
+    background:var(--ink-1);border-radius:var(--r-card);font-weight:600}
+  .prank{flex:0 0 1.3em;font-family:var(--grot);font-size:.8333rem;font-weight:600;color:var(--faint);text-align:right}
+  .pname{flex:1;display:flex;flex-direction:column;min-width:0;line-height:1.3}
+  .pname>span:first-child{font-size:1.0556rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pname .you{color:var(--dim);font-weight:600}
+  .psub{font-size:.8333rem;font-weight:600;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .prov,.nogmail{color:var(--warn)}
+  .pz{flex:0 0 auto;font-family:var(--grot);font-size:1.4444rem;font-weight:600;letter-spacing:-.02em;text-align:right}
+  .pz.unplayed{color:var(--faint)}
 
-  /* ---- the live-match strip and the four tabs, below every page but the live screen ---- */
-  .livestrip{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:5px 10px;
-    background:rgba(99,192,138,.12);box-shadow:inset 0 1px 0 rgba(99,192,138,.35)}
-  .livestrip>span{flex:1;min-width:0;font-size:15px;font-weight:700;color:#63c08a;
-    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .livestrip button{min-height:56px;padding:0 14px;font-size:16px}
-  .tabbar{flex:0 0 auto;display:flex;background:rgba(0,0,0,.45);box-shadow:inset 0 1px 0 rgba(239,233,220,.12)}
-  .tabbar button{flex:1;min-height:60px;border-radius:0;background:none;color:var(--bone-dim);
-    font-size:16px;font-weight:700;padding:0 4px;position:relative}
-  .tabbar button.sel{color:var(--bone)}
-  .tabbar button.sel::before{content:"";position:absolute;left:24%;right:24%;top:0;height:4px;
-    border-radius:0 0 4px 4px;background:var(--chalk-lift)}
+  /* ---- Matches ---- */
+  .histlist{flex:1;overflow-y:auto;padding:4px 16px 16px}
+  .hrow{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:4px;width:100%;min-height:76px;
+    padding:12px 16px;text-align:left;background:var(--ink-1);border-radius:var(--r-card)}
+  .hscore{font-size:1.0556rem;font-weight:400;color:var(--text-2);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .hscore .won{color:var(--text);font-weight:700}
+  .hscore .fig{color:var(--text);margin:0 .3em}
+  .hmeta{color:var(--dim)}
+  .hrow.live{background:var(--a-soft);box-shadow:inset 3px 0 0 var(--a)}
+  .hrow.live .hmeta{color:var(--a)}
+
+  /* ---- the live-match strip and the four tabs ---- */
+  .livestrip{flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:8px 12px;
+    background:var(--a-soft);box-shadow:inset 0 1px 0 rgba(35,211,176,.3)}
+  .livestrip>span{flex:1;min-width:0;display:flex;align-items:center;gap:8px;font-size:.9444rem;font-weight:700;color:var(--a)}
+  .livestrip>span::before{content:"";flex:0 0 8px;height:8px;border-radius:50%;background:var(--a)}
+  .livestrip>span>span{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;line-height:1.3}
+  .livestrip button{flex:0 0 auto;min-height:var(--tap);padding:0 14px;font-size:.9444rem}
+  .livestrip .resume{background:var(--a);color:var(--a-ink)}
+  .livestrip .watch{background:transparent;color:var(--a);box-shadow:inset 0 0 0 1px rgba(35,211,176,.45)}
+  .tabbar{flex:0 0 auto;display:flex;background:var(--ink-0);box-shadow:inset 0 1px 0 var(--line)}
+  .tabbar button{flex:1;min-height:60px;border-radius:0;background:none;color:var(--dim);padding:0 2px;position:relative}
+  .tabbar button.sel{color:var(--a)}
+  .tabbar button.sel::before{content:"";position:absolute;left:30%;right:30%;top:0;height:3px;border-radius:0 0 3px 3px;background:var(--a)}
 
   /* ---- a person's page, a match summary, More ---- */
   .perhead{display:flex;align-items:center;gap:16px}
-  .pername{font-size:24px;font-weight:800;line-height:1.2}
-  .perz{font-size:17px;color:var(--bone-dim);font-weight:600;margin-top:2px}
-  .perz b{font-size:30px;color:var(--bone);font-weight:800}
-  .sechead{font-size:15px;font-weight:700;color:var(--bone-dim);text-transform:uppercase;letter-spacing:.06em;margin-top:6px}
+  .pername{font-size:1.3333rem;font-weight:700;line-height:1.2}
+  .perz{font-size:.9444rem;color:var(--dim);font-weight:600;margin-top:2px;line-height:1.35}
+  .perz b{font-family:var(--grot);font-size:1.6667rem;color:var(--text);font-weight:600;letter-spacing:-.02em}
+  .sechead{color:var(--dim);margin-top:8px}
   .reclist{list-style:none;display:flex;flex-direction:column;gap:6px}
-  .reclist li{display:flex;justify-content:space-between;gap:12px;background:var(--panel);border-radius:12px;
-    padding:12px 16px;font-size:17px;font-weight:600}
-  .reclist li span:last-child{color:var(--bone-dim);text-align:right}
-  .prose p{font-size:18px;line-height:1.5}
-  .sumwin{font-size:28px;font-weight:800}
-  .copybox{font-size:16px;line-height:1.45;background:rgba(0,0,0,.35);border-radius:10px;padding:12px 14px;
+  .reclist li{display:flex;justify-content:space-between;gap:12px;background:var(--ink-1);border-radius:var(--r-chip);
+    padding:12px 16px;font-size:.9444rem;font-weight:600}
+  .reclist li span:last-child{color:var(--text-2);text-align:right}
+  .prose p{line-height:1.5}
+  .sumwin{font-family:var(--grot);font-size:1.6667rem;font-weight:600;letter-spacing:-.02em;line-height:1.2}
+  .copybox{font-size:.8889rem;line-height:1.45;background:var(--ink-2);border-radius:var(--r-chip);padding:12px 14px;
     -webkit-user-select:text;user-select:text;word-break:break-word}
-  .linkbtn{display:flex;align-items:center;justify-content:center;min-height:56px;border-radius:13px;
-    border:1px solid rgba(239,233,220,.3);color:var(--bone);font-weight:700;text-decoration:none}
-  .linkbtn:focus-visible{outline:3px solid #fff;outline-offset:2px}
+  .linkbtn{display:flex;align-items:center;justify-content:center;min-height:var(--tap);border-radius:var(--r-ctl);
+    box-shadow:inset 0 0 0 1px rgba(232,237,243,.18);color:var(--text-2);font-weight:700;text-decoration:none}
+  .linkbtn:focus-visible{outline:3px solid var(--text);outline-offset:2px}
+  .fitem{display:flex;align-items:center;gap:10px;background:var(--ink-1);border-radius:var(--r-card);padding:8px 8px 8px 14px;min-height:72px}
+  .fitem>span{flex:1;min-width:0;font-size:.9444rem;font-weight:600;word-break:break-all}
+  .fitem>.pk-av{flex:0 0 auto}
+  .fitem>span small{display:block;font-size:.8333rem;color:var(--dim);font-weight:600;word-break:break-all}
+  .fitem .you{flex:0 0 auto;color:var(--dim);padding-right:10px}
+  .fitem button{flex:0 0 auto;padding:0 16px;font-size:.8333rem}
+  .famin,.card input,.card select,.field input{font:inherit;color:var(--text);background:var(--ink-2);
+    border:1px solid var(--line);border-radius:var(--r-chip);padding:13px 14px;width:100%;min-height:var(--tap)}
+  .famin:focus,.card input:focus,.field input:focus{outline:2px solid var(--a);outline-offset:0}
 
-  /* ---- overlays (player form, rack done) ---- */
-  .overlay{position:fixed;inset:0;background:rgba(4,14,11,.95);z-index:20;display:flex;align-items:center;justify-content:center;padding:22px;overflow-y:auto}
-  .card{margin:auto;width:100%;max-width:24rem;background:#0b241c;border:1px solid rgba(239,233,220,.15);border-radius:18px;padding:22px;display:flex;flex-direction:column;gap:16px}
-  .card h2{font-size:22px}
-  .card label{display:flex;flex-direction:column;gap:7px;font-size:16px;color:var(--bone-dim);font-weight:600}
-  .card input{font:inherit;font-size:19px;color:var(--bone);background:rgba(0,0,0,.35);border:1px solid rgba(239,233,220,.25);border-radius:10px;padding:13px 14px;width:100%}
+  /* Hold to confirm (DESIGN §5): 600ms with a fill rising from the bottom; release early to cancel. */
+  .hold{position:relative;overflow:hidden;isolation:isolate}
+  .hold::before{content:"";position:absolute;inset:0;z-index:-1;background:rgba(255,193,77,.3);
+    transform:scaleY(0);transform-origin:bottom;transition:transform .12s ease}
+  .hold.holding::before{transform:scaleY(1);transition:transform .6s linear}
+
+  /* ---- overlays (player form, import, rebuild) ---- */
+  .overlay{position:fixed;inset:0;background:rgba(10,13,17,.94);z-index:20;display:flex;align-items:center;justify-content:center;padding:22px 16px;overflow-y:auto}
+  .card{margin:auto;width:100%;max-width:24rem;background:var(--ink-1);border:1px solid var(--line);border-radius:var(--r-card);padding:22px 18px;display:flex;flex-direction:column;gap:16px}
+  .card h2{font-family:var(--grot);font-size:1.3333rem;font-weight:600;letter-spacing:-.01em}
+  .card label{display:flex;flex-direction:column;gap:7px;font-size:.8889rem;color:var(--dim);font-weight:600}
   .swatches{display:flex;flex-wrap:wrap;gap:10px}
-  .swatches button{width:52px;height:52px;min-height:52px;border-radius:50%;padding:0;background:var(--sw);box-shadow:inset -4px -5px 8px rgba(0,0,0,.35)}
-  .swatches button.sel{outline:4px solid #fff;outline-offset:2px}
-  .row2{display:flex;gap:10px}
+  .swatches button{width:56px;height:56px;min-height:56px;border-radius:50%;padding:0;background:var(--sw)}
+  .swatches button.sel{outline:4px solid var(--text);outline-offset:2px}
+  .row2{display:flex;gap:14px}
   .row2 button{flex:1}
-  .danger-note{font-size:14px;color:#e8b04a;line-height:1.4}
+  .danger-note{font-size:.8333rem;color:var(--warn);line-height:1.4}
 
-  /* ---- setup: one page, defaults folded, Start pinned below it ---- */
-  .setupbody{flex:1;display:flex;flex-direction:column;gap:18px;padding:16px;overflow-y:auto}
-  #scrSetup .setupbody{gap:14px}
-  .setupfoot{flex:0 0 auto;display:flex;flex-direction:column;gap:8px;padding:10px 16px 14px;
-    background:rgba(0,0,0,.25);box-shadow:0 -1px 0 rgba(239,233,220,.12)}
+  /* ---- setup: one page, Start pinned below it ---- */
+  .setupbody{flex:1;display:flex;flex-direction:column;gap:16px;padding:4px 16px 16px;overflow-y:auto}
+  .setupfoot{flex:0 0 auto;display:flex;flex-direction:column;gap:10px;padding:10px 16px 14px;box-shadow:0 -1px 0 var(--line)}
+  .seg{display:flex;gap:4px;padding:4px;background:var(--ink-1);border-radius:var(--r-card)}
+  .seg button{flex:1;min-width:0;min-height:56px;padding:0 4px;border-radius:var(--r-ctl);background:none;color:var(--text-2);font-weight:600;
+    font-size:.9444rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .seg button.sel{background:var(--text);color:var(--ink-0)}
   .pick{display:flex;gap:12px}
   .pickcol{flex:1;display:flex;flex-direction:column;gap:8px;min-width:0}
-  .pickcol h3{font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
-  .pickcol.ca h3{color:var(--chalk-lift)}
-  .pickcol.cb h3{color:var(--ochre-lift)}
-  .pickcol button{min-height:58px;font-size:18px;background:var(--panel);display:flex;align-items:center;gap:10px;
-    padding:0 10px;text-align:left}
-  .pickcol button span:last-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .fold{background:var(--panel);border-radius:14px}
-  .foldhead{width:100%;display:flex;align-items:center;gap:12px;background:none;min-height:60px;padding:0 16px;text-align:left}
-  .foldk{flex:0 0 auto;font-size:15px;font-weight:700;color:var(--bone-dim);text-transform:uppercase;letter-spacing:.06em}
-  .foldv{flex:1;text-align:right;font-size:17px;font-weight:700;line-height:1.3}
-  .foldhead::after{content:"▾";flex:0 0 auto;color:var(--bone-dim);font-size:18px}
+  .pickcol.ca h3{color:var(--a)}
+  .pickcol.cb h3{color:var(--b);text-align:right}
+  .picks{display:flex;flex-direction:column;gap:8px}
+  .picks button{min-height:64px;background:var(--ink-1);display:flex;align-items:center;gap:10px;padding:0 10px;text-align:left;
+    border-radius:var(--r-card);font-weight:600}
+  .picks button>span:last-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .picks button:disabled .pk-av{filter:grayscale(1) brightness(.6)}
+  .pickcol.ca .picks button.sel{background:var(--a);color:var(--a-ink)}
+  .pickcol.cb .picks button.sel{background:var(--b);color:var(--b-ink)}
+  .settings{background:var(--ink-1);border-radius:var(--r-card);overflow:hidden}
+  .fold+.fold,.fold+#breakBtn{box-shadow:0 -1px 0 var(--line)}
+  .foldhead{width:100%;display:flex;align-items:center;gap:12px;background:none;min-height:64px;padding:10px 16px;text-align:left;border-radius:0}
+  .foldk{flex:0 0 auto;color:var(--dim)}
+  .foldv{flex:1;text-align:right;font-size:1rem;font-weight:600;line-height:1.3}
+  .foldv .na{color:var(--a)} .foldv .nb{color:var(--b)}
+  .foldhead::after{content:"▾";flex:0 0 auto;color:var(--dim);font-size:.8889rem}
   .fold.open .foldhead::after{content:"▴"}
+  #breakBtn::after{content:"⇄";font-size:1rem}
   .foldbody{display:none;flex-direction:column;gap:12px;padding:0 12px 14px}
   .fold.open .foldbody{display:flex}
-  .foldbody .modes button{background:rgba(255,255,255,.07)}
-  .foldbody .modes button.sel{background:var(--bone);color:#0a2a20}
-  .pickcol.ca button.sel{background:var(--chalk);color:#fff}
-  .pickcol.cb button.sel{background:var(--ochre);color:#fff}
   .modes{display:flex;gap:8px}
-  .modes button{flex:1;min-height:58px;font-size:17px;padding:0 8px}
-  .modes button.sel{background:var(--bone);color:#0a2a20}
+  .modes button{flex:1;min-height:var(--tap);font-size:.9444rem;padding:0 8px;background:var(--ink-2);color:var(--text-2)}
+  .modes button.sel{background:var(--text);color:var(--ink-0)}
   #raceLen{flex-wrap:wrap}
   #raceLen button{flex:1 1 40%}
-  .field{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:18px;font-weight:600;color:var(--bone-dim)}
-  .field input{font:inherit;font-size:22px;font-weight:700;color:var(--bone);background:rgba(0,0,0,.35);border:1px solid rgba(239,233,220,.25);border-radius:10px;padding:10px;width:5.2rem;text-align:center}
+  .field{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:1rem;font-weight:600;color:var(--dim)}
+  .field input{font-size:1.2222rem;font-weight:700;width:5.2rem;text-align:center;padding:10px}
   .tgrid{display:flex;gap:12px}
   .tgrid .field{flex:1;flex-direction:column;align-items:stretch;text-align:center}
   .tgrid .field input{width:100%}
-  .thint{font-size:15px;color:var(--bone-dim);line-height:1.4}
+  .thint{font-size:.8333rem;color:var(--dim);line-height:1.45}
+  .setupfoot .thint{min-height:1.45em}
+  .warn{color:var(--warn)}
   #raceForm{flex-direction:column}
-  #raceForm button{min-height:56px;padding:6px 12px;line-height:1.3}
-  #breakBtn{width:100%;background:var(--panel);border-radius:14px}
-  #breakBtn::after{content:"⇄"}
-  #startBtn{height:72px;font-size:21px;width:100%}
+  #raceForm button{padding:8px 12px}
+  #startBtn{min-height:var(--tap-lg);font-size:1.1667rem;width:100%;border-radius:var(--r-card)}
 
-  /* ---- scores double as the turn control (prototype, kept) ---- */
-  .scores{display:flex;flex:0 0 auto;gap:3px;background:rgba(0,0,0,.4)}
-  .side{
-    flex:1;padding:12px 14px 13px;border:none;border-radius:0;min-height:0;text-align:left;font:inherit;color:var(--bone);
-    background:rgba(255,255,255,.04);position:relative;font-weight:400;
-    transition:background-color .18s ease;
-  }
-  .side[data-p="b"]{text-align:right}
-  .side.on[data-p="a"]{background:var(--chalk)}
-  .side.on[data-p="b"]{background:var(--ochre)}
-  .side:active{filter:brightness(1.15)}
-  .side.on::after{
-    content:"";position:absolute;left:0;right:0;bottom:0;height:5px;background:rgba(255,255,255,.75);
-  }
-  .name{font-size:19px;font-weight:700;color:var(--bone-dim)}
-  .side.on .name{color:#fff}
-  .raw{font-size:clamp(42px, 13vw, 60px);font-weight:700;line-height:1.02;margin-top:2px}
-  .sub{font-size:17px;font-weight:600;color:var(--bone-dim);margin-top:6px;min-height:20px}
-  .side.on .sub{color:rgba(255,255,255,.95)}
-  .cue{font-size:15px;font-weight:600;color:#fff;margin-top:7px;min-height:18px}
-  .side:not(.on) .cue{color:rgba(239,233,220,.5)}
+  /* ================= the live screen: fixed px, never scrolls ================= */
+  .turnbar{flex:0 0 5px;background:var(--a);transition:background-color .18s ease}
+  body[data-turn="b"] .turnbar{background:var(--b)}
+  /* Score head: the filled panel is the shooter; tap a panel to make that player shoot. */
+  .scores{display:flex;flex:0 0 auto;gap:2px;background:var(--ink-0)}
+  .side{flex:1 1 0;min-width:0;height:136px;padding:14px 16px 12px;border:none;border-radius:0;min-height:0;text-align:left;
+    font:inherit;line-height:1;color:var(--text-2);background:var(--ink-1);display:flex;flex-direction:column;
+    transition:background-color .18s ease,color .18s ease}
+  .side[data-p="b"]{text-align:right;align-items:flex-end}
+  .side:active{filter:brightness(1.12)}
+  .side.on[data-p="a"]{background:var(--a);color:var(--a-ink)}
+  .side.on[data-p="b"]{background:var(--b);color:var(--b-ink)}
+  .name{display:flex;align-items:center;gap:8px;max-width:100%;font-family:var(--grot);font-size:15px;font-weight:700;letter-spacing:.1em;
+    text-transform:uppercase;line-height:18px;color:var(--dim)}
+  .name span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .side[data-p="b"] .name{flex-direction:row-reverse}
+  .side.on .name{color:inherit}
+  .side.on .name::after{content:"";flex:0 0 7px;height:7px;border-radius:50%;background:currentColor}
+  .raw{font-family:var(--grot);font-size:62px;font-weight:600;letter-spacing:-.03em;line-height:62px;margin-top:6px;color:var(--text-2)}
+  .side.on .raw{color:inherit}
+  .sub{font-size:17px;font-weight:600;line-height:22px;margin-top:6px;min-height:22px;max-width:100%;color:var(--dim);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .side.on .sub{color:inherit;font-weight:700}
 
-  /* ---- lead bar: swings left when A is ahead, right when B is ---- */
-  .leadwrap{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 16px 0}
-  .leadhead{display:flex;align-items:baseline;gap:9px;min-height:34px}
-  .leadname{font-size:16px;font-weight:700;color:var(--bone-dim);text-transform:uppercase;letter-spacing:.05em}
-  .leadnum{font-size:32px;font-weight:800;line-height:1;color:#63c08a;font-variant-numeric:tabular-nums}
-  .leadnum.tied{font-size:23px;color:var(--bone-dim);font-weight:700}
-  .leadnum.word{font-size:23px}
-  .leadbar{position:relative;width:100%;max-width:26rem;height:12px;border-radius:6px;
-    background:rgba(0,0,0,.4);box-shadow:inset 0 0 0 1px rgba(239,233,220,.14);overflow:hidden}
-  .leadfill{position:absolute;top:0;bottom:0;left:50%;width:0;background:#63c08a;
-    transition:left .25s ease,width .25s ease}
-  .leadmid{position:absolute;left:50%;top:0;bottom:0;width:2px;margin-left:-1px;background:rgba(239,233,220,.4)}
+  /* Lead rail: the leader's colour fills from the centre towards their side. */
+  .leadrail{flex:0 0 8px;position:relative;background:var(--ink-1)}
+  .leadfill{position:absolute;top:0;bottom:0;left:50%;width:0;background:var(--a);transition:left .25s ease,width .25s ease}
+  .leadfill.b{background:var(--b)}
+  .leadmid{position:absolute;left:50%;top:0;bottom:0;width:2px;margin-left:-1px;background:rgba(232,237,243,.4)}
 
-  /* On a short screen something has to give: the shooter cue is already shown by the
-     whole-panel tint, and the controls matter more than a 60px score. */
-  @media (max-height: 700px){
-    :root{--bs:clamp(46px, min(21vw, (100dvh - 325px) / 5), 92px)}
-    .cue{display:none}
-    .raw{font-size:clamp(38px, 11vw, 48px)}
-    .side{padding:9px 14px 10px}
-    .leadhead{min-height:30px}
-    .leadnum{font-size:27px}
-    .controls button{height:60px}
-  }
+  /* Match bar: rack and dead balls · the numeric lead · the break chip. */
+  .matchbar{flex:0 0 48px;display:flex;align-items:center;gap:10px;padding:0 12px;background:var(--ink-0)}
+  /* On a narrow phone the label and the lead each take a second line rather than lose words. */
+  .matchbar .lbl{font-size:14px;line-height:17px;color:var(--dim);flex:0 1 auto;min-width:0;max-width:33%;
+    display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+  .lead{flex:1 1 0;min-width:0;text-align:center;font-size:17px;font-weight:700;line-height:20px;color:var(--text);
+    display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+  .lead>span{display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:top}
+  .lead.a{color:var(--a)} .lead.b{color:var(--b)}
+  .breakchip{flex:0 0 auto;position:relative;min-height:44px;height:44px;padding:0 14px;border-radius:var(--r-chip);background:var(--ink-2);
+    color:var(--text-2);font-family:var(--grot);font-size:14px;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
+  .breakchip::after{content:"";position:absolute;left:-4px;right:-4px;top:-8px;bottom:-8px}   /* a 60px target in a 48px bar */
 
-  /* ---- meta strip ---- */
-  .meta{flex:0 0 auto;display:flex;align-items:center;justify-content:center;gap:18px;
-    padding:7px 11px;font-size:16px;color:var(--bone-dim);background:transparent}
-  .meta b{color:var(--bone);font-weight:700}
-  .meta>*{white-space:nowrap}
-  .meta button{background:none;border:none;color:var(--bone-dim);font:inherit;font-weight:600;min-height:0;padding:6px 8px;text-decoration:underline;border-radius:0}
-  .warn{color:#e8b04a}
-  .ok{color:#63c08a;font-weight:600}
-
-  /* ---- rack (prototype, kept) ---- */
+  /* ---- rack ---- */
   .rack{flex:1 1 0;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--rack-gap);padding:6px 0}
   .row{display:flex;gap:var(--rack-gap);justify-content:center}
   .ball{
     width:var(--bs);height:var(--bs);border-radius:50%;border:none;padding:0;position:relative;min-height:0;
     background:var(--bc);cursor:pointer;
-    box-shadow:inset -6px -8px 14px rgba(0,0,0,.45), inset 5px 6px 10px rgba(255,255,255,.28), 0 3px 5px rgba(0,0,0,.4);
-    transition:transform .09s ease, background-color .14s ease, box-shadow .14s ease;
+    box-shadow:inset -6px -9px 16px rgba(0,0,0,.5), inset 5px 6px 11px rgba(255,255,255,.26), 0 3px 6px rgba(0,0,0,.45);
+    transition:transform .09s ease, background-color .18s ease, box-shadow .18s ease;
   }
+  /* A dark ball keeps its edge against the dark ground. */
+  .ball.darkball{box-shadow:inset -6px -9px 16px rgba(0,0,0,.5), inset 5px 6px 11px rgba(255,255,255,.26), 0 0 0 1px rgba(232,237,243,.22), 0 3px 6px rgba(0,0,0,.45)}
   .ball:active{transform:scale(.9)}
   .pip{
     position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
     width:calc(var(--bs) * .6);height:calc(var(--bs) * .6);border-radius:50%;background:#f6f2e8;
     display:flex;align-items:center;justify-content:center;
-    font-size:calc(var(--bs) * .34);font-weight:700;color:#14110f;
-    transition:background-color .14s ease,color .14s ease,width .14s ease,height .14s ease;
+    font-family:var(--grot);font-size:calc(var(--bs) * .34);font-weight:600;color:#14110f;
   }
-  .stripe{position:absolute;inset:0;border-radius:50%;overflow:hidden;transition:opacity .14s ease}
+  .stripe{position:absolute;inset:0;border-radius:50%;overflow:hidden}
   .stripe::before{content:"";position:absolute;left:0;right:0;top:19%;bottom:19%;background:var(--bc)}
   .ball.striped{background:#f4efe3}
+  /* Claimed: flat in the player's colour. */
+  .ball.claimed{background:var(--own);box-shadow:0 0 0 2px rgba(10,13,17,.7)}
+  .ball.claimed .stripe{display:none}
+  .ball.claimed .pip{background:transparent;color:var(--own-ink);width:var(--bs);height:var(--bs);font-size:calc(var(--bs) * .43)}
+  /* Dead: an empty grey disc with the number struck through, a different shape from claimed. */
+  .ball.dead{background:var(--ink-2);box-shadow:inset 0 0 0 2px rgba(168,182,196,.3)}
+  .ball.dead .stripe{display:none}
+  .ball.dead .pip{background:transparent;color:var(--faint);width:var(--bs);height:var(--bs);font-size:calc(var(--bs) * .36)}
+  .ball.dead::after{content:"";position:absolute;left:30%;right:30%;top:50%;height:3px;margin-top:-1.5px;border-radius:2px;background:var(--dim)}
 
-  .ball.claimed{
-    background:var(--own);
-    box-shadow:0 0 0 3px rgba(0,0,0,.28), 0 3px 5px rgba(0,0,0,.35);
-  }
-  .ball.claimed .stripe{opacity:0}
-  .ball.claimed .pip{
-    background:transparent;color:#fff;width:var(--bs);height:var(--bs);font-size:calc(var(--bs) * .42);
-  }
-
-  .ball.dead{background:#2c3733;box-shadow:0 0 0 3px rgba(0,0,0,.28)}
-  .ball.dead .stripe{opacity:0}
-  .ball.dead .pip{background:transparent;color:rgba(239,233,220,.35);width:var(--bs);height:var(--bs);font-size:calc(var(--bs) * .34)}
-  .ball.dead::after{
-    content:"×";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-    font-size:calc(var(--bs) * .78);font-weight:300;color:rgba(239,233,220,.75);
-  }
-
-  /* ---- Golden-Nine and Trad-Nine: a foul and three ways to win under each player ---- */
-  .winarea{flex:1 1 0;min-height:0;display:flex;gap:10px;padding:8px 10px 12px}
-  .wincol{flex:1;display:flex;flex-direction:column;gap:8px;min-height:0}
-  .wincol button{flex:1 1 0;min-height:56px;max-height:96px;padding:4px 8px;border-radius:13px;
+  /* ---- Golden-Nine and Trad-Nine: fouls in a row, then a captioned win column per player ---- */
+  .winarea{flex:1 1 0;min-height:0;display:flex;flex-direction:column;gap:12px;padding:12px 12px 10px}
+  .foulrow{flex:0 0 auto;display:flex;gap:12px}
+  .foul{flex:1 1 0;min-width:0;min-height:60px;padding:0 10px;background:var(--ink-2);color:var(--dim);box-shadow:inset 0 0 0 1px var(--line);
+    font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .foul small{font-family:var(--grot);font-size:15px;font-weight:600;margin-left:8px}
+  .foul.has{background:rgba(255,193,77,.12);color:var(--warn);box-shadow:inset 0 0 0 1px rgba(255,193,77,.55)}
+  .wincols{flex:1 1 0;min-height:0;display:flex;gap:12px}
+  .wincol{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:10px;min-height:0}
+  .wincap{flex:0 0 auto;font-size:14px;line-height:18px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .wincol[data-p="a"] .wincap{color:var(--a)}
+  .wincol[data-p="b"] .wincap{color:var(--b);text-align:right}
+  .win{flex:1 1 0;min-height:56px;max-height:104px;padding:4px 8px;border-radius:var(--r-ctl);
     display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
-    font-size:19px;font-weight:700;line-height:1.15;text-align:center}
-  .wincol small{font-size:15px;font-weight:600;opacity:.85}
-  .wincol .foul{margin-bottom:6px;background:rgba(255,255,255,.05);color:var(--bone-dim);
-    border:1px solid rgba(239,233,220,.3)}
-  .wincol .foul.has{color:#e8b04a;border-color:rgba(232,176,74,.55)}
-  .wincol .win{background:rgba(47,110,168,.28);box-shadow:inset 0 0 0 2px var(--chalk-lift)}
-  .wincol[data-p="b"] .win{background:rgba(184,120,28,.28);box-shadow:inset 0 0 0 2px var(--ochre-lift)}
-  .wincol .win.chosen{background:var(--chalk);color:#fff}
-  .wincol[data-p="b"] .win.chosen{background:var(--ochre)}
+    font-size:18px;font-weight:700;line-height:1.15;text-align:center;color:var(--text);
+    background:var(--a-soft);box-shadow:inset 0 0 0 2px var(--a)}
+  .win small{font-family:var(--grot);font-size:15px;font-weight:600;color:var(--a)}
+  .wincol[data-p="b"] .win{background:var(--b-soft);box-shadow:inset 0 0 0 2px var(--b)}
+  .wincol[data-p="b"] .win small{color:var(--b)}
+  .wincol[data-p="a"] .win.chosen{background:var(--a);color:var(--a-ink)}
+  .wincol[data-p="b"] .win.chosen{background:var(--b);color:var(--b-ink)}
+  .win.chosen small{color:inherit}
 
-  /* ---- Golden-Nine and Trad-Nine: the ball drop, 1 to 5 over 6 to 9, as on a stream ----
-     Two rows so every cell is a full 56px target. Reuses the rack's .ball look with its own --bs. */
-  .drop{flex:0 0 auto;display:flex;flex-direction:column;padding:0 10px 8px;--bs:44px}
+  /* ---- the ball drop, 1 to 5 over 6 to 9, as on a stream ---- */
+  .drop{flex:0 0 auto;display:flex;flex-direction:column;margin:0 12px;padding:6px 0 8px;box-shadow:0 -1px 0 var(--line);--bs:46px}
   .drow{display:flex;justify-content:center}
-  .dcell{flex:0 0 20%;min-width:56px;min-height:56px;height:56px;padding:0;border-radius:10px;background:none;
+  .dcell{flex:0 0 20%;min-width:56px;min-height:60px;height:60px;padding:0;border-radius:var(--r-chip);background:none;
     display:flex;align-items:center;justify-content:center;position:relative}
   .dcell .ball{display:block;pointer-events:none;transition:opacity .15s ease, transform .15s ease}
   .dcell::before{content:"";position:absolute;left:50%;top:50%;width:var(--bs);height:var(--bs);
     margin:calc(var(--bs) / -2) 0 0 calc(var(--bs) / -2);border-radius:50%;
-    box-shadow:inset 0 0 0 2px rgba(239,233,220,.14);opacity:0;transition:opacity .15s ease}
+    box-shadow:inset 0 0 0 2px rgba(232,237,243,.2);opacity:0;transition:opacity .15s ease}
   .dcell.gone .ball{opacity:0;transform:scale(.6)}
   .dcell.gone::before{opacity:1}
-  /* A short phone gives back a little padding around the win buttons for the second row. */
-  @media (max-height: 700px){
-    .winarea{padding:4px 10px 6px;gap:8px}
-    .wincol{gap:6px}
-    .wincol .foul{margin-bottom:2px}
-    .drop{padding-bottom:4px}
-  }
 
-  /* ---- controls (prototype, kept) ---- */
-  .controls{flex:0 0 auto;display:flex;gap:10px;padding:0 10px 14px}
-  .controls button{
-    flex:1;height:68px;border-radius:13px;border:1px solid rgba(239,233,220,.3);
-    background:rgba(255,255,255,.08);color:var(--bone);font-size:19px;font-weight:700;
+  /* ---- controls: three sizes so they can't be confused by feel ---- */
+  .controls{flex:0 0 auto;display:flex;gap:14px;padding:0 12px 16px}
+  .controls button{height:76px;min-height:0;border-radius:var(--r-ctl);font-size:17px;padding:0 10px}
+  #undo{flex:0 0 104px;background:var(--ink-2);color:var(--text);box-shadow:inset 0 0 0 1px var(--line)}
+  #undo:disabled{color:var(--faint)}
+  #next{flex:1 1 auto;background:var(--text);color:var(--ink-0);font-size:19px}
+  #end{flex:0 0 84px;margin-left:6px;background:transparent;color:var(--warn);box-shadow:inset 0 0 0 1px rgba(255,193,77,.45);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;line-height:1.1}
+  #end small{font-size:15px;font-weight:700}
+  .controls.game #undo{flex:1 1 auto}
+  .controls.watching #end{flex:1 1 auto;margin:0;color:var(--text);box-shadow:inset 0 0 0 1px rgba(232,237,243,.18)}
+
+  /* A short phone gives up a little of everything but the balls. */
+  @media (max-height: 700px){
+    :root{--bs:clamp(52px, min(23vw, (100dvh - 307px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) / 5), 96px)}
+    .side{height:116px;padding:11px 14px 9px}
+    .raw{font-size:52px;line-height:52px;margin-top:4px}
+    .sub{font-size:15px;line-height:20px;min-height:20px;margin-top:4px}
+    .matchbar{flex-basis:44px}
+    .controls{padding-bottom:10px}
+    .controls button{height:64px}
+    .winarea{gap:6px;padding:6px 12px 4px}
+    .wincol{gap:4px}
+    .foul{min-height:56px}
+    .dcell{height:56px;min-height:56px}
+    .drop{--bs:42px;padding:4px 0}
   }
-  .controls button:active{background:rgba(255,255,255,.16)}
-  .controls .end{flex:0 0 96px;color:var(--bone-dim);border-color:rgba(239,233,220,.15)}
 
   @media (prefers-reduced-motion: reduce){
     *{transition:none !important}
+    .hold.holding::before{transition:none !important}
   }
 
-  /* ---- rack complete / session end (prototype, extended) ---- */
+  /* ---- rack complete, match end, and the live screen's questions ---- */
   .done{
-    position:fixed;inset:0;background:rgba(4,14,11,.95);z-index:10;
-    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;padding:28px;text-align:center;
+    position:fixed;inset:0;background:rgba(10,13,17,.94);z-index:10;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:28px 20px;text-align:center;
   }
-  .done h2{font-size:32px;font-weight:700}
-  .done p{color:var(--bone-dim);font-size:19px;line-height:1.5;max-width:30ch}
+  .done h2{font-family:var(--grot);font-size:30px;font-weight:600;letter-spacing:-.02em;line-height:1.2}
+  .done p{color:var(--text-2);font-size:19px;line-height:1.5;max-width:30ch}
   .done p .warn{font-weight:700}
-  .done button{height:68px;padding:0 36px;border-radius:14px;border:none;background:var(--bone);color:#0a2a20;font-size:21px;font-weight:700}
-  .done .ghost{background:none;color:var(--bone-dim);border:1px solid rgba(239,233,220,.3);height:54px;font-size:18px}
-  .done .warnbtn{color:#e8b04a;border-color:rgba(232,176,74,.55)}
+  .done button{min-height:76px;width:100%;max-width:22rem;padding:0 24px;border-radius:var(--r-card);background:var(--text);color:var(--ink-0);font-size:20px}
+  .done .ghost{background:none;color:var(--text-2);box-shadow:inset 0 0 0 1px rgba(232,237,243,.18);min-height:60px;font-size:18px}
+  .done .warnbtn{color:var(--warn);box-shadow:inset 0 0 0 1px rgba(255,193,77,.55)}
 </style>
 </head>
 <body data-turn="a">
@@ -344,7 +388,7 @@
 <section class="screen" id="scrGate">
   <header class="apphead"><h1>Rack It</h1></header>
   <div class="gate hidden" id="gate">
-    <button id="signInBig">Sign in with Google</button>
+    <button class="primary" id="signInBig">Sign in with Google</button>
     <p class="dim">Invite-only pool scoring.<br>Nothing to see until you're in.</p>
   </div>
   <p class="gate-err hidden" id="gateErr"></p>
@@ -353,7 +397,7 @@
 
 <!-- ============ RATINGS ============ -->
 <section class="screen hidden" id="scrRatings">
-  <header class="apphead"><h1>Ratings</h1></header>
+  <header class="apphead"><h1>Ratings</h1><span class="lbl">Zargo</span></header>
   <div class="homebody">
     <ul class="plist" id="playerList"></ul>
     <p class="empty hidden" id="noPlayers">No players yet. Add the first two and start a match.</p>
@@ -365,18 +409,18 @@
 <section class="screen hidden" id="scrPerson">
   <header class="apphead">
     <h1>Player</h1>
-    <button class="quiet small" id="perBack">Back</button>
+    <button class="quiet back" id="perBack">Back</button>
   </header>
   <div class="homebody">
     <div class="perhead" id="perHead"></div>
     <p class="thint" id="perAbout"></p>
     <button class="quiet" id="perEdit">Edit</button>
-    <h3 class="sechead">Cuescore</h3>
+    <h3 class="lbl sechead">Cuescore</h3>
     <p id="perCue"></p>
     <button class="quiet hidden" id="perCueEdit">Add your Cuescore link</button>
-    <h3 class="sechead">Record</h3>
+    <h3 class="lbl sechead">Record</h3>
     <ul class="reclist" id="perRecord"></ul>
-    <h3 class="sechead">Matches</h3>
+    <h3 class="lbl sechead">Matches</h3>
     <ul class="plist" id="perMatches"></ul>
   </div>
 </section>
@@ -406,85 +450,88 @@
     <label class="hidden" id="pfZargoRow">Starter rating (edit only if you're sure)
       <input id="pfZargo" type="number" inputmode="numeric" step="1">
     </label>
+    <p class="thint hidden" id="pfOwnerNote"></p>
     <p class="danger-note hidden" id="pfNote"></p>
     <div class="row2">
       <button class="primary" id="pfSave">Save</button>
       <button class="quiet" id="pfCancel">Cancel</button>
     </div>
     <button class="quiet hidden" id="pfShared">Cuescore link, unclaim, or merge a double entry</button>
-    <button class="quiet warnbtn hidden" id="pfDelete" style="color:#e8b04a;border-color:rgba(232,176,74,.55)">Delete player</button>
+    <button class="quiet warnbtn hold hidden" id="pfDelete">Hold to delete player</button>
   </div>
 </div>
 
-<!-- ============ SESSION SETUP ============ -->
+<!-- ============ MATCH SETUP ============ -->
 <section class="screen hidden" id="scrSetup">
   <header class="apphead">
     <h1>New match</h1>
   </header>
   <div class="setupbody">
-    <div class="modes" id="games">
+    <div class="seg" id="games">
       <button data-game="standard">Trad-Nine</button>
       <button data-game="golden">Golden-Nine</button>
-      <button data-game="league">11-Point-Nine</button>
+      <button data-game="league" aria-label="11-Point-Nine">11-Point</button>
     </div>
     <div class="pick">
-      <div class="pickcol ca"><h3>Blue side</h3><div id="pickA" style="display:flex;flex-direction:column;gap:8px"></div></div>
-      <div class="pickcol cb"><h3>Amber side</h3><div id="pickB" style="display:flex;flex-direction:column;gap:8px"></div></div>
+      <div class="pickcol ca"><h3 class="lbl">Teal side</h3><div class="picks" id="pickA"></div></div>
+      <div class="pickcol cb"><h3 class="lbl">Coral side</h3><div class="picks" id="pickB"></div></div>
     </div>
 
-    <div class="fold" id="foldLen">
-      <button class="foldhead" id="lenHead"><span class="foldk">Length</span><span class="foldv" id="lenSummary"></span></button>
-      <div class="foldbody">
-        <div class="modes" id="modes">
-          <button data-mode="race" class="sel">Race</button>
-          <button data-mode="fixed">Fixed racks</button>
-          <button data-mode="open">Open</button>
-        </div>
-        <div class="modes" id="goldLen">
-          <button data-len="fixed">Fixed racks</button>
-          <button data-len="35">Race to 35</button>
-          <button data-len="other">Race to N</button>
-        </div>
-        <div class="modes" id="raceLen">
-          <button data-n="3">Race to 3</button>
-          <button data-n="5">Race to 5</button>
-          <button data-n="7">Race to 7</button>
-          <button data-n="other">Race to N</button>
-        </div>
-        <div class="field" id="raceNRow">
-          <span id="raceNLabel">Race to, racks</span>
-          <input id="raceN" type="number" inputmode="numeric" min="1" max="30" value="9">
-        </div>
-        <div class="field" id="lenRow">
-          <span id="lenLabel">Rough length, racks</span>
-          <input id="racksIn" type="number" inputmode="numeric" min="1" max="30" value="5">
+    <div class="settings">
+      <div class="fold" id="foldLen">
+        <button class="foldhead" id="lenHead"><span class="foldk lbl">Length</span><span class="foldv" id="lenSummary"></span></button>
+        <div class="foldbody">
+          <div class="modes" id="modes">
+            <button data-mode="race" class="sel">Race</button>
+            <button data-mode="fixed">Fixed racks</button>
+            <button data-mode="open">Open</button>
+          </div>
+          <div class="modes" id="goldLen">
+            <button data-len="fixed">Fixed racks</button>
+            <button data-len="35">Race to 35</button>
+            <button data-len="other">Race to N</button>
+          </div>
+          <div class="modes" id="raceLen">
+            <button data-n="3">Race to 3</button>
+            <button data-n="5">Race to 5</button>
+            <button data-n="7">Race to 7</button>
+            <button data-n="other">Race to N</button>
+          </div>
+          <div class="field" id="raceNRow">
+            <span id="raceNLabel">Race to, racks</span>
+            <input id="raceN" type="number" inputmode="numeric" min="1" max="30" value="9">
+          </div>
+          <div class="field" id="lenRow">
+            <span id="lenLabel">Rough length, racks</span>
+            <input id="racksIn" type="number" inputmode="numeric" min="1" max="30" value="5">
+          </div>
         </div>
       </div>
-    </div>
 
-    <div class="fold" id="foldHcp">
-      <button class="foldhead" id="hcpHead"><span class="foldk">Handicap</span><span class="foldv" id="hcpSummary"></span></button>
-      <div class="foldbody">
-        <div class="modes" id="hcps">
-          <button data-h="off">Off</button>
-          <button data-h="scoring">Scoring</button>
-          <button data-h="racks">Racks</button>
+      <div class="fold" id="foldHcp">
+        <button class="foldhead" id="hcpHead"><span class="foldk lbl">Handicap</span><span class="foldv" id="hcpSummary"></span></button>
+        <div class="foldbody">
+          <div class="modes" id="hcps">
+            <button data-h="off">Off</button>
+            <button data-h="scoring">Scoring</button>
+            <button data-h="racks">Racks</button>
+          </div>
+          <div class="tgrid" id="targetsRow">
+            <div class="field"><span id="tgtALabel">Target</span><input id="tgtA" type="number" inputmode="numeric" min="1"></div>
+            <div class="field"><span id="tgtBLabel">Target</span><input id="tgtB" type="number" inputmode="numeric" min="1"></div>
+          </div>
+          <div class="modes" id="raceForm">
+            <button data-form="targets" id="formTargets"></button>
+            <button data-form="start" id="formStart"></button>
+          </div>
         </div>
-        <div class="tgrid" id="targetsRow">
-          <div class="field"><span id="tgtALabel">Target</span><input id="tgtA" type="number" inputmode="numeric" min="1"></div>
-          <div class="field"><span id="tgtBLabel">Target</span><input id="tgtB" type="number" inputmode="numeric" min="1"></div>
-        </div>
-        <div class="modes" id="raceForm">
-          <button data-form="targets" id="formTargets"></button>
-          <button data-form="start" id="formStart"></button>
-        </div>
-        <p class="thint" id="setupHint"></p>
       </div>
-    </div>
 
-    <button class="foldhead" id="breakBtn"><span class="foldk">Break</span><span class="foldv" id="breakWho">—</span></button>
+      <button class="foldhead" id="breakBtn"><span class="foldk lbl">Break</span><span class="foldv" id="breakWho">—</span></button>
+    </div>
   </div>
   <div class="setupfoot">
+    <p class="thint" id="setupHint"></p>
     <p class="thint warn hidden" id="setupWarn"></p>
     <button class="primary" id="startBtn" disabled>Start</button>
   </div>
@@ -500,19 +547,21 @@
 <section class="screen hidden" id="scrSummary">
   <header class="apphead">
     <h1>Match</h1>
-    <button class="quiet small" id="sumBack">Back</button>
+    <button class="quiet back" id="sumBack">Back</button>
   </header>
   <div class="homebody">
     <p class="sumwin" id="sumWinner"></p>
-    <p class="thint" id="sumMeta"></p>
+    <p class="lbl dim" id="sumMeta"></p>
     <p id="sumScore"></p>
     <p class="dim" id="sumZargo"></p>
-    <h3 class="sechead">Racks</h3>
+    <h3 class="lbl sechead">Racks</h3>
     <ul class="reclist" id="sumRacks"></ul>
-    <h3 class="sechead">Cuescore</h3>
+    <h3 class="lbl sechead">Cuescore</h3>
     <p class="copybox" id="sumCopyText"></p>
     <button class="primary" id="sumCopy">Copy for Cuescore</button>
     <a class="linkbtn" href="https://cuescore.com/challenges/" target="_blank" rel="noopener">Open Cuescore challenges</a>
+    <button class="quiet warnbtn hold hidden" id="sumDelete">Hold to delete match</button>
+    <p class="note hidden" id="sumDeleteNote">Only the owner can delete a match, so a result can't vanish by mistake.</p>
   </div>
 </section>
 
@@ -530,6 +579,8 @@
     </div>
     <input type="file" id="importFile" accept="application/json,.json" class="hidden">
     <button class="quiet" id="rebuildBtn">Rebuild ratings</button>
+    <p class="note hidden" id="ownerNote">Rebuilding ratings, deleting matches and players, changing a starter rating and
+      removing an invite are for the owner, so nothing is undone by accident.</p>
     <div id="installHere"></div>
     <button class="quiet" id="aboutBtn">About Zargo</button>
     <button class="quiet" id="signOutBtn">Sign out</button>
@@ -541,7 +592,7 @@
 <section class="screen hidden" id="scrAbout">
   <header class="apphead">
     <h1>About Zargo</h1>
-    <button class="quiet small" id="aboutBack">Back</button>
+    <button class="quiet back" id="aboutBack">Back</button>
   </header>
   <div class="homebody prose">
     <p><b>Zargo is Rack It's own rating.</b> Everyone starts at 500.</p>
@@ -565,7 +616,7 @@
 <section class="screen hidden" id="scrFamily">
   <header class="apphead">
     <h1>Invites</h1>
-    <button class="quiet small" id="famBack">Back</button>
+    <button class="quiet back" id="famBack">Back</button>
   </header>
   <div class="setupbody">
     <p class="thint">Invite someone by their Gmail. Anyone listed here can sign in with that Google account and use every
@@ -600,76 +651,75 @@
   </div>
 </div>
 
-<!-- ============ LIVE SCORING (the prototype, extended) ============ -->
+<!-- ============ LIVE SCORING ============ -->
 <section class="screen hidden" id="scrLive">
+  <div class="turnbar"></div>
   <div class="scores">
     <button class="side on" data-p="a" id="sideA">
-      <div class="name" id="nameA">Player A</div>
+      <div class="name"><span id="nameA">Player A</span></div>
       <div class="raw" id="rawA">0</div>
       <div class="sub" id="subA"></div>
-      <div class="cue" id="cueA">shooting</div>
     </button>
     <button class="side" data-p="b" id="sideB">
-      <div class="name" id="nameB">Player B</div>
+      <div class="name"><span id="nameB">Player B</span></div>
       <div class="raw" id="rawB">0</div>
       <div class="sub" id="subB"></div>
-      <div class="cue" id="cueB">tap to shoot</div>
     </button>
   </div>
 
-  <div class="leadwrap">
-    <div class="leadhead">
-      <span class="leadname" id="leadName"></span><b class="leadnum tied" id="leadNum">Tied</b>
-    </div>
-    <div class="leadbar">
-      <div class="leadfill" id="leadFill"></div>
-      <div class="leadmid"></div>
-    </div>
+  <div class="leadrail">
+    <div class="leadfill" id="leadFill"></div>
+    <div class="leadmid"></div>
   </div>
 
-  <div class="meta">
-    <span>rack <b id="rackNo">1</b></span>
-    <span id="deadWrap">dead <b id="deadCt">0</b></span>
-    <span id="audit"></span>
-    <button id="breakFlip">break: —</button>
+  <div class="matchbar">
+    <span class="lbl" id="rackNo">Rack 1</span>
+    <span class="lead" id="lead"></span>
+    <button class="breakchip" id="breakFlip">Break ⇄ —</button>
   </div>
 
   <div class="rack" id="rack"></div>
 
   <div class="winarea hidden" id="winArea">
-    <div class="wincol" data-p="a">
+    <div class="foulrow">
       <button class="foul" data-p="a"></button>
-      <button class="win" data-p="a" data-i="0"></button>
-      <button class="win" data-p="a" data-i="1"></button>
-      <button class="win" data-p="a" data-i="2"></button>
-    </div>
-    <div class="wincol" data-p="b">
       <button class="foul" data-p="b"></button>
-      <button class="win" data-p="b" data-i="0"></button>
-      <button class="win" data-p="b" data-i="1"></button>
-      <button class="win" data-p="b" data-i="2"></button>
+    </div>
+    <div class="wincols">
+      <div class="wincol" data-p="a">
+        <span class="lbl wincap"></span>
+        <button class="win" data-p="a" data-i="0"></button>
+        <button class="win" data-p="a" data-i="1"></button>
+        <button class="win" data-p="a" data-i="2"></button>
+      </div>
+      <div class="wincol" data-p="b">
+        <span class="lbl wincap"></span>
+        <button class="win" data-p="b" data-i="0"></button>
+        <button class="win" data-p="b" data-i="1"></button>
+        <button class="win" data-p="b" data-i="2"></button>
+      </div>
     </div>
   </div>
 
   <div class="drop hidden" id="drop" aria-label="Balls on the table"></div>
 
-  <div class="controls">
+  <div class="controls" id="controls">
     <button id="undo" disabled>Undo</button>
     <button id="next">Next rack</button>
-    <button class="end" id="end">End</button>
+    <button class="hold" id="end">End<small>hold</small></button>
   </div>
 </section>
 
 <div class="livestrip hidden" id="liveBar">
-  <span id="liveWho"></span>
-  <button class="primary" id="resumeBtn">Resume</button>
-  <button class="quiet" id="watchBanner">Watch</button>
+  <span><span id="liveWho"></span></span>
+  <button class="resume" id="resumeBtn">Resume</button>
+  <button class="watch" id="watchBanner">Watch</button>
 </div>
 <nav class="tabbar hidden" id="tabbar">
-  <button data-tab="play">Play</button>
-  <button data-tab="ratings">Ratings</button>
-  <button data-tab="matches">Matches</button>
-  <button data-tab="more">More</button>
+  <button class="lbl" data-tab="play">Play</button>
+  <button class="lbl" data-tab="ratings">Ratings</button>
+  <button class="lbl" data-tab="matches">Matches</button>
+  <button class="lbl" data-tab="more">More</button>
 </nav>
 
 <div class="done hidden" id="done">
@@ -688,7 +738,7 @@ import { phone } from "../shared/phone.js";
 import { people } from "../shared/people.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "2.0.1";
+const APP_VERSION = "2.1.0";
 const APP_ID = "rack-it";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 document.getElementById("versionMore").textContent = "v" + APP_VERSION;
@@ -700,19 +750,19 @@ const el = {};
  "perHead","perAbout","perEdit","perCue","perCueEdit","perRecord","perMatches","perBack",
  "sumBack","sumWinner","sumMeta","sumScore","sumZargo","sumRacks","sumCopyText","sumCopy",
  "aboutBtn","aboutBack","signOutBtn","versionMore",
- "pform","pfTitle","pfName","pfEmail","pfEmailLabel","pfEmailNote","pfColours","pfZargoRow","pfZargo","pfNote","pfSave","pfCancel",
+ "pform","pfTitle","pfName","pfEmail","pfEmailLabel","pfEmailNote","pfColours","pfZargoRow","pfZargo","pfNote","pfSave","pfCancel","pfOwnerNote",
  "scrSetup","scrLive","pickA","pickB","modes","lenRow","lenLabel","racksIn",
  "targetsRow","tgtA","tgtB","tgtALabel","tgtBLabel","setupHint","setupWarn","breakBtn","breakWho","startBtn",
  "foldLen","foldHcp","lenHead","hcpHead","lenSummary","hcpSummary","goldLen","hcps","raceForm","formTargets","formStart","raceNLabel",
- "sideA","sideB","nameA","nameB","rawA","rawB","subA","subB","cueA","cueB","leadName","leadNum","leadFill",
- "rackNo","deadCt","audit","breakFlip","rack","undo","next","end",
+ "sideA","sideB","nameA","nameB","rawA","rawB","subA","subB","lead","leadFill","controls",
+ "rackNo","breakFlip","rack","undo","next","end","sumDelete","sumDeleteNote","ownerNote",
  "done","doneTitle","doneBody","doneZargo","doneNext","doneAnyway","doneBack","signInBig",
  "watchBanner","liveBar","liveWho","resumeBtn","exportBtn","importBtn","importFile",
  "histList",
  "impChoice","impInfo","impMerge","impReplace","impCancel",
  "familyBtn","scrFamily","famBack","famList","famEmail","famAdd","famShare",
  "pfEst","estRef","estRefName","estRefScore","estNewScore","estOut","pfDelete","pfShared",
- "games","raceLen","raceNRow","raceN","deadWrap","winArea","drop",
+ "games","raceLen","raceNRow","raceN","winArea","drop",
  "rebuild","rbInfo","rbList","rbNote","rbApply","rbCancel","rebuildBtn"
 ].forEach(id => el[id] = $(id));
 
@@ -730,6 +780,37 @@ function tapBind(node, fn){
     fn();
   });
   node.addEventListener("click", e => e.preventDefault());
+}
+
+// Hold to confirm (DESIGN §5), for what can't be undone from the screen: End, and deleting a
+// match or a player. A 600ms press fills the button from the bottom and buzzes when it lands;
+// letting go or sliding off first cancels. No dialog. `tap` makes a plain tap run something
+// else instead while its test holds (End becomes Stop watching).
+const HOLD_MS = 600;
+function holdBind(node, fn, { tap = null, holding = null } = {}){
+  let timer = null, down = false, sx = 0, sy = 0;
+  const stop = () => { clearTimeout(timer); timer = null; node.classList.remove("holding"); if(holding) holding(false); };
+  node.addEventListener("pointerdown", e => {
+    down = true; sx = e.clientX; sy = e.clientY;
+    if(tap && tap.when()) return;
+    stop();
+    node.classList.add("holding");
+    if(holding) holding(true);
+    timer = setTimeout(() => { timer = null; stop(); buzz(16); fn(); }, HOLD_MS);
+  });
+  node.addEventListener("pointermove", e => {
+    if(timer && (Math.abs(e.clientX - sx) > 40 || Math.abs(e.clientY - sy) > 40)) stop();
+  });
+  node.addEventListener("pointerup", e => {
+    const was = down; down = false;
+    if(timer){ stop(); return; }
+    if(was && tap && tap.when() && Math.abs(e.clientX - sx) <= 40 && Math.abs(e.clientY - sy) <= 40) tap.run();
+  });
+  node.addEventListener("pointercancel", () => { down = false; stop(); });
+  node.addEventListener("pointerleave", () => { if(timer) stop(); });
+  node.addEventListener("click", e => e.preventDefault());
+  node.addEventListener("contextmenu", e => e.preventDefault());
+  node.addEventListener("keydown", e => { if(e.key === "Enter" || e.key === " "){ e.preventDefault(); tap && tap.when() ? tap.run() : fn(); } });
 }
 
 // ---------- data ----------
@@ -897,7 +978,7 @@ function watchMatches(){
     // Always opens on Play; a live match shows in the strip above the tabs.
     if(!landed){ landed = true; if(current === "gate") openSetupTab(); }
     paintLiveBar();
-    if(current === "matches" && !armedDeletes) renderMatches();
+    if(current === "matches") renderMatches();
     if(current === "person") renderPerson();
     if(current === "summary") renderSummary();
   }, { orderBy: "startedAt", desc: true, limit: 300 });
@@ -909,12 +990,31 @@ function paintLiveBar(){
   const on = !!liveDoc && !live && !watching && !!TAB_OF[current];
   el.liveBar.classList.toggle("hidden", !on);
   if(!on) return;
-  const l = liveDoc;
-  el.liveWho.textContent = `${nameOf(l.playerA)} v ${nameOf(l.playerB)} · ${GAME_LABEL[gameOf(l)]}`;
+  const l = liveDoc, sc = boardScore(l);
+  el.liveWho.textContent = `Live · ${nameOf(l.playerA)} ${sc.a}–${sc.b} ${nameOf(l.playerB)}`;
   el.resumeBtn.onclick = () => resumeMatch(l.id);
   el.watchBanner.onclick = () => enterWatch(l.id);
 }
 const checkLive = paintLiveBar;
+
+// ---------- the owner ----------
+// One member is the owner (members/<email>.role, set in the Firebase console). Only the owner
+// deletes a match or a player, changes a saved match (so Rebuild), sets a starter rating
+// after it exists, replaces everything on import, and removes an invite. The rules refuse
+// those writes from anyone else (shared/firestore.rules); the app hides them, with one line
+// saying why. Unknown (offline on first run) reads as a plain member.
+let owner = false;
+async function loadRole(){
+  try { owner = (await cloud.role()) === "owner"; } catch(e){ console.warn("[role]", e); owner = false; }
+  paintOwner();
+}
+function paintOwner(){
+  el.rebuildBtn.classList.toggle("hidden", !owner);
+  el.ownerNote.classList.toggle("hidden", owner);
+  el.impReplace.classList.toggle("hidden", !owner);
+  rerender();
+  if(current === "family") openFamily();
+}
 
 // ---------- auth gate ----------
 // The gate stays hidden until auth state is actually known, so a signed-in
@@ -932,6 +1032,7 @@ async function handleUser(user){
     try {
       people.start({ legacy: () => stateLoaded ? db.players : null, onError: e => console.warn("[people]", e) });
       await loadState();
+      loadRole();
       landed = false;
       watchMatches();
     } catch(e){
@@ -944,6 +1045,7 @@ async function handleUser(user){
   } else {
     started = false;
     stateLoaded = false;
+    owner = false;
     people.stop();
     if(unsubMatches){ unsubMatches(); unsubMatches = null; }
     matches = []; liveDoc = null;
@@ -976,15 +1078,25 @@ function renderRatings(){
     const p = P(id);
     const li = document.createElement("li");
     const b = document.createElement("button");
+    b.className = "prow";
     const prov = p.robustness < cfg().provisionalRacks;
-    b.innerHTML = `<span class="prank"></span><span class="pname"><span></span></span><span class="pstats"></span>`;
+    b.innerHTML = `<span class="prank"></span><span class="pname"><span></span><span class="psub"></span></span><span class="pz"></span>`;
     b.querySelector(".prank").textContent = played(id) ? ++rank : "";
-    b.querySelector(".prank").after(people.avatar(id, 36));
-    b.querySelector(".pname span").textContent = p.name + (people.isMe(id) ? " (you)" : "");
-    if(!p.email) b.querySelector(".pname").insertAdjacentHTML("beforeend", '<span class="nogmail">No Gmail</span>');
-    b.querySelector(".pstats").innerHTML = played(id)
-      ? `${Math.round(p.zargo)} · robustness ${fmtRob(p.robustness)}${prov ? '<br><span class="prov">provisional</span>' : ""}`
-      : `${Math.round(p.zargo)} · not played yet`;
+    b.querySelector(".prank").after(people.avatar(id, 40));
+    const nm = b.querySelector(".pname span");
+    nm.textContent = p.name;
+    if(people.isMe(id)) nm.insertAdjacentHTML("beforeend", ' <span class="you">you</span>');
+    // Robustness in plain words; amber only for provisional or a missing Gmail.
+    const sub = b.querySelector(".psub");
+    const racks = `${fmtRob(p.robustness)} ${p.robustness === 1 ? "rack" : "racks"}`;
+    sub.textContent = !played(id) ? "not played yet"
+      : prov ? "provisional · " + (p.email ? racks : "no Gmail")
+      : p.email ? racks + " behind it" : "no Gmail";
+    if(!played(id) && !p.email) sub.insertAdjacentHTML("beforeend", ' · <span class="nogmail">no Gmail</span>');
+    sub.classList.toggle("prov", played(id) && (prov || !p.email));
+    const z = b.querySelector(".pz");
+    z.textContent = Math.round(p.zargo);
+    z.classList.toggle("unplayed", !played(id));
     b.addEventListener("click", () => openPerson(id));
     li.appendChild(b);
     el.playerList.appendChild(li);
@@ -1010,10 +1122,13 @@ function openPlayerForm(id){
     : "They sign in with this and claim the player.";
   pfReady();
   pfColour = p ? p.colour : people.nextColour();
-  el.pfZargoRow.classList.toggle("hidden", !p);
+  // The starter override and Delete are the owner's; you can't delete yourself.
+  el.pfZargoRow.classList.toggle("hidden", !p || !owner);
   el.pfZargo.value = p ? Math.round(p.zargo) : "";
+  el.pfOwnerNote.classList.toggle("hidden", !p || owner);
+  el.pfOwnerNote.textContent = "Only the owner can change a starter rating or delete a player.";
   if(p) el.pfEst.classList.add("hidden"); else setupEstimator();
-  el.pfDelete.classList.toggle("hidden", !p || people.isMe(id));   // you can't delete yourself
+  el.pfDelete.classList.toggle("hidden", !p || !owner || people.isMe(id));
   el.pfShared.classList.toggle("hidden", !p);
   el.pfNote.classList.add("hidden");
   el.pfColours.innerHTML = "";
@@ -1046,10 +1161,10 @@ el.pfShared.addEventListener("click", () => {
   // The sheet lets only you edit your own Cuescore link; anyone else's shows read-only.
   people.edit(id, { noun: "player", cuescore: true });
 });
-el.pfDelete.addEventListener("click", async () => {
-  if(!pfEditing) return;
-  const p = P(pfEditing);
-  if(!confirm(`Delete ${p.name} for good?\n\nPlayers are shared by every sidequests app, so they leave the lists in all of them and can't be picked for new matches. Their past matches stay in Matches under their name. This can't be undone in the app.`)) return;
+// Players are shared by every sidequests app, so a deleted player leaves every list and picker;
+// their past matches keep their name. Owner only, behind the hold.
+holdBind(el.pfDelete, () => {
+  if(!pfEditing || !owner) return;
   people.remove(pfEditing);
   el.pform.classList.add("hidden");
   rerender();
@@ -1070,7 +1185,7 @@ el.pfSave.addEventListener("click", async () => {
   if(pfEditing){
     const p = P(pfEditing);
     const z = parseInt(el.pfZargo.value, 10);
-    if(Number.isFinite(z) && z !== Math.round(p.zargo)){
+    if(owner && Number.isFinite(z) && z !== Math.round(p.zargo)){
       if(!confirm(`Set ${name}'s starter rating to ${z}? Their Zargo shows ${z} now. Rebuild ratings (under More) replays their matches from it.`)) return;
       saveStarter(p.id, z);
       savePlayer(p.id, { zargo: z }).catch(e => console.warn(e));
@@ -1178,7 +1293,7 @@ function applyGameDefaults(){
   applyLengthDefaults();
 }
 
-// Recent matches, newest first, so the amber side lists who the blue player last played.
+// Recent matches, newest first, so the coral side lists who the teal player last played.
 let recentMatches = [];
 async function loadRecent(){
   try {
@@ -1201,7 +1316,7 @@ function opponentsFirst(ids, of){
 function openSetup(){
   setup.game = storedGame();
   const me = people.meId();
-  setup.a = me && activePlayers().includes(me) ? me : null;   // you, on the blue side
+  setup.a = me && activePlayers().includes(me) ? me : null;   // you, on the teal side
   setup.b = null;
   applyGameDefaults();
   el.foldLen.classList.remove("open");
@@ -1319,7 +1434,7 @@ function renderSetup(){
   el.games.querySelectorAll("button").forEach(b =>
     b.classList.toggle("sel", b.dataset.game === setup.game));
 
-  // ---- players: you first on blue, the blue player's recent opponents first on amber ----
+  // ---- players: you first on teal, the teal player's recent opponents first on coral ----
   const ids = activePlayers();
   const me = people.meId();
   // The people list can arrive after setup opens: pre-select you once it does.
@@ -1332,7 +1447,7 @@ function renderSetup(){
       const b = document.createElement("button");
       const n = document.createElement("span");
       n.textContent = nameOf(id);
-      b.append(people.avatar(id, 36), n);
+      b.append(people.avatar(id, 40), n);
       b.classList.toggle("sel", setup[side] === id);
       b.disabled = setup[other(side)] === id;      // same player on both sides is blocked
       b.addEventListener("click", () => { setup[side] = id; proposeTargets(); renderSetup(); });
@@ -1374,8 +1489,8 @@ function renderSetup(){
   const plan = a && b ? plannedMatch() : null;
   const showTargets = !!(a && b) && (racksLever || (setup.handicap === "scoring" && setup.mode === "race"));
   el.targetsRow.classList.toggle("hidden", !showTargets);
-  el.tgtALabel.textContent = (a ? a.name : "Blue") + (racksLever ? " races to" : "'s target");
-  el.tgtBLabel.textContent = (b ? b.name : "Amber") + (racksLever ? " races to" : "'s target");
+  el.tgtALabel.textContent = (a ? a.name : "Teal") + (racksLever ? " races to" : "'s target");
+  el.tgtBLabel.textContent = (b ? b.name : "Coral") + (racksLever ? " races to" : "'s target");
   const typed = { a: readTarget(el.tgtA), b: readTarget(el.tgtB) };
   const uneven = racksLever && typed.a && typed.b && typed.a !== typed.b;
   el.raceForm.classList.toggle("hidden", !(a && b && uneven));
@@ -1526,6 +1641,7 @@ function sync(extra){
 const COLOURS = {1:"#f2c204",2:"#1b4fa0",3:"#cf1b1b",4:"#6b2fa0",5:"#e8730c",
                  6:"#0f7a3d",7:"#7a1f1f",8:"#14110f",9:"#f2c204"};
 const ROWS = [[1],[2,3],[4,9,5],[6,7],[8]];
+const DARK = [2, 4, 7, 8];   // balls that need a hairline ring to keep their edge on the dark ground
 
 const state = { turn: "a" };
 
@@ -1535,7 +1651,7 @@ ROWS.forEach(row => {
   r.className = "row";
   row.forEach(n => {
     const b = document.createElement("button");
-    b.className = "ball" + (n === 9 ? " striped" : "");
+    b.className = "ball" + (n === 9 ? " striped" : "") + (DARK.includes(n) ? " darkball" : "");
     b.style.setProperty("--bc", COLOURS[n]);
     b.setAttribute("aria-label", "Ball " + n);
     if(n === 9) b.innerHTML = '<span class="stripe"></span>';
@@ -1602,6 +1718,7 @@ function pop(){
 
 // ---- Golden-Nine and Trad-Nine: foul and win buttons ----
 const winCols = { a: el.winArea.querySelector('.wincol[data-p="a"]'), b: el.winArea.querySelector('.wincol[data-p="b"]') };
+const foulBtns = { a: el.winArea.querySelector('.foul[data-p="a"]'), b: el.winArea.querySelector('.foul[data-p="b"]') };
 
 function foul(side){
   if(!live || live.game === "league" || live.rack.winner) return;
@@ -1665,7 +1782,7 @@ const intentionalsBy = (banked, side) =>
   banked.points.filter(p => p.kind === "intentional" && p.winner === other(side)).length;
 
 ["a","b"].forEach(side => {
-  const f = winCols[side].querySelector(".foul");
+  const f = foulBtns[side];
   let timer = null, longFired = false, down = false, sx = 0, sy = 0;
   f.addEventListener("pointerdown", e => {
     if(!live) return;   // watch mode is read-only
@@ -1703,7 +1820,7 @@ dropRows.forEach(r => { r.className = "drow"; el.drop.appendChild(r); });
 for(let n = 1; n <= 9; n++){
   const cell = document.createElement("button");
   cell.className = "dcell";
-  cell.innerHTML = `<span class="ball${n === 9 ? " striped" : ""}">${n === 9 ? '<span class="stripe"></span>' : ""}<span class="pip">${n}</span></span>`;
+  cell.innerHTML = `<span class="ball${n === 9 ? " striped" : ""}${DARK.includes(n) ? " darkball" : ""}">${n === 9 ? '<span class="stripe"></span>' : ""}<span class="pip">${n}</span></span>`;
   cell.querySelector(".ball").style.setProperty("--bc", COLOURS[n]);
   tapBind(cell, () => dropBall(n));
   dropRows[n <= 5 ? 0 : 1].appendChild(cell);
@@ -1726,17 +1843,18 @@ function paintDrop(rack){
   }
 }
 
-// Paint the foul and win buttons for a game and a rack, live or watched.
-function paintWinArea(game, rack){
+// Paint the foul and win buttons for a game and a rack, live or watched. Each win column is
+// captioned with its player, so nobody maps a column back to the score head.
+function paintWinArea(game, rack, nA, nB){
   ["a","b"].forEach(side => {
     const col = winCols[side];
-    const f = col.querySelector(".foul");
+    const f = foulBtns[side];
     const n = rack.fouls[side];
     f.classList.toggle("has", n > 0);
     // Golden-Nine shows what the fouls gave away; Trad-Nine only counts them.
-    f.innerHTML = !n ? "Foul"
-      : game === "golden" ? `Foul <small>${n} · gave ${foulPoints(n)}</small>`
-      : `Foul <small>${n} this rack</small>`;
+    f.innerHTML = game === "golden" && n ? `Foul <small>${n} · gave ${foulPoints(n)}</small>` : `Foul <small>${n}</small>`;
+    f.setAttribute("aria-label", `Foul by ${side === "a" ? nA : nB}, ${n} this rack`);
+    col.querySelector(".wincap").textContent = (side === "a" ? nA : nB) + " wins it";
     col.querySelectorAll(".win").forEach(b => {
       const [kind, label] = WIN_KINDS[game][+b.dataset.i];
       const pts = game === "golden" ? cfg().games.golden.points[kind] : null;
@@ -1774,7 +1892,10 @@ el.breakFlip.addEventListener("click", () => {
 el.next.addEventListener("click", rackComplete);
 el.doneBack.addEventListener("click", () => { el.done.classList.add("hidden"); });
 
-el.end.addEventListener("click", () => watching ? stopWatch() : endMatch());
+holdBind(el.end, () => endMatch(), {
+  tap: { when: () => !!watching, run: () => stopWatch() },
+  holding: on => { if(!watching) el.end.querySelector("small").textContent = on ? "holding…" : "hold"; }
+});
 
 // Points in the rack in progress. In Trad-Nine a "point" is a rack won, so totals are racks.
 function rackPoints(){
@@ -1869,17 +1990,35 @@ function leadState(t, ctx){
   return { pos: clamp1(share / 0.25 * done), num: pct + "%", aAhead };
 }
 
-function paintLead(t, ctx, nA, nB){
+// The lead in two places: the rail fills from the centre towards the leader in their colour,
+// and the match bar names them with the number ("Gareth +12%", "+6 points", "target met"),
+// so the lead never rests on colour alone. Tied leaves both empty. `num` overrides the
+// number (Golden-Nine's handicapped points, below).
+function paintLead(t, ctx, nA, nB, num){
   const s = leadState(t, ctx);
-  el.leadName.textContent = s.num ? (s.aAhead ? nA : nB) : "";
-  const numeric = /^\d/.test(s.num);
-  el.leadNum.textContent = s.num ? (numeric ? "+" + s.num : s.num) : "Tied";
-  el.leadNum.classList.toggle("tied", !s.num);
-  el.leadNum.classList.toggle("word", !!s.num && !numeric);
-  // fill runs from the centre out to the leader's side; a sliver stays visible when it's close
+  const side = s.aAhead ? "a" : "b";
+  const text = s.num ? (num !== undefined ? num : /^\d/.test(s.num) ? "+" + s.num : s.num) : "";
+  el.lead.textContent = "";
+  if(s.num) el.lead.append(leadPart(s.aAhead ? nA : nB), " ", leadPart(text));
+  el.lead.className = "lead" + (s.num ? " " + side : "");
+  // a sliver stays visible when it's close
   const w = s.pos ? Math.max(3, Math.abs(s.pos) * 50) : 0;
   el.leadFill.style.left = (s.pos < 0 ? 50 - w : 50) + "%";
   el.leadFill.style.width = w + "%";
+  el.leadFill.classList.toggle("b", s.pos > 0);
+}
+function leadPart(text){ const x = document.createElement("span"); x.textContent = text; return x; }
+// The match bar's left label: the rack, "of N" when fixed, dead balls in 11-Point-Nine when
+// there are any, and the points when a race is counted in racks.
+function paintMatchBar(rackNo, planned, dead, pts){
+  el.rackNo.textContent = `Rack ${rackNo}` + (planned ? ` of ${planned}` : "") +
+    (dead ? ` · ${dead} dead` : "") + (pts ? ` · ${pts} pts` : "");
+}
+// The break chip names the breaker by initial, or by more letters when both share one.
+function breakLabel(breaker, nA, nB){
+  const short = n => [...String(n)].slice(0, [...nA][0] === [...nB][0] ? 3 : 1).join("");
+  el.breakFlip.textContent = `Break ⇄ ${short(breaker === "b" ? nB : nA)}`;
+  el.breakFlip.setAttribute("aria-label", `${breaker === "b" ? nB : nA} breaks. Tap to change`);
 }
 
 // In race mode each panel carries that player's own run-in, next to their score.
@@ -2202,11 +2341,7 @@ async function finish(status, t, lead, winner, z, weight){
 
 function render(){
   if(!live) return;
-  document.body.dataset.turn = state.turn;
-  el.sideA.classList.toggle("on", state.turn === "a");
-  el.sideB.classList.toggle("on", state.turn === "b");
-  el.cueA.textContent = state.turn === "a" ? "shooting" : "tap to shoot";
-  el.cueB.textContent = state.turn === "b" ? "shooting" : "tap to shoot";
+  paintTurn(state.turn);
   el.nameA.textContent = live.nameA;
   el.nameB.textContent = live.nameB;
   const league = live.game === "league";
@@ -2214,14 +2349,14 @@ function render(){
 
   if(!league){
     const t = totals(), r = racksWon();
-    paintWinArea(live.game, live.rack);
+    paintWinArea(live.game, live.rack, live.nameA, live.nameB);
     paintDrop(live.rack);
-    paintGamePanels(live.game, live, t, r);
-    paintLead(t, Object.assign({}, live, { racks: r }), live.nameA, live.nameB);
-    el.rackNo.textContent = live.rackNo + (live.mode === "fixed" ? " of " + live.racksPlanned : "");
-    el.breakFlip.textContent = "break: " + (live.breaker === "a" ? live.nameA : live.nameB);
-    // A Golden-Nine race in racks still scores points; they sit in the meta strip.
-    el.audit.textContent = live.game === "golden" && racesRacks(live) ? `${t.a}–${t.b} pts` : "";
+    const ctx = Object.assign({}, live, { racks: r });
+    paintLead(t, ctx, live.nameA, live.nameB, paintGamePanels(live.game, ctx, t, r));
+    // A Golden-Nine race in racks still scores points; they sit in the match bar.
+    paintMatchBar(live.rackNo, live.mode === "fixed" && live.racksPlanned, 0,
+      live.game === "golden" && racesRacks(live) ? `${t.a}–${t.b}` : "");
+    breakLabel(live.breaker, live.nameA, live.nameB);
     el.undo.disabled = !live.history.length;
     // A win tap ends the rack; the card follows a moment later so the chosen button shows.
     if(!live.rack.winner) live.autoShown = false;
@@ -2236,20 +2371,19 @@ function render(){
     const s = live.balls[n], node = nodes[n];
     node.classList.toggle("claimed", s === "a" || s === "b");
     node.classList.toggle("dead", s === "dead");
-    node.style.setProperty("--own", s === "b" ? "var(--ochre)" : "var(--chalk)");
+    paintOwn(node, s);
   }
 
   const t = totals(), p = rackPoints(), r = racksWon();
   paintLeaguePanels(live, t, r);
   paintLead(t, Object.assign({}, live, { racks: r }), live.nameA, live.nameB);
-  el.rackNo.textContent = live.rackNo;
-  el.deadCt.textContent = live.banked.dead + p.dead;
-  el.breakFlip.textContent = "break: " + (live.breaker === "a" ? live.nameA : live.nameB);
+  // Racing in racks, the big numbers are racks, so this rack's points go in the match bar.
+  paintMatchBar(live.rackNo, 0, live.banked.dead + p.dead, racesRacks(live) ? `${p.a}–${p.b}` : "");
+  breakLabel(live.breaker, live.nameA, live.nameB);
 
   const resolved = resolvedCount();
-  // Racing in racks, the big numbers are racks, so this rack's points go in the meta strip.
-  el.audit.innerHTML = resolved === 9 ? '<span class="ok">table clear</span>'
-    : racesRacks(live) ? `${p.a}–${p.b} pts` : "";
+  // A clear table takes the lead's place for that moment.
+  if(resolved === 9){ el.lead.textContent = "Table clear"; el.lead.className = "lead"; }
   el.undo.disabled = !live.history.length;
 
   // when the table clears, show the 11-point check (re-arms if a ball is cleared again)
@@ -2260,17 +2394,34 @@ function render(){
   }
 }
 
-// 11-Point-Nine shows the diamond rack; Golden-Nine and Trad-Nine swap it for the foul and win buttons.
+// Turn shows three ways at once, and all three move together: the turn bar, the filled
+// score panel and the body tint (DESIGN §5).
+function paintTurn(turn){
+  document.body.dataset.turn = turn;
+  el.sideA.classList.toggle("on", turn === "a");
+  el.sideB.classList.toggle("on", turn === "b");
+}
+// A claimed ball is flat in its player's colour, with the number in that player's ink.
+function paintOwn(node, s){
+  node.style.setProperty("--own", s === "b" ? "var(--b)" : "var(--a)");
+  node.style.setProperty("--own-ink", s === "b" ? "var(--b-ink)" : "var(--a-ink)");
+}
+// 11-Point-Nine shows the diamond rack; Golden-Nine and Trad-Nine swap it for the foul and win
+// buttons, and Undo takes Next rack's room.
 function showGameArea(game){
   const league = game === "league";
   el.rack.classList.toggle("hidden", !league);
   el.winArea.classList.toggle("hidden", league);
   el.drop.classList.toggle("hidden", league);
-  el.deadWrap.classList.toggle("hidden", !league);
   el.next.classList.toggle("hidden", !league);
+  el.controls.classList.toggle("game", !league);
 }
 // Panels for Golden-Nine and Trad-Nine: the score (points, or racks in a race in racks) and
 // underneath either the run-in to a race target or the racks won.
+// Golden-Nine over fixed racks with the scoring handicap has no target to run in to, so the
+// handicap shows on the underdog's panel instead: their points times the favourite's odds
+// ("×3.4 = 38"), which is exactly what the result compares with the favourite's points.
+// Returns the match bar's lead number in those points ("+20"), or undefined.
 function paintGamePanels(game, ctx, t, r){
   const racksText = n => n + (n === 1 ? " rack" : " racks");
   const s = racesRacks(ctx) ? r : t;
@@ -2279,6 +2430,19 @@ function paintGamePanels(game, ctx, t, r){
   const race = ctx.mode === "race" && ctx.targets;
   el.subA.textContent = race ? needText(s.a, ctx.targets.a) : racksText(r.a);
   el.subB.textContent = race ? needText(s.b, ctx.targets.b) : racksText(r.b);
+  const x = golden9Handicap(ctx);
+  if(!race && x){
+    const adj = t[x.dog] * x.odds;
+    el["sub" + x.dog.toUpperCase()].textContent = t[x.dog] ? `×${x.odds.toFixed(1)} = ${Math.round(adj)}` : `counts ×${x.odds.toFixed(1)}`;
+    return "+" + Math.round(Math.abs(adj - t[other(x.dog)]));
+  }
+}
+// Golden-Nine, not a race, scoring handicap, ratings not level: the underdog and the odds
+// their points are multiplied by (the favourite's H, at least 1).
+function golden9Handicap(ctx){
+  if(gameOf(ctx) !== "golden" || handicapOf(ctx) !== "scoring" || ctx.mode === "race" || !ctx.eA) return null;
+  const H = ctx.eA / (1 - ctx.eA), odds = Math.max(H, 1 / H);
+  return odds.toFixed(1) === "1.0" ? null : { dog: H >= 1 ? "b" : "a", odds };
 }
 // 11-Point-Nine panels: points, and the run-in to a race target. With the Racks lever the race
 // is in racks, so the big numbers are racks.
@@ -2300,6 +2464,7 @@ function enterWatch(id){
   watching = { id, unsub: null };
   el.undo.style.display = "none";
   el.next.style.display = "none";
+  el.controls.classList.add("watching");
   el.end.textContent = "Stop watching";
   el.done.classList.add("hidden");
   show("live");
@@ -2316,7 +2481,8 @@ function stopWatch(){
   watching = null;
   el.undo.style.display = "";
   el.next.style.display = "";
-  el.end.textContent = "End";
+  el.controls.classList.remove("watching");
+  el.end.innerHTML = "End<small>hold</small>";
   el.done.classList.add("hidden");
   openPage(lastPage);
 }
@@ -2343,13 +2509,9 @@ function renderWatch(doc){
   const t = doc.totals || { a:0, b:0, dead:0, lead:0 };
   const game = gameOf(doc);
 
-  document.body.dataset.turn = turn;
-  el.sideA.classList.toggle("on", turn === "a");
-  el.sideB.classList.toggle("on", turn === "b");
+  paintTurn(turn);
   el.nameA.textContent = nA;
   el.nameB.textContent = nB;
-  el.cueA.textContent = turn === "a" ? "shooting" : "";
-  el.cueB.textContent = turn === "b" ? "shooting" : "";
   showGameArea(game);
 
   if(game !== "league"){
@@ -2357,13 +2519,11 @@ function renderWatch(doc){
     const r = { a: t.racksA || 0, b: t.racksB || 0 };
     const ctx = { game, handicap: handicapOf(doc), mode: doc.mode, targets: doc.targets, start: doc.start,
       racksPlanned: doc.racksPlanned, rackNo, eA: expectedShareA(zb.a, zb.b), racks: r };
-    paintWinArea(game, rackOf(rack));
+    paintWinArea(game, rackOf(rack), nA, nB);
     paintDrop(rackOf(rack));
-    paintGamePanels(game, ctx, t, r);
-    paintLead(t, ctx, nA, nB);
-    el.rackNo.textContent = rackNo + (doc.mode === "fixed" && doc.racksPlanned ? " of " + doc.racksPlanned : "");
-    el.breakFlip.textContent = "break: " + (rack.breaker === "b" ? nB : nA);
-    el.audit.textContent = game === "golden" && racesRacks(ctx) ? `${t.a}–${t.b} pts` : "";
+    paintLead(t, ctx, nA, nB, paintGamePanels(game, ctx, t, r));
+    paintMatchBar(rackNo, doc.mode === "fixed" && doc.racksPlanned, 0, game === "golden" && racesRacks(ctx) ? `${t.a}–${t.b}` : "");
+    breakLabel(rack.breaker, nA, nB);
     el.undo.disabled = true;
     return;
   }
@@ -2372,7 +2532,7 @@ function renderWatch(doc){
     const s = rack.balls[n], node = nodes[n];
     node.classList.toggle("claimed", s === "a" || s === "b");
     node.classList.toggle("dead", s === "dead");
-    node.style.setProperty("--own", s === "b" ? "var(--ochre)" : "var(--chalk)");
+    paintOwn(node, s);
   }
 
   const zb = doc.zargoBefore || { a: 500, b: 500 };
@@ -2381,10 +2541,8 @@ function renderWatch(doc){
     racks: { a: t.racksA || 0, b: t.racksB || 0 } };
   paintLeaguePanels(ctx, t, ctx.racks);
   paintLead(t, ctx, nA, nB);
-  el.rackNo.textContent = rackNo;
-  el.deadCt.textContent = t.dead;
-  el.breakFlip.textContent = "break: " + (rack.breaker === "b" ? nB : nA);
-  el.audit.innerHTML = "";
+  paintMatchBar(rackNo, 0, t.dead || 0, "");
+  breakLabel(rack.breaker, nA, nB);
   el.undo.disabled = true;
 }
 
@@ -2474,22 +2632,28 @@ const isLiveNow = s => s.status === "live" && s.startedAt > Date.now() - LIVE_WI
 const shownMatches = () => matches.filter(s => s.status !== "discarded")
   .sort((x, y) => (isLiveNow(y) - isLiveNow(x)) || (y.startedAt || 0) - (x.startedAt || 0));
 
-// One row: names and score, game, when, who won. Live rows resume; finished rows open their summary.
-function matchRow(s, { del = true, from = "matches" } = {}){
+// One row: the names and score, the winner in bold, then game, length and when. A live row
+// resumes; a finished one opens its summary, which is where Delete lives (owner only).
+function matchRow(s, { from = "matches" } = {}){
   const t = s.totals || {};
   const sc = boardScore(s);
   const li = document.createElement("li");
   const b = document.createElement("button");
-  b.className = "hrow";
-  const result = s.status === "live" ? '<span class="hlive">LIVE — tap to resume</span>'
-    : (t.winner ? nameOf(s[t.winner === "a" ? "playerA" : "playerB"]) + " won" : "Tied");
-  b.innerHTML = `<span class="hmeta">${whenText(s.startedAt)} · ${GAME_LABEL[gameOf(s)]} · ${lengthText(s)}</span>` +
-    `<span></span><span class="hmeta">${result}</span>`;
-  b.children[1].textContent = `${nameOf(s.playerA)} ${sc.a} – ${sc.b} ${nameOf(s.playerB)}`;
-  b.addEventListener("click", () => s.status === "live" ? resumeMatch(s.id) : openSummary(s.id, from));
-  li.className = "hitem";
+  const on = s.status === "live";
+  b.className = "hrow" + (on ? " live" : "");
+  b.innerHTML = `<span class="hscore"><span></span><span class="fig"></span><span></span></span><span class="lbl hmeta"></span>`;
+  const [nA, fig, nB] = b.querySelector(".hscore").children;
+  nA.textContent = nameOf(s.playerA);
+  nB.textContent = nameOf(s.playerB);
+  fig.textContent = `${sc.a}–${sc.b}`;
+  if(!on && t.winner) (t.winner === "a" ? nA : nB).classList.add("won");
+  b.querySelector(".hmeta").textContent = on
+    ? `Live · ${GAME_LABEL[gameOf(s)]} · rack ${Math.max(1, ...Object.keys(s.racks || {}).map(Number).filter(n => n > 0))}`
+    : `${GAME_LABEL[gameOf(s)]} · ${lengthText(s)} · ${whenText(s.startedAt)}` + (t.winner ? "" : " · tied");
+  b.setAttribute("aria-label", `${nA.textContent} ${sc.a}, ${nB.textContent} ${sc.b}. ` +
+    (on ? "Live, tap to resume." : t.winner ? `${(t.winner === "a" ? nA : nB).textContent} won.` : "Tied."));
+  b.addEventListener("click", () => on ? resumeMatch(s.id) : openSummary(s.id, from));
   li.appendChild(b);
-  if(del) li.appendChild(deleteButton(s));
   return li;
 }
 
@@ -2500,45 +2664,18 @@ function renderMatches(){
   rows.forEach(s => el.histList.appendChild(matchRow(s)));
 }
 
-// Two taps: arm, then delete within five seconds. While one is armed the list isn't redrawn,
-// so a ball scored on another phone doesn't disarm it.
-let armedDeletes = 0;
-function deleteButton(s){
-  const d = document.createElement("button");
-  d.className = "hdel";
-  d.textContent = "Delete";
-  d.setAttribute("aria-label", "Delete this match");
-  let armed = null;
-  const disarm = () => { if(armed){ clearTimeout(armed); armed = null; armedDeletes = Math.max(0, armedDeletes - 1); } };
-  d.addEventListener("click", async () => {
-    if(!armed){
-      armedDeletes++;
-      armed = setTimeout(() => { disarm(); d.classList.remove("arm"); d.textContent = "Delete"; if(current === "matches") renderMatches(); }, 5000);
-      d.classList.add("arm");
-      d.textContent = s.status === "live" ? "Bin it?" : "Sure?";
-      buzz([12]);
-      return;
-    }
-    disarm();
-    d.disabled = true;
-    d.textContent = "…";
-    try { await cloud.delete("matches/" + s.id); }
-    catch(e){
-      console.warn("[delete]", e);
-      d.disabled = false; d.classList.remove("arm"); d.textContent = "Delete";
-      alert("Couldn't delete that match.");
-      return;
-    }
-    // A saved match moved ratings, so they're rebuilt without it.
-    if(s.status === "done") rebuildRatings(null).catch(e => console.warn("[rebuild]", e));
-    if(live && live.id === s.id){ live = null; el.done.classList.add("hidden"); }
-    if(watching && watching.id === s.id) stopWatch();
-    matches = matches.filter(x => x.id !== s.id);
-    if(liveDoc && liveDoc.id === s.id) liveDoc = null;
-    rerender();
-    paintLiveBar();
-  });
-  return d;
+// Deleting a match: owner only, from its summary, behind the hold. A saved match moved
+// ratings, so they're rebuilt without it.
+async function deleteMatch(s){
+  try { await cloud.delete("matches/" + s.id); }
+  catch(e){ console.warn("[delete]", e); alert("Couldn't delete that match."); return false; }
+  if(s.status === "done") rebuildRatings(null).catch(e => console.warn("[rebuild]", e));
+  if(live && live.id === s.id){ live = null; el.done.classList.add("hidden"); }
+  if(watching && watching.id === s.id) stopWatch();
+  matches = matches.filter(x => x.id !== s.id);
+  if(liveDoc && liveDoc.id === s.id) liveDoc = null;
+  paintLiveBar();
+  return true;
 }
 
 // ---------- a match's summary ----------
@@ -2591,8 +2728,16 @@ function renderSummary(){
   }
   if(!el.sumRacks.children.length) el.sumRacks.innerHTML = '<li><span>No racks counted</span></li>';
   el.sumCopyText.textContent = cuescoreLine(s);
+  el.sumDelete.classList.toggle("hidden", !owner);
+  el.sumDeleteNote.classList.toggle("hidden", owner);
+  el.sumDelete.textContent = s.status === "live" ? "Hold to delete this live match" : "Hold to delete match";
   return true;
 }
+holdBind(el.sumDelete, async () => {
+  const s = matches.find(x => x.id === summaryId);
+  if(!s || !owner) return;
+  if(await deleteMatch(s)) openPage(summaryFrom);
+});
 
 // One line in the shape Cuescore's challenge form wants (SPEC §12.6): the two names, the
 // discipline, the race and the score in racks, since Cuescore records frames.
@@ -2682,7 +2827,7 @@ function renderPerson(){
   if(!el.perRecord.children.length) el.perRecord.innerHTML = "<li><span>No finished matches yet</span></li>";
 
   el.perMatches.innerHTML = "";
-  theirs.forEach(s => el.perMatches.appendChild(matchRow(s, { del: false, from: "person" })));
+  theirs.forEach(s => el.perMatches.appendChild(matchRow(s, { from: "person" })));
   if(!theirs.length) el.perMatches.innerHTML = '<li class="empty">No matches yet.</li>';
   return true;
 }
@@ -2725,22 +2870,22 @@ async function openFamily(){
       y.className = "you";
       y.textContent = "you";
       li.appendChild(y);
-    } else {
+    } else if(owner){
       li.appendChild(removeMemberButton(em));
     }
     el.famList.appendChild(li);
   });
+  if(!owner) el.famList.insertAdjacentHTML("beforeend", '<li class="note">Only the owner can remove someone, so nobody is locked out by mistake.</li>');
 }
 
 function removeMemberButton(em){
   const d = document.createElement("button");
-  d.className = "hdel";
+  d.className = "quiet warnbtn";
   d.textContent = "Remove";
   let armed = null;
   d.addEventListener("click", async () => {
     if(!armed){
-      armed = setTimeout(() => { armed = null; d.classList.remove("arm"); d.textContent = "Remove"; }, 5000);
-      d.classList.add("arm");
+      armed = setTimeout(() => { armed = null; d.textContent = "Remove"; }, 5000);
       d.textContent = "Sure?";
       buzz([12]);
       return;
@@ -2749,7 +2894,7 @@ function removeMemberButton(em){
     d.disabled = true; d.textContent = "…";
     try { await cloud.removeMember(em); openFamily(); }
     catch(e){
-      d.disabled = false; d.classList.remove("arm"); d.textContent = "Remove";
+      d.disabled = false; d.textContent = "Remove";
       alert("Couldn't remove: " + (e.message || e));
     }
   });
@@ -2871,6 +3016,7 @@ async function rebuildRatings(card){
   el.rebuild.classList.remove("hidden");
 }
 el.rebuildBtn.addEventListener("click", async () => {
+  if(!owner) return;
   el.rebuildBtn.disabled = true;
   try { await rebuildRatings(true); }
   catch(e){ console.warn("[rebuild]", e); alert("Couldn't rebuild: " + (e.message || e)); }
@@ -2958,7 +3104,7 @@ el.impMerge.addEventListener("click", async () => {
 
 el.impReplace.addEventListener("click", async () => {
   const imp = pendingImport;
-  if(!imp) return;
+  if(!imp || !owner) return;
   if(!confirm("Replace ALL Rack It data with this file? Current ratings, starter ratings and matches are wiped first. (The player list is shared with the other apps, so nobody is removed from it.) This can't be undone.")) return;
   el.impChoice.classList.add("hidden");
   for(const s of await cloud.list("matches")) await cloud.delete("matches/" + s.id);
