@@ -608,5 +608,4 @@ Ratings list, the person page, pickers, Invites — `people.js` renders one **av
 in the repo. The photo image loads from Google's servers, which see each viewer's request, as
 with any Google profile picture.
 
-⚠ **Open:** optional or required Gmail (above); whether players who aren't members should
-get an avatar in Cuescore copy-outs (no, until Session 4 says otherwise).
+⚠ **Open:** whether the Gmail is optional or required (item 1).
