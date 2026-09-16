@@ -240,7 +240,7 @@ the next session must know:
   `ctx.racks`. Trad-Nine writes `targets: { a, b }`, so a Racks lever only has to write unequal
   targets, or pre-load `racksB` for a head start (`racksWon()` and resume would need to
   include it).
-- **Setup.** `setup.game`, `setup.raceTo` (5 or 7 chips) and `applyGameDefaults()`. The
+- **Setup.** `setup.game`, `setup.raceTo` (chips 3, 5, 7, or N typed into `#raceN` with `setup.raceOther`; since 1.2.0) and `applyGameDefaults()`. The
   11-Point-Nine "expected to score" hint now names the stronger player in both halves of the sentence
   (it used to name A twice when B was stronger).
 - `bankRack()` now writes the rack before moving it into `banked`. Before, a watcher briefly
@@ -251,6 +251,10 @@ Parked: nothing new.
 **1.1.1 (owner request):** the games are renamed on screen to **Trad-Nine · Golden-Nine ·
 11-Point-Nine**, in that chip order, and these docs use the new names. Stored `game` values
 (`"standard"`, `"golden"`, `"league"`) and all code names are unchanged.
+
+**1.2.0 (owner request):** Trad-Nine setup offers Race to 3, 5, 7 and N. N shows a number box
+(1 to 30) and Start stays disabled until it holds a valid number. The setup hint now calls
+near-level ratings even, instead of "1.0 racks for each 1".
 
 ### After Session 3
 _not started_

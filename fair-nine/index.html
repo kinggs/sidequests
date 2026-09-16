@@ -130,6 +130,8 @@
   .modes{display:flex;gap:8px}
   .modes button{flex:1;min-height:58px;font-size:17px;padding:0 8px}
   .modes button.sel{background:var(--bone);color:#0a2a20}
+  #raceLen{flex-wrap:wrap}
+  #raceLen button{flex:1 1 40%}
   .field{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:18px;font-weight:600;color:var(--bone-dim)}
   .field input{font:inherit;font-size:22px;font-weight:700;color:var(--bone);background:rgba(0,0,0,.35);border:1px solid rgba(239,233,220,.25);border-radius:10px;padding:10px;width:5.2rem;text-align:center}
   .tgrid{display:flex;gap:12px}
@@ -370,8 +372,14 @@
       <button data-mode="open">Open</button>
     </div>
     <div class="modes hidden" id="raceLen">
+      <button data-n="3">Race to 3</button>
       <button data-n="5">Race to 5</button>
       <button data-n="7">Race to 7</button>
+      <button data-n="other">Race to N</button>
+    </div>
+    <div class="field hidden" id="raceNRow">
+      <span>Race to, racks</span>
+      <input id="raceN" type="number" inputmode="numeric" min="1" max="30" value="9">
     </div>
     <div class="field" id="lenRow">
       <span id="lenLabel">Rough length, racks</span>
@@ -498,7 +506,7 @@ import { phone } from "../shared/phone.js";
 import { people } from "../shared/people.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "1.1.1";
+const APP_VERSION = "1.2.0";
 const APP_ID = "fair-nine";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 
@@ -516,7 +524,7 @@ const el = {};
  "impChoice","impInfo","impMerge","impReplace","impCancel",
  "familyBtn","scrFamily","famBack","famList","famEmail","famAdd","famShare",
  "pfEst","estRef","estRefName","estRefScore","estNewScore","estOut","pfDelete","pfShared",
- "games","raceLen","deadWrap","winArea"
+ "games","raceLen","raceNRow","raceN","deadWrap","winArea"
 ].forEach(id => el[id] = $(id));
 
 function buzz(ms){ if(navigator.vibrate) navigator.vibrate(ms); }
@@ -881,7 +889,8 @@ el.estNewScore.addEventListener("input", () => updateEstimate(true));
 
 // ---------- session setup ----------
 const GAME_KEY = "fair-nine.game";   // the last game picked, per phone
-const setup = { game:"league", a:null, b:null, mode:"race", breaker:"a", raceTo:5 };
+// raceTo is the Trad-Nine race length; raceOther means it's typed in rather than a chip.
+const setup = { game:"league", a:null, b:null, mode:"race", breaker:"a", raceTo:5, raceOther:false };
 function storedGame(){
   try { const g = localStorage.getItem(GAME_KEY); return GAME_LABEL[g] ? g : "league"; }
   catch(e){ return "league"; }
@@ -891,6 +900,7 @@ function storedGame(){
 function applyGameDefaults(){
   setup.mode = setup.game === "golden" ? "fixed" : "race";
   setup.raceTo = 5;
+  setup.raceOther = false;
   el.racksIn.value = DEFAULT_RACKS;
 }
 function openSetup(){
@@ -908,10 +918,18 @@ el.games.querySelectorAll("button").forEach(b => b.addEventListener("click", () 
   proposeTargets();
   renderSetup();
 }));
+// A typed race length, or null while the box doesn't hold a usable number.
+function typedRace(){
+  const n = parseInt(el.raceN.value, 10);
+  return n >= 1 && n <= 30 ? n : null;
+}
 el.raceLen.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
-  setup.raceTo = +b.dataset.n;
+  setup.raceOther = b.dataset.n === "other";
+  setup.raceTo = setup.raceOther ? typedRace() : +b.dataset.n;
   renderSetup();
+  if(setup.raceOther) el.raceN.focus();
 }));
+el.raceN.addEventListener("input", () => { setup.raceTo = typedRace(); renderSetup(); });
 
 function renderSetup(){
   const league = setup.game === "league";
@@ -920,7 +938,8 @@ function renderSetup(){
   el.modes.classList.toggle("hidden", !league);
   el.raceLen.classList.toggle("hidden", setup.game !== "standard");
   el.raceLen.querySelectorAll("button").forEach(b =>
-    b.classList.toggle("sel", +b.dataset.n === setup.raceTo));
+    b.classList.toggle("sel", setup.raceOther ? b.dataset.n === "other" : +b.dataset.n === setup.raceTo));
+  el.raceNRow.classList.toggle("hidden", !(setup.game === "standard" && setup.raceOther));
   [["pickA","a"],["pickB","b"]].forEach(([box, side]) => {
     el[box].innerHTML = "";
     activePlayers().forEach(id => {
@@ -948,11 +967,12 @@ function renderSetup(){
     const H = eA / (1 - eA);
     // Zargo is odds on a rack, so the same H reads as points in 11-Point-Nine and racks elsewhere.
     const unit = league ? "points" : "racks";
-    const odds = H.toFixed(2) === "1.00" ? ""
+    const odds = Math.max(H, 1 / H).toFixed(1) === "1.0" ? ""   // "1.0 for each 1" just means even
       : `${H > 1 ? a.name : b.name} is expected to ${league ? "score" : "win"} ` +
         `${H > 1 ? H.toFixed(1) : (1/H).toFixed(1)} ${unit} for each 1 of ${H > 1 ? b.name : a.name}'s.`;
     el.setupHint.textContent =
-      setup.game === "standard" ? `No handicap: both race to ${setup.raceTo}. ${odds}`
+      setup.game === "standard"
+        ? (setup.raceTo ? `No handicap: both race to ${setup.raceTo}. ${odds}` : "Type a race length from 1 to 30.")
       : setup.game === "golden" ? (odds ? odds + " The lead bar shares the points out on that basis." : "Even match.")
       : (odds || "Even match — equal targets.");
     el.breakBtn.textContent = (setup.breaker === "a" ? a.name : b.name) + " breaks first";
@@ -962,7 +982,7 @@ function renderSetup(){
     el.setupWarn.classList.add("hidden");
     el.breakBtn.textContent = "— breaks first";
   }
-  el.startBtn.disabled = !(setup.a && setup.b);
+  el.startBtn.disabled = !(setup.a && setup.b) || (setup.game === "standard" && !setup.raceTo);
 }
 const FAIR_RACE_MIN = 8;   // points; below this one rack can decide the session
 

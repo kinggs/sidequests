@@ -5,6 +5,7 @@
 on people. See §12.9. Code and Firestore paths still say "session".
 **v3 session 2 (1.1.0) shipped:** Golden-Nine and Trad-Nine, end to end. See §12.10.
 **1.1.1:** the games are now called Trad-Nine, Golden-Nine and 11-Point-Nine (§13.2).
+**1.2.0:** Trad-Nine also offers Race to 3 and Race to N (§12.10).
 
 A phone-first scorer for social nine-ball between any two players in a household, with a self-correcting handicap (the **Zargo** rating) so mismatched players stay evenly matched. Scores sync to the cloud so any family phone can score or review.
 
@@ -334,7 +335,7 @@ one are 11-Point-Nine. The app id and URL stay `fair-nine` because renaming brea
 | A rack records | state of balls 1–9 | winner, win kind, fouls per player, breaker | winner, win kind, fouls per player, breaker |
 | Points | 1 each, 9 is 3 | 10 / 7 / 4 to the winner, 1, 1, 2 for fouls | one rack |
 | Rack ends | all nine balls resolved | winner tapped, or a third foul | winner tapped |
-| Default length | 5 racks | fixed racks, extra rack on a tie | race to 5 (7 offered) |
+| Default length | 5 racks | fixed racks, extra rack on a tie | race to 5 (3, 7 or a typed N offered) |
 | Default break | alternate | winner breaks | alternate |
 | Handicap levers | scoring, racks | scoring, racks | racks |
 
@@ -357,7 +358,7 @@ one are 11-Point-Nine. The app id and URL stay `fair-nine` because renaming brea
   rules; the app leaves the clock out of v3.
 - Other balls off the table stay off; only the 9 is respotted. Ball in hand after a foul.
 
-**Trad-Nine:** WPA scoring, one rack is one rack, race to 5 or 7 with alternate
+**Trad-Nine:** WPA scoring, one rack is one rack, race to 5 (or 3, 7, or any N) with alternate
 break, as played at Sessions. Fouls can be recorded per player per rack for the same look as
 Golden-Nine, and never affect the result.
 
@@ -444,7 +445,7 @@ against seven stored matches (several with dead balls): identical to floating-po
 
 - **Setup.** Game chips above the players, remembered per phone in `localStorage`
   (`fair-nine.game`). 11-Point-Nine keeps its race / fixed / open picker unchanged. Golden-Nine is
-  fixed racks (default 5) with the scoring handicap. Trad-Nine is a level race to 5 or 7 with
+  fixed racks (default 5) with the scoring handicap. Trad-Nine is a level race to 3, 5, 7 or a typed N (1 to 30) with
   `handicap: "off"`: it has no points to share, and the Racks lever is Session 3.
 - **Live screen.** The diamond rack is swapped for a Foul button and three win buttons under
   each player. Foul shows that rack's count and, in Golden-Nine, the points it gave away. A
