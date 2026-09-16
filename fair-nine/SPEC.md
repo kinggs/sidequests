@@ -3,6 +3,7 @@
 **v3 session 1 (1.0.0) shipped:** the name Rack It, "match" in every label, `game` and
 `handicap` on match documents, `config.games`, the per-rack Zargo update, and a Cuescore link
 on people. See §12.9. Code and Firestore paths still say "session".
+**v3 session 2 (1.1.0) shipped:** Golden Nine and 9-ball, end to end. See §12.10.
 
 A phone-first scorer for social nine-ball between any two players in a household, with a self-correcting handicap (the **Zargo** rating) so mismatched players stay evenly matched. Scores sync to the cloud so any family phone can score or review.
 
@@ -313,7 +314,7 @@ same way. An older home-screen shortcut has to be removed and re-added to pick t
 
 ## 12. Planned v3 — three games, one app
 
-**Status:** planning. Nothing here is built. This section supersedes "Anything but nine-ball"
+**Status:** being built; §12.9 and §12.10 record what has shipped. This section supersedes "Anything but nine-ball"
 in §9. The rating side of the plan is in [`ZARGO.md`](ZARGO.md); the build is split into four
 sessions in [`V3-PLAN.md`](V3-PLAN.md).
 
@@ -437,6 +438,33 @@ differ from §3.3's pooled share whenever racks carry different live points (dea
 `w_i = w × live_i / mean live per rack`. The weights still sum to `w × racks`, so robustness
 and the update equal §3.3 exactly, and a rack mostly lost to dead balls says less. Checked
 against seven stored matches (several with dead balls): identical to floating-point precision.
+
+### 12.10 Golden Nine and 9-ball as built (1.1.0)
+
+- **Setup.** Game chips above the players, remembered per phone in `localStorage`
+  (`fair-nine.game`). League keeps its race / fixed / open picker unchanged. Golden Nine is
+  fixed racks (default 5) with the scoring handicap. 9-ball is a level race to 5 or 7 with
+  `handicap: "off"`: it has no points to share, and the Racks lever is Session 3.
+- **Live screen.** The diamond rack is swapped for a Foul button and three win buttons under
+  each player. Foul shows that rack's count and, in Golden Nine, the points it gave away. A
+  foul passes the shot to the opponent (ball in hand). Golden Nine's intentional foul is a
+  long-press on Foul and asks first. Next rack is hidden, since a win tap ends the rack.
+- **Rack end.** A win tap, or a third Golden Nine foul, shows the rack card with **Start rack
+  N** and **Undo that**. Golden Nine: the rack winner breaks next. After the last scheduled
+  rack a tie offers **Play a deciding rack** (adds one to `racksPlanned`, written to the
+  match) or **Call it a tie**. A second intentional foul by one player ends the match for the
+  other, whatever the score. End during a rack with no winner drops that rack, and says so
+  if fouls had already given points.
+- **Who wins.** Handicap scoring: the adjusted lead, as League. Handicap off: the plain
+  difference. A non-League race goes to whoever met their own target.
+- **Lead bar.** Golden Nine's quotas are the expected rack-win share of the points scored so
+  far, floored at 4 points per planned rack, so a first rack reads +40% as it does in League
+  rather than +100%. Handicap off shows the plain lead in racks ("MEL +1 rack"), full swing
+  at a lead the size of the race.
+- **Totals** carry `racksA` and `racksB` in every game. A League rack counts to whoever took
+  more of its live points. In 9-ball `a` and `b` are racks.
+- **Rating.** Golden Nine and 9-ball racks give `r = 1` or `0` by winner, with the game's `w`
+  (0.5). Checked in a test build against hand-worked ZARGO.md numbers for both games.
 
 ---
 

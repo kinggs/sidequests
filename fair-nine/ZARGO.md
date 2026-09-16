@@ -1,7 +1,7 @@
 # Zargo — one rating across cue games
 
-**Status:** the definition and the League update are built (Rack It 1.0.0); the other games
-and the handicap levers are not. This is the plan for taking Zargo from "point share in the
+**Status:** the definition and the League update are built (Rack It 1.0.0), and so are the
+Golden Nine and 9-ball updates (1.1.0); the handicap levers are not. This is the plan for taking Zargo from "point share in the
 household's 11-point nine-ball" to one rating that every cue game in Fair Nine feeds, in the
 way FargoRate pools 8-ball, 9-ball and 10-ball into one number. Open questions are marked ⚠.
 

@@ -83,31 +83,31 @@ it applies. Setup grows a game picker; the live screen gains the shared simpler 
 
 **Read:** SPEC §12.2, §12.3, §12.5; ZARGO.md "The definition".
 
-- [ ] Setup: **Game** chips above the players — League · Golden Nine · 9-ball. Remembered
+- [x] Setup: **Game** chips above the players — League · Golden Nine · 9-ball. Remembered
       in `localStorage`. Length defaults per game: League 5 racks (as now), Golden Nine
       fixed 5 racks, 9-ball race to 5 racks (7 offered). Break default: League and 9-ball
       alternate, Golden Nine winner breaks.
-- [ ] Live screen for Golden Nine and 9-ball, built from the existing pieces (panels, tint,
+- [x] Live screen for Golden Nine and 9-ball, built from the existing pieces (panels, tint,
       lead bar, meta strip, controls) with the rack area replaced by: a **Foul** button under
       each player showing that rack's foul count and what it gave away, and three **win**
       buttons for each side. Golden Nine: Big Golden 10 · Small Golden 7 · Win 4. 9-ball:
       Break & run · 9 on the break · Win. Tapping a win button ends the rack for that side.
-- [ ] Golden Nine scoring: fouls give the opponent 1, 1, then 2 and the rack (kind
+- [x] Golden Nine scoring: fouls give the opponent 1, 1, then 2 and the rack (kind
       `"fouls"`, worth 4 in total, no extra win points). Intentional foul from a long-press
       on Foul: rack lost, opponent +10, kind `"intentional"`; a second one ends the match.
       9-ball: fouls counted, never scored.
-- [ ] Rack records as SPEC §12.5. Written with `cloud.patch` per rack like league. Undo
+- [x] Rack records as SPEC §12.5. Written with `cloud.patch` per rack like league. Undo
       covers foul taps and win taps.
-- [ ] Rack end: no 11-point check for the new games; straight to "Start rack N". Golden
+- [x] Rack end: no 11-point check for the new games; straight to "Start rack N". Golden
       Nine fixed racks: if tied after the last rack, offer one more.
-- [ ] Lead bar: Golden Nine scoring handicap uses quotas = expected rack-win share × the
+- [x] Lead bar: Golden Nine scoring handicap uses quotas = expected rack-win share × the
       match's points so far (fixed) or the race targets (race). 9-ball shows racks won and
       the race targets; with handicap off both games show plain scores and a lead of racks.
-- [ ] Match summary and History rows show the game. Totals gain `racksA`, `racksB`.
-- [ ] Rating update per rack for both games: `r ∈ {0, 1}` by rack winner, `w = 0.5`.
+- [x] Match summary and History rows show the game. Totals gain `racksA`, `racksB`.
+- [x] Rating update per rack for both games: `r ∈ {0, 1}` by rack winner, `w = 0.5`.
       Resume and Watch work for both games.
-- [ ] Export/Import round-trips the new rack shapes.
-- [ ] Version bump, `/deployquest`, Handover.
+- [x] Export/Import round-trips the new rack shapes.
+- [x] Version bump, `/deployquest`, Handover.
 
 **Done when:** one full Golden Nine match and one 9-ball race can be scored on the phone,
 saved, seen in History, and move Zargo by the amount ZARGO.md predicts.
@@ -218,7 +218,35 @@ anything the next session must know.
 Parked: nothing new.
 
 ### After Session 2
-_not started_
+**Shipped 1.1.0.** Everything on the list is done. SPEC §12.10 records the decisions. Things
+the next session must know:
+
+- **Testing.** I played every path in a local copy with an in-memory stand-in for `cloud.js`,
+  so no real data or rating was touched: a full Golden Nine match (fouls, three-foul rack,
+  Undo that, winner breaks), intentional fouls including the second one that ends the match,
+  a tie and its deciding rack, End during a rack, a 9-ball race to 5 with a resume from the
+  document part-way, Watch from a second tab, Export then Import (Merge), and a League match
+  for regression. Zargo moved exactly as ZARGO.md predicts: 9-ball 5–2, Kenny 597.3 → 598.3
+  and Mel 508 → 505.4. League unchanged (−0.364 = 8 × (5/11 − 0.5)). ⚠ Not yet played on
+  the phone against Firestore.
+- **Choices I made where the plan was open.** Golden Nine quotas have a floor of 4 points per
+  planned rack (the plan said "points so far", which reads +100% after the first rack).
+  A foul passes the shot to the opponent. Golden Nine isn't offered as a race yet; the lead
+  bar and `matchResult` already handle one. League `racksA`/`racksB` count by live points.
+- **Code shape for Session 3.** `live.rack` is `{ winner, kind, fouls }` for the new games;
+  `live.banked` is `newBanked()` with `racksA`, `racksB` and `points: [{ a, b, winner, kind }]`.
+  `bankInto()` is used by both banking and resume. `matchResult(t)` decides the winner for
+  every game. `leadState` sends `handicap: "off"` to `plainLead(ctx)`, which needs
+  `ctx.racks`. 9-ball writes `targets: { a, b }`, so a Racks lever only has to write unequal
+  targets, or pre-load `racksB` for a head start (`racksWon()` and resume would need to
+  include it).
+- **Setup.** `setup.game`, `setup.raceTo` (5 or 7 chips) and `applyGameDefaults()`. The
+  League "expected to score" hint now names the stronger player in both halves of the sentence
+  (it used to name A twice when B was stronger).
+- `bankRack()` now writes the rack before moving it into `banked`. Before, a watcher briefly
+  saw that rack counted twice.
+
+Parked: nothing new.
 
 ### After Session 3
 _not started_

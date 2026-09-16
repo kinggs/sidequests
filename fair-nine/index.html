@@ -128,7 +128,7 @@
   .pickcol.ca button.sel{background:var(--chalk);color:#fff}
   .pickcol.cb button.sel{background:var(--ochre);color:#fff}
   .modes{display:flex;gap:8px}
-  .modes button{flex:1;min-height:58px;font-size:17px}
+  .modes button{flex:1;min-height:58px;font-size:17px;padding:0 8px}
   .modes button.sel{background:var(--bone);color:#0a2a20}
   .field{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:18px;font-weight:600;color:var(--bone-dim)}
   .field input{font:inherit;font-size:22px;font-weight:700;color:var(--bone);background:rgba(0,0,0,.35);border:1px solid rgba(239,233,220,.25);border-radius:10px;padding:10px;width:5.2rem;text-align:center}
@@ -231,6 +231,21 @@
     content:"×";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
     font-size:calc(var(--bs) * .78);font-weight:300;color:rgba(239,233,220,.75);
   }
+
+  /* ---- Golden Nine and 9-ball: a foul and three ways to win under each player ---- */
+  .winarea{flex:1 1 0;min-height:0;display:flex;gap:10px;padding:8px 10px 12px}
+  .wincol{flex:1;display:flex;flex-direction:column;gap:8px;min-height:0}
+  .wincol button{flex:1 1 0;min-height:56px;max-height:96px;padding:4px 8px;border-radius:13px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+    font-size:19px;font-weight:700;line-height:1.15;text-align:center}
+  .wincol small{font-size:15px;font-weight:600;opacity:.85}
+  .wincol .foul{margin-bottom:6px;background:rgba(255,255,255,.05);color:var(--bone-dim);
+    border:1px solid rgba(239,233,220,.3)}
+  .wincol .foul.has{color:#e8b04a;border-color:rgba(232,176,74,.55)}
+  .wincol .win{background:rgba(47,110,168,.28);box-shadow:inset 0 0 0 2px var(--chalk-lift)}
+  .wincol[data-p="b"] .win{background:rgba(184,120,28,.28);box-shadow:inset 0 0 0 2px var(--ochre-lift)}
+  .wincol .win.chosen{background:var(--chalk);color:#fff}
+  .wincol[data-p="b"] .win.chosen{background:var(--ochre)}
 
   /* ---- controls (prototype, kept) ---- */
   .controls{flex:0 0 auto;display:flex;gap:10px;padding:0 10px 14px}
@@ -340,6 +355,11 @@
     <button class="quiet small" id="setupBack">Back</button>
   </header>
   <div class="setupbody">
+    <div class="modes" id="games">
+      <button data-game="league">League</button>
+      <button data-game="golden">Golden Nine</button>
+      <button data-game="standard">9-ball</button>
+    </div>
     <div class="pick">
       <div class="pickcol ca"><h3>Blue side</h3><div id="pickA" style="display:flex;flex-direction:column;gap:8px"></div></div>
       <div class="pickcol cb"><h3>Amber side</h3><div id="pickB" style="display:flex;flex-direction:column;gap:8px"></div></div>
@@ -348,6 +368,10 @@
       <button data-mode="race" class="sel">Race</button>
       <button data-mode="fixed">Fixed racks</button>
       <button data-mode="open">Open</button>
+    </div>
+    <div class="modes hidden" id="raceLen">
+      <button data-n="5">Race to 5</button>
+      <button data-n="7">Race to 7</button>
     </div>
     <div class="field" id="lenRow">
       <span id="lenLabel">Rough length, racks</span>
@@ -430,12 +454,27 @@
 
   <div class="meta">
     <span>rack <b id="rackNo">1</b></span>
-    <span>dead <b id="deadCt">0</b></span>
+    <span id="deadWrap">dead <b id="deadCt">0</b></span>
     <span id="audit"></span>
     <button id="breakFlip">break: —</button>
   </div>
 
   <div class="rack" id="rack"></div>
+
+  <div class="winarea hidden" id="winArea">
+    <div class="wincol" data-p="a">
+      <button class="foul" data-p="a"></button>
+      <button class="win" data-p="a" data-i="0"></button>
+      <button class="win" data-p="a" data-i="1"></button>
+      <button class="win" data-p="a" data-i="2"></button>
+    </div>
+    <div class="wincol" data-p="b">
+      <button class="foul" data-p="b"></button>
+      <button class="win" data-p="b" data-i="0"></button>
+      <button class="win" data-p="b" data-i="1"></button>
+      <button class="win" data-p="b" data-i="2"></button>
+    </div>
+  </div>
 
   <div class="controls">
     <button id="undo" disabled>Undo</button>
@@ -459,7 +498,7 @@ import { phone } from "../shared/phone.js";
 import { people } from "../shared/people.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "1.0.0";
+const APP_VERSION = "1.1.0";
 const APP_ID = "fair-nine";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 
@@ -476,7 +515,8 @@ const el = {};
  "scrHistory","histBack","histChips","histList",
  "impChoice","impInfo","impMerge","impReplace","impCancel",
  "familyBtn","scrFamily","famBack","famList","famEmail","famAdd","famShare",
- "pfEst","estRef","estRefName","estRefScore","estNewScore","estOut","pfDelete","pfShared"
+ "pfEst","estRef","estRefName","estRefScore","estNewScore","estOut","pfDelete","pfShared",
+ "games","raceLen","deadWrap","winArea"
 ].forEach(id => el[id] = $(id));
 
 function buzz(ms){ if(navigator.vibrate) navigator.vibrate(ms); }
@@ -524,6 +564,56 @@ const gameOf = doc => (doc && doc.game) || "league";
 const handicapOf = doc => (doc && doc.handicap) || "scoring";
 const withMatchFields = doc => Object.assign({}, doc, { game: gameOf(doc), handicap: handicapOf(doc) });
 const DEFAULT_RACKS = 5;   // the setup default, and the notional length of an open session
+
+const GAME_LABEL = { league: "League", golden: "Golden Nine", standard: "9-ball" };
+// The three ways to win a rack in Golden Nine and 9-ball, in button order (SPEC §12.3).
+// "fouls" and "intentional" also end a Golden Nine rack, but from the Foul button.
+const WIN_KINDS = {
+  golden:   [["big", "Big Golden"], ["small", "Small Golden"], ["win", "Win"]],
+  standard: [["run", "Break & run"], ["nine", "9 on the break"], ["win", "Win"]]
+};
+const KIND_LABEL = { big: "Big Golden", small: "Small Golden", win: "Win", run: "Break & run",
+  nine: "9 on the break", fouls: "Three fouls", intentional: "Intentional foul" };
+const other = side => side === "a" ? "b" : "a";
+const newRack = () => ({ winner: null, kind: null, fouls: { a: 0, b: 0 } });
+const rackOf = rec => ({ winner: (rec && rec.winner) || null, kind: (rec && rec.kind) || null,
+  fouls: { a: (rec && rec.fouls && rec.fouls.a) || 0, b: (rec && rec.fouls && rec.fouls.b) || 0 } });
+
+// Golden Nine points from a player's fouls: 1, 1, then 2 (the third also loses the rack).
+function foulPoints(n){
+  const f = cfg().games.golden.points.foul;
+  let s = 0;
+  for(let i = 0; i < n; i++) s += f[Math.min(i, f.length - 1)];
+  return s;
+}
+// What one rack of a non-league game is worth to each side. Golden Nine: the opponent's
+// fouls plus the win (a three-foul rack's 1 + 1 + 2 is the win, so it adds nothing more).
+// 9-ball: one rack is one rack; fouls never score.
+function gameRackPoints(game, rack){
+  const p = { a:0, b:0, dead:0 };
+  if(game === "standard"){ if(rack.winner) p[rack.winner] = 1; return p; }
+  const pts = cfg().games.golden.points;
+  p.a += foulPoints(rack.fouls.b);
+  p.b += foulPoints(rack.fouls.a);
+  if(rack.winner) p[rack.winner] += ({ big: pts.big, small: pts.small, win: pts.win,
+    intentional: pts.intentional })[rack.kind] || 0;
+  return p;
+}
+function leagueRackPoints(balls){
+  const p = { a:0, b:0, dead:0 };
+  for(const k in (balls || {})) p[balls[k]] += VAL(+k);
+  return p;
+}
+// Bank one complete rack. A League rack's winner is whoever took more live points.
+function bankInto(banked, game, p, rack){
+  const winner = game === "league" ? (p.a > p.b ? "a" : p.b > p.a ? "b" : null) : rack.winner;
+  banked.a += p.a; banked.b += p.b; banked.dead += p.dead;
+  if(winner === "a") banked.racksA++;
+  if(winner === "b") banked.racksB++;
+  banked.racks++;
+  banked.points.push({ a: p.a, b: p.b, winner, kind: rack ? rack.kind : null });
+}
+const newBanked = () => ({ a:0, b:0, dead:0, racks:0, racksA:0, racksB:0, points:[] });
 
 function expectedShareA(za, zb){ return 1 / (1 + Math.pow(2, (zb - za) / 100)); }
 
@@ -790,15 +880,47 @@ el.estRefScore.addEventListener("input", () => updateEstimate(true));
 el.estNewScore.addEventListener("input", () => updateEstimate(true));
 
 // ---------- session setup ----------
-const setup = { a:null, b:null, mode:"race", breaker:"a" };
+const GAME_KEY = "fair-nine.game";   // the last game picked, per phone
+const setup = { game:"league", a:null, b:null, mode:"race", breaker:"a", raceTo:5 };
+function storedGame(){
+  try { const g = localStorage.getItem(GAME_KEY); return GAME_LABEL[g] ? g : "league"; }
+  catch(e){ return "league"; }
+}
+// Each game's length default: League a rough 5-rack race (as before), Golden Nine 5 fixed
+// racks, 9-ball a race to 5 racks.
+function applyGameDefaults(){
+  setup.mode = setup.game === "golden" ? "fixed" : "race";
+  setup.raceTo = 5;
+  el.racksIn.value = DEFAULT_RACKS;
+}
 function openSetup(){
-  setup.a = null; setup.b = null; setup.mode = "race"; setup.breaker = "a";
+  setup.game = storedGame();
+  setup.a = null; setup.b = null; setup.breaker = "a";
+  applyGameDefaults();
   renderSetup();
   show("setup");
 }
 el.setupBack.addEventListener("click", () => show("home"));
+el.games.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+  setup.game = b.dataset.game;
+  try { localStorage.setItem(GAME_KEY, setup.game); } catch(e){}
+  applyGameDefaults();
+  proposeTargets();
+  renderSetup();
+}));
+el.raceLen.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+  setup.raceTo = +b.dataset.n;
+  renderSetup();
+}));
 
 function renderSetup(){
+  const league = setup.game === "league";
+  el.games.querySelectorAll("button").forEach(b =>
+    b.classList.toggle("sel", b.dataset.game === setup.game));
+  el.modes.classList.toggle("hidden", !league);
+  el.raceLen.classList.toggle("hidden", setup.game !== "standard");
+  el.raceLen.querySelectorAll("button").forEach(b =>
+    b.classList.toggle("sel", +b.dataset.n === setup.raceTo));
   [["pickA","a"],["pickB","b"]].forEach(([box, side]) => {
     el[box].innerHTML = "";
     activePlayers().forEach(id => {
@@ -813,9 +935,10 @@ function renderSetup(){
   });
   el.modes.querySelectorAll("button").forEach(b =>
     b.classList.toggle("sel", b.dataset.mode === setup.mode));
-  el.lenRow.classList.toggle("hidden", setup.mode === "open");
-  el.lenLabel.textContent = setup.mode === "race" ? "Rough length, racks" : "Racks to play";
-  el.targetsRow.classList.toggle("hidden", setup.mode !== "race");
+  el.lenRow.classList.toggle("hidden", setup.mode === "open" || setup.game === "standard");
+  el.lenLabel.textContent = setup.game === "golden" ? "Racks to play (a tie adds one)"
+    : setup.mode === "race" ? "Rough length, racks" : "Racks to play";
+  el.targetsRow.classList.toggle("hidden", !(league && setup.mode === "race"));
 
   const a = P(setup.a), b = P(setup.b);
   el.tgtALabel.textContent = a ? a.name + "'s target" : "Target A";
@@ -823,9 +946,15 @@ function renderSetup(){
   if(a && b){
     const eA = expectedShareA(a.zargo, b.zargo);
     const H = eA / (1 - eA);
-    el.setupHint.textContent = H.toFixed(2) === "1.00"
-      ? "Even match — equal targets."
-      : `${a.name} is expected to score ${H > 1 ? H.toFixed(1) : (1/H).toFixed(1)} points for each 1 of ${H > 1 ? b.name : a.name}'s.`;
+    // Zargo is odds on a rack, so the same H reads as points in League and racks elsewhere.
+    const unit = league ? "points" : "racks";
+    const odds = H.toFixed(2) === "1.00" ? ""
+      : `${H > 1 ? a.name : b.name} is expected to ${league ? "score" : "win"} ` +
+        `${H > 1 ? H.toFixed(1) : (1/H).toFixed(1)} ${unit} for each 1 of ${H > 1 ? b.name : a.name}'s.`;
+    el.setupHint.textContent =
+      setup.game === "standard" ? `No handicap: both race to ${setup.raceTo}. ${odds}`
+      : setup.game === "golden" ? (odds ? odds + " The lead bar shares the points out on that basis." : "Even match.")
+      : (odds || "Even match — equal targets.");
     el.breakBtn.textContent = (setup.breaker === "a" ? a.name : b.name) + " breaks first";
     showShortRaceWarning(a, b, eA);
   } else {
@@ -839,7 +968,7 @@ const FAIR_RACE_MIN = 8;   // points; below this one rack can decide the session
 
 function showShortRaceWarning(a, b, eA){
   const small = Math.min(parseInt(el.tgtA.value, 10) || 0, parseInt(el.tgtB.value, 10) || 0);
-  if(setup.mode !== "race" || !small || small >= FAIR_RACE_MIN){
+  if(setup.game !== "league" || setup.mode !== "race" || !small || small >= FAIR_RACE_MIN){
     el.setupWarn.classList.add("hidden");
     return;
   }
@@ -854,7 +983,7 @@ function showShortRaceWarning(a, b, eA){
 
 function proposeTargets(){
   const a = P(setup.a), b = P(setup.b);
-  if(!a || !b || setup.mode !== "race") return;
+  if(!a || !b || setup.game !== "league" || setup.mode !== "race") return;
   const racks = Math.max(1, parseInt(el.racksIn.value, 10) || DEFAULT_RACKS);
   const eA = expectedShareA(a.zargo, b.zargo);
   el.tgtA.value = Math.max(1, Math.round(LIVE_POINTS() * racks * eA));
@@ -875,32 +1004,36 @@ let live = null;
 
 async function startSession(){
   const a = P(setup.a), b = P(setup.b);
+  const game = setup.game;
   const racks = Math.max(1, parseInt(el.racksIn.value, 10) || DEFAULT_RACKS);
-  const targets = setup.mode === "race"
+  // 9-ball has no points to share, so until the Racks lever it is a level race.
+  const mode = game === "golden" ? "fixed" : setup.mode;
+  const targets = game === "standard" ? { a: setup.raceTo, b: setup.raceTo }
+    : mode === "race"
     ? { a: Math.max(1, parseInt(el.tgtA.value, 10) || 1), b: Math.max(1, parseInt(el.tgtB.value, 10) || 1) }
     : null;
   const eA = expectedShareA(a.zargo, b.zargo);
   const id = cloud.newId();
   live = {
     id,
-    game: "league", handicap: "scoring",
+    game, handicap: game === "standard" ? "off" : "scoring",
     playerA: setup.a, playerB: setup.b,
     nameA: a.name, nameB: b.name,
     H: eA / (1 - eA), eA,
     zargoBefore: { a: a.zargo, b: b.zargo },
-    mode: setup.mode,
+    mode,
     targets,
-    racksPlanned: setup.mode === "fixed" ? racks : null,
+    racksPlanned: mode === "fixed" ? racks : null,
     breaker: setup.breaker,
     rackNo: 1, rackAt: Date.now(),
-    balls: {}, history: [],
-    banked: { a:0, b:0, dead:0, racks:0, points:[] },
+    balls: {}, rack: newRack(), history: [],
+    banked: newBanked(),
     autoShown: false
   };
   await cloud.save("sessions/" + id, {
     game: live.game, handicap: live.handicap,
     playerA: setup.a, playerB: setup.b,
-    mode: setup.mode,
+    mode,
     targets,
     racksPlanned: live.racksPlanned,
     startedAt: Date.now(), endedAt: null,
@@ -908,7 +1041,7 @@ async function startSession(){
     zargoBefore: { a: a.zargo, b: b.zargo },
     zargoAfter: null,
     racks: {},
-    totals: { a:0, b:0, dead:0, lead:0, winner: null }
+    totals: { a:0, b:0, racksA:0, racksB:0, dead:0, lead:0, winner: null }
   });
   state.turn = live.breaker;   // the breaker shoots first
   el.done.classList.add("hidden");
@@ -920,11 +1053,14 @@ async function startSession(){
 // live sync: the session document updates after every ball so a second phone can watch
 function sync(extra){
   if(!live) return;
-  const t = totals(), p = rackPoints();
+  const t = totals(), p = rackPoints(), r = racksWon();
+  const rec = live.game === "league"
+    ? { balls: live.balls, breaker: live.breaker, at: live.rackAt }
+    : { winner: live.rack.winner, kind: live.rack.kind, fouls: live.rack.fouls, breaker: live.breaker, at: live.rackAt };
   cloud.patch("sessions/" + live.id, Object.assign({
-    ["racks." + live.rackNo]: { balls: live.balls, breaker: live.breaker, at: live.rackAt },
+    ["racks." + live.rackNo]: rec,
     turn: state.turn,
-    totals: { a: t.a, b: t.b, dead: live.banked.dead + p.dead, lead: leadValue(), winner: null }
+    totals: { a: t.a, b: t.b, racksA: r.a, racksB: r.b, dead: live.banked.dead + p.dead, lead: leadValue(), winner: null }
   }, extra || {})).catch(e => console.warn("[sync]", e));
 }
 
@@ -996,9 +1132,128 @@ function cycle(n){
   else                          live.balls[n] = state.turn;
 }
 
+// Undo snapshots the current rack: the balls in League, fouls and the win elsewhere.
 function push(){
-  live.history.push(JSON.stringify(live.balls));
+  live.history.push(JSON.stringify(live.game === "league" ? live.balls : live.rack));
   if(live.history.length > 60) live.history.shift();
+}
+function pop(){
+  const snap = JSON.parse(live.history.pop());
+  if(live.game === "league") live.balls = snap; else live.rack = snap;
+}
+
+// ---- Golden Nine and 9-ball: foul and win buttons ----
+const winCols = { a: el.winArea.querySelector('.wincol[data-p="a"]'), b: el.winArea.querySelector('.wincol[data-p="b"]') };
+
+function foul(side){
+  if(!live || live.game === "league" || live.rack.winner) return;
+  buzz(9);
+  push();
+  live.rack.fouls[side]++;
+  // Golden Nine: the third foul gives 2 and the rack (1 + 1 + 2 is the win).
+  if(live.game === "golden" && live.rack.fouls[side] >= 3){
+    live.rack.winner = other(side);
+    live.rack.kind = "fouls";
+  }
+  state.turn = other(side);   // ball in hand to the opponent
+  render();
+  sync();
+}
+function win(side, kind){
+  if(!live || live.game === "league" || live.rack.winner) return;
+  buzz(9);
+  push();
+  live.rack.winner = side;
+  live.rack.kind = kind;
+  render();
+  sync();
+}
+// Take back the tap that ended the rack. After a resume there's no undo history, so
+// work it out from the rack itself.
+function undoWin(){
+  if(!live || !live.rack.winner) return;
+  if(live.history.length) pop();
+  else {
+    if(live.rack.kind === "fouls") live.rack.fouls[other(live.rack.winner)]--;
+    live.rack.winner = null;
+    live.rack.kind = null;
+  }
+  el.done.classList.add("hidden");
+  render();
+  sync();
+}
+
+// Intentional foul (Golden Nine only), from a long-press on Foul: confirmed first, because
+// it costs the rack and 10 points, and a second one costs the match.
+function askIntentional(side){
+  if(!live || live.game !== "golden" || live.rack.winner) return;
+  const me = side === "a" ? live.nameA : live.nameB, them = side === "a" ? live.nameB : live.nameA;
+  const second = intentionalsBy(live.banked, side) >= 1;
+  el.doneTitle.textContent = "Intentional foul by " + me + "?";
+  el.doneBody.textContent = `${me} loses the rack and ${them} gets ${cfg().games.golden.points.intentional}. ` +
+    (second ? `It's ${me}'s second, so ${them} wins the match.` : "A second one loses the match.");
+  el.doneZargo.classList.add("hidden");
+  el.doneNext.textContent = "Yes, intentional foul";
+  el.doneNext.onclick = () => { el.done.classList.add("hidden"); win(other(side), "intentional"); };
+  el.doneNext.classList.remove("hidden");
+  el.doneAnyway.classList.add("hidden");
+  el.doneBack.textContent = "Cancel";
+  el.doneBack.onclick = null;
+  el.doneBack.classList.remove("hidden");
+  el.done.classList.remove("hidden");
+  buzz([12,40,12]);
+}
+const intentionalsBy = (banked, side) =>
+  banked.points.filter(p => p.kind === "intentional" && p.winner === other(side)).length;
+
+["a","b"].forEach(side => {
+  const f = winCols[side].querySelector(".foul");
+  let timer = null, longFired = false, down = false, sx = 0, sy = 0;
+  f.addEventListener("pointerdown", e => {
+    if(!live) return;   // watch mode is read-only
+    down = true; longFired = false; sx = e.clientX; sy = e.clientY;
+    clearTimeout(timer);
+    if(live.game === "golden") timer = setTimeout(() => {
+      if(!down || !live) return;
+      longFired = true;
+      askIntentional(side);
+    }, 600);
+  });
+  f.addEventListener("pointerup", e => {
+    clearTimeout(timer);
+    if(!down || !live) return;
+    down = false;
+    if(longFired) return;
+    if(Math.abs(e.clientX - sx) > 40 || Math.abs(e.clientY - sy) > 40) return;
+    foul(side);
+  });
+  f.addEventListener("pointercancel", () => { clearTimeout(timer); down = false; });
+  f.addEventListener("click", e => e.preventDefault());
+  f.addEventListener("contextmenu", e => e.preventDefault());
+  winCols[side].querySelectorAll(".win").forEach(b => tapBind(b, () => {
+    if(!live || live.game === "league") return;
+    win(side, WIN_KINDS[live.game][+b.dataset.i][0]);
+  }));
+});
+
+// Paint the foul and win buttons for a game and a rack, live or watched.
+function paintWinArea(game, rack){
+  ["a","b"].forEach(side => {
+    const col = winCols[side];
+    const f = col.querySelector(".foul");
+    const n = rack.fouls[side];
+    f.classList.toggle("has", n > 0);
+    // Golden Nine shows what the fouls gave away; 9-ball only counts them.
+    f.innerHTML = !n ? "Foul"
+      : game === "golden" ? `Foul <small>${n} · gave ${foulPoints(n)}</small>`
+      : `Foul <small>${n} this rack</small>`;
+    col.querySelectorAll(".win").forEach(b => {
+      const [kind, label] = WIN_KINDS[game][+b.dataset.i];
+      const pts = game === "golden" ? cfg().games.golden.points[kind] : null;
+      b.innerHTML = pts ? `${label} <small>+${pts}</small>` : label;
+      b.classList.toggle("chosen", rack.winner === side && rack.kind === kind);
+    });
+  });
 }
 
 function setTurn(p){
@@ -1014,7 +1269,7 @@ tapBind(el.sideB, () => setTurn("b"));
 el.undo.addEventListener("click", () => {
   if(!live || !live.history.length) return;
   buzz(9);
-  live.balls = JSON.parse(live.history.pop());
+  pop();
   render();
   sync();
 });
@@ -1031,18 +1286,24 @@ el.doneBack.addEventListener("click", () => { el.done.classList.add("hidden"); }
 
 el.end.addEventListener("click", () => watching ? stopWatch() : endSession());
 
+// Points in the rack in progress. In 9-ball a "point" is a rack won, so totals are racks.
 function rackPoints(){
-  const p = { a:0, b:0, dead:0 };
-  if(live) for(const n in live.balls) p[live.balls[n]] += VAL(+n);
-  return p;
+  if(!live) return { a:0, b:0, dead:0 };
+  return live.game === "league" ? leagueRackPoints(live.balls) : gameRackPoints(live.game, live.rack);
 }
 function totals(){
   const p = rackPoints();
   return { a: live.banked.a + p.a, b: live.banked.b + p.b };
 }
+// Racks won, counting the rack in progress once it has a winner.
+function racksWon(){
+  const w = live.game === "league" ? null : live.rack.winner;
+  return { a: live.banked.racksA + (w === "a" ? 1 : 0), b: live.banked.racksB + (w === "b" ? 1 : 0) };
+}
 function leadValue(){
   const t = totals();
-  return t.b - t.a / live.H;   // in B's units; positive means B is ahead
+  // in B's units; positive means B is ahead. With the handicap off it's the plain difference.
+  return live.handicap === "off" ? t.b - t.a : t.b - t.a / live.H;
 }
 const clamp1 = v => Math.max(-1, Math.min(1, v));
 
@@ -1058,16 +1319,35 @@ const clamp1 = v => Math.max(-1, Math.min(1, v));
 //          early whitewash reads +40%, as it would in a five-rack race, not +200%.
 // In fixed and open the gap is the adjusted lead divided by a positive constant, so the
 // leader here is always the player who would win if the session stopped now.
-function quotas(ctx){
+//   Golden Nine: a rack is worth 4 to 10, so the session's size is the points scored so far,
+//          shared out by the expected rack-win share — floored at a plain win per planned
+//          rack, so an early rack reads +40% as it does in League rather than +100%.
+function quotas(ctx, t){
   if(ctx.mode === "race") return ctx.targets && ctx.targets.a && ctx.targets.b ? ctx.targets : null;
   const racks = ctx.mode === "fixed" ? (ctx.racksPlanned || DEFAULT_RACKS)
     : Math.max(DEFAULT_RACKS, ctx.rackNo || 1);
-  const pts = LIVE_POINTS() * racks;
+  const pts = gameOf(ctx) === "golden"
+    ? Math.max(t.a + t.b, cfg().games.golden.points.win * racks)
+    : LIVE_POINTS() * racks;
   return { a: pts * ctx.eA, b: pts * (1 - ctx.eA) };
+}
+// Handicap off: plain scores in the panels and a lead of racks on the bar, full swing at a
+// lead the size of the race (or of the match's racks).
+function plainLead(ctx){
+  const r = ctx.racks || { a:0, b:0 };
+  const d = r.b - r.a;   // positive means B is ahead
+  if(!d) return { pos: 0, num: "", aAhead: false };
+  const aAhead = d < 0, n = Math.abs(d);
+  const race = ctx.mode === "race" && ctx.targets;
+  const size = race ? Math.max(ctx.targets.a, ctx.targets.b)
+    : Math.max(DEFAULT_RACKS, ctx.racksPlanned || ctx.rackNo || 1);
+  const met = race && (r.a >= ctx.targets.a || r.b >= ctx.targets.b);
+  return { pos: met ? Math.sign(d) : clamp1(d / size), num: n + (n === 1 ? " rack" : " racks"), aAhead };
 }
 function leadState(t, ctx){
   const tied = { pos: 0, num: "", aAhead: false };
-  const q = quotas(ctx);
+  if(handicapOf(ctx) === "off") return plainLead(ctx);
+  const q = quotas(ctx, t);
   if(!q) return tied;
   const fA = t.a / q.a, fB = t.b / q.b;
   const share = fB - fA;   // shares of the session; positive means B is ahead
@@ -1144,6 +1424,7 @@ function rackComplete(){
     el.doneNext.classList.remove("hidden");
     el.doneAnyway.classList.add("hidden");
     el.doneBack.textContent = "Back to the rack";
+    el.doneBack.onclick = null;
     el.doneBack.classList.remove("hidden");
   }
   el.doneZargo.classList.add("hidden");
@@ -1151,31 +1432,81 @@ function rackComplete(){
   buzz([18,60,18]);
 }
 
-function bankRack(){
-  const p = rackPoints();
-  live.banked.a += p.a;
-  live.banked.b += p.b;
-  live.banked.dead += p.dead;
-  live.banked.racks++;
-  live.banked.points.push({ a: p.a, b: p.b });
-  sync();  // final write of the completed rack
+// Golden Nine and 9-ball: a win tap (or a third foul) ends the rack. No 11-point check,
+// straight to the next rack, with the tap still undoable from here.
+function gameRackEnd(){
+  if(!live || !live.rack.winner) return;
+  const w = live.rack.winner, wName = w === "a" ? live.nameA : live.nameB;
+  const p = rackPoints(), t = totals(), r = racksWon();
+  const forfeit = live.game === "golden" && live.rack.kind === "intentional" &&
+    intentionalsBy(live.banked, other(w)) >= 1;
+  const finished = forfeit || targetReached(t) ||
+    (live.mode === "fixed" && live.banked.racks + 1 >= live.racksPlanned);
+
+  el.doneTitle.textContent = `Rack ${live.rackNo} to ${wName}`;
+  el.doneBody.textContent = forfeit
+    ? `A second intentional foul by ${w === "a" ? live.nameB : live.nameA}, so ${wName} wins the match.`
+    : live.game === "golden"
+    ? `${KIND_LABEL[live.rack.kind]}: ${live.nameA} +${p.a}, ${live.nameB} +${p.b}. ` +
+      `Match ${t.a}–${t.b}, racks ${r.a}–${r.b}.`
+    : `${KIND_LABEL[live.rack.kind]}. Racks ${live.nameA} ${r.a}, ${live.nameB} ${r.b}.`;
+  el.doneZargo.classList.add("hidden");
+  el.doneNext.textContent = finished ? "Declare the result" : "Start rack " + (live.rackNo + 1);
+  el.doneNext.onclick = () => { bankRack(); finished ? lastRackBanked() : nextRack(); };
+  el.doneNext.classList.remove("hidden");
+  el.doneAnyway.classList.add("hidden");
+  el.doneBack.textContent = "Undo that";
+  el.doneBack.onclick = undoWin;
+  el.doneBack.classList.remove("hidden");
+  el.done.classList.remove("hidden");
+  buzz([18,60,18]);
 }
 
-function nextRack(){
+// Golden Nine's scheduled racks can end level; the rules settle that with one more rack.
+function lastRackBanked(){
+  const t = { a: live.banked.a, b: live.banked.b };
+  if(live.game !== "golden" || live.mode !== "fixed" || matchResult(t).winner !== null) return declare();
+  el.doneTitle.textContent = `Tied after ${live.banked.racks} racks`;
+  el.doneBody.textContent = `${live.nameA} ${t.a}, ${live.nameB} ${t.b}. Golden Nine settles a tie with one more rack.`;
+  el.doneZargo.classList.add("hidden");
+  el.doneNext.textContent = "Play a deciding rack";
+  el.doneNext.onclick = () => {
+    live.racksPlanned++;
+    nextRack({ racksPlanned: live.racksPlanned });
+  };
+  el.doneNext.classList.remove("hidden");
+  el.doneAnyway.classList.add("hidden");
+  el.doneBack.textContent = "Call it a tie";
+  el.doneBack.onclick = declare;
+  el.doneBack.classList.remove("hidden");
+  el.done.classList.remove("hidden");
+}
+
+function bankRack(){
+  sync();  // final write of the completed rack, before it moves into banked
+  bankInto(live.banked, live.game, rackPoints(), live.game === "league" ? null : live.rack);
+}
+
+function nextRack(extra){
+  // Golden Nine: the winner of the last rack breaks. League and 9-ball alternate.
+  const last = live.banked.points[live.banked.points.length - 1];
   live.balls = {};
+  live.rack = newRack();
   live.history = [];
   live.rackNo++;
   live.rackAt = Date.now();
-  live.breaker = live.breaker === "a" ? "b" : "a";   // alternate; flip via the meta button
+  live.breaker = live.game === "golden" && last && last.winner ? last.winner
+    : live.breaker === "a" ? "b" : "a";   // flip via the meta button
   state.turn = live.breaker;
   live.autoShown = false;
   el.done.classList.add("hidden");
   render();
-  sync();
+  sync(extra);
 }
 
 function endSession(){
   if(!live) return;
+  if(live.game !== "league") return endGameSession();
   const p = rackPoints();
   const resolved = resolvedCount();
 
@@ -1185,6 +1516,27 @@ function endSession(){
   if(resolved === 0) return finishSession();
   // Part-played, or all nine down but not adding up: ask rather than bin it quietly.
   askAboutPartRack(p, resolved);
+}
+
+// Golden Nine and 9-ball: a rack with a winner counts; one without has no result, so it's
+// dropped, and End says so when fouls were already given in it.
+function endGameSession(){
+  if(live.rack.winner){ bankRack(); return finishSession(); }
+  const f = live.rack.fouls;
+  if(!f.a && !f.b) return finishSession();
+  const p = rackPoints();
+  el.doneTitle.textContent = "End the match?";
+  el.doneBody.textContent = `Rack ${live.rackNo} has no winner yet, so it's dropped` +
+    (live.game === "golden" && (p.a || p.b) ? `, with the foul points in it (${live.nameA} +${p.a}, ${live.nameB} +${p.b}).` : ".");
+  el.doneNext.textContent = "End without rack " + live.rackNo;
+  el.doneNext.onclick = () => finishSession();
+  el.doneNext.classList.remove("hidden");
+  el.doneAnyway.classList.add("hidden");
+  el.doneZargo.classList.add("hidden");
+  el.doneBack.textContent = "Back to the rack";
+  el.doneBack.onclick = null;
+  el.doneBack.classList.remove("hidden");
+  el.done.classList.remove("hidden");
 }
 
 // The rack in progress is worth points to someone. Dropping it is still the default
@@ -1215,7 +1567,7 @@ function askAboutPartRack(p, resolved){
 
 async function finishSession(){
   el.doneAnyway.classList.add("hidden");
-  live.balls = {}; live.history = [];
+  live.balls = {}; live.rack = newRack(); live.history = [];
 
   if(live.banked.racks === 0){
     // Zero complete racks: discard silently, ratings untouched.
@@ -1235,9 +1587,11 @@ async function finishSession(){
 //           in proportion to the live points each carried, so a rack full of dead balls
 //           counts for less. The weights still sum to w × racks, which makes the update
 //           below exactly spec 3.3's K × racks × (pooled share − expected).
+//   Golden Nine and 9-ball: r is 1 if A won the rack, else 0, with the game's w per rack.
+//           Points, fouls and the kind of win don't enter it.
 function rackResults(game, points){
   const w = cfg().games[game].w;
-  if(game !== "league") return [];   // Golden Nine and 9-ball arrive in v3 session 2
+  if(game !== "league") return points.map(p => ({ r: p.winner ? (p.winner === "a" ? 1 : 0) : null, w }));
   const livePts = points.reduce((sum, p) => sum + p.a + p.b, 0);
   if(!livePts) return points.map(() => ({ r: null, w }));   // nothing to learn, still racks played
   const mean = livePts / points.length;
@@ -1295,17 +1649,42 @@ function zargoOutcome(results){
   return { a:{from:za, to:za + dA}, b:{from:zb, to:zb + dB}, cal:null };
 }
 
+// Who won. League and Golden Nine with the scoring handicap: the adjusted lead. Handicap
+// off: the plain difference. A race outside League goes to whoever met their target. In
+// Golden Nine a second intentional foul loses the match whatever the score.
+function matchResult(t){
+  const lead = live.handicap === "off" ? t.b - t.a : t.b - t.a / live.H;
+  const byLead = Math.abs(lead) < 0.001 ? null : (lead < 0 ? "a" : "b");
+  if(live.game === "golden"){
+    const outA = intentionalsBy(live.banked, "a") >= 2, outB = intentionalsBy(live.banked, "b") >= 2;
+    if(outA !== outB) return { lead, winner: outA ? "b" : "a" };
+  }
+  if(live.game !== "league" && live.mode === "race" && live.targets){
+    const metA = t.a >= live.targets.a, metB = t.b >= live.targets.b;
+    if(metA !== metB) return { lead, winner: metA ? "a" : "b" };
+  }
+  return { lead, winner: byLead };
+}
+
+// One line of result for a summary, a watcher or a rack-end card.
+function scoreLine(game, nA, nB, t){
+  const racks = t.racksA !== undefined ? `, racks ${t.racksA || 0}–${t.racksB || 0}` : "";
+  if(game === "standard") return `${GAME_LABEL[game]}: ${nA} ${t.a}, ${nB} ${t.b} in racks.`;
+  if(game === "golden") return `${GAME_LABEL[game]}: ${nA} ${t.a}, ${nB} ${t.b}${racks}.`;
+  return `${nA} ${t.a}, ${nB} ${t.b}, ${t.dead || 0} dead.`;
+}
+
 function declare(){
   const t = { a: live.banked.a, b: live.banked.b };
-  const lead = t.b - t.a / live.H;
-  const winner = Math.abs(lead) < 0.001 ? null : (lead < 0 ? "a" : "b");
+  const { lead, winner } = matchResult(t);
   const results = rackResults(live.game, live.banked.points);
   const z = zargoOutcome(results);
   el.doneTitle.textContent = winner === null ? "Tied"
     : `${winner === "a" ? live.nameA : live.nameB} wins`;
   el.doneBody.textContent =
     `${live.banked.racks} rack${live.banked.racks === 1 ? "" : "s"}. ` +
-    `${live.nameA} ${t.a}, ${live.nameB} ${t.b}, ${live.banked.dead} dead.`;
+    scoreLine(live.game, live.nameA, live.nameB,
+      { a: t.a, b: t.b, dead: live.banked.dead, racksA: live.banked.racksA, racksB: live.banked.racksB });
   el.doneZargo.textContent =
     `${live.nameA} ${Math.round(z.a.from)} → ${Math.round(z.a.to)} · ` +
     `${live.nameB} ${Math.round(z.b.from)} → ${Math.round(z.b.to)}` +
@@ -1324,7 +1703,8 @@ function declare(){
 async function finish(status, t, lead, winner, z, weight){
   const patch = {
     status, endedAt: Date.now(),
-    totals: { a: t.a, b: t.b, dead: live.banked.dead, lead, winner }
+    totals: { a: t.a, b: t.b, racksA: live.banked.racksA, racksB: live.banked.racksB,
+              dead: live.banked.dead, lead, winner }
   };
   if(status === "done" && z){
     // Discarding never touches ratings; saving moves both and feeds robustness.
@@ -1362,6 +1742,26 @@ function render(){
   el.cueB.textContent = state.turn === "b" ? "shooting" : "tap to shoot";
   el.nameA.textContent = live.nameA;
   el.nameB.textContent = live.nameB;
+  const league = live.game === "league";
+  showGameArea(live.game);
+
+  if(!league){
+    const t = totals(), r = racksWon();
+    paintWinArea(live.game, live.rack);
+    paintGamePanels(live.game, live, t, r);
+    paintLead(t, Object.assign({}, live, { racks: r }), live.nameA, live.nameB);
+    el.rackNo.textContent = live.rackNo + (live.mode === "fixed" ? " of " + live.racksPlanned : "");
+    el.breakFlip.textContent = "break: " + (live.breaker === "a" ? live.nameA : live.nameB);
+    el.audit.innerHTML = "";
+    el.undo.disabled = !live.history.length;
+    // A win tap ends the rack; the card follows a moment later so the chosen button shows.
+    if(!live.rack.winner) live.autoShown = false;
+    else if(!live.autoShown){
+      live.autoShown = true;
+      setTimeout(gameRackEnd, 350);
+    }
+    return;
+  }
 
   for(let n = 1; n <= 9; n++){
     const s = live.balls[n], node = nodes[n];
@@ -1391,6 +1791,25 @@ function render(){
     live.autoShown = true;
     setTimeout(rackComplete, 350);
   }
+}
+
+// League shows the diamond rack; Golden Nine and 9-ball swap it for the foul and win buttons.
+function showGameArea(game){
+  const league = game === "league";
+  el.rack.classList.toggle("hidden", !league);
+  el.winArea.classList.toggle("hidden", league);
+  el.deadWrap.classList.toggle("hidden", !league);
+  el.next.classList.toggle("hidden", !league);
+}
+// Panels for Golden Nine and 9-ball: the score (points, or racks in 9-ball) and underneath
+// either the run-in to a race target or the racks won.
+function paintGamePanels(game, ctx, t, r){
+  const racksText = n => n + (n === 1 ? " rack" : " racks");
+  el.rawA.textContent = t.a;
+  el.rawB.textContent = t.b;
+  const race = ctx.mode === "race" && ctx.targets;
+  el.subA.textContent = race ? needText(t.a, ctx.targets.a) : racksText(r.a);
+  el.subB.textContent = race ? needText(t.b, ctx.targets.b) : racksText(r.b);
 }
 
 // ---------- second-phone live view (read-only) ----------
@@ -1427,7 +1846,7 @@ function watchOver(doc){
   const w = t.winner;
   el.doneTitle.textContent = doc.status === "discarded" ? "Match discarded"
     : (w ? nameOf(doc[w === "a" ? "playerA" : "playerB"]) + " wins" : "Match over");
-  el.doneBody.textContent = `${nameOf(doc.playerA)} ${t.a}, ${nameOf(doc.playerB)} ${t.b}, ${t.dead} dead.`;
+  el.doneBody.textContent = scoreLine(gameOf(doc), nameOf(doc.playerA), nameOf(doc.playerB), t);
   el.doneZargo.classList.add("hidden");
   el.doneAnyway.classList.add("hidden");
   el.doneNext.textContent = "Done";
@@ -1443,6 +1862,7 @@ function renderWatch(doc){
   const rack = (doc.racks || {})[rackNo] || { balls: {} };
   const turn = doc.turn || "a";
   const t = doc.totals || { a:0, b:0, dead:0, lead:0 };
+  const game = gameOf(doc);
 
   document.body.dataset.turn = turn;
   el.sideA.classList.toggle("on", turn === "a");
@@ -1451,6 +1871,22 @@ function renderWatch(doc){
   el.nameB.textContent = nB;
   el.cueA.textContent = turn === "a" ? "shooting" : "";
   el.cueB.textContent = turn === "b" ? "shooting" : "";
+  showGameArea(game);
+
+  if(game !== "league"){
+    const zb = doc.zargoBefore || { a: 500, b: 500 };
+    const r = { a: t.racksA || 0, b: t.racksB || 0 };
+    const ctx = { game, handicap: handicapOf(doc), mode: doc.mode, targets: doc.targets,
+      racksPlanned: doc.racksPlanned, rackNo, eA: expectedShareA(zb.a, zb.b), racks: r };
+    paintWinArea(game, rackOf(rack));
+    paintGamePanels(game, ctx, t, r);
+    paintLead(t, ctx, nA, nB);
+    el.rackNo.textContent = rackNo + (doc.mode === "fixed" && doc.racksPlanned ? " of " + doc.racksPlanned : "");
+    el.breakFlip.textContent = "break: " + (rack.breaker === "b" ? nB : nA);
+    el.audit.innerHTML = "";
+    el.undo.disabled = true;
+    return;
+  }
 
   for(let n = 1; n <= 9; n++){
     const s = rack.balls[n], node = nodes[n];
@@ -1479,7 +1915,8 @@ async function checkLive(){
     const ss = await cloud.list("sessions", { orderBy: "startedAt", desc: true, limit: 10 });
     const l = ss.find(s => s.status === "live" && s.startedAt > Date.now() - 24 * 3600 * 1000);
     if(l && !live){
-      el.liveWho.textContent = `In progress: ${nameOf(l.playerA)} vs ${nameOf(l.playerB)}`;
+      el.liveWho.textContent = `In progress: ${nameOf(l.playerA)} vs ${nameOf(l.playerB)}` +
+        (gameOf(l) === "league" ? "" : " · " + GAME_LABEL[gameOf(l)]);
       el.resumeBtn.onclick = () => resumeSession(l.id);
       el.watchBanner.onclick = () => enterWatch(l.id);
       el.liveBar.classList.remove("hidden");
@@ -1512,20 +1949,18 @@ async function resumeSession(id){
   // Every rack below the highest key was banked; the highest one is the rack in progress.
   const keys = Object.keys(racks).map(Number).filter(n => n > 0).sort((x, y) => x - y);
   const cur = keys.length ? keys[keys.length - 1] : 1;
-  const banked = { a:0, b:0, dead:0, racks:0, points:[] };
+  const game = gameOf(doc);
+  const banked = newBanked();
   keys.filter(n => n < cur).forEach(n => {
-    const balls = (racks[n] && racks[n].balls) || {};
-    const p = { a:0, b:0, dead:0 };
-    for(const k in balls) p[balls[k]] += VAL(+k);
-    banked.a += p.a; banked.b += p.b; banked.dead += p.dead;
-    banked.points.push({ a: p.a, b: p.b });
-    banked.racks++;
+    if(game === "league") return bankInto(banked, game, leagueRackPoints(racks[n] && racks[n].balls), null);
+    const rack = rackOf(racks[n]);
+    bankInto(banked, game, gameRackPoints(game, rack), rack);
   });
   const now = racks[cur] || {};
 
   live = {
     id,
-    game: gameOf(doc), handicap: handicapOf(doc),
+    game, handicap: handicapOf(doc),
     playerA: ida, playerB: idb,
     nameA: a.name, nameB: b.name,
     H: eA / (1 - eA), eA,
@@ -1536,6 +1971,7 @@ async function resumeSession(id){
     breaker: now.breaker || "a",
     rackNo: cur, rackAt: now.at || Date.now(),
     balls: Object.assign({}, now.balls),
+    rack: rackOf(now),
     history: [],            // undo doesn't survive a reload; the racks below are already banked
     banked,
     autoShown: false
@@ -1592,6 +2028,9 @@ function renderHistory(){
     return;
   }
   const MODE = { race: "race", fixed: "fixed racks", open: "open" };
+  const lengthText = s => gameOf(s) === "standard" && s.targets ? "race to " + Math.max(s.targets.a, s.targets.b)
+    : gameOf(s) === "golden" && s.racksPlanned ? s.racksPlanned + " racks"
+    : MODE[s.mode] || s.mode;
   rows.forEach(s => {
     const t = s.totals || { a:0, b:0 };
     const li = document.createElement("li");
@@ -1603,7 +2042,7 @@ function renderHistory(){
     const result = liveNow ? '<span class="hlive">LIVE — tap to resume</span>'
       : (t.winner ? nameOf(s[t.winner === "a" ? "playerA" : "playerB"]) + " won" : "Tied");
     b.innerHTML =
-      `<span class="hmeta">${date} · ${MODE[s.mode] || s.mode}</span>` +
+      `<span class="hmeta">${date} · ${GAME_LABEL[gameOf(s)]} · ${lengthText(s)}</span>` +
       `<span></span>` +
       `<span class="hmeta">${result}</span>`;
     b.children[1].textContent = `${nameOf(s.playerA)} ${t.a} – ${t.b} ${nameOf(s.playerB)}`;
