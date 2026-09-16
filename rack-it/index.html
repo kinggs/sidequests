@@ -403,7 +403,7 @@
       </div>
       <p class="thint" id="estOut"></p>
     </div>
-    <label class="hidden" id="pfZargoRow">Zargo (starter rating — edit only if you're sure)
+    <label class="hidden" id="pfZargoRow">Starter rating (edit only if you're sure)
       <input id="pfZargo" type="number" inputmode="numeric" step="1">
     </label>
     <p class="danger-note hidden" id="pfNote"></p>
@@ -529,6 +529,7 @@
       <button class="quiet" id="importBtn">Import</button>
     </div>
     <input type="file" id="importFile" accept="application/json,.json" class="hidden">
+    <button class="quiet" id="rebuildBtn">Rebuild ratings</button>
     <div id="installHere"></div>
     <button class="quiet" id="aboutBtn">About Zargo</button>
     <button class="quiet" id="signOutBtn">Sign out</button>
@@ -584,6 +585,18 @@
     <button class="primary" id="impMerge">Merge into existing</button>
     <button class="quiet" id="impReplace">Replace everything</button>
     <button class="quiet" id="impCancel">Cancel</button>
+  </div>
+</div>
+
+<!-- ============ REBUILD RATINGS ============ -->
+<div class="overlay hidden" id="rebuild">
+  <div class="card">
+    <h2>Rebuild ratings</h2>
+    <p class="thint" id="rbInfo"></p>
+    <ul class="reclist" id="rbList"></ul>
+    <p class="thint" id="rbNote"></p>
+    <button class="primary" id="rbApply">Apply</button>
+    <button class="quiet" id="rbCancel">Cancel</button>
   </div>
 </div>
 
@@ -670,12 +683,13 @@
 
 <script type="module">
 import { cloud } from "../shared/cloud.js";
+import * as Z from "./zargo.js";
 import { phone } from "../shared/phone.js";
 import { people } from "../shared/people.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "1.5.0";
-const APP_ID = "fair-nine";
+const APP_VERSION = "2.0.0";
+const APP_ID = "rack-it";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 document.getElementById("versionMore").textContent = "v" + APP_VERSION;
 
@@ -698,7 +712,8 @@ const el = {};
  "impChoice","impInfo","impMerge","impReplace","impCancel",
  "familyBtn","scrFamily","famBack","famList","famEmail","famAdd","famShare",
  "pfEst","estRef","estRefName","estRefScore","estNewScore","estOut","pfDelete","pfShared",
- "games","raceLen","raceNRow","raceN","deadWrap","winArea","drop"
+ "games","raceLen","raceNRow","raceN","deadWrap","winArea","drop",
+ "rebuild","rbInfo","rbList","rbNote","rbApply","rbCancel","rebuildBtn"
 ].forEach(id => el[id] = $(id));
 
 function buzz(ms){ if(navigator.vibrate) navigator.vibrate(ms); }
@@ -718,34 +733,17 @@ function tapBind(node, fn){
 }
 
 // ---------- data ----------
-// Each game's points and rating weight w (ZARGO.md). Tuning either is one edit here or in
-// state/main.config.games, with no migration.
-const DEFAULT_GAMES = {
-  league:   { points:{ low:1, nine:3 }, w:1 },
-  golden:   { points:{ big:10, small:7, win:4, foul:[1, 1, 2], intentional:10 }, w:0.5 },
-  standard: { w:0.5 }
-};
-const DEFAULT_CONFIG = { games: DEFAULT_GAMES, K:8, provisionalRacks:30, startZargo:500 };
-// Configs from before v3 kept the league points at config.points; still read there.
-function withGames(c){
-  const out = Object.assign({}, DEFAULT_CONFIG, c || {});
-  const g = (c && c.games) || {};
-  const games = {};
-  for(const k of Object.keys(DEFAULT_GAMES)) games[k] = Object.assign({}, DEFAULT_GAMES[k], g[k]);
-  if(!(g.league && g.league.points) && c && c.points) games.league.points = c.points;
-  out.games = games;
-  return out;
-}
-let db = { players:{}, config: DEFAULT_CONFIG };
-const cfg = () => db.config || DEFAULT_CONFIG;
-const leaguePts = () => cfg().games.league.points;
-const VAL = n => n === 9 ? leaguePts().nine : leaguePts().low;
-const LIVE_POINTS = () => 8 * leaguePts().low + leaguePts().nine;
+// The rating engine and the rack scoring it reads live in zargo.js, pure and tested
+// (zargo.test.mjs). These wrappers hand it this app's config.
+let db = { players:{}, config: Z.DEFAULT_CONFIG };
+const cfg = () => db.config || Z.DEFAULT_CONFIG;
+const withGames = Z.withGames;
+const LIVE_POINTS = () => Z.livePoints(cfg());
 // A match document without these predates v3: it was league, with the scoring handicap.
-const gameOf = doc => (doc && doc.game) || "league";
+const gameOf = Z.gameOf;
 const handicapOf = doc => (doc && doc.handicap) || "scoring";
 const withMatchFields = doc => Object.assign({}, doc, { game: gameOf(doc), handicap: handicapOf(doc) });
-const DEFAULT_RACKS = 5;   // the setup default, and the notional length of an open session
+const DEFAULT_RACKS = 5;   // the setup default, and the notional length of an open match
 
 const GAME_LABEL = { league: "11-Point-Nine", golden: "Golden-Nine", standard: "Trad-Nine" };
 // The three ways to win a rack in Golden-Nine and Trad-Nine, in button order (SPEC §12.3).
@@ -756,64 +754,16 @@ const WIN_KINDS = {
 };
 const KIND_LABEL = { big: "Big Golden", small: "Small Golden", win: "Win", run: "Break & run",
   nine: "9 on the break", fouls: "Three fouls", intentional: "Intentional foul" };
-const other = side => side === "a" ? "b" : "a";
-// balls and pottedAt are the ball drop: who potted which ball, and when, for a replay. They
-// never enter the score.
-const newRack = () => ({ winner: null, kind: null, fouls: { a: 0, b: 0 }, balls: {}, pottedAt: {} });
-function rackOf(rec){
-  const balls = {}, pottedAt = {};
-  for(let n = 1; n <= 9; n++){
-    const by = rec && rec.balls && rec.balls[n];
-    if(by !== "a" && by !== "b") continue;
-    balls[n] = by;
-    pottedAt[n] = (rec.pottedAt && rec.pottedAt[n]) || 0;
-  }
-  return { winner: (rec && rec.winner) || null, kind: (rec && rec.kind) || null,
-    fouls: { a: (rec && rec.fouls && rec.fouls.a) || 0, b: (rec && rec.fouls && rec.fouls.b) || 0 },
-    balls, pottedAt };
-}
-
-// Golden-Nine points from a player's fouls: 1, 1, then 2 (the third also loses the rack).
-function foulPoints(n){
-  const f = cfg().games.golden.points.foul;
-  let s = 0;
-  for(let i = 0; i < n; i++) s += f[Math.min(i, f.length - 1)];
-  return s;
-}
-// What one rack of a non-league game is worth to each side. Golden-Nine: the opponent's
-// fouls plus the win (a three-foul rack's 1 + 1 + 2 is the win, so it adds nothing more).
-// Trad-Nine: one rack is one rack; fouls never score.
-function gameRackPoints(game, rack){
-  const p = { a:0, b:0, dead:0 };
-  if(game === "standard"){ if(rack.winner) p[rack.winner] = 1; return p; }
-  const pts = cfg().games.golden.points;
-  p.a += foulPoints(rack.fouls.b);
-  p.b += foulPoints(rack.fouls.a);
-  if(rack.winner) p[rack.winner] += ({ big: pts.big, small: pts.small, win: pts.win,
-    intentional: pts.intentional })[rack.kind] || 0;
-  return p;
-}
-function leagueRackPoints(balls){
-  const p = { a:0, b:0, dead:0 };
-  for(const k in (balls || {})) p[balls[k]] += VAL(+k);
-  return p;
-}
-// Bank one complete rack. An 11-Point-Nine rack's winner is whoever took more live points.
-function bankInto(banked, game, p, rack){
-  const winner = game === "league" ? (p.a > p.b ? "a" : p.b > p.a ? "b" : null) : rack.winner;
-  banked.a += p.a; banked.b += p.b; banked.dead += p.dead;
-  if(winner === "a") banked.racksA++;
-  if(winner === "b") banked.racksB++;
-  banked.racks++;
-  banked.points.push({ a: p.a, b: p.b, winner, kind: rack ? rack.kind : null });
-}
-const newBanked = () => ({ a:0, b:0, dead:0, racks:0, racksA:0, racksB:0, points:[] });
-
-function expectedShareA(za, zb){ return 1 / (1 + Math.pow(2, (zb - za) / 100)); }
+const other = Z.other;
+const newRack = Z.newRack, rackOf = Z.rackOf, newBanked = Z.newBanked, bankInto = Z.bankInto;
+const foulPoints = n => Z.foulPoints(n, cfg());
+const gameRackPoints = (game, rack) => Z.gameRackPoints(game, rack, cfg());
+const leagueRackPoints = balls => Z.leagueRackPoints(balls, cfg());
+const expectedShareA = Z.expectedShareA;
 
 // Players are the household's shared people (shared/people.js): names and colours are the
-// same in every app. db.players keeps only what's Fair Nine's own — zargo, robustness,
-// sessions — keyed by the person's id. Entries from before the list was shared also carry
+// same in every app. db.players keeps only what's Rack It's own — zargo, robustness,
+// sessions (matches played) — keyed by the person's id. Entries from before the list was shared also carry
 // a name and colour; people.js adopts those into the shared list.
 let stateLoaded = false;
 async function loadState(){
@@ -824,7 +774,7 @@ async function loadState(){
     if(!(s.config && s.config.games))
       cloud.save("state/main", { config: { games: db.config.games } }).catch(e => console.warn("[config]", e));
   }
-  else { db = { players:{}, config: DEFAULT_CONFIG }; await cloud.save("state/main", db); }
+  else { db = { players:{}, config: Z.DEFAULT_CONFIG }; await cloud.save("state/main", db); }
   stateLoaded = true;
   people.poke();
   rekeyStats();
@@ -850,7 +800,7 @@ function P(id){
 }
 const hasRating = id => { const st = db.players[people.resolve(id)]; return !!st && Number.isFinite(st.zargo); };
 
-// When an old Fair Nine id turns out to be someone another app already had, or two entries
+// When an old player id turns out to be someone another app already had, or two entries
 // are merged, the numbers follow them to the id that survives. If both ids have numbers,
 // the better-established rating wins.
 function rekeyStats(){
@@ -920,7 +870,7 @@ el.tabbar.querySelectorAll("button").forEach(b => b.addEventListener("click", ()
   if(tab === "more") openPage("more");
 }));
 
-// Session documents keep the ids they were started with; nameOf reads any of them as the
+// Match documents keep the ids they were started with; nameOf reads any of them as the
 // person they are now. Deleted players keep their name in Matches but leave every picker.
 const nameOf = id => people.nameOf(id, "(deleted)");
 const activePlayers = () => people.active().map(p => p.id)
@@ -941,7 +891,7 @@ let matches = [], unsubMatches = null, liveDoc = null, landed = false;
 const LIVE_WINDOW = 24 * 3600 * 1000;
 function watchMatches(){
   if(unsubMatches) unsubMatches();
-  unsubMatches = cloud.watchList("sessions", rows => {
+  unsubMatches = cloud.watchList("matches", rows => {
     matches = rows;
     liveDoc = rows.find(x => x.status === "live" && x.startedAt > Date.now() - LIVE_WINDOW) || null;
     // Opens on Play when a match is on, otherwise on Ratings.
@@ -961,7 +911,7 @@ function paintLiveBar(){
   if(!on) return;
   const l = liveDoc;
   el.liveWho.textContent = `${nameOf(l.playerA)} v ${nameOf(l.playerB)} · ${GAME_LABEL[gameOf(l)]}`;
-  el.resumeBtn.onclick = () => resumeSession(l.id);
+  el.resumeBtn.onclick = () => resumeMatch(l.id);
   el.watchBanner.onclick = () => enterWatch(l.id);
 }
 const checkLive = paintLiveBar;
@@ -1043,7 +993,7 @@ function renderRatings(){
 el.addPlayerBtn.addEventListener("click", () => openPlayerForm(null));
 
 // ---------- player form ----------
-// Name and colour are shared by every app; the Zargo is Fair Nine's own.
+// Name and colour are shared by every app; the Zargo is Rack It's own.
 const PALETTE = people.PALETTE;
 let pfEditing = null, pfColour = PALETTE[5];
 function openPlayerForm(id){
@@ -1121,7 +1071,8 @@ el.pfSave.addEventListener("click", async () => {
     const p = P(pfEditing);
     const z = parseInt(el.pfZargo.value, 10);
     if(Number.isFinite(z) && z !== Math.round(p.zargo)){
-      if(!confirm(`Set ${name}'s Zargo to ${z}? This overrides the earned rating.`)) return;
+      if(!confirm(`Set ${name}'s starter rating to ${z}? Their Zargo shows ${z} now. Rebuild ratings (under More) replays their matches from it.`)) return;
+      saveStarter(p.id, z);
       savePlayer(p.id, { zargo: z }).catch(e => console.warn(e));
     }
     people.update(p.id, p.uid ? { name, colour: pfColour } : { name, colour: pfColour, email });
@@ -1133,8 +1084,9 @@ el.pfSave.addEventListener("click", async () => {
     const est = estUsed ? estimateZargo() : null;
     const id = people.add({ name, email, colour: pfColour });
     invite();
-    savePlayer(id, { zargo: est === null ? cfg().startZargo : est, robustness: 0, sessions: 0 })
-      .catch(e => console.warn(e));
+    const zargo = est === null ? cfg().startZargo : est;
+    saveStarter(id, zargo);
+    savePlayer(id, { zargo, robustness: 0, sessions: 0 }).catch(e => console.warn(e));
   }
   el.pform.classList.add("hidden");
   rerender();
@@ -1185,7 +1137,7 @@ el.estNewScore.addEventListener("input", () => updateEstimate(true));
 // One page (SPEC §13.3): Game, Players, then Length, Handicap and Break folded to one row
 // each showing the default, and Start pinned below. A repeat of last night is Game, two
 // names, Start.
-const GAME_KEY = "fair-nine.game";   // the last game picked, per phone
+const GAME_KEY = "rack-it.game";   // the last game picked, per phone
 //   mode      race | fixed | open. A race in racks (Trad-Nine, or the Racks lever) is "race".
 //   raceTo    the race length: racks for a race in racks, points for a Golden-Nine points race.
 //   raceOther the race length is typed in rather than a chip.
@@ -1230,7 +1182,7 @@ function applyGameDefaults(){
 let recentMatches = [];
 async function loadRecent(){
   try {
-    const ss = await cloud.list("sessions", { orderBy: "startedAt", desc: true, limit: 60 });
+    const ss = await cloud.list("matches", { orderBy: "startedAt", desc: true, limit: 60 });
     recentMatches = ss.filter(x => x.status !== "discarded");
     if(!el.scrSetup.classList.contains("hidden")) renderSetup();
   } catch(e){ console.warn("[recent]", e); }
@@ -1308,28 +1260,8 @@ el.raceForm.querySelectorAll("button").forEach(b => b.addEventListener("click", 
 }));
 [el.tgtA, el.tgtB].forEach(inp => inp.addEventListener("input", () => renderSetup()));
 
-// Race chart (ZARGO.md "Handicap levers"). The chance that a player who wins each rack with
-// probability p gets x racks before the opponent gets y: a small dynamic programme.
-function raceWin(p, x, y){
-  const f = [];
-  for(let i = 0; i <= x; i++){
-    f[i] = [];
-    for(let j = 0; j <= y; j++)
-      f[i][j] = i === 0 ? (j === 0 ? 0 : 1) : j === 0 ? 0 : p * f[i - 1][j] + (1 - p) * f[i][j - 1];
-  }
-  return f[x][y];
-}
-// The favourite races to n; the underdog's target (1 to n) is whichever makes the race
-// nearest to even. Ties go to the longer race.
-function raceChart(pA, n){
-  const favA = pA >= 0.5, p = favA ? pA : 1 - pA;
-  let k = n, gap = Infinity;
-  for(let j = n; j >= 1; j--){
-    const g = Math.abs(raceWin(p, n, j) - 0.5);
-    if(g < gap - 1e-9){ gap = g; k = j; }
-  }
-  return favA ? { a: n, b: k } : { a: k, b: n };
-}
+// Race chart (ZARGO.md "Handicap levers"), from zargo.js.
+const raceWin = Z.raceWin, raceChart = Z.raceChart;
 const readTarget = inp => { const n = parseInt(inp.value, 10); return n >= 1 ? n : null; };
 
 // Fill the target boxes from the length, the handicap and the ratings. Only called when one
@@ -1520,12 +1452,12 @@ el.breakBtn.addEventListener("click", () => {
   setup.breaker = setup.breaker === "a" ? "b" : "a";
   renderSetup();
 });
-el.startBtn.addEventListener("click", startSession);
+el.startBtn.addEventListener("click", startMatch);
 
 // ---------- live session ----------
 let live = null;
 
-async function startSession(){
+async function startMatch(){
   const a = P(setup.a), b = P(setup.b);
   const plan = a && b ? plannedMatch() : null;
   if(!plan) return;
@@ -1553,7 +1485,7 @@ async function startSession(){
     autoShown: false
   };
   const s0 = startOf(live);
-  await cloud.save("sessions/" + id, Object.assign({
+  await cloud.save("matches/" + id, Object.assign({
     game: live.game, handicap: live.handicap,
     playerA: setup.a, playerB: setup.b,
     mode,
@@ -1581,7 +1513,7 @@ function sync(extra){
     ? { balls: live.balls, breaker: live.breaker, at: live.rackAt }
     : { winner: live.rack.winner, kind: live.rack.kind, fouls: live.rack.fouls,
         balls: live.rack.balls, pottedAt: live.rack.pottedAt, breaker: live.breaker, at: live.rackAt };
-  cloud.patch("sessions/" + live.id, Object.assign({
+  cloud.patch("matches/" + live.id, Object.assign({
     ["racks." + live.rackNo]: rec,
     turn: state.turn,
     totals: { a: t.a, b: t.b, racksA: r.a, racksB: r.b, dead: live.banked.dead + p.dead, lead: matchResult(t, r).lead, winner: null }
@@ -1840,7 +1772,7 @@ el.breakFlip.addEventListener("click", () => {
 el.next.addEventListener("click", rackComplete);
 el.doneBack.addEventListener("click", () => { el.done.classList.add("hidden"); });
 
-el.end.addEventListener("click", () => watching ? stopWatch() : endSession());
+el.end.addEventListener("click", () => watching ? stopWatch() : endMatch());
 
 // Points in the rack in progress. In Trad-Nine a "point" is a rack won, so totals are racks.
 function rackPoints(){
@@ -2081,32 +2013,32 @@ function nextRack(extra){
   sync(extra);
 }
 
-function endSession(){
+function endMatch(){
   if(!live) return;
-  if(live.game !== "league") return endGameSession();
+  if(live.game !== "league") return endGameMatch();
   const p = rackPoints();
   const resolved = resolvedCount();
 
   // A complete, correct rack that just hasn't been banked still counts, no questions.
-  if(resolved === 9 && p.a + p.b + p.dead === LIVE_POINTS()){ bankRack(); return finishSession(); }
+  if(resolved === 9 && p.a + p.b + p.dead === LIVE_POINTS()){ bankRack(); return finishMatch(); }
   // Nothing tapped in this rack, so there's nothing to lose by dropping it.
-  if(resolved === 0) return finishSession();
+  if(resolved === 0) return finishMatch();
   // Part-played, or all nine down but not adding up: ask rather than bin it quietly.
   askAboutPartRack(p, resolved);
 }
 
 // Golden-Nine and Trad-Nine: a rack with a winner counts; one without has no result, so it's
 // dropped, and End says so when fouls were already given in it.
-function endGameSession(){
-  if(live.rack.winner){ bankRack(); return finishSession(); }
+function endGameMatch(){
+  if(live.rack.winner){ bankRack(); return finishMatch(); }
   const f = live.rack.fouls;
-  if(!f.a && !f.b) return finishSession();
+  if(!f.a && !f.b) return finishMatch();
   const p = rackPoints();
   el.doneTitle.textContent = "End the match?";
   el.doneBody.textContent = `Rack ${live.rackNo} has no winner yet, so it's dropped` +
     (live.game === "golden" && (p.a || p.b) ? `, with the foul points in it (${live.nameA} +${p.a}, ${live.nameB} +${p.b}).` : ".");
   el.doneNext.textContent = "End without rack " + live.rackNo;
-  el.doneNext.onclick = () => finishSession();
+  el.doneNext.onclick = () => finishMatch();
   el.doneNext.classList.remove("hidden");
   el.doneAnyway.classList.add("hidden");
   el.doneZargo.classList.add("hidden");
@@ -2130,10 +2062,10 @@ function askAboutPartRack(p, resolved){
       `not ${LIVE_POINTS()} — ${live.nameA} ${p.a}, ${live.nameB} ${p.b}, ${p.dead} dead. ` +
       `It's dropped unless you say otherwise.`;
   el.doneNext.textContent = "End without rack " + live.rackNo;
-  el.doneNext.onclick = () => finishSession();
+  el.doneNext.onclick = () => finishMatch();
   el.doneNext.classList.remove("hidden");
   el.doneAnyway.textContent = "Count rack " + live.rackNo + ", then end";
-  el.doneAnyway.onclick = () => { bankRack(); finishSession(); };
+  el.doneAnyway.onclick = () => { bankRack(); finishMatch(); };
   el.doneAnyway.classList.remove("hidden");
   el.doneZargo.classList.add("hidden");
   el.doneBack.textContent = "Back to the rack";
@@ -2142,13 +2074,13 @@ function askAboutPartRack(p, resolved){
   el.done.classList.remove("hidden");
 }
 
-async function finishSession(){
+async function finishMatch(){
   el.doneAnyway.classList.add("hidden");
   live.balls = {}; live.rack = newRack(); live.history = [];
 
   if(live.banked.racks === 0){
     // Zero complete racks: discard silently, ratings untouched.
-    await cloud.patch("sessions/" + live.id, { status: "discarded", endedAt: Date.now() })
+    await cloud.patch("matches/" + live.id, { status: "discarded", endedAt: Date.now() })
       .catch(e => console.warn(e));
     live = null;
     el.done.classList.add("hidden");
@@ -2158,72 +2090,14 @@ async function finishSession(){
   declare();
 }
 
-// Zargo is odds on a rack (ZARGO.md). Every complete rack gives A a result r in 0..1 and a
-// weight w for how much that rack tells us:
-//   11-Point-Nine: r is A's share of the rack's live points. The game's w is spread over the racks
-//           in proportion to the live points each carried, so a rack full of dead balls
-//           counts for less. The weights still sum to w × racks, which makes the update
-//           below exactly spec 3.3's K × racks × (pooled share − expected).
-//   Golden-Nine and Trad-Nine: r is 1 if A won the rack, else 0, with the game's w per rack.
-//           Points, fouls and the kind of win don't enter it.
-function rackResults(game, points){
-  const w = cfg().games[game].w;
-  if(game !== "league") return points.map(p => ({ r: p.winner ? (p.winner === "a" ? 1 : 0) : null, w }));
-  const livePts = points.reduce((sum, p) => sum + p.a + p.b, 0);
-  if(!livePts) return points.map(() => ({ r: null, w }));   // nothing to learn, still racks played
-  const mean = livePts / points.length;
-  return points.map(p => {
-    const l = p.a + p.b;
-    return { r: l ? p.a / l : 0, w: w * l / mean };
-  });
-}
-// Robustness grows by the total weight. Rounded so league racks stay whole numbers.
-const weightOf = results => Math.round(results.reduce((sum, x) => sum + x.w, 0) * 1e6) / 1e6;
-
-// Ratings move in three regimes:
-//
-// 1. CALIBRATION — a new player (under SETTLE sessions) against a known one: solve the
-//    Zargo the observed mean r implies, anchor on the known rating, and jump most of the
-//    way there (all the way on session 1, half on 2, a third on 3). Wild first, settled by
-//    the time they're known. The known player's rating doesn't move — they're the
-//    measuring stick.
-// 2. SETTLING — both players new: the standard formula, but boosted 4×/3×/2× while each
-//    is under SETTLE sessions, with a wider clamp.
-// 3. KNOWN — K × Σ w × (r − pA) over the racks, clamped ±40, trust-weighted by the other
-//    player's robustness.
-const SETTLE = 3;   // sessions before a rating counts as known
+// Zargo is odds on a rack (ZARGO.md); zargo.js holds the update. The ratings before are the
+// ones the match started with; matches played and robustness are each player's now.
+const rackResults = (game, points) => Z.rackResults(game, points, cfg());
+const weightOf = Z.weightOf;
 function zargoOutcome(results){
   const pa = P(live.playerA), pb = P(live.playerB);
-  const sA = pa.sessions || 0, sB = pb.sessions || 0;
-  const za = live.zargoBefore.a, zb = live.zargoBefore.b;
-  const rated = results.filter(x => x.r !== null && x.w > 0);
-  const W = rated.reduce((sum, x) => sum + x.w, 0);
-  if(!W) return { a:{from:za,to:za}, b:{from:zb,to:zb}, cal:null };
-  const R = rated.reduce((sum, x) => sum + x.w * x.r, 0);
-  const s = Math.min(.97, Math.max(.03, R / W));   // observed mean r
-
-  const calA = sA < SETTLE && sB >= SETTLE;
-  const calB = sB < SETTLE && sA >= SETTLE;
-  if(calA || calB){
-    // mean r of s implies a gap of 100·log2(s/(1−s)) in A's favour; cap one match at ±250
-    const gap = Math.max(-250, Math.min(250, 100 * Math.log2(s / (1 - s))));
-    if(calA){
-      const w = 1 / (1 + sA);
-      return { a:{from:za, to: za + (zb + gap - za) * w}, b:{from:zb, to:zb}, cal:"a" };
-    }
-    const w = 1 / (1 + sB);
-    return { a:{from:za, to:za}, b:{from:zb, to: zb + (za - gap - zb) * w}, cal:"b" };
-  }
-
-  const pA = expectedShareA(za, zb);
-  let d = cfg().K * (R - W * pA);   // K × Σ w_i × (r_i − pA)
-  d = Math.max(-40, Math.min(40, d));
-  const rA = pa.robustness || 0, rB = pb.robustness || 0, tot = rA + rB;
-  const boost = n => n < SETTLE ? SETTLE + 1 - n : 1;          // 4x, 3x, 2x, then 1x
-  const cap = n => n < SETTLE ? 120 : 40;
-  const dA = Math.max(-cap(sA), Math.min(cap(sA),  d * (tot ? 2 * rB / tot : 1) * boost(sA)));
-  const dB = Math.max(-cap(sB), Math.min(cap(sB), -d * (tot ? 2 * rA / tot : 1) * boost(sB)));
-  return { a:{from:za, to:za + dA}, b:{from:zb, to:zb + dB}, cal:null };
+  return Z.zargoOutcome({ za: live.zargoBefore.a, zb: live.zargoBefore.b,
+    sessionsA: pa.sessions, sessionsB: pb.sessions, robustnessA: pa.robustness, robustnessB: pb.robustness }, results, cfg());
 }
 
 // Who won, from points t and racks r (head start included). 11-Point-Nine and Golden-Nine with
@@ -2312,7 +2186,7 @@ async function finish(status, t, lead, winner, z, weight){
       sessions: (pb.sessions || 0) + 1
     });
   }
-  await cloud.patch("sessions/" + live.id, patch).catch(e => console.warn(e));
+  await cloud.patch("matches/" + live.id, patch).catch(e => console.warn(e));
   const id = live.id;
   live = null;
   el.done.classList.add("hidden");
@@ -2427,7 +2301,7 @@ function enterWatch(id){
   el.end.textContent = "Stop watching";
   el.done.classList.add("hidden");
   show("live");
-  watching.unsub = cloud.watch("sessions/" + id, doc => {
+  watching.unsub = cloud.watch("matches/" + id, doc => {
     if(!watching) return;
     if(!doc){ stopWatch(); return; }
     renderWatch(doc);
@@ -2514,9 +2388,9 @@ function renderWatch(doc){
 
 // Pick a live session back up on this phone — after a reload, or from another handset.
 // The session document is the record; rebuild the in-memory `live` from it.
-async function resumeSession(id){
+async function resumeMatch(id){
   let doc;
-  try { doc = await cloud.load("sessions/" + id); }
+  try { doc = await cloud.load("matches/" + id); }
   catch(e){ console.warn("[resume]", e); alert("Couldn't load that match."); return; }
   if(!doc){ alert("That match is gone."); await refreshHome(); return; }
   if(doc.status !== "live"){ alert("That match has already been finished."); await refreshHome(); return; }
@@ -2610,7 +2484,7 @@ function matchRow(s, { del = true, from = "matches" } = {}){
   b.innerHTML = `<span class="hmeta">${whenText(s.startedAt)} · ${GAME_LABEL[gameOf(s)]} · ${lengthText(s)}</span>` +
     `<span></span><span class="hmeta">${result}</span>`;
   b.children[1].textContent = `${nameOf(s.playerA)} ${sc.a} – ${sc.b} ${nameOf(s.playerB)}`;
-  b.addEventListener("click", () => s.status === "live" ? resumeSession(s.id) : openSummary(s.id, from));
+  b.addEventListener("click", () => s.status === "live" ? resumeMatch(s.id) : openSummary(s.id, from));
   li.className = "hitem";
   li.appendChild(b);
   if(del) li.appendChild(deleteButton(s));
@@ -2646,14 +2520,15 @@ function deleteButton(s){
     disarm();
     d.disabled = true;
     d.textContent = "…";
-    try { await cloud.delete("sessions/" + s.id); }
+    try { await cloud.delete("matches/" + s.id); }
     catch(e){
       console.warn("[delete]", e);
       d.disabled = false; d.classList.remove("arm"); d.textContent = "Delete";
       alert("Couldn't delete that match.");
       return;
     }
-    // Ratings already earned from a saved match stay put; deleting is a tidy-up, not an undo.
+    // A saved match moved ratings, so they're rebuilt without it.
+    if(s.status === "done") rebuildRatings(null).catch(e => console.warn("[rebuild]", e));
     if(live && live.id === s.id){ live = null; el.done.classList.add("hidden"); }
     if(watching && watching.id === s.id) stopWatch();
     matches = matches.filter(x => x.id !== s.id);
@@ -2672,7 +2547,7 @@ function openSummary(id, from){
   el.sumCopy.textContent = "Copy for Cuescore";
   if(renderSummary()){ show("summary"); return; }
   // Not in the watched list yet (just saved, or older than it reaches): read it once.
-  cloud.load("sessions/" + id).then(doc => {
+  cloud.load("matches/" + id).then(doc => {
     if(!doc){ alert("That match is gone."); return openPage(summaryFrom); }
     matches = matches.concat([{ id, ...doc }]);
     if(renderSummary()) show("summary");
@@ -2680,16 +2555,9 @@ function openSummary(id, from){
 }
 el.sumBack.addEventListener("click", () => openPage(summaryFrom));
 
-// The racks that counted: every Golden-Nine and Trad-Nine rack with a winner; for 11-Point-Nine,
-// all racks unless the last was dropped at End (then the totals don't include it).
-function countedRacks(s){
-  const racks = s.racks || {}, t = s.totals || {};
-  let rows = Object.keys(racks).map(Number).filter(n => n > 0).sort((x, y) => x - y).map(n => ({ n, rec: racks[n] }));
-  if(gameOf(s) !== "league") return rows.filter(r => r.rec && r.rec.winner);
-  const sum = rows.reduce((acc, r) => { const p = leagueRackPoints(r.rec && r.rec.balls); return { a: acc.a + p.a, b: acc.b + p.b }; }, { a:0, b:0 });
-  if(rows.length && (sum.a !== (t.a || 0) || sum.b !== (t.b || 0))) rows = rows.slice(0, -1);
-  return rows;
-}
+// The racks that counted (zargo.js): every Golden-Nine and Trad-Nine rack with a winner; for
+// 11-Point-Nine, every rack but a last one dropped at End.
+const countedRacks = s => Z.countedRacks(s, cfg());
 
 function renderSummary(){
   const s = matches.find(x => x.id === summaryId);
@@ -2909,16 +2777,117 @@ el.famShare.addEventListener("click", () => {
   }
 });
 
+// ---------- starter ratings and Rebuild ----------
+// A starter rating has its own document, starters/<personId>: { zargo, setAt, setBy }, so
+// every rating can be replayed from it. state/main gets the number too, so it shows at once.
+async function loadStarters(){
+  const out = {};
+  for(const { id, _updatedAt, ...st } of await cloud.list("starters")) out[id] = st;
+  return out;
+}
+function saveStarter(id, zargo, setBy){
+  return cloud.save("starters/" + id, { zargo, setAt: Date.now(),
+    setBy: setBy || (cloud.user && cloud.user.email) || null }).catch(e => console.warn("[starter]", e));
+}
+
+// Every rating replayed from the saved matches, in the order they ended (zargo.js replay).
+// Old matches' player ids are read as who they are today. Someone with no starter document
+// starts where their first match found them (a starter set before starters had documents),
+// or, if they've never played, at the rating state/main holds; Apply writes those down.
+async function planRebuild(){
+  const [all, docs] = await Promise.all([cloud.list("matches"), loadStarters()]);
+  const done = all.filter(m => m.status === "done").map(m => Object.assign({}, m,
+    { playerA: people.resolve(m.playerA), playerB: people.resolve(m.playerB) }));
+  const starters = {};
+  for(const [id, st] of Object.entries(docs)){
+    const r = people.resolve(id), cur = starters[r];
+    if(Number.isFinite(st.zargo) && (!cur || (st.setAt || 0) >= (cur.setAt || 0))) starters[r] = st;
+  }
+  const derived = {};
+  const byStart = done.slice().sort((x, y) => (x.startedAt || 0) - (y.startedAt || 0));
+  for(const m of byStart) for(const side of ["a", "b"]){
+    const id = side === "a" ? m.playerA : m.playerB, z = m.zargoBefore && m.zargoBefore[side];
+    if(!starters[id] && !derived[id] && Number.isFinite(z)) derived[id] = { zargo: z };
+  }
+  for(const [old, st] of Object.entries(db.players)){
+    const id = people.resolve(old);
+    if(id === old && !starters[id] && !derived[id] && st && Number.isFinite(st.zargo) && !(st.sessions > 0))
+      derived[id] = { zargo: st.zargo };
+  }
+  const result = Z.replay(done, Object.assign({}, derived, starters), cfg());
+  const stored = new Map(done.map(m => [m.id, m]));
+  const moved = (x, y) => !x || !y || Math.abs(x.a - y.a) > 1e-9 || Math.abs(x.b - y.b) > 1e-9;
+  const changed = result.matches.filter(m => moved(m.before, stored.get(m.id).zargoBefore) || moved(m.after, stored.get(m.id).zargoAfter));
+  return { result, derived, changed, count: result.matches.length };
+}
+async function applyRebuild(plan){
+  for(const [id, st] of Object.entries(plan.derived)) await saveStarter(id, st.zargo, "rebuild");
+  const players = {};
+  for(const [id, p] of Object.entries(plan.result.players)){
+    players[id] = { zargo: p.zargo, robustness: p.robustness, sessions: p.sessions };
+    db.players[id] = Object.assign(db.players[id] || {}, players[id]);
+  }
+  await cloud.save("state/main", { players });
+  for(const m of plan.changed)
+    await cloud.patch("matches/" + m.id, { zargoBefore: m.before, zargoAfter: m.after }).catch(e => console.warn("[rebuild]", e));
+  rerender();
+}
+// Show the change per player first; Apply writes it. With no card (after a delete), apply at once.
+async function rebuildRatings(card){
+  const plan = await planRebuild();
+  if(!card) return applyRebuild(plan);
+  el.rbInfo.textContent = `Replays ${plan.count} saved ${plan.count === 1 ? "match" : "matches"} in the order they ended, ` +
+    "from each player's starter rating. Handicaps never enter it.";
+  el.rbList.innerHTML = "";
+  const ids = Object.keys(plan.result.players).filter(id => people.get(id) && !people.get(id).deleted)
+    .sort((x, y) => plan.result.players[y].zargo - plan.result.players[x].zargo);
+  let moves = 0;
+  for(const id of ids){
+    const was = P(id).zargo, now = plan.result.players[id].zargo;
+    const li = document.createElement("li");
+    li.innerHTML = "<span></span><span></span>";
+    li.children[0].textContent = nameOf(id);
+    const same = Math.round(was) === Math.round(now);
+    if(!same) moves++;
+    li.children[1].textContent = same ? `${Math.round(now)}, no change` : `${Math.round(was)} → ${Math.round(now)}`;
+    el.rbList.appendChild(li);
+  }
+  if(!ids.length) el.rbList.innerHTML = "<li><span>No saved matches yet</span></li>";
+  const d = Object.entries(plan.derived).filter(([id]) => people.get(id));
+  el.rbNote.textContent = (d.length ? "Starter ratings taken from their first match or their current rating: " +
+      d.map(([id, st]) => `${nameOf(id)} ${Math.round(st.zargo)}`).join(", ") + ". " : "") +
+    `${plan.changed.length} ${plan.changed.length === 1 ? "match record changes" : "match records change"}.`;
+  const anything = moves || plan.changed.length || d.length;
+  el.rbApply.disabled = !anything;
+  el.rbApply.textContent = anything ? "Apply" : "Nothing to change";
+  el.rbApply.onclick = async () => {
+    el.rbApply.disabled = true;
+    el.rbApply.textContent = "Applying…";
+    try { await applyRebuild(plan); el.rebuild.classList.add("hidden"); }
+    catch(e){ console.warn("[rebuild]", e); alert("Couldn't apply: " + (e.message || e)); el.rbApply.disabled = false; el.rbApply.textContent = "Apply"; }
+  };
+  el.rebuild.classList.remove("hidden");
+}
+el.rebuildBtn.addEventListener("click", async () => {
+  el.rebuildBtn.disabled = true;
+  try { await rebuildRatings(true); }
+  catch(e){ console.warn("[rebuild]", e); alert("Couldn't rebuild: " + (e.message || e)); }
+  el.rebuildBtn.disabled = false;
+});
+el.rbCancel.addEventListener("click", () => el.rebuild.classList.add("hidden"));
+
 // ---------- export / import ----------
 phone.mountInstall(document.getElementById("installHere"), { label: "Install on this phone" });
 
 el.exportBtn.addEventListener("click", async () => {
-  const sessions = await cloud.list("sessions", { orderBy: "startedAt", desc: true });
+  const [all, starters] = await Promise.all([
+    cloud.list("matches", { orderBy: "startedAt", desc: true }), loadStarters()]);
   const data = {
     app: APP_ID, appVersion: APP_VERSION, exportedAt: new Date().toISOString(),
     state: { players: db.players, config: cfg() },
     people: people.all(),
-    sessions: sessions.map(withMatchFields)
+    starters,
+    matches: all.map(withMatchFields)
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
   const a = document.createElement("a");
@@ -2928,6 +2897,10 @@ el.exportBtn.addEventListener("click", async () => {
   URL.revokeObjectURL(a.href);
 });
 
+// Import is also the move from Fair Nine (sidequests/fair-nine/sessions) to Rack It
+// (sidequests/rack-it/matches): a 1.x export carries app "fair-nine" and its matches under
+// "sessions". Document ids are kept either way.
+const IMPORT_APPS = ["fair-nine", "rack-it"];
 let pendingImport = null;
 el.importBtn.addEventListener("click", () => el.importFile.click());
 el.importFile.addEventListener("change", async () => {
@@ -2936,12 +2909,12 @@ el.importFile.addEventListener("change", async () => {
   if(!f) return;
   try {
     const data = JSON.parse(await f.text());
-    // Exports from Fair Nine and Rack It both carry app "fair-nine": same app, same data.
-    if((data.app && data.app !== APP_ID) || !data.state || !data.state.players || !Array.isArray(data.sessions))
+    const list = Array.isArray(data.matches) ? data.matches : data.sessions;
+    if((data.app && !IMPORT_APPS.includes(data.app)) || !data.state || !data.state.players || !Array.isArray(list))
       throw new Error("not a Rack It (or Fair Nine) export");
-    pendingImport = data;
+    pendingImport = Object.assign({}, data, { matches: list, starters: data.starters || {} });
     el.impInfo.textContent =
-      `${Object.keys(data.state.players).length} players, ${data.sessions.length} matches` +
+      `${Object.keys(data.state.players).length} players, ${list.length} matches` +
       (data.exportedAt ? `, exported ${data.exportedAt.slice(0, 10)}` : "") +
       ". Merge adds what's missing (by match id) and never overwrites. Replace wipes the cloud data first.";
     el.impChoice.classList.remove("hidden");
@@ -2952,26 +2925,30 @@ el.importFile.addEventListener("change", async () => {
 });
 el.impCancel.addEventListener("click", () => { pendingImport = null; el.impChoice.classList.add("hidden"); });
 
+async function writeImportedMatch(s){
+  const doc = withMatchFields(s);
+  delete doc.id;
+  delete doc._updatedAt;
+  await cloud.save("matches/" + s.id, doc);
+}
+
 el.impMerge.addEventListener("click", async () => {
   const imp = pendingImport;
   el.impChoice.classList.add("hidden");
   if(!imp) return;
-  // Names go to the shared list (`people` in this version's exports; older ones carry them
-  // on the players); the ratings stay here.
+  // Names go to the shared list (`people` in exports since 1.0; older ones carry them on
+  // the players); the ratings stay here.
   people.adopt(imp.people);
   people.adopt(imp.state.players);
   for(const [id, st] of Object.entries(imp.state.players)){
     if(!db.players[id] && st && Number.isFinite(st.zargo))
       await savePlayer(id, { zargo: st.zargo, robustness: st.robustness || 0, sessions: st.sessions || 0 });
   }
-  const existing = new Set((await cloud.list("sessions")).map(s => s.id));
-  for(const s of imp.sessions){
-    if(s.id && !existing.has(s.id)){
-      const doc = withMatchFields(s);
-      delete doc.id;
-      await cloud.save("sessions/" + s.id, doc);
-    }
-  }
+  const haveStarters = await loadStarters();
+  for(const [id, st] of Object.entries(imp.starters))
+    if(!haveStarters[id] && st && Number.isFinite(st.zargo)) await cloud.save("starters/" + id, st);
+  const existing = new Set((await cloud.list("matches")).map(s => s.id));
+  for(const s of imp.matches) if(s.id && !existing.has(s.id)) await writeImportedMatch(s);
   pendingImport = null;
   await loadState();
   rerender();
@@ -2980,19 +2957,17 @@ el.impMerge.addEventListener("click", async () => {
 el.impReplace.addEventListener("click", async () => {
   const imp = pendingImport;
   if(!imp) return;
-  if(!confirm("Replace ALL Rack It data with this file? Current ratings and matches are wiped first. (The player list is shared with the other apps, so nobody is removed from it.) This can't be undone.")) return;
+  if(!confirm("Replace ALL Rack It data with this file? Current ratings, starter ratings and matches are wiped first. (The player list is shared with the other apps, so nobody is removed from it.) This can't be undone.")) return;
   el.impChoice.classList.add("hidden");
-  for(const s of await cloud.list("sessions")) await cloud.delete("sessions/" + s.id);
+  for(const s of await cloud.list("matches")) await cloud.delete("matches/" + s.id);
+  for(const s of await cloud.list("starters")) await cloud.delete("starters/" + s.id);
   await cloud.delete("state/main");
   people.adopt(imp.people);
   people.adopt(imp.state.players);
-  await cloud.save("state/main", { players: imp.state.players, config: imp.state.config || DEFAULT_CONFIG });
-  for(const s of imp.sessions){
-    if(!s.id) continue;
-    const doc = withMatchFields(s);
-    delete doc.id;
-    await cloud.save("sessions/" + s.id, doc);
-  }
+  await cloud.save("state/main", { players: imp.state.players, config: imp.state.config || Z.DEFAULT_CONFIG });
+  for(const [id, st] of Object.entries(imp.starters))
+    if(st && Number.isFinite(st.zargo)) await cloud.save("starters/" + id, st);
+  for(const s of imp.matches) if(s.id) await writeImportedMatch(s);
   pendingImport = null;
   await loadState();
   rerender();

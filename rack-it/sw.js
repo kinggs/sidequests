@@ -1,6 +1,6 @@
 // Network-first shell cache. Bump CACHE whenever index.html changes so old copies are dropped.
-const CACHE = "fair-nine-v1.5.0";
-const SHELL = ["./", "./index.html", "./manifest.json",
+const CACHE = "rack-it-v2.0.0";
+const SHELL = ["./", "./index.html", "./zargo.js", "./manifest.json",
                "./icon.svg", "./icon-192.png", "./icon-512.png", "./icon-maskable-512.png"];
 
 self.addEventListener("install", e => {

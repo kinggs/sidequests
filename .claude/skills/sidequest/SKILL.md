@@ -9,8 +9,8 @@ Turn a description into a live URL in one pass. Don't ask permission at each ste
 
 ## 1. Decide the identity
 
-- `APP_ID`: short, lowercase, hyphenated, from the description (`fair-nine`, `braai-timer`, `shopping-list`). Must not already exist as a folder.
-- `APP_NAME`: human name for the header and home screen (`Fair Nine`).
+- `APP_ID`: short, lowercase, hyphenated, from the description (`rack-it`, `braai-timer`, `shopping-list`). Must not already exist as a folder.
+- `APP_NAME`: human name for the header and home screen (`Rack It`).
 - `NEEDS_CLOUD`: true if anything should survive a reload or be seen from another phone. Default true. If false, don't call `cloud.init`, but keep the import so it's one line to switch on later.
 
 Only ask the owner something if the description is too thin to name the app.
