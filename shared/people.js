@@ -12,6 +12,7 @@
 //   people.get(id), people.nameOf(id), people.colourOf(id), people.meId(), people.isMe(id)
 //   await people.edit(null, { noun: "player" })     // the shared add sheet → new id, or null
 //   people.edit(id)            // edit, merge into someone else, or remove
+//   people.edit(id, { cuescore: true })             // …plus their Cuescore profile link (cue apps)
 //
 // Why: Melanie is one person whether she's playing pool, darts or climbing, so she's added
 // once, here, at /sidequests/_shared/people/<id>. Each app keeps its own records (games,
@@ -331,7 +332,16 @@ function injectCss(){
   document.head.appendChild(s);
 }
 
-function edit(id = null, { noun = "person" } = {}){
+// A Cuescore profile link ends in the player's number: cuescore.com/player/Kenny+Inggs/1234567.
+// Keep just that number; a bare number is fine too. "" clears it, null means it didn't parse.
+function cuescoreIdFrom(text){
+  const t = String(text || "").trim();
+  if (!t) return "";
+  const m = t.split(/[?#]/)[0].match(/(\d+)\/*$/);
+  return m ? m[1] : null;
+}
+
+function edit(id = null, { noun = "person", cuescore = false } = {}){
   injectCss();
   const p = id ? get(id) : null;
   if (id && !p) return Promise.resolve(null);
@@ -347,6 +357,10 @@ function edit(id = null, { noun = "person" } = {}){
       <div class="pk-sw"></div>
       <label for="pk-email">Their Gmail, so they can sign in (optional)</label>
       <input type="email" id="pk-email" inputmode="email" autocomplete="off" placeholder="name@gmail.com">
+      <div data-k="cuebox" hidden>
+        <label for="pk-cue">Cuescore profile link (optional)</label>
+        <input type="url" id="pk-cue" inputmode="url" autocomplete="off" placeholder="https://cuescore.com/player/…">
+      </div>
       <p class="pk-warn" hidden></p>
       <div class="pk-row">
         <button type="button" class="pk-quiet" data-k="cancel">Cancel</button>
@@ -367,7 +381,9 @@ function edit(id = null, { noun = "person" } = {}){
       </div>
     </div>`;
     const q = s => ov.querySelector(s);
-    const nameIn = q("#pk-name"), emailIn = q("#pk-email"), warn = q(".pk-warn");
+    const nameIn = q("#pk-name"), emailIn = q("#pk-email"), cueIn = q("#pk-cue"), warn = q(".pk-warn");
+    q('[data-k="cuebox"]').hidden = !cuescore;
+    cueIn.value = p && p.cuescoreId ? p.cuescoreId : "";
     q("#pk-title").textContent = p ? `Edit ${p.name}` : `Add a ${noun}`;
     nameIn.value = p ? p.name : "";
     emailIn.value = p ? (p.email || "") : "";
@@ -402,6 +418,8 @@ function edit(id = null, { noun = "person" } = {}){
       const self = p ? p.id : null;
       if (!name){ nameIn.focus(); return; }
       if (email && !EMAIL.test(email)){ say("That email doesn't look right."); emailIn.focus(); return; }
+      const cuescoreId = cuescore ? cuescoreIdFrom(cueIn.value) : undefined;
+      if (cuescoreId === null){ say("That Cuescore link doesn't end in a player number."); cueIn.focus(); return; }
       const twin = email && current().find(x => x.id !== self && lower(x.email) === email);
       if (twin){ say(`${twin.name} already has that email.`); return; }
       const clash = current().find(x => x.id !== self && lower(x.name) === lower(name));
@@ -411,15 +429,17 @@ function edit(id = null, { noun = "person" } = {}){
         return;
       }
       let out;
-      if (p){ update(p.id, { name, colour, email }); out = p.id; }
-      else out = add({ name, email, colour });
+      const extra = cuescore ? { cuescoreId } : {};
+      if (p){ update(p.id, { name, colour, email, ...extra }); out = p.id; }
+      else { out = add({ name, email, colour }); if (cuescore && cuescoreId) update(out, extra); }
       // Giving a Gmail puts it on the family list, so they can sign in straight away.
       if (email && email !== lower(p && p.email)) cloud.addMember(email).catch(report);
       close(out);
     }
     tap(q('[data-k="save"]'), save);
     nameIn.addEventListener("keydown", e => { if (e.key === "Enter") emailIn.focus(); });
-    emailIn.addEventListener("keydown", e => { if (e.key === "Enter") save(); });
+    emailIn.addEventListener("keydown", e => { if (e.key === "Enter") cuescore ? cueIn.focus() : save(); });
+    cueIn.addEventListener("keydown", e => { if (e.key === "Enter") save(); });
 
     if (p){
       q(".pk-more").hidden = false;

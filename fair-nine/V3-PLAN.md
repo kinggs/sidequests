@@ -45,31 +45,31 @@ name and the word "match". League results and ratings are numerically identical.
 
 **Read:** SPEC §12.1, §12.5, §12.8, §13.2; ZARGO.md "The definition" and "Challenges" 5 and 8.
 
-- [ ] Rename: `<title>`, the `<h1>`, footer, share text, export filename and the "not a Fair
+- [x] Rename: `<title>`, the `<h1>`, footer, share text, export filename and the "not a Fair
       Nine export" check accept both names. `manifest.json` `name` and `short_name` become
       "Rack It"; **`id` and `start_url` stay `/sidequests/fair-nine/`**. Landing page
       `index.html` at the repo root lists "Rack It". Folder, URL, `APP_ID` and Firestore
       paths do not change. Icon: keep the shape, change the lettering only if trivial.
-- [ ] "Session" becomes "match" in every label the user sees. Code names can stay.
-- [ ] `game` on every session document: `"league" | "golden" | "standard"`. Reading a
+- [x] "Session" becomes "match" in every label the user sees. Code names can stay.
+- [x] `game` on every session document: `"league" | "golden" | "standard"`. Reading a
       document without one treats it as league. New matches write `"league"`.
-- [ ] `handicap` on every session document: `"off" | "scoring" | "racks"`. Existing
+- [x] `handicap` on every session document: `"off" | "scoring" | "racks"`. Existing
       documents read as `"scoring"` (that is what they were). Setup still writes `"scoring"`.
-- [ ] `state/main.config.games`: `{ league: { points: { low: 1, nine: 3 }, w: 1 },
+- [x] `state/main.config.games`: `{ league: { points: { low: 1, nine: 3 }, w: 1 },
       golden: { points: { big: 10, small: 7, win: 4, foul: [1, 1, 2], intentional: 10 },
       w: 0.5 }, standard: { w: 0.5 } }`. Migrate the old `config.points` into
       `games.league.points` and keep reading either.
-- [ ] Rating update rewritten per rack: `delta = K × Σ w_i × (r_i − pA)`, clamp ±40,
+- [x] Rating update rewritten per rack: `delta = K × Σ w_i × (r_i − pA)`, clamp ±40,
       `robustness += Σ w_i`. For league `r_i` is the rack's live point share and `w = 1`, so
       the result equals the old formula. Prove it: recompute the Zargo movement for three
       stored league sessions and compare with their stored `zargoBefore`/`zargoAfter`.
-- [ ] Settling (SPEC §11 "Ratings settle fast") uses observed mean `r` instead of observed
+- [x] Settling (SPEC §11 "Ratings settle fast") uses observed mean `r` instead of observed
       point share. Same numbers for league.
-- [ ] `shared/people.js`: a `cuescoreId` field, editable in the shared add/edit sheet as
+- [x] `shared/people.js`: a `cuescoreId` field, editable in the shared add/edit sheet as
       "Cuescore profile link": paste the URL, the app keeps the trailing number. Bump
       nothing in other apps unless the sheet's layout changed for them.
-- [ ] Version `1.0.0` in `index.html` and `sw.js`. `/deployquest`.
-- [ ] Handover written.
+- [x] Version `1.0.0` in `index.html` and `sw.js`. `/deployquest`.
+- [x] Handover written.
 
 **Done when:** the phone shows "Rack It", a league match scores and rates exactly as before,
 and Export shows `game` and `handicap` on every session.
@@ -187,7 +187,35 @@ Each session appends a short note here: what shipped (version), what was skipped
 anything the next session must know.
 
 ### After Session 1
-_not started_
+**Shipped 1.0.0.** Everything on the list is done. Things the next session must know:
+
+- **League weights.** A League rack's `w` is spread over the match by live points
+  (`w × live_i / mean`), not a flat 1 per rack. A flat 1 only equals the old formula when every
+  rack has 11 live points; with dead balls it drifts. The spread version is exact. See SPEC §12.9.
+  Golden Nine and 9-ball use `w` as it stands, per rack.
+- **Proof.** I replayed the 8 stored `done` matches in the signed-in browser (read-only). For 7,
+  a search found the history values (matches played and robustness at the time) that reproduce
+  the stored `zargoAfter`. From the same inputs, the new function gave identical numbers
+  (difference 0). The 8th (12 Sep) isn't reproduced by any history in the search range, which
+  says nothing about the formula. The ground rule's JSON export was **not** kept in the
+  scratchpad: the Claude Code safety check blocks copying the data out of the browser. The owner
+  says the data isn't critical (3 players: Kenny ≈505, Melanie ≈325, Squirge ≈490).
+- **Code shape for Session 2.** `rackResults(game, points)` returns `[{ r, w }]` per complete rack
+  and is the only place a new game hooks into the rating; it returns `[]` for non-league games
+  today. `zargoOutcome(results)` and `weightOf(results)` are game-agnostic. `live.banked.points`
+  holds `{ a, b }` per banked league rack, rebuilt on resume. `live.game` and `live.handicap` are
+  set on start and resume.
+- **Data.** `gameOf(doc)`, `handicapOf(doc)` and `withMatchFields(doc)` default old documents.
+  Export and Import fill the fields in; Firestore documents are not backfilled. `config.games` is
+  merge-saved into `state/main` on first load; `config.points` is left in place.
+- **Cuescore link** is opt-in in `shared/people.js`: `people.edit(id, { cuescore: true })`. The
+  other apps don't pass it, so their sheet is unchanged and needed no version bump. It's reached
+  from Edit player → "Gmail, Cuescore link, or merge a double entry"; Session 4 moves it to the
+  person page.
+- **Icon** kept as the yellow 9-ball; no lettering change.
+- Import now also rejects a file whose `app` isn't `fair-nine` (e.g. a Bloc 11 export).
+
+Parked: nothing new.
 
 ### After Session 2
 _not started_

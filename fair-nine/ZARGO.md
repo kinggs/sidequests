@@ -1,6 +1,7 @@
 # Zargo — one rating across cue games
 
-**Status:** design, not built. This is the plan for taking Zargo from "point share in the
+**Status:** the definition and the League update are built (Rack It 1.0.0); the other games
+and the handicap levers are not. This is the plan for taking Zargo from "point share in the
 household's 11-point nine-ball" to one rating that every cue game in Fair Nine feeds, in the
 way FargoRate pools 8-ball, 9-ball and 10-ball into one number. Open questions are marked ⚠.
 
@@ -31,7 +32,7 @@ how much one rack of that game tells us:
 
 | Game | `r` for one rack | `w` | Why |
 |---|---|---|---|
-| League (11-point) | A's share of the live points in the rack | 1.0 | a whole rack of point share is worth more than one win/loss |
+| League (11-point) | A's share of the live points in the rack | 1.0, spread by live points (below) | a whole rack of point share is worth more than one win/loss |
 | Golden Nine | 1 if A won the rack, else 0 | 0.5 | one rack decides one thing |
 | Standard nine-ball | 1 or 0 | 0.5 | same |
 | WPA 8-ball, Heyball (later) | 1 or 0 | 0.5 | same shape as standard |
@@ -45,9 +46,11 @@ Za += delta;  Zb −= delta
 robustness += Σ w_i                     // a standard rack counts half a league rack
 ```
 
-This is the spec §3.3 formula rewritten per rack. For a league-only session it produces the same
-number as today, so History and ratings stay continuous. The settling rules in §11 stay, with
-"observed point share" replaced by "observed mean `r`".
+This is the spec §3.3 formula rewritten per rack. League spreads its `w` over a match's racks by
+the live points each carried (`w_i = w × live_i / mean`), so the weights still sum to `w × racks`
+and a league-only match produces exactly the number §3.3 does (SPEC §12.9). History and ratings
+stay continuous. The settling rules in §11 stay, with "observed point share" replaced by
+"observed mean `r`".
 
 Handicap never enters the update. Whether a session was played with a spot or level, the racks
 are what happened, and that is what the rating learns from.

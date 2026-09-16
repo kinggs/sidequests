@@ -1,8 +1,8 @@
 {
   "id": "/sidequests/fair-nine/",
-  "name": "Fair Nine",
-  "short_name": "Fair Nine",
-  "description": "Handicapped nine-ball scoring for the family.",
+  "name": "Rack It",
+  "short_name": "Rack It",
+  "description": "Handicapped pool scoring with Zargo ratings.",
   "start_url": "./",
   "scope": "./",
   "display": "fullscreen",

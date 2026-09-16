@@ -1,4 +1,8 @@
-# Fair Nine — Spec v2
+# Rack It (was Fair Nine) — Spec v2, v3 in progress
+
+**v3 session 1 (1.0.0) shipped:** the name Rack It, "match" in every label, `game` and
+`handicap` on match documents, `config.games`, the per-rack Zargo update, and a Cuescore link
+on people. See §12.9. Code and Firestore paths still say "session".
 
 A phone-first scorer for social nine-ball between any two players in a household, with a self-correcting handicap (the **Zargo** rating) so mismatched players stay evenly matched. Scores sync to the cloud so any family phone can score or review.
 
@@ -287,7 +291,8 @@ same way. An older home-screen shortcut has to be removed and re-added to pick t
   panel carries that player's run-in ("needs 8 of 25", or "target met").
 - **Ratings settle fast.** Under 3 sessions a player is "settling": against a known player
   (3+ sessions) their Zargo is solved directly from the observed point share (capped ±250,
-  jumping all the way on session 1, half on 2, a third on 3) while the known player's rating
+  jumping all the way on session 1, half on 2, a third on 3; since v3 "observed mean `r`",
+  which for League is the same number) while the known player's rating
   holds as the anchor; two settling players use the standard formula boosted 4×/3×/2× with a
   ±120 clamp. From 3 sessions the spec-3.3 formula applies as written.
 - **Players can be deleted** (edit form, confirmed). Soft delete: they leave every list and
@@ -389,6 +394,10 @@ sessions/<id>
 state/main.config.games.<game>: { points, w, defaults }
 ```
 
+Built in 1.0.0: `game` and `handicap` are written on new matches and filled in on Export and
+Import; documents without them read as `"league"` and `"scoring"`, and nothing is backfilled in
+Firestore. `config.games` is merge-saved beside the old `config.points`, which stays readable.
+
 ### 12.6 Cuescore
 
 Cuescore is where Sessions Billiard Club already lives: leagues, rankings and challenge
@@ -397,8 +406,10 @@ and scored by hand inside a logged-in account, and no write or import path is do
 static app can't hold a Cuescore session, and automating it would mean a backend with stored
 credentials and screen-scraping. So, in v3:
 
-- Each person can carry a `cuescoreId`, found by name through the read API and confirmed by
-  tapping the right match.
+- Each person can carry a `cuescoreId`. Built in 1.0.0 as "Cuescore profile link" in the shared
+  people sheet: paste the profile URL and the trailing number is kept. The sheet shows the
+  field only when an app asks (`people.edit(id, { cuescore: true })`), so the darts and
+  climbing apps are unchanged. Finding it by name through the read API is a later option.
 - Session summary gets **Copy for Cuescore**: the two names, discipline, race and score in
   the shape the challenge form wants, plus a link to Cuescore's challenges page.
 - A new player's starter Zargo can be hinted from their Cuescore rating (ZARGO.md, item 10).
@@ -417,6 +428,15 @@ a possible later change, not a v3 one.
 The app is called **Rack It** from v3. The folder, URL, manifest id and Firestore namespace
 stay `fair-nine`, because changing any of them breaks installed copies or orphans the data.
 The rating keeps its own name, **Zargo**, and the app says so wherever a rating is shown.
+
+### 12.9 League racks are weighted by their live points
+
+ZARGO.md gives a League rack `w = 1`. Taken literally, per-rack shares averaged with equal weight
+differ from §3.3's pooled share whenever racks carry different live points (dead balls). So
+1.0.0 spreads the League `w` over a match's racks in proportion to each rack's live points:
+`w_i = w × live_i / mean live per rack`. The weights still sum to `w × racks`, so robustness
+and the update equal §3.3 exactly, and a rack mostly lost to dead balls says less. Checked
+against seven stored matches (several with dead balls): identical to floating-point precision.
 
 ---
 
