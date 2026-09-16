@@ -93,14 +93,12 @@ almost every point in a rack goes to the winner (fouls cap at 2 for the loser).
    tuning is one edit and needs no migration.
 9. **Growing past the household.** If members of Sessions Billiard Club join, the shared people
    list becomes the club list and everyone on the allowlist sees everyone's ratings. That is
-   how Fargo works too, but it is a decision to make on purpose. ⚠ See the open questions.
+   how Fargo works too. Decided: one flat list for now, grouping by club is a later option.
 10. **Cuescore has its own Elo.** Different scale, different inputs, never merged. The one link
     we want is a **starter hint**: Cuescore's read-only API gives a player's rating, and a new
     player's Zargo can be seeded from where they sit among people we already rate.
 
 ## Open questions
 
-- ⚠ Club scale: one flat list of people, or a club grouping so a household match and a club
-  match don't share a picker?
 - ⚠ Whether to show a per-game rating for interest once data exists, or keep one number only.
 - ⚠ The league-to-rack mapping in challenge 1, once there is data to fit it.

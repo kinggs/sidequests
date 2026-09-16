@@ -326,8 +326,8 @@ one are league. The app id and URL stay `fair-nine` because renaming breaks inst
 | A rack records | state of balls 1–9 | winner, win kind, fouls per player, breaker | winner, win kind, fouls per player, breaker |
 | Points | 1 each, 9 is 3 | 10 / 7 / 4 to the winner, 1, 1, 2 for fouls | one rack |
 | Rack ends | all nine balls resolved | winner tapped, or a third foul | winner tapped |
-| Default length | 5 racks | fixed racks, extra rack on a tie | race to N |
-| Default break | alternate | winner breaks | ⚠ alternate or winner |
+| Default length | 5 racks | fixed racks, extra rack on a tie | race to 5 (7 offered) |
+| Default break | alternate | winner breaks | alternate |
 | Handicap levers | scoring, racks | scoring, racks | racks |
 
 **Golden Nine, as the DUYA Legends Tour standard rules state it** (the source is the
@@ -338,10 +338,10 @@ one are league. The app id and URL stay `fair-nine` because renaming breaks inst
   over with the 1 and the 9 still on the table and clears (a combination on the 9 doesn't count).
   Any other win: **4**.
 - A player's first and second foul in a rack give the opponent **1 point each**. The third
-  gives **2 points** and the rack is lost. ⚠ The rules don't say whether the opponent also
-  gets the 4-point win. We read the 1 + 1 + 2 = 4 as *being* the win, so a three-foul rack
-  is worth 4 to the winner, the same as a normal win. This is one config value if the club
-  plays it differently.
+  gives **2 points** and the rack is lost. The rules don't say whether the opponent also
+  gets the 4-point win; we play the 1 + 1 + 2 = 4 as *being* the win, so a three-foul rack
+  is worth 4 to the winner, the same as a normal win. One config value if a club plays it
+  differently.
 - Intentional fouls are forbidden: the first loses the rack and gives the opponent **10**,
   the second loses the match. The app records this from a long-press menu, not a big button.
 - Matches are a scheduled number of racks; a tie after the last rack is settled by one more.
@@ -349,8 +349,9 @@ one are league. The app id and URL stay `fair-nine` because renaming breaks inst
   rules; the app leaves the clock out of v3.
 - Other balls off the table stay off; only the 9 is respotted. Ball in hand after a foul.
 
-**Standard nine-ball:** WPA scoring, one rack is one rack, race to N. Fouls can be recorded
-per player per rack for the same look as Golden Nine, and never affect the result.
+**Standard nine-ball:** WPA scoring, one rack is one rack, race to 5 or 7 with alternate
+break, as played at Sessions. Fouls can be recorded per player per rack for the same look as
+Golden Nine, and never affect the result.
 
 ### 12.3 The live screen per game
 
@@ -407,12 +408,9 @@ credentials and screen-scraping. So, in v3:
 
 The app stays invite-only. The Family screen already does what a club needs: any member can
 add another member's Gmail, and only members can read anything. If club members join, the
-shared people list becomes the club's list. ⚠ Whether to group people by club is an open
-question in `ZARGO.md`.
+shared people list becomes the club's list too: one flat list, no grouping. Club grouping is
+a possible later change, not a v3 one.
 
 ### 12.8 Open questions
 
-- ⚠ Three-foul rack worth 4 in total (our reading) or 4 + 4?
-- ⚠ Standard nine-ball at Sessions: alternate or winner breaks, and the usual race length?
-- ⚠ Keep the name Fair Nine now that it holds three games?
-- ⚠ One flat people list for household and club, or grouped?
+- ⚠ The app's name, now that it holds three games. Not club-specific.
