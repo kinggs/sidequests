@@ -190,7 +190,7 @@
   import { people } from "../shared/people.js";
 
   // Bump on every change. The deploy skill checks this against the live site.
-  const APP_VERSION = "0.5.1";
+  const APP_VERSION = "0.6.0";
   const APP_ID = "bloc-11";
   document.getElementById("version").textContent = "v" + APP_VERSION;
 
@@ -209,7 +209,7 @@
   // ---- state ----
   // Climbers are the household's shared people (shared/people.js): the same list, names and
   // colours in every app. This app only stores climbs, keyed by the person's id. You're a
-  // climber by default — people.js links you by email or first name, or adds you.
+  // climber by default — people.js links you by email, or asks which climber you are.
   let legacyClimbers = null;  // this app's own climber list from before people were shared; null until loaded
   let rawClimbs = [];         // as stored
   let climbs = [];            // { id, climber, grade, result, note, at, by }, climber resolved to a person
@@ -543,7 +543,7 @@
       li.innerHTML = `<i class="dot"></i><span class="who"><div class="l1"></div><div class="l2"></div></span><button type="button">Edit</button>`;
       li.querySelector(".dot").style.background = people.colourOf(c.id);
       li.querySelector(".l1").textContent = isMe(c) ? `${c.name} (you)` : c.name;
-      li.querySelector(".l2").textContent = c.email || "no sign-in email";
+      li.querySelector(".l2").textContent = c.email || "No Gmail";
       tap(li.querySelector("button"), () => people.edit(c.id, { noun: "climber" }));
       ul.appendChild(li);
     }

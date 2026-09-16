@@ -1,7 +1,7 @@
 # Zargo — one rating across cue games
 
 **Status:** the definition and the 11-Point-Nine update are built (Rack It 1.0.0), and so are the
-Golden-Nine and Trad-Nine updates (1.1.0); the handicap levers are not. This is the plan for taking Zargo from "point share in the
+Golden-Nine and Trad-Nine updates (1.1.0), and so are the handicap levers (1.3.0, SPEC §12.11). This is the plan for taking Zargo from "point share in the
 household's 11-point nine-ball" to one rating that every cue game in Fair Nine feeds, in the
 way FargoRate pools 8-ball, 9-ball and 10-ball into one number. Open questions are marked ⚠.
 
@@ -69,6 +69,10 @@ The race chart is exact, not a rule of thumb: pick the pair of targets whose rac
 probability is closest to even, computed with a small dynamic programme over `pA`. A head
 start is the same chart shown differently: both race to `n`, the underdog begins at
 `n − nUnderdog`. Setup shows both readings and keeps the numbers editable.
+
+As built: the favourite races to the chosen length `n` and the underdog's target is searched
+from 1 to `n`. With a 90-point gap (`pA` ≈ 0.65) a race to 7 becomes 7 against 4, which the
+favourite wins 51% of the time; a race to 5 becomes 5 against 3 (53%).
 
 Golden-Nine's point quota assumes point share ≈ rack-win share, which is close enough because
 almost every point in a rack goes to the winner (fouls cap at 2 for the loser).

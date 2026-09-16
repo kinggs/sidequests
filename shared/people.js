@@ -7,12 +7,18 @@
 //     onMe: ({ name, added }) => toast(...),        // the signed-in person was linked or added
 //     onError: e => toast(...)
 //   }));
-//   people.active()            // [{ id, name, email, colour, createdAt }], you first
+//   people.active()            // [{ id, name, email, colour, createdAt, uid, photoURL }], you first
 //   people.resolve(id)         // any id an app ever stored → who that is today
 //   people.get(id), people.nameOf(id), people.colourOf(id), people.meId(), people.isMe(id)
+//   people.avatar(id, 36)      // <span>: their Google photo in a ring of their colour, or their initial
 //   await people.edit(null, { noun: "player" })     // the shared add sheet → new id, or null
-//   people.edit(id)            // edit, merge into someone else, or remove
-//   people.edit(id, { cuescore: true })             // …plus their Cuescore profile link (cue apps)
+//   people.edit(id)            // edit, unclaim, merge into someone else, or remove
+//   people.edit(id, { cuescore: true })             // …plus the Cuescore profile link (cue apps; yours only)
+//
+// Every person needs a Gmail: they sign in with it and it claims them. On sign-in the
+// account is linked to the person with its email; failing that, a "Which player are you?"
+// card lists the unclaimed people. A claimed person carries uid, claimedAt and the Google
+// photoURL, refreshed on every sign-in.
 //
 // Why: Melanie is one person whether she's playing pool, darts or climbing, so she's added
 // once, here, at /sidequests/_shared/people/<id>. Each app keeps its own records (games,
@@ -64,7 +70,8 @@ function resolve(id){
 }
 
 const myEmail = () => lower(cloud.user && cloud.user.email);
-const mine = p => !!p && !!myEmail() && lower(p.email) === myEmail();
+const myUid = () => (cloud.user && cloud.user.uid) || "";
+const mine = p => !!p && ((!!p.uid && p.uid === myUid()) || (!!myEmail() && lower(p.email) === myEmail()));
 const current = () => Object.entries(all)
   .filter(([, p]) => p && !p.deleted && !p.mergedInto)
   .map(([id, p]) => ({ id, ...p }));
@@ -96,7 +103,11 @@ function nextColour(){
   const used = new Set(list.map(p => p.colour));
   return PALETTE.find(c => !used.has(c)) || PALETTE[list.length % PALETTE.length];
 }
-function meId(){ const p = current().find(mine); return p ? p.id : null; }
+function meId(){
+  const list = current();
+  const p = list.find(q => q.uid && q.uid === myUid()) || list.find(mine);
+  return p ? p.id : null;
+}
 const isMe = id => mine(get(id));
 
 // ---- writing ----
@@ -188,23 +199,95 @@ function dedupe(){
   }
 }
 
-// You're a person by default: linked by email, else to someone with your first name and
-// no email yet (a "Rolf" added from Kenny's phone becomes Rolf's own entry the first time
-// he signs in), else added under your Google first name.
+// You're a person by default. Linked to the person with your email (or already claimed by
+// this account), and stamped with your uid and latest Google photo. Otherwise one card asks
+// "Which player are you?" from the unclaimed people, since guessing by first name links the
+// wrong Rolf on a club-sized list. With nobody unclaimed, you're added under your Google name.
 function ensureMe(){
   const u = cloud.user, email = myEmail();
   if (!u || !email || meHandled === email) return;
   meHandled = email;
-  if (meId()) return;
-  const first = (u.displayName || email.split("@")[0]).trim().split(/\s+/)[0];
-  const match = active().find(p => !p.email && (lower(p.name) === lower(first) || lower(p.name) === lower(u.displayName)));
-  let id, name;
-  if (match){ id = match.id; name = match.name; write(id, { email }); }
-  else {
-    id = cloud.shared.newId(); name = first;
-    write(id, { name, email, colour: nextColour(), createdAt: Date.now(), deleted: false });
+  const id = meId();
+  if (id){ stamp(id); return; }
+  const free = unclaimed();
+  if (!free.length) return addMe();
+  askWhoIAm();
+}
+const unclaimed = () => active().filter(p => !p.uid && !mine(p))
+  .sort((a, b) => (!!a.email - !!b.email) || String(a.name).localeCompare(String(b.name)));
+function stamp(id, extra = {}){
+  const u = cloud.user, p = all[id];
+  if (!u || !p) return;
+  const f = { ...extra };
+  if (p.uid !== u.uid){ f.uid = u.uid; f.claimedAt = Date.now(); }
+  if (!lower(p.email) && !f.email) f.email = myEmail();
+  if (u.photoURL && p.photoURL !== u.photoURL) f.photoURL = u.photoURL;
+  if (Object.keys(f).length) write(id, f);
+}
+function linked(id, added){
+  notify();
+  if (opts.onMe) setTimeout(() => { try { opts.onMe({ id, name: nameOf(id), added }); } catch {} }, 0);
+}
+function addMe(){
+  const u = cloud.user;
+  const name = (u.displayName || myEmail().split("@")[0]).trim().split(/\s+/)[0].slice(0, 24);
+  const id = cloud.shared.newId();
+  write(id, { name, email: myEmail(), colour: nextColour(), createdAt: Date.now(), deleted: false });
+  stamp(id);
+  linked(id, true);
+}
+
+function askWhoIAm(){
+  injectCss();
+  document.querySelectorAll(".pk-ov").forEach(n => n.remove());
+  const ov = document.createElement("div");
+  ov.className = "pk-ov pk-who";
+  ov.innerHTML = `<div class="pk-card" role="dialog" aria-modal="true" aria-labelledby="pk-who-title">
+    <h2 id="pk-who-title">Which player are you?</h2>
+    <p class="pk-note"></p>
+    <div class="pk-list"></div>
+    <p class="pk-warn" hidden></p>
+    <button type="button" class="pk-quiet" data-k="none">I'm not on the list</button>
+  </div>`;
+  const q = s => ov.querySelector(s);
+  q(".pk-note").textContent = `Signed in as ${myEmail()}. Pick yourself once and your games, climbs and photo follow you in every app.`;
+  const close = () => { ov.remove(); unwatch(); };
+  const unwatch = onChange(() => {
+    if (!ov.isConnected) return unwatch();
+    if (meId() || !cloud.user) return close();   // claimed from another phone, or signed out
+    paint();
+  });
+  let painted = "";
+  function paint(){
+    // Only when the list itself changed, so a repaint never swallows a tap mid-press.
+    const list = unclaimed();
+    const sig = JSON.stringify(list.map(p => [p.id, p.name, p.colour, p.photoURL]));
+    if (sig === painted) return;
+    painted = sig;
+    const box = q(".pk-list");
+    box.innerHTML = "";
+    for (const p of list){
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "pk-pick";
+      b.append(avatar(p.id, 36));
+      const n = document.createElement("span");
+      n.textContent = p.name;
+      b.append(n);
+      tap(b, () => {
+        const cur = all[p.id];
+        if (!cur || cur.uid || cur.deleted || cur.mergedInto){ say("Someone else just took that one."); painted = ""; paint(); return; }
+        close();
+        stamp(p.id, { email: myEmail() });
+        linked(p.id, false);
+      });
+      box.append(b);
+    }
   }
-  if (opts.onMe) setTimeout(() => { try { opts.onMe({ id, name, added: !match }); } catch {} }, 0);
+  const say = msg => { const w = q(".pk-warn"); w.hidden = !msg; w.textContent = msg || ""; };
+  tap(q('[data-k="none"]'), () => { close(); addMe(); });
+  paint();
+  document.body.appendChild(ov);
 }
 
 // Only once the server has answered (so nobody gets added twice from a stale cache) and
@@ -323,6 +406,14 @@ const CSS = `
 .pk-note{font-size:15px;color:var(--ink-dim,#aab3bd);margin:4px 0 0}
 .pk-warn{font-size:16px;color:#e8b04a;margin:6px 0 0}
 .pk-more{border-top:1px solid rgba(255,255,255,.14);margin-top:14px;padding-top:4px;display:flex;flex-direction:column;gap:8px}
+.pk-card button:disabled{opacity:.4}
+.pk-fixed{min-height:56px;display:flex;align-items:center;font-size:18px;font-weight:600;word-break:break-all}
+.pk-list{display:flex;flex-direction:column;gap:8px;margin:8px 0;max-height:52vh;overflow-y:auto}
+.pk-card .pk-pick{display:flex;align-items:center;gap:12px;text-align:left;background:rgba(255,255,255,.07);color:inherit;min-height:60px;padding:0 12px}
+.pk-av{display:inline-flex;align-items:center;justify-content:center;flex:none;box-sizing:border-box;width:var(--s);height:var(--s);
+  border-radius:50%;background:var(--c);padding:3px;overflow:hidden;font-family:inherit;font-weight:800;line-height:1;font-size:calc(var(--s) * .45)}
+.pk-av img{display:block;width:100%;height:100%;box-sizing:border-box;border-radius:50%;object-fit:cover;border:2px solid #0b0f12;background:#0b0f12}
+.pk-av.pk-init{padding:0}
 `;
 function injectCss(){
   if (document.getElementById("pk-css")) return;
@@ -330,6 +421,43 @@ function injectCss(){
   s.id = "pk-css";
   s.textContent = CSS;
   document.head.appendChild(s);
+}
+
+// White or near-black on a colour, whichever reads better.
+function inkOn(hex){
+  const m = String(hex).match(/^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
+  if (!m) return "#fff";
+  const lin = h => { const c = parseInt(h, 16) / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+  const L = 0.2126 * lin(m[1]) + 0.7152 * lin(m[2]) + 0.0722 * lin(m[3]);
+  return (L + 0.05) / 0.05 > 1.05 / (L + 0.05) ? "#14110f" : "#fff";
+}
+
+// How a person looks everywhere: their Google photo in a circle, inside a 3px ring of their
+// colour with a 2px dark gap; with no photo, or one that won't load, a circle of their colour
+// with their initial. Decorative — the name always sits beside it.
+function avatar(id, size = 36){
+  injectCss();
+  const p = get(id), colour = colourOf(id);
+  const node = document.createElement("span");
+  node.className = "pk-av";
+  node.setAttribute("aria-hidden", "true");
+  node.style.setProperty("--s", size + "px");
+  node.style.setProperty("--c", colour);
+  const initial = () => {
+    node.classList.add("pk-init");
+    node.style.color = inkOn(colour);
+    node.textContent = ([...String((p && p.name) || "?").trim()][0] || "?").toUpperCase();
+  };
+  if (p && p.photoURL){
+    const img = document.createElement("img");
+    img.alt = "";
+    img.referrerPolicy = "no-referrer";   // Google's photo links refuse some referrers
+    img.decoding = "async";
+    img.addEventListener("error", () => { img.remove(); initial(); });
+    img.src = p.photoURL;
+    node.append(img);
+  } else initial();
+  return node;
 }
 
 // A Cuescore profile link ends in the player's number: cuescore.com/player/Kenny+Inggs/1234567.
@@ -355,11 +483,17 @@ function edit(id = null, { noun = "person", cuescore = false } = {}){
       <input type="text" id="pk-name" maxlength="24" autocomplete="off">
       <label>Colour</label>
       <div class="pk-sw"></div>
-      <label for="pk-email">Their Gmail, so they can sign in (optional)</label>
+      <label for="pk-email" data-k="emaillabel">Their Gmail</label>
       <input type="email" id="pk-email" inputmode="email" autocomplete="off" placeholder="name@gmail.com">
+      <p class="pk-fixed" data-k="claimed" hidden></p>
+      <p class="pk-note" data-k="emailwhy">They sign in with this and claim the player.</p>
       <div data-k="cuebox" hidden>
         <label for="pk-cue">Cuescore profile link (optional)</label>
         <input type="url" id="pk-cue" inputmode="url" autocomplete="off" placeholder="https://cuescore.com/player/…">
+      </div>
+      <div data-k="cueshow" hidden>
+        <label>Cuescore profile</label>
+        <p class="pk-fixed"></p>
       </div>
       <p class="pk-warn" hidden></p>
       <div class="pk-row">
@@ -368,6 +502,10 @@ function edit(id = null, { noun = "person", cuescore = false } = {}){
       </div>
       <p class="pk-note">One list for every sidequests app — add someone once and they're in all of them.</p>
       <div class="pk-more" hidden>
+        <div data-k="unclaimbox" hidden>
+          <div class="pk-row"><button type="button" class="pk-quiet" data-k="unclaim">Unclaim</button></div>
+          <p class="pk-note">For a mix-up: unlinks the Google account and clears the Gmail, so the right person can claim this player.</p>
+        </div>
         <div data-k="mergebox">
           <label for="pk-same">Added twice? Same person as…</label>
           <select id="pk-same"><option value="">Pick someone</option></select>
@@ -382,12 +520,28 @@ function edit(id = null, { noun = "person", cuescore = false } = {}){
     </div>`;
     const q = s => ov.querySelector(s);
     const nameIn = q("#pk-name"), emailIn = q("#pk-email"), cueIn = q("#pk-cue"), warn = q(".pk-warn");
-    q('[data-k="cuebox"]').hidden = !cuescore;
+    const saveBtn = q('[data-k="save"]');
+    const self = !!p && isMe(p.id);
+    // Only you set your own Cuescore link, and never while adding someone. Anyone else's reads only.
+    const cueEdit = cuescore && self;
+    q('[data-k="cuebox"]').hidden = !cueEdit;
+    q('[data-k="cueshow"]').hidden = !(cuescore && p && !self);
     cueIn.value = p && p.cuescoreId ? p.cuescoreId : "";
+    if (cuescore && p && !self)
+      q('[data-k="cueshow"] .pk-fixed').textContent = p.cuescoreId ? `cuescore.com/player/${p.cuescoreId}` : "Not added";
     q("#pk-title").textContent = p ? `Edit ${p.name}` : `Add a ${noun}`;
     nameIn.value = p ? p.name : "";
     emailIn.value = p ? (p.email || "") : "";
+    // A claimed person's Gmail is their Google account's; it changes only by unclaiming.
+    const claimed = !!(p && p.uid);
+    emailIn.hidden = claimed;
+    q('[data-k="claimed"]').hidden = !claimed;
+    if (claimed) q('[data-k="claimed"]').textContent = `Claimed by ${p.email || "a Google account"}`;
+    q('[data-k="emaillabel"]').textContent = self ? "Your Gmail" : "Their Gmail";
+    q('[data-k="emailwhy"]').hidden = claimed;
+    if (p && !p.email) q('[data-k="emailwhy"]').textContent = "No Gmail yet. Add one to save: they sign in with it and claim the player.";
     const say = msg => { warn.hidden = !msg; warn.textContent = msg || ""; };
+    const ready = () => { saveBtn.disabled = !nameIn.value.trim() || !EMAIL.test(lower(emailIn.value)); };
 
     let colour = p ? colourOf(p.id) : nextColour();
     const sw = q(".pk-sw");
@@ -411,34 +565,36 @@ function edit(id = null, { noun = "person", cuescore = false } = {}){
     tap(q('[data-k="cancel"]'), () => close(null));
 
     let sameNameOk = false;
-    nameIn.addEventListener("input", () => { sameNameOk = false; say(""); });
+    nameIn.addEventListener("input", () => { sameNameOk = false; say(""); ready(); });
+    emailIn.addEventListener("input", () => { say(""); ready(); });
+    ready();
     function save(){
       const name = nameIn.value.trim().replace(/\s+/g, " ");
       const email = lower(emailIn.value);
-      const self = p ? p.id : null;
+      const selfId = p ? p.id : null;
       if (!name){ nameIn.focus(); return; }
-      if (email && !EMAIL.test(email)){ say("That email doesn't look right."); emailIn.focus(); return; }
-      const cuescoreId = cuescore ? cuescoreIdFrom(cueIn.value) : undefined;
+      if (!EMAIL.test(email)){ say("Add their Gmail: they sign in with it."); emailIn.focus(); return; }
+      const cuescoreId = cueEdit ? cuescoreIdFrom(cueIn.value) : undefined;
       if (cuescoreId === null){ say("That Cuescore link doesn't end in a player number."); cueIn.focus(); return; }
-      const twin = email && current().find(x => x.id !== self && lower(x.email) === email);
+      const twin = current().find(x => x.id !== selfId && lower(x.email) === email);
       if (twin){ say(`${twin.name} already has that email.`); return; }
-      const clash = current().find(x => x.id !== self && lower(x.name) === lower(name));
+      const clash = current().find(x => x.id !== selfId && lower(x.name) === lower(name));
       if (clash && !sameNameOk){
         sameNameOk = true;
         say(`There's already a ${clash.name}. Tap Save again if this is someone else.`);
         return;
       }
       let out;
-      const extra = cuescore ? { cuescoreId } : {};
-      if (p){ update(p.id, { name, colour, email, ...extra }); out = p.id; }
-      else { out = add({ name, email, colour }); if (cuescore && cuescoreId) update(out, extra); }
+      const extra = cueEdit ? { cuescoreId } : {};
+      if (p){ update(p.id, { name, colour, ...(claimed ? {} : { email }), ...extra }); out = p.id; }
+      else out = add({ name, email, colour });
       // Giving a Gmail puts it on the family list, so they can sign in straight away.
       if (email && email !== lower(p && p.email)) cloud.addMember(email).catch(report);
       close(out);
     }
-    tap(q('[data-k="save"]'), save);
+    tap(saveBtn, save);
     nameIn.addEventListener("keydown", e => { if (e.key === "Enter") emailIn.focus(); });
-    emailIn.addEventListener("keydown", e => { if (e.key === "Enter") cuescore ? cueIn.focus() : save(); });
+    emailIn.addEventListener("keydown", e => { if (e.key === "Enter") cueEdit ? cueIn.focus() : save(); });
     cueIn.addEventListener("keydown", e => { if (e.key === "Enter") save(); });
 
     if (p){
@@ -457,6 +613,13 @@ function edit(id = null, { noun = "person", cuescore = false } = {}){
         const into = sel.value;
         if (merge(p.id, into)) close(into);
       });
+      if (claimed){
+        q('[data-k="unclaimbox"]').hidden = false;
+        armed(q('[data-k="unclaim"]'), "Unclaim", "Sure? Tap again", () => {
+          update(p.id, { uid: "", claimedAt: 0, email: "", photoURL: "" });
+          close(p.id);
+        });
+      }
       if (isMe(p.id)) q('[data-k="removebox"]').hidden = true;   // you can't remove yourself
       else armed(q('[data-k="remove"]'), "Remove from every app", "Sure? Tap again", () => { remove(p.id); close(null); });
     }
@@ -469,7 +632,7 @@ function edit(id = null, { noun = "person", cuescore = false } = {}){
 export const people = {
   PALETTE,
   start, stop, poke, onChange,
-  active, get, resolve, nameOf, colourOf, nextColour, meId, isMe,
+  active, get, resolve, nameOf, colourOf, nextColour, meId, isMe, avatar,
   add, update, remove, merge, adopt, edit,
   all: () => ({ ...all }),
   get ready(){ return confirmed; }

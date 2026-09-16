@@ -70,8 +70,8 @@
   .homebody{flex:1;display:flex;flex-direction:column;padding:16px;gap:16px;overflow-y:auto}
   .plist{list-style:none;display:flex;flex-direction:column;gap:9px}
   .plist button{display:flex;align-items:center;gap:14px;width:100%;min-height:64px;padding:0 16px;text-align:left;background:var(--panel);font-weight:600}
-  .pdot{width:22px;height:22px;border-radius:50%;flex:0 0 auto;box-shadow:0 0 0 2px rgba(0,0,0,.3)}
-  .pname{flex:1;font-size:19px}
+  .pname{flex:1;font-size:19px;display:flex;flex-direction:column;min-width:0}
+  .nogmail{font-size:15px;font-weight:600;color:#e8b04a}
   .pstats{font-size:15px;color:var(--bone-dim);font-weight:600;text-align:right;line-height:1.35}
   .prov{color:#e8b04a}
   .homebtns{display:flex;flex-direction:column;gap:10px;margin-top:auto}
@@ -92,6 +92,8 @@
   .hitem .hrow{flex:1 1 auto;min-width:0}
   .fitem{display:flex;align-items:center;gap:8px;background:var(--panel);border-radius:12px;padding-left:16px;min-height:60px}
   .fitem>span{flex:1;font-size:16px;font-weight:600;word-break:break-all}
+  .fitem>.pk-av{flex:0 0 auto}
+  .fitem>span small{display:block;font-size:15px;color:var(--bone-dim);font-weight:600;word-break:normal}
   .fitem .you{flex:0 0 auto;color:var(--bone-dim);font-size:14px;padding-right:16px}
   .famin{font:inherit;font-size:18px;color:var(--bone);background:rgba(0,0,0,.35);border:1px solid rgba(239,233,220,.25);border-radius:10px;padding:13px 14px;width:100%}
   .card select{font:inherit;font-size:17px;font-weight:600;color:var(--bone);background:rgba(0,0,0,.35);border:1px solid rgba(239,233,220,.25);border-radius:10px;padding:12px}
@@ -105,8 +107,8 @@
   .livebar>span{font-size:16px;font-weight:700;color:#63c08a;text-align:center}
 
   /* ---- overlays (player form, rack done) ---- */
-  .overlay{position:fixed;inset:0;background:rgba(4,14,11,.95);z-index:20;display:flex;align-items:center;justify-content:center;padding:22px}
-  .card{width:100%;max-width:24rem;background:#0b241c;border:1px solid rgba(239,233,220,.15);border-radius:18px;padding:22px;display:flex;flex-direction:column;gap:16px}
+  .overlay{position:fixed;inset:0;background:rgba(4,14,11,.95);z-index:20;display:flex;align-items:center;justify-content:center;padding:22px;overflow-y:auto}
+  .card{margin:auto;width:100%;max-width:24rem;background:#0b241c;border:1px solid rgba(239,233,220,.15);border-radius:18px;padding:22px;display:flex;flex-direction:column;gap:16px}
   .card h2{font-size:22px}
   .card label{display:flex;flex-direction:column;gap:7px;font-size:16px;color:var(--bone-dim);font-weight:600}
   .card input{font:inherit;font-size:19px;color:var(--bone);background:rgba(0,0,0,.35);border:1px solid rgba(239,233,220,.25);border-radius:10px;padding:13px 14px;width:100%}
@@ -117,14 +119,29 @@
   .row2 button{flex:1}
   .danger-note{font-size:14px;color:#e8b04a;line-height:1.4}
 
-  /* ---- setup ---- */
+  /* ---- setup: one page, defaults folded, Start pinned below it ---- */
   .setupbody{flex:1;display:flex;flex-direction:column;gap:18px;padding:16px;overflow-y:auto}
+  #scrSetup .setupbody{gap:14px}
+  .setupfoot{flex:0 0 auto;display:flex;flex-direction:column;gap:8px;padding:10px 16px 14px;
+    background:rgba(0,0,0,.25);box-shadow:0 -1px 0 rgba(239,233,220,.12)}
   .pick{display:flex;gap:12px}
-  .pickcol{flex:1;display:flex;flex-direction:column;gap:8px}
+  .pickcol{flex:1;display:flex;flex-direction:column;gap:8px;min-width:0}
   .pickcol h3{font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
   .pickcol.ca h3{color:var(--chalk-lift)}
   .pickcol.cb h3{color:var(--ochre-lift)}
-  .pickcol button{min-height:58px;font-size:18px;background:var(--panel)}
+  .pickcol button{min-height:58px;font-size:18px;background:var(--panel);display:flex;align-items:center;gap:10px;
+    padding:0 10px;text-align:left}
+  .pickcol button span:last-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .fold{background:var(--panel);border-radius:14px}
+  .foldhead{width:100%;display:flex;align-items:center;gap:12px;background:none;min-height:60px;padding:0 16px;text-align:left}
+  .foldk{flex:0 0 auto;font-size:15px;font-weight:700;color:var(--bone-dim);text-transform:uppercase;letter-spacing:.06em}
+  .foldv{flex:1;text-align:right;font-size:17px;font-weight:700;line-height:1.3}
+  .foldhead::after{content:"▾";flex:0 0 auto;color:var(--bone-dim);font-size:18px}
+  .fold.open .foldhead::after{content:"▴"}
+  .foldbody{display:none;flex-direction:column;gap:12px;padding:0 12px 14px}
+  .fold.open .foldbody{display:flex}
+  .foldbody .modes button{background:rgba(255,255,255,.07)}
+  .foldbody .modes button.sel{background:var(--bone);color:#0a2a20}
   .pickcol.ca button.sel{background:var(--chalk);color:#fff}
   .pickcol.cb button.sel{background:var(--ochre);color:#fff}
   .modes{display:flex;gap:8px}
@@ -138,8 +155,11 @@
   .tgrid .field{flex:1;flex-direction:column;align-items:stretch;text-align:center}
   .tgrid .field input{width:100%}
   .thint{font-size:14px;color:var(--bone-dim);line-height:1.4}
-  #breakBtn{width:100%}
-  #startBtn{height:72px;font-size:21px;margin-top:auto}
+  #raceForm{flex-direction:column}
+  #raceForm button{min-height:56px;padding:6px 12px;line-height:1.3}
+  #breakBtn{width:100%;background:var(--panel);border-radius:14px}
+  #breakBtn::after{content:"⇄"}
+  #startBtn{height:72px;font-size:21px;width:100%}
 
   /* ---- scores double as the turn control (prototype, kept) ---- */
   .scores{display:flex;flex:0 0 auto;gap:3px;background:rgba(0,0,0,.4)}
@@ -192,6 +212,7 @@
   .meta{flex:0 0 auto;display:flex;align-items:center;justify-content:center;gap:18px;
     padding:7px 11px;font-size:16px;color:var(--bone-dim);background:transparent}
   .meta b{color:var(--bone);font-weight:700}
+  .meta>*{white-space:nowrap}
   .meta button{background:none;border:none;color:var(--bone-dim);font:inherit;font-weight:600;min-height:0;padding:6px 8px;text-decoration:underline;border-radius:0}
   .warn{color:#e8b04a}
   .ok{color:#63c08a;font-weight:600}
@@ -324,6 +345,10 @@
   <div class="card">
     <h2 id="pfTitle">Add player</h2>
     <label>Name <input id="pfName" autocomplete="off" maxlength="24"></label>
+    <label><span id="pfEmailLabel">Their Gmail</span>
+      <input id="pfEmail" type="email" inputmode="email" autocomplete="off" placeholder="name@gmail.com">
+    </label>
+    <p class="thint" id="pfEmailNote">They sign in with this and claim the player.</p>
     <label>Colour</label>
     <div class="swatches" id="pfColours"></div>
     <div class="hidden" id="pfEst" style="display:flex;flex-direction:column;gap:10px">
@@ -345,7 +370,7 @@
       <button class="primary" id="pfSave">Save</button>
       <button class="quiet" id="pfCancel">Cancel</button>
     </div>
-    <button class="quiet hidden" id="pfShared">Gmail, Cuescore link, or merge a double entry</button>
+    <button class="quiet hidden" id="pfShared">Cuescore link, unclaim, or merge a double entry</button>
     <button class="quiet warnbtn hidden" id="pfDelete" style="color:#e8b04a;border-color:rgba(232,176,74,.55)">Delete player</button>
   </div>
 </div>
@@ -366,32 +391,61 @@
       <div class="pickcol ca"><h3>Blue side</h3><div id="pickA" style="display:flex;flex-direction:column;gap:8px"></div></div>
       <div class="pickcol cb"><h3>Amber side</h3><div id="pickB" style="display:flex;flex-direction:column;gap:8px"></div></div>
     </div>
-    <div class="modes" id="modes">
-      <button data-mode="race" class="sel">Race</button>
-      <button data-mode="fixed">Fixed racks</button>
-      <button data-mode="open">Open</button>
+
+    <div class="fold" id="foldLen">
+      <button class="foldhead" id="lenHead"><span class="foldk">Length</span><span class="foldv" id="lenSummary"></span></button>
+      <div class="foldbody">
+        <div class="modes" id="modes">
+          <button data-mode="race" class="sel">Race</button>
+          <button data-mode="fixed">Fixed racks</button>
+          <button data-mode="open">Open</button>
+        </div>
+        <div class="modes" id="goldLen">
+          <button data-len="fixed">Fixed racks</button>
+          <button data-len="35">Race to 35</button>
+          <button data-len="other">Race to N</button>
+        </div>
+        <div class="modes" id="raceLen">
+          <button data-n="3">Race to 3</button>
+          <button data-n="5">Race to 5</button>
+          <button data-n="7">Race to 7</button>
+          <button data-n="other">Race to N</button>
+        </div>
+        <div class="field" id="raceNRow">
+          <span id="raceNLabel">Race to, racks</span>
+          <input id="raceN" type="number" inputmode="numeric" min="1" max="30" value="9">
+        </div>
+        <div class="field" id="lenRow">
+          <span id="lenLabel">Rough length, racks</span>
+          <input id="racksIn" type="number" inputmode="numeric" min="1" max="30" value="5">
+        </div>
+      </div>
     </div>
-    <div class="modes hidden" id="raceLen">
-      <button data-n="3">Race to 3</button>
-      <button data-n="5">Race to 5</button>
-      <button data-n="7">Race to 7</button>
-      <button data-n="other">Race to N</button>
+
+    <div class="fold" id="foldHcp">
+      <button class="foldhead" id="hcpHead"><span class="foldk">Handicap</span><span class="foldv" id="hcpSummary"></span></button>
+      <div class="foldbody">
+        <div class="modes" id="hcps">
+          <button data-h="off">Off</button>
+          <button data-h="scoring">Scoring</button>
+          <button data-h="racks">Racks</button>
+        </div>
+        <div class="tgrid" id="targetsRow">
+          <div class="field"><span id="tgtALabel">Target</span><input id="tgtA" type="number" inputmode="numeric" min="1"></div>
+          <div class="field"><span id="tgtBLabel">Target</span><input id="tgtB" type="number" inputmode="numeric" min="1"></div>
+        </div>
+        <div class="modes" id="raceForm">
+          <button data-form="targets" id="formTargets"></button>
+          <button data-form="start" id="formStart"></button>
+        </div>
+        <p class="thint" id="setupHint"></p>
+      </div>
     </div>
-    <div class="field hidden" id="raceNRow">
-      <span>Race to, racks</span>
-      <input id="raceN" type="number" inputmode="numeric" min="1" max="30" value="9">
-    </div>
-    <div class="field" id="lenRow">
-      <span id="lenLabel">Rough length, racks</span>
-      <input id="racksIn" type="number" inputmode="numeric" min="1" max="30" value="5">
-    </div>
-    <div class="tgrid" id="targetsRow">
-      <div class="field"><span id="tgtALabel">Target</span><input id="tgtA" type="number" inputmode="numeric" min="1"></div>
-      <div class="field"><span id="tgtBLabel">Target</span><input id="tgtB" type="number" inputmode="numeric" min="1"></div>
-    </div>
-    <p class="thint" id="setupHint"></p>
+
+    <button class="foldhead" id="breakBtn"><span class="foldk">Break</span><span class="foldv" id="breakWho">—</span></button>
+  </div>
+  <div class="setupfoot">
     <p class="thint warn hidden" id="setupWarn"></p>
-    <button class="quiet" id="breakBtn">— breaks first</button>
     <button class="primary" id="startBtn" disabled>Start</button>
   </div>
 </section>
@@ -506,16 +560,17 @@ import { phone } from "../shared/phone.js";
 import { people } from "../shared/people.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "1.2.1";
+const APP_VERSION = "1.3.0";
 const APP_ID = "fair-nine";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 
 const $ = id => document.getElementById(id);
 const el = {};
 ["userBox","gate","gateErr","homeBody","playerList","noPlayers","newSessionBtn","addPlayerBtn",
- "pform","pfTitle","pfName","pfColours","pfZargoRow","pfZargo","pfNote","pfSave","pfCancel",
+ "pform","pfTitle","pfName","pfEmail","pfEmailLabel","pfEmailNote","pfColours","pfZargoRow","pfZargo","pfNote","pfSave","pfCancel",
  "scrHome","scrSetup","scrLive","setupBack","pickA","pickB","modes","lenRow","lenLabel","racksIn",
- "targetsRow","tgtA","tgtB","tgtALabel","tgtBLabel","setupHint","setupWarn","breakBtn","startBtn",
+ "targetsRow","tgtA","tgtB","tgtALabel","tgtBLabel","setupHint","setupWarn","breakBtn","breakWho","startBtn",
+ "foldLen","foldHcp","lenHead","hcpHead","lenSummary","hcpSummary","goldLen","hcps","raceForm","formTargets","formStart","raceNLabel",
  "sideA","sideB","nameA","nameB","rawA","rawB","subA","subB","cueA","cueB","leadName","leadNum","leadFill",
  "rackNo","deadCt","audit","breakFlip","rack","undo","next","end",
  "done","doneTitle","doneBody","doneZargo","doneNext","doneAnyway","doneBack","signInBig",
@@ -657,6 +712,7 @@ function P(id){
   const st = db.players[person.id] || {};
   return {
     id: person.id, name: person.name, colour: people.colourOf(person.id), deleted: !!person.deleted,
+    email: person.email || "", uid: person.uid || "",
     zargo: Number.isFinite(st.zargo) ? st.zargo : cfg().startZargo,
     robustness: st.robustness || 0, sessions: st.sessions || 0
   };
@@ -759,11 +815,11 @@ function renderHome(){
     const li = document.createElement("li");
     const b = document.createElement("button");
     const prov = p.robustness < cfg().provisionalRacks;
-    b.innerHTML = `<span class="pdot"></span>
-      <span class="pname"></span>
+    b.innerHTML = `<span class="pname"><span></span></span>
       <span class="pstats">${Math.round(p.zargo)} · robustness ${p.robustness}${prov ? '<br><span class="prov">provisional</span>' : ""}</span>`;
-    b.querySelector(".pdot").style.background = p.colour;
-    b.querySelector(".pname").textContent = p.name;
+    b.prepend(people.avatar(id, 36));
+    b.querySelector(".pname span").textContent = p.name;
+    if(!p.email) b.querySelector(".pname").insertAdjacentHTML("beforeend", '<span class="nogmail">No Gmail</span>');
     b.addEventListener("click", () => openPlayerForm(id));
     li.appendChild(b);
     el.playerList.appendChild(li);
@@ -784,6 +840,14 @@ function openPlayerForm(id){
   const p = id ? P(id) : null;
   el.pfTitle.textContent = p ? "Edit " + p.name : "Add player";
   el.pfName.value = p ? p.name : "";
+  // Every player needs a Gmail (SPEC §13.8). A claimed player's is their Google account's.
+  el.pfEmail.value = p ? p.email : "";
+  el.pfEmail.disabled = !!(p && p.uid);
+  el.pfEmailLabel.textContent = p && people.isMe(id) ? "Your Gmail" : "Their Gmail";
+  el.pfEmailNote.textContent = p && p.uid ? `Claimed by ${p.email || "a Google account"}. Unclaim from the button below.`
+    : p && !p.email ? "No Gmail yet. Add one to save: they sign in with it and claim the player."
+    : "They sign in with this and claim the player.";
+  pfReady();
   pfColour = p ? p.colour : people.nextColour();
   el.pfZargoRow.classList.toggle("hidden", !p);
   el.pfZargo.value = p ? Math.round(p.zargo) : "";
@@ -807,11 +871,18 @@ function openPlayerForm(id){
   el.pform.classList.remove("hidden");
   if(!p) el.pfName.focus();
 }
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function pfReady(){
+  el.pfSave.disabled = !el.pfName.value.trim() || !EMAIL_RE.test(el.pfEmail.value.trim());
+}
+el.pfName.addEventListener("input", pfReady);
+el.pfEmail.addEventListener("input", () => { el.pfNote.classList.add("hidden"); pfReady(); });
 el.pfCancel.addEventListener("click", () => el.pform.classList.add("hidden"));
 // A sign-in Gmail, and merging someone added twice, live in the sheet every app shares.
 el.pfShared.addEventListener("click", () => {
   const id = pfEditing;
   el.pform.classList.add("hidden");
+  // The sheet lets only you edit your own Cuescore link; anyone else's shows read-only.
   people.edit(id, { noun: "player", cuescore: true });
 });
 el.pfDelete.addEventListener("click", async () => {
@@ -824,7 +895,17 @@ el.pfDelete.addEventListener("click", async () => {
 });
 el.pfSave.addEventListener("click", async () => {
   const name = el.pfName.value.trim();
+  const email = el.pfEmail.value.trim().toLowerCase();
   if(!name){ el.pfName.focus(); return; }
+  if(!EMAIL_RE.test(email)){ el.pfEmail.focus(); return; }
+  const twin = people.active().find(q => q.id !== people.resolve(pfEditing) && (q.email || "").toLowerCase() === email);
+  if(twin){
+    el.pfNote.textContent = `${twin.name} already has that Gmail.`;
+    el.pfNote.classList.remove("hidden");
+    return;
+  }
+  // Saving a new Gmail invites it, so they can sign in straight away.
+  const invite = () => cloud.addMember(email).catch(e => console.warn("[invite]", e));
   if(pfEditing){
     const p = P(pfEditing);
     const z = parseInt(el.pfZargo.value, 10);
@@ -832,13 +913,15 @@ el.pfSave.addEventListener("click", async () => {
       if(!confirm(`Set ${name}'s Zargo to ${z}? This overrides the earned rating.`)) return;
       savePlayer(p.id, { zargo: z }).catch(e => console.warn(e));
     }
-    people.update(p.id, { name, colour: pfColour });
+    people.update(p.id, p.uid ? { name, colour: pfColour } : { name, colour: pfColour, email });
+    if(!p.uid && email !== p.email) invite();
   } else {
     // The list is shared with the other apps, so the Melanie being added may already be there.
     const twin = people.active().find(q => q.name.trim().toLowerCase() === name.toLowerCase());
     if(twin && !confirm(`There's already a ${twin.name} — every sidequests app uses the same list. Add another ${name} anyway?`)) return;
     const est = estUsed ? estimateZargo() : null;
-    const id = people.add({ name, colour: pfColour });
+    const id = people.add({ name, email, colour: pfColour });
+    invite();
     savePlayer(id, { zargo: est === null ? cfg().startZargo : est, robustness: 0, sessions: 0 })
       .catch(e => console.warn(e));
   }
@@ -888,29 +971,86 @@ el.estRefScore.addEventListener("input", () => updateEstimate(true));
 el.estNewScore.addEventListener("input", () => updateEstimate(true));
 
 // ---------- session setup ----------
+// One page (SPEC §13.3): Game, Players, then Length, Handicap and Break folded to one row
+// each showing the default, and Start pinned below. A repeat of last night is Game, two
+// names, Start.
 const GAME_KEY = "fair-nine.game";   // the last game picked, per phone
-// raceTo is the Trad-Nine race length; raceOther means it's typed in rather than a chip.
-const setup = { game:"league", a:null, b:null, mode:"race", breaker:"a", raceTo:5, raceOther:false };
+//   mode      race | fixed | open. A race in racks (Trad-Nine, or the Racks lever) is "race".
+//   raceTo    the race length: racks for a race in racks, points for a Golden-Nine points race.
+//   raceOther the race length is typed in rather than a chip.
+//   handicap  off | scoring | racks.  form: a Racks handicap as unequal targets, or a head start.
+const setup = { game:"league", a:null, b:null, mode:"race", breaker:"a", raceTo:5, raceOther:false,
+  handicap:"scoring", form:"targets" };
+const HCP_LABEL = { off: "Off", scoring: "Scoring", racks: "Racks" };
+const RACK_RACE_MAX = 15;     // the race chart's range
+const GOLD_RACE = 35;         // the Golden-Nine points race chip
 function storedGame(){
   try { const g = localStorage.getItem(GAME_KEY); return GAME_LABEL[g] ? g : "league"; }
   catch(e){ return "league"; }
 }
-// Each game's length default: 11-Point-Nine a rough 5-rack race (as before), Golden-Nine 5 fixed
-// racks, Trad-Nine a race to 5 racks.
-function applyGameDefaults(){
-  setup.mode = setup.game === "golden" ? "fixed" : "race";
+// A race counted in racks rather than points: Trad-Nine always, any game with the Racks lever.
+const racesRacks = ctx => gameOf(ctx) === "standard" || handicapOf(ctx) === "racks";
+const setupRacks = () => setup.game === "standard" || setup.handicap === "racks";
+const goldPoints = () => setup.game === "golden" && setup.handicap !== "racks" && setup.mode === "race";
+// Scoring needs points to share, so not Trad-Nine. Racks needs a race or a rack count, so
+// not an open match, and not a Golden-Nine race to points.
+function hcpAllowed(h){
+  if(h === "scoring") return setup.game !== "standard";
+  if(h === "racks") return !(setup.handicap !== "racks" && (setup.mode === "open" || goldPoints()));
+  return true;
+}
+// Each game's defaults: 11-Point-Nine a rough 5-rack race with the scoring handicap, Golden-Nine
+// 5 fixed racks with scoring, Trad-Nine a level race to 5. The Racks lever is a race to 5 in racks.
+function applyLengthDefaults(){
+  setup.mode = setup.game === "golden" && setup.handicap !== "racks" ? "fixed" : "race";
   setup.raceTo = 5;
   setup.raceOther = false;
+  setup.form = "targets";
   el.racksIn.value = DEFAULT_RACKS;
+  el.raceN.value = 9;
 }
+function applyGameDefaults(){
+  setup.handicap = setup.game === "standard" ? "off" : "scoring";
+  setup.breaker = "a";
+  applyLengthDefaults();
+}
+
+// Recent matches, newest first, so the amber side lists who the blue player last played.
+let recentMatches = [];
+async function loadRecent(){
+  try {
+    const ss = await cloud.list("sessions", { orderBy: "startedAt", desc: true, limit: 60 });
+    recentMatches = ss.filter(x => x.status !== "discarded");
+    if(!el.scrSetup.classList.contains("hidden")) renderSetup();
+  } catch(e){ console.warn("[recent]", e); }
+}
+function opponentsFirst(ids, of){
+  const rank = new Map();
+  recentMatches.forEach((m, i) => {
+    const a = people.resolve(m.playerA), b = people.resolve(m.playerB);
+    const opp = !of ? [a, b] : a === of ? [b] : b === of ? [a] : [];
+    opp.forEach(x => { if(!rank.has(x)) rank.set(x, i); });
+  });
+  const r = id => rank.has(id) ? rank.get(id) : Infinity;
+  return ids.slice().sort((x, y) => r(x) - r(y) || nameOf(x).localeCompare(nameOf(y)));
+}
+
 function openSetup(){
   setup.game = storedGame();
-  setup.a = null; setup.b = null; setup.breaker = "a";
+  const me = people.meId();
+  setup.a = me && activePlayers().includes(me) ? me : null;   // you, on the blue side
+  setup.b = null;
   applyGameDefaults();
+  el.foldLen.classList.remove("open");
+  el.foldHcp.classList.remove("open");
   renderSetup();
   show("setup");
+  el.scrSetup.querySelector(".setupbody").scrollTop = 0;
+  loadRecent();
 }
 el.setupBack.addEventListener("click", () => show("home"));
+el.lenHead.addEventListener("click", () => el.foldLen.classList.toggle("open"));
+el.hcpHead.addEventListener("click", () => el.foldHcp.classList.toggle("open"));
 el.games.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
   setup.game = b.dataset.game;
   try { localStorage.setItem(GAME_KEY, setup.game); } catch(e){}
@@ -918,77 +1058,238 @@ el.games.querySelectorAll("button").forEach(b => b.addEventListener("click", () 
   proposeTargets();
   renderSetup();
 }));
-// A typed race length, or null while the box doesn't hold a usable number.
+// The typed race length, or null while the box doesn't hold a usable number.
+const raceMax = () => setup.handicap === "racks" ? RACK_RACE_MAX : goldPoints() ? 200 : 30;
 function typedRace(){
   const n = parseInt(el.raceN.value, 10);
-  return n >= 1 && n <= 30 ? n : null;
+  return n >= 1 && n <= raceMax() ? n : null;
 }
 el.raceLen.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
   setup.raceOther = b.dataset.n === "other";
   setup.raceTo = setup.raceOther ? typedRace() : +b.dataset.n;
+  proposeTargets();
   renderSetup();
   if(setup.raceOther) el.raceN.focus();
 }));
-el.raceN.addEventListener("input", () => { setup.raceTo = typedRace(); renderSetup(); });
+el.goldLen.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+  const len = b.dataset.len;
+  if(len === "other" && !(setup.mode === "race" && setup.raceOther)) el.raceN.value = GOLD_RACE;
+  setup.mode = len === "fixed" ? "fixed" : "race";
+  setup.raceOther = len === "other";
+  setup.raceTo = len === "fixed" ? 5 : setup.raceOther ? typedRace() : GOLD_RACE;
+  proposeTargets();
+  renderSetup();
+  if(setup.raceOther) el.raceN.focus();
+}));
+el.raceN.addEventListener("input", () => { setup.raceTo = typedRace(); proposeTargets(); renderSetup(); });
+el.hcps.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+  const h = b.dataset.h;
+  if(h === setup.handicap || !hcpAllowed(h)) return;
+  const wasRacks = setup.handicap === "racks";
+  setup.handicap = h;
+  // In and out of the Racks lever the length changes unit, so it starts again from the default.
+  if(wasRacks || h === "racks") applyLengthDefaults();
+  proposeTargets();
+  renderSetup();
+}));
+el.raceForm.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+  setup.form = b.dataset.form;
+  renderSetup();
+}));
+[el.tgtA, el.tgtB].forEach(inp => inp.addEventListener("input", () => renderSetup()));
+
+// Race chart (ZARGO.md "Handicap levers"). The chance that a player who wins each rack with
+// probability p gets x racks before the opponent gets y: a small dynamic programme.
+function raceWin(p, x, y){
+  const f = [];
+  for(let i = 0; i <= x; i++){
+    f[i] = [];
+    for(let j = 0; j <= y; j++)
+      f[i][j] = i === 0 ? (j === 0 ? 0 : 1) : j === 0 ? 0 : p * f[i - 1][j] + (1 - p) * f[i][j - 1];
+  }
+  return f[x][y];
+}
+// The favourite races to n; the underdog's target (1 to n) is whichever makes the race
+// nearest to even. Ties go to the longer race.
+function raceChart(pA, n){
+  const favA = pA >= 0.5, p = favA ? pA : 1 - pA;
+  let k = n, gap = Infinity;
+  for(let j = n; j >= 1; j--){
+    const g = Math.abs(raceWin(p, n, j) - 0.5);
+    if(g < gap - 1e-9){ gap = g; k = j; }
+  }
+  return favA ? { a: n, b: k } : { a: k, b: n };
+}
+const readTarget = inp => { const n = parseInt(inp.value, 10); return n >= 1 ? n : null; };
+
+// Fill the target boxes from the length, the handicap and the ratings. Only called when one
+// of those changes, so a target typed in by hand stays put otherwise.
+function proposeTargets(){
+  const a = P(setup.a), b = P(setup.b);
+  if(!a || !b) return;
+  const eA = expectedShareA(a.zargo, b.zargo);
+  let t = null;
+  if(setup.handicap === "racks"){
+    if(setup.raceTo) t = raceChart(eA, setup.raceTo);
+  } else if(setup.game === "league" && setup.mode === "race"){
+    const racks = Math.max(1, parseInt(el.racksIn.value, 10) || DEFAULT_RACKS);
+    const share = setup.handicap === "off" ? 0.5 : eA;
+    t = { a: Math.round(LIVE_POINTS() * racks * share), b: Math.round(LIVE_POINTS() * racks * (1 - share)) };
+  } else if(goldPoints() && setup.raceTo){
+    // The pair's combined 2N shared by expected rack-win share (ZARGO.md: point share ≈ rack share).
+    const N = setup.raceTo;
+    const ta = Math.min(2 * N - 1, Math.max(1, Math.round(2 * N * eA)));
+    t = setup.handicap === "off" ? { a: N, b: N } : { a: ta, b: 2 * N - ta };
+  }
+  if(!t) return;
+  el.tgtA.value = Math.max(1, t.a);
+  el.tgtB.value = Math.max(1, t.b);
+}
+
+// What Start will play: mode, targets, head start. One place, so setup's words and the match agree.
+function plannedMatch(){
+  const game = setup.game, h = setup.handicap;
+  const racks = Math.max(1, parseInt(el.racksIn.value, 10) || DEFAULT_RACKS);
+  const typed = { a: readTarget(el.tgtA), b: readTarget(el.tgtB) };
+  const typedOk = typed.a && typed.b;
+  if(h === "racks"){
+    if(!typedOk) return null;
+    const n = Math.max(typed.a, typed.b);
+    return setup.form === "start" && typed.a !== typed.b
+      ? { mode: "race", targets: { a: n, b: n }, start: { a: n - typed.a, b: n - typed.b }, racks }
+      : { mode: "race", targets: typed, start: { a: 0, b: 0 }, racks };
+  }
+  if(game === "standard") return setup.raceTo ? { mode: "race", targets: { a: setup.raceTo, b: setup.raceTo }, racks } : null;
+  if(setup.mode !== "race") return { mode: setup.mode, targets: null, racks };
+  if(game === "golden" && !setup.raceTo) return null;
+  if(h === "off"){
+    // No quotas: a plain race, the same number for both.
+    const n = game === "golden" ? setup.raceTo : Math.round(LIVE_POINTS() * racks / 2);
+    return { mode: "race", targets: { a: n, b: n }, racks };
+  }
+  return typedOk ? { mode: "race", targets: typed, racks } : null;
+}
 
 function renderSetup(){
-  const league = setup.game === "league";
+  if(!hcpAllowed(setup.handicap)){ setup.handicap = setup.game === "standard" ? "off" : "scoring"; applyLengthDefaults(); }
+  const league = setup.game === "league", golden = setup.game === "golden";
+  const racksLever = setup.handicap === "racks", rackRace = setupRacks();
   el.games.querySelectorAll("button").forEach(b =>
     b.classList.toggle("sel", b.dataset.game === setup.game));
-  el.modes.classList.toggle("hidden", !league);
-  el.raceLen.classList.toggle("hidden", setup.game !== "standard");
-  el.raceLen.querySelectorAll("button").forEach(b =>
-    b.classList.toggle("sel", setup.raceOther ? b.dataset.n === "other" : +b.dataset.n === setup.raceTo));
-  el.raceNRow.classList.toggle("hidden", !(setup.game === "standard" && setup.raceOther));
-  [["pickA","a"],["pickB","b"]].forEach(([box, side]) => {
+
+  // ---- players: you first on blue, the blue player's recent opponents first on amber ----
+  const ids = activePlayers();
+  const me = people.meId();
+  const orderA = ids.slice().sort((x, y) => (y === me) - (x === me));
+  const orderB = opponentsFirst(ids, setup.a);
+  [["pickA","a",orderA],["pickB","b",orderB]].forEach(([box, side, order]) => {
     el[box].innerHTML = "";
-    activePlayers().forEach(id => {
+    order.forEach(id => {
       const b = document.createElement("button");
-      b.textContent = nameOf(id);
+      const n = document.createElement("span");
+      n.textContent = nameOf(id);
+      b.append(people.avatar(id, 36), n);
       b.classList.toggle("sel", setup[side] === id);
-      const other = side === "a" ? "b" : "a";
-      b.disabled = setup[other] === id;      // same player on both sides is blocked
+      b.disabled = setup[other(side)] === id;      // same player on both sides is blocked
       b.addEventListener("click", () => { setup[side] = id; proposeTargets(); renderSetup(); });
       el[box].appendChild(b);
     });
   });
-  el.modes.querySelectorAll("button").forEach(b =>
-    b.classList.toggle("sel", b.dataset.mode === setup.mode));
-  el.lenRow.classList.toggle("hidden", setup.mode === "open" || setup.game === "standard");
-  el.lenLabel.textContent = setup.game === "golden" ? "Racks to play (a tie adds one)"
-    : setup.mode === "race" ? "Rough length, racks" : "Racks to play";
-  el.targetsRow.classList.toggle("hidden", !(league && setup.mode === "race"));
 
+  // ---- length ----
+  el.modes.classList.toggle("hidden", !(league && !racksLever));
+  el.modes.querySelectorAll("button").forEach(b => b.classList.toggle("sel", b.dataset.mode === setup.mode));
+  el.goldLen.classList.toggle("hidden", !(golden && !racksLever));
+  el.goldLen.querySelectorAll("button").forEach(b => b.classList.toggle("sel",
+    b.dataset.len === (setup.mode === "fixed" ? "fixed" : setup.raceOther ? "other" : String(GOLD_RACE))));
+  el.raceLen.classList.toggle("hidden", !rackRace);
+  el.raceLen.querySelectorAll("button").forEach(b =>
+    b.classList.toggle("sel", setup.raceOther ? b.dataset.n === "other" : +b.dataset.n === setup.raceTo));
+  el.raceNRow.classList.toggle("hidden", !((rackRace || goldPoints()) && setup.raceOther));
+  el.raceNLabel.textContent = goldPoints() ? "Race to, points (1 to 200)" : `Race to, racks (1 to ${raceMax()})`;
+  el.raceN.max = raceMax();
+  el.lenRow.classList.toggle("hidden", rackRace || setup.mode === "open" || goldPoints());
+  el.lenLabel.textContent = golden ? "Racks to play (a tie adds one)"
+    : setup.mode === "race" ? "Rough length, racks" : "Racks to play";
+  const racks = Math.max(1, parseInt(el.racksIn.value, 10) || DEFAULT_RACKS);
+  const racksWord = n => n + (n === 1 ? " rack" : " racks");
+  el.lenSummary.textContent =
+      rackRace ? (setup.raceTo ? `Race to ${setup.raceTo}` : "Type a race length")
+    : goldPoints() ? (setup.raceTo ? `Race to ${setup.raceTo} points` : "Type a points target")
+    : golden ? `${racksWord(racks)}, a tie adds one`
+    : setup.mode === "race" ? `Race, about ${racksWord(racks)}`
+    : setup.mode === "fixed" ? racksWord(racks) : "Open, end any time";
+  if((rackRace || goldPoints()) && !setup.raceTo) el.foldLen.classList.add("open");
+
+  // ---- handicap ----
+  el.hcps.querySelectorAll("button").forEach(b => {
+    b.classList.toggle("sel", b.dataset.h === setup.handicap);
+    b.disabled = !hcpAllowed(b.dataset.h);
+  });
   const a = P(setup.a), b = P(setup.b);
-  el.tgtALabel.textContent = a ? a.name + "'s target" : "Target A";
-  el.tgtBLabel.textContent = b ? b.name + "'s target" : "Target B";
+  const plan = a && b ? plannedMatch() : null;
+  const showTargets = !!(a && b) && (racksLever || (setup.handicap === "scoring" && setup.mode === "race"));
+  el.targetsRow.classList.toggle("hidden", !showTargets);
+  el.tgtALabel.textContent = (a ? a.name : "Blue") + (racksLever ? " races to" : "'s target");
+  el.tgtBLabel.textContent = (b ? b.name : "Amber") + (racksLever ? " races to" : "'s target");
+  const typed = { a: readTarget(el.tgtA), b: readTarget(el.tgtB) };
+  const uneven = racksLever && typed.a && typed.b && typed.a !== typed.b;
+  el.raceForm.classList.toggle("hidden", !(a && b && uneven));
+  let chartLine = "", startLine = "";
+  if(a && b && typed.a && typed.b){
+    const n = Math.max(typed.a, typed.b);
+    const dog = typed.a < typed.b ? a : b;
+    chartLine = `${a.name} to ${typed.a}, ${b.name} to ${typed.b}`;
+    startLine = `${dog.name} starts ${n - Math.min(typed.a, typed.b)} up in a race to ${n}`;
+    el.formTargets.textContent = chartLine;
+    el.formStart.textContent = startLine;
+    el.raceForm.querySelectorAll("button").forEach(x => x.classList.toggle("sel", x.dataset.form === setup.form));
+  }
+  el.hcpSummary.textContent = !(a && b) ? HCP_LABEL[setup.handicap]
+    : racksLever ? (!plan ? "Racks · type both targets" : !uneven ? `Racks · level, both to ${typed.a}`
+        : `Racks · ${setup.form === "start" ? startLine : chartLine}`)
+    : setup.handicap === "scoring" && plan && plan.targets ? `Scoring · ${a.name} ${plan.targets.a}, ${b.name} ${plan.targets.b}`
+    : setup.handicap === "scoring" ? "Scoring · shared points"
+    : plan && plan.targets ? `Off · both race to ${plan.targets.a}`
+    : "Off · plain scores";
+
   if(a && b){
     const eA = expectedShareA(a.zargo, b.zargo);
     const H = eA / (1 - eA);
     // Zargo is odds on a rack, so the same H reads as points in 11-Point-Nine and racks elsewhere.
-    const unit = league ? "points" : "racks";
-    const odds = Math.max(H, 1 / H).toFixed(1) === "1.0" ? ""   // "1.0 for each 1" just means even
-      : `${H > 1 ? a.name : b.name} is expected to ${league ? "score" : "win"} ` +
-        `${H > 1 ? H.toFixed(1) : (1/H).toFixed(1)} ${unit} for each 1 of ${H > 1 ? b.name : a.name}'s.`;
-    el.setupHint.textContent =
-      setup.game === "standard"
-        ? (setup.raceTo ? `No handicap: both race to ${setup.raceTo}. ${odds}` : "Type a race length from 1 to 30.")
-      : setup.game === "golden" ? (odds ? odds + " The lead bar shares the points out on that basis." : "Even match.")
-      : (odds || "Even match — equal targets.");
-    el.breakBtn.textContent = (setup.breaker === "a" ? a.name : b.name) + " breaks first";
+    const fav = H >= 1 ? a : b, dog = H >= 1 ? b : a;
+    const odds = Math.max(H, 1 / H).toFixed(1) === "1.0" ? "Near-level ratings, so an even match."
+      : `${fav.name} is expected to ${league && !racksLever ? "score" : "win"} ` +
+        `${Math.max(H, 1 / H).toFixed(1)} ${league && !racksLever ? "points" : "racks"} for each 1 of ${dog.name}'s.`;
+    let more = "";
+    if(racksLever && typed.a && typed.b){
+      const pct = Math.round(raceWin(eA, typed.a, typed.b) * 100);
+      more = ` Racing ${typed.a} against ${typed.b}, ${a.name} wins the match ${pct}% of the time.`;
+    } else if(setup.handicap === "off"){
+      more = " Handicap off: plain scores decide it. Ratings still learn from the result.";
+    } else if(golden && setup.mode === "race"){
+      more = setup.raceTo ? ` The ${2 * setup.raceTo} points of two races to ${setup.raceTo} are shared out on that basis.` : "";
+    } else if(golden){
+      more = " The lead bar shares the points out on that basis.";
+    } else if(setup.mode === "race"){
+      more = " Targets share the points out on that basis.";
+    }
+    el.setupHint.textContent = odds + more;
+    el.breakWho.textContent = (setup.breaker === "a" ? a.name : b.name) + " breaks";
     showShortRaceWarning(a, b, eA);
   } else {
-    el.setupHint.textContent = "Pick a player for each side.";
+    el.setupHint.textContent = "Pick a player for each side to see the handicap.";
     el.setupWarn.classList.add("hidden");
-    el.breakBtn.textContent = "— breaks first";
+    el.breakWho.textContent = "—";
   }
-  el.startBtn.disabled = !(setup.a && setup.b) || (setup.game === "standard" && !setup.raceTo);
+  el.startBtn.disabled = !(a && b && plan);
+  el.startBtn.textContent = !(a && b) ? "Pick two players" : plan ? "Start" : "Set the length first";
 }
 const FAIR_RACE_MIN = 8;   // points; below this one rack can decide the session
 
 function showShortRaceWarning(a, b, eA){
   const small = Math.min(parseInt(el.tgtA.value, 10) || 0, parseInt(el.tgtB.value, 10) || 0);
-  if(setup.game !== "league" || setup.mode !== "race" || !small || small >= FAIR_RACE_MIN){
+  if(setup.game !== "league" || setup.handicap !== "scoring" || setup.mode !== "race" || !small || small >= FAIR_RACE_MIN){
     el.setupWarn.classList.add("hidden");
     return;
   }
@@ -1001,14 +1302,6 @@ function showShortRaceWarning(a, b, eA){
   el.setupWarn.classList.remove("hidden");
 }
 
-function proposeTargets(){
-  const a = P(setup.a), b = P(setup.b);
-  if(!a || !b || setup.game !== "league" || setup.mode !== "race") return;
-  const racks = Math.max(1, parseInt(el.racksIn.value, 10) || DEFAULT_RACKS);
-  const eA = expectedShareA(a.zargo, b.zargo);
-  el.tgtA.value = Math.max(1, Math.round(LIVE_POINTS() * racks * eA));
-  el.tgtB.value = Math.max(1, Math.round(LIVE_POINTS() * racks * (1 - eA)));
-}
 el.racksIn.addEventListener("input", () => { proposeTargets(); renderSetup(); });
 el.modes.querySelectorAll("button").forEach(b =>
   b.addEventListener("click", () => { setup.mode = b.dataset.mode; proposeTargets(); renderSetup(); }));
@@ -1024,19 +1317,17 @@ let live = null;
 
 async function startSession(){
   const a = P(setup.a), b = P(setup.b);
-  const game = setup.game;
-  const racks = Math.max(1, parseInt(el.racksIn.value, 10) || DEFAULT_RACKS);
-  // Trad-Nine has no points to share, so until the Racks lever it is a level race.
-  const mode = game === "golden" ? "fixed" : setup.mode;
-  const targets = game === "standard" ? { a: setup.raceTo, b: setup.raceTo }
-    : mode === "race"
-    ? { a: Math.max(1, parseInt(el.tgtA.value, 10) || 1), b: Math.max(1, parseInt(el.tgtB.value, 10) || 1) }
-    : null;
+  const plan = a && b ? plannedMatch() : null;
+  if(!plan) return;
+  const game = setup.game, handicap = setup.handicap;
+  const { mode, targets, racks } = plan;
+  // The Racks lever's head start: racks the underdog has already won when the match begins.
+  const start = handicap === "racks" ? plan.start : null;
   const eA = expectedShareA(a.zargo, b.zargo);
   const id = cloud.newId();
   live = {
     id,
-    game, handicap: game === "standard" ? "off" : "scoring",
+    game, handicap, start,
     playerA: setup.a, playerB: setup.b,
     nameA: a.name, nameB: b.name,
     H: eA / (1 - eA), eA,
@@ -1050,7 +1341,8 @@ async function startSession(){
     banked: newBanked(),
     autoShown: false
   };
-  await cloud.save("sessions/" + id, {
+  const s0 = startOf(live);
+  await cloud.save("sessions/" + id, Object.assign({
     game: live.game, handicap: live.handicap,
     playerA: setup.a, playerB: setup.b,
     mode,
@@ -1061,8 +1353,8 @@ async function startSession(){
     zargoBefore: { a: a.zargo, b: b.zargo },
     zargoAfter: null,
     racks: {},
-    totals: { a:0, b:0, racksA:0, racksB:0, dead:0, lead:0, winner: null }
-  });
+    totals: { a:0, b:0, racksA: s0.a, racksB: s0.b, dead:0, lead:0, winner: null }
+  }, start ? { start } : {}));
   state.turn = live.breaker;   // the breaker shoots first
   el.done.classList.add("hidden");
   show("live");
@@ -1080,7 +1372,7 @@ function sync(extra){
   cloud.patch("sessions/" + live.id, Object.assign({
     ["racks." + live.rackNo]: rec,
     turn: state.turn,
-    totals: { a: t.a, b: t.b, racksA: r.a, racksB: r.b, dead: live.banked.dead + p.dead, lead: leadValue(), winner: null }
+    totals: { a: t.a, b: t.b, racksA: r.a, racksB: r.b, dead: live.banked.dead + p.dead, lead: matchResult(t, r).lead, winner: null }
   }, extra || {})).catch(e => console.warn("[sync]", e));
 }
 
@@ -1315,15 +1607,21 @@ function totals(){
   const p = rackPoints();
   return { a: live.banked.a + p.a, b: live.banked.b + p.b };
 }
-// Racks won, counting the rack in progress once it has a winner.
-function racksWon(){
-  const w = live.game === "league" ? null : live.rack.winner;
-  return { a: live.banked.racksA + (w === "a" ? 1 : 0), b: live.banked.racksB + (w === "b" ? 1 : 0) };
+// Racks on the board: any head start, the racks banked, and the rack in progress once it has
+// a winner. An 11-Point-Nine rack has one once the table is clear, or when `bank` says it's
+// about to be banked as it stands; it goes to whoever took more of its live points.
+const startOf = ctx => (ctx && ctx.start) || { a:0, b:0 };
+function racksWon(bank){
+  let w = null;
+  if(live.game !== "league") w = live.rack.winner;
+  else if(bank || resolvedCount() === 9){ const p = rackPoints(); w = p.a > p.b ? "a" : p.b > p.a ? "b" : null; }
+  const s = startOf(live);
+  return { a: s.a + live.banked.racksA + (w === "a" ? 1 : 0), b: s.b + live.banked.racksB + (w === "b" ? 1 : 0) };
 }
-function leadValue(){
-  const t = totals();
-  // in B's units; positive means B is ahead. With the handicap off it's the plain difference.
-  return live.handicap === "off" ? t.b - t.a : t.b - t.a / live.H;
+// The same after banking, when the rack in progress no longer counts.
+function bankedRacks(){
+  const s = startOf(live);
+  return { a: s.a + live.banked.racksA, b: s.b + live.banked.racksB };
 }
 const clamp1 = v => Math.max(-1, Math.min(1, v));
 
@@ -1351,22 +1649,33 @@ function quotas(ctx, t){
     : LIVE_POINTS() * racks;
   return { a: pts * ctx.eA, b: pts * (1 - ctx.eA) };
 }
-// Handicap off: plain scores in the panels and a lead of racks on the bar, full swing at a
-// lead the size of the race (or of the match's racks).
-function plainLead(ctx){
-  const r = ctx.racks || { a:0, b:0 };
-  const d = r.b - r.a;   // positive means B is ahead
+// Handicap off: plain scores in the panels and a plain lead on the bar — racks in Trad-Nine,
+// points in the games scored by points — full swing at a lead the size of the race, or of
+// one player's share of the match.
+function plainLead(t, ctx){
+  const byRacks = racesRacks(ctx);
+  const s = byRacks ? (ctx.racks || { a:0, b:0 }) : t;
+  const d = s.b - s.a;   // positive means B is ahead
   if(!d) return { pos: 0, num: "", aAhead: false };
   const aAhead = d < 0, n = Math.abs(d);
   const race = ctx.mode === "race" && ctx.targets;
+  const perRack = byRacks ? 1 : gameOf(ctx) === "golden" ? cfg().games.golden.points.win : LIVE_POINTS() / 2;
   const size = race ? Math.max(ctx.targets.a, ctx.targets.b)
-    : Math.max(DEFAULT_RACKS, ctx.racksPlanned || ctx.rackNo || 1);
-  const met = race && (r.a >= ctx.targets.a || r.b >= ctx.targets.b);
-  return { pos: met ? Math.sign(d) : clamp1(d / size), num: n + (n === 1 ? " rack" : " racks"), aAhead };
+    : perRack * Math.max(DEFAULT_RACKS, ctx.racksPlanned || ctx.rackNo || 1);
+  const met = race && (s.a >= ctx.targets.a || s.b >= ctx.targets.b);
+  const unit = byRacks ? (n === 1 ? " rack" : " racks") : (n === 1 ? " point" : " points");
+  return { pos: met ? Math.sign(d) : clamp1(d / size), num: n + unit, aAhead };
 }
 function leadState(t, ctx){
   const tied = { pos: 0, num: "", aAhead: false };
-  if(handicapOf(ctx) === "off") return plainLead(ctx);
+  if(handicapOf(ctx) === "off") return plainLead(t, ctx);
+  // The Racks lever: a race in racks. A head start reads as the shorter target it is, so
+  // both ways of writing the same handicap show the same bar.
+  if(handicapOf(ctx) === "racks"){
+    const s = startOf(ctx), r = ctx.racks || { a: s.a, b: s.b };
+    t = { a: r.a - s.a, b: r.b - s.b };
+    ctx = Object.assign({}, ctx, { mode: "race", targets: ctx.targets && { a: ctx.targets.a - s.a, b: ctx.targets.b - s.b } });
+  }
   const q = quotas(ctx, t);
   if(!q) return tied;
   const fA = t.a / q.a, fB = t.b / q.b;
@@ -1402,8 +1711,12 @@ function resolvedCount(){
   for(let k = 1; k <= 9; k++) if(live.balls[k]) r++;
   return r;
 }
-function targetReached(t){
-  return live.mode === "race" && (t.a >= live.targets.a || t.b >= live.targets.b);
+// A race is over once either player meets their target: in racks for a race in racks (with the
+// rack in progress, `bank` as in racksWon), otherwise in points.
+function targetReached(t, bank){
+  if(live.mode !== "race" || !live.targets) return false;
+  const s = racesRacks(live) ? racksWon(bank) : t;
+  return s.a >= live.targets.a || s.b >= live.targets.b;
 }
 
 function rackComplete(){
@@ -1412,7 +1725,7 @@ function rackComplete(){
   const sum = p.a + p.b + p.dead;
   const need = LIVE_POINTS();
   const t = totals();
-  const finished = targetReached(t) ||
+  const finished = targetReached(t, true) ||
     (live.mode === "fixed" && live.banked.racks + 1 >= live.racksPlanned);
   const goOn = finished ? () => { bankRack(); declare(); } : () => { bankRack(); nextRack(); };
   const goOnLabel = finished ? "Declare the result" : "Start rack " + (live.rackNo + 1);
@@ -1485,7 +1798,7 @@ function gameRackEnd(){
 // Golden-Nine's scheduled racks can end level; the rules settle that with one more rack.
 function lastRackBanked(){
   const t = { a: live.banked.a, b: live.banked.b };
-  if(live.game !== "golden" || live.mode !== "fixed" || matchResult(t).winner !== null) return declare();
+  if(live.game !== "golden" || live.mode !== "fixed" || matchResult(t, bankedRacks()).winner !== null) return declare();
   el.doneTitle.textContent = `Tied after ${live.banked.racks} racks`;
   el.doneBody.textContent = `${live.nameA} ${t.a}, ${live.nameB} ${t.b}. Golden-Nine settles a tie with one more rack.`;
   el.doneZargo.classList.add("hidden");
@@ -1669,42 +1982,56 @@ function zargoOutcome(results){
   return { a:{from:za, to:za + dA}, b:{from:zb, to:zb + dB}, cal:null };
 }
 
-// Who won. 11-Point-Nine and Golden-Nine with the scoring handicap: the adjusted lead. Handicap
-// off: the plain difference. A race outside 11-Point-Nine goes to whoever met their target. In
-// Golden-Nine a second intentional foul loses the match whatever the score.
-function matchResult(t){
-  const lead = live.handicap === "off" ? t.b - t.a : t.b - t.a / live.H;
+// Who won, from points t and racks r (head start included). 11-Point-Nine and Golden-Nine with
+// the scoring handicap: the adjusted lead. Handicap off: the plain difference, in racks for
+// Trad-Nine. A race goes to whoever met their target — in racks for a race in racks, in points
+// outside 11-Point-Nine. The Racks lever ended early: whoever is further through their own race.
+// In Golden-Nine a second intentional foul loses the match whatever the score.
+// lead is in B's favour when positive.
+function matchResult(t, r){
+  const byRacks = racesRacks(live);
+  let lead = live.handicap === "off" ? (byRacks ? r.b - r.a : t.b - t.a) : t.b - t.a / live.H;
+  if(live.handicap === "racks" && live.targets){
+    const s = startOf(live);
+    lead = (r.b - s.b) / (live.targets.b - s.b) - (r.a - s.a) / (live.targets.a - s.a);
+  }
   const byLead = Math.abs(lead) < 0.001 ? null : (lead < 0 ? "a" : "b");
   if(live.game === "golden"){
     const outA = intentionalsBy(live.banked, "a") >= 2, outB = intentionalsBy(live.banked, "b") >= 2;
     if(outA !== outB) return { lead, winner: outA ? "b" : "a" };
   }
-  if(live.game !== "league" && live.mode === "race" && live.targets){
-    const metA = t.a >= live.targets.a, metB = t.b >= live.targets.b;
+  if(live.mode === "race" && live.targets && (byRacks || live.game !== "league")){
+    const got = byRacks ? r : t;
+    const metA = got.a >= live.targets.a, metB = got.b >= live.targets.b;
     if(metA !== metB) return { lead, winner: metA ? "a" : "b" };
   }
   return { lead, winner: byLead };
 }
 
-// One line of result for a summary, a watcher or a rack-end card.
-function scoreLine(game, nA, nB, t){
+// One line of result for a summary, a watcher or a rack-end card. m is the match (live or a
+// document), for its game and handicap; racks include any head start.
+function scoreLine(m, nA, nB, t){
+  const game = gameOf(m), s = startOf(m);
   const racks = t.racksA !== undefined ? `, racks ${t.racksA || 0}–${t.racksB || 0}` : "";
-  if(game === "standard") return `${GAME_LABEL[game]}: ${nA} ${t.a}, ${nB} ${t.b} in racks.`;
+  const head = s.a || s.b ? ` (${s.a ? nA : nB} started ${s.a || s.b} up)` : "";
+  if(game === "standard") return `${GAME_LABEL[game]}: ${nA} ${t.racksA ?? t.a}, ${nB} ${t.racksB ?? t.b} in racks${head}.`;
+  if(racesRacks(m)) return `${GAME_LABEL[game]}: racks ${nA} ${t.racksA || 0}, ${nB} ${t.racksB || 0}${head}. ` +
+    (game === "golden" ? `Points ${t.a}–${t.b}.` : `Points ${t.a}–${t.b}, ${t.dead || 0} dead.`);
   if(game === "golden") return `${GAME_LABEL[game]}: ${nA} ${t.a}, ${nB} ${t.b}${racks}.`;
   return `${nA} ${t.a}, ${nB} ${t.b}, ${t.dead || 0} dead.`;
 }
 
 function declare(){
-  const t = { a: live.banked.a, b: live.banked.b };
-  const { lead, winner } = matchResult(t);
+  const t = { a: live.banked.a, b: live.banked.b }, r = bankedRacks();
+  const { lead, winner } = matchResult(t, r);
   const results = rackResults(live.game, live.banked.points);
   const z = zargoOutcome(results);
   el.doneTitle.textContent = winner === null ? "Tied"
     : `${winner === "a" ? live.nameA : live.nameB} wins`;
   el.doneBody.textContent =
     `${live.banked.racks} rack${live.banked.racks === 1 ? "" : "s"}. ` +
-    scoreLine(live.game, live.nameA, live.nameB,
-      { a: t.a, b: t.b, dead: live.banked.dead, racksA: live.banked.racksA, racksB: live.banked.racksB });
+    scoreLine(live, live.nameA, live.nameB,
+      { a: t.a, b: t.b, dead: live.banked.dead, racksA: r.a, racksB: r.b });
   el.doneZargo.textContent =
     `${live.nameA} ${Math.round(z.a.from)} → ${Math.round(z.a.to)} · ` +
     `${live.nameB} ${Math.round(z.b.from)} → ${Math.round(z.b.to)}` +
@@ -1721,10 +2048,10 @@ function declare(){
 }
 
 async function finish(status, t, lead, winner, z, weight){
+  const r = bankedRacks();
   const patch = {
     status, endedAt: Date.now(),
-    totals: { a: t.a, b: t.b, racksA: live.banked.racksA, racksB: live.banked.racksB,
-              dead: live.banked.dead, lead, winner }
+    totals: { a: t.a, b: t.b, racksA: r.a, racksB: r.b, dead: live.banked.dead, lead, winner }
   };
   if(status === "done" && z){
     // Discarding never touches ratings; saving moves both and feeds robustness.
@@ -1772,7 +2099,8 @@ function render(){
     paintLead(t, Object.assign({}, live, { racks: r }), live.nameA, live.nameB);
     el.rackNo.textContent = live.rackNo + (live.mode === "fixed" ? " of " + live.racksPlanned : "");
     el.breakFlip.textContent = "break: " + (live.breaker === "a" ? live.nameA : live.nameB);
-    el.audit.innerHTML = "";
+    // A Golden-Nine race in racks still scores points; they sit in the meta strip.
+    el.audit.textContent = live.game === "golden" && racesRacks(live) ? `${t.a}–${t.b} pts` : "";
     el.undo.disabled = !live.history.length;
     // A win tap ends the rack; the card follows a moment later so the chosen button shows.
     if(!live.rack.winner) live.autoShown = false;
@@ -1790,19 +2118,17 @@ function render(){
     node.style.setProperty("--own", s === "b" ? "var(--ochre)" : "var(--chalk)");
   }
 
-  const t = totals(), p = rackPoints();
-  el.rawA.textContent = t.a;
-  el.rawB.textContent = t.b;
-  el.subA.textContent = live.mode === "race" ? needText(t.a, live.targets.a) : "";
-  el.subB.textContent = live.mode === "race" ? needText(t.b, live.targets.b)
-    : (live.mode === "fixed" ? live.racksPlanned + " racks" : "open");
-  paintLead(t, live, live.nameA, live.nameB);
+  const t = totals(), p = rackPoints(), r = racksWon();
+  paintLeaguePanels(live, t, r);
+  paintLead(t, Object.assign({}, live, { racks: r }), live.nameA, live.nameB);
   el.rackNo.textContent = live.rackNo;
   el.deadCt.textContent = live.banked.dead + p.dead;
   el.breakFlip.textContent = "break: " + (live.breaker === "a" ? live.nameA : live.nameB);
 
   const resolved = resolvedCount();
-  el.audit.innerHTML = resolved === 9 ? '<span class="ok">table clear</span>' : "";
+  // Racing in racks, the big numbers are racks, so this rack's points go in the meta strip.
+  el.audit.innerHTML = resolved === 9 ? '<span class="ok">table clear</span>'
+    : racesRacks(live) ? `${p.a}–${p.b} pts` : "";
   el.undo.disabled = !live.history.length;
 
   // when the table clears, show the 11-point check (re-arms if a ball is cleared again)
@@ -1821,15 +2147,27 @@ function showGameArea(game){
   el.deadWrap.classList.toggle("hidden", !league);
   el.next.classList.toggle("hidden", !league);
 }
-// Panels for Golden-Nine and Trad-Nine: the score (points, or racks in Trad-Nine) and underneath
-// either the run-in to a race target or the racks won.
+// Panels for Golden-Nine and Trad-Nine: the score (points, or racks in a race in racks) and
+// underneath either the run-in to a race target or the racks won.
 function paintGamePanels(game, ctx, t, r){
   const racksText = n => n + (n === 1 ? " rack" : " racks");
-  el.rawA.textContent = t.a;
-  el.rawB.textContent = t.b;
+  const s = racesRacks(ctx) ? r : t;
+  el.rawA.textContent = s.a;
+  el.rawB.textContent = s.b;
   const race = ctx.mode === "race" && ctx.targets;
-  el.subA.textContent = race ? needText(t.a, ctx.targets.a) : racksText(r.a);
-  el.subB.textContent = race ? needText(t.b, ctx.targets.b) : racksText(r.b);
+  el.subA.textContent = race ? needText(s.a, ctx.targets.a) : racksText(r.a);
+  el.subB.textContent = race ? needText(s.b, ctx.targets.b) : racksText(r.b);
+}
+// 11-Point-Nine panels: points, and the run-in to a race target. With the Racks lever the race
+// is in racks, so the big numbers are racks.
+function paintLeaguePanels(ctx, t, r){
+  const race = ctx.mode === "race" && ctx.targets;
+  const s = racesRacks(ctx) ? r : t;
+  el.rawA.textContent = s.a;
+  el.rawB.textContent = s.b;
+  el.subA.textContent = race ? needText(s.a, ctx.targets.a) : "";
+  el.subB.textContent = race ? needText(s.b, ctx.targets.b)
+    : (ctx.mode === "fixed" ? ctx.racksPlanned + " racks" : "open");
 }
 
 // ---------- second-phone live view (read-only) ----------
@@ -1866,7 +2204,7 @@ function watchOver(doc){
   const w = t.winner;
   el.doneTitle.textContent = doc.status === "discarded" ? "Match discarded"
     : (w ? nameOf(doc[w === "a" ? "playerA" : "playerB"]) + " wins" : "Match over");
-  el.doneBody.textContent = scoreLine(gameOf(doc), nameOf(doc.playerA), nameOf(doc.playerB), t);
+  el.doneBody.textContent = scoreLine(doc, nameOf(doc.playerA), nameOf(doc.playerB), t);
   el.doneZargo.classList.add("hidden");
   el.doneAnyway.classList.add("hidden");
   el.doneNext.textContent = "Done";
@@ -1896,14 +2234,14 @@ function renderWatch(doc){
   if(game !== "league"){
     const zb = doc.zargoBefore || { a: 500, b: 500 };
     const r = { a: t.racksA || 0, b: t.racksB || 0 };
-    const ctx = { game, handicap: handicapOf(doc), mode: doc.mode, targets: doc.targets,
+    const ctx = { game, handicap: handicapOf(doc), mode: doc.mode, targets: doc.targets, start: doc.start,
       racksPlanned: doc.racksPlanned, rackNo, eA: expectedShareA(zb.a, zb.b), racks: r };
     paintWinArea(game, rackOf(rack));
     paintGamePanels(game, ctx, t, r);
     paintLead(t, ctx, nA, nB);
     el.rackNo.textContent = rackNo + (doc.mode === "fixed" && doc.racksPlanned ? " of " + doc.racksPlanned : "");
     el.breakFlip.textContent = "break: " + (rack.breaker === "b" ? nB : nA);
-    el.audit.innerHTML = "";
+    el.audit.textContent = game === "golden" && racesRacks(ctx) ? `${t.a}–${t.b} pts` : "";
     el.undo.disabled = true;
     return;
   }
@@ -1915,14 +2253,12 @@ function renderWatch(doc){
     node.style.setProperty("--own", s === "b" ? "var(--ochre)" : "var(--chalk)");
   }
 
-  el.rawA.textContent = t.a;
-  el.rawB.textContent = t.b;
-  el.subA.textContent = doc.mode === "race" && doc.targets ? needText(t.a, doc.targets.a) : "";
-  el.subB.textContent = doc.mode === "race" && doc.targets ? needText(t.b, doc.targets.b)
-    : (doc.mode === "fixed" ? doc.racksPlanned + " racks" : "open");
   const zb = doc.zargoBefore || { a: 500, b: 500 };
-  paintLead(t, { mode: doc.mode, targets: doc.targets, racksPlanned: doc.racksPlanned, rackNo,
-    eA: expectedShareA(zb.a, zb.b) }, nA, nB);
+  const ctx = { game, handicap: handicapOf(doc), mode: doc.mode, targets: doc.targets, start: doc.start,
+    racksPlanned: doc.racksPlanned, rackNo, eA: expectedShareA(zb.a, zb.b),
+    racks: { a: t.racksA || 0, b: t.racksB || 0 } };
+  paintLeaguePanels(ctx, t, ctx.racks);
+  paintLead(t, ctx, nA, nB);
   el.rackNo.textContent = rackNo;
   el.deadCt.textContent = t.dead;
   el.breakFlip.textContent = "break: " + (rack.breaker === "b" ? nB : nA);
@@ -1980,7 +2316,7 @@ async function resumeSession(id){
 
   live = {
     id,
-    game, handicap: handicapOf(doc),
+    game, handicap: handicapOf(doc), start: doc.start || null,
     playerA: ida, playerB: idb,
     nameA: a.name, nameB: b.name,
     H: eA / (1 - eA), eA,
@@ -2048,11 +2384,19 @@ function renderHistory(){
     return;
   }
   const MODE = { race: "race", fixed: "fixed racks", open: "open" };
-  const lengthText = s => gameOf(s) === "standard" && s.targets ? "race to " + Math.max(s.targets.a, s.targets.b)
-    : gameOf(s) === "golden" && s.racksPlanned ? s.racksPlanned + " racks"
-    : MODE[s.mode] || s.mode;
+  const HCP = { off: "no handicap", scoring: "", racks: "racks handicap" };
+  const lengthText = s => {
+    const len = racesRacks(s) && s.targets ? "race to " + Math.max(s.targets.a, s.targets.b)
+      : gameOf(s) === "golden" && s.mode === "race" && s.targets ? "race to points"
+      : gameOf(s) === "golden" && s.racksPlanned ? s.racksPlanned + " racks"
+      : MODE[s.mode] || s.mode;
+    const h = gameOf(s) === "standard" && handicapOf(s) === "off" ? "" : HCP[handicapOf(s)];
+    return len + (h ? " · " + h : "");
+  };
   rows.forEach(s => {
-    const t = s.totals || { a:0, b:0 };
+    const t0 = s.totals || { a:0, b:0 };
+    // A race in racks is scored in racks (head start included); everything else in points.
+    const t = racesRacks(s) ? { a: t0.racksA ?? t0.a, b: t0.racksB ?? t0.b, winner: t0.winner } : t0;
     const li = document.createElement("li");
     const b = document.createElement("button");
     b.className = "hrow";
@@ -2130,7 +2474,15 @@ async function openFamily(){
     const li = document.createElement("li");
     li.className = "fitem";
     const s = document.createElement("span");
-    s.textContent = em;
+    // The player this Gmail belongs to, if any, with their avatar.
+    const who = people.active().find(x => (x.email || "").toLowerCase() === em);
+    if(who){
+      li.appendChild(people.avatar(who.id, 36));
+      s.textContent = who.name;
+      const small = document.createElement("small");
+      small.textContent = em;
+      s.appendChild(small);
+    } else s.textContent = em;
     li.appendChild(s);
     if(em === me){
       // You can't lock yourself out.

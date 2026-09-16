@@ -6,6 +6,8 @@ on people. See §12.9. Code and Firestore paths still say "session".
 **v3 session 2 (1.1.0) shipped:** Golden-Nine and Trad-Nine, end to end. See §12.10.
 **1.1.1:** the games are now called Trad-Nine, Golden-Nine and 11-Point-Nine (§13.2).
 **1.2.0:** Trad-Nine also offers Race to 3 and Race to N (§12.10).
+**v3 session 3 (1.3.0) shipped:** the one-screen setup, the Off · Scoring · Racks levers, a
+Golden-Nine race to points, and players with a Gmail, a claim and a photo. See §12.11.
 
 A phone-first scorer for social nine-ball between any two players in a household, with a self-correcting handicap (the **Zargo** rating) so mismatched players stay evenly matched. Scores sync to the cloud so any family phone can score or review.
 
@@ -316,7 +318,7 @@ same way. An older home-screen shortcut has to be removed and re-added to pick t
 
 ## 12. Planned v3 — three games, one app
 
-**Status:** being built; §12.9 and §12.10 record what has shipped. This section supersedes "Anything but nine-ball"
+**Status:** being built; §12.9 to §12.11 record what has shipped. This section supersedes "Anything but nine-ball"
 in §9. The rating side of the plan is in [`ZARGO.md`](ZARGO.md); the build is split into four
 sessions in [`V3-PLAN.md`](V3-PLAN.md).
 
@@ -479,6 +481,77 @@ against seven stored matches (several with dead balls): identical to floating-po
 - **Rating.** Golden-Nine and Trad-Nine racks give `r = 1` or `0` by winner, with the game's `w`
   (0.5). Checked in a test build against hand-worked ZARGO.md numbers for both games.
 
+### 12.11 Setup, handicap levers and claimed players as built (1.3.0)
+
+**Setup (§13.3).** Game chips, the two player columns, then **Length**, **Handicap** and
+**Break** as one row each showing the current choice; Length and Handicap open on tap, Break
+flips on tap. Start sits in a bar pinned below the scrolling page and says what's missing
+("Pick two players", "Set the length first"). You are pre-selected on the blue side when
+you're on the list. The amber column lists the blue player's most recent opponents first,
+then everyone else by name. The handicap isn't remembered: 11-Point-Nine and Golden-Nine
+default to Scoring, Trad-Nine to Off.
+
+**Which lever where.** Scoring: 11-Point-Nine and Golden-Nine. Racks: every game except an
+open 11-Point-Nine match and a Golden-Nine race to points. Choosing Racks makes the match a
+**race in racks** in every game, so Length becomes Race to 3 · 5 · 7 · N (N 1 to 15) and
+starts at 5; leaving Racks resets Length to the game's default.
+
+**Race chart.** The favourite (higher Zargo) races to the Length N; the underdog's target is
+the one from 1 to N whose race-win probability, by dynamic programme over `pA`, is nearest
+50%, ties going to the longer race. Both targets are editable. Two chips show the readings,
+"Kenny to 7, Melanie to 4" and "Melanie starts 3 up in a race to 7", and the one picked is
+played:
+- **Targets:** `targets: { a: 7, b: 4 }`, `start: { a: 0, b: 0 }`.
+- **Head start:** `targets: { a: 7, b: 7 }`, `start: { a: 0, b: 3 }`. The underdog's racks
+  begin at 3.
+
+`start` is written only with the Racks lever. `totals.racksA` and `racksB` are the racks on
+the board, head start included; points never include it. The lead bar reads a head start as
+the shorter target it equals, so both readings show the same bar ("Tied" at the break). The
+setup hint gives the chance the higher-rated player wins the race as set.
+
+**Racing in racks.** The panels show racks and the run-in ("needs 4 of 7"). In 11-Point-Nine
+the meta strip shows the rack's points, and a rack goes to whoever took more of its live
+points (an equal split counts for nobody). In Golden-Nine the meta strip shows the match
+points. The match ends at the rack that meets a target. Ended early, the winner is whoever
+is further through their own race.
+
+**Handicap off.** No quotas and no split targets. An 11-Point-Nine race is both to
+`round(11 × racks / 2)` points, and a Golden-Nine race to points is both to N. The lead bar
+shows a plain lead: racks in Trad-Nine ("MEL +1 rack"), points in the games scored by points
+("KENNY +6 points"). Full swing comes at a lead the size of the race target, or of half the
+match's points (5.5 a rack in 11-Point-Nine, 4 in Golden-Nine). The plain difference decides
+it. Ratings update from the raw racks as always (ZARGO.md).
+
+**Golden-Nine race to points.** Length chips: Fixed racks (the default) · Race to 35 · Race
+to N (1 to 200). With Scoring the pair's combined 2N is split `a = round(2N × pA)`,
+`b = 2N − a`, so the targets always sum to 2N; both are editable. With Off both race to N.
+Racks isn't offered. A target reached on foul points mid-rack still finishes the rack.
+⚠ Check the split against a few real matches (point share ≈ rack-win share).
+
+**The §3.6 warning** still fires, only for an 11-Point-Nine race with Scoring.
+
+**Players (§13.8), as built in `shared/people.js`.**
+- Gmail is required in Rack It's Add player and Edit forms and in the shared sheet: Save
+  stays disabled until it looks like an email. Saving a new one invites it. A Gmail already
+  on someone else is refused. Rows with none say **No Gmail**, in Rack It and in the people
+  lists of Around the Clock and Bloc 11.
+- `people.meId()` matches the account's `uid` first, then its email. On sign-in the matched
+  person gets `uid`, `claimedAt` (when newly claimed) and the Google `photoURL`, if changed.
+- With no match, the **Which player are you?** card lists people with no `uid`, those
+  without a Gmail first. Picking one writes your email over theirs, plus `uid` and
+  `claimedAt`. **I'm not on the list** adds you under your Google first name. With nobody
+  unclaimed you're added without asking. The first-name guess is gone.
+- A claimed person's Gmail is locked; the forms show "Claimed by …". **Unclaim** (two taps)
+  clears `uid`, `claimedAt`, `photoURL` and the Gmail, so the right person can claim them.
+- `people.avatar(id, size)` renders the photo (`referrerpolicy="no-referrer"`, which
+  Google's photo links need) in a 3px ring of the player's colour with a 2px dark gap, or
+  the initial on their colour in white or near-black by contrast. Rack It uses it on the
+  Home list, both setup columns, the claim card and Invites rows (matched by Gmail).
+- **Cuescore link.** Rack It passes `cuescore: true` for everyone. The sheet makes the link
+  editable only on your own entry, shows it read-only ("Not added" when empty) on anyone
+  else's, and never offers it on Add.
+
 ---
 
 ## 13. Planned v3 — information architecture
@@ -561,8 +634,8 @@ it can live one tap away.
 
 ### 13.8 Players carry a Gmail, get claimed, and show their Google photo
 
-**Status:** scheduled in V3-PLAN Session 3 (owner: important). Most of it lands in
-`shared/people.js`, so Around the Clock and Bloc 11 get it too.
+**Status:** built in 1.3.0 (§12.11 records the details). Most of it lives in
+`shared/people.js`, so Around the Clock and Bloc 11 have it too.
 
 **What exists today (1.2.1).** A person can carry an `email`. The shared people sheet offers
 "Their Gmail, so they can sign in", and saving one also invites that address. On sign-in,

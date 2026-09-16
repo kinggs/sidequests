@@ -121,22 +121,22 @@ every game that supports them.
 
 **Read:** SPEC §13.3; ZARGO.md "Handicap levers".
 
-- [ ] Setup layout as §13.3: Game, Players ("you" pre-selected on blue, recent opponents
+- [x] Setup layout as §13.3: Game, Players ("you" pre-selected on blue, recent opponents
       first on amber), then Length, Handicap and Break each as a single row showing its
       default, expanding on tap. Start pinned to the bottom; the page above it scrolls.
-- [ ] **Handicap chips: Off · Scoring · Racks.** Scoring is unavailable for Trad-Nine; Racks
+- [x] **Handicap chips: Off · Scoring · Racks.** Scoring is unavailable for Trad-Nine; Racks
       is available for every game with a rack count or race.
-- [ ] **Race chart:** given `pA`, find the pair of targets (each 1 to 15) whose race-win
+- [x] **Race chart:** given `pA`, find the pair of targets (each 1 to 15) whose race-win
       probability is nearest to even, by a small dynamic programme over racks. Show it two
       ways: "Kenny to 7, Melanie to 4" and "Melanie starts 3 up in a race to 7". Both
       numbers editable, both stored. In a race, the head-start form pre-loads `racksB`.
-- [ ] 11-Point-Nine **Racks** lever: race in racks, not points, with the chart; the 11-point rack
+- [x] 11-Point-Nine **Racks** lever: race in racks, not points, with the chart; the 11-point rack
       is decided by live points.
-- [ ] Handicap off: no quotas, no targets beyond the plain race; the lead bar shows a plain
+- [x] Handicap off: no quotas, no targets beyond the plain race; the lead bar shows a plain
       lead. Ratings still update from raw results (ZARGO.md: handicap never enters the
       update). Confirm by playing one match each way.
-- [ ] The §3.6 "enough points to be a contest" warning still fires for 11-Point-Nine scoring.
-- [ ] **Golden-Nine race to a points target** as a Length option beside fixed racks (fixed
+- [x] The §3.6 "enough points to be a contest" warning still fires for 11-Point-Nine scoring.
+- [x] **Golden-Nine race to a points target** as a Length option beside fixed racks (fixed
       racks stays the default, as in the DUYA rules; SPEC §12.2). Chips as Trad-Nine's: a
       default of **Race to 35** plus Race to N typed in (1 to 200). Handicap off: both race
       to N. Scoring: split the pair's combined `2N` by expected rack-win share, e.g. Kenny
@@ -145,24 +145,24 @@ every game that supports them.
       points) finishes the rack first, as in an 11-Point-Nine race; the lead bar and
       `matchResult` already handle a Golden-Nine race. ⚠ The split assumes point share ≈
       rack-win share (ZARGO.md), so check it against a few real matches.
-- [ ] **Players carry a Gmail, get claimed, show their photo** (owner: important). All of
+- [x] **Players carry a Gmail, get claimed, show their photo** (owner: important). All of
       SPEC §13.8, mostly in `shared/people.js`:
-  - [ ] Gmail **required** on Add player and in the shared people sheet; saving invites.
+  - [x] Gmail **required** on Add player and in the shared people sheet; saving invites.
         Existing players without one show "No Gmail" and can't be saved without it.
-  - [ ] Claim on first sign-in: `uid` and `claimedAt` on the person. Email match links
+  - [x] Claim on first sign-in: `uid` and `claimedAt` on the person. Email match links
         silently; otherwise a **"Which player are you?"** card lists unclaimed players plus
         "I'm not on the list". Remove the first-name guess in `ensureMe()`. A claimed player
         can't be claimed by another account; the edit sheet offers Unclaim, confirmed.
-  - [ ] Write the Google `photoURL` to the claimed person on every sign-in.
-  - [ ] `people.avatar(id, size)`: photo in a circle inside a 3px ring of the player's
+  - [x] Write the Google `photoURL` to the claimed person on every sign-in.
+  - [x] `people.avatar(id, size)`: photo in a circle inside a 3px ring of the player's
         colour, with a 2px dark gap; no photo or a failed load → colour circle with their
         initial. Replace every colour dot (Home list, pickers, Invites) with it.
-  - [ ] Cuescore link: editable only when editing yourself, never on Add player; read-only
+  - [x] Cuescore link: editable only when editing yourself, never on Add player; read-only
         on anyone else. Rack It's "Gmail, Cuescore link, or merge" button passes
         `cuescore: true` only for you.
-  - [ ] `people.js` behaviour changes for every app: bump Around the Clock and Bloc 11
+  - [x] `people.js` behaviour changes for every app: bump Around the Clock and Bloc 11
         versions too, and check their add sheets still work.
-- [ ] Version bump, `/deployquest`, Handover.
+- [x] Version bump, `/deployquest`, Handover.
 
 **Done when:** a repeat of last night's match is Game, two names, Start; each lever
 produces the numbers ZARGO.md describes; a new player can't be added without a Gmail, signs
@@ -295,7 +295,50 @@ error, share text). Its list rows were squashed to a letter per line: `.plist bu
 full-width rule also hit the Remove button, so it now gets `width: auto` like History's.
 
 ### After Session 3
-_not started_
+**Shipped 1.3.0** (Around the Clock 0.5.0 and Bloc 11 0.6.0 for the shared people changes).
+Everything on the list is done. SPEC §12.11 records every decision. Things the next session
+must know:
+
+- **Testing.** As in Session 2: a scratch copy of the site with an in-memory stand-in for
+  `cloud.js`, no real data touched. Played an 11-Point-Nine race with the Racks lever as a head
+  start (Kenny to 7, Melanie 3 up), with a reload and resume part-way, a watcher and a save.
+  Also a Golden-Nine race to 20 with handicap off, a Trad-Nine race with Racks (5 vs 3), a
+  Golden-Nine race in racks, and a fixed 11-Point-Nine match with handicap off. Every Zargo
+  movement matched a hand calculation: the handicap never entered the update. The race-chart
+  DP matched a Monte Carlo run (0.5593 vs 0.5589). Claiming: email match, the card (pick
+  someone, and "I'm not on the list"), Unclaim, a broken photo link falling back to the
+  initial. The Gmail rule in Rack It's forms, the shared sheet and Around the Clock's add
+  sheet. Checked setup and the live meta strip at 390px wide. ⚠ Not yet played on the phone
+  against Firestore, and no real Google photo seen yet.
+- **Choices I made where the plan was open.**
+  - The Racks lever turns any game's match into a race in racks. A racks handicap on fixed
+    racks has no clear winner rule, so a fixed-rack Golden-Nine match switches to a race.
+  - The favourite races to the chosen length, and the chart searches only the underdog's
+    target.
+  - The head start is played only when its chip is picked. The targets reading is the default.
+  - The plan says Rack It passes `cuescore: true` only for you. It passes it for everyone
+    instead, and `people.js` allows editing only on your own entry, so anyone else's link
+    shows read-only as §13.8 describes.
+  - Unclaim also clears the Gmail. Otherwise the same account re-claims by email on its next
+    sign-in.
+  - The claim card lists every unclaimed person, including those whose Gmail isn't yours.
+    Picking one overwrites that Gmail.
+  - "I'm not on the list" adds you under your Google first name, as before, not the full name.
+  - Handicap off shows a plain points lead in 11-Point-Nine and Golden-Nine, since points
+    decide those games. Session 2's "lead of racks" stays for Trad-Nine.
+- **Code shape for Session 4.** `plannedMatch()` is the single source of what Start plays.
+  `racesRacks(ctx)`, `startOf(ctx)`, `racksWon(bank)` and `bankedRacks()` carry the head start.
+  `matchResult(t, r)` now takes racks too. `scoreLine(match, nA, nB, totals)` takes the match,
+  not the game. People rows can use `people.avatar(id, 72)` for the person page.
+  `P(id)` now carries `email` and `uid`.
+
+Parked:
+- Avatars in Around the Clock and Bloc 11. Their people lists and pickers keep colour dots;
+  only "No Gmail" was added.
+- The lead bar in a plain race still shows the lead ("+16 points") after a target is met,
+  where the scoring bar says "target met".
+- The 11-Point-Nine live controls wrap "Next rack" onto two lines at 390px wide. This predates
+  Session 3.
 
 ### After Session 4
 _not started_

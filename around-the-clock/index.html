@@ -300,7 +300,7 @@
   import { people } from "../shared/people.js";
 
   // Bump on every change. The deploy skill checks this against the live site.
-  const APP_VERSION = "0.4.1";
+  const APP_VERSION = "0.5.0";
   const APP_ID = "around-the-clock";
   document.getElementById("version").textContent = "v" + APP_VERSION;
 
@@ -693,7 +693,7 @@
       li.querySelector(".dot").style.background = people.colourOf(p.id);
       li.querySelector(".l1").textContent = people.isMe(p.id) ? `${p.name} (you)` : p.name;
       const n = doneFor(p.id).length;
-      li.querySelector(".l2").textContent = `${n} game${n === 1 ? "" : "s"}${p.email ? " · " + p.email : ""}`;
+      li.querySelector(".l2").textContent = `${n} game${n === 1 ? "" : "s"} · ${p.email || "No Gmail"}`;
       tap(li.querySelector("button"), () => people.edit(p.id, { noun: "player" }));
       ul.appendChild(li);
     }
