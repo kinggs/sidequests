@@ -6,6 +6,8 @@
 //   Z.rackResults(game, points, cfg)             // [{ r, w }] per rack
 //   Z.zargoOutcome(before, results, cfg)         // { a: { from, to }, b: { from, to }, cal }
 //   Z.raceWin(p, x, y), Z.raceChart(pA, n)       // the Racks lever's race chart
+//   Z.groupsOf(rack), Z.loserBalls(rack)         // 8-ball: whose group is whose, and the loser's balls down
+//   Z.expectedEightPoints(pA, cfg)               // Ten-Point-Eight's expected points a rack
 //   Z.replay(matches, starters, cfg)             // every rating rebuilt from the match history
 //
 // index.html imports it; zargo.test.mjs proves it with `node --test` from the repo root. The reasoning
@@ -13,10 +15,17 @@
 
 // Each game's points and rating weight w (ZARGO.md). Tuning either is one edit here or in
 // state/main.config.games, with no migration.
+// eightOnBreak: "spot" is WPA and CSI (spot the 8 and play on, so there is no win button for it);
+// "win" is APA, TAP and most bar play, and brings the button back.
+// tenpoint.points: the winner takes `winner` plus `left` for each of the loser's balls still up, the
+// loser `ball` each for theirs that are down. 10/1/0 is VNEA and CSI's 10-point; left 1 is CSI's
+// 17-point; winner 14 is USAPL's. meanLoserBalls is the average L the handicap's quotas assume.
 export const DEFAULT_GAMES = {
   league:   { points: { low: 1, nine: 3 }, w: 1 },
   golden:   { points: { big: 10, small: 7, win: 4, foul: [1, 1, 2], intentional: 10 }, w: 0.5 },
-  standard: { w: 0.5 }
+  standard: { w: 0.5 },
+  eight:    { w: 0.5, eightOnBreak: "spot" },
+  tenpoint: { points: { winner: 10, ball: 1, left: 0 }, meanLoserBalls: 3.5, w: 0.5, eightOnBreak: "spot" }
 };
 export const DEFAULT_CONFIG = { games: DEFAULT_GAMES, K: 8, provisionalRacks: 30, startZargo: 500 };
 
@@ -37,23 +46,69 @@ export const other = side => side === "a" ? "b" : "a";
 
 export function expectedShareA(za, zb){ return 1 / (1 + Math.pow(2, (zb - za) / 100)); }
 
+// Ten-Point-Eight's scoring handicap can't share the rack's points the way Golden-Nine's does:
+// the loser keeps their balls, so they have a floor. Expected points a rack are linear in pA
+// instead, from the winner's points and the average loser's balls (ZARGO.md, V3-PLAN §7.3):
+//   eA = win × pA + lose × (1 − pA)      win = winner + left × (7 − L̄),  lose = ball × L̄
+export function expectedEightPoints(pA, cfg){
+  const g = cfg.games.tenpoint, L = g.meanLoserBalls;
+  const win = g.points.winner + (g.points.left || 0) * (7 - L), lose = g.points.ball * L;
+  return { a: win * pA + lose * (1 - pA), b: win * (1 - pA) + lose * pA };
+}
+
 // ---------- what a rack is worth ----------
 export const livePoints = cfg => 8 * cfg.games.league.points.low + cfg.games.league.points.nine;
 
 // balls and pottedAt are the ball drop: who potted which ball, and when, for a replay. They
 // never enter the score.
-export const newRack = () => ({ winner: null, kind: null, fouls: { a: 0, b: 0 }, balls: {}, pottedAt: {} });
+// groups.a is side A's group in an 8-ball rack, set by hand on the drop's label; null means
+// "work it out from what's been potted" (groupsOf).
+export const newRack = () => ({ winner: null, kind: null, fouls: { a: 0, b: 0 }, balls: {}, pottedAt: {}, groups: { a: null } });
 export function rackOf(rec){
   const balls = {}, pottedAt = {};
-  for(let n = 1; n <= 9; n++){
+  for(let n = 1; n <= 15; n++){
     const by = rec && rec.balls && rec.balls[n];
     if(by !== "a" && by !== "b") continue;
     balls[n] = by;
     pottedAt[n] = (rec.pottedAt && rec.pottedAt[n]) || 0;
   }
+  const g = rec && rec.groups && rec.groups.a;
   return { winner: (rec && rec.winner) || null, kind: (rec && rec.kind) || null,
     fouls: { a: (rec && rec.fouls && rec.fouls.a) || 0, b: (rec && rec.fouls && rec.fouls.b) || 0 },
-    balls, pottedAt };
+    balls, pottedAt, groups: { a: g === "solids" || g === "stripes" ? g : null } };
+}
+
+// ---------- 8-ball: the two groups ----------
+export const SOLIDS = [1, 2, 3, 4, 5, 6, 7];
+export const STRIPES = [9, 10, 11, 12, 13, 14, 15];
+export const otherGroup = g => g === "solids" ? "stripes" : "solids";
+export const ballsOf = g => g === "stripes" ? STRIPES : SOLIDS;
+// Which group each side owns. Set by hand on the rack (groups.a) it's certain; otherwise it's
+// guessed from the drop: a player who has only potted from one group owns it, and the other
+// player gets the rest. Unknown until somebody pots.
+export function groupsOf(rack){
+  const set = rack && rack.groups && rack.groups.a;
+  if(set === "solids" || set === "stripes") return { a: set, b: otherGroup(set), set: true };
+  const n = { a: { solids: 0, stripes: 0 }, b: { solids: 0, stripes: 0 } };
+  for(const k in (rack && rack.balls) || {}){
+    const by = rack.balls[k];
+    if(by !== "a" && by !== "b") continue;
+    if(SOLIDS.includes(+k)) n[by].solids++;
+    else if(STRIPES.includes(+k)) n[by].stripes++;
+  }
+  const only = s => n[s].solids && !n[s].stripes ? "solids" : n[s].stripes && !n[s].solids ? "stripes" : null;
+  const a = only("a") || (only("b") ? otherGroup(only("b")) : null);
+  return { a, b: a ? otherGroup(a) : null, set: false };
+}
+// Ten-Point-Eight's one input beyond the winner: how many of the loser's own balls are down,
+// 0 to 7. Whoever potted them; a ball down on the opponent's foul still counts.
+export function loserBalls(rack){
+  if(!rack || !rack.winner) return 0;
+  const loser = other(rack.winner), g = groupsOf(rack)[loser];
+  if(!g) return 0;
+  let n = 0;
+  for(const k of ballsOf(g)) if(rack.balls && rack.balls[k]) n++;
+  return Math.min(7, n);
 }
 
 // Golden-Nine points from a player's fouls: 1, 1, then 2 (the third also loses the rack).
@@ -63,12 +118,23 @@ export function foulPoints(n, cfg){
   for(let i = 0; i < n; i++) s += f[Math.min(i, f.length - 1)];
   return s;
 }
-// What one rack of a non-league game is worth to each side. Golden-Nine: the opponent's
-// fouls plus the win (a three-foul rack's 1 + 1 + 2 is the win, so it adds nothing more).
-// Trad-Nine: one rack is one rack; fouls never score.
+// What one rack of a non-league game is worth to each side. Trad-Nine and Trad-Eight: one rack
+// is one rack; fouls never score. Ten-Point-Eight: 10 to the winner, a point a ball to the
+// loser. Golden-Nine: the opponent's fouls plus the win (a three-foul rack's 1 + 1 + 2 is the
+// win, so it adds nothing more).
 export function gameRackPoints(game, rack, cfg){
   const p = { a: 0, b: 0, dead: 0 };
-  if(game === "standard"){ if(rack.winner) p[rack.winner] = 1; return p; }
+  if(game === "standard" || game === "eight"){ if(rack.winner) p[rack.winner] = 1; return p; }
+  // Ten-Point-Eight: the winner's points, plus the loser's balls down at a point each. Fouls
+  // never score, and the kind of win never changes the total.
+  if(game === "tenpoint"){
+    if(rack.winner){
+      const pts = cfg.games.tenpoint.points, L = loserBalls(rack);
+      p[rack.winner] = pts.winner + (pts.left || 0) * (7 - L);
+      p[other(rack.winner)] = pts.ball * L;
+    }
+    return p;
+  }
   const pts = cfg.games.golden.points;
   p.a += foulPoints(rack.fouls.b, cfg);
   p.b += foulPoints(rack.fouls.a, cfg);
@@ -95,7 +161,7 @@ export function bankInto(banked, game, p, rack){
   banked.points.push({ a: p.a, b: p.b, winner, kind: rack ? rack.kind : null });
 }
 
-// The racks of a stored match that counted. Golden-Nine and Trad-Nine: every rack with a
+// The racks of a stored match that counted. Every game but 11-Point-Nine: every rack with a
 // winner. 11-Point-Nine: every rack, except a last one that End dropped — it has no balls at
 // all (End after "Start rack N"), or its points aren't in the saved totals.
 export function countedRacks(match, cfg){
@@ -130,8 +196,9 @@ export function matchPoints(match, cfg){
 //           racks in proportion to the live points each carried, so a rack full of dead balls
 //           counts for less. The weights still sum to w × racks, which makes the update
 //           exactly K × racks × (pooled share − expected).
-//   Golden-Nine and Trad-Nine: r is 1 if A won the rack, else 0, with the game's w per rack.
-//           Points, fouls and the kind of win don't enter it.
+//   every other game: r is 1 if A won the rack, else 0, with the game's w per rack. Points,
+//           fouls, the loser's balls and the kind of win don't enter it — Fargo's way, which
+//           is why one Zargo covers 8-ball and 9-ball alike (ZARGO.md).
 export function rackResults(game, points, cfg){
   const w = cfg.games[game].w;
   if(game !== "league") return points.map(p => ({ r: p.winner ? (p.winner === "a" ? 1 : 0) : null, w }));

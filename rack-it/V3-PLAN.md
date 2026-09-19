@@ -6,7 +6,8 @@ session ends with the app **deployed and working**, then ticks its boxes and wri
 handover note below, so the next session starts from the truth.
 
 **Start every session with:** "Read `rack-it/V3-PLAN.md` and do Session N."
-Session 7 (8-ball) is designed and decided; it's the next one to build.
+Sessions 1 to 7 have shipped. There is no Session 8 yet: the next one starts from a fresh goal,
+and the ideas waiting for it are under "Parked".
 
 ## Read first, every session
 
@@ -29,7 +30,7 @@ Session 7 (8-ball) is designed and decided; it's the next one to build.
 - **Deploy at the end of the session, not the start of the next.** A session that can't
   finish its list deploys what works and writes the rest into Handover.
 - **Version:** Session 5 landed `2.0.0` (the move to `rack-it/`), Session 6 landed `2.1.0`,
-  Session 7 lands `2.2.0`.
+  Session 7 landed `2.2.0`.
 - **No new files in the app folder** except what the spec names. No frameworks.
 - **Don't build ahead.** Each session's list is the whole of that session. Ideas go in
   "Parked".
@@ -194,8 +195,8 @@ balls — with the same levers (Off · Scoring · Racks), the same live-screen s
 and Golden-Nine, and one Zargo across all five games, the way FargoRate pools 8-ball and 9-ball
 into one number. 11-Point-Nine doesn't change. Lands `2.2.0`.
 
-**Status:** researched and designed 2026-09-19, and the owner answered every question in
-§7.4 the same day. Nothing built yet. The design below is as decided.
+**Status:** shipped in 2.2.0 on 2026-09-19. The design below is what was built; where the build
+differs, the Session 7 handover says so.
 
 ### 7.1 Research: how 8-ball is scored
 
@@ -392,31 +393,31 @@ default length is 5 fixed racks like Golden-Nine, its points-race chip is 50, an
 
 ### 7.5 The list
 
-- [ ] `zargo.js`: `DEFAULT_GAMES` gains `eight: { w: 0.5, eightOnBreak: "spot" }` and
+- [x] `zargo.js`: `DEFAULT_GAMES` gains `eight: { w: 0.5, eightOnBreak: "spot" }` and
       `tenpoint: { points: { winner: 10, ball: 1, left: 0 }, meanLoserBalls: 3.5, w: 0.5 }`;
       `withGames` merges them; `rackOf` reads balls 1–15 and `groups`; `loserBalls(rack)`;
       `gameRackPoints` for both; `expectedEightPoints(pA, cfg)` for the quotas.
-- [ ] `zargo.test.mjs`: rack points for each of the three systems by config; a Ten-Point-Eight
+- [x] `zargo.test.mjs`: rack points for each of the three systems by config; a Ten-Point-Eight
       match moves Zargo exactly as a Trad-Nine match with the same winners; a `foul8` rack; a
       replay with an 8-ball match in it; the quota numbers worked by hand.
-- [ ] Setup: the two-row picker; per-game defaults (`applyGameDefaults`, `applyLengthDefaults`,
+- [x] Setup: the two-row picker; per-game defaults (`applyGameDefaults`, `applyLengthDefaults`,
       `hcpAllowed`); the odds sentence in expected points; quotas and targets from `eA`/`eB`;
       the points-race chip.
-- [ ] Live: `WIN_KINDS` and `KIND_LABEL` for both; hold on Foul for `foul8`; the 14-ball drop
+- [x] Live: `WIN_KINDS` and `KIND_LABEL` for both; hold on Foul for `foul8`; the 14-ball drop
       with group labels; `paintWinArea` shows "8 on the break" only under `eightOnBreak: "win"`; the rack-end card
       for Ten-Point-Eight with the group chips and stepper; the deciding rack; sub-lines "31 of
       42"; End's dropped-rack message.
-- [ ] Resume and Watch rebuild the new rack shape; `sync` patches `groups`.
-- [ ] Matches, summary, person records, `DISCIPLINE` and `cuescoreLine`, `scoreLine`.
-- [ ] SPEC.md: §2 gains two columns and a §2.4 for the 8-ball rules the app assumes, §4 the
+- [x] Resume and Watch rebuild the new rack shape; `sync` patches `groups`.
+- [x] Matches, summary, person records, `DISCIPLINE` and `cuescoreLine`, `scoreLine`.
+- [x] SPEC.md: §2 gains two columns and a §2.4 for the 8-ball rules the app assumes, §4 the
       linear quota, §6 the 14-ball drop and the hold, §9 the rack shape and config, §10, §12
       loses 8-ball, §13 a 2.2.0 line. ZARGO.md: the table row names the two games; challenge
       11 (the loser's balls as evidence, untested).
-- [ ] Harness at 390×844 and 360×640: a Trad-Eight race with a `foul8` rack and Resume; a
+- [x] Harness at 390×844 and 360×640: a Trad-Eight race with a `foul8` rack and Resume; a
       Ten-Point-Eight fixed match with the scoring handicap, a rack scored from the drop and
       one from the card, a tie and the deciding rack; Watch; Copy for Cuescore; Export then
       Merge adds nothing; 11-Point-Nine untouched (`node --test` and one scored match).
-- [ ] Version `2.2.0`. `/deployquest`. Handover.
+- [x] Version `2.2.0`. `/deployquest`. Handover.
 - [ ] **Owner:** play one real match of each 8-ball game on the phone.
 
 **Done when:** a Trad-Eight race and a Ten-Point-Eight night can be scored, resumed and
@@ -468,8 +469,14 @@ agreement matters less than every token and every component reading the same eve
 ## Parked (not in any session)
 
 - Shot clock for Golden-Nine (45 s + one 30 s extension per rack).
-- Heyball: Trad-Eight's shape once Session 7 lands (no called shots, a soft break loses the
-  rack, 8 on the break by tournament rule): a game entry and a win-kind list.
+- Heyball: Trad-Eight's shape (no called shots, a soft break loses the rack, 8 on the break by
+  tournament rule): a game entry and a win-kind list.
+- Measure `meanLoserBalls` from the stored racks once 50 Ten-Point-Eight racks exist; it starts
+  at a guessed 3.5 and every rack holds its count.
+- Whether the loser's balls predict anything the rack winner doesn't (ZARGO.md challenge 11),
+  after a hundred 8-ball racks.
+- Average points a rack in Ten-Point-Eight on a person's page (below), and a per-discipline
+  split of the win record (8-ball v 9-ball) rather than one row a game.
 - A winner-breaks option in setup for the 8-ball games (APA's way), if alternate break
   (Session 7's default) isn't how the house plays.
 - Average points a rack in Ten-Point-Eight on a person's page, VNEA's own skill measure,
@@ -649,3 +656,76 @@ be undone. The owner step below comes first.
   both scoring and Watch. `golden9Handicap(ctx)` decides the Golden-Nine sub-line. `owner` and
   `paintOwner()` hold the role; `loadRole()` runs after `loadState()`. `deleteMatch(s)` replaced
   the per-row delete button.
+
+### After Session 7
+
+**Shipped 2.2.0.** Trad-Eight and Ten-Point-Eight are the fourth and fifth games, one Zargo
+across all of them, and 11-Point-Nine is untouched. Everything on the list is done except the
+owner's step.
+
+- **Owner:** open Rack It on the phone (More shows v2.2.0) and play one real match of each
+  8-ball game, then tick the box above. Nothing else to do: no rules change, no migration, no
+  config to set. The 8-ball games appear as a second row of the game picker.
+- **What's in the data.** A new `game` of `"eight"` or `"tenpoint"`; a rack that also carries
+  `groups: { a: "solids" | "stripes" | null }` and balls up to 15. `config.games` gains `eight`
+  and `tenpoint`; old documents need nothing, and `withGames()` fills the new games in for any
+  config saved before today. Ten-Point-Eight's points are **derived** from `balls` and `groups`
+  by `zargo.js` `loserBalls`, never stored per rack, so a corrected ball drop corrects the score.
+- **Choices I made where the plan was open.**
+  - **The rack-end card's stepper writes into the ball drop.** Rather than store a second number
+    beside the drop, the − / + stepper marks that many of the loser's own group as potted, lowest
+    first, and settles `groups.a` at the same time. One record of the rack, Undo covers it, and a
+    scorer who taps balls as they drop never sees a number they have to confirm.
+  - **The stepper shows on every Ten-Point-Eight rack-end card**, not only when nobody tapped a
+    ball, so a mis-tap can be fixed where it's noticed. It starts at whatever the drop says.
+  - **A break and run never asks for the group.** The plan's card asks whenever the loser's group
+    is unknown, but with no ball down at all the loser scores 0 whichever group they had, so the
+    card offers **Start rack N** straight away and the chips are there only in case some of their
+    balls did drop. With balls already down and the group genuinely unclear (each player has
+    potted from both groups), the chips are the only way on: the group *is* the score.
+  - **Tapping a drop row's label cycles teal → coral → back to the guess.** The plan says a tap
+    "sets it by hand and locks it"; a cycle is what makes it correctable, and the third state
+    hands it back to the guess. The label shows the owner's initial in their colour.
+  - **`eightOnBreak` lives on both games** (`eight` and `tenpoint`), not just `eight`, so a house
+    that plays the 8 on the break as a win sets it per game. Default `"spot"` in both, which
+    hides the third win button.
+  - **Five fixed racks at a 160-point gap give quotas of 42 and 26**, not the 42 and 25 in §7.3:
+    `round(5 × 5.1123)` is 26. The plan's rule (`round(racks × eB)`) is what's built, and a test
+    pins the numbers.
+  - **The 8-ball drop spans the full width** with no side margin, which is what makes the plan's
+    55px-on-a-390-phone and 51px-on-a-360 cells come out (measured: 56×52 and 51×48). Group
+    labels are 24px tall (22 on a short phone) and take a 38px target from the space around them
+    — under the 56px rule, deliberately, like the drop's own cells.
+  - **Ten-Point-Eight's match bar** shows the points under the Racks lever, as Golden-Nine's
+    does; over fixed racks and a points race the panels carry them, so it doesn't repeat them.
+  - **Handicap off over fixed racks** reads as plain points, and the lead bar's full swing is the
+    winner's 10 points a rack over the racks planned.
+  - `paintDrop` and the `#doneExtra` row are the only new pieces of live-screen chrome;
+    `resetExtra()` runs at the top of every card so no card inherits another's extra row.
+- **Testing.** All in the harness (`?mock`), headless Chromium, never against Firestore:
+  - `node --test`: **21 pass** (was 15). The six new ones cover the three points systems by
+    config, the group guess and `loserBalls`, a Ten-Point-Eight match rating exactly as the
+    Trad-Nine match with the same winners, a `foul8` rack, the quota numbers worked by hand, and
+    a replay with an 8-ball match in it.
+  - A full five-rack Ten-Point-Eight match with the scoring handicap (Kenny 660 v Melanie 500,
+    quotas 42 and 26): a rack scored from the drop, one scored from the card's stepper, a rack
+    lost on the 8 by a hold on Foul, and a 35–29 win for **Melanie** on the quota spot. Zargo
+    660 → 648 and 500 → 512, exactly what `zargo.js` predicts.
+  - A Trad-Eight race to 5 with a `foul8` rack, a reload and **Resume**, and **Watch** from a
+    second tab following a rack including the group labels.
+  - A Ten-Point-Eight tie over two fixed racks (13–13) offering the deciding rack, and the
+    deciding rack played.
+  - The Racks lever on Ten-Point-Eight (race 5 v 2, points in the match bar), **Rebuild ratings**
+    reproducing an 8-ball match exactly ("no change"), and a person's record listing it.
+  - **Copy for Cuescore**: `Kenny 3–2 Melanie · 8-Ball (10-point) · 5 racks (points 35–29) · Sep
+    19, 2026`.
+  - Export carries the new `game` values, `groups` and the new config; **Merge** back adds
+    nothing. **Replace** with `eightOnBreak: "win"` brings the third win button back.
+  - 11-Point-Nine: one scored match, same taps, same card, same Zargo (660 → 648 on a 4–7 rack).
+  - No scrolling on the live screen at 360×640, 375×667, 390×844 or 412×915.
+  - Around the Clock, Bloc 11 and the Fair Nine stub all still load under `?mock`.
+  - ⚠ Not yet run on the phone, and not against real Firestore.
+- **Known tightness.** A 360×640 phone with `eightOnBreak: "win"` (three win buttons) runs about
+  13px short; the win area clips rather than scrolls. The default two-button rack fits everywhere.
+- **SPEC.md is 541 lines**, past Session 5's "under 400" target: §2 now has five columns and a
+  §2.4, and §4 carries the linear quota. Worth a consolidation pass if it grows again.

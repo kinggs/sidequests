@@ -1,10 +1,11 @@
 # Rack It — spec
 
-A phone-first scorer for three cue games between any two players, with one rating across all
-of them (**Zargo**) and handicaps that keep a mismatched pair close. Matches sync to the cloud,
-so any invited phone can score, resume or watch. Invite-only: members sign in with Google.
+A phone-first scorer for five cue games — three nine-ball, two 8-ball — between any two
+players, with one rating across all of them (**Zargo**) and handicaps that keep a mismatched
+pair close. Matches sync to the cloud, so any invited phone can score, resume or watch.
+Invite-only: members sign in with Google.
 
-This spec is the app as it is (2.1.2). The rating's reasoning is in [`ZARGO.md`](ZARGO.md); the
+This spec is the app as it is (2.2.0). The rating's reasoning is in [`ZARGO.md`](ZARGO.md); the
 build sessions and their handovers are in [`V3-PLAN.md`](V3-PLAN.md); the look (dark system v2)
 is in [`design/DESIGN.md`](design/DESIGN.md).
 
@@ -25,6 +26,7 @@ is reference only.
 | **Robustness** | How many racks' worth of evidence sits behind a Zargo. Under 30 the rating is **provisional**. |
 | **Starter rating** | Where a player's Zargo begins before any match: 500, an estimate, or an override. |
 | **Match** | One sitting between two players in one game: one or more racks, a length, a handicap, a result. |
+| **Group** | 8-ball only: a player's set of seven, **solids** (1–7) or **stripes** (9–15). |
 | **Rack** | One game on the table. What it records depends on the game (§2). |
 | **Handicap** | **Off**, **Scoring** (point quotas) or **Racks** (a race chart). Never enters the rating. |
 
@@ -32,17 +34,18 @@ Words: **match**, never session; **Tied**, never "dead level"; **Invites** for t
 
 ## 2. The games
 
-Labelled **Trad-Nine · Golden-Nine · 11-Point-Nine**, in that order everywhere. Stored as
-`"standard"`, `"golden"` and `"league"`; a match without `game` is 11-Point-Nine.
+Five, in one picker of two rows: **Trad-Nine · Golden-Nine · 11-Point-Nine** over **Trad-Eight ·
+Ten-Point-Eight**, that order everywhere. Stored as `"standard"`, `"golden"`, `"league"`,
+`"eight"` and `"tenpoint"`; a match without `game` is 11-Point-Nine.
 
-| | Trad-Nine | Golden-Nine | 11-Point-Nine |
-|---|---|---|---|
-| A rack records | winner, win kind, fouls, ball drop, breaker | the same | the state of balls 1–9, breaker |
-| Scoring | one rack is one rack | 10 / 7 / 4 to the winner; fouls give 1, 1, 2 | 1 a ball, the 9 is 3 |
-| A rack ends | a win tap | a win tap, or a third foul | all nine balls resolved |
-| Length | race to 3, 5 (default), 7 or N (1–30) | 5 fixed racks (default), race to 35 or N points (1–200) | race (default, about 5 racks), fixed racks or open |
-| Break | alternate | winner breaks | alternate |
-| Handicap levers | Off (default), Racks | Off, Scoring (default), Racks | Off, Scoring (default), Racks |
+| | Trad-Nine | Golden-Nine | 11-Point-Nine | Trad-Eight | Ten-Point-Eight |
+|---|---|---|---|---|---|
+| A rack records | winner, win kind, fouls, ball drop, breaker | the same | the state of balls 1–9, breaker | the same as Trad-Nine, plus the groups | the same |
+| Scoring | one rack is one rack | 10 / 7 / 4 to the winner; fouls give 1, 1, 2 | 1 a ball, the 9 is 3 | one rack is one rack | 10 to the winner; the loser 1 a ball of their own group that's down, 0–7 |
+| A rack ends | a win tap | a win tap, or a third foul | all nine balls resolved | a win tap, or a hold on Foul (lost it on the 8) | the same |
+| Length | race to 3, 5 (default), 7 or N (1–30) | 5 fixed racks (default), race to 35 or N points (1–200) | race (default, about 5 racks), fixed racks or open | race to 3, 5 (default), 7 or N | 5 fixed racks (default), race to 50 or N points |
+| Break | alternate | winner breaks | alternate | alternate | alternate |
+| Handicap levers | Off (default), Racks | Off, Scoring (default), Racks | Off, Scoring (default), Racks | Off (default), Racks | Off, Scoring (default), Racks |
 
 ### 2.1 11-Point-Nine, the house variant
 
@@ -79,6 +82,30 @@ WPA nine-ball as played at Sessions Billiard Club: one rack is one rack, a race,
 break. Fouls are counted per player per rack so every game's screen looks the same; they never
 score. Win kinds: **Break & run**, **9 on the break**, **Win**.
 
+### 2.4 The two 8-ball games
+
+Both play the same rack; only the scoring differs, the way organised 8-ball splits into
+one-rack-one-win leagues (WPA, CSI/BCAPL, APA, every Fargo-rated league) and points-per-rack
+ones (VNEA, USAPL). The rules the app assumes:
+
+- Clear your group, then the 8 in a called pocket. Win kinds: **Break & run** and **Win**.
+- **Losing on the 8** — pocketing it early, in the wrong pocket, on a foul, scratching with it,
+  or driving it off the table (WPA §3.8) — hands the rack to the other player. It's a **hold on
+  Foul** on the player who did it, confirmed, kind `foul8`.
+- **The 8 on the break is spotted and play goes on** (WPA and CSI), so there's no button for it
+  and a scratch while making it is just a foul. `config.games.<game>.eightOnBreak: "win"` brings
+  a third button, **8 on the break**, back for a house that plays it APA's way.
+- Fouls are counted per player per rack and never score; ball in hand happens on the table.
+- **Alternate break.** (Winner breaks, APA's way, is a later option.)
+- **Ten-Point-Eight** takes the one input every points system takes beyond the winner: how many
+  of the loser's own group are down, 0 to 7, whoever potted them. The winner always gets 10.
+  `config.games.tenpoint.points: { winner: 10, ball: 1, left: 0 }` — VNEA and CSI's 10-point
+  system. `left: 1` makes it CSI's 17-point "ball count"; `winner: 14` makes it USAPL's. One
+  edit, no migration.
+- **Groups.** A rack stores `groups: { a: "solids" | "stripes" | null }`. Null means the app
+  works it out from the drop: a player who has only potted from one group owns it and the other
+  player gets the rest. A tap on a drop row's label sets it by hand, which settles it.
+
 ## 3. Zargo
 
 The full definition, the per-game weights and the known challenges are in
@@ -88,7 +115,9 @@ The full definition, the per-game weights and the known challenges are in
 - Every counted rack gives A a result `r` and a weight `w`. **11-Point-Nine:** `r` is A's share
   of the rack's live points and `w = 1`, spread over the match by live points
   (`w_i = live_i / mean`), so a rack mostly lost to dead balls says less and the weights still
-  sum to the rack count. **Golden-Nine and Trad-Nine:** `r` is 1 or 0 by rack winner, `w = 0.5`.
+  sum to the rack count. **Every other game, 8-ball and 9-ball alike:** `r` is 1 or 0 by rack
+  winner, `w = 0.5`. Points, fouls, the loser's balls and the kind of win never enter it, which
+  is how FargoRate pools 8-ball and 9-ball into one number (ZARGO.md).
 - A match moves ratings in one of three regimes, by matches played (`sessions` in the data):
   - **Calibration.** A player under 3 matches against one with 3 or more: solve the Zargo the
     observed mean `r` implies (`gap = 100 × log2(s / (1 − s))`, capped ±250) anchored on the
@@ -130,9 +159,9 @@ of match records that change; **Apply** writes `state/main.players` and each mat
 ## 4. Handicap and the lead bar
 
 **Scoring** gives each player a quota. **Racks** makes the match a race in racks with a chart.
-**Off** plays level and the plain score decides it. Scoring isn't offered for Trad-Nine (no
-points to share). Racks isn't offered for an open 11-Point-Nine match or a Golden-Nine race to
-points; choosing it turns any other match into a **race in racks**, Length becomes Race to
+**Off** plays level and the plain score decides it. Scoring isn't offered for Trad-Nine or
+Trad-Eight (no points to share). Racks isn't offered for an open 11-Point-Nine match or a race
+to points; choosing it turns any other match into a **race in racks**, Length becomes Race to
 3 · 5 · 7 · N (N 1–15), and leaving Racks resets Length to the game's default.
 
 **Race chart.** The favourite races to N; the underdog's target is the one from 1 to N whose
@@ -150,8 +179,26 @@ far, floored at 4 points a planned rack. Golden-Nine race to points: the pair's 
 check it against real matches. Setup warns when an 11-Point-Nine race target is under **8
 points** (one rack could decide it) and suggests a length; it doesn't block.
 
-**Off.** An 11-Point-Nine race is both to `round(11 × racks / 2)`; a Golden-Nine race to points
-is both to N; Trad-Nine races level.
+**Ten-Point-Eight's quota is a spot, not a share**, because the loser of a rack keeps their own
+balls and so has a floor. Expected points a rack are linear in `pA` instead
+(`zargo.js` `expectedEightPoints`):
+
+```
+eA = 10 × pA + L̄ × (1 − pA)      eB = 10 × (1 − pA) + L̄ × pA      L̄ = config meanLoserBalls
+```
+
+(In general `win = winner + left × (7 − L̄)` and `lose = ball × L̄`, so the 17- and 14-point
+configs work too.) Over fixed racks the quotas are `round(racks × eA)` and `round(racks × eB)`,
+shown under each score as "31 of 42" from rack one, and the winner is whoever finishes further
+past their own: `lead = (pointsB − quotaB) − (pointsA − quotaA)`. Over a race to points the
+favourite races to N and the other to `round(N × eUnderdog / eFavourite)`, editable. At a
+160-point gap (`pA` 0.75) that's 8.4 points a rack to 5.1, quotas of 42 and 26 over five racks,
+and a race to 50 against 30. ⚠ `meanLoserBalls: 3.5` is a guess until 50 racks are stored; every
+rack holds its count, so it can then be measured.
+
+**Off.** An 11-Point-Nine race is both to `round(11 × racks / 2)`; a Golden-Nine or
+Ten-Point-Eight race to points is both to N; Trad-Nine and Trad-Eight race level, and
+Ten-Point-Eight over fixed racks is decided by plain points.
 
 **The lead** shows twice: the lead rail under the scores fills from the centre towards whoever
 is ahead, in their colour, and the match bar names them with the gap ("Melanie +26%"). With a quota it reads the gap between the two players'
@@ -160,10 +207,10 @@ swing at a quarter of the match clear, damped by how much has been played, so an
 first ball doesn't lurch it. In a race it pegs at **target met**; "ahead" means closest to your
 own target. A head start reads as the shorter target it equals. Off shows a plain lead: racks
 in Trad-Nine ("MEL +1 rack"), points in the games scored by points ("KENNY +6 points"), full
-swing at the race size or half the match's points. Level leaves both empty.
+swing at the race size, or at the winner's points per rack over the match's racks. Level leaves both empty.
 
-**Who wins.** Scoring: the adjusted lead `pointsB − pointsA / H`, `H = pA / (1 − pA)`. Off: the
-plain difference. A race: whoever met their target (racks in a race in racks, points otherwise).
+**Who wins.** Scoring: the adjusted lead `pointsB − pointsA / H`, `H = pA / (1 − pA)`, or
+Ten-Point-Eight's quota spot above. Off: the plain difference. A race: whoever met their target (racks in a race in racks, points otherwise).
 The Racks lever ended early: whoever is further through their own race. Golden-Nine: a second
 intentional foul loses the match whatever the score.
 
@@ -172,8 +219,9 @@ intentional foul loses the match whatever the score.
 One page, defaults first, **Start** pinned below it and naming what's missing ("Pick two
 players", "Set the length first"):
 
-1. **Game**, a segmented control (the third segment reads "11-Point" to fit). The last game
-   picked is remembered per phone (`localStorage` `rack-it.game`).
+1. **Game**, a segmented control of two rows, a discipline each: the three nine-ball games (the
+   third segment reads "11-Point" to fit) over the two 8-ball ones. The last game picked is
+   remembered per phone (`localStorage` `rack-it.game`).
 2. **Players:** Teal side and Coral side columns with avatars. You're pre-selected on teal; the
    coral column lists the teal player's most recent opponents first, then everyone by name.
    Tapping the player who's on the other side swaps the two, and the break stays with whoever
@@ -183,7 +231,9 @@ players", "Set the length first"):
 4. The handicap row shows the proposal and, open, the targets, both editable. The odds sentence
    sits above **Start** at all times: how many racks (or points, in 11-Point-Nine) the favourite
    expects for each one of the other's, "Near-level ratings, so an even match" when close, and
-   with Racks the chance the higher-rated player wins the race as set.
+   with Racks the chance the higher-rated player wins the race as set. Ten-Point-Eight reads as
+   points a rack instead ("Kenny expects 8.4 points a rack to Melanie's 5.1"), since its loser
+   scores too.
 
 The handicap isn't remembered: each game starts at its default. A repeat of last night is Game,
 two names, Start. Play keeps your picks while you look at another tab and starts fresh after a
@@ -215,14 +265,23 @@ struck through. Dark balls (2, 4, 7, 8) carry a hairline ring so their edge show
 **Long-press** clears a ball. When all nine are resolved the rack-end card shows the 11-point
 check with **Start rack N** (or **Declare the result**), or the odd-total warning (§2.1).
 
-**Golden-Nine and Trad-Nine.** The rack area becomes a row of two **Foul** buttons (that rack's
-count, and in Golden-Nine what it gave away; amber once there's a foul), then a column per
-player captioned "Gareth wins it", with three win buttons (Golden-Nine: Big Golden +10, Small
-Golden +7, Win +4; Trad-Nine: Break & run, 9 on the break, Win). A foul passes the shot to the
+**Every other game.** The rack area becomes a row of two **Foul** buttons (that rack's count,
+and in Golden-Nine what it gave away; amber once there's a foul), then a column per player
+captioned "Gareth wins it", with its win buttons (Golden-Nine: Big Golden +10, Small Golden +7,
+Win +4; Trad-Nine: Break & run, 9 on the break, Win; the 8-ball games: Break & run, Win, and
+**8 on the break** only where `eightOnBreak` is `"win"`). A foul passes the shot to the
 opponent. A win tap, or a third Golden-Nine foul, ends the rack and shows the
-card with **Start rack N** and **Undo that**. Golden-Nine's intentional foul is a long-press on
-Foul, confirmed. After the last scheduled Golden-Nine rack a tie offers **Play a deciding rack**
-(adds one to `racksPlanned`) or **Call it a tie**.
+card with **Start rack N** and **Undo that**. A **hold on Foul**, confirmed, is Golden-Nine's
+intentional foul and the 8-ball games' **lost it on the 8**. After the last scheduled Golden-Nine
+or Ten-Point-Eight rack a tie offers **Play a deciding rack** (adds one to `racksPlanned`) or
+**Call it a tie**.
+
+**Ten-Point-Eight's rack-end card** reads "Kenny 10 · Melanie 4 (4 stripes down)" with a
+stepper (− 4 +) for the loser's balls, which writes them into the drop so the drop stays the
+one record and Undo covers it. When the loser's group isn't settled, two chips ask first
+("Melanie was on: Solids · Stripes"); with balls already down they're the only way on, since
+the group *is* the score, and with nothing down (a break and run) **Start rack N** stays
+offered because 0 is right either way.
 
 **Golden-Nine's scoring handicap, live.** Over fixed racks there is no target to run in to, so
 the underdog's panel shows their points times the favourite's odds instead ("×3.4 = 38", or
@@ -230,16 +289,23 @@ the underdog's panel shows their points times the favourite's odds instead ("×3
 That is the comparison that decides the match (§4, Who wins). Near-level ratings show nothing
 extra. A Golden-Nine race to points shows "needs N of M", as 11-Point-Nine does.
 
-**The ball drop** (Golden-Nine and Trad-Nine): balls 1–5 over 6–9 above the controls, under a
-hairline, as on a stream. Tap a ball and it's potted by the shooter; its slot stays empty, and tapping the slot
-puts it back. It's a log for replays, never the score: potting the 9 wins nothing, the shooter
-doesn't change, taps after the rack has a winner are ignored, and a new rack starts full. Undo
-covers it.
+**The ball drop** (every game but 11-Point-Nine), above the controls under a hairline, as on a
+stream. Tap a ball and it's potted by the shooter; its slot stays empty, and tapping the slot
+puts it back. The shooter doesn't change, taps after the rack has a winner are ignored, a new
+rack starts full, and Undo covers it.
+- **Nine-ball:** balls 1–5 over 6–9, a log for replays and never the score — potting the 9 wins
+  nothing.
+- **8-ball:** solids 1–7 over stripes 9–15, fourteen cells in two rows. The 8 has no slot,
+  because the win buttons *are* the 8. Each row carries its group's label with the owner's
+  initial in their colour ("Stripes · M"), worked out from what's been potted; tapping the label
+  hands the row to teal, then coral, then back to the guess, and a label set by hand settles it.
+  In Trad-Eight the drop is still only a log; in **Ten-Point-Eight it is the score**, so a
+  scorer who taps balls as they drop gets the loser's points for nothing and one who doesn't
+  taps the count in on the rack-end card.
 
 **End.** A complete rack still counts. 11-Point-Nine: an untouched rack is dropped silently; a
 part-played or odd rack asks, dropped by default with **Count rack N, then end** offered.
-Golden-Nine and Trad-Nine: a rack without a winner is dropped, and End says so if fouls had
-given points. Then the result card: winner, racks, score line, Zargo movement ("calibrating"
+Every other game: a rack without a winner is dropped, and End says so if fouls had given points. Then the result card: winner, racks, score line, Zargo movement ("calibrating"
 when it applies), **Save match** or **Discard**. Saving opens the match's summary; discarding
 goes to Ratings.
 
@@ -271,7 +337,7 @@ list. Tap a row for their page.
 ("Against someone on 497, Kenny would expect to win two racks for every one"), **Edit** (name,
 Gmail, colour, the shared sheet, and for the owner the starter rating override and **Hold to
 delete player**; anyone else sees one line saying those are the owner's), Cuescore (read-only;
-Add or Change on your own page), the win record per game (finished matches) and their matches.
+Add or Change on your own page), the win record per game (finished matches, in picker order) and their matches.
 
 **Matches.** Live (last 24 hours) first, then newest. Each row: names and score (racks in a race
 in racks, head start included) with the winner's name in bold, then a caps line with game,
@@ -334,14 +400,16 @@ All under `sidequests/rack-it/` in Firestore, via `shared/cloud.js`. Members-onl
 state/main
   players: { <personId>: { zargo, robustness, sessions } }     // sessions = matches played
   config:  { games: { league: { points: { low, nine }, w }, golden: { points: { big, small,
-             win, foul: [1, 1, 2], intentional }, w }, standard: { w } },
+             win, foul: [1, 1, 2], intentional }, w }, standard: { w },
+             eight: { w, eightOnBreak: "spot" | "win" },
+             tenpoint: { points: { winner, ball, left }, meanLoserBalls, w, eightOnBreak } },
              K: 8, provisionalRacks: 30, startZargo: 500 }       // old config.points still read
 
 starters/<personId>
   zargo, setAt, setBy                                           // an email, or "rebuild"
 
 matches/<id>
-  game: "standard" | "golden" | "league"                        // missing = league
+  game: "standard" | "golden" | "league" | "eight" | "tenpoint"  // missing = league
   handicap: "off" | "scoring" | "racks"                         // missing = scoring
   playerA, playerB                                              // person ids when started
   mode: "race" | "fixed" | "open"
@@ -355,14 +423,20 @@ matches/<id>
     "1": { winner, kind: "big" | "small" | "win" | "fouls" | "intentional",
            fouls: { a, b }, balls: { "3": "a" }, pottedAt: { "3": <ms> }, breaker, at }  // Golden-Nine
     "1": { winner, kind: "run" | "nine" | "win", fouls, balls, pottedAt, breaker, at }    // Trad-Nine
+    "1": { winner, kind: "run" | "win" | "eight" | "foul8", fouls,
+           balls: { "1": "a", …, "15": "b" },        // solids 1–7 and stripes 9–15; no 8
+           pottedAt, groups: { a: "solids" | "stripes" | null }, breaker, at }             // 8-ball
   }
   totals: { a, b, racksA, racksB, dead, lead, winner }
 ```
 
-- In Trad-Nine `a` and `b` are racks. An 11-Point-Nine rack counts to whoever took more of its
-  live points (an equal split counts for nobody). `racksA/racksB` include any head start.
-- **Counted racks.** Golden-Nine and Trad-Nine: racks with a winner. 11-Point-Nine: every rack
+- In Trad-Nine and Trad-Eight `a` and `b` are racks. An 11-Point-Nine rack counts to whoever took
+  more of its live points (an equal split counts for nobody). `racksA/racksB` include any head
+  start.
+- **Counted racks.** Every game but 11-Point-Nine: racks with a winner. 11-Point-Nine: every rack
   but a last one that End dropped (no balls at all, or points not in `totals`).
+- A Ten-Point-Eight rack's points are derived from `balls` and `groups`, never stored per rack:
+  the loser's own group's balls that are down, capped at 7 (`zargo.js` `loserBalls`).
 - Writes: racks with `cloud.patch` per rack; `state/main` and `starters` with `cloud.save`.
 - Offline: Firestore's persistent cache is on; `sw.js` caches the shell (`index.html`,
   `zargo.js`, `shared/theme.css` and the two fonts, manifest, icons), network first.
@@ -393,7 +467,8 @@ account, so a static app can't upload results.
   link, since a URL built from the number alone is unverified).
 - **Copy for Cuescore** on a summary: one line with the score in racks, since Cuescore records
   frames, e.g. `Kenny 5–0 Melanie · 9-Ball · race to 5 · Sep 16, 2026`. Golden-Nine and
-  11-Point-Nine say "9-Ball (Golden Nine)" and "9-Ball (11-Point-Nine)" and add the points. The
+  11-Point-Nine say "9-Ball (Golden Nine)" and "9-Ball (11-Point-Nine)" and add the points;
+  Trad-Eight says "8-Ball" and Ten-Point-Eight "8-Ball (10-point)", with the points. The
   race reads "race to 7 v 4", adds "Melanie started 3 up", or gives points or a rack count. With
   no clipboard the line is selected instead. **Open Cuescore challenges** links to
   cuescore.com/challenges/. ⚠ Check the shape against Cuescore's real challenge form.
@@ -406,9 +481,13 @@ account, so a static app can't upload results.
   Chrome's URL bar (90px on a 390×844 phone). Under 700px tall the score head drops to 116 (score
   52px), the match bar to 44 and the controls to 64, and the win area tightens. On a narrow
   phone the match bar's label and lead each take a second line rather than lose words.
-- **Ball drop sizing.** Two rows, so every target is a fifth of the width by 60px (56 on a short
-  phone), balls at 46px. The win buttons give up the height, down to their 56px minimum on a
-  640px-tall screen.
+- **Ball drop sizing.** Nine-ball: two rows, so every target is a fifth of the width by 60px (56
+  on a short phone), balls at 46px. 8-ball: fourteen cells across the full width, 56×52 on a 390
+  phone and 51×48 on a 360 one — treated like the live screen's balls rather than the 56px rule
+  (owner's call, 2.2.0) — with a 24px group label a row that takes a 38px target from the space
+  around it, and balls at 40px (38 on a short phone). The win buttons give up the height, down to
+  their 56px minimum; a 360×640 phone with the third win button turned on
+  (`eightOnBreak: "win"`) is the one case that runs out of room, and clips rather than scrolls.
 - **House minimums.** 18px base; nothing under 15px except tracked caps labels at 14px (owner's
   call, 2.1.0); targets 56px or more (60 on every page but the live screen's balls, 76 for the
   primary controls); dark; greys at 7:1 or better for anything read while playing and 4.5:1
@@ -430,7 +509,10 @@ account, so a static app can't upload results.
 - A per-game rating, and an 11-Point-Nine point-share-to-rack-odds mapping (ZARGO.md ⚠).
 - Uploading to Cuescore, and Cuescore ratings as starter hints.
 - Club grouping; Golden-Nine's shot clock, time limit, early finish.
-- WPA 8-ball and Heyball (same shape as Trad-Nine when wanted).
+- Heyball (Trad-Eight's shape, with its own win kinds, when wanted); a winner-breaks option for
+  the 8-ball games; average points a rack on a person's page.
+- Whether the loser's balls in Ten-Point-Eight predict anything the rack winner doesn't
+  (ZARGO.md challenge 11): the counts are stored so it can be tested later.
 
 ## 13. Decisions log
 
@@ -452,3 +534,8 @@ account, so a static app can't upload results.
 | 2.1.0 | End, delete match and delete player are holds, not dialogs. Delete leaves the Matches list for the summary. |
 | 2.1.0 | An owner role: only the owner deletes or rewrites history, sets starters after the fact, or removes an invite. |
 | 2.1.0 | Golden-Nine's scoring handicap shows live, as the underdog's handicapped points. |
+| 2.2.0 | Two 8-ball games beside the three nine-ball ones: Trad-Eight (one rack is one rack) and Ten-Point-Eight (VNEA and CSI's 10-point system). Not 17- or 14-point. |
+| 2.2.0 | The rack winner is all that rates, in every game, at `w = 0.5` — Fargo's way. Point share was rejected: the Ten-Point-Eight winner always has 10, so a share would only grade how badly the loser lost. |
+| 2.2.0 | The 8 on the break is spotted and play goes on (WPA, CSI), and losing on the 8 is a hold on Foul. Alternate break in both games. |
+| 2.2.0 | The 8-ball drop is fourteen balls in two rows with a group label each, and in Ten-Point-Eight it is the score. Cells may be 52px (51 on a 360 phone). |
+| 2.2.0 | Ten-Point-Eight's scoring handicap is a quota spot, not a share, because the loser of a rack keeps their own balls. |

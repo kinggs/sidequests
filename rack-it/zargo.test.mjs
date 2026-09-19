@@ -165,6 +165,115 @@ test("race chart: at pA 0.65 a race to 7 becomes 7 v 4, and 5 becomes 5 v 3 (ZAR
   near(Z.raceWin(0.7, 1, 1), 0.7);
 });
 
+test("8-ball rack points: the 10-point, 17-point and 14-point systems are one config edit", () => {
+  const down = n => Object.fromEntries(Z.STRIPES.slice(0, n).map(b => [b, "b"]));
+  // A owns solids; the stripes that are down are B's own balls.
+  const rack = (winner, n) => ({ winner, kind: "win", fouls: { a: 0, b: 0 },
+    balls: down(n), pottedAt: {}, groups: { a: "solids" } });
+  // VNEA and CSI's 10-point: the winner always 10, the loser a point a ball. Rack total 10 to 17.
+  assert.deepEqual(Z.gameRackPoints("tenpoint", rack("a", 4), cfg), { a: 10, b: 4, dead: 0 });
+  assert.deepEqual(Z.gameRackPoints("tenpoint", rack("a", 0), cfg), { a: 10, b: 0, dead: 0 });
+  // CSI's 17-point "ball count": the winner also takes a point for each ball still up, so 17 always.
+  const seventeen = Z.withGames({ games: { tenpoint: { points: { winner: 10, ball: 1, left: 1 } } } });
+  assert.deepEqual(Z.gameRackPoints("tenpoint", rack("a", 4), seventeen), { a: 13, b: 4, dead: 0 });
+  assert.equal(seventeen.games.tenpoint.meanLoserBalls, 3.5);   // the rest of the game survives the edit
+  // USAPL's 14-point: seven balls and seven for the 8.
+  const usapl = Z.withGames({ games: { tenpoint: { points: { winner: 14, ball: 1, left: 0 } } } });
+  assert.deepEqual(Z.gameRackPoints("tenpoint", rack("b", 0), usapl), { a: 0, b: 14, dead: 0 });
+  // Trad-Eight: one rack is one rack, whatever is left on the table.
+  assert.deepEqual(Z.gameRackPoints("eight", rack("a", 6), cfg), { a: 1, b: 0, dead: 0 });
+  assert.equal(cfg.games.eight.eightOnBreak, "spot");
+});
+
+test("8-ball groups: guessed from the drop, or set by hand on the label", () => {
+  const r = (balls, set) => ({ winner: "a", kind: "win", fouls: { a: 0, b: 0 }, balls,
+    pottedAt: {}, groups: { a: set || null } });
+  // Nothing potted: nobody's group is known.
+  assert.deepEqual(Z.groupsOf(r({})), { a: null, b: null, set: false });
+  // B has only potted stripes, so B is stripes and A gets the rest.
+  assert.deepEqual(Z.groupsOf(r({ 11: "b", 14: "b" })), { a: "solids", b: "stripes", set: false });
+  // A has one of each (a ball down on a foul), so the guess waits for B.
+  assert.deepEqual(Z.groupsOf(r({ 3: "a", 12: "a" })), { a: null, b: null, set: false });
+  assert.deepEqual(Z.groupsOf(r({ 3: "a", 12: "a", 13: "b" })), { a: "solids", b: "stripes", set: false });
+  // Set by hand beats the guess, and says so.
+  assert.deepEqual(Z.groupsOf(r({ 11: "b" }, "stripes")), { a: "stripes", b: "solids", set: true });
+  // The loser's balls down, whoever potted them.
+  assert.equal(Z.loserBalls(r({ 1: "a", 9: "b", 10: "b", 11: "b" })), 3);
+  assert.equal(Z.loserBalls(r({ 1: "a", 9: "b", 10: "b", 11: "b", 12: "b", 13: "b", 14: "b", 15: "b" })), 7);
+  // No winner yet, so no loser. An unknown group scores nothing.
+  assert.equal(Z.loserBalls(Object.assign(r({ 1: "a", 9: "b" }), { winner: null })), 0);
+  assert.equal(Z.loserBalls(r({})), 0);
+  // rackOf reads all fifteen balls and the group off a stored record. The 8 stays a ball like
+  // any other (it is one in 11-Point-Nine); the 8-ball drop simply has no slot for it.
+  const read = Z.rackOf({ winner: "b", kind: "foul8", balls: { 14: "a", 8: "a" }, groups: { a: "stripes" } });
+  assert.deepEqual(read.balls, { 8: "a", 14: "a" });
+  assert.equal(read.groups.a, "stripes");
+  assert.equal(Z.groupsOf({ balls: { 8: "a" } }).a, null);   // the 8 belongs to neither group
+  assert.equal(Z.rackOf({ groups: { a: "nonsense" } }).groups.a, null);
+});
+
+test("Ten-Point-Eight rates exactly as Trad-Nine does: the rack winners, at w = 0.5", () => {
+  const down = n => Object.fromEntries(Z.STRIPES.slice(0, n).map(b => [b, "b"]));
+  const rack = (winner, n, kind) => ({ winner, kind: kind || "win", fouls: { a: 0, b: 0 },
+    balls: Object.assign({ 1: "a" }, down(n)), pottedAt: {}, groups: { a: null } });
+  // A wins with 6 of B's stripes down (10–6), A breaks and runs (10–0), B wins on A's foul on
+  // the 8 with one solid down (1–10). A takes 2 racks of 3.
+  const doc = game => ({ game, status: "done", endedAt: 1, playerA: "A", playerB: "B",
+    racks: { 1: rack("a", 6), 2: rack("a", 0, "run"), 3: rack("b", 7, "foul8") } });
+  const ten = Z.matchPoints(doc("tenpoint"), cfg);
+  assert.deepEqual(ten.points.map(p => [p.a, p.b, p.winner]), [[10, 6, "a"], [10, 0, "a"], [1, 10, "b"]]);
+  assert.equal(ten.a, 21);
+  assert.equal(ten.b, 16);
+  assert.equal(ten.racksA, 2);
+  const eight = Z.matchPoints(doc("eight"), cfg);
+  assert.equal(eight.a, 2);
+  assert.equal(eight.b, 1);
+  // Points, the loser's balls and the kind of win never reach the rating.
+  const want = Z.rackResults("standard", wins("aab"), cfg);
+  assert.deepEqual(Z.rackResults("tenpoint", ten.points, cfg), want);
+  assert.deepEqual(Z.rackResults("eight", eight.points, cfg), want);
+  assert.equal(Z.weightOf(want), 1.5);
+  assert.deepEqual(Z.zargoOutcome(known(597.3, 508, 65, 25), Z.rackResults("tenpoint", ten.points, cfg), cfg),
+    Z.zargoOutcome(known(597.3, 508, 65, 25), want, cfg));
+});
+
+test("8-ball: a rack lost on the 8 is a rack won, and one with no winner never counts", () => {
+  const m = { game: "eight", racks: {
+    1: { winner: "b", kind: "foul8", fouls: { a: 1, b: 0 } },
+    2: { winner: null, fouls: { a: 0, b: 2 } } } };
+  assert.deepEqual(Z.countedRacks(m, cfg).map(r => r.n), [1]);
+  const banked = Z.matchPoints(m, cfg);
+  assert.deepEqual(banked.points, [{ a: 0, b: 1, winner: "b", kind: "foul8" }]);
+  assert.equal(banked.racks, 1);
+  assert.deepEqual(Z.rackResults("eight", banked.points, cfg), [{ r: 0, w: 0.5 }]);
+  // Ten-Point-Eight: the same rack, with nothing of A's down, is 10–0.
+  assert.deepEqual(Z.matchPoints({ ...m, game: "tenpoint" }, cfg).points,
+    [{ a: 0, b: 10, winner: "b", kind: "foul8" }]);
+});
+
+test("Ten-Point-Eight quotas: a 160-point gap is 8.4 points a rack to 5.1 (V3-PLAN §7.3)", () => {
+  // pA = 1 / (1 + 2^−1.6) = 0.75195. eA = 10 × 0.75195 + 3.5 × 0.24805 = 8.388,
+  // eB = 10 × 0.24805 + 3.5 × 0.75195 = 5.112, and the two always sum to 10 + L̄.
+  const pA = Z.expectedShareA(660, 500);
+  near(pA, 0.7519493, 1e-6);
+  const e = Z.expectedEightPoints(pA, cfg);
+  assert.equal(e.a.toFixed(1), "8.4");
+  assert.equal(e.b.toFixed(1), "5.1");
+  near(e.a + e.b, 13.5);
+  // Five fixed racks: quotas round(5 × e). (V3-PLAN says 42 and 25; its own rule gives 25.56 → 26.)
+  assert.equal(Math.round(5 * e.a), 42);
+  assert.equal(Math.round(5 * e.b), 26);
+  // A race to 50 for the favourite puts the underdog on round(50 × eB / eA).
+  assert.equal(Math.round(50 * e.b / e.a), 30);
+  // Level ratings split every rack down the middle.
+  const level = Z.expectedEightPoints(0.5, cfg);
+  near(level.a, 6.75);
+  near(level.b, 6.75);
+  // The 17-point system's racks are always worth 17, so the quotas still sum to the racks played.
+  const seventeen = Z.withGames({ games: { tenpoint: { points: { winner: 10, ball: 1, left: 1 } } } });
+  near(Z.expectedEightPoints(pA, seventeen).a + Z.expectedEightPoints(pA, seventeen).b, 17);
+});
+
 // ---------- replay ----------
 // Four players. C has a starter of 508; the others start at the default 500.
 //
@@ -248,4 +357,21 @@ test("replay: starters as plain numbers, the default otherwise, and nothing to r
     { id: "none", status: "done", endedAt: 2, game: "standard", playerA: "X", playerB: "Y", racks: { 1: { winner: null } } }
   ], {}, cfg);
   assert.deepEqual(skipped.matches, []);
+});
+
+test("replay: an 8-ball match moves ratings like a nine-ball one with the same winners", () => {
+  const down = n => Object.fromEntries(Z.STRIPES.slice(0, n).map(b => [b, "b"]));
+  const rack = (winner, n) => ({ winner, kind: "win", fouls: { a: 0, b: 0 },
+    balls: Object.assign({ 1: "a" }, down(n)) });
+  const m = game => ({ id: "m1", endedAt: 100, startedAt: 90, status: "done", game, handicap: "scoring",
+    mode: "fixed", racksPlanned: 3, playerA: "A", playerB: "B",
+    racks: { 1: rack("a", 5), 2: rack("a", 2), 3: rack("b", 7) } });
+  // Both players new and level, so settling: d = 8 × 0.5 × (2 − 3 × 0.5) = 2, boosted 4× to ±8.
+  for(const game of ["tenpoint", "eight", "standard"]){
+    const { players } = Z.replay([m(game)], {}, cfg);
+    near(players.A.zargo, 508, 1e-9, game);
+    near(players.B.zargo, 492, 1e-9, game);
+    near(players.A.robustness, 1.5, 1e-9, game);
+    assert.equal(players.A.sessions, 1);
+  }
 });

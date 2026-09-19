@@ -113,6 +113,8 @@
   .danger-note{font-size:.8333rem;color:var(--warn);line-height:1.4}
 
   /* ---- setup: one page, Start pinned below it ---- */
+  /* The game picker is a row per discipline: three nine-ball games over two 8-ball ones. */
+  #games{display:flex;flex-direction:column;gap:8px}
   .setupbody{flex:1;display:flex;flex-direction:column;gap:16px;padding:4px 16px 16px;overflow-y:auto}
   .setupfoot{flex:0 0 auto;display:flex;flex-direction:column;gap:10px;padding:10px 16px 14px;box-shadow:0 -1px 0 var(--line)}
   .pick{display:flex;gap:12px}
@@ -250,9 +252,23 @@
   .wincol[data-p="b"] .win.chosen{background:var(--b);color:var(--b-ink)}
   .win.chosen small{color:inherit}
 
-  /* ---- the ball drop, 1 to 5 over 6 to 9, as on a stream ---- */
+  /* ---- the ball drop: 1 to 5 over 6 to 9 in nine-ball, as on a stream; solids 1–7 over
+         stripes 9–15 in 8-ball, where the 8 has no slot because the win buttons are the 8 ---- */
   .drop{flex:0 0 auto;display:flex;flex-direction:column;margin:0 12px;padding:6px 0 8px;box-shadow:0 -1px 0 var(--line);--bs:46px}
+  .dgroup{display:flex;flex-direction:column}
   .drow{display:flex;justify-content:center}
+  /* Fourteen cells across the full width: 55px on a 390 phone, 51 on a 360, treated like the
+     live screen's balls (V3-PLAN §7.4) rather than the 56px rule. */
+  .drop.eight{margin:0;--bs:40px}
+  .drop.eight .dcell{flex:1 1 0;min-width:0;height:52px;min-height:52px}
+  .drop.eight .pip{font-size:14px}
+  /* Each row says whose group it is, by initial. Tap to set it by hand, which locks it. */
+  .dlabel{display:flex;align-items:center;justify-content:flex-start;gap:6px;width:100%;height:24px;min-height:24px;
+    padding:0 12px;background:none;border-radius:0;position:relative;
+    font-family:var(--grot);font-size:14px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
+  .dlabel::after{content:"";position:absolute;left:0;right:0;top:-8px;bottom:-6px}   /* a 38px target */
+  .dlabel[data-own="a"]{color:var(--a)}
+  .dlabel[data-own="b"]{color:var(--b)}
   .dcell{flex:0 0 20%;min-width:56px;min-height:60px;height:60px;padding:0;border-radius:var(--r-chip);background:none;
     display:flex;align-items:center;justify-content:center;position:relative}
   .dcell .ball{display:block;pointer-events:none;transition:opacity .15s ease, transform .15s ease}
@@ -288,6 +304,9 @@
     .foul{min-height:56px}
     .dcell{height:56px;min-height:56px}
     .drop{--bs:42px;padding:4px 0}
+    .drop.eight{--bs:38px}
+    .drop.eight .dcell{height:48px;min-height:48px}
+    .dlabel{height:22px;min-height:22px}
   }
 
 
@@ -302,6 +321,20 @@
   .done button{min-height:76px;width:100%;max-width:22rem;padding:0 24px;border-radius:var(--r-card);background:var(--text);color:var(--ink-0);font-size:20px}
   .done .ghost{background:none;color:var(--text-2);box-shadow:inset 0 0 0 1px rgba(232,237,243,.18);min-height:60px;font-size:18px}
   .done .warnbtn{color:var(--warn);box-shadow:inset 0 0 0 1px rgba(255,193,77,.55)}
+  /* Ten-Point-Eight's rack-end card asks the one thing the drop can't always know: the loser's
+     group, and how many of their balls are down. */
+  .doneextra{display:flex;flex-direction:column;gap:12px;width:100%;max-width:22rem}
+  .doneextra .pair{display:flex;gap:12px}
+  .doneextra .pair button{flex:1 1 0;min-height:var(--tap);width:auto;max-width:none;font-size:18px;
+    background:var(--ink-2);color:var(--text);box-shadow:inset 0 0 0 1px var(--line);border-radius:var(--r-ctl)}
+  .doneextra .pair button.sel{background:var(--text);color:var(--ink-0);box-shadow:none}
+  .doneextra .step{display:flex;align-items:center;gap:12px}
+  .doneextra .step button{flex:0 0 var(--tap);min-height:var(--tap);width:var(--tap);max-width:none;padding:0;
+    font-family:var(--grot);font-size:26px;background:var(--ink-2);color:var(--text);
+    box-shadow:inset 0 0 0 1px var(--line);border-radius:var(--r-ctl)}
+  .doneextra .step button:disabled{color:var(--faint)}
+  .doneextra .step>span{flex:1 1 0;font-size:17px;color:var(--text-2);line-height:1.3}
+  .doneextra .step>span b{font-family:var(--grot);font-size:26px;font-weight:600;color:var(--text)}
 </style>
 </head>
 <body data-turn="a">
@@ -389,10 +422,16 @@
     <h1>New match</h1>
   </header>
   <div class="setupbody">
-    <div class="seg" id="games">
-      <button data-game="standard">Trad-Nine</button>
-      <button data-game="golden">Golden-Nine</button>
-      <button data-game="league" aria-label="11-Point-Nine">11-Point</button>
+    <div id="games">
+      <div class="seg">
+        <button data-game="standard">Trad-Nine</button>
+        <button data-game="golden">Golden-Nine</button>
+        <button data-game="league" aria-label="11-Point-Nine">11-Point</button>
+      </div>
+      <div class="seg">
+        <button data-game="eight">Trad-Eight</button>
+        <button data-game="tenpoint">Ten-Point-Eight</button>
+      </div>
     </div>
     <div class="pick">
       <div class="pickcol ca"><h3 class="lbl">Teal side</h3><div class="picks" id="pickA"></div></div>
@@ -410,7 +449,7 @@
           </div>
           <div class="modes" id="goldLen">
             <button data-len="fixed">Fixed racks</button>
-            <button data-len="35">Race to 35</button>
+            <button data-len="chip" id="goldChip">Race to 35</button>
             <button data-len="other">Race to N</button>
           </div>
           <div class="modes" id="raceLen">
@@ -522,8 +561,9 @@
       every one the other wins. 200 apart, four for every one. Level ratings, one for one.</p>
     <p>Every saved match moves both ratings by how the racks went against those odds. Winning when you were
       expected to moves you a little; an upset moves you more. In 11-Point-Nine a rack counts by the share of
-      its points you took. In Golden-Nine and Trad-Nine it counts by who won it, at half the weight. One match
-      moves a settled rating by 40 at most.</p>
+      its points you took. In every other game, 8-ball and 9-ball alike, it counts by who won the rack, at
+      half the weight — points, fouls and balls left on the table never enter it. One match moves a settled
+      rating by 40 at most.</p>
     <p>A handicap never changes what you earn. Level, split targets or a head start: the rating learns from
       the racks as they happened, and the handicap only makes the match close.</p>
     <p><b>Robustness</b> is how many racks sit behind a rating. Under 30 it's provisional: still used for
@@ -647,6 +687,7 @@
 <div class="done hidden" id="done">
   <h2 id="doneTitle">Rack complete</h2>
   <p id="doneBody"></p>
+  <div class="doneextra hidden" id="doneExtra"></div>
   <p class="hidden" id="doneZargo"></p>
   <button id="doneNext">Start rack 2</button>
   <button class="ghost warnbtn hidden" id="doneAnyway">Bank it anyway</button>
@@ -660,7 +701,7 @@ import { phone } from "../shared/phone.js";
 import { people } from "../shared/people.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "2.1.2";
+const APP_VERSION = "2.2.0";
 const APP_ID = "rack-it";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 document.getElementById("versionMore").textContent = "v" + APP_VERSION;
@@ -684,7 +725,7 @@ const el = {};
  "impChoice","impInfo","impMerge","impReplace","impCancel",
  "familyBtn","scrFamily","famBack","famList","famEmail","famAdd","famShare",
  "pfEst","estRef","estRefName","estRefScore","estNewScore","estOut","pfDelete","pfShared",
- "games","raceLen","raceNRow","raceN","winArea","drop",
+ "games","raceLen","raceNRow","raceN","winArea","drop","goldChip","doneExtra",
  "rebuild","rbInfo","rbList","rbNote","rbApply","rbCancel","rebuildBtn"
 ].forEach(id => el[id] = $(id));
 
@@ -748,21 +789,41 @@ const handicapOf = doc => (doc && doc.handicap) || "scoring";
 const withMatchFields = doc => Object.assign({}, doc, { game: gameOf(doc), handicap: handicapOf(doc) });
 const DEFAULT_RACKS = 5;   // the setup default, and the notional length of an open match
 
-const GAME_LABEL = { league: "11-Point-Nine", golden: "Golden-Nine", standard: "Trad-Nine" };
-// The three ways to win a rack in Golden-Nine and Trad-Nine, in button order (SPEC §12.3).
-// "fouls" and "intentional" also end a Golden-Nine rack, but from the Foul button.
+const GAME_LABEL = { league: "11-Point-Nine", golden: "Golden-Nine", standard: "Trad-Nine",
+  eight: "Trad-Eight", tenpoint: "Ten-Point-Eight" };
+// Picker order: the three nine-ball games, then the two 8-ball ones.
+const GAME_ORDER = ["standard", "golden", "league", "eight", "tenpoint"];
+const isEight = g => g === "eight" || g === "tenpoint";
+// Scored in points, so Length is in points and the Scoring lever has something to share out.
+const pointsGame = g => g === "golden" || g === "tenpoint";
+// One rack is one rack: nothing to share, so Scoring isn't offered and a race is in racks.
+const rackGame = g => g === "standard" || g === "eight";
+// The ways to win a rack, in button order (SPEC §2). "fouls" and "intentional" also end a
+// Golden-Nine rack, and "foul8" an 8-ball one, but from the Foul button. "8 on the break" only
+// shows where the house plays it as a win (config eightOnBreak).
+const EIGHT_KINDS = [["run", "Break & run"], ["eight", "8 on the break"], ["win", "Win"]];
 const WIN_KINDS = {
   golden:   [["big", "Big Golden"], ["small", "Small Golden"], ["win", "Win"]],
-  standard: [["run", "Break & run"], ["nine", "9 on the break"], ["win", "Win"]]
+  standard: [["run", "Break & run"], ["nine", "9 on the break"], ["win", "Win"]],
+  eight:    EIGHT_KINDS,
+  tenpoint: EIGHT_KINDS
 };
 const KIND_LABEL = { big: "Big Golden", small: "Small Golden", win: "Win", run: "Break & run",
-  nine: "9 on the break", fouls: "Three fouls", intentional: "Intentional foul" };
+  nine: "9 on the break", fouls: "Three fouls", intentional: "Intentional foul",
+  eight: "8 on the break", foul8: "Lost on the 8" };
+const eightWins = game => isEight(game) && (cfg().games[game].eightOnBreak || "spot") === "win";
 const other = Z.other;
 const newRack = Z.newRack, rackOf = Z.rackOf, newBanked = Z.newBanked, bankInto = Z.bankInto;
 const foulPoints = n => Z.foulPoints(n, cfg());
 const gameRackPoints = (game, rack) => Z.gameRackPoints(game, rack, cfg());
 const leagueRackPoints = balls => Z.leagueRackPoints(balls, cfg());
 const expectedShareA = Z.expectedShareA;
+// 8-ball: whose group is whose (set by hand, else guessed from the drop), and Ten-Point-Eight's
+// one scoring input — how many of the loser's own balls are down.
+const groupsOf = Z.groupsOf, loserBalls = Z.loserBalls;
+const GROUP_LABEL = { solids: "Solids", stripes: "Stripes" };
+const groupWord = (g, n) => n === 1 ? (g === "stripes" ? "stripe" : "solid") : (g === "stripes" ? "stripes" : "solids");
+const expectedEightPoints = pA => Z.expectedEightPoints(pA, cfg());
 
 // Players are the household's shared people (shared/people.js): names and colours are the
 // same in every app. db.players keeps only what's Rack It's own — zargo, robustness,
@@ -1184,25 +1245,29 @@ const setup = { game:"league", a:null, b:null, mode:"race", breaker:"a", raceTo:
 const HCP_LABEL = { off: "Off", scoring: "Scoring", racks: "Racks" };
 const RACK_RACE_MAX = 15;     // the race chart's range
 const GOLD_RACE = 35;         // the Golden-Nine points race chip
+const EIGHT_RACE = 50;        // the Ten-Point-Eight points race chip
+const raceChip = () => setup.game === "tenpoint" ? EIGHT_RACE : GOLD_RACE;
 function storedGame(){
   try { const g = localStorage.getItem(GAME_KEY); return GAME_LABEL[g] ? g : "league"; }
   catch(e){ return "league"; }
 }
 // A race counted in racks rather than points: Trad-Nine always, any game with the Racks lever.
-const racesRacks = ctx => gameOf(ctx) === "standard" || handicapOf(ctx) === "racks";
-const setupRacks = () => setup.game === "standard" || setup.handicap === "racks";
-const goldPoints = () => setup.game === "golden" && setup.handicap !== "racks" && setup.mode === "race";
-// Scoring needs points to share, so not Trad-Nine. Racks needs a race or a rack count, so
-// not an open match, and not a Golden-Nine race to points.
+const racesRacks = ctx => rackGame(gameOf(ctx)) || handicapOf(ctx) === "racks";
+const setupRacks = () => rackGame(setup.game) || setup.handicap === "racks";
+// A race counted in points: Golden-Nine or Ten-Point-Eight, without the Racks lever.
+const ptsRace = () => pointsGame(setup.game) && setup.handicap !== "racks" && setup.mode === "race";
+// Scoring needs points to share, so not Trad-Nine or Trad-Eight. Racks needs a race or a rack
+// count, so not an open match, and not a race to points.
 function hcpAllowed(h){
-  if(h === "scoring") return setup.game !== "standard";
-  if(h === "racks") return !(setup.handicap !== "racks" && (setup.mode === "open" || goldPoints()));
+  if(h === "scoring") return !rackGame(setup.game);
+  if(h === "racks") return !(setup.handicap !== "racks" && (setup.mode === "open" || ptsRace()));
   return true;
 }
-// Each game's defaults: 11-Point-Nine a rough 5-rack race with the scoring handicap, Golden-Nine
-// 5 fixed racks with scoring, Trad-Nine a level race to 5. The Racks lever is a race to 5 in racks.
+// Each game's defaults: 11-Point-Nine a rough 5-rack race with the scoring handicap; Golden-Nine
+// and Ten-Point-Eight 5 fixed racks with scoring; Trad-Nine and Trad-Eight a level race to 5.
+// The Racks lever is a race to 5 in racks.
 function applyLengthDefaults(){
-  setup.mode = setup.game === "golden" && setup.handicap !== "racks" ? "fixed" : "race";
+  setup.mode = pointsGame(setup.game) && setup.handicap !== "racks" ? "fixed" : "race";
   setup.raceTo = 5;
   setup.raceOther = false;
   setup.form = "targets";
@@ -1210,7 +1275,7 @@ function applyLengthDefaults(){
   el.raceN.value = 9;
 }
 function applyGameDefaults(){
-  setup.handicap = setup.game === "standard" ? "off" : "scoring";
+  setup.handicap = rackGame(setup.game) ? "off" : "scoring";
   setup.breaker = "a";
   applyLengthDefaults();
 }
@@ -1258,7 +1323,7 @@ el.games.querySelectorAll("button").forEach(b => b.addEventListener("click", () 
   renderSetup();
 }));
 // The typed race length, or null while the box doesn't hold a usable number.
-const raceMax = () => setup.handicap === "racks" ? RACK_RACE_MAX : goldPoints() ? 200 : 30;
+const raceMax = () => setup.handicap === "racks" ? RACK_RACE_MAX : ptsRace() ? 200 : 30;
 function typedRace(){
   const n = parseInt(el.raceN.value, 10);
   return n >= 1 && n <= raceMax() ? n : null;
@@ -1272,10 +1337,10 @@ el.raceLen.querySelectorAll("button").forEach(b => b.addEventListener("click", (
 }));
 el.goldLen.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
   const len = b.dataset.len;
-  if(len === "other" && !(setup.mode === "race" && setup.raceOther)) el.raceN.value = GOLD_RACE;
+  if(len === "other" && !(setup.mode === "race" && setup.raceOther)) el.raceN.value = raceChip();
   setup.mode = len === "fixed" ? "fixed" : "race";
   setup.raceOther = len === "other";
-  setup.raceTo = len === "fixed" ? 5 : setup.raceOther ? typedRace() : GOLD_RACE;
+  setup.raceTo = len === "fixed" ? 5 : setup.raceOther ? typedRace() : raceChip();
   proposeTargets();
   renderSetup();
   if(setup.raceOther) el.raceN.focus();
@@ -1314,11 +1379,20 @@ function proposeTargets(){
     const racks = Math.max(1, parseInt(el.racksIn.value, 10) || DEFAULT_RACKS);
     const share = setup.handicap === "off" ? 0.5 : eA;
     t = { a: Math.round(LIVE_POINTS() * racks * share), b: Math.round(LIVE_POINTS() * racks * (1 - share)) };
-  } else if(goldPoints() && setup.raceTo){
-    // The pair's combined 2N shared by expected rack-win share (ZARGO.md: point share ≈ rack share).
+  } else if(ptsRace() && setup.raceTo){
     const N = setup.raceTo;
-    const ta = Math.min(2 * N - 1, Math.max(1, Math.round(2 * N * eA)));
-    t = setup.handicap === "off" ? { a: N, b: N } : { a: ta, b: 2 * N - ta };
+    if(setup.handicap === "off") t = { a: N, b: N };
+    else if(setup.game === "tenpoint"){
+      // Ten-Point-Eight's loser keeps their balls, so the points can't be shared out of a
+      // fixed pot: the favourite races to N and the other to N × their expected points a rack.
+      const e = expectedEightPoints(eA), favA = e.a >= e.b;
+      const k = Math.max(1, Math.min(N, Math.round(N * (favA ? e.b / e.a : e.a / e.b))));
+      t = favA ? { a: N, b: k } : { a: k, b: N };
+    } else {
+      // Golden-Nine: the pair's combined 2N shared by expected rack-win share (ZARGO.md).
+      const ta = Math.min(2 * N - 1, Math.max(1, Math.round(2 * N * eA)));
+      t = { a: ta, b: 2 * N - ta };
+    }
   }
   if(!t) return;
   el.tgtA.value = Math.max(1, t.a);
@@ -1338,20 +1412,21 @@ function plannedMatch(){
       ? { mode: "race", targets: { a: n, b: n }, start: { a: n - typed.a, b: n - typed.b }, racks }
       : { mode: "race", targets: typed, start: { a: 0, b: 0 }, racks };
   }
-  if(game === "standard") return setup.raceTo ? { mode: "race", targets: { a: setup.raceTo, b: setup.raceTo }, racks } : null;
+  if(rackGame(game)) return setup.raceTo ? { mode: "race", targets: { a: setup.raceTo, b: setup.raceTo }, racks } : null;
   if(setup.mode !== "race") return { mode: setup.mode, targets: null, racks };
-  if(game === "golden" && !setup.raceTo) return null;
+  if(pointsGame(game) && !setup.raceTo) return null;
   if(h === "off"){
     // No quotas: a plain race, the same number for both.
-    const n = game === "golden" ? setup.raceTo : Math.round(LIVE_POINTS() * racks / 2);
+    const n = pointsGame(game) ? setup.raceTo : Math.round(LIVE_POINTS() * racks / 2);
     return { mode: "race", targets: { a: n, b: n }, racks };
   }
   return typedOk ? { mode: "race", targets: typed, racks } : null;
 }
 
 function renderSetup(){
-  if(!hcpAllowed(setup.handicap)){ setup.handicap = setup.game === "standard" ? "off" : "scoring"; applyLengthDefaults(); }
+  if(!hcpAllowed(setup.handicap)){ setup.handicap = rackGame(setup.game) ? "off" : "scoring"; applyLengthDefaults(); }
   const league = setup.game === "league", golden = setup.game === "golden";
+  const pts = pointsGame(setup.game), ten = setup.game === "tenpoint";
   const racksLever = setup.handicap === "racks", rackRace = setupRacks();
   el.games.querySelectorAll("button").forEach(b =>
     b.classList.toggle("sel", b.dataset.game === setup.game));
@@ -1379,27 +1454,28 @@ function renderSetup(){
   // ---- length ----
   el.modes.classList.toggle("hidden", !(league && !racksLever));
   el.modes.querySelectorAll("button").forEach(b => b.classList.toggle("sel", b.dataset.mode === setup.mode));
-  el.goldLen.classList.toggle("hidden", !(golden && !racksLever));
+  el.goldLen.classList.toggle("hidden", !(pts && !racksLever));
+  el.goldChip.textContent = "Race to " + raceChip();
   el.goldLen.querySelectorAll("button").forEach(b => b.classList.toggle("sel",
-    b.dataset.len === (setup.mode === "fixed" ? "fixed" : setup.raceOther ? "other" : String(GOLD_RACE))));
+    b.dataset.len === (setup.mode === "fixed" ? "fixed" : setup.raceOther ? "other" : "chip")));
   el.raceLen.classList.toggle("hidden", !rackRace);
   el.raceLen.querySelectorAll("button").forEach(b =>
     b.classList.toggle("sel", setup.raceOther ? b.dataset.n === "other" : +b.dataset.n === setup.raceTo));
-  el.raceNRow.classList.toggle("hidden", !((rackRace || goldPoints()) && setup.raceOther));
-  el.raceNLabel.textContent = goldPoints() ? "Race to, points (1 to 200)" : `Race to, racks (1 to ${raceMax()})`;
+  el.raceNRow.classList.toggle("hidden", !((rackRace || ptsRace()) && setup.raceOther));
+  el.raceNLabel.textContent = ptsRace() ? "Race to, points (1 to 200)" : `Race to, racks (1 to ${raceMax()})`;
   el.raceN.max = raceMax();
-  el.lenRow.classList.toggle("hidden", rackRace || setup.mode === "open" || goldPoints());
-  el.lenLabel.textContent = golden ? "Racks to play (a tie adds one)"
+  el.lenRow.classList.toggle("hidden", rackRace || setup.mode === "open" || ptsRace());
+  el.lenLabel.textContent = pts ? "Racks to play (a tie adds one)"
     : setup.mode === "race" ? "Rough length, racks" : "Racks to play";
   const racks = Math.max(1, parseInt(el.racksIn.value, 10) || DEFAULT_RACKS);
   const racksWord = n => n + (n === 1 ? " rack" : " racks");
   el.lenSummary.textContent =
       rackRace ? (setup.raceTo ? `Race to ${setup.raceTo}` : "Type a race length")
-    : goldPoints() ? (setup.raceTo ? `Race to ${setup.raceTo} points` : "Type a points target")
-    : golden ? `${racksWord(racks)}, a tie adds one`
+    : ptsRace() ? (setup.raceTo ? `Race to ${setup.raceTo} points` : "Type a points target")
+    : pts ? `${racksWord(racks)}, a tie adds one`
     : setup.mode === "race" ? `Race, about ${racksWord(racks)}`
     : setup.mode === "fixed" ? racksWord(racks) : "Open, end any time";
-  if((rackRace || goldPoints()) && !setup.raceTo) el.foldLen.classList.add("open");
+  if((rackRace || ptsRace()) && !setup.raceTo) el.foldLen.classList.add("open");
 
   // ---- handicap ----
   el.hcps.querySelectorAll("button").forEach(b => {
@@ -1425,9 +1501,14 @@ function renderSetup(){
     el.formStart.textContent = startLine;
     el.raceForm.querySelectorAll("button").forEach(x => x.classList.toggle("sel", x.dataset.form === setup.form));
   }
+  // Ten-Point-Eight over fixed racks has quotas rather than targets, so name them here.
+  const tenQ = ten && setup.handicap === "scoring" && setup.mode === "fixed" && a && b
+    ? eightQuotas({ game: "tenpoint", handicap: "scoring", mode: "fixed", racksPlanned: racks, eA: expectedShareA(a.zargo, b.zargo) })
+    : null;
   el.hcpSummary.textContent = !(a && b) ? HCP_LABEL[setup.handicap]
     : racksLever ? (!plan ? "Racks · type both targets" : !uneven ? `Racks · level, both to ${typed.a}`
         : `Racks · ${setup.form === "start" ? startLine : chartLine}`)
+    : tenQ ? `Scoring · ${a.name} ${tenQ.a}, ${b.name} ${tenQ.b}`
     : setup.handicap === "scoring" && plan && plan.targets ? `Scoring · ${a.name} ${plan.targets.a}, ${b.name} ${plan.targets.b}`
     : setup.handicap === "scoring" ? "Scoring · shared points"
     : plan && plan.targets ? `Off · both race to ${plan.targets.a}`
@@ -1438,7 +1519,10 @@ function renderSetup(){
     const H = eA / (1 - eA);
     // Zargo is odds on a rack, so the same H reads as points in 11-Point-Nine and racks elsewhere.
     const fav = H >= 1 ? a : b, dog = H >= 1 ? b : a;
-    const odds = Math.max(H, 1 / H).toFixed(1) === "1.0" ? "Near-level ratings, so an even match."
+    // Ten-Point-Eight's loser scores too, so its odds read as points a rack rather than a ratio.
+    const e8 = ten && !racksLever ? expectedEightPoints(eA) : null;
+    const odds = Math.max(H, 1 / H).toFixed(1) === "1.0" && !e8 ? "Near-level ratings, so an even match."
+      : e8 ? `${a.name} expects ${e8.a.toFixed(1)} points a rack to ${b.name}'s ${e8.b.toFixed(1)}.`
       : `${fav.name} is expected to ${league && !racksLever ? "score" : "win"} ` +
         `${Math.max(H, 1 / H).toFixed(1)} ${league && !racksLever ? "points" : "racks"} for each 1 of ${dog.name}'s.`;
     let more = "";
@@ -1447,6 +1531,10 @@ function renderSetup(){
       more = ` Racing ${typed.a} against ${typed.b}, ${a.name} wins the match ${pct}% of the time.`;
     } else if(setup.handicap === "off"){
       more = " Handicap off: plain scores decide it. Ratings still learn from the result.";
+    } else if(tenQ){
+      more = ` Over ${racksWord(racks)} that's quotas of ${tenQ.a} and ${tenQ.b}, and whoever finishes further past their own wins.`;
+    } else if(ten && setup.mode === "race" && plan && plan.targets){
+      more = ` So the race is ${plan.targets.a} against ${plan.targets.b}.`;
     } else if(golden && setup.mode === "race"){
       more = setup.raceTo ? ` The ${2 * setup.raceTo} points of two races to ${setup.raceTo} are shared out on that basis.` : "";
     } else if(golden){
@@ -1563,7 +1651,8 @@ function sync(extra){
   const rec = live.game === "league"
     ? { balls: live.balls, breaker: live.breaker, at: live.rackAt }
     : { winner: live.rack.winner, kind: live.rack.kind, fouls: live.rack.fouls,
-        balls: live.rack.balls, pottedAt: live.rack.pottedAt, breaker: live.breaker, at: live.rackAt };
+        balls: live.rack.balls, pottedAt: live.rack.pottedAt, groups: live.rack.groups || { a: null },
+        breaker: live.breaker, at: live.rackAt };
   cloud.patch("matches/" + live.id, Object.assign({
     ["racks." + live.rackNo]: rec,
     turn: state.turn,
@@ -1572,8 +1661,10 @@ function sync(extra){
 }
 
 // ---- the prototype scoring engine, wired to the session ----
+// 1–7 solids, 8 black, 9–15 the same seven colours again as stripes.
 const COLOURS = {1:"#f2c204",2:"#1b4fa0",3:"#cf1b1b",4:"#6b2fa0",5:"#e8730c",
-                 6:"#0f7a3d",7:"#7a1f1f",8:"#14110f",9:"#f2c204"};
+                 6:"#0f7a3d",7:"#7a1f1f",8:"#14110f",
+                 9:"#f2c204",10:"#f2c204",11:"#1b4fa0",12:"#cf1b1b",13:"#6b2fa0",14:"#e8730c",15:"#0f7a3d"};
 const ROWS = [[1],[2,3],[4,9,5],[6,7],[8]];
 const DARK = [2, 4, 7, 8];   // balls that need a hairline ring to keep their edge on the dark ground
 
@@ -1698,12 +1789,34 @@ function askIntentional(side){
   if(!live || live.game !== "golden" || live.rack.winner) return;
   const me = side === "a" ? live.nameA : live.nameB, them = side === "a" ? live.nameB : live.nameA;
   const second = intentionalsBy(live.banked, side) >= 1;
+  resetExtra();
   el.doneTitle.textContent = "Intentional foul by " + me + "?";
   el.doneBody.textContent = `${me} loses the rack and ${them} gets ${cfg().games.golden.points.intentional}. ` +
     (second ? `It's ${me}'s second, so ${them} wins the match.` : "A second one loses the match.");
   el.doneZargo.classList.add("hidden");
   el.doneNext.textContent = "Yes, intentional foul";
   el.doneNext.onclick = () => { el.done.classList.add("hidden"); win(other(side), "intentional"); };
+  el.doneNext.classList.remove("hidden");
+  el.doneAnyway.classList.add("hidden");
+  el.doneBack.textContent = "Cancel";
+  el.doneBack.onclick = null;
+  el.doneBack.classList.remove("hidden");
+  el.done.classList.remove("hidden");
+  buzz([12,40,12]);
+}
+// 8-ball: losing on the 8 — potting it early, in the wrong pocket, on a foul, scratching with
+// it or driving it off the table (WPA §3.8) — is a hold on Foul on the player who did it, the
+// same gesture as Golden-Nine's intentional foul, confirmed because it hands over the rack.
+function askLostOnEight(side){
+  if(!live || !isEight(live.game) || live.rack.winner) return;
+  const me = side === "a" ? live.nameA : live.nameB, them = side === "a" ? live.nameB : live.nameA;
+  resetExtra();
+  el.doneTitle.textContent = me + " lost it on the 8?";
+  el.doneBody.textContent = `The 8 down early, in the wrong pocket, on a foul, scratched or off the ` +
+    `table — any of those give rack ${live.rackNo} to ${them}.`;
+  el.doneZargo.classList.add("hidden");
+  el.doneNext.textContent = `Yes, ${them} wins it`;
+  el.doneNext.onclick = () => { el.done.classList.add("hidden"); win(other(side), "foul8"); };
   el.doneNext.classList.remove("hidden");
   el.doneAnyway.classList.add("hidden");
   el.doneBack.textContent = "Cancel";
@@ -1722,10 +1835,10 @@ const intentionalsBy = (banked, side) =>
     if(!live) return;   // watch mode is read-only
     down = true; longFired = false; sx = e.clientX; sy = e.clientY;
     clearTimeout(timer);
-    if(live.game === "golden") timer = setTimeout(() => {
+    if(live.game === "golden" || isEight(live.game)) timer = setTimeout(() => {
       if(!down || !live) return;
       longFired = true;
-      askIntentional(side);
+      if(isEight(live.game)) askLostOnEight(side); else askIntentional(side);
     }, 600);
   });
   f.addEventListener("pointerup", e => {
@@ -1746,20 +1859,53 @@ const intentionalsBy = (banked, side) =>
 });
 
 // The ball drop. Tapping a ball pots it for whoever is shooting and it leaves the strip;
-// tapping its empty slot puts it back. A log for replays, never the score: potting the 9
-// doesn't win the rack, and a potted ball doesn't change the shooter.
-const dropCells = {};
-const dropRows = [document.createElement("div"), document.createElement("div")];
-dropRows.forEach(r => { r.className = "drow"; el.drop.appendChild(r); });
-for(let n = 1; n <= 9; n++){
+// tapping its empty slot puts it back. In nine-ball it's 1–5 over 6–9 and a log for replays,
+// never the score: potting the 9 doesn't win the rack, and a potted ball doesn't change the
+// shooter. In 8-ball it's solids 1–7 over stripes 9–15, a label a row — the 8 has no slot,
+// because the win buttons are the 8 — and in Ten-Point-Eight it *is* the loser's score, so a
+// scorer who taps balls as they drop gets the points for nothing.
+const dropCells = {}, eightCells = {}, groupLabels = {};
+const striped = n => n >= 9;
+function dropCell(n, into, cells){
   const cell = document.createElement("button");
   cell.className = "dcell";
-  cell.innerHTML = `<span class="ball${n === 9 ? " striped" : ""}${DARK.includes(n) ? " darkball" : ""}">${n === 9 ? '<span class="stripe"></span>' : ""}<span class="pip">${n}</span></span>`;
+  cell.innerHTML = `<span class="ball${striped(n) ? " striped" : ""}${DARK.includes(n) ? " darkball" : ""}">${striped(n) ? '<span class="stripe"></span>' : ""}<span class="pip">${n}</span></span>`;
   cell.querySelector(".ball").style.setProperty("--bc", COLOURS[n]);
   tapBind(cell, () => dropBall(n));
-  dropRows[n <= 5 ? 0 : 1].appendChild(cell);
-  dropCells[n] = cell;
+  into.appendChild(cell);
+  cells[n] = cell;
 }
+function dropGroup(){
+  const g = document.createElement("div");
+  g.className = "dgroup";
+  el.drop.appendChild(g);
+  return g;
+}
+function dropRow(into){
+  const r = document.createElement("div");
+  r.className = "drow";
+  into.appendChild(r);
+  return r;
+}
+const dropNine = dropGroup();
+dropNine.id = "dropNine";
+[[1, 2, 3, 4, 5], [6, 7, 8, 9]].forEach(row => {
+  const r = dropRow(dropNine);
+  row.forEach(n => dropCell(n, r, dropCells));
+});
+const dropEight = dropGroup();
+dropEight.id = "dropEight";
+dropEight.classList.add("hidden");
+[["solids", Z.SOLIDS], ["stripes", Z.STRIPES]].forEach(([g, balls]) => {
+  const lab = document.createElement("button");
+  lab.className = "dlabel";
+  tapBind(lab, () => cycleGroup(g));
+  dropEight.appendChild(lab);
+  groupLabels[g] = lab;
+  const r = dropRow(dropEight);
+  balls.forEach(n => dropCell(n, r, eightCells));
+});
+
 function dropBall(n){
   if(!live || live.game === "league" || live.rack.winner) return;   // watching, or the rack is over
   buzz(9);
@@ -1769,7 +1915,39 @@ function dropBall(n){
   render();
   sync();
 }
-function paintDrop(rack){
+// Whose group is whose is normally worked out from what's been potted; tapping a row's label
+// hands it to the teal player, then the coral one, then back to the guess. Set by hand it's
+// locked, which is what the rack stores (groups.a).
+function cycleGroup(g){
+  if(!live || !isEight(live.game)) return;
+  const cur = groupsOf(live.rack);
+  const next = !cur.set ? "a" : cur.a === g ? "b" : null;
+  buzz(9);
+  push();
+  live.rack.groups = { a: next === null ? null : next === "a" ? g : Z.otherGroup(g) };
+  render();
+  sync();
+  if(live.rack.winner) gameRackEnd();   // the card's reading of the loser's balls changes with it
+}
+function paintDrop(game, rack, nA, nB){
+  if(isEight(game)){
+    const g = groupsOf(rack), ini = initials(nA, nB);
+    for(const grp of ["solids", "stripes"]){
+      const own = g.a === grp ? "a" : g.b === grp ? "b" : null;
+      const lab = groupLabels[grp];
+      lab.dataset.own = own || "";
+      lab.textContent = GROUP_LABEL[grp] + (own ? " · " + ini[own] : "");
+      lab.setAttribute("aria-label", (own
+        ? `${GROUP_LABEL[grp]}: ${own === "a" ? nA : nB}${g.set ? "" : ", from the balls potted"}`
+        : `${GROUP_LABEL[grp]}: nobody yet`) + ". Tap to set it by hand");
+    }
+    for(const n of Z.SOLIDS.concat(Z.STRIPES)){
+      const by = rack.balls[n];
+      eightCells[n].classList.toggle("gone", !!by);
+      eightCells[n].setAttribute("aria-label", by ? `Ball ${n}, potted. Tap to put it back` : `Ball ${n}`);
+    }
+    return;
+  }
   for(let n = 1; n <= 9; n++){
     const by = rack.balls[n];
     dropCells[n].classList.toggle("gone", !!by);
@@ -1794,6 +1972,8 @@ function paintWinArea(game, rack, nA, nB){
       const pts = game === "golden" ? cfg().games.golden.points[kind] : null;
       b.innerHTML = pts ? `${label} <small>+${pts}</small>` : label;
       b.classList.toggle("chosen", rack.winner === side && rack.kind === kind);
+      // WPA and CSI spot the 8 on the break and play on, so there's no button for it.
+      b.classList.toggle("hidden", kind === "eight" && !eightWins(game));
     });
   });
 }
@@ -1874,6 +2054,8 @@ const clamp1 = v => Math.max(-1, Math.min(1, v));
 //          shared out by the expected rack-win share — floored at a plain win per planned
 //          rack, so an early rack reads +40% as it does in 11-Point-Nine rather than +100%.
 function quotas(ctx, t){
+  const q8 = eightQuotas(ctx);
+  if(q8) return q8;
   if(ctx.mode === "race") return ctx.targets && ctx.targets.a && ctx.targets.b ? ctx.targets : null;
   const racks = ctx.mode === "fixed" ? (ctx.racksPlanned || DEFAULT_RACKS)
     : Math.max(DEFAULT_RACKS, ctx.rackNo || 1);
@@ -1881,6 +2063,18 @@ function quotas(ctx, t){
     ? Math.max(t.a + t.b, cfg().games.golden.points.win * racks)
     : LIVE_POINTS() * racks;
   return { a: pts * ctx.eA, b: pts * (1 - ctx.eA) };
+}
+// Ten-Point-Eight's scoring handicap can't be a share of the rack's points, because the loser
+// keeps their own balls: a quota is expected points a rack times the racks (zargo.js
+// expectedEightPoints), and the winner is whoever finishes further past their own. Over a race
+// to points the quota is simply the target. Null for any other game or lever.
+function eightQuotas(ctx){
+  if(gameOf(ctx) !== "tenpoint" || handicapOf(ctx) !== "scoring" || !ctx.eA) return null;
+  if(ctx.mode === "race") return ctx.targets && ctx.targets.a && ctx.targets.b ? ctx.targets : null;
+  const racks = ctx.mode === "fixed" ? (ctx.racksPlanned || DEFAULT_RACKS)
+    : Math.max(DEFAULT_RACKS, ctx.rackNo || 1);
+  const e = expectedEightPoints(ctx.eA);
+  return { a: Math.max(1, Math.round(racks * e.a)), b: Math.max(1, Math.round(racks * e.b)) };
 }
 // Handicap off: plain scores in the panels and a plain lead on the bar — racks in Trad-Nine,
 // points in the games scored by points — full swing at a lead the size of the race, or of
@@ -1892,7 +2086,8 @@ function plainLead(t, ctx){
   if(!d) return { pos: 0, num: "", aAhead: false };
   const aAhead = d < 0, n = Math.abs(d);
   const race = ctx.mode === "race" && ctx.targets;
-  const perRack = byRacks ? 1 : gameOf(ctx) === "golden" ? cfg().games.golden.points.win : LIVE_POINTS() / 2;
+  const perRack = byRacks ? 1 : gameOf(ctx) === "golden" ? cfg().games.golden.points.win
+    : gameOf(ctx) === "tenpoint" ? cfg().games.tenpoint.points.winner : LIVE_POINTS() / 2;
   const size = race ? Math.max(ctx.targets.a, ctx.targets.b)
     : perRack * Math.max(DEFAULT_RACKS, ctx.racksPlanned || ctx.rackNo || 1);
   const met = race && (s.a >= ctx.targets.a || s.b >= ctx.targets.b);
@@ -1948,10 +2143,17 @@ function paintMatchBar(rackNo, planned, dead, pts){
   el.rackNo.textContent = `Rack ${rackNo}` + (planned ? ` of ${planned}` : "") +
     (dead ? ` · ${dead} dead` : "") + (pts ? ` · ${pts} pts` : "");
 }
+// Each player by initial, or by more letters when both share one. The break chip and the
+// 8-ball drop's group labels both name a player in very little room.
+function initials(nA, nB){
+  const k = [...String(nA)][0] === [...String(nB)][0] ? 3 : 1;
+  const short = n => [...String(n)].slice(0, k).join("");
+  return { a: short(nA), b: short(nB) };
+}
 // The break chip names the breaker by initial, or by more letters when both share one.
 function breakLabel(breaker, nA, nB){
-  const short = n => [...String(n)].slice(0, [...nA][0] === [...nB][0] ? 3 : 1).join("");
-  el.breakFlip.textContent = `Break ⇄ ${short(breaker === "b" ? nB : nA)}`;
+  const short = n => initials(nA, nB)[n];
+  el.breakFlip.textContent = `Break ⇄ ${short(breaker === "b" ? "b" : "a")}`;
   el.breakFlip.setAttribute("aria-label", `${breaker === "b" ? nB : nA} breaks. Tap to change`);
 }
 
@@ -1970,6 +2172,13 @@ function targetReached(t, bank){
   return s.a >= live.targets.a || s.b >= live.targets.b;
 }
 
+// The rack-end card is one element reused by every question the live screen asks, so each card
+// clears the extra row (Ten-Point-Eight's group chips and ball stepper) before drawing itself.
+function resetExtra(){
+  el.doneExtra.innerHTML = "";
+  el.doneExtra.classList.add("hidden");
+}
+
 function rackComplete(){
   if(!live) return;
   const p = rackPoints();
@@ -1985,6 +2194,7 @@ function rackComplete(){
     // Soft warning: the total is almost always a mis-tap, but real racks go odd
     // (a ball off the table, a ball nobody saw drop), so let it through on purpose.
     const left = 9 - resolvedCount();
+    resetExtra();
     el.doneTitle.textContent = left
       ? left + (left === 1 ? " ball still on the table" : " balls still on the table")
       : "That's " + sum + ", not " + need;
@@ -2001,6 +2211,7 @@ function rackComplete(){
     el.doneAnyway.classList.remove("hidden");
     el.doneBack.classList.add("hidden");
   } else {
+    resetExtra();
     el.doneTitle.textContent = "Rack " + live.rackNo + " done";
     el.doneBody.textContent = `${live.nameA} ${p.a}, ${live.nameB} ${p.b}, ${p.dead} dead. Adds up to ${need}.`;
     el.doneNext.textContent = goOnLabel;
@@ -2016,28 +2227,48 @@ function rackComplete(){
   buzz([18,60,18]);
 }
 
-// Golden-Nine and Trad-Nine: a win tap (or a third foul) ends the rack. No 11-point check,
-// straight to the next rack, with the tap still undoable from here.
+// Every game but 11-Point-Nine: a win tap (or a third Golden-Nine foul, or a hold on Foul)
+// ends the rack. No 11-point check, straight to the next rack, with the tap still undoable
+// from here. In Ten-Point-Eight the card also carries the rack's one open question: the
+// loser's group, and how many of their balls are down.
 function gameRackEnd(){
   if(!live || !live.rack.winner) return;
   const w = live.rack.winner, wName = w === "a" ? live.nameA : live.nameB;
+  const l = other(w), lName = l === "a" ? live.nameA : live.nameB;
   const p = rackPoints(), t = totals(), r = racksWon();
   const forfeit = live.game === "golden" && live.rack.kind === "intentional" &&
     intentionalsBy(live.banked, other(w)) >= 1;
   const finished = forfeit || targetReached(t) ||
     (live.mode === "fixed" && live.banked.racks + 1 >= live.racksPlanned);
+  const g = live.game === "tenpoint" ? groupsOf(live.rack) : null;
+  // The loser's group only has to be settled when something is down: a rack where nobody potted
+  // scores the loser nothing whichever group they were on, so a break and run never asks.
+  const askGroup = !!g && !g[l];
+  const anyDown = askGroup && Object.keys(live.rack.balls).length > 0;
+
+  resetExtra();
 
   el.doneTitle.textContent = `Rack ${live.rackNo} to ${wName}`;
   el.doneBody.textContent = forfeit
     ? `A second intentional foul by ${w === "a" ? live.nameB : live.nameA}, so ${wName} wins the match.`
+    : askGroup && anyDown
+    ? `${KIND_LABEL[live.rack.kind] || "Win"}. ${lName}'s group isn't clear from the balls potted, ` +
+      `and their own balls down are their points. Which group were they on?`
+    : askGroup
+    ? `${KIND_LABEL[live.rack.kind] || "Win"} — ${live.nameA} ${p.a} · ${live.nameB} ${p.b}. No balls were ` +
+      `tapped, so ${lName} scores nothing. If some of theirs did go down, say which group they were on.`
+    : g
+    ? `${live.nameA} ${p.a} · ${live.nameB} ${p.b} (${loserBalls(live.rack)} ` +
+      `${groupWord(g[l], loserBalls(live.rack))} down). Match ${t.a}–${t.b}, racks ${r.a}–${r.b}.`
     : live.game === "golden"
     ? `${KIND_LABEL[live.rack.kind]}: ${live.nameA} +${p.a}, ${live.nameB} +${p.b}. ` +
       `Match ${t.a}–${t.b}, racks ${r.a}–${r.b}.`
     : `${KIND_LABEL[live.rack.kind]}. Racks ${live.nameA} ${r.a}, ${live.nameB} ${r.b}.`;
+  if(g) paintRackEndEight(g, l, lName, askGroup);
   el.doneZargo.classList.add("hidden");
   el.doneNext.textContent = finished ? "Declare the result" : "Start rack " + (live.rackNo + 1);
   el.doneNext.onclick = () => { bankRack(); finished ? lastRackBanked() : nextRack(); };
-  el.doneNext.classList.remove("hidden");
+  el.doneNext.classList.toggle("hidden", anyDown);   // an unclear group comes first: it is the score
   el.doneAnyway.classList.add("hidden");
   el.doneBack.textContent = "Undo that";
   el.doneBack.onclick = undoWin;
@@ -2046,12 +2277,80 @@ function gameRackEnd(){
   buzz([18,60,18]);
 }
 
-// Golden-Nine's scheduled racks can end level; the rules settle that with one more rack.
+// Ten-Point-Eight's rack-end card: the loser's group when no group is settled yet, then a
+// stepper for their balls down. The stepper writes those balls into the drop, so the drop stays
+// the one record of the rack and Undo covers it.
+function paintRackEndEight(g, l, lName, askGroup){
+  el.doneExtra.classList.remove("hidden");
+  if(askGroup){
+    const cap = document.createElement("div");
+    cap.className = "step";
+    cap.innerHTML = "<span></span>";
+    cap.querySelector("span").textContent = `${lName} was on:`;
+    const row = document.createElement("div");
+    row.className = "pair";
+    for(const grp of ["solids", "stripes"]){
+      const b = document.createElement("button");
+      b.textContent = GROUP_LABEL[grp];
+      tapBind(b, () => {
+        push();
+        live.rack.groups = { a: l === "a" ? grp : Z.otherGroup(grp) };
+        render();
+        sync();
+        gameRackEnd();
+      });
+      row.appendChild(b);
+    }
+    el.doneExtra.append(cap, row);
+    return;
+  }
+  const L = loserBalls(live.rack);
+  const row = document.createElement("div");
+  row.className = "step";
+  const minus = document.createElement("button");
+  minus.textContent = "−";
+  minus.setAttribute("aria-label", `One fewer of ${lName}'s balls down`);
+  minus.disabled = L <= 0;
+  tapBind(minus, () => setLoserDown(L - 1));
+  const out = document.createElement("span");
+  out.innerHTML = `<b></b> of ${lName}'s ${GROUP_LABEL[g[l]].toLowerCase()} down`;
+  out.querySelector("b").textContent = L;
+  const plus = document.createElement("button");
+  plus.textContent = "+";
+  plus.setAttribute("aria-label", `One more of ${lName}'s balls down`);
+  plus.disabled = L >= 7;
+  tapBind(plus, () => setLoserDown(L + 1));
+  row.append(minus, out, plus);
+  el.doneExtra.appendChild(row);
+}
+// The stepper's count, written back into the drop as the loser's own balls, lowest first. It
+// settles the group too, so a later tap can't make the guess disagree with the card.
+function setLoserDown(n){
+  if(!live || live.game !== "tenpoint" || !live.rack.winner) return;
+  const l = other(live.rack.winner), g = groupsOf(live.rack);
+  if(!g[l] || n < 0 || n > 7) return;
+  buzz(9);
+  push();
+  live.rack.groups = { a: g.a };
+  Z.ballsOf(g[l]).forEach((b, i) => {
+    if(i < n){
+      if(!live.rack.balls[b]){ live.rack.balls[b] = l; live.rack.pottedAt[b] = Date.now(); }
+    } else { delete live.rack.balls[b]; delete live.rack.pottedAt[b]; }
+  });
+  render();
+  sync();
+  gameRackEnd();
+}
+
+// Golden-Nine's and Ten-Point-Eight's scheduled racks can end level; both settle that with one
+// more rack.
 function lastRackBanked(){
   const t = { a: live.banked.a, b: live.banked.b };
-  if(live.game !== "golden" || live.mode !== "fixed" || matchResult(t, bankedRacks()).winner !== null) return declare();
+  if(!pointsGame(live.game) || live.mode !== "fixed" || matchResult(t, bankedRacks()).winner !== null) return declare();
+  resetExtra();
   el.doneTitle.textContent = `Tied after ${live.banked.racks} racks`;
-  el.doneBody.textContent = `${live.nameA} ${t.a}, ${live.nameB} ${t.b}. Golden-Nine settles a tie with one more rack.`;
+  el.doneBody.textContent = `${live.nameA} ${t.a}, ${live.nameB} ${t.b}. ` +
+    `${GAME_LABEL[live.game]} settles a tie with one more rack.`;
   el.doneZargo.classList.add("hidden");
   el.doneNext.textContent = "Play a deciding rack";
   el.doneNext.onclick = () => {
@@ -2102,13 +2401,14 @@ function endMatch(){
   askAboutPartRack(p, resolved);
 }
 
-// Golden-Nine and Trad-Nine: a rack with a winner counts; one without has no result, so it's
+// Every game but 11-Point-Nine: a rack with a winner counts; one without has no result, so it's
 // dropped, and End says so when fouls were already given in it.
 function endGameMatch(){
   if(live.rack.winner){ bankRack(); return finishMatch(); }
   const f = live.rack.fouls;
   if(!f.a && !f.b) return finishMatch();
   const p = rackPoints();
+  resetExtra();
   el.doneTitle.textContent = "End the match?";
   el.doneBody.textContent = `Rack ${live.rackNo} has no winner yet, so it's dropped` +
     (live.game === "golden" && (p.a || p.b) ? `, with the foul points in it (${live.nameA} +${p.a}, ${live.nameB} +${p.b}).` : ".");
@@ -2127,6 +2427,7 @@ function endGameMatch(){
 // (spec: abandoned mid-rack), but the scorer can count it if it's a real result.
 function askAboutPartRack(p, resolved){
   const left = 9 - resolved;
+  resetExtra();
   el.doneTitle.textContent = "End the match?";
   el.doneBody.innerHTML = left
     ? `Rack ${live.rackNo} isn't finished — <span class="warn">${left}</span> ` +
@@ -2183,7 +2484,12 @@ function zargoOutcome(results){
 // lead is in B's favour when positive.
 function matchResult(t, r){
   const byRacks = racesRacks(live);
-  let lead = live.handicap === "off" ? (byRacks ? r.b - r.a : t.b - t.a) : t.b - t.a / live.H;
+  // Ten-Point-Eight's scoring handicap is a spot, not a ratio: each player's points against
+  // their own quota, because the loser of a rack always scores their balls.
+  const q8 = eightQuotas(live);
+  let lead = live.handicap === "off" ? (byRacks ? r.b - r.a : t.b - t.a)
+    : q8 ? (t.b - q8.b) - (t.a - q8.a)
+    : t.b - t.a / live.H;
   if(live.handicap === "racks" && live.targets){
     const s = startOf(live);
     lead = (r.b - s.b) / (live.targets.b - s.b) - (r.a - s.a) / (live.targets.a - s.a);
@@ -2207,10 +2513,10 @@ function scoreLine(m, nA, nB, t){
   const game = gameOf(m), s = startOf(m);
   const racks = t.racksA !== undefined ? `, racks ${t.racksA || 0}–${t.racksB || 0}` : "";
   const head = s.a || s.b ? ` (${s.a ? nA : nB} started ${s.a || s.b} up)` : "";
-  if(game === "standard") return `${GAME_LABEL[game]}: ${nA} ${t.racksA ?? t.a}, ${nB} ${t.racksB ?? t.b} in racks${head}.`;
+  if(rackGame(game)) return `${GAME_LABEL[game]}: ${nA} ${t.racksA ?? t.a}, ${nB} ${t.racksB ?? t.b} in racks${head}.`;
   if(racesRacks(m)) return `${GAME_LABEL[game]}: racks ${nA} ${t.racksA || 0}, ${nB} ${t.racksB || 0}${head}. ` +
-    (game === "golden" ? `Points ${t.a}–${t.b}.` : `Points ${t.a}–${t.b}, ${t.dead || 0} dead.`);
-  if(game === "golden") return `${GAME_LABEL[game]}: ${nA} ${t.a}, ${nB} ${t.b}${racks}.`;
+    (pointsGame(game) ? `Points ${t.a}–${t.b}.` : `Points ${t.a}–${t.b}, ${t.dead || 0} dead.`);
+  if(pointsGame(game)) return `${GAME_LABEL[game]}: ${nA} ${t.a}, ${nB} ${t.b}${racks}.`;
   return `${nA} ${t.a}, ${nB} ${t.b}, ${t.dead || 0} dead.`;
 }
 
@@ -2219,6 +2525,7 @@ function declare(){
   const { lead, winner } = matchResult(t, r);
   const results = rackResults(live.game, live.banked.points);
   const z = zargoOutcome(results);
+  resetExtra();
   el.doneTitle.textContent = winner === null ? "Tied"
     : `${winner === "a" ? live.nameA : live.nameB} wins`;
   el.doneBody.textContent =
@@ -2284,12 +2591,12 @@ function render(){
   if(!league){
     const t = totals(), r = racksWon();
     paintWinArea(live.game, live.rack, live.nameA, live.nameB);
-    paintDrop(live.rack);
+    paintDrop(live.game, live.rack, live.nameA, live.nameB);
     const ctx = Object.assign({}, live, { racks: r });
     paintLead(t, ctx, live.nameA, live.nameB, paintGamePanels(live.game, ctx, t, r));
     // A Golden-Nine race in racks still scores points; they sit in the match bar.
     paintMatchBar(live.rackNo, live.mode === "fixed" && live.racksPlanned, 0,
-      live.game === "golden" && racesRacks(live) ? `${t.a}–${t.b}` : "");
+      pointsGame(live.game) && racesRacks(live) ? `${t.a}–${t.b}` : "");
     breakLabel(live.breaker, live.nameA, live.nameB);
     el.undo.disabled = !live.history.length;
     // A win tap ends the rack; the card follows a moment later so the chosen button shows.
@@ -2340,13 +2647,16 @@ function paintOwn(node, s){
   node.style.setProperty("--own", s === "b" ? "var(--b)" : "var(--a)");
   node.style.setProperty("--own-ink", s === "b" ? "var(--b-ink)" : "var(--a-ink)");
 }
-// 11-Point-Nine shows the diamond rack; Golden-Nine and Trad-Nine swap it for the foul and win
-// buttons, and Undo takes Next rack's room.
+// 11-Point-Nine shows the diamond rack; every other game swaps it for the foul and win buttons
+// plus a ball drop (nine balls, or fourteen in 8-ball), and Undo takes Next rack's room.
 function showGameArea(game){
-  const league = game === "league";
+  const league = game === "league", eight = isEight(game);
   el.rack.classList.toggle("hidden", !league);
   el.winArea.classList.toggle("hidden", league);
   el.drop.classList.toggle("hidden", league);
+  el.drop.classList.toggle("eight", eight);
+  dropNine.classList.toggle("hidden", eight);
+  dropEight.classList.toggle("hidden", !eight);
   el.next.classList.toggle("hidden", !league);
   el.controls.classList.toggle("game", !league);
 }
@@ -2364,6 +2674,13 @@ function paintGamePanels(game, ctx, t, r){
   const race = ctx.mode === "race" && ctx.targets;
   el.subA.textContent = race ? needText(s.a, ctx.targets.a) : racksText(r.a);
   el.subB.textContent = race ? needText(s.b, ctx.targets.b) : racksText(r.b);
+  // Ten-Point-Eight over fixed racks: each player's points against their own quota, from rack one.
+  const q8 = !race && eightQuotas(ctx);
+  if(q8){
+    el.subA.textContent = `${t.a} of ${q8.a}`;
+    el.subB.textContent = `${t.b} of ${q8.b}`;
+    return;
+  }
   const x = golden9Handicap(ctx);
   if(!race && x){
     const adj = t[x.dog] * x.odds;
@@ -2423,6 +2740,7 @@ function stopWatch(){
 function watchOver(doc){
   const t = doc.totals || { a:0, b:0, dead:0 };
   const w = t.winner;
+  resetExtra();
   el.doneTitle.textContent = doc.status === "discarded" ? "Match discarded"
     : (w ? nameOf(doc[w === "a" ? "playerA" : "playerB"]) + " wins" : "Match over");
   el.doneBody.textContent = scoreLine(doc, nameOf(doc.playerA), nameOf(doc.playerB), t);
@@ -2454,9 +2772,9 @@ function renderWatch(doc){
     const ctx = { game, handicap: handicapOf(doc), mode: doc.mode, targets: doc.targets, start: doc.start,
       racksPlanned: doc.racksPlanned, rackNo, eA: expectedShareA(zb.a, zb.b), racks: r };
     paintWinArea(game, rackOf(rack), nA, nB);
-    paintDrop(rackOf(rack));
+    paintDrop(game, rackOf(rack), nA, nB);
     paintLead(t, ctx, nA, nB, paintGamePanels(game, ctx, t, r));
-    paintMatchBar(rackNo, doc.mode === "fixed" && doc.racksPlanned, 0, game === "golden" && racesRacks(ctx) ? `${t.a}–${t.b}` : "");
+    paintMatchBar(rackNo, doc.mode === "fixed" && doc.racksPlanned, 0, pointsGame(game) && racesRacks(ctx) ? `${t.a}–${t.b}` : "");
     breakLabel(rack.breaker, nA, nB);
     el.undo.disabled = true;
     return;
@@ -2544,10 +2862,10 @@ const MODE = { race: "race", fixed: "fixed racks", open: "open" };
 const HCP = { off: "no handicap", scoring: "", racks: "racks handicap" };
 function lengthText(s){
   const len = racesRacks(s) && s.targets ? "race to " + Math.max(s.targets.a, s.targets.b)
-    : gameOf(s) === "golden" && s.mode === "race" && s.targets ? "race to points"
-    : gameOf(s) === "golden" && s.racksPlanned ? s.racksPlanned + " racks"
+    : pointsGame(gameOf(s)) && s.mode === "race" && s.targets ? "race to points"
+    : pointsGame(gameOf(s)) && s.racksPlanned ? s.racksPlanned + " racks"
     : MODE[s.mode] || s.mode;
-  const h = gameOf(s) === "standard" && handicapOf(s) === "off" ? "" : HCP[handicapOf(s)];
+  const h = rackGame(gameOf(s)) && handicapOf(s) === "off" ? "" : HCP[handicapOf(s)];
   return len + (h ? " · " + h : "");
 }
 // Today's matches by time, older ones by date.
@@ -2655,7 +2973,7 @@ function renderSummary(){
     } else {
       const r = rackOf(rec), p = gameRackPoints(game, r);
       right.textContent = `${r.winner === "a" ? nA : nB} · ${KIND_LABEL[r.kind] || "Win"}` +
-        (game === "golden" ? ` · ${p.a}–${p.b}` : "");
+        (pointsGame(game) ? ` · ${p.a}–${p.b}` : "");
     }
     li.append(left, right);
     el.sumRacks.appendChild(li);
@@ -2675,7 +2993,8 @@ holdBind(el.sumDelete, async () => {
 
 // One line in the shape Cuescore's challenge form wants (SPEC §12.6): the two names, the
 // discipline, the race and the score in racks, since Cuescore records frames.
-const DISCIPLINE = { standard: "9-Ball", golden: "9-Ball (Golden Nine)", league: "9-Ball (11-Point-Nine)" };
+const DISCIPLINE = { standard: "9-Ball", golden: "9-Ball (Golden Nine)", league: "9-Ball (11-Point-Nine)",
+  eight: "8-Ball", tenpoint: "8-Ball (10-point)" };
 function cuescoreLine(s){
   const nA = nameOf(s.playerA), nB = nameOf(s.playerB), t = s.totals || {}, game = gameOf(s);
   const tg = s.targets, st = startOf(s);
@@ -2685,8 +3004,8 @@ function cuescoreLine(s){
     : s.mode === "race" && tg ? (tg.a === tg.b ? `race to ${tg.a} points` : `race to ${tg.a} v ${tg.b} points`)
     : s.mode === "fixed" && s.racksPlanned ? `${s.racksPlanned} racks`
     : "open";
-  const racksA = t.racksA ?? (game === "standard" ? t.a : 0) ?? 0, racksB = t.racksB ?? (game === "standard" ? t.b : 0) ?? 0;
-  const points = game === "standard" ? "" : ` (points ${t.a || 0}–${t.b || 0})`;
+  const racksA = t.racksA ?? (rackGame(game) ? t.a : 0) ?? 0, racksB = t.racksB ?? (rackGame(game) ? t.b : 0) ?? 0;
+  const points = rackGame(game) ? "" : ` (points ${t.a || 0}–${t.b || 0})`;
   const date = s.startedAt ? new Date(s.startedAt).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "";
   return `${nA} ${racksA}–${racksB} ${nB} · ${DISCIPLINE[game]} · ${race}${points} · ${date}`;
 }
@@ -2743,7 +3062,7 @@ function renderPerson(){
 
   const theirs = shownMatches().filter(s => people.resolve(s.playerA) === id || people.resolve(s.playerB) === id);
   el.perRecord.innerHTML = "";
-  for(const game of ["standard", "golden", "league"]){
+  for(const game of GAME_ORDER){
     const done = theirs.filter(s => s.status === "done" && gameOf(s) === game);
     if(!done.length) continue;
     let w = 0, l = 0, d = 0;
