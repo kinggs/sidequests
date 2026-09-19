@@ -551,3 +551,4 @@ account, so a static app can't upload results.
 | 2.2.1 | Side B is lilac, not coral: coral read as an alarm colour next to amber `--warn`. Colour tokens only, no behaviour. |
 | 2.2.2 | Setup scrolls when a fold is open, instead of the settings card being squeezed and clipping its own options under Start. Opening a fold scrolls it into view. |
 | 2.2.3 | Ten-Point-Eight's quota is measured over the racks played, not the racks planned, so a match ended early no longer goes to the player who won nothing. Its lead bar is the same spot, in points. |
+| 2.2.4 | End asks first when the match still has racks in it, and the result card offers **Back to the match** until you Save. 11-Point-Nine's End is unchanged. |

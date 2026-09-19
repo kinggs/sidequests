@@ -705,7 +705,7 @@ import { phone } from "../shared/phone.js";
 import { people } from "../shared/people.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "2.2.3";
+const APP_VERSION = "2.2.4";
 const APP_ID = "rack-it";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 document.getElementById("versionMore").textContent = "v" + APP_VERSION;
@@ -2245,6 +2245,7 @@ function rackComplete(){
     el.doneNext.textContent = "Back to the rack";
     el.doneNext.onclick = () => { el.done.classList.add("hidden"); };
     el.doneNext.classList.remove("hidden");
+    el.doneAnyway.className = "ghost warnbtn";
     el.doneAnyway.textContent = finished ? "Bank it and declare" : "Bank it anyway";
     el.doneAnyway.onclick = goOn;
     el.doneAnyway.classList.remove("hidden");
@@ -2433,26 +2434,61 @@ function endMatch(){
   const resolved = resolvedCount();
 
   // A complete, correct rack that just hasn't been banked still counts, no questions.
-  if(resolved === 9 && p.a + p.b + p.dead === LIVE_POINTS()){ bankRack(); return finishMatch(); }
+  if(resolved === 9 && p.a + p.b + p.dead === LIVE_POINTS()){ bankRack(); return finishMatch(true); }
   // Nothing tapped in this rack, so there's nothing to lose by dropping it.
-  if(resolved === 0) return finishMatch();
+  if(resolved === 0) return finishMatch(false);
   // Part-played, or all nine down but not adding up: ask rather than bin it quietly.
   askAboutPartRack(p, resolved);
 }
 
 // Every game but 11-Point-Nine: a rack with a winner counts; one without has no result, so it's
 // dropped, and End says so when fouls were already given in it.
+// Racks still unplayed once the rack in progress is settled. Only a fixed length has a count;
+// a race is "unfinished" until someone meets their target, and an Open match never is, because
+// it ends exactly when the scorer says it does.
+function racksLeft(){
+  if(live.mode !== "fixed") return 0;
+  return Math.max(0, (live.racksPlanned || DEFAULT_RACKS) - (live.banked.racks + (live.rack.winner ? 1 : 0)));
+}
+function moreToPlay(){
+  if(live.mode === "fixed") return racksLeft() > 0;
+  if(live.mode === "race" && live.targets) return !targetReached(totals(), true);
+  return false;
+}
+// What's left, for the End card. Empty when the match is at its full length.
+function leftToPlayText(){
+  if(live.mode === "fixed"){
+    const n = racksLeft(), planned = live.racksPlanned || DEFAULT_RACKS;
+    return n ? `That leaves ${n} of the ${planned} racks unplayed.` : "";
+  }
+  return moreToPlay() ? "Neither of you has reached the target yet." : "";
+}
+
+// End is a hold, and a hold is easy to land by accident: the first real 8-ball match was ended
+// on rack two of five by a stray press, and before 2.2.4 that took no confirmation at all when
+// the rack in progress was untouched. Ending early can't be undone from the table, so ask
+// whenever the match still has racks in it, or the rack in progress would be dropped with
+// fouls in it. A match already at its full length still ends on the hold alone, as it did.
+// (11-Point-Nine goes through endMatch, not here, and is deliberately untouched: CLAUDE.md
+// requires it to behave identically, same taps, same numbers.)
 function endGameMatch(){
-  if(live.rack.winner){ bankRack(); return finishMatch(); }
-  const f = live.rack.fouls;
-  if(!f.a && !f.b) return finishMatch();
+  const f = live.rack.fouls, drops = !live.rack.winner && !!(f.a || f.b);
+  const go = () => { const banked = !!live.rack.winner; if(banked) bankRack(); finishMatch(banked); };
+  if(!moreToPlay() && !drops) return go();
+
   const p = rackPoints();
   resetExtra();
   el.doneTitle.textContent = "End the match?";
-  el.doneBody.textContent = `Rack ${live.rackNo} has no winner yet, so it's dropped` +
-    (live.game === "golden" && (p.a || p.b) ? `, with the foul points in it (${live.nameA} +${p.a}, ${live.nameB} +${p.b}).` : ".");
-  el.doneNext.textContent = "End without rack " + live.rackNo;
-  el.doneNext.onclick = () => finishMatch();
+  el.doneBody.textContent = [
+    live.rack.winner ? `Rack ${live.rackNo} has a winner, so it counts.`
+      : drops ? `Rack ${live.rackNo} has no winner yet, so it's dropped` +
+          (live.game === "golden" && (p.a || p.b)
+            ? `, with the foul points in it (${live.nameA} +${p.a}, ${live.nameB} +${p.b}).` : ".")
+      : `Rack ${live.rackNo} hasn't been scored yet, so there's nothing in it to lose.`,
+    leftToPlayText()
+  ].filter(Boolean).join(" ");
+  el.doneNext.textContent = drops ? "End without rack " + live.rackNo : "End the match";
+  el.doneNext.onclick = go;
   el.doneNext.classList.remove("hidden");
   el.doneAnyway.classList.add("hidden");
   el.doneZargo.classList.add("hidden");
@@ -2477,10 +2513,11 @@ function askAboutPartRack(p, resolved){
       `not ${LIVE_POINTS()} — ${live.nameA} ${p.a}, ${live.nameB} ${p.b}, ${p.dead} dead. ` +
       `It's dropped unless you say otherwise.`;
   el.doneNext.textContent = "End without rack " + live.rackNo;
-  el.doneNext.onclick = () => finishMatch();
+  el.doneNext.onclick = () => finishMatch(false);
   el.doneNext.classList.remove("hidden");
+  el.doneAnyway.className = "ghost warnbtn";
   el.doneAnyway.textContent = "Count rack " + live.rackNo + ", then end";
-  el.doneAnyway.onclick = () => { bankRack(); finishMatch(); };
+  el.doneAnyway.onclick = () => { bankRack(); finishMatch(true); };
   el.doneAnyway.classList.remove("hidden");
   el.doneZargo.classList.add("hidden");
   el.doneBack.textContent = "Back to the rack";
@@ -2489,7 +2526,9 @@ function askAboutPartRack(p, resolved){
   el.done.classList.remove("hidden");
 }
 
-async function finishMatch(){
+// `banked` says whether the rack in progress was just banked, so a change of mind on the result
+// card knows whether to move on to the next rack or pick the same one back up.
+async function finishMatch(banked){
   el.doneAnyway.classList.add("hidden");
   live.balls = {}; live.rack = newRack(); live.history = [];
 
@@ -2502,7 +2541,20 @@ async function finishMatch(){
     openPage("ratings");
     return;
   }
-  declare();
+  // Nothing is written until Save, so an End that shouldn't have happened is still recoverable.
+  declare(live.game !== "league" && moreToPlay() ? () => resumeFromEnd(!!banked) : null);
+}
+
+// Take the match back up from the result card. The banked rack counted, so move on to the next
+// one; an unbanked rack was dropped by End, so start the same rack number again.
+function resumeFromEnd(banked){
+  if(banked) return nextRack();
+  live.balls = {}; live.rack = newRack(); live.history = [];
+  live.autoShown = false;
+  state.turn = live.breaker;
+  el.done.classList.add("hidden");
+  render();
+  sync();
 }
 
 // Zargo is odds on a rack (ZARGO.md); zargo.js holds the update. The ratings before are the
@@ -2563,7 +2615,7 @@ function scoreLine(m, nA, nB, t){
   return `${nA} ${t.a}, ${nB} ${t.b}, ${t.dead || 0} dead.`;
 }
 
-function declare(){
+function declare(resume){
   const t = { a: live.banked.a, b: live.banked.b }, r = bankedRacks();
   const { lead, winner } = matchResult(t, r);
   const results = rackResults(live.game, live.banked.points);
@@ -2580,7 +2632,13 @@ function declare(){
     `${live.nameB} ${Math.round(z.b.from)} → ${Math.round(z.b.to)}` +
     (z.cal ? ` · calibrating ${z.cal === "a" ? live.nameA : live.nameB}` : "");
   el.doneZargo.classList.remove("hidden");
-  el.doneAnyway.classList.add("hidden");
+  if(resume){
+    // Not a warnbtn: going back to the table is the safe choice here, not the careful one.
+    el.doneAnyway.className = "ghost";
+    el.doneAnyway.textContent = "Back to the match";
+    el.doneAnyway.onclick = resume;
+    el.doneAnyway.classList.remove("hidden");
+  } else el.doneAnyway.classList.add("hidden");
   el.doneNext.textContent = "Save match";
   el.doneNext.classList.remove("hidden");
   el.doneNext.onclick = () => finish("done", t, lead, winner, z, weightOf(results));

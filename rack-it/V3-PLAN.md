@@ -817,6 +817,37 @@ played one rack, Kenny won it 10–5, and ended the match. The card said **Melan
   zero. The harness replayed the owner's match exactly and now reads "Kenny wins", and all five
   games start and score with no page errors.
 
+**Then 2.2.4 — End asks first.** The wrong winner in 2.2.3 was found because Melanie ended the
+match on rack two by accident, and that turned out to be far too easy. `endGameMatch` only
+confirmed when the rack in progress had **fouls** in it: a rack with a winner banked and ended,
+and an untouched rack ended with **no confirmation at all** — which is exactly the case that
+happened. Worse, with no rack banked yet, `finishMatch` discards the match silently and walks
+you to Ratings; with one banked, the result card's only ways out were Save or Discard, and
+Discard bins the lot. There was no way back to the table.
+
+- **Two guards, both asked for by the owner.** End now shows the confirmation card that already
+  existed whenever `moreToPlay()` — a fixed length not yet reached, or a race nobody has won —
+  reusing its **Back to the rack** button ("Rack 2 hasn't been scored yet, so there's nothing in
+  it to lose. That leaves 4 of the 5 racks unplayed."). And the result card carries **Back to the
+  match** while racks remain, because nothing is written until Save, so an End that shouldn't
+  have happened is still recoverable. `resumeFromEnd(banked)` moves on to the next rack if the
+  rack was banked, or picks the same rack number back up if End dropped it.
+- **11-Point-Nine is deliberately untouched.** It ends through `endMatch`, not `endGameMatch`,
+  and CLAUDE.md requires it to behave identically — same taps, same numbers — so it keeps its
+  old End exactly: an untouched rack still discards silently, and a part-played rack still gets
+  `askAboutPartRack` with "Count rack N, then end" in amber. Verified in the harness against the
+  old wording, button for button. If the owner wants the guard there too, it is one condition.
+- **A colour trap worth knowing about.** `#doneAnyway` is the card's middle button and is amber
+  (`ghost warnbtn`) for "Bank it anyway", which under the house rules means *careful or
+  incomplete*. "Back to the match" is the safe choice, not the careful one, so it sets
+  `className = "ghost"` — and every other user of that button now sets `"ghost warnbtn"` back,
+  since the element is shared and whoever drew it last wins.
+- **Checked:** the owner's accident now asks before ending; Back to the rack keeps the match at
+  rack 2 of 5 with the score intact; Back to the match returns from the result card with
+  "Kenny 10 of 43 · Melanie 5 of 25" untouched; a match played to its full five racks declares
+  with **no** way back, as it should; all five games start and score with no page errors;
+  `node --test` 24 pass.
+
 - **⚠ One thing to watch on the phone.** The 4 and the 13 are purple balls, and they now sit
   nearer side B's lilac than they did coral. They are darker and more saturated, they always
   carry their number, and a ball is never a person marker, so nothing reads as a state — but
