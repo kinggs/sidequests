@@ -1,5 +1,5 @@
 // Network-first shell cache. Bump CACHE whenever index.html changes so old copies are dropped.
-const CACHE = "rack-it-v2.2.1";
+const CACHE = "rack-it-v2.2.2";
 const SHELL = ["./", "./index.html", "./zargo.js", "./manifest.json",
                "../shared/theme.css", "../shared/fonts/space-grotesk-600.woff2", "../shared/fonts/space-grotesk-700.woff2",
                "./icon.svg", "./icon-192.png", "./icon-512.png", "./icon-maskable-512.png"];

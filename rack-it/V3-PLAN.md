@@ -420,6 +420,7 @@ default length is 5 fixed racks like Golden-Nine, its points-race chip is 50, an
 - [x] Version `2.2.0`. `/deployquest`. Handover.
 - [x] Side B's colour tokens go from coral to lilac (owner's call after the deploy), shipped as
       `2.2.1`: tokens and the prose that names the colour only, no behaviour.
+- [x] `2.2.2`: the setup screen's folds no longer clip under Start (owner reported it).
 - [ ] **Owner:** play one real match of each 8-ball game on the phone.
 
 **Done when:** a Trad-Eight race and a Ten-Point-Eight night can be scored, resumed and
@@ -760,6 +761,27 @@ dark ink on the filled panel, so no rule in DESIGN.md §1 or §7 had to bend.
   **LILAC SIDE** column, the Matches rows (neutral, as they should be), and the 8-ball drop's
   group labels — the owner's in lilac, the other in teal. `node --test`: 21 pass, unchanged —
   nothing rating-related moved.
+**Then 2.2.2 — setup scrolls.** The owner hit it straight away: open **Length** on a new match
+and the options land under the pinned Start, out of reach. It was not a z-index or a padding
+problem. `.setupbody` is a scrolling flex column, and its children were free to shrink, so the
+`.settings` card was squeezed to 161px when it wanted 341 — and because the card carries
+`overflow:hidden` for its own rounded corners, the other 180px was clipped rather than
+overflowed. The column's `scrollHeight` therefore never exceeded its `clientHeight`: there was
+nothing to scroll to, on any phone. A 360×640 lost 387px that way.
+
+- **The fix is two lines.** `.setupbody>*,.homebody>*{flex-shrink:0}` lets the content overflow
+  so the column genuinely scrolls, and `revealFold()` scrolls a newly opened fold into view with
+  `block:"nearest"` (honouring `prefers-reduced-motion`) so the options are on screen without
+  hunting for them. Start stays pinned and reachable; nothing else moved.
+- **It was latent on four more screens.** `.homebody` has the same shape, so More, the person
+  page and a match summary were all being squeezed instead of scrolling. Measured after the fix,
+  every scroll container reaches its last child: setup 180–461px of scroll depending on the fold
+  and the phone, More 15, the person page 172, a summary 228, Matches 382.
+- **Checked at 390×844 and 360×640**: both folds open with no option clipped, the summaries
+  update from inside them ("Race to 7", "Racks · Kenny to 5, Melanie to 2"), Start still starts
+  the match, the live screen still doesn't scroll, and Invites (which shares `.setupbody`) is
+  unchanged. `node --test`: 21 pass.
+
 - **⚠ One thing to watch on the phone.** The 4 and the 13 are purple balls, and they now sit
   nearer side B's lilac than they did coral. They are darker and more saturated, they always
   carry their number, and a ball is never a person marker, so nothing reads as a state — but

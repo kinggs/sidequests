@@ -116,6 +116,10 @@
   /* The game picker is a row per discipline: three nine-ball games over two 8-ball ones. */
   #games{display:flex;flex-direction:column;gap:8px}
   .setupbody{flex:1;display:flex;flex-direction:column;gap:16px;padding:4px 16px 16px;overflow-y:auto}
+  /* A flex column that scrolls must not shrink its children: a squeezed child with its own
+     overflow (.settings) clips what's past its height, and because the column never grows past
+     its box there is nothing to scroll to — an open fold just vanishes under the pinned Start. */
+  .setupbody>*,.homebody>*{flex-shrink:0}
   .setupfoot{flex:0 0 auto;display:flex;flex-direction:column;gap:10px;padding:10px 16px 14px;box-shadow:0 -1px 0 var(--line)}
   .pick{display:flex;gap:12px}
   .pickcol{flex:1;display:flex;flex-direction:column;gap:8px;min-width:0}
@@ -701,7 +705,7 @@ import { phone } from "../shared/phone.js";
 import { people } from "../shared/people.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "2.2.1";
+const APP_VERSION = "2.2.2";
 const APP_ID = "rack-it";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 document.getElementById("versionMore").textContent = "v" + APP_VERSION;
@@ -1313,8 +1317,16 @@ function openSetup(){
   el.scrSetup.querySelector(".setupbody").scrollTop = 0;
   loadRecent();
 }
-el.lenHead.addEventListener("click", () => el.foldLen.classList.toggle("open"));
-el.hcpHead.addEventListener("click", () => el.foldHcp.classList.toggle("open"));
+// The settings card is the last thing in a scrolling column, so an opened fold's options can
+// start below the visible area. Scroll the least that brings the whole fold into view.
+function revealFold(fold){
+  if(!fold.classList.contains("open")) return;
+  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  requestAnimationFrame(() =>
+    fold.scrollIntoView({ block: "nearest", behavior: still ? "auto" : "smooth" }));
+}
+el.lenHead.addEventListener("click", () => { el.foldLen.classList.toggle("open"); revealFold(el.foldLen); });
+el.hcpHead.addEventListener("click", () => { el.foldHcp.classList.toggle("open"); revealFold(el.foldHcp); });
 el.games.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
   setup.game = b.dataset.game;
   try { localStorage.setItem(GAME_KEY, setup.game); } catch(e){}

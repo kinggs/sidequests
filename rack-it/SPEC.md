@@ -217,7 +217,8 @@ intentional foul loses the match whatever the score.
 ## 5. Play: setup
 
 One page, defaults first, **Start** pinned below it and naming what's missing ("Pick two
-players", "Set the length first"):
+players", "Set the length first"). The page above Start scrolls when an open fold needs the
+room, and opening a fold scrolls it into view.
 
 1. **Game**, a segmented control of two rows, a discipline each: the three nine-ball games (the
    third segment reads "11-Point" to fit) over the two 8-ball ones. The last game picked is
@@ -540,3 +541,4 @@ account, so a static app can't upload results.
 | 2.2.0 | The 8-ball drop is fourteen balls in two rows with a group label each, and in Ten-Point-Eight it is the score. Cells may be 52px (51 on a 360 phone). |
 | 2.2.0 | Ten-Point-Eight's scoring handicap is a quota spot, not a share, because the loser of a rack keeps their own balls. |
 | 2.2.1 | Side B is lilac, not coral: coral read as an alarm colour next to amber `--warn`. Colour tokens only, no behaviour. |
+| 2.2.2 | Setup scrolls when a fold is open, instead of the settings card being squeezed and clipping its own options under Start. Opening a fold scrolls it into view. |
