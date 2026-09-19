@@ -222,8 +222,8 @@ players", "Set the length first"):
 1. **Game**, a segmented control of two rows, a discipline each: the three nine-ball games (the
    third segment reads "11-Point" to fit) over the two 8-ball ones. The last game picked is
    remembered per phone (`localStorage` `rack-it.game`).
-2. **Players:** Teal side and Coral side columns with avatars. You're pre-selected on teal; the
-   coral column lists the teal player's most recent opponents first, then everyone by name.
+2. **Players:** Teal side and Lilac side columns with avatars. You're pre-selected on teal; the
+   lilac column lists the teal player's most recent opponents first, then everyone by name.
    Tapping the player who's on the other side swaps the two, and the break stays with whoever
    had it.
 3. **Length**, **Handicap** and **Break**: one settings card, a row each showing the current
@@ -245,7 +245,7 @@ Full-bleed: no tab bar. The screen holds a wake lock and asks for fullscreen (`s
 
 **Shared chrome**, top to bottom:
 - A 5px **turn bar** in the shooter's colour.
-- The **score head**: two panels, teal left and coral right. The shooter's panel fills with their
+- The **score head**: two panels, teal left and lilac right. The shooter's panel fills with their
   colour and shows a dot by the name; **tap a panel to make that player the shooter**. Turn
   always shows three ways at once: turn bar, filled panel, and the screen's ground tint. Under
   each score, the run-in to a race target ("needs 4 of 7", "target met") or the racks won.
@@ -298,7 +298,7 @@ rack starts full, and Undo covers it.
 - **8-ball:** solids 1–7 over stripes 9–15, fourteen cells in two rows. The 8 has no slot,
   because the win buttons *are* the 8. Each row carries its group's label with the owner's
   initial in their colour ("Stripes · M"), worked out from what's been potted; tapping the label
-  hands the row to teal, then coral, then back to the guess, and a label set by hand settles it.
+  hands the row to teal, then lilac, then back to the guess, and a label set by hand settles it.
   In Trad-Eight the drop is still only a log; in **Ten-Point-Eight it is the score**, so a
   scorer who taps balls as they drop gets the loser's points for nothing and one who doesn't
   taps the count in on the rack-end card.
@@ -494,7 +494,7 @@ account, so a static app can't upload results.
   elsewhere, never dimmed with opacity; `touch-action: manipulation`; `prefers-reduced-motion`
   respected; taps on `pointerup`. Type is in `rem` off an 18px root so the phone's text size
   applies, except on the live screen, which stays in px.
-- **Colour.** Teal is side A and coral side B, and a player's colour only ever means that
+- **Colour.** Teal is side A and lilac side B, and a player's colour only ever means that
   player. Amber only ever means careful or incomplete. No state rests on colour alone.
 - **Installing.** The manifest asks for `fullscreen` then `standalone`, portrait, id
   `/sidequests/rack-it/`, with PNG icons at 192, 512 and maskable 512; without PNGs Chrome makes
@@ -530,7 +530,7 @@ account, so a static app can't upload results.
 | 2.0.0 | Rating engine is a pure tested module (CLAUDE.md rule 1's exception). |
 | 2.0.0 | Starter ratings get documents; ratings can be rebuilt; deleting a saved match rebuilds. |
 | 2.0.1 | The app opens on Play, not Ratings. |
-| 2.1.0 | Dark system v2 from claude.ai/design: teal and coral sides, Space Grotesk figures, the live screen's chrome down from 335px to 273px. Caps labels may be 14px. |
+| 2.1.0 | Dark system v2 from claude.ai/design: the two player sides, Space Grotesk figures, the live screen's chrome down from 335px to 273px. Caps labels may be 14px. |
 | 2.1.0 | End, delete match and delete player are holds, not dialogs. Delete leaves the Matches list for the summary. |
 | 2.1.0 | An owner role: only the owner deletes or rewrites history, sets starters after the fact, or removes an invite. |
 | 2.1.0 | Golden-Nine's scoring handicap shows live, as the underdog's handicapped points. |
@@ -539,3 +539,4 @@ account, so a static app can't upload results.
 | 2.2.0 | The 8 on the break is spotted and play goes on (WPA, CSI), and losing on the 8 is a hold on Foul. Alternate break in both games. |
 | 2.2.0 | The 8-ball drop is fourteen balls in two rows with a group label each, and in Ten-Point-Eight it is the score. Cells may be 52px (51 on a 360 phone). |
 | 2.2.0 | Ten-Point-Eight's scoring handicap is a quota spot, not a share, because the loser of a rack keeps their own balls. |
+| 2.2.1 | Side B is lilac, not coral: coral read as an alarm colour next to amber `--warn`. Colour tokens only, no behaviour. |

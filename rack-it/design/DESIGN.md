@@ -16,6 +16,10 @@
 >   described here. Rebuild ratings (Session 5) is owner-only too.
 > - Named new files for CLAUDE.md rule 1: `design/` (reference, never cached by `sw.js`) and
 >   the two `space-grotesk-*.woff2` files if the numerals are kept.
+> - **Side B is lilac from 2.2.1** (`--b:#B49BFF`, `--b-ink:#1A0F30`, `--b-soft:#221C36`,
+>   `--ground-b:#170F28`). The export's coral read as an alarm colour beside amber `--warn`;
+>   §1's token block and every PNG here still show the coral. Nothing else about §1's colour
+>   rules changed.
 > - ⚠ The renders truncate names ("GARE…") and wrap sub-lines ("needs 5 of 14"). Fit first
 >   names and sub-lines on one line at 390px before accepting the 62px score.
 
@@ -71,7 +75,7 @@ smaller, but delete them before the next change.
 
 Two colour rules, and they are the whole system:
 
-1. **A player's colour only ever means that player.** Teal = side A, coral = side B. The lead
+1. **A player's colour only ever means that player.** Teal = side A, lilac = side B. The lead
    indicator, a claimed ball, a chosen win button, a live-match strip: all take the colour of the
    player they belong to. Nothing else is coloured.
 2. **Amber (`--warn`) only ever means "careful or incomplete"** — a foul on the board, a
@@ -212,7 +216,7 @@ Grotesk label in `--faint`.
 **Setup.** The three separate `.fold` cards (Length, Handicap, Break) become **one `--ink-1`
 card, `--r-card`, with 1px `--line` dividers** and 64px rows. Game selector becomes a segmented
 control: 4px `--ink-1` trough, active pill `--text` fill with `--ink-0` text, 52px. Side headings
-become `TEAL SIDE` / `CORAL SIDE` in the player colours. Move the odds sentence
+become `TEAL SIDE` / `LILAC SIDE` in the player colours. Move the odds sentence
 (`#setupHint`) permanently above `Start` in the footer at 15px `--dim` — it is the reason to open
 Handicap at all, and it should not be hidden inside it. `#setupWarn` stays in the footer in
 `--warn`. `Start` is 72px, `--text` fill, `--ink-0` text, `--r-card`.

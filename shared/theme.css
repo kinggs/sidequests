@@ -7,7 +7,7 @@
    An app's own <style> adds what's only its own, and may override anything here.
 
    Two colour rules. A player's colour only ever means that player (their avatar ring, Rack It's
-   teal and coral sides). An app's --accent only ever marks its data: a chart line, the dart
+   teal and lilac sides). An app's --accent only ever marks its data: a chart line, the dart
    being thrown, a send. Selections and primary buttons are neutral: light fill, dark text.
    Amber (--warn) only ever means careful or incomplete: an armed delete, a hold, provisional.
 

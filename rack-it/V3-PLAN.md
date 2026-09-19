@@ -30,7 +30,7 @@ and the ideas waiting for it are under "Parked".
 - **Deploy at the end of the session, not the start of the next.** A session that can't
   finish its list deploys what works and writes the rest into Handover.
 - **Version:** Session 5 landed `2.0.0` (the move to `rack-it/`), Session 6 landed `2.1.0`,
-  Session 7 landed `2.2.0`.
+  Session 7 landed `2.2.0`, then `2.2.1` for the lilac side.
 - **No new files in the app folder** except what the spec names. No frameworks.
 - **Don't build ahead.** Each session's list is the whole of that session. Ideas go in
   "Parked".
@@ -418,6 +418,8 @@ default length is 5 fixed racks like Golden-Nine, its points-race chip is 50, an
       one from the card, a tie and the deciding rack; Watch; Copy for Cuescore; Export then
       Merge adds nothing; 11-Point-Nine untouched (`node --test` and one scored match).
 - [x] Version `2.2.0`. `/deployquest`. Handover.
+- [x] Side B's colour tokens go from coral to lilac (owner's call after the deploy), shipped as
+      `2.2.1`: tokens and the prose that names the colour only, no behaviour.
 - [ ] **Owner:** play one real match of each 8-ball game on the phone.
 
 **Done when:** a Trad-Eight race and a Ten-Point-Eight night can be scored, resumed and
@@ -683,7 +685,7 @@ owner's step.
     card offers **Start rack N** straight away and the chips are there only in case some of their
     balls did drop. With balls already down and the group genuinely unclear (each player has
     potted from both groups), the chips are the only way on: the group *is* the score.
-  - **Tapping a drop row's label cycles teal → coral → back to the guess.** The plan says a tap
+  - **Tapping a drop row's label cycles teal → lilac → back to the guess.** The plan says a tap
     "sets it by hand and locks it"; a cycle is what makes it correctable, and the third state
     hands it back to the guess. The label shows the owner's initial in their colour.
   - **`eightOnBreak` lives on both games** (`eight` and `tenpoint`), not just `eight`, so a house
@@ -729,3 +731,37 @@ owner's step.
   13px short; the win area clips rather than scrolls. The default two-button rack fits everywhere.
 - **SPEC.md is 541 lines**, past Session 5's "under 400" target: §2 now has five columns and a
   §2.4, and §4 carries the linear quota. Worth a consolidation pass if it grows again.
+
+**Then 2.2.1 — side B is lilac.** The owner's call on 2026-09-19, after playing with 2.2.0:
+coral read as an alarm colour sitting next to amber `--warn`, which is the one colour that is
+only ever meant to say *careful or incomplete*. Lilac is the cool opposite of teal — maximum
+hue separation, and nothing about it can read as a warning — and it is light enough to keep
+dark ink on the filled panel, so no rule in DESIGN.md §1 or §7 had to bend.
+
+- **What changed.** Four tokens in `rack-it/index.html`'s `:root` and nothing else:
+  `--b:#B49BFF`, `--b-ink:#1A0F30`, `--b-soft:#221C36`, `--ground-b:#170F28`. Every side-B use
+  in the app already went through those tokens, so there were no literals to chase and no
+  behaviour to change; `--ground-b` still has exactly one user, `body.scoring[data-turn="b"]`.
+  The prose that named the colour followed: the `<style>` comment, `shared/theme.css`'s header,
+  SPEC.md, DESIGN.md (a header delta — §1's token block and the PNGs still show the coral) and
+  the "Lilac side" heading and `"Lilac"` target fallback on screen.
+- **Contrast, measured.** Every pair went up and every one now clears the 7:1 floor DESIGN.md
+  §7 sets for anything read while playing — coral was under it on three of them:
+
+  | Pair | Lilac | Was |
+  |---|---|---|
+  | Filled side-B panel, `--b-ink` on `--b` | 7.86:1 | 6.52:1 |
+  | `.foldv .nb` / `.lead.b` / `.wincap`, `--b` on `--ink-0` | 8.41:1 | 6.93:1 |
+  | The same over `--ground-b` while B shoots | 7.99:1 | 6.50:1 |
+  | `.win` outline, `--b` on `--b-soft` | 7.05:1 | 6.24:1 |
+
+- **Harness at 390×844**, `?mock`: the live screen with B shooting (filled panel, ground tint,
+  win outlines, "MELANIE WINS IT"), a Ten-Point-Eight rack-end card, the setup picker's
+  **LILAC SIDE** column, the Matches rows (neutral, as they should be), and the 8-ball drop's
+  group labels — the owner's in lilac, the other in teal. `node --test`: 21 pass, unchanged —
+  nothing rating-related moved.
+- **⚠ One thing to watch on the phone.** The 4 and the 13 are purple balls, and they now sit
+  nearer side B's lilac than they did coral. They are darker and more saturated, they always
+  carry their number, and a ball is never a person marker, so nothing reads as a state — but
+  it's the one place the new hue has a neighbour. Coral had the same problem with amber, which
+  is the reason for the swap.

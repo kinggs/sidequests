@@ -14,12 +14,12 @@
 <style>
   /* Rack It on shared/theme.css (dark system v2): the tokens, fonts, base elements and shared
      parts live there. Here: the players' sides, and every part that's Rack It's own. A
-     player's colour only ever means that player: teal is side A, coral side B. */
+     player's colour only ever means that player: teal is side A, lilac side B. */
   :root{
     --ground-a:#07201C;   /* the body tint while that player shoots */
-    --ground-b:#23100B;
+    --ground-b:#170F28;
     --a:#23D3B0; --a-ink:#032721; --a-soft:#0F2A26;
-    --b:#FF6B52; --b-ink:#2B0A03; --b-soft:#2A130E;
+    --b:#B49BFF; --b-ink:#1A0F30; --b-soft:#221C36;
     --accent:var(--a); --accent-ink:var(--a-ink);
     --rack-gap:clamp(6px, 1.4vh, 12px);
     /* Five rows of balls have to fit what the live screen's fixed chrome leaves: turn bar 5,
@@ -435,7 +435,7 @@
     </div>
     <div class="pick">
       <div class="pickcol ca"><h3 class="lbl">Teal side</h3><div class="picks" id="pickA"></div></div>
-      <div class="pickcol cb"><h3 class="lbl">Coral side</h3><div class="picks" id="pickB"></div></div>
+      <div class="pickcol cb"><h3 class="lbl">Lilac side</h3><div class="picks" id="pickB"></div></div>
     </div>
 
     <div class="settings">
@@ -701,7 +701,7 @@ import { phone } from "../shared/phone.js";
 import { people } from "../shared/people.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "2.2.0";
+const APP_VERSION = "2.2.1";
 const APP_ID = "rack-it";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 document.getElementById("versionMore").textContent = "v" + APP_VERSION;
@@ -1280,7 +1280,7 @@ function applyGameDefaults(){
   applyLengthDefaults();
 }
 
-// Recent matches, newest first, so the coral side lists who the teal player last played.
+// Recent matches, newest first, so the lilac side lists who the teal player last played.
 let recentMatches = [];
 async function loadRecent(){
   try {
@@ -1431,7 +1431,7 @@ function renderSetup(){
   el.games.querySelectorAll("button").forEach(b =>
     b.classList.toggle("sel", b.dataset.game === setup.game));
 
-  // ---- players: you first on teal, the teal player's recent opponents first on coral ----
+  // ---- players: you first on teal, the teal player's recent opponents first on lilac ----
   const ids = activePlayers();
   const me = people.meId();
   // The people list can arrive after setup opens: pre-select you once it does.
@@ -1487,7 +1487,7 @@ function renderSetup(){
   const showTargets = !!(a && b) && (racksLever || (setup.handicap === "scoring" && setup.mode === "race"));
   el.targetsRow.classList.toggle("hidden", !showTargets);
   el.tgtALabel.textContent = (a ? a.name : "Teal") + (racksLever ? " races to" : "'s target");
-  el.tgtBLabel.textContent = (b ? b.name : "Coral") + (racksLever ? " races to" : "'s target");
+  el.tgtBLabel.textContent = (b ? b.name : "Lilac") + (racksLever ? " races to" : "'s target");
   const typed = { a: readTarget(el.tgtA), b: readTarget(el.tgtB) };
   const uneven = racksLever && typed.a && typed.b && typed.a !== typed.b;
   el.raceForm.classList.toggle("hidden", !(a && b && uneven));
@@ -1916,7 +1916,7 @@ function dropBall(n){
   sync();
 }
 // Whose group is whose is normally worked out from what's been potted; tapping a row's label
-// hands it to the teal player, then the coral one, then back to the guess. Set by hand it's
+// hands it to the teal player, then the lilac one, then back to the guess. Set by hand it's
 // locked, which is what the rack stores (groups.a).
 function cycleGroup(g){
   if(!live || !isEight(live.game)) return;
