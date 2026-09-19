@@ -6,7 +6,7 @@ session ends with the app **deployed and working**, then ticks its boxes and wri
 handover note below, so the next session starts from the truth.
 
 **Start every session with:** "Read `rack-it/V3-PLAN.md` and do Session N."
-Session 7 (8-ball) is designed and waiting on the owner's answers in its §7.4.
+Session 7 (8-ball) is designed and decided; it's the next one to build.
 
 ## Read first, every session
 
@@ -194,8 +194,8 @@ balls — with the same levers (Off · Scoring · Racks), the same live-screen s
 and Golden-Nine, and one Zargo across all five games, the way FargoRate pools 8-ball and 9-ball
 into one number. 11-Point-Nine doesn't change. Lands `2.2.0`.
 
-**Status:** researched and designed 2026-09-19; the owner decisions in §7.4 are open. Nothing
-built yet. The design below assumes the recommended answer to each.
+**Status:** researched and designed 2026-09-19, and the owner answered every question in
+§7.4 the same day. Nothing built yet. The design below is as decided.
 
 ### 7.1 Research: how 8-ball is scored
 
@@ -292,13 +292,16 @@ memory of the last game just works. Cuescore disciplines "8-Ball" and "8-Ball (1
 |---|---|---|
 | A rack records | winner, win kind, fouls, the ball drop (14 balls), groups, breaker | the same |
 | Scoring | one rack is one rack | 10 to the winner; the loser 1 a ball of their group that's down, 0–7 |
-| A rack ends | a win tap, or a hold on Foul (lost it on the 8) | the same |
+| A rack ends | a win tap (Break & run, Win), or a hold on Foul (lost it on the 8) | the same |
 | Length | race to 3, 5 (default), 7 or N | 5 fixed racks (default), race to N points (chip 50), or N racks |
 | Break | alternate | alternate |
 | Handicap levers | Off (default), Racks | Off, Scoring (default), Racks |
 
-**The rack, both games.** The win column keeps three buttons: **Break & run** (`run`), **8 on
-the break** (`eight`, present only while the house plays it as a win, §7.4), **Win** (`win`).
+**The rack, both games.** The win column has two buttons: **Break & run** (`run`) and **Win**
+(`win`). The 8 on the break is WPA's spot-and-play-on (§7.4): the rack goes on, a scratch
+with it is a foul like any other, and there is no "8 on the break" button. Config
+`eightOnBreak: "spot"`; `"win"` brings back a third button, **8 on the break** (`eight`), and
+makes a scratch while making it a `foul8`, for a house that plays it that way.
 Losing on the 8 (early, on a foul, wrong pocket, scratched, off the table) is a **hold on
 Foul** on the player who did it, confirmed, exactly as Golden-Nine's intentional foul: kind
 `foul8`, winner the other player. Fouls are counted per player per rack and never score; ball
@@ -328,6 +331,7 @@ rack** or **Call it a tie**, as Golden-Nine does.
 **Points config.** `games.tenpoint.points: { winner: 10, ball: 1, left: 0 }`. Winner gets
 `winner + left × (7 − L)`, loser gets `ball × L`, `L` the loser's balls down. `left: 1` is
 CSI's 17-point system; `winner: 14` is USAPL's; one edit, no migration, like Golden-Nine's.
+The owner chose 10-point (§7.4), so the defaults above are the game.
 
 **Handicap.** Trad-Eight is Trad-Nine: Off plays level, Racks gives the race chart. For
 Ten-Point-Eight's Scoring lever a quota can't be a share of the points, as Golden-Nine's is,
@@ -370,25 +374,25 @@ the points for Ten-Point-Eight; Resume and Watch read the new rack shape; Export
 carry the new `game` values with nothing to convert; no new collection, so `firestore.rules`
 doesn't change.
 
-### 7.4 Owner decisions, before building
+### 7.4 Owner decisions (answered 2026-09-19)
 
-1. **Which points system.** 10-point (VNEA, CSI; recommended: the one most people know, and
-   the winner's fixed 10 keeps the rack-end card simple), 17-point (constant rack total, which
-   makes quotas a plain share like 11-Point-Nine's), or USAPL's 14.
-2. **8 on the break.** A win (bar, APA, TAP, VNEA option 1; recommended for a household), or
-   spot it and play on (WPA, CSI). Config `eightOnBreak: "win" | "spot"`; "spot" hides the
-   button and a scratch while making it is just a foul.
-3. **What rates.** The rack winner only, `w = 0.5` (recommended, Fargo's way), or the point
-   share as in 11-Point-Nine.
-4. **Break.** Alternate for both games (recommended, WPA's standard and Fargo's tidier data),
-   or a winner-breaks option in setup (APA's way, and Golden-Nine's).
-5. **Names and picker.** Trad-Eight and Ten-Point-Eight in a second row of the picker.
-6. **The 14-ball drop** at 51–55px cells, or three rows.
-7. **Ten-Point-Eight's default length**: 5 fixed racks, like Golden-Nine.
+| Question | Decision |
+|---|---|
+| Which points system | **10-point** (VNEA, CSI): winner always 10, loser 1 a ball. Not 17-point or USAPL's 14. |
+| 8 on the break | **Spot it and play on** (WPA, CSI). No win button; a scratch with it is just a foul. `eightOnBreak: "spot"`. |
+| What rates | **The rack winner only**, `w = 0.5`, Fargo's way. Point share rejected. The loser's balls are stored for a later look. |
+| Break | **Alternate** in both games. A winner-breaks option is parked. |
+| Names | **Trad-Eight · Ten-Point-Eight**, a second row of the picker. Stored `"eight"` and `"tenpoint"`. |
+| The 14-ball drop | **Two rows of seven**, solids over stripes; cells treated like the live balls (52px floor, 51 on a 360 phone). |
+| Where the plan lives | On `main`, per CLAUDE.md; the session branch was fast-forwarded into it. |
+
+Still assumed, not asked (pick the simplest reading, say so in Handover): Ten-Point-Eight's
+default length is 5 fixed racks like Golden-Nine, its points-race chip is 50, and
+`meanLoserBalls` starts at 3.5.
 
 ### 7.5 The list
 
-- [ ] `zargo.js`: `DEFAULT_GAMES` gains `eight: { w: 0.5, eightOnBreak: "win" }` and
+- [ ] `zargo.js`: `DEFAULT_GAMES` gains `eight: { w: 0.5, eightOnBreak: "spot" }` and
       `tenpoint: { points: { winner: 10, ball: 1, left: 0 }, meanLoserBalls: 3.5, w: 0.5 }`;
       `withGames` merges them; `rackOf` reads balls 1–15 and `groups`; `loserBalls(rack)`;
       `gameRackPoints` for both; `expectedEightPoints(pA, cfg)` for the quotas.
@@ -399,7 +403,7 @@ doesn't change.
       `hcpAllowed`); the odds sentence in expected points; quotas and targets from `eA`/`eB`;
       the points-race chip.
 - [ ] Live: `WIN_KINDS` and `KIND_LABEL` for both; hold on Foul for `foul8`; the 14-ball drop
-      with group labels; `paintWinArea` hides "8 on the break" under `spot`; the rack-end card
+      with group labels; `paintWinArea` shows "8 on the break" only under `eightOnBreak: "win"`; the rack-end card
       for Ten-Point-Eight with the group chips and stepper; the deciding rack; sub-lines "31 of
       42"; End's dropped-rack message.
 - [ ] Resume and Watch rebuild the new rack shape; `sync` patches `groups`.
