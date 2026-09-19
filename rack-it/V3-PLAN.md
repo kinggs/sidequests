@@ -6,6 +6,7 @@ session ends with the app **deployed and working**, then ticks its boxes and wri
 handover note below, so the next session starts from the truth.
 
 **Start every session with:** "Read `rack-it/V3-PLAN.md` and do Session N."
+Session 7 (8-ball) is designed and waiting on the owner's answers in its §7.4.
 
 ## Read first, every session
 
@@ -27,7 +28,8 @@ handover note below, so the next session starts from the truth.
   numbers. `node --test` from the repo root must pass, and a change to ratings adds a test.
 - **Deploy at the end of the session, not the start of the next.** A session that can't
   finish its list deploys what works and writes the rest into Handover.
-- **Version:** Session 5 landed `2.0.0` (the move to `rack-it/`), Session 6 lands `2.1.0`.
+- **Version:** Session 5 landed `2.0.0` (the move to `rack-it/`), Session 6 landed `2.1.0`,
+  Session 7 lands `2.2.0`.
 - **No new files in the app folder** except what the spec names. No frameworks.
 - **Don't build ahead.** Each session's list is the whole of that session. Ideas go in
   "Parked".
@@ -184,6 +186,241 @@ can't delete one, and the owner can.
 
 ---
 
+## Session 7 — 8-ball: Trad-Eight and Ten-Point-Eight
+
+**Goal:** two 8-ball games beside the three nine-ball games, scored the two ways organised
+8-ball is scored — one rack is one rack, and a rack worth points that also score the loser's
+balls — with the same levers (Off · Scoring · Racks), the same live-screen shape as Trad-Nine
+and Golden-Nine, and one Zargo across all five games, the way FargoRate pools 8-ball and 9-ball
+into one number. 11-Point-Nine doesn't change. Lands `2.2.0`.
+
+**Status:** researched and designed 2026-09-19; the owner decisions in §7.4 are open. Nothing
+built yet. The design below assumes the recommended answer to each.
+
+### 7.1 Research: how 8-ball is scored
+
+Two families, and every league is one or the other.
+
+**One rack, one win.** WPA, CSI/BCAPL, APA, TAP, every Fargo-rated league, Heyball and UK
+blackball. The rack: clear your group, then the 8 in a called pocket. You lose the rack on the
+8 four ways (WPA §3.8): a foul while pocketing it, pocketing it early, the wrong pocket, or
+driving it off the table. Fouls give ball in hand and score nothing.
+- **8 on the break** is the one rule that splits the world. WPA and CSI/BCAPL: not a win, the
+  breaker spots the 8 or re-breaks (a scratch with it hands that choice to the opponent). APA,
+  TAP, VNEA "option 1" and most bar and pub play: a win, and a scratch while making it is a
+  loss. VNEA's own championships play option 2 (spot or re-rack).
+- **Break:** WPA's standard is alternate; CSI singles alternate; APA and TAP play winner breaks.
+- **Length:** race to 3, 5 or 7 in leagues; the 2025 WPA women's worlds raced to 7, 8 and 9.
+- **Handicap:** APA's games-must-win chart (skill levels 2–7; a 4 against a 6 races 3 to 5).
+  FargoRate's FairMatch sets the race from the rating gap alone, Hot/Medium/Mild: a 100-point
+  gap turns a race to 7 into 7 against 4, which is what our race chart already computes.
+- Heyball and blackball score frames only; Cuescore records any 8-ball match as frames too
+  (discipline, race to N, a frame score), never points.
+
+**Points per rack.** VNEA (Valley), the systems CSI documents for its leagues, and USAPL, CSI's
+Fargo-powered league. Every one of them takes the same single input beyond the winner: how
+many of the loser's balls were off the table, 0 to 7. Fouls score nothing in any of them.
+
+| System | Winner | Loser | Rack total |
+|---|---|---|---|
+| **VNEA / CSI 10-point** | 10, always: a break-and-run is 10, an 8 on the break is 10 | 1 a ball of their group down, max 7 | 10 to 17 |
+| CSI 17-point ("ball count") | 10 plus 1 for each of the loser's balls still up | 1 a ball, max 7 | always 17 |
+| USAPL 14-point | 14 (7 balls, 7 for the 8) | 1 a ball, max 7 | 14 to 21 |
+
+VNEA rates players by average points a game (13 handicap levels) and spots the difference of
+team averages; CSI's leagues handicap the point systems from Fargo ratings; Fargo itself takes
+only the rack winner from any of them (§7.2). TAP records balls made on the break for stats
+and races in racks.
+
+Sources: [WPA rules](https://wpapool.com/wp-content/uploads/2025/09/2025.09.15-WPA-Rules.pdf)
+§3; [CSI/BCAPL 8-ball differences](https://blueridgebcapl.com/8-Ball-BCApl-Differences/);
+[APA games-must-win](https://rules.poolplayers.com/the-equalizer-handicap-system/games-must-win-charts/);
+[VNEA rules](https://www.vnea.com/rules); CSI on the
+[1-point](https://www.playcsipool.com/csinews/how-fargorate-improves-the-1-point-scoring-system-for-pool-leagues),
+[10-point](https://www.playcsipool.com/csinews/how-fargorate-improves-the-10-point-scoring-system)
+and [17-point](https://www.playcsipool.com/csinews/how-fargorate-improves-the-17-point-system)
+systems; [Fargo races](https://playingpool.substack.com/p/fargo-races);
+[Heyball rules](https://wpapool.com/wp-content/uploads/2025/08/250816-Rules-of-Heyball.pdf).
+⚠ The session's proxy blocked the source sites, so these come from search extracts of those
+pages, not full reads; VNEA's scoring of a loss on the 8 (loser keeps their balls) is inferred
+from "the winner always gets 10", not seen stated.
+
+### 7.2 Research: how Fargo rates across 8-ball and 9-ball
+
+- **One rating, every game.** 8-ball, 9-ball, 10-ball and one pocket on 7- to 10-foot tables
+  all feed one number; there is no per-game rating and no per-game race chart.
+- **One game is one rack won or lost.** Ball counts, points, margins, race lengths and match
+  scores never enter. A USAPL 14-point league sends Fargo its rack winners and keeps the points
+  for its own handicap.
+- **Does mixing games blur the number?** Mike Page tested it on Corey Deuel: an 8-ball-only fit
+  and a 9-ball-only fit each land within a couple of points of his pooled rating, and across
+  players "actual differences, when they exist at all, are smaller than many people expect".
+  A player's record naturally reflects the game they play most, which the system takes as
+  their true skill.
+- **Method.** Not Elo increments: every day Fargo re-solves everyone's rating jointly as the
+  maximum-likelihood fit to all games ever, older games weighted less, so a rating can move
+  without you playing. Under robustness 200 the shown rating blends a starter prior linearly
+  (at 40 games, 80% starter). Robustness is games counted; 200 is "established".
+- **Break format.** Fargo's look at 10,000 matches: winner-breaks against alternate "makes a
+  small difference in the statistics of match scores but probably not enough to worry about";
+  alternate-break events give tighter ratings, and winner-breaks packages break the
+  independence its race odds assume.
+
+Sources: [FargoRate FAQ](https://fargorate.com/); [Mixing games: Corey Deuel and
+8-ball](https://www.fargorate.com/fargorateblog/archive/mixing-games-in-fargorate-a-look-at-corey-deuel-and-8-ball/);
+[Behind the curtain](https://www.fargorate.com/fargorateblog/archive/behindthecurtain/);
+[Starter ratings explained](https://www.playcsipool.com/fargorate-starter-ratings-explained.html);
+[Match odds, do they work](https://www.fargorate.com/fargorateblog/archive/fargorate-match-odds-do-they-work/);
+[FairMatch](https://fairmatch.fargorate.com/). ⚠ Same caveat: read as search extracts.
+
+**What Zargo takes from it.** The two 8-ball games are Trad-Nine to the rating: a rack is a
+rack, `r` is 1 or 0 by winner, `w` is 0.5, and nothing about points, balls, fouls or the kind of
+win enters. The race chart is already Fargo's chart, so it covers 8-ball unchanged. Alternate
+break is the default. What Zargo does *not* take: the daily re-fit and the linear starter
+blend. Our calibration and settling regimes do that job at household size and every stored
+rating stays put; ZARGO.md's table already had this row waiting.
+
+### 7.3 The design
+
+**Five games, one picker.** The segmented control becomes two rows, a discipline each:
+**Trad-Nine · Golden-Nine · 11-Point** over **Trad-Eight · Ten-Point-Eight**. Same 56px rows,
+60px more setup height, Start still pinned. Stored `"eight"` and `"tenpoint"`; the per-phone
+memory of the last game just works. Cuescore disciplines "8-Ball" and "8-Ball (10-point)".
+(If the owner picks the 17- or 14-point system in §7.4, the name follows: "17-Point-Eight".)
+
+| | Trad-Eight | Ten-Point-Eight |
+|---|---|---|
+| A rack records | winner, win kind, fouls, the ball drop (14 balls), groups, breaker | the same |
+| Scoring | one rack is one rack | 10 to the winner; the loser 1 a ball of their group that's down, 0–7 |
+| A rack ends | a win tap, or a hold on Foul (lost it on the 8) | the same |
+| Length | race to 3, 5 (default), 7 or N | 5 fixed racks (default), race to N points (chip 50), or N racks |
+| Break | alternate | alternate |
+| Handicap levers | Off (default), Racks | Off, Scoring (default), Racks |
+
+**The rack, both games.** The win column keeps three buttons: **Break & run** (`run`), **8 on
+the break** (`eight`, present only while the house plays it as a win, §7.4), **Win** (`win`).
+Losing on the 8 (early, on a foul, wrong pocket, scratched, off the table) is a **hold on
+Foul** on the player who did it, confirmed, exactly as Golden-Nine's intentional foul: kind
+`foul8`, winner the other player. Fouls are counted per player per rack and never score; ball
+in hand happens on the table. The Foul button passes the shot as it does today.
+
+**The ball drop is 14 balls: solids 1–7 over stripes 9–15.** The 8 has no slot, because the
+win buttons *are* the 8. Tap a ball and it's potted by the shooter; tap the slot to put it
+back; a new rack starts full; Undo covers it. Each row carries a label, **Solids** and
+**Stripes**, with the owner's initial once known: the app guesses from the pots (a player who
+has only potted from one group owns it; the other player gets the rest) and a tap on the label
+sets it by hand and locks it. Stored per rack as `groups: { a: "solids" | "stripes" | null }`.
+In Trad-Eight the drop stays what it is today, a log for replays. In Ten-Point-Eight it is the
+score: the loser's points are their group's balls down when the rack ends, so a scorer who
+taps balls as they drop gets the score for nothing, and one who doesn't taps the count in on
+the card. ⚠ Fourteen cells in two rows come out at 55px on a 390 phone and 51 on a 360; that's
+under the 56 rule. Proposed: treat them like the live screen's balls (52 floor) and let a 360
+phone have 51; the alternative is three rows of five with the 8 drawn dead in the middle,
+which costs 60px the win buttons don't have on a short phone.
+
+**Rack end, Ten-Point-Eight.** The card reads "Kenny 10 · Melanie 4 (4 stripes down)" with
+**Start rack N** and **Undo that**. If the loser's group is still unknown (nobody tapped a
+ball), two chips ask first: "Melanie had: Solids · Stripes", then a 0–7 stepper for her balls
+down, default 0. End's rules follow Golden-Nine and Trad-Nine: a rack without a winner is
+dropped, and End says so. After the last fixed rack a tie in points offers **Play a deciding
+rack** or **Call it a tie**, as Golden-Nine does.
+
+**Points config.** `games.tenpoint.points: { winner: 10, ball: 1, left: 0 }`. Winner gets
+`winner + left × (7 − L)`, loser gets `ball × L`, `L` the loser's balls down. `left: 1` is
+CSI's 17-point system; `winner: 14` is USAPL's; one edit, no migration, like Golden-Nine's.
+
+**Handicap.** Trad-Eight is Trad-Nine: Off plays level, Racks gives the race chart. For
+Ten-Point-Eight's Scoring lever a quota can't be a share of the points, as Golden-Nine's is,
+because the loser has a floor: they keep their balls. Expected points a rack are linear in
+`pA` instead:
+
+```
+eA = 10 × pA + L̄ × (1 − pA)        eB = 10 × (1 − pA) + L̄ × pA        L̄ = mean loser's balls
+```
+
+`L̄` lives in config as `meanLoserBalls: 3.5` ⚠ a guess until 50 racks are stored, then
+measured (the racks hold every count). Fixed racks: quotas `round(racks × eA)` and
+`round(racks × eB)`, shown as "31 of 42" under the scores from rack one, the lead bar the gap
+in progress to quota, and the winner whoever finishes further past their own quota (a spot,
+not Golden-Nine's ratio; the ratio is wrong once the loser scores). Race to N points: the
+favourite races to N, the other to `round(N × eUnderdog / eFavourite)`, editable: at a
+160-point gap (`pA` 0.75, 8.4 points a rack to 5.1) a race to 50 is 50 against 30, "needs
+12 of 30", and 5 fixed racks give quotas of 42 and 25. Off: fixed racks, more points wins;
+a race, both to N. Racks: a race in racks, as anywhere. The odds sentence says "Kenny
+expects 8 points a rack to Melanie's 5".
+
+**Zargo.** Both games take the non-league path of `rackResults`: `r` 1 or 0 by winner,
+`w = 0.5` from `config.games.<game>.w`, robustness up by half a rack each. `gameRackPoints`
+gains an `eight`/`tenpoint` branch (Trad-Eight: 1 to the winner; Ten-Point-Eight: the points
+above), `countedRacks` counts racks with a winner, `replay` needs nothing new. The race chart
+and the calibration, settling and known regimes are untouched. Two alternatives, considered
+and not taken:
+- *Point share as `r`*, 11-Point-Nine's way. Rejected: the winner always has 10, so the share
+  would only grade how badly the loser lost, and ZARGO.md challenge 1 already shows share
+  understates gaps. Fargo ignores margin for the same reason. The counts are stored, so once
+  a hundred racks exist we can test whether the loser's balls predict anything (⚠ a challenge
+  11 for ZARGO.md).
+- *A heavier `w` for 8-ball* because a rack is longer and less lucky than a 9-ball rack.
+  Fargo weights every game the same and finds the fits agree, so 0.5 it is; it's config.
+
+**Everything else** follows the games that exist. Matches rows and the summary show points
+for Ten-Point-Eight as they do for Golden-Nine; a person's page lists both games in the win
+record; Copy for Cuescore writes racks ("Kenny 5–3 Melanie · 8-Ball · race to 5 · …") and adds
+the points for Ten-Point-Eight; Resume and Watch read the new rack shape; Export and Import
+carry the new `game` values with nothing to convert; no new collection, so `firestore.rules`
+doesn't change.
+
+### 7.4 Owner decisions, before building
+
+1. **Which points system.** 10-point (VNEA, CSI; recommended: the one most people know, and
+   the winner's fixed 10 keeps the rack-end card simple), 17-point (constant rack total, which
+   makes quotas a plain share like 11-Point-Nine's), or USAPL's 14.
+2. **8 on the break.** A win (bar, APA, TAP, VNEA option 1; recommended for a household), or
+   spot it and play on (WPA, CSI). Config `eightOnBreak: "win" | "spot"`; "spot" hides the
+   button and a scratch while making it is just a foul.
+3. **What rates.** The rack winner only, `w = 0.5` (recommended, Fargo's way), or the point
+   share as in 11-Point-Nine.
+4. **Break.** Alternate for both games (recommended, WPA's standard and Fargo's tidier data),
+   or a winner-breaks option in setup (APA's way, and Golden-Nine's).
+5. **Names and picker.** Trad-Eight and Ten-Point-Eight in a second row of the picker.
+6. **The 14-ball drop** at 51–55px cells, or three rows.
+7. **Ten-Point-Eight's default length**: 5 fixed racks, like Golden-Nine.
+
+### 7.5 The list
+
+- [ ] `zargo.js`: `DEFAULT_GAMES` gains `eight: { w: 0.5, eightOnBreak: "win" }` and
+      `tenpoint: { points: { winner: 10, ball: 1, left: 0 }, meanLoserBalls: 3.5, w: 0.5 }`;
+      `withGames` merges them; `rackOf` reads balls 1–15 and `groups`; `loserBalls(rack)`;
+      `gameRackPoints` for both; `expectedEightPoints(pA, cfg)` for the quotas.
+- [ ] `zargo.test.mjs`: rack points for each of the three systems by config; a Ten-Point-Eight
+      match moves Zargo exactly as a Trad-Nine match with the same winners; a `foul8` rack; a
+      replay with an 8-ball match in it; the quota numbers worked by hand.
+- [ ] Setup: the two-row picker; per-game defaults (`applyGameDefaults`, `applyLengthDefaults`,
+      `hcpAllowed`); the odds sentence in expected points; quotas and targets from `eA`/`eB`;
+      the points-race chip.
+- [ ] Live: `WIN_KINDS` and `KIND_LABEL` for both; hold on Foul for `foul8`; the 14-ball drop
+      with group labels; `paintWinArea` hides "8 on the break" under `spot`; the rack-end card
+      for Ten-Point-Eight with the group chips and stepper; the deciding rack; sub-lines "31 of
+      42"; End's dropped-rack message.
+- [ ] Resume and Watch rebuild the new rack shape; `sync` patches `groups`.
+- [ ] Matches, summary, person records, `DISCIPLINE` and `cuescoreLine`, `scoreLine`.
+- [ ] SPEC.md: §2 gains two columns and a §2.4 for the 8-ball rules the app assumes, §4 the
+      linear quota, §6 the 14-ball drop and the hold, §9 the rack shape and config, §10, §12
+      loses 8-ball, §13 a 2.2.0 line. ZARGO.md: the table row names the two games; challenge
+      11 (the loser's balls as evidence, untested).
+- [ ] Harness at 390×844 and 360×640: a Trad-Eight race with a `foul8` rack and Resume; a
+      Ten-Point-Eight fixed match with the scoring handicap, a rack scored from the drop and
+      one from the card, a tie and the deciding rack; Watch; Copy for Cuescore; Export then
+      Merge adds nothing; 11-Point-Nine untouched (`node --test` and one scored match).
+- [ ] Version `2.2.0`. `/deployquest`. Handover.
+- [ ] **Owner:** play one real match of each 8-ball game on the phone.
+
+**Done when:** a Trad-Eight race and a Ten-Point-Eight night can be scored, resumed and
+watched from any phone, both move Zargo like Trad-Nine racks, the quotas show from rack one,
+and 11-Point-Nine behaves identically.
+
+---
+
 ## Rename runbook (Session 5, done)
 
 Chrome can't move an installed app to a new manifest URL, so everyone reinstalls once.
@@ -227,7 +464,12 @@ agreement matters less than every token and every component reading the same eve
 ## Parked (not in any session)
 
 - Shot clock for Golden-Nine (45 s + one 30 s extension per rack).
-- WPA 8-ball and Heyball: same shape as Trad-Nine, add a game entry and a win-kind list.
+- Heyball: Trad-Eight's shape once Session 7 lands (no called shots, a soft break loses the
+  rack, 8 on the break by tournament rule): a game entry and a win-kind list.
+- A winner-breaks option in setup for the 8-ball games (APA's way), if alternate break
+  (Session 7's default) isn't how the house plays.
+- Average points a rack in Ten-Point-Eight on a person's page, VNEA's own skill measure,
+  for interest only.
 - Club grouping of people.
 - Protecting `uid` and `email` on people documents by rule (Session 6 ⚠).
 - Cuescore rating as a starter hint via `api.cuescore.com` (⚠ CORS from a static page is
