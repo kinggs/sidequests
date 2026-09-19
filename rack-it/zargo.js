@@ -8,6 +8,8 @@
 //   Z.raceWin(p, x, y), Z.raceChart(pA, n)       // the Racks lever's race chart
 //   Z.groupsOf(rack), Z.loserBalls(rack)         // 8-ball: whose group is whose, and the loser's balls down
 //   Z.expectedEightPoints(pA, cfg)               // Ten-Point-Eight's expected points a rack
+//   Z.eightQuota(pA, racks, cfg)                 // …times the racks PLAYED, the scoring handicap's spot
+//   Z.eightLead(t, quota)                        // that spot as a lead: > 0 means B is ahead
 //   Z.replay(matches, starters, cfg)             // every rating rebuilt from the match history
 //
 // index.html imports it; zargo.test.mjs proves it with `node --test` from the repo root. The reasoning
@@ -55,6 +57,21 @@ export function expectedEightPoints(pA, cfg){
   const win = g.points.winner + (g.points.left || 0) * (7 - L), lose = g.points.ball * L;
   return { a: win * pA + lose * (1 - pA), b: win * (1 - pA) + lose * pA };
 }
+
+// The scoring handicap's quota over `racks` racks. The winner is whoever finishes further past
+// their own, which is a spot rather than Golden-Nine's ratio: the loser of a rack keeps their
+// own balls, so a share of the points would only grade how badly the loser lost.
+//
+// `racks` must be the racks actually PLAYED, never the racks planned. Judging a match that ended
+// early against the full quota is not a near-enough approximation, it inverts the result: both
+// players fall short of a quota meant for more racks, the bigger quota falls short by more, and
+// the match goes to whoever was spotted the most — even if they won no racks at all.
+export function eightQuota(pA, racks, cfg){
+  const e = expectedEightPoints(pA, cfg);
+  return { a: Math.max(1, Math.round(racks * e.a)), b: Math.max(1, Math.round(racks * e.b)) };
+}
+// Each player's points against their own quota, as one lead. Positive means B is ahead.
+export function eightLead(t, quota){ return (t.b - quota.b) - (t.a - quota.a); }
 
 // ---------- what a rack is worth ----------
 export const livePoints = cfg => 8 * cfg.games.league.points.low + cfg.games.league.points.nine;

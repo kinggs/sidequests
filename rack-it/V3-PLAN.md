@@ -782,6 +782,41 @@ nothing to scroll to, on any phone. A 360×640 lost 387px that way.
   the match, the live screen still doesn't scroll, and Invites (which shares `.setupbody`) is
   unchanged. `node --test`: 21 pass.
 
+**Then 2.2.3 — the Ten-Point-Eight result was wrong, and it mattered.** The owner played the
+first real 8-ball match: Kenny 506 v Melanie 332, five fixed racks, scoring handicap. They
+played one rack, Kenny won it 10–5, and ended the match. The card said **Melanie wins**.
+
+- **The bug.** `matchResult` built the quota from `racksPlanned`, so a match that ended after
+  one rack was judged against a quota for five: Kenny 10 against 43 is 33 short, Melanie 5
+  against 25 is 20 short, so Melanie "finished further past her own" by 13 and won a match in
+  which she won no racks and scored half the points. This is not a rounding error, it is an
+  inversion, and it gets worse the bigger the handicap — the spot is what decides, and a spot
+  measured over racks nobody played is all spot and no play.
+- **The fix.** The quota that decides the match covers `banked.racks`, the racks actually
+  played. Prorated to the one rack, the quotas are 9 and 5, and Kenny wins by 1. A match that
+  runs its full length is unchanged, because there the racks played *are* the racks planned —
+  checked in the harness: a full five-rack match still lands 35–35, Melanie on the spot.
+  `eightQuota(pA, racks, cfg)` and `eightLead(t, quota)` moved into `zargo.js` so the rule is
+  pure and tested rather than buried in a paint function.
+- **The lead bar was reading a different number from the result.** It used the ratio
+  `tA/quotaA` vs `tB/quotaB` while the match was decided on the spot, and the two genuinely
+  disagree: at quotas 17 and 4 with 22–7, the ratio says B is ahead and the spot says A wins.
+  The bar now shows the same spot, in points ("Kenny +1 point"), over the racks played, so the
+  bar and the final card can never name different leaders.
+- **The Zargo was right all along.** Only the rack winner rates (§7.2), so Kenny won the one
+  rack and went 506 → 507 while Melanie went 332 → 331. It looked backwards only because the
+  headline above it was wrong. Ratings never used the match winner, so nothing stored needs
+  rebuilding — but a match saved before 2.2.3 keeps the wrong `totals.winner` in its document,
+  since that is a stored field and not derived. There is one such match.
+- **Not a bug: the match "finished after 2".** End is a hold that ends the *match* and drops
+  the rack in progress, which is what happened at rack 2 of 5. Racks end with a win button.
+  `targetReached` is false in fixed mode, so nothing auto-finished — verified by playing a full
+  five-rack match, which declares only on the fifth.
+- **Tests.** `node --test`: **24 pass** (was 21). The three new ones pin the owner's match
+  against both quotas, the full-length spot including an exact tie, and that a quota is never
+  zero. The harness replayed the owner's match exactly and now reads "Kenny wins", and all five
+  games start and score with no page errors.
+
 - **⚠ One thing to watch on the phone.** The 4 and the 13 are purple balls, and they now sit
   nearer side B's lilac than they did coral. They are darker and more saturated, they always
   carry their number, and a ball is never a person marker, so nothing reads as a state — but

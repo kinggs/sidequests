@@ -190,7 +190,12 @@ eA = 10 × pA + L̄ × (1 − pA)      eB = 10 × (1 − pA) + L̄ × pA      L�
 (In general `win = winner + left × (7 − L̄)` and `lose = ball × L̄`, so the 17- and 14-point
 configs work too.) Over fixed racks the quotas are `round(racks × eA)` and `round(racks × eB)`,
 shown under each score as "31 of 42" from rack one, and the winner is whoever finishes further
-past their own: `lead = (pointsB − quotaB) − (pointsA − quotaA)`. Over a race to points the
+past their own: `lead = (pointsB − quotaB) − (pointsA − quotaA)`. **The quota that decides the
+match covers the racks actually played, not the racks planned** — the panels show the whole
+match because that is what you are playing for, but a match ended early is judged on what was
+played. Judging it on the planned racks inverts the result: both players fall short of a quota
+meant for more racks, the bigger quota falls short by more, and the match goes to whoever was
+spotted the most however badly they lost. Over a race to points the
 favourite races to N and the other to `round(N × eUnderdog / eFavourite)`, editable. At a
 160-point gap (`pA` 0.75) that's 8.4 points a rack to 5.1, quotas of 42 and 26 over five racks,
 and a race to 50 against 30. ⚠ `meanLoserBalls: 3.5` is a guess until 50 racks are stored; every
@@ -204,7 +209,10 @@ Ten-Point-Eight over fixed racks is decided by plain points.
 is ahead, in their colour, and the match bar names them with the gap ("Melanie +26%"). With a quota it reads the gap between the two players'
 progress towards their own quota, as a share of the match ("MEL +26%"), capped at +100%; full
 swing at a quarter of the match clear, damped by how much has been played, so an underdog's
-first ball doesn't lurch it. In a race it pegs at **target met**; "ahead" means closest to your
+first ball doesn't lurch it. **Ten-Point-Eight's scoring handicap is the exception:** its bar is
+the quota spot in points ("KENNY +1 point"), over the racks played, because that is the number
+that decides the match — a bar reading a share while the result reads a spot can name a
+different leader than the final card, and then neither is believable. In a race it pegs at **target met**; "ahead" means closest to your
 own target. A head start reads as the shorter target it equals. Off shows a plain lead: racks
 in Trad-Nine ("MEL +1 rack"), points in the games scored by points ("KENNY +6 points"), full
 swing at the race size, or at the winner's points per rack over the match's racks. Level leaves both empty.
@@ -542,3 +550,4 @@ account, so a static app can't upload results.
 | 2.2.0 | Ten-Point-Eight's scoring handicap is a quota spot, not a share, because the loser of a rack keeps their own balls. |
 | 2.2.1 | Side B is lilac, not coral: coral read as an alarm colour next to amber `--warn`. Colour tokens only, no behaviour. |
 | 2.2.2 | Setup scrolls when a fold is open, instead of the settings card being squeezed and clipping its own options under Start. Opening a fold scrolls it into view. |
+| 2.2.3 | Ten-Point-Eight's quota is measured over the racks played, not the racks planned, so a match ended early no longer goes to the player who won nothing. Its lead bar is the same spot, in points. |

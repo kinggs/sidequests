@@ -274,6 +274,48 @@ test("Ten-Point-Eight quotas: a 160-point gap is 8.4 points a rack to 5.1 (V3-PL
   near(Z.expectedEightPoints(pA, seventeen).a + Z.expectedEightPoints(pA, seventeen).b, 17);
 });
 
+test("Ten-Point-Eight's quota covers the racks PLAYED, not the racks planned", () => {
+  // The owner's match, 2026-09-19: Kenny 506 v Melanie 332 over 5 fixed racks. They played one
+  // rack — Kenny won it 10–5 — and ended the match. The 5-rack quotas are 43 and 25.
+  const pA = Z.expectedShareA(506, 332);
+  const planned = Z.eightQuota(pA, 5, cfg);
+  assert.deepEqual(planned, { a: 43, b: 25 });
+
+  const t1 = { a: 10, b: 5 };                       // one rack: Kenny 10, Melanie 5 balls down
+  // Against the PLANNED quota the match inverts: both fall short, Kenny's bigger quota falls
+  // short by more, so it hands the match to the player who won no racks. This is the bug.
+  assert.ok(Z.eightLead(t1, planned) > 0, "the planned quota wrongly favours B");
+
+  // Against the quota for the one rack actually played, the player who won the rack wins.
+  const played = Z.eightQuota(pA, 1, cfg);
+  assert.deepEqual(played, { a: 9, b: 5 });
+  assert.ok(Z.eightLead(t1, played) < 0, "Kenny won the only rack, so Kenny wins");
+  assert.equal(Z.eightLead(t1, played), -1);
+});
+
+test("Ten-Point-Eight: the quota spot still decides a match that runs its full length", () => {
+  const pA = Z.expectedShareA(660, 500);
+  const q = Z.eightQuota(pA, 5, cfg);
+  assert.deepEqual(q, { a: 42, b: 26 });
+  // The handover's five-rack match: 35-29 to Melanie on the spot, because Kenny needed 42.
+  assert.ok(Z.eightLead({ a: 35, b: 29 }, q) > 0, "B finishes further past her own quota");
+  // Hitting your own quota exactly is a tie, whatever the raw points say.
+  assert.equal(Z.eightLead({ a: 42, b: 26 }, q), 0);
+  // The favourite's raw points can lead while the spot says otherwise — that is the handicap.
+  assert.ok(Z.eightLead({ a: 40, b: 27 }, q) > 0);
+});
+
+test("Ten-Point-Eight: a quota is never zero, so an early lead is always readable", () => {
+  const pA = Z.expectedShareA(700, 300);
+  const q = Z.eightQuota(pA, 1, cfg);
+  assert.ok(q.a >= 1 && q.b >= 1);
+  // Over the racks played, the two quotas sum to about the racks times a rack's total.
+  for(const racks of [1, 2, 5, 9]){
+    const s = Z.eightQuota(pA, racks, cfg);
+    near(s.a + s.b, racks * 13.5, 1.01, "racks " + racks);
+  }
+});
+
 // ---------- replay ----------
 // Four players. C has a starter of 508; the others start at the default 500.
 //

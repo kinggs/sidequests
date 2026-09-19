@@ -705,7 +705,7 @@ import { phone } from "../shared/phone.js";
 import { people } from "../shared/people.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "2.2.2";
+const APP_VERSION = "2.2.3";
 const APP_ID = "rack-it";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 document.getElementById("versionMore").textContent = "v" + APP_VERSION;
@@ -2080,13 +2080,38 @@ function quotas(ctx, t){
 // keeps their own balls: a quota is expected points a rack times the racks (zargo.js
 // expectedEightPoints), and the winner is whoever finishes further past their own. Over a race
 // to points the quota is simply the target. Null for any other game or lever.
-function eightQuotas(ctx){
+// `racks` overrides the count the quota covers. The panels want the whole match — "10 of 43" is
+// what you are playing for — but anything that decides who is ahead or who won has to pass the
+// racks actually played (racksScored), or the spot is measured against racks nobody played.
+function eightQuotas(ctx, racks){
   if(gameOf(ctx) !== "tenpoint" || handicapOf(ctx) !== "scoring" || !ctx.eA) return null;
   if(ctx.mode === "race") return ctx.targets && ctx.targets.a && ctx.targets.b ? ctx.targets : null;
-  const racks = ctx.mode === "fixed" ? (ctx.racksPlanned || DEFAULT_RACKS)
+  const n = racks !== undefined ? racks
+    : ctx.mode === "fixed" ? (ctx.racksPlanned || DEFAULT_RACKS)
     : Math.max(DEFAULT_RACKS, ctx.rackNo || 1);
-  const e = expectedEightPoints(ctx.eA);
-  return { a: Math.max(1, Math.round(racks * e.a)), b: Math.max(1, Math.round(racks * e.b)) };
+  return Z.eightQuota(ctx.eA, n, cfg());
+}
+// Racks whose points are on the board: the racks won by each side, less any head start, which is
+// given rather than played. Every 8-ball rack has a winner, so this is the racks played.
+function racksScored(ctx){
+  const s = startOf(ctx), r = ctx.racks || { a: s.a, b: s.b };
+  return Math.max(0, (r.a - s.a) + (r.b - s.b));
+}
+// The bar for Ten-Point-Eight's scoring handicap, in the same terms the match is decided in: the
+// gap between the two shortfalls against a quota covering the racks played. It has to be this
+// and not the ratio the other quota games use, because the ratio can name a different leader
+// than the result — and a bar that disagrees with the final card is how you lose trust in both.
+function eightSpotLead(t, ctx){
+  if(gameOf(ctx) !== "tenpoint" || handicapOf(ctx) !== "scoring" || !ctx.eA) return null;
+  if(ctx.mode === "race") return null;   // a race is a plain target; the generic bar reads it
+  const played = racksScored(ctx);
+  if(played < 1) return null;            // nothing banked yet, so there is no lead to show
+  const d = Z.eightLead(t, eightQuotas(ctx, played));
+  if(!d) return { pos: 0, num: "", aAhead: false };
+  const n = Math.abs(d);
+  // Full swing at a rack's winning points clear, the same size plainLead uses for this game.
+  return { pos: clamp1(d / cfg().games.tenpoint.points.winner),
+           num: n + (n === 1 ? " point" : " points"), aAhead: d < 0 };
 }
 // Handicap off: plain scores in the panels and a plain lead on the bar — racks in Trad-Nine,
 // points in the games scored by points — full swing at a lead the size of the race, or of
@@ -2116,6 +2141,8 @@ function leadState(t, ctx){
     t = { a: r.a - s.a, b: r.b - s.b };
     ctx = Object.assign({}, ctx, { mode: "race", targets: ctx.targets && { a: ctx.targets.a - s.a, b: ctx.targets.b - s.b } });
   }
+  const spot = eightSpotLead(t, ctx);
+  if(spot) return spot;
   const q = quotas(ctx, t);
   if(!q) return tied;
   const fA = t.a / q.a, fB = t.b / q.b;
@@ -2498,9 +2525,13 @@ function matchResult(t, r){
   const byRacks = racesRacks(live);
   // Ten-Point-Eight's scoring handicap is a spot, not a ratio: each player's points against
   // their own quota, because the loser of a rack always scores their balls.
-  const q8 = eightQuotas(live);
+  // The quota covers the racks that were played, not the racks that were planned: ending a
+  // five-rack match after one leaves both players short of a five-rack quota, the bigger quota
+  // short by more, and the match would go to whoever was spotted the most however badly they
+  // lost. `banked.racks` is what actually counted.
+  const q8 = eightQuotas(live, live.banked.racks);
   let lead = live.handicap === "off" ? (byRacks ? r.b - r.a : t.b - t.a)
-    : q8 ? (t.b - q8.b) - (t.a - q8.a)
+    : q8 ? Z.eightLead(t, q8)
     : t.b - t.a / live.H;
   if(live.handicap === "racks" && live.targets){
     const s = startOf(live);
