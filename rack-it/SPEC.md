@@ -26,7 +26,7 @@ is reference only.
 | **Robustness** | How many racks' worth of evidence sits behind a Zargo. Under 30 the rating is **provisional**. |
 | **Starter rating** | Where a player's Zargo begins before any match: 500, an estimate, or an override. |
 | **Match** | One sitting between two players in one game: one or more racks, a length, a handicap, a result. |
-| **Group** | 8-ball only: a player's set of seven, **solids** (1–7) or **stripes** (9–15). |
+| **Group** | 8-ball only: a player's set of seven, **solids** (1–7) or **stripes** (9–15). A rules word: since 2.4.0 the app doesn't track which is whose. |
 | **Rack** | One game on the table. What it records depends on the game (§2). |
 | **Handicap** | **Off**, **Scoring** (point quotas) or **Racks** (a race chart). Never enters the rating. |
 
@@ -40,7 +40,7 @@ then **Trad-Eight · Ten-Point-Eight**. Stored as `"standard"`, `"golden"`, `"le
 
 | | Trad-Nine | Golden-Nine | 11-Point-Nine | Trad-Eight | Ten-Point-Eight |
 |---|---|---|---|---|---|
-| A rack records | winner, win kind, fouls, ball drop, breaker | the same | the state of balls 1–9, breaker | the same as Trad-Nine, plus the groups | the same |
+| A rack records | winner, win kind, fouls, ball drop, breaker | the same | the state of balls 1–9, breaker | winner, win kind, fouls, breaker | the same, plus the loser's balls left |
 | Scoring | one rack is one rack | 10 / 7 / 4 to the winner; fouls give 1, 1, 2 | 1 a ball, the 9 is 3 | one rack is one rack | 10 to the winner; the loser 1 a ball of their own group that's down, 0–7 |
 | A rack ends | a win tap | a win tap, or a third foul | all nine balls resolved | a win tap, or a hold on Foul (lost it on the 8) | the same |
 | Length | race to 3, 5 (default), 7 or N (1–30) | 5 fixed racks (default), race to 35 or N points (1–200) | race (default, about 5 racks), fixed racks or open | race to 3, 5 (default), 7 or N | 5 fixed racks (default), race to 50 or N points |
@@ -102,9 +102,14 @@ ones (VNEA, USAPL). The rules the app assumes:
   `config.games.tenpoint.points: { winner: 10, ball: 1, left: 0 }` — VNEA and CSI's 10-point
   system. `left: 1` makes it CSI's 17-point "ball count"; `winner: 14` makes it USAPL's. One
   edit, no migration.
-- **Groups.** A rack stores `groups: { a: "solids" | "stripes" | null }`. Null means the app
-  works it out from the drop: a player who has only potted from one group owns it and the other
-  player gets the rest. A tap on a drop row's label sets it by hand, which settles it.
+- **The count is taken once, at the end of the rack** (§6), the way it's easiest to get right:
+  the balls **left on the table** are the ones you can see and count, so a rack stores
+  `left: 0–7` and the points are the other side of it, `7 − left`. `null` means nobody has said
+  yet, and the rack-end card won't move on until somebody has.
+- **Groups** aren't recorded. Which seven were whose doesn't change anybody's score once the
+  loser's count is known, and asking cost a question a rack. Racks scored before 2.4.0 have
+  `groups: { a: "solids" | "stripes" | null }` and a ball drop instead, and are still read that
+  way: their loser's balls come off the drop, the group guessed from who potted what.
 
 ## 3. Zargo
 
@@ -288,12 +293,12 @@ intentional foul and the 8-ball games' **lost it on the 8**. After the last sche
 or Ten-Point-Eight rack a tie offers **Play a deciding rack** (adds one to `racksPlanned`) or
 **Call it a tie**.
 
-**Ten-Point-Eight's rack-end card** reads "Kenny 10 · Melanie 4 (4 stripes down)" with a
-stepper (− 4 +) for the loser's balls, which writes them into the drop so the drop stays the
-one record and Undo covers it. When the loser's group isn't settled, two chips ask first
-("Melanie was on: Solids · Stripes"); with balls already down they're the only way on, since
-the group *is* the score, and with nothing down (a break and run) **Start rack N** stays
-offered because 0 is right either way.
+**Ten-Point-Eight's rack-end card** asks the count before anything else: "Break & run. Count
+Melanie's own balls still on the table", and eight numbers, 0 to 7, in two rows. **Start rack N**
+is hidden until one is tapped, since that count is the loser's score. Tapped, the card reads
+"Kenny 10 · Melanie 4 — 3 of Melanie's left, 4 down. Match 24–18, racks 3–1", and another number
+re-answers it. Nothing is preset: a break and run can still leave the loser's balls down, because
+both groups drop on the break.
 
 **Golden-Nine's scoring handicap, live.** Over fixed racks there is no target to run in to, so
 the underdog's panel shows their points times the favourite's odds instead ("×3.4 = 38", or
@@ -301,19 +306,20 @@ the underdog's panel shows their points times the favourite's odds instead ("×3
 That is the comparison that decides the match (§4, Who wins). Near-level ratings show nothing
 extra. A Golden-Nine race to points shows "needs N of M", as 11-Point-Nine does.
 
-**The ball drop** (every game but 11-Point-Nine), above the controls under a hairline, as on a
-stream. Tap a ball and it's potted by the shooter; its slot stays empty, and tapping the slot
-puts it back. The shooter doesn't change, taps after the rack has a winner are ignored, a new
-rack starts full, and Undo covers it.
-- **Nine-ball:** balls 1–5 over 6–9, a log for replays and never the score — potting the 9 wins
-  nothing.
-- **8-ball:** solids 1–7 over stripes 9–15, fourteen cells in two rows. The 8 has no slot,
-  because the win buttons *are* the 8. Each row carries its group's label with the owner's
-  initial in their colour ("Stripes · M"), worked out from what's been potted; tapping the label
-  hands the row to teal, then lilac, then back to the guess, and a label set by hand settles it.
-  In Trad-Eight the drop is still only a log; in **Ten-Point-Eight it is the score**, so a
-  scorer who taps balls as they drop gets the loser's points for nothing and one who doesn't
-  taps the count in on the rack-end card.
+**The ball drop** (Trad-Nine and Golden-Nine), above the controls under a hairline, as on a
+stream: balls 1–5 over 6–9, a log for replays and never the score — potting the 9 wins nothing.
+Tap a ball and it's potted by the shooter; its slot stays empty, and tapping the slot puts it
+back. The shooter doesn't change, taps after the rack has a winner are ignored, a new rack
+starts full, and Undo covers it.
+
+**The 8-ball games have no drop.** Fourteen cells and a group label a row asked a scorer to keep
+up with a rack ball by ball, which nobody does while playing, and a half-tapped drop scored
+Ten-Point-Eight wrong. Both games show the foul and win buttons alone, taller for the room. The
+one thing a scorer has to say is said once, when the rack is over and the table can be counted:
+**Ten-Point-Eight's rack-end card asks how many of the loser's own balls are still on the
+table** — eight numbers, 0 to 7, one tap — and holds back **Start rack N** until one is tapped,
+because that count *is* the loser's points (`7 − left`). It can be re-tapped while the card is
+up, and Undo covers it. Trad-Eight asks nothing: one rack is one rack.
 
 **End.** A complete rack still counts. 11-Point-Nine: an untouched rack is dropped silently; a
 part-played or odd rack asks, dropped by default with **Count rack N, then end** offered.
@@ -436,8 +442,9 @@ matches/<id>
            fouls: { a, b }, balls: { "3": "a" }, pottedAt: { "3": <ms> }, breaker, at }  // Golden-Nine
     "1": { winner, kind: "run" | "nine" | "win", fouls, balls, pottedAt, breaker, at }    // Trad-Nine
     "1": { winner, kind: "run" | "win" | "eight" | "foul8", fouls,
-           balls: { "1": "a", …, "15": "b" },        // solids 1–7 and stripes 9–15; no 8
-           pottedAt, groups: { a: "solids" | "stripes" | null }, breaker, at }             // 8-ball
+           left: 0–7 | null,                    // Ten-Point-Eight: the loser's own balls still up
+           balls: {}, pottedAt: {}, groups: { a: null },      // empty since 2.4.0; see below
+           breaker, at }                                                                   // 8-ball
   }
   totals: { a, b, racksA, racksB, dead, lead, winner }
 ```
@@ -447,8 +454,11 @@ matches/<id>
   start.
 - **Counted racks.** Every game but 11-Point-Nine: racks with a winner. 11-Point-Nine: every rack
   but a last one that End dropped (no balls at all, or points not in `totals`).
-- A Ten-Point-Eight rack's points are derived from `balls` and `groups`, never stored per rack:
-  the loser's own group's balls that are down, capped at 7 (`zargo.js` `loserBalls`).
+- A Ten-Point-Eight rack's points are derived, never stored per rack: the loser gets one for each
+  of their own balls that's down, which is `7 − left` (`zargo.js` `loserBalls`). A rack from
+  before 2.4.0 has no `left`, so it's read the way it was entered instead — the loser's own
+  group's balls in `balls`, the group from `groups` or guessed from who potted what, capped at 7.
+  Both paths are tested; nothing needs rebuilding.
 - Writes: racks with `cloud.patch` per rack; `state/main` and `starters` with `cloud.save`.
 - Offline: Firestore's persistent cache is on; `sw.js` caches the shell (`index.html`,
   `zargo.js`, `shared/theme.css` and the two fonts, manifest, icons), network first.
@@ -493,13 +503,11 @@ account, so a static app can't upload results.
   Chrome's URL bar (90px on a 390×844 phone). Under 700px tall the score head drops to 116 (score
   52px), the match bar to 44 and the controls to 64, and the win area tightens. On a narrow
   phone the match bar's label and lead each take a second line rather than lose words.
-- **Ball drop sizing.** Nine-ball: two rows, so every target is a fifth of the width by 60px (56
-  on a short phone), balls at 46px. 8-ball: fourteen cells across the full width, 56×52 on a 390
-  phone and 51×48 on a 360 one — treated like the live screen's balls rather than the 56px rule
-  (owner's call, 2.2.0) — with a 24px group label a row that takes a 38px target from the space
-  around it, and balls at 40px (38 on a short phone). The win buttons give up the height, down to
-  their 56px minimum; a 360×640 phone with the third win button turned on
-  (`eightOnBreak: "win"`) is the one case that runs out of room, and clips rather than scrolls.
+- **Ball drop sizing** (nine-ball only). Two rows, so every target is a fifth of the width by
+  60px (56 on a short phone), balls at 46px.
+- **The 8-ball live screen** has the foul row and the win buttons and nothing else, so each win
+  button may grow to 148px instead of 104 and the column centres what's left rather than leaving
+  a hole above Undo. The rack-end card's eight numbers are a four-wide grid, 60px tall.
 - **House minimums.** 18px base; nothing under 15px except tracked caps labels at 14px (owner's
   call, 2.1.0); targets 56px or more (60 on every page but the live screen's balls, 76 for the
   primary controls); dark; greys at 7:1 or better for anything read while playing and 4.5:1
@@ -556,3 +564,4 @@ account, so a static app can't upload results.
 | 2.2.3 | Ten-Point-Eight's quota is measured over the racks played, not the racks planned, so a match ended early no longer goes to the player who won nothing. Its lead bar is the same spot, in points. |
 | 2.2.4 | End asks first when the match still has racks in it, and the result card offers **Back to the match** until you Save. 11-Point-Nine's End is unchanged. |
 | 2.3.0 | Game is a dropdown with the two sentences that say what it is and how it scores, not five buttons: with five games the names alone stopped being enough. |
+| 2.4.0 | The 8-ball drop is gone. Nobody taps fourteen balls mid-rack, and a half-tapped drop scored Ten-Point-Eight wrong; the rack-end card asks for the loser's balls *left on the table* instead, one tap, and the rack stores that count. |

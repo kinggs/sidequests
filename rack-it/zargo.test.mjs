@@ -185,6 +185,33 @@ test("8-ball rack points: the 10-point, 17-point and 14-point systems are one co
   assert.equal(cfg.games.eight.eightOnBreak, "spot");
 });
 
+test("8-ball: the loser's balls are counted off the table at the end of the rack", () => {
+  const rack = (winner, left) => ({ winner, kind: "win", fouls: { a: 0, b: 0 }, balls: {},
+    pottedAt: {}, groups: { a: null }, left });
+  // The count is the balls still up; the points are the ones down, so the two add to seven.
+  assert.equal(Z.ballsLeft(rack("a", 4)), 4);
+  assert.equal(Z.loserBalls(rack("a", 4)), 3);
+  assert.deepEqual(Z.gameRackPoints("tenpoint", rack("a", 4), cfg), { a: 10, b: 3, dead: 0 });
+  // Both ends: a break and run leaves all seven up, a loser who cleared has none.
+  assert.deepEqual(Z.gameRackPoints("tenpoint", rack("b", 7), cfg), { a: 0, b: 10, dead: 0 });
+  assert.deepEqual(Z.gameRackPoints("tenpoint", rack("a", 0), cfg), { a: 10, b: 7, dead: 0 });
+  // Not answered yet, or answered with something that isn't a count: no count at all.
+  for(const bad of [null, undefined, -1, 8, 3.5, "3"]) assert.equal(Z.ballsLeft(rack("a", bad)), null);
+  assert.equal(Z.loserBalls(rack("a", null)), 0);
+  assert.equal(Z.loserBalls(rack(null, 4)), 0);   // no winner, so no loser
+  // A rack scored before 2.4.0 has no count, so it's still read off the ball drop it was
+  // entered on: three of B's own stripes down, whoever potted them.
+  const old = { winner: "a", kind: "win", fouls: { a: 0, b: 0 },
+    balls: { 1: "a", 9: "b", 10: "b", 11: "a" }, pottedAt: {}, groups: { a: "solids" } };
+  assert.equal(Z.ballsLeft(old), null);
+  assert.equal(Z.loserBalls(old), 3);
+  // rackOf reads the count off a stored record, and a new rack starts without one.
+  assert.equal(Z.rackOf({ winner: "a", left: 6 }).left, 6);
+  assert.equal(Z.rackOf({ winner: "a", left: 9 }).left, null);
+  assert.equal(Z.rackOf(old).left, null);
+  assert.equal(Z.newRack().left, null);
+});
+
 test("8-ball groups: guessed from the drop, or set by hand on the label", () => {
   const r = (balls, set) => ({ winner: "a", kind: "win", fouls: { a: 0, b: 0 }, balls,
     pottedAt: {}, groups: { a: set || null } });

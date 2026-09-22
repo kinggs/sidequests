@@ -7,6 +7,7 @@
 //   Z.zargoOutcome(before, results, cfg)         // { a: { from, to }, b: { from, to }, cal }
 //   Z.raceWin(p, x, y), Z.raceChart(pA, n)       // the Racks lever's race chart
 //   Z.groupsOf(rack), Z.loserBalls(rack)         // 8-ball: whose group is whose, and the loser's balls down
+//   Z.ballsLeft(rack)                            // 8-ball: the loser's balls still on the table, or null
 //   Z.expectedEightPoints(pA, cfg)               // Ten-Point-Eight's expected points a rack
 //   Z.eightQuota(pA, racks, cfg)                 // …times the racks PLAYED, the scoring handicap's spot
 //   Z.eightLead(t, quota)                        // that spot as a lead: > 0 means B is ahead
@@ -77,10 +78,13 @@ export function eightLead(t, quota){ return (t.b - quota.b) - (t.a - quota.a); }
 export const livePoints = cfg => 8 * cfg.games.league.points.low + cfg.games.league.points.nine;
 
 // balls and pottedAt are the ball drop: who potted which ball, and when, for a replay. They
-// never enter the score.
-// groups.a is side A's group in an 8-ball rack, set by hand on the drop's label; null means
-// "work it out from what's been potted" (groupsOf).
-export const newRack = () => ({ winner: null, kind: null, fouls: { a: 0, b: 0 }, balls: {}, pottedAt: {}, groups: { a: null } });
+// never enter the score. Nine-ball only since 2.4.0 — 8-ball racks aren't tapped ball by ball.
+// left is the 8-ball answer instead: how many of the loser's own balls were still on the table
+// when the rack ended, 0 to 7, counted off the table and typed on the rack-end card. null means
+// not answered yet.
+// groups.a is side A's group in an 8-ball rack, set by hand on the old drop's label; null means
+// "work it out from what's been potted" (groupsOf). Racks scored before 2.4.0 have it.
+export const newRack = () => ({ winner: null, kind: null, fouls: { a: 0, b: 0 }, balls: {}, pottedAt: {}, groups: { a: null }, left: null });
 export function rackOf(rec){
   const balls = {}, pottedAt = {};
   for(let n = 1; n <= 15; n++){
@@ -92,7 +96,8 @@ export function rackOf(rec){
   const g = rec && rec.groups && rec.groups.a;
   return { winner: (rec && rec.winner) || null, kind: (rec && rec.kind) || null,
     fouls: { a: (rec && rec.fouls && rec.fouls.a) || 0, b: (rec && rec.fouls && rec.fouls.b) || 0 },
-    balls, pottedAt, groups: { a: g === "solids" || g === "stripes" ? g : null } };
+    balls, pottedAt, groups: { a: g === "solids" || g === "stripes" ? g : null },
+    left: ballsLeft(rec) };
 }
 
 // ---------- 8-ball: the two groups ----------
@@ -117,10 +122,21 @@ export function groupsOf(rack){
   const a = only("a") || (only("b") ? otherGroup(only("b")) : null);
   return { a, b: a ? otherGroup(a) : null, set: false };
 }
+// The loser's balls still on the table, 0 to 7, or null when nobody has said. A whole number
+// in range or nothing: anything else is a record written by something that isn't this app.
+export function ballsLeft(rack){
+  const n = rack && rack.left;
+  return Number.isInteger(n) && n >= 0 && n <= 7 ? n : null;
+}
 // Ten-Point-Eight's one input beyond the winner: how many of the loser's own balls are down,
-// 0 to 7. Whoever potted them; a ball down on the opponent's foul still counts.
+// 0 to 7, at a point each. It's the count typed on the rack-end card, read back from the balls
+// left on the table. Racks scored before 2.4.0 have no count, so they're read off the ball drop
+// the way they were entered: the loser's own balls potted, whoever potted them — a ball down on
+// the opponent's foul counted then too.
 export function loserBalls(rack){
   if(!rack || !rack.winner) return 0;
+  const left = ballsLeft(rack);
+  if(left !== null) return 7 - left;
   const loser = other(rack.winner), g = groupsOf(rack)[loser];
   if(!g) return 0;
   let n = 0;

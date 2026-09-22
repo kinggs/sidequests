@@ -126,8 +126,8 @@ almost every point in a rack goes to the winner (fouls cap at 2 for the loser).
 10. **Cuescore has its own Elo.** Different scale, different inputs, never merged. The one link
     we want is a **starter hint**: Cuescore's read-only API gives a player's rating, and a new
     player's Zargo can be seeded from where they sit among people we already rate.
-11. **Ten-Point-Eight's loser's balls might be evidence.** Every rack stores how many of the
-    loser's own group were down, and the rating ignores it — Fargo's way, and challenge 1's
+11. **Ten-Point-Eight's loser's balls might be evidence.** Every rack stores the loser's own
+    balls left on the table, so how many were down, and the rating ignores it — Fargo's way, and challenge 1's
     reason: the winner always has 10, so a point share would only grade how badly the loser lost.
     ⚠ Untested. Once a hundred 8-ball racks exist, check whether the count predicts anything the
     rack winner doesn't.

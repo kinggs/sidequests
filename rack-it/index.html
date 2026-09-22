@@ -265,24 +265,16 @@
   .wincol[data-p="a"] .win.chosen{background:var(--a);color:var(--a-ink)}
   .wincol[data-p="b"] .win.chosen{background:var(--b);color:var(--b-ink)}
   .win.chosen small{color:inherit}
+  /* 8-ball has two win buttons and no drop under them, so its column has room to spare: give
+     each button more of it, and centre what's left instead of leaving a hole above Undo. */
+  .winarea.eight .wincol{justify-content:center}
+  .winarea.eight .win{max-height:148px}
 
-  /* ---- the ball drop: 1 to 5 over 6 to 9 in nine-ball, as on a stream; solids 1–7 over
-         stripes 9–15 in 8-ball, where the 8 has no slot because the win buttons are the 8 ---- */
+  /* ---- the ball drop: 1 to 5 over 6 to 9, as on a stream. Nine-ball only — an 8-ball rack is
+         counted once it's over, on the rack-end card, not tapped ball by ball as it goes ---- */
   .drop{flex:0 0 auto;display:flex;flex-direction:column;margin:0 12px;padding:6px 0 8px;box-shadow:0 -1px 0 var(--line);--bs:46px}
   .dgroup{display:flex;flex-direction:column}
   .drow{display:flex;justify-content:center}
-  /* Fourteen cells across the full width: 55px on a 390 phone, 51 on a 360, treated like the
-     live screen's balls (V3-PLAN §7.4) rather than the 56px rule. */
-  .drop.eight{margin:0;--bs:40px}
-  .drop.eight .dcell{flex:1 1 0;min-width:0;height:52px;min-height:52px}
-  .drop.eight .pip{font-size:14px}
-  /* Each row says whose group it is, by initial. Tap to set it by hand, which locks it. */
-  .dlabel{display:flex;align-items:center;justify-content:flex-start;gap:6px;width:100%;height:24px;min-height:24px;
-    padding:0 12px;background:none;border-radius:0;position:relative;
-    font-family:var(--grot);font-size:14px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
-  .dlabel::after{content:"";position:absolute;left:0;right:0;top:-8px;bottom:-6px}   /* a 38px target */
-  .dlabel[data-own="a"]{color:var(--a)}
-  .dlabel[data-own="b"]{color:var(--b)}
   .dcell{flex:0 0 20%;min-width:56px;min-height:60px;height:60px;padding:0;border-radius:var(--r-chip);background:none;
     display:flex;align-items:center;justify-content:center;position:relative}
   .dcell .ball{display:block;pointer-events:none;transition:opacity .15s ease, transform .15s ease}
@@ -318,9 +310,6 @@
     .foul{min-height:56px}
     .dcell{height:56px;min-height:56px}
     .drop{--bs:42px;padding:4px 0}
-    .drop.eight{--bs:38px}
-    .drop.eight .dcell{height:48px;min-height:48px}
-    .dlabel{height:22px;min-height:22px}
   }
 
 
@@ -335,20 +324,15 @@
   .done button{min-height:76px;width:100%;max-width:22rem;padding:0 24px;border-radius:var(--r-card);background:var(--text);color:var(--ink-0);font-size:20px}
   .done .ghost{background:none;color:var(--text-2);box-shadow:inset 0 0 0 1px rgba(232,237,243,.18);min-height:60px;font-size:18px}
   .done .warnbtn{color:var(--warn);box-shadow:inset 0 0 0 1px rgba(255,193,77,.55)}
-  /* Ten-Point-Eight's rack-end card asks the one thing the drop can't always know: the loser's
-     group, and how many of their balls are down. */
+  /* Ten-Point-Eight's rack-end card asks the one thing the win buttons can't say: how many of
+     the loser's own balls were still on the table. Eight numbers, one tap, no arithmetic. */
   .doneextra{display:flex;flex-direction:column;gap:12px;width:100%;max-width:22rem}
-  .doneextra .pair{display:flex;gap:12px}
-  .doneextra .pair button{flex:1 1 0;min-height:var(--tap);width:auto;max-width:none;font-size:18px;
-    background:var(--ink-2);color:var(--text);box-shadow:inset 0 0 0 1px var(--line);border-radius:var(--r-ctl)}
-  .doneextra .pair button.sel{background:var(--text);color:var(--ink-0);box-shadow:none}
-  .doneextra .step{display:flex;align-items:center;gap:12px}
-  .doneextra .step button{flex:0 0 var(--tap);min-height:var(--tap);width:var(--tap);max-width:none;padding:0;
-    font-family:var(--grot);font-size:26px;background:var(--ink-2);color:var(--text);
+  .doneextra .cap{font-size:17px;color:var(--text-2);line-height:1.35;text-align:center}
+  .doneextra .nums{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  .doneextra .nums button{width:auto;max-width:none;min-height:var(--tap);padding:0;
+    font-family:var(--grot);font-size:26px;font-weight:600;background:var(--ink-2);color:var(--text);
     box-shadow:inset 0 0 0 1px var(--line);border-radius:var(--r-ctl)}
-  .doneextra .step button:disabled{color:var(--faint)}
-  .doneextra .step>span{flex:1 1 0;font-size:17px;color:var(--text-2);line-height:1.3}
-  .doneextra .step>span b{font-family:var(--grot);font-size:26px;font-weight:600;color:var(--text)}
+  .doneextra .nums button.sel{background:var(--text);color:var(--ink-0);box-shadow:none}
 </style>
 </head>
 <body data-turn="a">
@@ -711,7 +695,7 @@ import { phone } from "../shared/phone.js";
 import { people } from "../shared/people.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "2.3.0";
+const APP_VERSION = "2.4.0";
 const APP_ID = "rack-it";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 document.getElementById("versionMore").textContent = "v" + APP_VERSION;
@@ -846,11 +830,6 @@ const foulPoints = n => Z.foulPoints(n, cfg());
 const gameRackPoints = (game, rack) => Z.gameRackPoints(game, rack, cfg());
 const leagueRackPoints = balls => Z.leagueRackPoints(balls, cfg());
 const expectedShareA = Z.expectedShareA;
-// 8-ball: whose group is whose (set by hand, else guessed from the drop), and Ten-Point-Eight's
-// one scoring input — how many of the loser's own balls are down.
-const groupsOf = Z.groupsOf, loserBalls = Z.loserBalls;
-const GROUP_LABEL = { solids: "Solids", stripes: "Stripes" };
-const groupWord = (g, n) => n === 1 ? (g === "stripes" ? "stripe" : "solid") : (g === "stripes" ? "stripes" : "solids");
 const expectedEightPoints = pA => Z.expectedEightPoints(pA, cfg());
 
 // Players are the household's shared people (shared/people.js): names and colours are the
@@ -1707,7 +1686,7 @@ function sync(extra){
     ? { balls: live.balls, breaker: live.breaker, at: live.rackAt }
     : { winner: live.rack.winner, kind: live.rack.kind, fouls: live.rack.fouls,
         balls: live.rack.balls, pottedAt: live.rack.pottedAt, groups: live.rack.groups || { a: null },
-        breaker: live.breaker, at: live.rackAt };
+        left: Z.ballsLeft(live.rack), breaker: live.breaker, at: live.rackAt };
   cloud.patch("matches/" + live.id, Object.assign({
     ["racks." + live.rackNo]: rec,
     turn: state.turn,
@@ -1716,10 +1695,10 @@ function sync(extra){
 }
 
 // ---- the prototype scoring engine, wired to the session ----
-// 1–7 solids, 8 black, 9–15 the same seven colours again as stripes.
+// 1–7 solids, 8 black, 9 the yellow stripe. Only these are drawn: nine-ball's rack and its ball
+// drop. 10–15 used to sit here for the 8-ball drop, one colour out of step with their solids.
 const COLOURS = {1:"#f2c204",2:"#1b4fa0",3:"#cf1b1b",4:"#6b2fa0",5:"#e8730c",
-                 6:"#0f7a3d",7:"#7a1f1f",8:"#14110f",
-                 9:"#f2c204",10:"#f2c204",11:"#1b4fa0",12:"#cf1b1b",13:"#6b2fa0",14:"#e8730c",15:"#0f7a3d"};
+                 6:"#0f7a3d",7:"#7a1f1f",8:"#14110f",9:"#f2c204"};
 const ROWS = [[1],[2,3],[4,9,5],[6,7],[8]];
 const DARK = [2, 4, 7, 8];   // balls that need a hairline ring to keep their edge on the dark ground
 
@@ -1913,13 +1892,12 @@ const intentionalsBy = (banked, side) =>
   }));
 });
 
-// The ball drop. Tapping a ball pots it for whoever is shooting and it leaves the strip;
-// tapping its empty slot puts it back. In nine-ball it's 1–5 over 6–9 and a log for replays,
-// never the score: potting the 9 doesn't win the rack, and a potted ball doesn't change the
-// shooter. In 8-ball it's solids 1–7 over stripes 9–15, a label a row — the 8 has no slot,
-// because the win buttons are the 8 — and in Ten-Point-Eight it *is* the loser's score, so a
-// scorer who taps balls as they drop gets the points for nothing.
-const dropCells = {}, eightCells = {}, groupLabels = {};
+// The ball drop, nine-ball only: 1–5 over 6–9, a log for replays and never the score — potting
+// the 9 doesn't win the rack, and a potted ball doesn't change the shooter. Tapping a ball pots
+// it for whoever is shooting and it leaves the strip; tapping its empty slot puts it back.
+// 8-ball had fourteen of these cells and a group label a row, and keeping up with them mid-rack
+// was hopeless: an 8-ball rack is now counted once, on the rack-end card (SPEC §2.4).
+const dropCells = {};
 const striped = n => n >= 9;
 function dropCell(n, into, cells){
   const cell = document.createElement("button");
@@ -1948,19 +1926,6 @@ dropNine.id = "dropNine";
   const r = dropRow(dropNine);
   row.forEach(n => dropCell(n, r, dropCells));
 });
-const dropEight = dropGroup();
-dropEight.id = "dropEight";
-dropEight.classList.add("hidden");
-[["solids", Z.SOLIDS], ["stripes", Z.STRIPES]].forEach(([g, balls]) => {
-  const lab = document.createElement("button");
-  lab.className = "dlabel";
-  tapBind(lab, () => cycleGroup(g));
-  dropEight.appendChild(lab);
-  groupLabels[g] = lab;
-  const r = dropRow(dropEight);
-  balls.forEach(n => dropCell(n, r, eightCells));
-});
-
 function dropBall(n){
   if(!live || live.game === "league" || live.rack.winner) return;   // watching, or the rack is over
   buzz(9);
@@ -1970,39 +1935,7 @@ function dropBall(n){
   render();
   sync();
 }
-// Whose group is whose is normally worked out from what's been potted; tapping a row's label
-// hands it to the teal player, then the lilac one, then back to the guess. Set by hand it's
-// locked, which is what the rack stores (groups.a).
-function cycleGroup(g){
-  if(!live || !isEight(live.game)) return;
-  const cur = groupsOf(live.rack);
-  const next = !cur.set ? "a" : cur.a === g ? "b" : null;
-  buzz(9);
-  push();
-  live.rack.groups = { a: next === null ? null : next === "a" ? g : Z.otherGroup(g) };
-  render();
-  sync();
-  if(live.rack.winner) gameRackEnd();   // the card's reading of the loser's balls changes with it
-}
-function paintDrop(game, rack, nA, nB){
-  if(isEight(game)){
-    const g = groupsOf(rack), ini = initials(nA, nB);
-    for(const grp of ["solids", "stripes"]){
-      const own = g.a === grp ? "a" : g.b === grp ? "b" : null;
-      const lab = groupLabels[grp];
-      lab.dataset.own = own || "";
-      lab.textContent = GROUP_LABEL[grp] + (own ? " · " + ini[own] : "");
-      lab.setAttribute("aria-label", (own
-        ? `${GROUP_LABEL[grp]}: ${own === "a" ? nA : nB}${g.set ? "" : ", from the balls potted"}`
-        : `${GROUP_LABEL[grp]}: nobody yet`) + ". Tap to set it by hand");
-    }
-    for(const n of Z.SOLIDS.concat(Z.STRIPES)){
-      const by = rack.balls[n];
-      eightCells[n].classList.toggle("gone", !!by);
-      eightCells[n].setAttribute("aria-label", by ? `Ball ${n}, potted. Tap to put it back` : `Ball ${n}`);
-    }
-    return;
-  }
+function paintDrop(rack){
   for(let n = 1; n <= 9; n++){
     const by = rack.balls[n];
     dropCells[n].classList.toggle("gone", !!by);
@@ -2225,8 +2158,8 @@ function paintMatchBar(rackNo, planned, dead, pts){
   el.rackNo.textContent = `Rack ${rackNo}` + (planned ? ` of ${planned}` : "") +
     (dead ? ` · ${dead} dead` : "") + (pts ? ` · ${pts} pts` : "");
 }
-// Each player by initial, or by more letters when both share one. The break chip and the
-// 8-ball drop's group labels both name a player in very little room.
+// Each player by initial, or by more letters when both share one: the break chip names a player
+// in very little room.
 function initials(nA, nB){
   const k = [...String(nA)][0] === [...String(nB)][0] ? 3 : 1;
   const short = n => [...String(n)].slice(0, k).join("");
@@ -2323,35 +2256,32 @@ function gameRackEnd(){
     intentionalsBy(live.banked, other(w)) >= 1;
   const finished = forfeit || targetReached(t) ||
     (live.mode === "fixed" && live.banked.racks + 1 >= live.racksPlanned);
-  const g = live.game === "tenpoint" ? groupsOf(live.rack) : null;
-  // The loser's group only has to be settled when something is down: a rack where nobody potted
-  // scores the loser nothing whichever group they were on, so a break and run never asks.
-  const askGroup = !!g && !g[l];
-  const anyDown = askGroup && Object.keys(live.rack.balls).length > 0;
+  // Ten-Point-Eight's one count: how many of the loser's own balls were left on the table. It
+  // decides their points, so the card asks before it lets the next rack start.
+  const ten = live.game === "tenpoint";
+  const left = ten ? Z.ballsLeft(live.rack) : null;
+  const askLeft = ten && left === null;
 
   resetExtra();
 
   el.doneTitle.textContent = `Rack ${live.rackNo} to ${wName}`;
   el.doneBody.textContent = forfeit
     ? `A second intentional foul by ${w === "a" ? live.nameB : live.nameA}, so ${wName} wins the match.`
-    : askGroup && anyDown
-    ? `${KIND_LABEL[live.rack.kind] || "Win"}. ${lName}'s group isn't clear from the balls potted, ` +
-      `and their own balls down are their points. Which group were they on?`
-    : askGroup
-    ? `${KIND_LABEL[live.rack.kind] || "Win"} — ${live.nameA} ${p.a} · ${live.nameB} ${p.b}. No balls were ` +
-      `tapped, so ${lName} scores nothing. If some of theirs did go down, say which group they were on.`
-    : g
-    ? `${live.nameA} ${p.a} · ${live.nameB} ${p.b} (${loserBalls(live.rack)} ` +
-      `${groupWord(g[l], loserBalls(live.rack))} down). Match ${t.a}–${t.b}, racks ${r.a}–${r.b}.`
+    : askLeft
+    ? `${KIND_LABEL[live.rack.kind] || "Win"}. Count ${lName}'s own balls still on the table — ` +
+      `every one of theirs that's down is a point to them.`
+    : ten
+    ? `${live.nameA} ${p.a} · ${live.nameB} ${p.b} — ${left} of ${lName}'s left, ${7 - left} down. ` +
+      `Match ${t.a}–${t.b}, racks ${r.a}–${r.b}.`
     : live.game === "golden"
     ? `${KIND_LABEL[live.rack.kind]}: ${live.nameA} +${p.a}, ${live.nameB} +${p.b}. ` +
       `Match ${t.a}–${t.b}, racks ${r.a}–${r.b}.`
     : `${KIND_LABEL[live.rack.kind]}. Racks ${live.nameA} ${r.a}, ${live.nameB} ${r.b}.`;
-  if(g) paintRackEndEight(g, l, lName, askGroup);
+  if(ten) paintBallsLeft(lName, left);
   el.doneZargo.classList.add("hidden");
   el.doneNext.textContent = finished ? "Declare the result" : "Start rack " + (live.rackNo + 1);
   el.doneNext.onclick = () => { bankRack(); finished ? lastRackBanked() : nextRack(); };
-  el.doneNext.classList.toggle("hidden", anyDown);   // an unclear group comes first: it is the score
+  el.doneNext.classList.toggle("hidden", askLeft);   // the count comes first: it is the loser's score
   el.doneAnyway.classList.add("hidden");
   el.doneBack.textContent = "Undo that";
   el.doneBack.onclick = undoWin;
@@ -2360,66 +2290,31 @@ function gameRackEnd(){
   buzz([18,60,18]);
 }
 
-// Ten-Point-Eight's rack-end card: the loser's group when no group is settled yet, then a
-// stepper for their balls down. The stepper writes those balls into the drop, so the drop stays
-// the one record of the rack and Undo covers it.
-function paintRackEndEight(g, l, lName, askGroup){
+// Ten-Point-Eight's rack-end card: eight numbers, 0 to 7, for the loser's own balls still on
+// the table. One tap, and it can be re-tapped while the card is up; Undo covers it too, because
+// push() snapshots the whole rack.
+function paintBallsLeft(lName, left){
   el.doneExtra.classList.remove("hidden");
-  if(askGroup){
-    const cap = document.createElement("div");
-    cap.className = "step";
-    cap.innerHTML = "<span></span>";
-    cap.querySelector("span").textContent = `${lName} was on:`;
-    const row = document.createElement("div");
-    row.className = "pair";
-    for(const grp of ["solids", "stripes"]){
-      const b = document.createElement("button");
-      b.textContent = GROUP_LABEL[grp];
-      tapBind(b, () => {
-        push();
-        live.rack.groups = { a: l === "a" ? grp : Z.otherGroup(grp) };
-        render();
-        sync();
-        gameRackEnd();
-      });
-      row.appendChild(b);
-    }
-    el.doneExtra.append(cap, row);
-    return;
+  const cap = document.createElement("p");
+  cap.className = "cap";
+  cap.textContent = `${lName}'s own balls left on the table`;
+  const nums = document.createElement("div");
+  nums.className = "nums";
+  for(let n = 0; n <= 7; n++){
+    const b = document.createElement("button");
+    b.textContent = n;
+    b.classList.toggle("sel", n === left);
+    b.setAttribute("aria-label", `${n} of ${lName}'s balls left, so ${7 - n} down and ${7 - n} to them`);
+    tapBind(b, () => setBallsLeft(n));
+    nums.appendChild(b);
   }
-  const L = loserBalls(live.rack);
-  const row = document.createElement("div");
-  row.className = "step";
-  const minus = document.createElement("button");
-  minus.textContent = "−";
-  minus.setAttribute("aria-label", `One fewer of ${lName}'s balls down`);
-  minus.disabled = L <= 0;
-  tapBind(minus, () => setLoserDown(L - 1));
-  const out = document.createElement("span");
-  out.innerHTML = `<b></b> of ${lName}'s ${GROUP_LABEL[g[l]].toLowerCase()} down`;
-  out.querySelector("b").textContent = L;
-  const plus = document.createElement("button");
-  plus.textContent = "+";
-  plus.setAttribute("aria-label", `One more of ${lName}'s balls down`);
-  plus.disabled = L >= 7;
-  tapBind(plus, () => setLoserDown(L + 1));
-  row.append(minus, out, plus);
-  el.doneExtra.appendChild(row);
+  el.doneExtra.append(cap, nums);
 }
-// The stepper's count, written back into the drop as the loser's own balls, lowest first. It
-// settles the group too, so a later tap can't make the guess disagree with the card.
-function setLoserDown(n){
-  if(!live || live.game !== "tenpoint" || !live.rack.winner) return;
-  const l = other(live.rack.winner), g = groupsOf(live.rack);
-  if(!g[l] || n < 0 || n > 7) return;
+function setBallsLeft(n){
+  if(!live || live.game !== "tenpoint" || !live.rack.winner || n < 0 || n > 7) return;
   buzz(9);
   push();
-  live.rack.groups = { a: g.a };
-  Z.ballsOf(g[l]).forEach((b, i) => {
-    if(i < n){
-      if(!live.rack.balls[b]){ live.rack.balls[b] = l; live.rack.pottedAt[b] = Date.now(); }
-    } else { delete live.rack.balls[b]; delete live.rack.pottedAt[b]; }
-  });
+  live.rack.left = n;
   render();
   sync();
   gameRackEnd();
@@ -2735,7 +2630,7 @@ function render(){
   if(!league){
     const t = totals(), r = racksWon();
     paintWinArea(live.game, live.rack, live.nameA, live.nameB);
-    paintDrop(live.game, live.rack, live.nameA, live.nameB);
+    paintDrop(live.rack);
     const ctx = Object.assign({}, live, { racks: r });
     paintLead(t, ctx, live.nameA, live.nameB, paintGamePanels(live.game, ctx, t, r));
     // A Golden-Nine race in racks still scores points; they sit in the match bar.
@@ -2791,16 +2686,15 @@ function paintOwn(node, s){
   node.style.setProperty("--own", s === "b" ? "var(--b)" : "var(--a)");
   node.style.setProperty("--own-ink", s === "b" ? "var(--b-ink)" : "var(--a-ink)");
 }
-// 11-Point-Nine shows the diamond rack; every other game swaps it for the foul and win buttons
-// plus a ball drop (nine balls, or fourteen in 8-ball), and Undo takes Next rack's room.
+// 11-Point-Nine shows the diamond rack; every other game swaps it for the foul and win buttons,
+// with the nine-ball drop under them, and Undo takes Next rack's room. The 8-ball games show the
+// buttons alone: their one count is asked for at the end of the rack, not tapped during it.
 function showGameArea(game){
   const league = game === "league", eight = isEight(game);
   el.rack.classList.toggle("hidden", !league);
   el.winArea.classList.toggle("hidden", league);
-  el.drop.classList.toggle("hidden", league);
-  el.drop.classList.toggle("eight", eight);
-  dropNine.classList.toggle("hidden", eight);
-  dropEight.classList.toggle("hidden", !eight);
+  el.winArea.classList.toggle("eight", eight);
+  el.drop.classList.toggle("hidden", league || eight);
   el.next.classList.toggle("hidden", !league);
   el.controls.classList.toggle("game", !league);
 }
@@ -2916,7 +2810,7 @@ function renderWatch(doc){
     const ctx = { game, handicap: handicapOf(doc), mode: doc.mode, targets: doc.targets, start: doc.start,
       racksPlanned: doc.racksPlanned, rackNo, eA: expectedShareA(zb.a, zb.b), racks: r };
     paintWinArea(game, rackOf(rack), nA, nB);
-    paintDrop(game, rackOf(rack), nA, nB);
+    if(!isEight(game)) paintDrop(rackOf(rack));
     paintLead(t, ctx, nA, nB, paintGamePanels(game, ctx, t, r));
     paintMatchBar(rackNo, doc.mode === "fixed" && doc.racksPlanned, 0, pointsGame(game) && racesRacks(ctx) ? `${t.a}–${t.b}` : "");
     breakLabel(rack.breaker, nA, nB);
