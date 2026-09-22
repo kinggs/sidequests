@@ -113,8 +113,18 @@
   .danger-note{font-size:.8333rem;color:var(--warn);line-height:1.4}
 
   /* ---- setup: one page, Start pinned below it ---- */
-  /* The game picker is a row per discipline: three nine-ball games over two 8-ball ones. */
-  #games{display:flex;flex-direction:column;gap:8px}
+  /* The game picker is a dropdown: the chosen game on the row with two sentences under it on
+     what it is and how it scores, and, open, all five with a line each so they fit a screen. */
+  #games{gap:8px}
+  .gopt{display:flex;flex-direction:column;align-items:flex-start;gap:3px;width:100%;min-height:var(--tap);
+    padding:10px 14px;background:var(--ink-2);color:var(--text-2);text-align:left;border-radius:var(--r-ctl)}
+  .gopt .gname{font-family:var(--grot);font-size:1.0556rem;font-weight:700;letter-spacing:-.01em}
+  .gopt .gdesc{font-size:.8889rem;font-weight:600;line-height:1.4;color:var(--dim)}
+  .gopt.sel{background:var(--text);color:var(--ink-0)}
+  .gopt.sel .gdesc{color:var(--ink-0);opacity:.75}
+  .gblurb{font-size:.8889rem;line-height:1.45;color:var(--dim);padding:0 16px 14px}
+  /* Open, each row carries its own two sentences, so the one under the head would only repeat. */
+  .fold.open+.gblurb{display:none}
   .setupbody{flex:1;display:flex;flex-direction:column;gap:16px;padding:4px 16px 16px;overflow-y:auto}
   /* A flex column that scrolls must not shrink its children: a squeezed child with its own
      overflow (.settings) clips what's past its height, and because the column never grows past
@@ -426,16 +436,12 @@
     <h1>New match</h1>
   </header>
   <div class="setupbody">
-    <div id="games">
-      <div class="seg">
-        <button data-game="standard">Trad-Nine</button>
-        <button data-game="golden">Golden-Nine</button>
-        <button data-game="league" aria-label="11-Point-Nine">11-Point</button>
+    <div class="settings">
+      <div class="fold" id="foldGame">
+        <button class="foldhead" id="gameHead"><span class="foldk lbl">Game</span><span class="foldv" id="gameName">&mdash;</span></button>
+        <div class="foldbody" id="games"></div>
       </div>
-      <div class="seg">
-        <button data-game="eight">Trad-Eight</button>
-        <button data-game="tenpoint">Ten-Point-Eight</button>
-      </div>
+      <p class="gblurb" id="gameBlurb"></p>
     </div>
     <div class="pick">
       <div class="pickcol ca"><h3 class="lbl">Teal side</h3><div class="picks" id="pickA"></div></div>
@@ -705,7 +711,7 @@ import { phone } from "../shared/phone.js";
 import { people } from "../shared/people.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "2.2.4";
+const APP_VERSION = "2.3.0";
 const APP_ID = "rack-it";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 document.getElementById("versionMore").textContent = "v" + APP_VERSION;
@@ -729,7 +735,7 @@ const el = {};
  "impChoice","impInfo","impMerge","impReplace","impCancel",
  "familyBtn","scrFamily","famBack","famList","famEmail","famAdd","famShare",
  "pfEst","estRef","estRefName","estRefScore","estNewScore","estOut","pfDelete","pfShared",
- "games","raceLen","raceNRow","raceN","winArea","drop","goldChip","doneExtra",
+ "games","foldGame","gameHead","gameName","gameBlurb","raceLen","raceNRow","raceN","winArea","drop","goldChip","doneExtra",
  "rebuild","rbInfo","rbList","rbNote","rbApply","rbCancel","rebuildBtn"
 ].forEach(id => el[id] = $(id));
 
@@ -797,6 +803,24 @@ const GAME_LABEL = { league: "11-Point-Nine", golden: "Golden-Nine", standard: "
   eight: "Trad-Eight", tenpoint: "Ten-Point-Eight" };
 // Picker order: the three nine-ball games, then the two 8-ball ones.
 const GAME_ORDER = ["standard", "golden", "league", "eight", "tenpoint"];
+// Two sentences a game, for the picker: what it is, then how it's scored. Broad brushstrokes —
+// the rules in full are SPEC §2.
+// One line a game for the dropdown's own rows, so all five fit a screen; the two sentences go
+// under the row once a game is chosen.
+const GAME_GIST = {
+  standard: "Pot 1 to 9 in order \u00b7 one rack, one win",
+  golden:   "Nine-ball \u00b7 10, 7 or 4 for the win, fouls score",
+  league:   "Nine-ball \u00b7 every ball scores, 11 a rack",
+  eight:    "Your group, then the 8 \u00b7 one rack, one win",
+  tenpoint: "Your group, then the 8 \u00b7 10 points a rack"
+};
+const GAME_BLURB = {
+  standard: "Nine-ball as the club plays it: pot 1 to 9 in order and the 9 wins the rack. One rack is one rack, in a race, breaks alternating.",
+  golden:   "Nine-ball that pays for how you win: 10 for a break and run, 7 for a table run, 4 for any other win. Fouls hand the other player points, and a third foul loses the rack.",
+  league:   "The house nine-ball: every ball scores, 1 each and 3 for the 9, so a rack is worth 11 points. Play on until all nine balls are off the table.",
+  eight:    "8-ball as the club plays it: clear your group, then the 8 in a called pocket. One rack is one rack, in a race, breaks alternating.",
+  tenpoint: "8-ball scored by points: the winner takes 10, the loser 1 for each ball of their own group that's down. Matches run to a set number of racks."
+};
 const isEight = g => g === "eight" || g === "tenpoint";
 // Scored in points, so Length is in points and the Scoring lever has something to share out.
 const pointsGame = g => g === "golden" || g === "tenpoint";
@@ -1310,6 +1334,7 @@ function openSetup(){
   setup.a = me && activePlayers().includes(me) ? me : null;   // you, on the teal side
   setup.b = null;
   applyGameDefaults();
+  el.foldGame.classList.remove("open");
   el.foldLen.classList.remove("open");
   el.foldHcp.classList.remove("open");
   renderSetup();
@@ -1327,13 +1352,29 @@ function revealFold(fold){
 }
 el.lenHead.addEventListener("click", () => { el.foldLen.classList.toggle("open"); revealFold(el.foldLen); });
 el.hcpHead.addEventListener("click", () => { el.foldHcp.classList.toggle("open"); revealFold(el.foldHcp); });
-el.games.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
-  setup.game = b.dataset.game;
-  try { localStorage.setItem(GAME_KEY, setup.game); } catch(e){}
-  applyGameDefaults();
-  proposeTargets();
-  renderSetup();
-}));
+el.gameHead.addEventListener("click", () => { el.foldGame.classList.toggle("open"); revealFold(el.foldGame); });
+// One row a game inside the dropdown, built from GAME_ORDER so there's one list of games, not two.
+GAME_ORDER.forEach(g => {
+  const b = document.createElement("button");
+  b.className = "gopt";
+  b.dataset.game = g;
+  const name = document.createElement("span");
+  name.className = "gname";
+  name.textContent = GAME_LABEL[g];
+  const desc = document.createElement("span");
+  desc.className = "gdesc";
+  desc.textContent = GAME_GIST[g];
+  b.append(name, desc);
+  b.addEventListener("click", () => {
+    setup.game = g;
+    try { localStorage.setItem(GAME_KEY, g); } catch(e){}
+    applyGameDefaults();
+    proposeTargets();
+    el.foldGame.classList.remove("open");   // picking one is the whole job of the dropdown
+    renderSetup();
+  });
+  el.games.appendChild(b);
+});
 // The typed race length, or null while the box doesn't hold a usable number.
 const raceMax = () => setup.handicap === "racks" ? RACK_RACE_MAX : ptsRace() ? 200 : 30;
 function typedRace(){
@@ -1440,6 +1481,8 @@ function renderSetup(){
   const league = setup.game === "league", golden = setup.game === "golden";
   const pts = pointsGame(setup.game), ten = setup.game === "tenpoint";
   const racksLever = setup.handicap === "racks", rackRace = setupRacks();
+  el.gameName.textContent = GAME_LABEL[setup.game];
+  el.gameBlurb.textContent = GAME_BLURB[setup.game];
   el.games.querySelectorAll("button").forEach(b =>
     b.classList.toggle("sel", b.dataset.game === setup.game));
 

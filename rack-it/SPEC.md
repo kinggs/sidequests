@@ -34,8 +34,8 @@ Words: **match**, never session; **Tied**, never "dead level"; **Invites** for t
 
 ## 2. The games
 
-Five, in one picker of two rows: **Trad-Nine · Golden-Nine · 11-Point-Nine** over **Trad-Eight ·
-Ten-Point-Eight**, that order everywhere. Stored as `"standard"`, `"golden"`, `"league"`,
+Five, in one dropdown, in this order everywhere: **Trad-Nine · Golden-Nine · 11-Point-Nine**,
+then **Trad-Eight · Ten-Point-Eight**. Stored as `"standard"`, `"golden"`, `"league"`,
 `"eight"` and `"tenpoint"`; a match without `game` is 11-Point-Nine.
 
 | | Trad-Nine | Golden-Nine | 11-Point-Nine | Trad-Eight | Ten-Point-Eight |
@@ -228,9 +228,12 @@ One page, defaults first, **Start** pinned below it and naming what's missing ("
 players", "Set the length first"). The page above Start scrolls when an open fold needs the
 room, and opening a fold scrolls it into view.
 
-1. **Game**, a segmented control of two rows, a discipline each: the three nine-ball games (the
-   third segment reads "11-Point" to fit) over the two 8-ball ones. The last game picked is
-   remembered per phone (`localStorage` `rack-it.game`).
+1. **Game**, a dropdown row like Length and Handicap: the chosen game's name on the row, and
+   under it two sentences on what the game is and how it scores, so 11-Point-Nine, Golden-Nine
+   and Ten-Point-Eight tell themselves apart without opening anything. Open, it lists all five
+   in order, a line each ("Nine-ball · every ball scores, 11 a rack"), and all five fit a phone
+   screen; picking one closes it. The last game picked is remembered per phone (`localStorage`
+   `rack-it.game`).
 2. **Players:** Teal side and Lilac side columns with avatars. You're pre-selected on teal; the
    lilac column lists the teal player's most recent opponents first, then everyone by name.
    Tapping the player who's on the other side swaps the two, and the break stays with whoever
@@ -552,3 +555,4 @@ account, so a static app can't upload results.
 | 2.2.2 | Setup scrolls when a fold is open, instead of the settings card being squeezed and clipping its own options under Start. Opening a fold scrolls it into view. |
 | 2.2.3 | Ten-Point-Eight's quota is measured over the racks played, not the racks planned, so a match ended early no longer goes to the player who won nothing. Its lead bar is the same spot, in points. |
 | 2.2.4 | End asks first when the match still has racks in it, and the result card offers **Back to the match** until you Save. 11-Point-Nine's End is unchanged. |
+| 2.3.0 | Game is a dropdown with the two sentences that say what it is and how it scores, not five buttons: with five games the names alone stopped being enough. |
