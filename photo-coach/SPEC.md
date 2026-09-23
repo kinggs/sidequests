@@ -31,7 +31,9 @@ sidequest, but this app has no notion of "who" — it's one person's practice lo
    Each photo is shrunk on the phone (1400px long edge) before it's stored.
 2. **Ask.** Open a photo, optionally jot what you were going for, pick a kind of feedback and
    tap **Send to an AI**. The phone's share sheet sends the photo *and* the prompt together to
-   the ChatGPT, Claude or Gemini app. (Fallback: copy the prompt, save the photo.)
+   the ChatGPT, Claude or Gemini app. The prompt is also copied (and the copy awaited) before the
+   share sheet opens: Claude's app keeps a shared photo but drops the shared text, so there you
+   paste it. (Fallback: copy the prompt, save the photo.)
 3. **Keep.** Paste the AI's reply back in. It's saved as a markdown note on that photo, with the
    AI's scores pulled out of it, plus an optional link back to the chat.
    - **Wrap-up.** The app can't read a ChatGPT/Claude/Gemini conversation (none of them let an

@@ -180,7 +180,7 @@
   import { phone } from "../shared/phone.js";
 
   // Bump on every change. The deploy skill checks this against the live site.
-  const APP_VERSION = "0.2.0";
+  const APP_VERSION = "0.2.1";
   const APP_ID = "photo-coach";
   document.getElementById("version").textContent = "v" + APP_VERSION;
 
@@ -626,7 +626,7 @@ ${body || "(No feedback saved yet.)"}`;
     box.innerHTML = `<div class="card batch">
       <h2 class="lbl">Quick-grade a batch</h2>
       ${batch.sent ? `<div class="strip">${list.map((p, i) => `<span><img src="${p.thumb}" alt=""><b>${i + 1}</b></span>`).join("")}</div>`
-        : `<p class="note">Tap up to ${MAX_BATCH} photos below, in any walk. The numbers are the order the AI sees them in.</p>`}
+        : `<p class="note">Tap up to ${MAX_BATCH} photos below, in any walk. The numbers are the order the AI sees them in. If the AI app takes only the photos (Claude does), long-press its message box and Paste — the prompt is already copied.</p>`}
       ${batch.sent ? "" : `<button class="primary wide big" id="bSend" ${list.length ? "" : "disabled"}>${list.length ? (loading ? `Loading ${loading}…` : `Send ${list.length} to an AI`) : "Pick some photos"}</button>
       <button class="quiet wide" id="bCopy" ${list.length ? "" : "disabled"}>Copy the prompt only</button>`}
       ${batch.sent ? `<p class="step">Paste the reply</p>
@@ -697,7 +697,7 @@ ${body || "(No feedback saved yet.)"}`;
       <div class="seg" id="kindSeg">${Object.entries(KINDS).map(([k, v]) => `<button data-k="${k}" aria-pressed="${k === kind}">${v.name}</button>`).join("")}</div>
       <button class="primary wide big" id="sendBtn">Send to an AI</button>
       <div class="row"><button class="quiet" id="copyBtn">Copy prompt</button><button class="quiet" id="saveImgBtn">Save photo</button></div>
-      <p class="note" style="margin-top:8px">Send shares the photo and prompt together — pick ChatGPT, Claude or Gemini. The prompt is copied too, in case the app only takes the photo.</p>
+      <p class="note" style="margin-top:8px">Send shares the photo and the prompt — pick ChatGPT, Claude or Gemini. ChatGPT takes both. <b>Claude takes only the photo</b>: the prompt is already copied, so long-press its message box, tap <b>Paste</b>, then send.</p>
 
       <h2 class="lbl sect">Bring it back</h2>
       <p class="note">Chatted back and forth? Paste this into the same chat and it sums the whole conversation up in one reply you can save here.</p>
@@ -851,6 +851,10 @@ ${body || "(No feedback saved yet.)"}`;
   // ---- actions ----
   const err = e => toast("Couldn't save: " + (e && e.message || e));
 
+  async function copyQuiet(text){
+    try { await navigator.clipboard.writeText(text); return true; } catch { return false; }
+  }
+
   function copy(text, msg){
     if (!navigator.clipboard) return toast("This browser can't copy");
     navigator.clipboard.writeText(text).then(() => toast(msg)).catch(() => toast("Couldn't copy"));
@@ -859,8 +863,9 @@ ${body || "(No feedback saved yet.)"}`;
   async function sendToAi(p){
     const prompt = photoPrompt(p, kind);
     const src = fullCache[p.id] || p.thumb;
-    // Copy first, in the same tap, so the prompt is there even if the AI app only takes the image.
-    if (navigator.clipboard) navigator.clipboard.writeText(prompt).catch(() => {});
+    // Some AI apps (Claude's, it seems) keep the shared photo but drop the shared text. So copy the
+    // prompt first — and wait for it, before the share sheet takes focus — so Paste always works.
+    const copied = await copyQuiet(prompt);
     try {
       const file = await dataUrlToFile(src, `photo-${p.id}.jpg`);
       if (navigator.canShare && navigator.canShare({ files: [file] })){
@@ -868,10 +873,10 @@ ${body || "(No feedback saved yet.)"}`;
         toast("Paste the reply below when it's done");
         return;
       }
-      toast("Sharing isn't available here — prompt copied, use Save photo");
+      toast(copied ? "Sharing isn't available here — prompt copied, use Save photo" : "Sharing isn't available here — use Copy prompt and Save photo");
     } catch (e){
       if (e && e.name === "AbortError") return;
-      toast("Couldn't share — prompt copied, use Save photo");
+      toast(copied ? "Couldn't share — prompt copied, use Save photo" : "Couldn't share — use Copy prompt and Save photo");
     }
   }
 
@@ -919,7 +924,7 @@ ${body || "(No feedback saved yet.)"}`;
 
   async function sendBatch(list){
     const prompt = batchPrompt(list);
-    if (navigator.clipboard) navigator.clipboard.writeText(prompt).catch(() => {});
+    const copied = await copyQuiet(prompt);
     try {
       const files = await Promise.all(list.map((p, i) => dataUrlToFile(fullCache[p.id] || p.thumb, `photo-${i + 1}.jpg`)));
       if (navigator.canShare && navigator.canShare({ files })){
@@ -928,10 +933,10 @@ ${body || "(No feedback saved yet.)"}`;
         toast("Paste the reply here when it's done");
         return;
       }
-      toast("Sharing isn't available here — prompt copied");
+      toast(copied ? "Sharing isn't available here — prompt copied" : "Sharing isn't available here — use Copy the prompt only");
     } catch (e){
       if (e && e.name === "AbortError") return;
-      toast("Couldn't share — prompt copied");
+      toast(copied ? "Couldn't share — prompt copied" : "Couldn't share — use Copy the prompt only");
     }
   }
 
