@@ -87,6 +87,31 @@
   details.idea[open] summary::after{content:"–"}
   details.idea p{padding:0 16px 14px;color:var(--text-2);font-size:.9444rem;line-height:1.5}
   details.idea p b{color:var(--text)}
+
+  /* ---- reimagined images ---- */
+  .heroseg{margin-bottom:8px}
+  .herocap{margin-top:8px;color:var(--dim);font-size:.8333rem;font-weight:600}
+  .alts{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  .alts .alt{position:relative}
+  .alts img{width:100%;aspect-ratio:1;object-fit:cover;display:block;border-radius:12px;background:var(--ink-2)}
+  .alts .x{width:100%;min-height:48px;margin-top:4px;padding:0 8px;font-size:.8333rem;background:transparent;color:var(--dim)}
+  .alts .x.arm{background:var(--warn);color:var(--ink-0)}
+  .link{display:inline-flex;align-items:center;min-height:48px;color:var(--text-2);font-weight:600;font-size:.8889rem}
+
+  /* ---- quick grade a batch ---- */
+  .grid button.sel{outline:3px solid var(--text);outline-offset:-3px}
+  .grid b.n{position:absolute;left:6px;top:6px;min-width:28px;height:28px;border-radius:14px;background:var(--text);color:var(--ink-0);
+    font-family:var(--grot);font-size:.8333rem;line-height:28px;text-align:center}
+  .batch{margin-top:14px}
+  .batch .lbl{color:var(--dim);margin-bottom:6px}
+  .batch .step{margin-top:14px;font-weight:600}
+  .batch .seg button{padding:0 2px;font-size:.8889rem}
+  .strip{display:flex;gap:6px;overflow-x:auto;margin:4px 0 10px}
+  .strip span{position:relative;flex:none}
+  .strip img{width:56px;height:56px;object-fit:cover;border-radius:10px;display:block}
+  .strip b{position:absolute;left:3px;top:3px;min-width:22px;height:22px;border-radius:11px;background:var(--text);color:var(--ink-0);
+    font-family:var(--grot);font-size:.7778rem;line-height:22px;text-align:center}
+  .strip span.pick img{outline:3px solid var(--accent);outline-offset:-3px}
 </style>
 </head>
 <body>
@@ -118,6 +143,8 @@
       <button class="primary wide big" id="addBtn">Add photos</button>
       <p class="note" style="margin-top:8px">Opens your phone's picker — tap ☰ or <b>Browse</b> in it to pick from Google Drive or Photos. Pick only the few worth a look.</p>
       <input type="file" id="addFile" accept="image/*" multiple class="hidden">
+      <button class="quiet wide" id="batchBtn">Quick-grade a batch</button>
+      <div id="batchBox"></div>
       <div id="library"></div>
     </div>
 
@@ -125,6 +152,7 @@
     <div id="v-photo" class="hidden">
       <button class="quiet back" id="backBtn">← Library</button>
       <div id="photoBox" style="margin-top:12px"></div>
+      <input type="file" id="altFile" accept="image/*" class="hidden">
     </div>
 
     <!-- ---- coach ---- -->
@@ -152,7 +180,7 @@
   import { phone } from "../shared/phone.js";
 
   // Bump on every change. The deploy skill checks this against the live site.
-  const APP_VERSION = "0.1.0";
+  const APP_VERSION = "0.2.0";
   const APP_ID = "photo-coach";
   document.getElementById("version").textContent = "v" + APP_VERSION;
 
@@ -187,9 +215,23 @@ One skill to work on next walk, and a small drill for it.` },
 ## <a short title>
 What the picture would look like, which principle makes it stronger (leading lines, framing, scale, layering, contrast, etc.), and what I'd practically need to do to get it in Cape Town (where to stand, what time, what to wait for).
 End with one sentence on which of these is most worth actually attempting, and why.` },
+    reimagine: { name: "Reimagine", noScores: true, ask:
+`Make me an image: a reimagined version of this photo that would score clearly higher. Keep it recognisably the same place in Cape Town, but change what a better photographer would have changed — the angle, the framing, the foreground, the light or time of day — or go bold: the moon rising behind it, a reflection, a figure walking into the light. Change only what makes it a better photograph, not a different subject.
+
+Then, under the image, in markdown:
+## What changed
+Each change, the named principle behind it, and why it lifts the photo.
+## Could I get this shot?
+Honestly: which of these changes I could make myself with my phone, standing near where I stood, and how (where, when, what to wait for). Which are fantasy.` },
     grade: { name: "Grade me", ask:
 `Grade this photo strictly, as a tough photography teacher would. In markdown, one short line of evidence for each of: composition, light, subject, moment, creativity. Then a one-paragraph verdict: what separates this from a photo a good photographer would keep. Keep it short.` }
   };
+
+  // Replies that don't come from a first prompt: the wrap-up of a longer chat, and a batch's quick grade.
+  const kindName = k => KINDS[k] ? KINDS[k].name : ({ wrap: "Wrap-up", quick: "Quick grade" })[k] || k;
+  const FINISH = `Finish with exactly these two lines, plain text, whole numbers 1–10 (5 is an ordinary snapshot, 8 is a photo a good photographer would keep):
+SCORES: composition=?, light=?, subject=?, moment=?, creativity=?, overall=?
+FOCUS: <the one principle I should practise next> — <one sentence on how>`;
 
   const IDEAS = [
     ["Rule of thirds", "Imagine the frame split by two lines each way. Putting the subject or horizon on a line — not dead centre — usually gives the picture somewhere to go. Centre it only on purpose (symmetry)."],
@@ -213,10 +255,16 @@ End with one sentence on which of these is most worth actually attempting, and w
   let openId = null;   // photo on screen
   let fullCache = {};  // id → data URL of the big image
   let kind = "critique";
+  let replyKind = "critique"; // what the next pasted reply is saved as: the last prompt copied
+  let heroSel = null;         // null = your photo; else the id of a reimagined one
+  // A batch being quick-graded: the photos picked, in order. Kept on the phone so it survives
+  // Android closing the app while you're in ChatGPT.
+  let batch = (() => { try { return JSON.parse(localGet("pc-batch") || "null"); } catch { return null; } })();
+  let batches = [];   // [{ id, at, ai, photoIds, reply, pick }]
   let ai = localGet("pc-ai") || "ChatGPT";
   let unsubs = [];
   // Half-typed text survives the live re-renders a save on another field causes.
-  const drafts = { reply: {}, note: {}, review: "" };
+  const drafts = { reply: {}, note: {}, review: "", link: {} };
 
   function localGet(k){ try { return localStorage.getItem(k); } catch { return null; } }
   function localSet(k, v){ try { localStorage.setItem(k, v); } catch {} }
@@ -362,9 +410,23 @@ End with one sentence on which of these is most worth actually attempting, and w
       if (this.live){ const d = await cloud.load(`images/${id}`); return d && d.data; }
       return local.images[id];
     },
-    async removePhoto(id){
-      if (this.live){ await cloud.delete(`photos/${id}`); return cloud.delete(`images/${id}`); }
-      photos = photos.filter(x => x.id !== id); delete local.images[id]; render();
+    async removeImage(id){
+      if (this.live) return cloud.delete(`images/${id}`);
+      delete local.images[id];
+    },
+    async removePhoto(p){
+      for (const a of p.alts || []) await this.removeImage(a.id);
+      if (this.live){ await cloud.delete(`photos/${p.id}`); return cloud.delete(`images/${p.id}`); }
+      photos = photos.filter(x => x.id !== p.id); delete local.images[p.id]; render();
+    },
+    async saveBatch(b){
+      const { id, ...rest } = b;
+      if (this.live) return cloud.save(`batches/${id}`, rest);
+      batches = [b, ...batches.filter(x => x.id !== id)]; render();
+    },
+    async removeBatch(id){
+      if (this.live) return cloud.delete(`batches/${id}`);
+      batches = batches.filter(x => x.id !== id); render();
     },
     async saveReview(r){
       const { id, ...rest } = r;
@@ -416,17 +478,79 @@ About this photo:
 ${w.length ? `- My weakest skills so far: ${w.map(s => s.name.toLowerCase()).join(" and ")}. Pay special attention to them.\n` : ""}${past.length ? `- Earlier feedback on this photo told me to practise: ${past.join("; ")}\n` : ""}${brief ? `- My current brief from my coach:\n${brief.split("\n").map(l => "  " + l).join("\n")}\n` : ""}
 ${KINDS[k].ask}
 
-Finish with exactly these two lines, plain text, whole numbers 1–10 (5 is an ordinary snapshot, 8 is a photo a good photographer would keep):
-SCORES: composition=?, light=?, subject=?, moment=?, creativity=?, overall=?
-FOCUS: <the one principle I should practise next> — <one sentence on how>`;
+${KINDS[k].noScores ? `Finish with exactly this line, plain text:
+FOCUS: <the one principle this reimagining teaches> — <one sentence on how I'd use it next walk>` : FINISH}`;
   }
+
+  // Paste into the same chat after a longer back-and-forth, to bring all of it back in one piece.
+  function wrapPrompt(){
+    return `Thanks — that was useful. Now wrap up this whole conversation about my photo into one markdown note for my coaching log. I'll paste it into my app, so it has to stand on its own without this chat.
+
+Include everything worth keeping — the critique, any wild ideas, any reimagined images you made (describe what each one shows and what changed), and the answers to my follow-up questions — organised under headings, in your words, not a transcript. Keep each principle's name and its one-line explanation. Leave out pleasantries.
+
+End with:
+## What I'm taking away
+Three bullet points I should remember on my next walk.
+
+${FINISH.replace("Finish with", "Then finish with").replace("SCORES:", "(scores for my ORIGINAL photo, not a reimagined one)\nSCORES:")}`;
+  }
+
+  // Five to ten photos at once: a loose sort, not a critique.
+  function batchPrompt(list){
+    const w = weakest();
+    const brief = briefFrom(latestReview());
+    const walks = [...new Set(list.map(p => p.walk).filter(Boolean))];
+    return `You are my photography coach. I'm learning: I shoot on my phone while walking around Cape Town, and I know the names of ideas like composition, framing and leading lines but I'm still learning to use them. I've attached ${list.length} photos${walks.length ? ` from ${walks.join(" and ")}` : ""}, named photo-1 to photo-${list.length} in the order attached.
+
+Grade them quickly and loosely — this is a sort, not a critique. I mainly want to know what I'm getting right.
+${w.length ? `My weakest skills so far are ${w.map(s => s.name.toLowerCase()).join(" and ")}.
+` : ""}${brief ? `My current brief from my coach:
+${brief}
+` : ""}${list.some(p => p.note) ? `
+What I was going for:
+${list.map((p, i) => p.note ? `- photo-${i + 1}: ${p.note}` : "").filter(Boolean).join("\n")}
+` : ""}
+Reply with one line per photo, in exactly this format, whole numbers 1–10 (5 is an ordinary snapshot, 8 is a keeper):
+PHOTO 1: composition=?, light=?, subject=?, moment=?, creativity=?, overall=? — <what I got right, or the one thing holding it back, in one sentence, naming the principle>
+
+Then exactly this line:
+PICK: <number> — <why it's the strongest, and which principle I got right in it>
+
+Then, in markdown:
+## What I'm getting right
+Two or three sentences on what this batch shows I'm starting to understand.
+## Worth a closer look
+Which one or two photos deserve a full critique, and why.`;
+  }
+
+  // "PHOTO 3: composition=6, … overall=6 — comment" and "PICK: 3 — why".
+  function parseBatch(text, n){
+    const rows = {};
+    for (const line of text.replace(/\r/g, "").split("\n")){
+      const m = line.match(/PHOTO[\s_-]*#?(\d+)\**\s*[:\-–—]\s*(.*)$/i);
+      if (!m) continue;
+      const i = Number(m[1]);
+      if (i < 1 || i > n || rows[i]) continue;
+      const scores = {};
+      for (const sm of m[2].matchAll(/([a-z]+)\s*[=:]\s*(\d+(?:\.\d+)?)/gi)){
+        const k = sm[1].toLowerCase(), v = Number(sm[2]);
+        if (SKILLS.some(s => s.key === k) && v >= 0 && v <= 10) scores[k] = v;
+      }
+      const cm = m[2].match(/\s[—–-]\s+(.*)$/);
+      rows[i] = { scores, comment: cm ? cm[1].replace(/\*+/g, "").trim() : "" };
+    }
+    const pm = text.match(/PICK\s*\**\s*[:\-]\s*(?:photo[\s_-]*)?#?(\d+)\s*[—–:\-]*\s*(.*)/i);
+    const pick = pm && Number(pm[1]) >= 1 && Number(pm[1]) <= n ? { n: Number(pm[1]), why: pm[2].replace(/\*+/g, "").trim() } : null;
+    return { rows, pick };
+  }
+  const stripBatch = text => text.replace(/^.*\b(PHOTO[\s_-]*#?\d+|PICK)\s*\**\s*[:\-–—].*$/gim, "").trim();
 
   function reviewPrompt(){
     const since = latestReview() ? latestReview().at : 0;
     const list = allCritiques().filter(c => c.at > since).sort((a, b) => a.at - b.at).slice(-30);
     const a = averages(), recent = averages(list);
     const fmt = av => SKILLS.map(s => `${s.key} ${av[s.key] ? av[s.key].avg.toFixed(1) : "–"}`).join(", ");
-    const body = list.map((c, i) => `### Photo ${i + 1} — ${c.photo.walk || "walk"}, ${dayLabel(c.photo.takenAt || c.at)} (${KINDS[c.kind] ? KINDS[c.kind].name : c.kind}, ${c.ai})
+    const body = list.map((c, i) => `### Photo ${i + 1} — ${c.photo.walk || "walk"}, ${dayLabel(c.photo.takenAt || c.at)} (${kindName(c.kind)}, ${c.ai})
 ${c.photo.note ? `What I was going for: ${c.photo.note}\n` : ""}${c.focus ? `Focus given: ${c.focus}\n` : ""}${Object.keys(c.scores || {}).length ? `Scores: ${Object.entries(c.scores).map(([k, v]) => `${k} ${v}`).join(", ")}\n` : ""}
 ${stripMachine(c.reply).slice(0, 2500)}`).join("\n\n");
     return `You are my photography coach. I'm a learner shooting on my phone on walks around Cape Town. Below is the feedback I've had on my photos ${since ? `since my last review (${dayLabel(since)})` : "so far"}. Read it as a whole and coach me. Be direct and challenging — I want to get better, not feel good.
@@ -470,6 +594,7 @@ ${body || "(No feedback saved yet.)"}`;
 
   function renderLibrary(){
     renderBrief();
+    renderBatch();
     const box = $("library");
     if (!photos.length){ box.innerHTML = `<p class="empty">No photos yet.</p>`; return; }
     const walks = new Map();
@@ -483,15 +608,69 @@ ${body || "(No feedback saved yet.)"}`;
       <div class="grid">${list.map(p => {
         const n = (p.critiques || []).length;
         const last = (p.critiques || []).filter(c => c.scores && typeof c.scores.overall === "number").slice(-1)[0];
-        return `<button data-id="${esc(p.id)}" aria-label="Open photo">${p.thumb ? `<img src="${p.thumb}" alt="" loading="lazy">` : ""}${n ? `<i>${last ? last.scores.overall : "✓"}</i>` : ""}</button>`;
+        const at = batch ? batch.ids.indexOf(p.id) : -1;
+        return `<button data-id="${esc(p.id)}" class="${at >= 0 ? "sel" : ""}" aria-label="${batch ? "Pick for the batch" : "Open photo"}">${p.thumb ? `<img src="${p.thumb}" alt="" loading="lazy">` : ""}${at >= 0 ? `<b class="n">${at + 1}</b>` : ""}${n ? `<i>${p.pick ? "★ " : ""}${last ? last.scores.overall : "✓"}</i>` : ""}</button>`;
       }).join("")}</div>`).join("");
-    box.querySelectorAll(".grid button").forEach(b => tap(b, () => openPhoto(b.dataset.id)));
+    box.querySelectorAll(".grid button").forEach(b => tap(b, () => batch && !batch.sent ? toggleBatch(b.dataset.id) : openPhoto(b.dataset.id)));
+  }
+
+  const MAX_BATCH = 10;
+  function saveBatchState(){ localSet("pc-batch", batch ? JSON.stringify(batch) : ""); }
+
+  function renderBatch(){
+    const box = $("batchBox");
+    $("batchBtn").classList.toggle("hidden", !!batch);
+    if (!batch){ box.innerHTML = ""; return; }
+    const list = batch.ids.map(id => photos.find(p => p.id === id)).filter(Boolean);
+    const loading = list.filter(p => !fullCache[p.id]).length;
+    box.innerHTML = `<div class="card batch">
+      <h2 class="lbl">Quick-grade a batch</h2>
+      ${batch.sent ? `<div class="strip">${list.map((p, i) => `<span><img src="${p.thumb}" alt=""><b>${i + 1}</b></span>`).join("")}</div>`
+        : `<p class="note">Tap up to ${MAX_BATCH} photos below, in any walk. The numbers are the order the AI sees them in.</p>`}
+      ${batch.sent ? "" : `<button class="primary wide big" id="bSend" ${list.length ? "" : "disabled"}>${list.length ? (loading ? `Loading ${loading}…` : `Send ${list.length} to an AI`) : "Pick some photos"}</button>
+      <button class="quiet wide" id="bCopy" ${list.length ? "" : "disabled"}>Copy the prompt only</button>`}
+      ${batch.sent ? `<p class="step">Paste the reply</p>
+      <div class="seg" id="bAi">${AIS.map(x => `<button data-ai="${x}" aria-pressed="${x === ai}">${x}</button>`).join("")}</div>
+      <textarea id="bIn" placeholder="Paste the AI's whole reply here" style="margin-top:10px">${esc(batch.draft || "")}</textarea>
+      <div class="row"><button class="quiet" id="bPaste">Paste</button><button class="primary" id="bKeep" ${list.length ? "" : "disabled"}>Save grades</button></div>` : ""}
+      <div class="row">${batch.sent ? `<button class="quiet" id="bBack">Change photos</button>` : ""}<button class="quiet" id="bCancel">Cancel</button></div>
+    </div>`;
+    tap($("bSend"), () => sendBatch(list));
+    tap($("bCopy"), () => { copy(batchPrompt(list), "Batch prompt copied"); batch.sent = true; saveBatchState(); render(); });
+    box.querySelectorAll("#bAi button").forEach(b => tap(b, () => {
+      ai = b.dataset.ai; localSet("pc-ai", ai);
+      box.querySelectorAll("#bAi button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+    }));
+    if ($("bIn")) $("bIn").addEventListener("input", e => { batch.draft = e.target.value; saveBatchState(); });
+    tap($("bPaste"), async () => {
+      try { $("bIn").value = batch.draft = await navigator.clipboard.readText(); saveBatchState(); }
+      catch { toast("Long-press the box and choose Paste"); }
+    });
+    tap($("bKeep"), () => keepBatch(list));
+    tap($("bBack"), () => { batch.sent = false; saveBatchState(); render(); });
+    tap($("bCancel"), () => { batch = null; saveBatchState(); render(); });
+  }
+
+  function toggleBatch(id){
+    const i = batch.ids.indexOf(id);
+    if (i >= 0) batch.ids.splice(i, 1);
+    else if (batch.ids.length >= MAX_BATCH) return toast(`Ten at most — it's a quick sort`);
+    else { batch.ids.push(id); prefetch(id); }
+    saveBatchState();
+    render();
+  }
+
+  // The share has to happen within a few seconds of the tap, so load the big images up front.
+  async function prefetch(id){
+    if (fullCache[id]) return;
+    try { const d = await store.loadImage(id); if (d){ fullCache[id] = d; if (batch && !openId) renderBatch(); } } catch {}
   }
 
   async function openPhoto(id){
     history.pushState({ photo: id }, "");
     openId = id;
     kind = "critique";
+    heroSel = null;
     render();
     $("main").scrollTop = 0;
     if (!fullCache[id]){
@@ -505,9 +684,12 @@ ${body || "(No feedback saved yet.)"}`;
     const box = $("photoBox");
     if (!p){ box.innerHTML = `<p class="empty">That photo's gone.</p>`; return; }
     const crits = [...(p.critiques || [])].sort((a, b) => b.at - a.at);
+    const alts = p.alts || [];
+    const heroAlt = alts.find(a => a.id === heroSel);
     box.innerHTML = `
-      <img class="hero" src="${fullCache[p.id] || p.thumb || ""}" alt="">
-      <p class="meta">${esc(p.walk || "Unfiled")} · ${dayLabel(p.takenAt || p.addedAt)}</p>
+      ${alts.length ? `<div class="seg heroseg" id="heroSeg"><button data-h="" aria-pressed="${!heroAlt}">Yours</button>${alts.map((a, i) => `<button data-h="${esc(a.id)}" aria-pressed="${a.id === heroSel}">Idea ${i + 1}</button>`).join("")}</div>` : ""}
+      <img class="hero" src="${heroAlt ? (fullCache[heroAlt.id] || heroAlt.thumb) : (fullCache[p.id] || p.thumb || "")}" alt="">
+      <p class="meta">${heroAlt ? `Reimagined by ${esc(heroAlt.ai)} · ${dayLabel(heroAlt.at)} — not your photo` : `${esc(p.walk || "Unfiled")} · ${dayLabel(p.takenAt || p.addedAt)}`}</p>
       <label for="noteIn">What were you going for? (goes in the prompt)</label>
       <input type="text" id="noteIn" value="${esc(drafts.note[p.id] ?? p.note ?? "")}" placeholder="The light on the old building" autocomplete="off">
 
@@ -517,10 +699,18 @@ ${body || "(No feedback saved yet.)"}`;
       <div class="row"><button class="quiet" id="copyBtn">Copy prompt</button><button class="quiet" id="saveImgBtn">Save photo</button></div>
       <p class="note" style="margin-top:8px">Send shares the photo and prompt together — pick ChatGPT, Claude or Gemini. The prompt is copied too, in case the app only takes the photo.</p>
 
-      <h2 class="lbl sect">Paste the reply</h2>
-      <div class="seg" id="aiChips">${AIS.map(a => `<button data-ai="${a}" aria-pressed="${a === ai}">${a}</button>`).join("")}</div>
+      <h2 class="lbl sect">Bring it back</h2>
+      <p class="note">Chatted back and forth? Paste this into the same chat and it sums the whole conversation up in one reply you can save here.</p>
+      <button class="quiet wide" id="wrapBtn">Copy wrap-up prompt</button>
+      <div class="seg" id="aiChips" style="margin-top:14px">${AIS.map(a => `<button data-ai="${a}" aria-pressed="${a === ai}">${a}</button>`).join("")}</div>
       <textarea id="replyIn" placeholder="Paste the AI's whole reply here" style="margin-top:10px">${esc(drafts.reply[p.id] || "")}</textarea>
-      <div class="row"><button class="quiet" id="pasteBtn">Paste</button><button class="primary" id="keepBtn">Save feedback</button></div>
+      <input type="text" id="linkIn" value="${esc(drafts.link[p.id] || "")}" placeholder="Link to the chat (optional)" autocomplete="off" style="margin-top:10px">
+      <div class="row"><button class="quiet" id="pasteBtn">Paste</button><button class="primary" id="keepBtn">Save as ${esc(kindName(replyKind))}</button></div>
+
+      <h2 class="lbl sect">${alts.length ? `Reimagined · ${alts.length}` : "Reimagined"}</h2>
+      <p class="note">When an AI makes an improved version, save it to your phone, then add it here to compare with yours.</p>
+      ${alts.length ? `<div class="alts" style="margin-top:10px">${alts.map(a => `<div class="alt"><img src="${a.thumb}" alt=""><button class="x" data-adel="${esc(a.id)}">Delete</button></div>`).join("")}</div>` : ""}
+      <button class="quiet wide" id="altBtn">Add the AI's image</button>
 
       <h2 class="lbl sect">${crits.length ? `Feedback · ${crits.length}` : "Feedback"}</h2>
       ${crits.length ? crits.map(c => critHtml(c)).join("") : `<p class="note">Nothing saved yet.</p>`}
@@ -532,6 +722,22 @@ ${body || "(No feedback saved yet.)"}`;
     noteIn.addEventListener("input", () => { drafts.note[p.id] = noteIn.value; });
     noteIn.addEventListener("change", () => store.savePhoto({ ...p, note: noteIn.value.trim() }).then(() => { delete drafts.note[p.id]; }).catch(err));
     $("replyIn").addEventListener("input", e => { drafts.reply[p.id] = e.target.value; });
+    $("linkIn").addEventListener("input", e => { drafts.link[p.id] = e.target.value; });
+    box.querySelectorAll("#heroSeg button").forEach(b => tap(b, () => {
+      heroSel = b.dataset.h || null;
+      if (heroSel && !fullCache[heroSel]) store.loadImage(heroSel).then(d => { if (d){ fullCache[heroSel] = d; renderPhoto(); } }).catch(() => {});
+      renderPhoto();
+    }));
+    const setKind = k => { replyKind = k; $("keepBtn").textContent = "Save as " + kindName(k); };
+    tap($("wrapBtn"), () => { copy(wrapPrompt(), "Wrap-up prompt copied — paste it into the same chat"); setKind("wrap"); });
+    tap($("altBtn"), () => { altFor = p.id; $("altFile").click(); });
+    box.querySelectorAll("[data-adel]").forEach(b => armed(b, "Delete", async () => {
+      try {
+        await store.savePhoto({ ...p, alts: alts.filter(a => a.id !== b.dataset.adel) });
+        await store.removeImage(b.dataset.adel);
+        toast("Image deleted");
+      } catch (e){ err(e); }
+    }));
     box.querySelectorAll("#kindSeg button").forEach(b => tap(b, () => {
       kind = b.dataset.k;
       box.querySelectorAll("#kindSeg button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
@@ -541,8 +747,8 @@ ${body || "(No feedback saved yet.)"}`;
       box.querySelectorAll("#aiChips button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
     }));
     const current = () => ({ ...p, note: noteIn.value.trim() });
-    tap($("sendBtn"), () => sendToAi(current()));
-    tap($("copyBtn"), () => copy(photoPrompt(current(), kind), "Prompt copied"));
+    tap($("sendBtn"), () => { setKind(kind); sendToAi(current()); });
+    tap($("copyBtn"), () => { setKind(kind); copy(photoPrompt(current(), kind), "Prompt copied"); });
     tap($("saveImgBtn"), () => download2(p));
     tap($("pasteBtn"), async () => {
       try { $("replyIn").value = drafts.reply[p.id] = await navigator.clipboard.readText(); }
@@ -557,7 +763,7 @@ ${body || "(No feedback saved yet.)"}`;
       const el = b.previousElementSibling; el.classList.remove("clip"); b.remove();
     }));
     armed($("delPhoto"), "Delete photo", async () => {
-      try { await store.removePhoto(p.id); delete fullCache[p.id]; if (history.state && history.state.photo) history.back(); else { openId = null; render(); } toast("Photo deleted"); }
+      try { await store.removePhoto(p); delete fullCache[p.id]; if (history.state && history.state.photo) history.back(); else { openId = null; render(); } toast("Photo deleted"); }
       catch (e){ err(e); }
     });
   }
@@ -567,10 +773,12 @@ ${body || "(No feedback saved yet.)"}`;
     const body = md(stripMachine(c.reply));
     const long = c.reply.length > 900;
     return `<div class="card reply">
-      <div class="head"><span class="lbl">${esc(KINDS[c.kind] ? KINDS[c.kind].name : c.kind)} · ${esc(c.ai)} · ${dayLabel(c.at)}</span><button class="x" data-del="${esc(c.id)}">Delete</button></div>
+      <div class="head"><span class="lbl">${esc(kindName(c.kind))} · ${esc(c.ai)} · ${dayLabel(c.at)}</span><button class="x" data-del="${esc(c.id)}">Delete</button></div>
       ${sc.length ? `<div class="scores">${sc.map(s => `<span>${s.name} <b>${c.scores[s.key]}</b></span>`).join("")}</div>` : ""}
       ${c.focus ? `<div class="focus">${esc(c.focus)}</div>` : ""}
+      ${c.pick ? `<div class="focus">★ Pick of the batch${c.pick === true ? "" : ` — ${esc(c.pick)}`}</div>` : ""}
       <div class="md${long ? " clip" : ""}">${body}</div>${long ? `<button class="quiet more" data-expand>Show all</button>` : ""}
+      ${/^https:\/\//.test(c.link || "") ? `<a class="link" href="${esc(c.link)}" target="_blank" rel="noopener">Open the chat ↗</a>` : ""}
     </div>`;
   }
 
@@ -605,6 +813,15 @@ ${body || "(No feedback saved yet.)"}`;
         <div class="head"><span class="lbl">${dayLabel(r.at)} · ${esc(r.ai)} · ${r.photoCount || 0} repl${r.photoCount === 1 ? "y" : "ies"}</span><button class="x" data-rdel="${esc(r.id)}">Delete</button></div>
         <div class="md clip">${md(r.reply)}</div><button class="quiet more" data-expand>Show all</button></div>`).join("")}` : ""}
 
+      ${batches.length ? `<h2 class="lbl sect">Quick grades</h2>${batches.map(b => {
+        const list = (b.photoIds || []).map(id => photos.find(p => p.id === id));
+        return `<div class="card reply">
+        <div class="head"><span class="lbl">${dayLabel(b.at)} · ${esc(b.ai)} · ${list.length} photos</span><button class="x" data-bdel="${esc(b.id)}">Delete</button></div>
+        <div class="strip">${list.map((p, i) => p ? `<span class="${b.pick && b.pick.n === i + 1 ? "pick" : ""}" data-open="${esc(p.id)}"><img src="${p.thumb}" alt=""><b>${i + 1}</b></span>` : "").join("")}</div>
+        ${b.pick ? `<div class="focus">★ Pick: ${b.pick.n}${b.pick.why ? ` — ${esc(b.pick.why)}` : ""}</div>` : ""}
+        <div class="md clip">${md(stripBatch(b.reply))}</div><button class="quiet more" data-expand>Show all</button></div>`;
+      }).join("")}` : ""}
+
       <h2 class="lbl sect">The ideas</h2>
       ${IDEAS.map(([n, t]) => `<details class="idea"><summary>${n}</summary><p>${t}</p></details>`).join("")}`;
 
@@ -626,6 +843,8 @@ ${body || "(No feedback saved yet.)"}`;
       catch (e){ drafts.review = reply; err(e); }
     });
     box.querySelectorAll("[data-rdel]").forEach(b => armed(b, "Delete", () => store.removeReview(b.dataset.rdel).then(() => toast("Review deleted")).catch(err)));
+    box.querySelectorAll("[data-bdel]").forEach(b => armed(b, "Delete", () => store.removeBatch(b.dataset.bdel).then(() => toast("Batch deleted — the grades stay on each photo")).catch(err)));
+    box.querySelectorAll("[data-open]").forEach(b => tap(b, () => openPhoto(b.dataset.open)));
     box.querySelectorAll("[data-expand]").forEach(b => tap(b, () => { b.previousElementSibling.classList.remove("clip"); b.remove(); }));
   }
 
@@ -668,12 +887,74 @@ ${body || "(No feedback saved yet.)"}`;
     const reply = $("replyIn").value.trim();
     if (!reply) return toast("Paste the reply first");
     const { scores, focus } = parseReply(reply);
-    const c = { id: newId(), kind, ai, reply, scores, focus, at: Date.now() };
-    delete drafts.reply[p.id]; delete drafts.note[p.id];
+    const link = $("linkIn").value.trim();
+    const c = { id: newId(), kind: replyKind, ai, reply, scores, focus, at: Date.now(), link };
+    delete drafts.reply[p.id]; delete drafts.note[p.id]; delete drafts.link[p.id];
     try {
+      replyKind = kind;
       await store.savePhoto({ ...p, note: $("noteIn").value.trim(), critiques: [...(p.critiques || []), c] });
-      toast(Object.keys(scores).length ? "Saved, with scores" : "Saved (no SCORES line found)");
-    } catch (e){ drafts.reply[p.id] = reply; err(e); }
+      toast(Object.keys(scores).length ? "Saved, with scores" : KINDS[replyKind] && KINDS[replyKind].noScores ? "Saved" : "Saved (no SCORES line found)");
+    } catch (e){ drafts.reply[p.id] = reply; drafts.link[p.id] = link; err(e); }
+  }
+
+  let altFor = null;
+  async function addAlt(file){
+    const p = photos.find(x => x.id === altFor);
+    if (!p || !file) return;
+    if ((p.alts || []).length >= 6) return toast("Six ideas per photo — delete one first");
+    try {
+      const [full, thumb] = await Promise.all([shrink(file, 1400, .82, 900000), shrink(file, 420, .72, 60000)]);
+      const id = newId();
+      fullCache[id] = full;
+      await store.saveImage(id, full);
+      await store.savePhoto({ ...p, alts: [...(p.alts || []), { id, at: Date.now(), ai, thumb }] });
+      heroSel = id;
+      if (openId === p.id){ renderPhoto(); $("main").scrollTop = 0; }
+      toast("Added — tap Yours / Idea to compare");
+    } catch (e){
+      console.warn(e);
+      toast("Couldn't read that image");
+    }
+  }
+
+  async function sendBatch(list){
+    const prompt = batchPrompt(list);
+    if (navigator.clipboard) navigator.clipboard.writeText(prompt).catch(() => {});
+    try {
+      const files = await Promise.all(list.map((p, i) => dataUrlToFile(fullCache[p.id] || p.thumb, `photo-${i + 1}.jpg`)));
+      if (navigator.canShare && navigator.canShare({ files })){
+        await navigator.share({ files, text: prompt });
+        batch.sent = true; saveBatchState(); render();
+        toast("Paste the reply here when it's done");
+        return;
+      }
+      toast("Sharing isn't available here — prompt copied");
+    } catch (e){
+      if (e && e.name === "AbortError") return;
+      toast("Couldn't share — prompt copied");
+    }
+  }
+
+  // One batch record for the sort, plus a quick-grade note on each photo so its scores count.
+  async function keepBatch(list){
+    const reply = $("bIn").value.trim();
+    if (!reply) return toast("Paste the reply first");
+    const { rows, pick } = parseBatch(reply, list.length);
+    const found = Object.keys(rows).length;
+    if (!found) return toast("No PHOTO lines found in that reply");
+    const id = newId(), at = Date.now();
+    try {
+      await store.saveBatch({ id, at, ai, photoIds: list.map(p => p.id), reply, pick });
+      for (const [i, p] of list.entries()){
+        const r = rows[i + 1];
+        if (!r) continue;
+        const isPick = pick && pick.n === i + 1;
+        const c = { id: newId(), kind: "quick", ai, reply: r.comment || "(no comment)", scores: r.scores, focus: "", at, batch: id, pick: isPick ? (pick.why || true) : false };
+        await store.savePhoto({ ...p, critiques: [...(p.critiques || []), c], ...(isPick ? { pick: true } : {}) });
+      }
+      batch = null; saveBatchState(); render();
+      toast(`Saved grades for ${found} photo${found === 1 ? "" : "s"}${pick ? ` — pick: ${pick.n}` : ""}`);
+    } catch (e){ err(e); }
   }
 
   async function addPhotos(files){
@@ -705,10 +986,10 @@ ${body || "(No feedback saved yet.)"}`;
   async function exportJson(){
     toast("Gathering photos…");
     const images = {};
-    for (const p of photos){
-      try { images[p.id] = fullCache[p.id] || await store.loadImage(p.id) || null; } catch { images[p.id] = null; }
+    for (const id of photos.flatMap(p => [p.id, ...(p.alts || []).map(a => a.id)])){
+      try { images[id] = fullCache[id] || await store.loadImage(id) || null; } catch { images[id] = null; }
     }
-    const data = { app: APP_ID, version: APP_VERSION, exportedAt: new Date().toISOString(), photos, images, reviews };
+    const data = { app: APP_ID, version: APP_VERSION, exportedAt: new Date().toISOString(), photos, images, reviews, batches };
     download(`photo-coach-${toISO(new Date())}.json`, JSON.stringify(data), "application/json");
   }
 
@@ -718,12 +999,17 @@ ${body || "(No feedback saved yet.)"}`;
       lines.push(`# Coaching reviews`, ``);
       for (const r of reviews) lines.push(`## Review — ${toISO(new Date(r.at))} (${r.ai})`, ``, r.reply, ``, `---`, ``);
     }
+    if (batches.length){
+      lines.push(`# Quick grades`, ``);
+      for (const b of batches) lines.push(`## Batch — ${toISO(new Date(b.at))} (${b.ai})`, ``, `Photos, in order: ${(b.photoIds || []).join(", ")}`, ``, b.reply, ``, `---`, ``);
+    }
     lines.push(`# Photos`, ``);
     for (const p of [...photos].sort((a, b) => a.addedAt - b.addedAt)){
       if (!(p.critiques || []).length) continue;
       lines.push(`## ${p.walk || "Unfiled"} — ${toISO(new Date(p.takenAt || p.addedAt))} (photo ${p.id})`, ``);
       if (p.note) lines.push(`*Going for:* ${p.note}`, ``);
-      for (const c of p.critiques) lines.push(`### ${KINDS[c.kind] ? KINDS[c.kind].name : c.kind} — ${c.ai}, ${toISO(new Date(c.at))}`, ``, c.reply, ``);
+      if ((p.alts || []).length) lines.push(`*Reimagined images:* ${p.alts.length} (in the JSON export)`, ``);
+      for (const c of p.critiques) lines.push(`### ${kindName(c.kind)} — ${c.ai}, ${toISO(new Date(c.at))}`, ``, ...(c.link ? [`Chat: ${c.link}`, ``] : []), c.reply, ``);
     }
     download(`photo-coach-feedback-${toISO(new Date())}.md`, lines.join("\n"), "text/markdown");
   }
@@ -736,12 +1022,15 @@ ${body || "(No feedback saved yet.)"}`;
     try {
       for (const p of data.photos){
         if (!p || !p.id) continue;
-        const img = data.images && data.images[p.id];
-        if (img) await store.saveImage(p.id, img);
+        for (const id of [p.id, ...(p.alts || []).map(a => a.id)]){
+          const img = data.images && data.images[id];
+          if (img) await store.saveImage(id, img);
+        }
         await store.savePhoto(p);
         added++;
       }
       for (const r of data.reviews || []) if (r && r.id) await store.saveReview(r);
+      for (const b of data.batches || []) if (b && b.id) await store.saveBatch(b);
       toast(`Imported ${added} photo${added === 1 ? "" : "s"}, ${(data.reviews || []).length} review${(data.reviews || []).length === 1 ? "" : "s"}`);
     } catch (e){ err(e); }
   }
@@ -758,6 +1047,12 @@ ${body || "(No feedback saved yet.)"}`;
     const w = JSON.parse(localGet("pc-walk") || "null");
     if (w && w.day === toISO(new Date())) $("walkName").value = w.walk;
   } catch {}
+  tap($("batchBtn"), () => { batch = { ids: [], sent: false, draft: "" }; saveBatchState(); render(); });
+  $("altFile").addEventListener("change", e => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (f) addAlt(f);
+  });
   tap($("exportJson"), exportJson);
   tap($("exportMd"), exportMd);
   tap($("importBtn"), () => $("importFile").click());
@@ -807,7 +1102,9 @@ ${body || "(No feedback saved yet.)"}`;
     if (cloud.configured()){
       unsubs.push(cloud.watchList("photos", rows => { photos = rows.filter(r => r.addedAt); render(); }, { orderBy: "addedAt", desc: true, limit: 2000 }));
       unsubs.push(cloud.watchList("reviews", rows => { reviews = rows.filter(r => r.at && r.reply); render(); }, { orderBy: "at", desc: true, limit: 200 }));
+      unsubs.push(cloud.watchList("batches", rows => { batches = rows.filter(r => r.at && r.reply); render(); }, { orderBy: "at", desc: true, limit: 200 }));
     }
+    if (batch) batch.ids.forEach(id => prefetch(id));
     render();
   }
 
