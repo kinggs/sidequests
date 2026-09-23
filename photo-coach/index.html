@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0A0D11">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Photo Coach</title>
+<link rel="stylesheet" href="../shared/theme.css">
+<style>
+  /* Photo Coach on shared/theme.css. Sky blue is this app's accent and only marks its data:
+     scores, score bars, the "has feedback" dot. Choosing things stays neutral. */
+  :root{ --accent:#6CC4FF; --accent-ink:#04202F; }
+  main{flex:1;min-height:0;padding:4px 16px 24px;overflow-y:auto;max-width:40rem;width:100%;margin:0 auto}
+  .userbtn{flex:none;min-height:var(--tap);padding:0 16px;font-size:.8333rem;white-space:nowrap}
+  .gate p{color:var(--dim)}
+  .sect{color:var(--dim);margin:28px 0 10px}
+  .sect:first-child{margin-top:4px}
+  label{display:block;font-size:.8333rem;font-weight:600;color:var(--dim);margin:14px 0 6px}
+  textarea{font:inherit;font-size:.9444rem;color:var(--text);background:var(--ink-2);border:1px solid var(--line);
+    border-radius:var(--r-chip);padding:13px 14px;width:100%;min-height:8rem;resize:vertical;line-height:1.45;
+    -webkit-user-select:text;user-select:text}
+  textarea:focus{outline:2px solid var(--accent);outline-offset:0}
+  .row{display:flex;gap:10px;margin-top:12px}
+  .row>button{flex:1}
+  .wide{width:100%;margin-top:12px}
+  .big{min-height:var(--tap-lg);font-size:1.0556rem}
+  .seg{margin-bottom:6px}
+  .card{background:var(--ink-1);border-radius:var(--r-card);padding:16px}
+  .card+.card{margin-top:10px}
+
+  /* ---- library ---- */
+  .brief{margin-top:4px}
+  .brief .lbl{color:var(--dim);margin-bottom:8px}
+  .walk{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:26px 0 10px}
+  .walk h3{font-family:var(--grot);font-size:1.1111rem;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .walk span{flex:none;color:var(--dim);font-size:.8333rem;font-weight:600}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  .grid button{position:relative;padding:0;min-height:0;aspect-ratio:1;border-radius:12px;overflow:hidden;background:var(--ink-2)}
+  .grid img{width:100%;height:100%;object-fit:cover;display:block}
+  .grid i{position:absolute;right:6px;bottom:6px;min-width:26px;height:26px;padding:0 6px;border-radius:13px;background:var(--accent);
+    color:var(--accent-ink);font-style:normal;font-family:var(--grot);font-weight:700;font-size:.7778rem;line-height:26px;text-align:center}
+
+  /* ---- one photo ---- */
+  .hero{display:block;width:100%;max-height:62dvh;object-fit:contain;background:#000;border-radius:var(--r-card)}
+  .meta{margin-top:10px;color:var(--dim);font-size:.8889rem;font-weight:600}
+  .reply{margin-top:10px}
+  .reply .head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}
+  .reply .head .lbl{color:var(--dim)}
+  .reply .x{min-height:48px;min-width:48px;padding:0 12px;font-size:.8333rem;background:transparent;color:var(--dim)}
+  .reply .x.arm{background:var(--warn);color:var(--ink-0)}
+  .scores{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 10px}
+  .scores span{background:var(--ink-2);border-radius:10px;padding:4px 10px;font-size:.8333rem;font-weight:600;color:var(--dim)}
+  .scores b{color:var(--accent);font-family:var(--grot)}
+  .focus{border-left:3px solid var(--accent);padding:2px 0 2px 12px;margin-bottom:10px;font-weight:600}
+
+  /* rendered markdown */
+  .md{font-size:.9444rem;line-height:1.55;-webkit-user-select:text;user-select:text}
+  .md>*+*{margin-top:.6em}
+  .md h1,.md h2,.md h3,.md h4{font-family:var(--grot);font-weight:600;line-height:1.25;margin-top:1.1em}
+  .md h1{font-size:1.2222rem}.md h2{font-size:1.1111rem}.md h3,.md h4{font-size:1rem}
+  .md ul,.md ol{padding-left:1.3em}
+  .md li+li{margin-top:.3em}
+  .md blockquote{border-left:3px solid var(--line);padding-left:12px;color:var(--text-2)}
+  .md code{background:var(--ink-2);border-radius:6px;padding:1px 5px;font-size:.9em}
+  .md hr{border:none;border-top:1px solid var(--line)}
+  .clip{max-height:14rem;overflow:hidden;position:relative}
+  .clip::after{content:"";position:absolute;left:0;right:0;bottom:0;height:4rem;background:linear-gradient(transparent,var(--ink-1))}
+  .more{min-height:48px;padding:0 14px;font-size:.8333rem;margin-top:8px}
+
+  /* ---- coach ---- */
+  .tiles{margin-top:4px}
+  .bars{margin-top:4px}
+  .brow{display:flex;align-items:center;gap:10px;min-height:40px}
+  .brow .g{width:6.6rem;font-weight:600;font-size:.8889rem;color:var(--text-2)}
+  .brow .track{flex:1;height:14px;background:var(--ink-2);border-radius:7px;overflow:hidden}
+  .brow .track i{display:block;height:100%;background:var(--accent);border-radius:7px 4px 4px 7px}
+  .brow .n{width:2.6rem;text-align:right;font-family:var(--grot);font-weight:600;font-size:.9444rem}
+  details.idea{background:var(--ink-1);border-radius:var(--r-card);margin-top:8px}
+  details.idea summary{list-style:none;min-height:var(--tap);display:flex;align-items:center;padding:0 16px;font-weight:600;cursor:pointer}
+  details.idea summary::-webkit-details-marker{display:none}
+  details.idea summary::after{content:"+";margin-left:auto;color:var(--dim);font-size:1.2rem}
+  details.idea[open] summary::after{content:"–"}
+  details.idea p{padding:0 16px 14px;color:var(--text-2);font-size:.9444rem;line-height:1.5}
+  details.idea p b{color:var(--text)}
+</style>
+</head>
+<body>
+
+<header class="apphead">
+  <h1>Photo Coach</h1>
+  <div class="user" id="userBox"></div>
+</header>
+
+<main id="main">
+  <section class="gate hidden" id="gate">
+    <p id="gateMsg">Sign in to see your photos and coaching.</p>
+    <button class="primary" id="signInBig">Sign in with Google</button>
+  </section>
+
+  <section class="hidden" id="app">
+    <nav class="seg" id="tabs">
+      <button data-tab="library" aria-pressed="true">Library</button>
+      <button data-tab="coach">Coach</button>
+      <button data-tab="more">More</button>
+    </nav>
+
+    <!-- ---- library ---- -->
+    <div id="v-library">
+      <div id="briefBox"></div>
+      <h2 class="lbl sect">Add from today's walk</h2>
+      <label for="walkName">Walk</label>
+      <input type="text" id="walkName" autocomplete="off" placeholder="Sea Point promenade">
+      <button class="primary wide big" id="addBtn">Add photos</button>
+      <p class="note" style="margin-top:8px">Opens your phone's picker — tap ☰ or <b>Browse</b> in it to pick from Google Drive or Photos. Pick only the few worth a look.</p>
+      <input type="file" id="addFile" accept="image/*" multiple class="hidden">
+      <div id="library"></div>
+    </div>
+
+    <!-- ---- one photo ---- -->
+    <div id="v-photo" class="hidden">
+      <button class="quiet back" id="backBtn">← Library</button>
+      <div id="photoBox" style="margin-top:12px"></div>
+    </div>
+
+    <!-- ---- coach ---- -->
+    <div id="v-coach" class="hidden">
+      <div id="coachBox"></div>
+    </div>
+
+    <!-- ---- more ---- -->
+    <div id="v-more" class="hidden">
+      <h2 class="lbl sect">Keep your data</h2>
+      <button class="quiet wide" id="exportJson">Export everything (JSON, with photos)</button>
+      <button class="quiet wide" id="exportMd">Export all feedback (markdown)</button>
+      <button class="quiet wide" id="importBtn">Import a JSON export</button>
+      <input type="file" id="importFile" accept="application/json,.json" class="hidden">
+      <h2 class="lbl sect">This phone</h2>
+      <div id="installHere"></div>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">Photo Coach <span id="version"></span></footer>
+
+<script type="module">
+  import { cloud } from "../shared/cloud.js";
+  import { phone } from "../shared/phone.js";
+
+  // Bump on every change. The deploy skill checks this against the live site.
+  const APP_VERSION = "0.1.0";
+  const APP_ID = "photo-coach";
+  document.getElementById("version").textContent = "v" + APP_VERSION;
+
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+
+  // ---- what we coach ----
+  const SKILLS = [
+    { key: "composition", name: "Composition" },
+    { key: "light",       name: "Light" },
+    { key: "subject",     name: "Subject" },
+    { key: "moment",      name: "Moment" },
+    { key: "creativity",  name: "Creativity" },
+    { key: "overall",     name: "Overall" }
+  ];
+  const AIS = ["ChatGPT", "Claude", "Gemini", "Other"];
+  const KINDS = {
+    critique: { name: "Critique", ask:
+`Give me a coaching critique of this photo, in markdown, with these sections:
+## First read
+What my eye does in the first three seconds, and where it ends up. Is that where I wanted it?
+## What works
+Only what genuinely works, each tied to a named principle.
+## What doesn't
+The real problems, most important first. Go through composition (rule of thirds, balance, negative space), framing and edges, leading lines, foreground / middle / background, light and colour, subject clarity, and the moment. Skip any that don't matter here.
+## Reshoot it
+Standing where I stood, exactly what I should have done: step left, crouch, get closer, wait for someone to walk into the gap, come back at a different hour. Be concrete.
+## Practise this
+One skill to work on next walk, and a small drill for it.` },
+    wild: { name: "Wild ideas", ask:
+`Don't critique this photo — reimagine it. In markdown, give me 3 to 5 bold, even extreme versions of this shot that I could plan for or go back and get: the moon rising behind it, a different foreground, a reflection in a puddle, a silhouette, a different time of day or weather, a radically different angle or lens, a person placed in the frame. For each:
+## <a short title>
+What the picture would look like, which principle makes it stronger (leading lines, framing, scale, layering, contrast, etc.), and what I'd practically need to do to get it in Cape Town (where to stand, what time, what to wait for).
+End with one sentence on which of these is most worth actually attempting, and why.` },
+    grade: { name: "Grade me", ask:
+`Grade this photo strictly, as a tough photography teacher would. In markdown, one short line of evidence for each of: composition, light, subject, moment, creativity. Then a one-paragraph verdict: what separates this from a photo a good photographer would keep. Keep it short.` }
+  };
+
+  const IDEAS = [
+    ["Rule of thirds", "Imagine the frame split by two lines each way. Putting the subject or horizon on a line — not dead centre — usually gives the picture somewhere to go. Centre it only on purpose (symmetry)."],
+    ["Leading lines", "Roads, rails, kerbs, shadows, a wall's edge: lines the eye follows. Good ones start near a corner or the bottom and carry you <b>to</b> the subject, not out of the frame."],
+    ["Framing", "Shoot through something — an archway, branches, a window, a gap between buildings — so the scene has a border inside the border. It focuses attention and adds depth."],
+    ["Foreground interest", "Something close to the lens (a rock, a bollard, a flower) in front of the main scene. Cape Town's big views look flat without it; with it, they feel like you're standing there."],
+    ["Layers & depth", "Foreground, middle, background, each with something in it. The mountain behind, the city between, a person in front. Get low or step back to stack them."],
+    ["Negative space", "Empty sky, sea or wall around a small subject. It makes the subject matter more, not less — as long as the emptiness is deliberate and clean."],
+    ["Simplicity & edges", "Check the four edges before you shoot. Cut half a car, a pole out of someone's head, a bright bin in the corner? Step, crop or wait. Fewer things = stronger picture."],
+    ["Light", "Low sun (the hour after sunrise, before sunset) gives shape and warmth; midday gives hard shadows and flat colour. Notice where the light comes from and put it to the side of your subject."],
+    ["Contrast", "Light against dark, old against new, still against moving, big against small. The eye goes to the difference. Find the one thing that doesn't match its surroundings."],
+    ["Perspective & angle", "Everyone shoots from standing eye height. Crouch to the pavement, hold the phone high, get much closer than feels polite. A new angle is the cheapest way to an original photo."],
+    ["The moment", "A person mid-stride into the light, the gull in the gap, the wave at its peak. Find the stage first, then wait for the actor. Patience beats luck."],
+    ["Symmetry & patterns", "Repeating windows, railings, beach huts — then break the pattern with one thing different. Or line up perfect symmetry and put the subject dead centre."]
+  ];
+
+  // ---- state ----
+  let photos = [];     // [{ id, walk, takenAt, addedAt, note, thumb, critiques: [] }]
+  let reviews = [];    // [{ id, at, ai, reply, photoCount, since }]
+  let tab = "library";
+  let openId = null;   // photo on screen
+  let fullCache = {};  // id → data URL of the big image
+  let kind = "critique";
+  let ai = localGet("pc-ai") || "ChatGPT";
+  let unsubs = [];
+  // Half-typed text survives the live re-renders a save on another field causes.
+  const drafts = { reply: {}, note: {}, review: "" };
+
+  function localGet(k){ try { return localStorage.getItem(k); } catch { return null; } }
+  function localSet(k, v){ try { localStorage.setItem(k, v); } catch {} }
+
+  // ---- helpers ----
+  function tap(node, fn){
+    if (!node) return;
+    let down = false, sx = 0, sy = 0;
+    node.addEventListener("pointerdown", e => { down = true; sx = e.clientX; sy = e.clientY; });
+    node.addEventListener("pointercancel", () => { down = false; });
+    node.addEventListener("pointerup", e => {
+      if (!down) return;
+      down = false;
+      if (Math.abs(e.clientX - sx) > 14 || Math.abs(e.clientY - sy) > 14) return; // a scroll, not a tap
+      e.preventDefault();
+      fn(e);
+    });
+    node.addEventListener("click", e => e.preventDefault());
+  }
+
+  // Tap once to arm, again within 3s to do it.
+  function armed(btn, label, doIt){
+    let t = null;
+    tap(btn, () => {
+      if (!btn.classList.contains("arm")){
+        btn.classList.add("arm"); btn.textContent = "Tap again";
+        t = setTimeout(() => { btn.classList.remove("arm"); btn.textContent = label; }, 3000);
+        return;
+      }
+      clearTimeout(t);
+      doIt();
+    });
+  }
+
+  function toast(msg){
+    const t = document.createElement("div");
+    t.className = "toast";
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 2600);
+  }
+
+  function download(name, text, type){
+    const url = URL.createObjectURL(new Blob([text], { type: type + ";charset=utf-8" }));
+    const a = document.createElement("a");
+    a.href = url; a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 4000);
+  }
+
+  const dayLabel = ms => new Date(ms).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  const toISO = d => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  const newId = () => cloud.configured() ? cloud.newId() : "l" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+  // A small, safe markdown renderer: headings, lists, quotes, rules, bold, italic, code.
+  function md(src){
+    const inline = s => esc(s)
+      .replace(/`([^`]+)`/g, "<code>$1</code>")
+      .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")
+      .replace(/__([^_]+)__/g, "<b>$1</b>")
+      .replace(/(^|[^*])\*([^*\s][^*]*)\*/g, "$1<i>$2</i>");
+    const out = [];
+    let list = null, para = [];
+    const flushPara = () => { if (para.length){ out.push(`<p>${inline(para.join(" "))}</p>`); para = []; } };
+    const flushList = () => { if (list){ out.push(`<${list.tag}>${list.items.map(i => `<li>${inline(i)}</li>`).join("")}</${list.tag}>`); list = null; } };
+    for (const raw of String(src || "").replace(/\r/g, "").split("\n")){
+      const line = raw.trimEnd();
+      let m;
+      if (!line.trim()){ flushPara(); flushList(); continue; }
+      if ((m = line.match(/^\s*(#{1,6})\s+(.*)$/))){ flushPara(); flushList(); const n = Math.min(4, m[1].length); out.push(`<h${n}>${inline(m[2].replace(/#+\s*$/, ""))}</h${n}>`); continue; }
+      if (/^\s*([-*_])(\s*\1){2,}\s*$/.test(line)){ flushPara(); flushList(); out.push("<hr>"); continue; }
+      if ((m = line.match(/^\s*>\s?(.*)$/))){ flushPara(); flushList(); out.push(`<blockquote>${inline(m[1])}</blockquote>`); continue; }
+      if ((m = line.match(/^\s*([-*+•]|\d+[.)])\s+(.*)$/))){
+        flushPara();
+        const tag = /\d/.test(m[1]) ? "ol" : "ul";
+        if (!list || list.tag !== tag){ flushList(); list = { tag, items: [] }; }
+        list.items.push(m[2]);
+        continue;
+      }
+      if (list && /^\s{2,}\S/.test(raw)){ list.items[list.items.length - 1] += " " + line.trim(); continue; }
+      flushList();
+      para.push(line.trim());
+    }
+    flushPara(); flushList();
+    return out.join("");
+  }
+
+  // Pull "SCORES: composition=6, light=5 …" and "FOCUS: …" out of a reply.
+  function parseReply(text){
+    const scores = {};
+    const sm = text.match(/SCORES?\s*\**\s*[:\-]\s*(.+)/i);
+    if (sm){
+      for (const m of sm[1].matchAll(/([a-z]+)\s*[=:]\s*(\d+(?:\.\d+)?)/gi)){
+        const k = m[1].toLowerCase(), v = Number(m[2]);
+        if (SKILLS.some(s => s.key === k) && v >= 0 && v <= 10) scores[k] = v;
+      }
+    }
+    const fm = text.match(/FOCUS\s*\**\s*[:\-]\s*(.+)/i);
+    return { scores, focus: fm ? fm[1].replace(/\*+/g, "").trim().slice(0, 300) : "" };
+  }
+  // The machine lines are for us; hide them from the rendered reply.
+  const stripMachine = text => text.replace(/^.*\b(SCORES?|FOCUS)\s*\**\s*[:\-].*$/gim, "").trim();
+
+  // ---- images ----
+  // Shrink on the phone so a photo fits comfortably in one Firestore document (< 1 MB).
+  async function shrink(file, edge, quality, maxChars){
+    const bmp = await createImageBitmap(file, { imageOrientation: "from-image" });
+    let scale = Math.min(1, edge / Math.max(bmp.width, bmp.height));
+    let q = quality, url;
+    for (let i = 0; i < 6; i++){
+      const c = document.createElement("canvas");
+      c.width = Math.round(bmp.width * scale); c.height = Math.round(bmp.height * scale);
+      c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+      url = c.toDataURL("image/jpeg", q);
+      if (!maxChars || url.length <= maxChars) break;
+      q = Math.max(.5, q - .08); scale *= .88;
+    }
+    bmp.close && bmp.close();
+    return url;
+  }
+
+  async function dataUrlToFile(url, name){
+    const blob = await (await fetch(url)).blob();
+    return new File([blob], name, { type: blob.type || "image/jpeg" });
+  }
+
+  // ---- storage ----
+  // Cloud when set up and signed in; an in-memory copy otherwise, so the app still runs.
+  const local = { images: {} };
+  const store = {
+    get live(){ return cloud.configured() && !!cloud.user; },
+    async savePhoto(p){
+      const { id, ...rest } = p;
+      if (this.live) return cloud.save(`photos/${id}`, rest);
+      photos = [p, ...photos.filter(x => x.id !== id)]; render();
+    },
+    async saveImage(id, data){
+      if (this.live) return cloud.save(`images/${id}`, { data });
+      local.images[id] = data;
+    },
+    async loadImage(id){
+      if (this.live){ const d = await cloud.load(`images/${id}`); return d && d.data; }
+      return local.images[id];
+    },
+    async removePhoto(id){
+      if (this.live){ await cloud.delete(`photos/${id}`); return cloud.delete(`images/${id}`); }
+      photos = photos.filter(x => x.id !== id); delete local.images[id]; render();
+    },
+    async saveReview(r){
+      const { id, ...rest } = r;
+      if (this.live) return cloud.save(`reviews/${id}`, rest);
+      reviews = [r, ...reviews.filter(x => x.id !== id)]; render();
+    },
+    async removeReview(id){
+      if (this.live) return cloud.delete(`reviews/${id}`);
+      reviews = reviews.filter(x => x.id !== id); render();
+    }
+  };
+
+  // ---- derived ----
+  const allCritiques = () => photos.flatMap(p => (p.critiques || []).map(c => ({ ...c, photo: p })));
+  function averages(list = allCritiques()){
+    const out = {};
+    for (const s of SKILLS){
+      const vals = list.map(c => c.scores && c.scores[s.key]).filter(v => typeof v === "number");
+      out[s.key] = vals.length ? { avg: vals.reduce((a, b) => a + b, 0) / vals.length, n: vals.length } : null;
+    }
+    return out;
+  }
+  const weakest = () => {
+    const a = averages();
+    return SKILLS.filter(s => s.key !== "overall" && a[s.key]).sort((x, y) => a[x.key].avg - a[y.key].avg).slice(0, 2);
+  };
+  const latestReview = () => reviews[0] || null;
+  // The "Next walk" section of the latest review, or its opening if it has none.
+  function briefFrom(r){
+    if (!r) return "";
+    const lines = r.reply.split("\n");
+    const at = lines.findIndex(l => /^#{1,4}\s*(your\s+)?next walk/i.test(l.trim()));
+    if (at < 0) return r.reply.trim().slice(0, 1400);
+    const end = lines.findIndex((l, i) => i > at && /^#{1,4}\s/.test(l.trim()));
+    return lines.slice(at + 1, end < 0 ? undefined : end).join("\n").trim().slice(0, 1400);
+  }
+
+  // ---- prompts ----
+  function photoPrompt(p, k){
+    const w = weakest();
+    const r = latestReview();
+    const brief = briefFrom(r);
+    const past = (p.critiques || []).map(c => c.focus).filter(Boolean);
+    return `You are my photography coach. I'm learning: I shoot on my phone while walking around Cape Town. I know the names of ideas like composition, framing and leading lines, but I don't really understand how to use them yet. Be honest and challenging, not polite — tell me what a good photographer would have done differently. Every time you use a principle, name it and explain it in one plain sentence. Talk about this specific photo, not photography in general.
+
+About this photo:
+- Walk: ${p.walk || "a walk in Cape Town"}${p.takenAt ? ` (${dayLabel(p.takenAt)})` : ""}
+- What I was going for: ${p.note ? p.note : "(I didn't say — work out what the photo seems to be about)"}
+${w.length ? `- My weakest skills so far: ${w.map(s => s.name.toLowerCase()).join(" and ")}. Pay special attention to them.\n` : ""}${past.length ? `- Earlier feedback on this photo told me to practise: ${past.join("; ")}\n` : ""}${brief ? `- My current brief from my coach:\n${brief.split("\n").map(l => "  " + l).join("\n")}\n` : ""}
+${KINDS[k].ask}
+
+Finish with exactly these two lines, plain text, whole numbers 1–10 (5 is an ordinary snapshot, 8 is a photo a good photographer would keep):
+SCORES: composition=?, light=?, subject=?, moment=?, creativity=?, overall=?
+FOCUS: <the one principle I should practise next> — <one sentence on how>`;
+  }
+
+  function reviewPrompt(){
+    const since = latestReview() ? latestReview().at : 0;
+    const list = allCritiques().filter(c => c.at > since).sort((a, b) => a.at - b.at).slice(-30);
+    const a = averages(), recent = averages(list);
+    const fmt = av => SKILLS.map(s => `${s.key} ${av[s.key] ? av[s.key].avg.toFixed(1) : "–"}`).join(", ");
+    const body = list.map((c, i) => `### Photo ${i + 1} — ${c.photo.walk || "walk"}, ${dayLabel(c.photo.takenAt || c.at)} (${KINDS[c.kind] ? KINDS[c.kind].name : c.kind}, ${c.ai})
+${c.photo.note ? `What I was going for: ${c.photo.note}\n` : ""}${c.focus ? `Focus given: ${c.focus}\n` : ""}${Object.keys(c.scores || {}).length ? `Scores: ${Object.entries(c.scores).map(([k, v]) => `${k} ${v}`).join(", ")}\n` : ""}
+${stripMachine(c.reply).slice(0, 2500)}`).join("\n\n");
+    return `You are my photography coach. I'm a learner shooting on my phone on walks around Cape Town. Below is the feedback I've had on my photos ${since ? `since my last review (${dayLabel(since)})` : "so far"}. Read it as a whole and coach me. Be direct and challenging — I want to get better, not feel good.
+
+Scores out of 10 — all time: ${fmt(a)}. This period: ${fmt(recent)}.
+${since ? `\nMy last review said:\n${latestReview().reply.slice(0, 2500)}\n` : ""}
+Write a coaching review in markdown with these sections:
+## Where you are
+Two or three sentences, honest.
+## Patterns
+What keeps going wrong and what keeps going right, by named principle, citing photo numbers. Did I do what the last review asked?
+## Stop doing
+The habits holding me back.
+## Next walk
+Exactly three specific, doable challenges for my next walk in Cape Town, each with a named principle, a place or kind of scene to try it on, and how I'll know I've done it.
+## Stretch
+One ambitious photo to plan for over the next month.
+
+---
+
+${body || "(No feedback saved yet.)"}`;
+  }
+
+  // ---- rendering ----
+  function render(){
+    for (const t of ["library", "photo", "coach", "more"]) $("v-" + t).classList.toggle("hidden", t !== (openId ? "photo" : tab));
+    $("tabs").classList.toggle("hidden", !!openId);
+    document.querySelectorAll("#tabs button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.tab === tab)));
+    if (openId) return renderPhoto();
+    if (tab === "library") renderLibrary();
+    if (tab === "coach") renderCoach();
+  }
+
+  function renderBrief(){
+    const r = latestReview();
+    const b = briefFrom(r);
+    $("briefBox").innerHTML = b
+      ? `<div class="card brief"><h2 class="lbl">Your brief · ${dayLabel(r.at)}</h2><div class="md">${md(b)}</div></div>`
+      : `<div class="card brief"><h2 class="lbl">How this works</h2><p class="note">Add a few photos from a walk. Open one, send it to an AI for feedback, paste the reply back. After a few walks, the <b>Coach</b> tab turns it all into a brief for your next walk.</p></div>`;
+  }
+
+  function renderLibrary(){
+    renderBrief();
+    const box = $("library");
+    if (!photos.length){ box.innerHTML = `<p class="empty">No photos yet.</p>`; return; }
+    const walks = new Map();
+    for (const p of [...photos].sort((a, b) => b.addedAt - a.addedAt)){
+      const k = p.walk || "Unfiled";
+      if (!walks.has(k)) walks.set(k, []);
+      walks.get(k).push(p);
+    }
+    box.innerHTML = [...walks].map(([name, list]) => `
+      <div class="walk"><h3>${esc(name)}</h3><span>${dayLabel(list[0].takenAt || list[0].addedAt)} · ${list.length}</span></div>
+      <div class="grid">${list.map(p => {
+        const n = (p.critiques || []).length;
+        const last = (p.critiques || []).filter(c => c.scores && typeof c.scores.overall === "number").slice(-1)[0];
+        return `<button data-id="${esc(p.id)}" aria-label="Open photo">${p.thumb ? `<img src="${p.thumb}" alt="" loading="lazy">` : ""}${n ? `<i>${last ? last.scores.overall : "✓"}</i>` : ""}</button>`;
+      }).join("")}</div>`).join("");
+    box.querySelectorAll(".grid button").forEach(b => tap(b, () => openPhoto(b.dataset.id)));
+  }
+
+  async function openPhoto(id){
+    history.pushState({ photo: id }, "");
+    openId = id;
+    kind = "critique";
+    render();
+    $("main").scrollTop = 0;
+    if (!fullCache[id]){
+      try { const d = await store.loadImage(id); if (d){ fullCache[id] = d; if (openId === id) renderPhoto(); } }
+      catch (e){ toast("Couldn't load the full photo: " + (e.message || e)); }
+    }
+  }
+
+  function renderPhoto(){
+    const p = photos.find(x => x.id === openId);
+    const box = $("photoBox");
+    if (!p){ box.innerHTML = `<p class="empty">That photo's gone.</p>`; return; }
+    const crits = [...(p.critiques || [])].sort((a, b) => b.at - a.at);
+    box.innerHTML = `
+      <img class="hero" src="${fullCache[p.id] || p.thumb || ""}" alt="">
+      <p class="meta">${esc(p.walk || "Unfiled")} · ${dayLabel(p.takenAt || p.addedAt)}</p>
+      <label for="noteIn">What were you going for? (goes in the prompt)</label>
+      <input type="text" id="noteIn" value="${esc(drafts.note[p.id] ?? p.note ?? "")}" placeholder="The light on the old building" autocomplete="off">
+
+      <h2 class="lbl sect">Ask for feedback</h2>
+      <div class="seg" id="kindSeg">${Object.entries(KINDS).map(([k, v]) => `<button data-k="${k}" aria-pressed="${k === kind}">${v.name}</button>`).join("")}</div>
+      <button class="primary wide big" id="sendBtn">Send to an AI</button>
+      <div class="row"><button class="quiet" id="copyBtn">Copy prompt</button><button class="quiet" id="saveImgBtn">Save photo</button></div>
+      <p class="note" style="margin-top:8px">Send shares the photo and prompt together — pick ChatGPT, Claude or Gemini. The prompt is copied too, in case the app only takes the photo.</p>
+
+      <h2 class="lbl sect">Paste the reply</h2>
+      <div class="seg" id="aiChips">${AIS.map(a => `<button data-ai="${a}" aria-pressed="${a === ai}">${a}</button>`).join("")}</div>
+      <textarea id="replyIn" placeholder="Paste the AI's whole reply here" style="margin-top:10px">${esc(drafts.reply[p.id] || "")}</textarea>
+      <div class="row"><button class="quiet" id="pasteBtn">Paste</button><button class="primary" id="keepBtn">Save feedback</button></div>
+
+      <h2 class="lbl sect">${crits.length ? `Feedback · ${crits.length}` : "Feedback"}</h2>
+      ${crits.length ? crits.map(c => critHtml(c)).join("") : `<p class="note">Nothing saved yet.</p>`}
+
+      <h2 class="lbl sect">This photo</h2>
+      <button class="quiet warnbtn wide" id="delPhoto">Delete photo</button>`;
+
+    const noteIn = $("noteIn");
+    noteIn.addEventListener("input", () => { drafts.note[p.id] = noteIn.value; });
+    noteIn.addEventListener("change", () => store.savePhoto({ ...p, note: noteIn.value.trim() }).then(() => { delete drafts.note[p.id]; }).catch(err));
+    $("replyIn").addEventListener("input", e => { drafts.reply[p.id] = e.target.value; });
+    box.querySelectorAll("#kindSeg button").forEach(b => tap(b, () => {
+      kind = b.dataset.k;
+      box.querySelectorAll("#kindSeg button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+    }));
+    box.querySelectorAll("#aiChips button").forEach(b => tap(b, () => {
+      ai = b.dataset.ai; localSet("pc-ai", ai);
+      box.querySelectorAll("#aiChips button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+    }));
+    const current = () => ({ ...p, note: noteIn.value.trim() });
+    tap($("sendBtn"), () => sendToAi(current()));
+    tap($("copyBtn"), () => copy(photoPrompt(current(), kind), "Prompt copied"));
+    tap($("saveImgBtn"), () => download2(p));
+    tap($("pasteBtn"), async () => {
+      try { $("replyIn").value = drafts.reply[p.id] = await navigator.clipboard.readText(); }
+      catch { toast("Long-press the box and choose Paste"); }
+    });
+    tap($("keepBtn"), () => keepReply(p));
+    box.querySelectorAll(".reply [data-del]").forEach(b => armed(b, "Delete", () => {
+      const rest = (p.critiques || []).filter(c => c.id !== b.dataset.del);
+      store.savePhoto({ ...p, critiques: rest }).then(() => toast("Feedback deleted")).catch(err);
+    }));
+    box.querySelectorAll("[data-expand]").forEach(b => tap(b, () => {
+      const el = b.previousElementSibling; el.classList.remove("clip"); b.remove();
+    }));
+    armed($("delPhoto"), "Delete photo", async () => {
+      try { await store.removePhoto(p.id); delete fullCache[p.id]; if (history.state && history.state.photo) history.back(); else { openId = null; render(); } toast("Photo deleted"); }
+      catch (e){ err(e); }
+    });
+  }
+
+  function critHtml(c){
+    const sc = SKILLS.filter(s => c.scores && typeof c.scores[s.key] === "number");
+    const body = md(stripMachine(c.reply));
+    const long = c.reply.length > 900;
+    return `<div class="card reply">
+      <div class="head"><span class="lbl">${esc(KINDS[c.kind] ? KINDS[c.kind].name : c.kind)} · ${esc(c.ai)} · ${dayLabel(c.at)}</span><button class="x" data-del="${esc(c.id)}">Delete</button></div>
+      ${sc.length ? `<div class="scores">${sc.map(s => `<span>${s.name} <b>${c.scores[s.key]}</b></span>`).join("")}</div>` : ""}
+      ${c.focus ? `<div class="focus">${esc(c.focus)}</div>` : ""}
+      <div class="md${long ? " clip" : ""}">${body}</div>${long ? `<button class="quiet more" data-expand>Show all</button>` : ""}
+    </div>`;
+  }
+
+  function renderCoach(){
+    const crits = allCritiques();
+    const a = averages(crits);
+    const withFb = photos.filter(p => (p.critiques || []).length).length;
+    const since = latestReview() ? latestReview().at : 0;
+    const fresh = crits.filter(c => c.at > since).length;
+    const bars = SKILLS.filter(s => s.key !== "overall" && a[s.key]).sort((x, y) => a[x.key].avg - a[y.key].avg);
+    const box = $("coachBox");
+    box.innerHTML = `
+      <div class="tiles">
+        <div class="tile"><b>${photos.length}</b><span class="lbl">Photos</span></div>
+        <div class="tile"><b>${withFb}</b><span class="lbl">Coached</span></div>
+        <div class="tile"><b style="color:var(--accent)">${a.overall ? a.overall.avg.toFixed(1) : "–"}</b><span class="lbl">Overall</span></div>
+      </div>
+
+      <h2 class="lbl sect">Skills · weakest first</h2>
+      ${bars.length ? `<div class="card bars">${bars.map(s => `<div class="brow"><span class="g">${s.name}</span><span class="track"><i style="width:${a[s.key].avg * 10}%"></i></span><span class="n">${a[s.key].avg.toFixed(1)}</span></div>`).join("")}</div>
+        <p class="note" style="margin-top:8px">Averaged over every reply that ended with a SCORES line.</p>`
+        : `<p class="note">Scores show up here once you've saved some feedback.</p>`}
+
+      <h2 class="lbl sect">Coaching review</h2>
+      <p class="note">${fresh ? `${fresh} piece${fresh === 1 ? "" : "s"} of feedback since ${since ? "the last review" : "you started"}.` : "No new feedback since the last review."} Build one prompt from all of it, send it to an AI, paste the reply — it becomes your brief for the next walk.</p>
+      <button class="primary wide big" id="revCopy" ${fresh ? "" : "disabled"}>Copy review prompt</button>
+      <div class="seg" id="revAi" style="margin-top:14px">${AIS.map(x => `<button data-ai="${x}" aria-pressed="${x === ai}">${x}</button>`).join("")}</div>
+      <textarea id="revIn" placeholder="Paste the coaching review here" style="margin-top:10px">${esc(drafts.review)}</textarea>
+      <div class="row"><button class="quiet" id="revPaste">Paste</button><button class="primary" id="revKeep">Save review</button></div>
+
+      ${reviews.length ? `<h2 class="lbl sect">Past reviews</h2>${reviews.map(r => `<div class="card reply">
+        <div class="head"><span class="lbl">${dayLabel(r.at)} · ${esc(r.ai)} · ${r.photoCount || 0} repl${r.photoCount === 1 ? "y" : "ies"}</span><button class="x" data-rdel="${esc(r.id)}">Delete</button></div>
+        <div class="md clip">${md(r.reply)}</div><button class="quiet more" data-expand>Show all</button></div>`).join("")}` : ""}
+
+      <h2 class="lbl sect">The ideas</h2>
+      ${IDEAS.map(([n, t]) => `<details class="idea"><summary>${n}</summary><p>${t}</p></details>`).join("")}`;
+
+    tap($("revCopy"), () => copy(reviewPrompt(), "Review prompt copied — paste it into your AI"));
+    box.querySelectorAll("#revAi button").forEach(b => tap(b, () => {
+      ai = b.dataset.ai; localSet("pc-ai", ai);
+      box.querySelectorAll("#revAi button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+    }));
+    $("revIn").addEventListener("input", e => { drafts.review = e.target.value; });
+    tap($("revPaste"), async () => {
+      try { $("revIn").value = drafts.review = await navigator.clipboard.readText(); }
+      catch { toast("Long-press the box and choose Paste"); }
+    });
+    tap($("revKeep"), async () => {
+      const reply = $("revIn").value.trim();
+      if (!reply) return toast("Paste the review first");
+      drafts.review = "";
+      try { await store.saveReview({ id: newId(), at: Date.now(), ai, reply, photoCount: fresh, since }); toast("Review saved — your brief is on the Library tab"); }
+      catch (e){ drafts.review = reply; err(e); }
+    });
+    box.querySelectorAll("[data-rdel]").forEach(b => armed(b, "Delete", () => store.removeReview(b.dataset.rdel).then(() => toast("Review deleted")).catch(err)));
+    box.querySelectorAll("[data-expand]").forEach(b => tap(b, () => { b.previousElementSibling.classList.remove("clip"); b.remove(); }));
+  }
+
+  // ---- actions ----
+  const err = e => toast("Couldn't save: " + (e && e.message || e));
+
+  function copy(text, msg){
+    if (!navigator.clipboard) return toast("This browser can't copy");
+    navigator.clipboard.writeText(text).then(() => toast(msg)).catch(() => toast("Couldn't copy"));
+  }
+
+  async function sendToAi(p){
+    const prompt = photoPrompt(p, kind);
+    const src = fullCache[p.id] || p.thumb;
+    // Copy first, in the same tap, so the prompt is there even if the AI app only takes the image.
+    if (navigator.clipboard) navigator.clipboard.writeText(prompt).catch(() => {});
+    try {
+      const file = await dataUrlToFile(src, `photo-${p.id}.jpg`);
+      if (navigator.canShare && navigator.canShare({ files: [file] })){
+        await navigator.share({ files: [file], text: prompt });
+        toast("Paste the reply below when it's done");
+        return;
+      }
+      toast("Sharing isn't available here — prompt copied, use Save photo");
+    } catch (e){
+      if (e && e.name === "AbortError") return;
+      toast("Couldn't share — prompt copied, use Save photo");
+    }
+  }
+
+  function download2(p){
+    const src = fullCache[p.id] || p.thumb;
+    if (!src) return toast("Photo still loading");
+    const a = document.createElement("a");
+    a.href = src; a.download = `photo-${p.id}.jpg`;
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+
+  async function keepReply(p){
+    const reply = $("replyIn").value.trim();
+    if (!reply) return toast("Paste the reply first");
+    const { scores, focus } = parseReply(reply);
+    const c = { id: newId(), kind, ai, reply, scores, focus, at: Date.now() };
+    delete drafts.reply[p.id]; delete drafts.note[p.id];
+    try {
+      await store.savePhoto({ ...p, note: $("noteIn").value.trim(), critiques: [...(p.critiques || []), c] });
+      toast(Object.keys(scores).length ? "Saved, with scores" : "Saved (no SCORES line found)");
+    } catch (e){ drafts.reply[p.id] = reply; err(e); }
+  }
+
+  async function addPhotos(files){
+    if (!files.length) return;
+    const walk = $("walkName").value.trim() || `Walk · ${dayLabel(Date.now())}`;
+    localSet("pc-walk", JSON.stringify({ walk, day: toISO(new Date()) }));
+    toast(`Adding ${files.length} photo${files.length === 1 ? "" : "s"}…`);
+    let ok = 0;
+    for (const f of files){
+      try {
+        const [full, thumb] = await Promise.all([
+          shrink(f, 1400, .82, 900000),
+          shrink(f, 420, .72, 60000)
+        ]);
+        const id = newId();
+        fullCache[id] = full;
+        await store.saveImage(id, full);
+        await store.savePhoto({ id, walk, takenAt: f.lastModified || Date.now(), addedAt: Date.now(), note: "", thumb, critiques: [] });
+        ok++;
+      } catch (e){
+        console.warn(e);
+        toast(`Couldn't read ${f.name || "a photo"} — HEIC? Try a JPEG.`);
+      }
+    }
+    if (ok) toast(`Added ${ok} to ${walk}`);
+  }
+
+  // ---- export / import ----
+  async function exportJson(){
+    toast("Gathering photos…");
+    const images = {};
+    for (const p of photos){
+      try { images[p.id] = fullCache[p.id] || await store.loadImage(p.id) || null; } catch { images[p.id] = null; }
+    }
+    const data = { app: APP_ID, version: APP_VERSION, exportedAt: new Date().toISOString(), photos, images, reviews };
+    download(`photo-coach-${toISO(new Date())}.json`, JSON.stringify(data), "application/json");
+  }
+
+  function exportMd(){
+    const lines = [`# Photo Coach — feedback`, ``, `Exported ${toISO(new Date())}.`, ``];
+    if (reviews.length){
+      lines.push(`# Coaching reviews`, ``);
+      for (const r of reviews) lines.push(`## Review — ${toISO(new Date(r.at))} (${r.ai})`, ``, r.reply, ``, `---`, ``);
+    }
+    lines.push(`# Photos`, ``);
+    for (const p of [...photos].sort((a, b) => a.addedAt - b.addedAt)){
+      if (!(p.critiques || []).length) continue;
+      lines.push(`## ${p.walk || "Unfiled"} — ${toISO(new Date(p.takenAt || p.addedAt))} (photo ${p.id})`, ``);
+      if (p.note) lines.push(`*Going for:* ${p.note}`, ``);
+      for (const c of p.critiques) lines.push(`### ${KINDS[c.kind] ? KINDS[c.kind].name : c.kind} — ${c.ai}, ${toISO(new Date(c.at))}`, ``, c.reply, ``);
+    }
+    download(`photo-coach-feedback-${toISO(new Date())}.md`, lines.join("\n"), "text/markdown");
+  }
+
+  async function importFile(file){
+    let data;
+    try { data = JSON.parse(await file.text()); } catch { return toast("That file isn't JSON."); }
+    if (!data || !Array.isArray(data.photos)) return toast("No photos in that file.");
+    let added = 0;
+    try {
+      for (const p of data.photos){
+        if (!p || !p.id) continue;
+        const img = data.images && data.images[p.id];
+        if (img) await store.saveImage(p.id, img);
+        await store.savePhoto(p);
+        added++;
+      }
+      for (const r of data.reviews || []) if (r && r.id) await store.saveReview(r);
+      toast(`Imported ${added} photo${added === 1 ? "" : "s"}, ${(data.reviews || []).length} review${(data.reviews || []).length === 1 ? "" : "s"}`);
+    } catch (e){ err(e); }
+  }
+
+  // ---- wiring ----
+  document.querySelectorAll("#tabs button").forEach(b => tap(b, () => { tab = b.dataset.tab; render(); $("main").scrollTop = 0; }));
+  tap($("addBtn"), () => $("addFile").click());
+  $("addFile").addEventListener("change", e => {
+    const files = [...(e.target.files || [])];
+    e.target.value = "";
+    addPhotos(files);
+  });
+  try {
+    const w = JSON.parse(localGet("pc-walk") || "null");
+    if (w && w.day === toISO(new Date())) $("walkName").value = w.walk;
+  } catch {}
+  tap($("exportJson"), exportJson);
+  tap($("exportMd"), exportMd);
+  tap($("importBtn"), () => $("importFile").click());
+  $("importFile").addEventListener("change", e => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (f) importFile(f);
+  });
+  // Android's back gesture closes a photo rather than the app.
+  window.addEventListener("popstate", () => { if (openId){ openId = null; render(); } });
+  tap($("backBtn"), () => {
+    if (history.state && history.state.photo) history.back();
+    else { openId = null; render(); }
+  });
+
+  // ---- on a phone ----
+  phone.mountInstall($("installHere"), { label: "Install on this phone" });
+
+  // ---- cloud ----
+  const userBox = $("userBox");
+  await cloud.init(APP_ID);
+
+  function applyUser(user){
+    if (user){
+      userBox.innerHTML = `${user.photoURL ? `<img src="${user.photoURL}" alt="">` : ""}<button class="quiet userbtn" id="signOut">Sign out</button>`;
+      tap($("signOut"), () => cloud.signOut());
+    } else {
+      userBox.innerHTML = "";
+    }
+    start(user);
+  }
+  cloud.onUser(applyUser);
+  if (!cloud.user) applyUser(null);
+
+  tap($("signInBig"), () => cloud.signIn().catch(e => {
+    $("gateMsg").textContent = "Sign-in failed: " + (e && e.code ? e.code : e);
+  }));
+
+  // ---- app ----
+  function start(user){
+    unsubs.forEach(u => { try { u(); } catch {} });
+    unsubs = [];
+    const gated = cloud.configured() && !user;
+    $("gate").classList.toggle("hidden", !gated);
+    $("app").classList.toggle("hidden", gated);
+    if (gated) return;
+    if (cloud.configured()){
+      unsubs.push(cloud.watchList("photos", rows => { photos = rows.filter(r => r.addedAt); render(); }, { orderBy: "addedAt", desc: true, limit: 2000 }));
+      unsubs.push(cloud.watchList("reviews", rows => { reviews = rows.filter(r => r.at && r.reply); render(); }, { orderBy: "at", desc: true, limit: 200 }));
+    }
+    render();
+  }
+
+  // ---- offline shell ----
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
+</script>
+</body>
+</html>
