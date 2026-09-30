@@ -51,7 +51,57 @@
   .die.wait span{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--grot);font-weight:700;font-size:36px;color:var(--faint)}
   .die.tumble{animation:tumble .55s cubic-bezier(.2,.7,.3,1)}
   @keyframes tumble{0%{transform:translateY(-30px) rotate(-200deg) scale(.7);opacity:.3}60%{transform:translateY(4px) rotate(12deg) scale(1.05);opacity:1}100%{transform:none}}
-  @media (prefers-reduced-motion: reduce){ .die.tumble{animation:none} }
+  /* The heroes: black dice, the Hunk ringed white, the Hottie ringed pink. */
+  .die.h,.die.t{background:#1E2024}
+  .die.h{box-shadow:inset 0 0 0 3px #F2F2F2,inset 0 -5px 0 rgba(0,0,0,.4),0 3px 10px rgba(0,0,0,.35)}
+  .die.t{box-shadow:inset 0 0 0 3px #FF6FAE,inset 0 -5px 0 rgba(0,0,0,.4),0 3px 10px rgba(0,0,0,.35)}
+  .die .tag{position:absolute;left:50%;bottom:-2px;transform:translate(-50%,50%);font-style:normal;font-family:var(--grot);font-weight:700;
+    font-size:11px;letter-spacing:.08em;padding:1px 6px;border-radius:6px;background:#F2F2F2;color:#111;white-space:nowrap}
+  .die.t .tag{background:#FF6FAE;color:#2A0716}
+  .die.mini .tag{display:none}
+  .event .ev-big,.event .ev-small{position:relative;z-index:1}
+  .die .x2{position:absolute;right:-6px;top:-6px;font-style:normal;font-family:var(--grot);font-weight:700;font-size:calc(var(--ds) * .2);
+    min-width:1.9em;padding:2px 4px;border-radius:999px;background:var(--text);color:var(--ink-0);text-align:center;line-height:1.1}
+  /* Face down: the die's colour, a question mark, and a nudge to tap it. */
+  .die.down span{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--grot);font-weight:700;font-size:40px;color:rgba(0,0,0,.45)}
+  .die.h.down span,.die.t.down span{color:rgba(255,255,255,.5)}
+  .die.tapme{cursor:pointer;animation:nudge 1.6s ease-in-out infinite}
+  .die.tapme.tumble{animation:tumble .55s cubic-bezier(.2,.7,.3,1),nudge 1.6s ease-in-out .9s infinite}
+  @keyframes nudge{0%,70%,100%{transform:none}78%{transform:rotate(-6deg) scale(1.04)}86%{transform:rotate(5deg) scale(1.04)}}
+  .tray .one .tapword{color:var(--accent)}
+  .die.counted{filter:saturate(.85)}
+  .die.flip{animation:flip .35s ease-out}
+  .die.flip.chomp{animation:flip .35s ease-out,chomp .45s ease-in-out .35s}
+  .die.flip.kick{animation:flip .35s ease-out,kick .45s ease-in-out .35s}
+  .die.flip.hop{animation:flip .35s ease-out,hop .45s ease-out .35s}
+  @keyframes flip{0%{transform:perspective(400px) rotateY(90deg) scale(.9)}100%{transform:perspective(400px) rotateY(0) scale(1)}}
+  @keyframes chomp{0%,100%{transform:scale(1)}30%{transform:scale(1.14)}55%{transform:scale(.94)}80%{transform:scale(1.05)}}
+  @keyframes kick{0%,100%{transform:none}20%{transform:translateX(-7px) rotate(-5deg)}40%{transform:translateX(7px) rotate(5deg)}60%{transform:translateX(-5px)}80%{transform:translateX(4px)}}
+  @keyframes hop{0%,100%{transform:none}40%{transform:translateY(-16px)}70%{transform:translateY(0)}85%{transform:translateY(-4px)}}
+  .die.popin{animation:popin .4s cubic-bezier(.3,1.6,.5,1)}
+  @keyframes popin{0%{transform:scale(0)}100%{transform:scale(1)}}
+  /* A moment on top of the tray: a rescue, or the cup running dry. */
+  .tray{position:relative}
+  .event{position:fixed;left:50%;width:min(24rem,calc(100vw - 32px));margin-left:calc(min(24rem,calc(100vw - 32px)) / -2);top:42%;transform:translateY(-50%);z-index:15;border-radius:var(--r-card);padding:16px 14px;
+    text-align:center;background:#241826;box-shadow:0 0 0 2px #FF6FAE,0 10px 30px rgba(0,0,0,.6);animation:evin .35s cubic-bezier(.3,1.5,.5,1)}
+  .event.refill{background:#1B232E;box-shadow:0 0 0 2px var(--warn),0 10px 30px rgba(0,0,0,.6)}
+  .event .ev-big{font-family:var(--grot);font-size:26px;font-weight:700;line-height:1.15;color:#FF9CC6}
+  .event.refill .ev-big{color:var(--warn)}
+  .event .ev-small{margin-top:6px;font-size:16px;color:var(--text-2);line-height:1.35}
+  .event.going{opacity:0;transform:translateY(-60%);transition:opacity .45s ease,transform .45s ease}
+  @keyframes evin{0%{transform:translateY(-50%) scale(.6);opacity:0}100%{transform:translateY(-50%) scale(1);opacity:1}}
+  .hearts{position:absolute;inset:0;pointer-events:none;overflow:visible}
+  .hearts i{position:absolute;bottom:40%;font-style:normal;color:#FF6FAE;font-size:22px;opacity:0;animation:heart 1.6s ease-out forwards}
+  .hearts i:nth-child(1){left:12%;animation-delay:.05s}.hearts i:nth-child(2){left:30%;animation-delay:.3s;font-size:28px}
+  .hearts i:nth-child(3){left:50%;animation-delay:.15s}.hearts i:nth-child(4){left:68%;animation-delay:.4s;font-size:30px}
+  .hearts i:nth-child(5){left:86%;animation-delay:.2s}
+  @keyframes heart{0%{opacity:0;transform:translateY(0) scale(.5)}20%{opacity:1}100%{opacity:0;transform:translateY(-90px) scale(1.2)}}
+  .cupdots i.h{background:#F2F2F2} .cupdots i.t{background:#FF6FAE}
+  .pile .kept{font-size:15px}
+  @media (prefers-reduced-motion: reduce){
+    .die.tumble,.die.tapme,.die.flip,.die.popin,.event,.hearts i{animation:none !important}
+    .hearts{display:none}
+  }
 
   /* ---- game ---- */
   body.playing .apphead, body.playing main, body.playing .foot{display:none}
@@ -86,7 +136,7 @@
     background:radial-gradient(ellipse at center,#16201A 0%,var(--ink-0) 75%);border-radius:var(--r-card)}
   .tray .three{display:flex;gap:14px;justify-content:center}
   .tray .one{display:flex;flex-direction:column;align-items:center;gap:6px}
-  .tray .one span{font-size:15px;font-weight:700;color:var(--text-2)}
+.tray .one>span{font-size:15px;font-weight:700;color:var(--text-2);margin-top:4px}
   .tray .hint{font-size:15px;color:var(--dim);text-align:center;padding:0 12px}
   .piles{flex:none;display:flex;flex-direction:column;gap:6px}
   .pile{display:flex;align-items:center;gap:8px;min-height:44px}
@@ -161,6 +211,11 @@
     <h2 class="lbl sect">New game</h2>
     <div class="chips" id="pickChips"></div>
     <p class="order" id="order"></p>
+    <div class="seg" id="modeSeg" style="margin-top:12px">
+      <button type="button" data-hh="0">Classic dice</button>
+      <button type="button" data-hh="1">+ Hunk &amp; Hottie</button>
+    </div>
+    <p class="note" id="modeNote" style="margin-top:8px"></p>
     <div class="row"><button class="primary big" id="startBtn">Start</button></div>
 
     <details class="rules">
@@ -173,6 +228,13 @@
         <li>Roll again (your runners plus new dice, back up to three), or <b>Stop</b> to bank this turn's brains.</li>
         <li><b>Three shotguns</b> in one turn and you're shot — you lose every brain from that turn.</li>
         <li>First to <b>13</b> brains finishes the round so everyone has the same turns. Most brains wins; a tie plays off.</li>
+        <li>If the cup runs out, your eaten brain dice go back in to be rolled again. You keep every brain you've counted.</li>
+      </ol>
+      <p class="lbl" style="color:var(--dim);margin:4px 0 8px">Hunk &amp; Hottie</p>
+      <ol>
+        <li>Two yellow dice come out; the <b>Hunk</b> (black, white ring) and the <b>Hottie</b> (black, pink ring) go in.</li>
+        <li>The Hunk fights: 2 feet, 2 shotguns, a <b>double shotgun</b> and a <b>double brain</b>. The Hottie runs: 3 feet, 2 shotguns, 1 brain.</li>
+        <li><b>They save each other.</b> If one of them shoots you while the other is in your brain pile (or eaten on the same roll), the other is rescued: back in the cup, and you lose those brains.</li>
       </ol>
     </details>
 
@@ -232,7 +294,7 @@
   import { people } from "../shared/people.js";
 
   // Bump on every change. The deploy skill checks this against the live site.
-  const APP_VERSION = "0.1.0";
+  const APP_VERSION = "0.2.0";
   const APP_ID = "zombie-dice";
   document.getElementById("version").textContent = "v" + APP_VERSION;
 
@@ -241,16 +303,34 @@
   const TARGET = 13;
   const HERE = "zombie-dice.game";   // this phone's game in progress (localStorage)
 
-  // ---- the dice: the real set ----
+  // ---- the dice: the real set, plus the Hunk and the Hottie (Zombie Dice 2: Double Feature) ----
+  // Faces: B brain, D double brain, F feet (ran), S shotgun, X double shotgun.
   const DICE = {
-    g: { name: "Green",  faces: "BBBFFS", n: 6 },
-    y: { name: "Yellow", faces: "BBFFSS", n: 4 },
-    r: { name: "Red",    faces: "BFFSSS", n: 3 }
+    g: { name: "Green",  faces: "BBBFFS" },
+    y: { name: "Yellow", faces: "BBFFSS" },
+    r: { name: "Red",    faces: "BFFSSS" },
+    h: { name: "Hunk",   faces: "FFSSXD" },
+    t: { name: "Hottie", faces: "FFFSSB" }
   };
-  const FACE = { B: "Brain", F: "Ran", S: "Shot" };
-  const newCup = () => Object.entries(DICE).flatMap(([c, d]) => Array(d.n).fill(c));
-  const freshTurn = () => ({ cup: newCup(), hand: [], brainDice: [], shotDice: [], brains: 0, rolls: 0, last: [] });
+  const ORDER = "gyrht";
+  const HERO = { h: "t", t: "h" };        // each hero rescues the other
+  const FACE = { B: "Brain", D: "2 brains", F: "Ran", S: "Shot", X: "2 shots" };
+  const isShot = f => f === "S" || f === "X";
+  const isBrain = f => f === "B" || f === "D";
+  // Hunk & Hottie: two yellows come out of the cup and the heroes go in.
+  const newCup = hh => [..."gggggg", ...(hh ? "yy" : "yyyy"), ..."rrr", ...(hh ? "ht" : "")];
+  const freshTurn = hh => ({ cup: newCup(hh), hand: [], brainDice: [], shotDice: [], brains: 0, shots: 0, rolls: 0, refills: 0, rescues: 0, last: [] });
   function rnd(n){ const a = new Uint32Array(1); crypto.getRandomValues(a); return a[0] % n; }
+  // Games saved by 0.1 kept dice as bare colours and applied a roll all at once.
+  function normTurn(t){
+    if (!t) return t;
+    t.brainDice = (t.brainDice || []).map(b => typeof b === "string" ? { c: b, v: 1 } : b);
+    t.shotDice = (t.shotDice || []).map(x => typeof x === "string" ? { c: x, n: 1 } : x);
+    if (typeof t.shots !== "number") t.shots = t.shotDice.reduce((a, x) => a + x.n, 0);
+    t.last = (t.last || []).map(x => ({ ...x, done: x.done !== false }));
+    t.refills = t.refills || 0; t.rescues = t.rescues || 0;
+    return t;
+  }
 
   // ---- state ----
   let rawGames = [];
@@ -315,33 +395,66 @@
 
   function die(c, f, size, extra = ""){
     const d = document.createElement("div");
-    d.className = `die ${c} ${extra}`;
+    d.className = `die ${c} ${extra}${size < 50 ? " mini" : ""}`;
     d.style.setProperty("--ds", size + "px");
     d.setAttribute("role", "img");
-    d.setAttribute("aria-label", `${DICE[c].name} ${f ? FACE[f] : "die"}`);
-    if (f) d.innerHTML = `<div class="plate"><svg><use href="#f-${f}"/></svg></div>`;
-    else d.innerHTML = `<span>?</span>`;
+    d.setAttribute("aria-label", `${DICE[c].name} ${f ? FACE[f] : "die, not looked at yet"}`);
+    if (f){
+      const sym = isBrain(f) ? "B" : isShot(f) ? "S" : "F";
+      d.innerHTML = `<div class="plate"><svg><use href="#f-${sym}"/></svg></div>${f === "D" || f === "X" ? `<em class="x2">×2</em>` : ""}`;
+    } else d.innerHTML = `<span>?</span>`;
+    if (c === "h" || c === "t") d.insertAdjacentHTML("beforeend", `<i class="tag">${c === "h" ? "HUNK" : "HOTTIE"}</i>`);
     return d;
   }
 
   // ---- the rules ----
+  // Roll: top up the runners to three from the cup and throw them. The dice land face down;
+  // nothing counts until each one is tapped (reveal). Returns how many brain dice went back
+  // in the cup, if it ran short.
   function roll(){
     const t = g.t;
     const need = 3 - t.hand.length;
-    // Cup running short: the eaten brains go back in; the count stays.
-    if (t.cup.length < need){ t.cup.push(...t.brainDice); t.brainDice = []; }
-    const drawn = [];
-    for (let i = 0; i < need && t.cup.length; i++) drawn.push(t.cup.splice(rnd(t.cup.length), 1)[0]);
-    const results = [...t.hand, ...drawn].map(c => ({ c, f: DICE[c].faces[rnd(6)] }));
-    t.hand = results.filter(x => x.f === "F").map(x => x.c);
-    for (const x of results){
-      if (x.f === "B"){ t.brains++; t.brainDice.push(x.c); }
-      if (x.f === "S") t.shotDice.push(x.c);
+    let refilled = 0;
+    // Cup running short: the eaten brain dice go back in the cup. You keep the brains.
+    if (t.cup.length < need){
+      refilled = t.brainDice.length;
+      t.cup.push(...t.brainDice.map(b => b.c));
+      t.brainDice = [];
+      t.refills++;
     }
-    t.last = results;
+    const dice = [...t.hand];
+    for (let i = dice.length; i < 3 && t.cup.length; i++) dice.push(t.cup.splice(rnd(t.cup.length), 1)[0]);
+    t.hand = [];
+    t.last = dice.map(c => ({ c, f: DICE[c].faces[rnd(6)], done: false }));
     t.rolls++;
-    return t.shotDice.length >= 3;
+    return refilled;
   }
+
+  // Count one die. Returns any rescues it set off.
+  function reveal(i){
+    const t = g.t, x = t.last[i];
+    if (!x || x.done) return [];
+    x.done = true;
+    if (x.f === "F") t.hand.push(x.c);
+    if (isBrain(x.f)){ const v = x.f === "D" ? 2 : 1; t.brains += v; t.brainDice.push({ c: x.c, v }); }
+    if (isShot(x.f)){ const n = x.f === "X" ? 2 : 1; t.shots += n; t.shotDice.push({ c: x.c, n }); }
+    const events = [];
+    const rescue = (hero, by) => {
+      const k = t.brainDice.findIndex(b => b.c === hero);
+      if (k < 0) return;
+      const [b] = t.brainDice.splice(k, 1);
+      t.brains -= b.v;
+      t.cup.push(hero);
+      t.rescues++;
+      events.push({ by, saved: hero, lost: b.v });
+    };
+    // A hero who shoots rescues the other from the brain pile (eaten earlier or this roll)…
+    if (HERO[x.c] && isShot(x.f)) rescue(HERO[x.c], x.c);
+    // …and a hero eaten on the same roll the other one shot is rescued too.
+    if (HERO[x.c] && isBrain(x.f) && t.last.some(y => y.done && y.c === HERO[x.c] && isShot(y.f))) rescue(x.c, HERO[x.c]);
+    return events;
+  }
+  const allRevealed = t => t.last.every(x => x.done);
 
   // Ends the turn and moves on. Returns what happened, for the hand-over card.
   function endTurn(bust){
@@ -349,7 +462,7 @@
     const p = g.seats[g.turn];
     const gained = bust ? 0 : t.brains;
     g.scores[p] = (g.scores[p] || 0) + gained;
-    const res = { p, brains: t.brains, bust, rolls: t.rolls, total: g.scores[p] };
+    const res = { p, brains: t.brains, bust, rolls: t.rolls, rescues: t.rescues || 0, total: g.scores[p] };
     g.turns = [...(g.turns || []), res];
     g.lastTurn = res;
     if (g.phase === "play" && g.scores[p] >= TARGET) g.phase = "final";
@@ -371,7 +484,7 @@
       g.turn = 0;
       g.round = (g.round || 1) + 1;
     }
-    g.t = freshTurn();
+    g.t = freshTurn(g.hh);
     return res;
   }
 
@@ -490,7 +603,7 @@
       if (x.winner) li.prepend(people.avatar(x.winner, 40));
       const order = [...x.players].sort((a, b) => (x.scores[b] || 0) - (x.scores[a] || 0));
       li.querySelector(".l1").textContent = order.map(p => `${nameOf(p)} ${x.scores[p] || 0}`).join(" · ");
-      li.querySelector(".l2").textContent = `${whenLabel(x.endedAt || x.at)} · ${x.winner ? nameOf(x.winner) + " won" : "done"} · ${plural(Math.max(1, (x.round || 2) - 1), "round")}`;
+      li.querySelector(".l2").textContent = `${whenLabel(x.endedAt || x.at)} · ${x.winner ? nameOf(x.winner) + " won" : "done"} · ${plural(Math.max(1, (x.round || 2) - 1), "round")}${x.hh ? " · Hunk & Hottie" : ""}`;
       armed(li.querySelector("button"), "✕", () => store.remove(x.id));
       ul.appendChild(li);
     }
@@ -512,6 +625,15 @@
     }
   }
 
+  let useHH = false;
+  try { useHH = localStorage.getItem("zombie-dice.hh") === "1"; } catch {}
+  function renderMode(){
+    $("modeSeg").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", (b.dataset.hh === "1") === useHH ? "true" : "false"));
+    $("modeNote").textContent = useHH
+      ? "Two yellows swapped for the Hunk and the Hottie — and they rescue each other."
+      : "The original 13 dice: 6 green, 4 yellow, 3 red.";
+  }
+
   function renderDiceKey(){
     const k = $("dicekey");
     k.innerHTML = "";
@@ -523,6 +645,14 @@
       s.innerHTML = f === "B" ? "<b>Brain</b> — eaten, counts" : f === "F" ? "<b>Ran</b> — roll it again" : "<b>Shot</b> — three and you're out";
       k.append(wrap, s);
     }
+    for (const [c, txt] of [["h", "<b>Hunk</b> — double brain or double shotgun"], ["t", "<b>Hottie</b> — mostly runs"]]){
+      const wrap = document.createElement("div");
+      wrap.style.cssText = "display:flex;gap:6px";
+      wrap.append(die(c, c === "h" ? "D" : "B", 40), die(c, c === "h" ? "X" : "S", 40));
+      const s = document.createElement("span");
+      s.innerHTML = txt;
+      k.append(wrap, s);
+    }
     const s = document.createElement("span");
     s.style.gridColumn = "1 / -1";
     s.textContent = "Green: 3 brains, 2 feet, 1 shot. Yellow: 2, 2, 2. Red: 1 brain, 2 feet, 3 shots.";
@@ -530,18 +660,18 @@
   }
 
   // ---- game ----
-  function newGame(players){
+  function newGame(players, hh){
     const scores = {};
     for (const p of players) scores[p] = 0;
-    return { id: store.newId(), game: APP_ID, players: [...players], seats: [...players], scores, turn: 0, round: 1,
-      phase: "play", t: freshTurn(), turns: [], lastTurn: null, winner: null, status: "live", seq: 0,
+    return { id: store.newId(), game: APP_ID, hh: !!hh, players: [...players], seats: [...players], scores, turn: 0, round: 1,
+      phase: "play", t: freshTurn(hh), turns: [], lastTurn: null, winner: null, status: "live", seq: 0,
       at: Date.now(), endedAt: null, by: cloud.user ? cloud.user.email : null };
   }
 
-  function startGame(players){
+  function startGame(players, hh = useHH){
     if (!players.length) return;
     phone.fullscreen();
-    g = newGame(players);
+    g = newGame(players, hh);
     rolledAt = -1;
     save();
     showGame();
@@ -553,6 +683,7 @@
     if (!x) return;
     const { _updatedAt, ...rest } = x;
     g = structuredClone(rest);
+    normTurn(g.t);
     rolledAt = -1;
     showGame();
     if (g.status === "done") finish();
@@ -569,7 +700,7 @@
   function leaveGame(forget){
     if (forget){ try { localStorage.removeItem(HERE); } catch {} }
     g = null;
-    document.querySelectorAll(".ov").forEach(n => n.remove());
+    document.querySelectorAll(".ov,.event").forEach(n => n.remove());
     document.body.classList.remove("playing");
     $("game").classList.add("hidden");
     phone.keepAwake(false);
@@ -621,38 +752,47 @@
     $("stBrains").textContent = t.brains;
     const shots = $("stShots");
     shots.innerHTML = "";
-    shots.classList.toggle("danger", t.shotDice.length >= 2);
-    for (let i = 0; i < 3; i++){ const i_ = document.createElement("i"); if (i < t.shotDice.length) i_.className = "hit"; shots.appendChild(i_); }
+    shots.classList.toggle("danger", t.shots >= 2);
+    for (let i = 0; i < Math.max(3, t.shots); i++){ const i_ = document.createElement("i"); if (i < t.shots) i_.className = "hit"; shots.appendChild(i_); }
     $("stCup").textContent = t.cup.length;
 
-    // The tray: the dice just rolled, or what the next roll will pick up.
+    // The tray: the dice just rolled — face down until tapped — or an empty hand.
     const tray = $("tray");
     tray.innerHTML = "";
     const size = Math.min(104, Math.floor((Math.min(innerWidth, 640) - 28 - 28 - 20) / 3));
     const three = document.createElement("div");
     three.className = "three";
     const animate = rolledAt === g.seq;
+    const pending = t.last.filter(x => !x.done).length;
     if (t.last.length){
       t.last.forEach((x, i) => {
         const one = document.createElement("div");
         one.className = "one";
-        const d = die(x.c, x.f, size, animate ? "tumble" : "");
-        if (animate) d.style.animationDelay = (i * 70) + "ms";
         const s = document.createElement("span");
-        s.textContent = FACE[x.f];
+        let d;
+        if (x.done){
+          d = die(x.c, x.f, size, i === justRevealed ? "flip " + (isShot(x.f) ? "kick" : isBrain(x.f) ? "chomp" : "hop") : "counted");
+          s.textContent = (HERO[x.c] ? DICE[x.c].name + ": " : "") + FACE[x.f];
+        } else {
+          d = die(x.c, null, size, "down" + (animate ? " tumble" : "") + (show ? "" : " tapme"));
+          if (animate) d.style.animationDelay = (i * 80) + "ms";
+          s.textContent = show ? "" : "Tap me";
+          s.className = "tapword";
+          if (!show) tap(d, () => doReveal(i));
+        }
         one.append(d, s);
         three.appendChild(one);
       });
       tray.appendChild(three);
-      if (t.hand.length && t.shotDice.length < 3){
-        const h = document.createElement("p");
-        h.className = "hint";
-        h.textContent = `${plural(t.hand.length, "runner")} to chase if you roll again, plus ${3 - t.hand.length} from the cup.`;
-        tray.appendChild(h);
-      }
+      const h = document.createElement("p");
+      h.className = "hint";
+      if (show) h.textContent = "";
+      else if (pending) h.textContent = pending === 3 ? "Tap each die to see what you got." : `${plural(pending, "die")} still to look at.`.replace("dies", "dice");
+      else if (t.hand.length) h.textContent = `${plural(t.hand.length, "runner")} to chase if you roll again, plus ${3 - t.hand.length} from the cup.`;
+      else h.textContent = "Nobody got away. Roll again for three fresh dice?";
+      tray.appendChild(h);
     } else {
-      for (let i = 0; i < 3; i++){ const one = document.createElement("div"); one.className = "one"; one.append(die("g", null, size, "wait")); three.appendChild(one); }
-      three.querySelectorAll(".die").forEach(d => d.className = "die wait");
+      for (let i = 0; i < 3; i++){ const one = document.createElement("div"); one.className = "one"; const d = die("g", null, size, "wait"); d.className = "die wait"; one.append(d); three.appendChild(one); }
       tray.appendChild(three);
       const h = document.createElement("p");
       h.className = "hint";
@@ -662,56 +802,105 @@
     const cup = document.createElement("div");
     cup.className = "cupdots";
     cup.setAttribute("aria-hidden", "true");
-    for (const c of [...t.cup].sort((a, b) => "gyr".indexOf(a) - "gyr".indexOf(b))){ const i_ = document.createElement("i"); i_.className = c; cup.appendChild(i_); }
+    for (const c of [...t.cup].sort((a, b) => ORDER.indexOf(a) - ORDER.indexOf(b))){ const i_ = document.createElement("i"); i_.className = c; cup.appendChild(i_); }
     $("stCup").parentElement.querySelector(".cupdots")?.remove();
     $("stCup").after(cup);
 
-    const pile = (id, list, word) => {
+    // Piles: a die that just landed there pops in.
+    const pile = (id, list, face, seen) => {
       const box = $(id);
       box.innerHTML = "";
       if (!list.length){ box.innerHTML = `<span class="none">none yet</span>`; return; }
-      for (const c of list) box.appendChild(die(c, word, 36));
+      list.forEach((x, i) => box.appendChild(die(x.c, face(x), 36, i >= seen ? "popin" : "")));
     };
-    pile("pileB", t.brainDice, "B");
-    pile("pileS", t.shotDice, "S");
+    pile("pileB", t.brainDice, b => b.v === 2 ? "D" : "B", seenB);
+    pile("pileS", t.shotDice, x => x.n === 2 ? "X" : "S", seenS);
+    seenB = t.brainDice.length; seenS = t.shotDice.length;
     // Brains eaten before the cup was refilled no longer have dice on the table.
-    const extra = t.brains - t.brainDice.length;
-    if (extra > 0){ const s = document.createElement("span"); s.className = "none"; s.textContent = `+${extra} earlier`; $("pileB").appendChild(s); }
+    const extra = t.brains - t.brainDice.reduce((a, b) => a + b.v, 0);
+    if (extra > 0){ const s = document.createElement("span"); s.className = "none kept"; s.textContent = `+${extra} kept from before the refill`; $("pileB").appendChild(s); }
 
     const lt = g.lastTurn;
     $("last").textContent = lt && !t.rolls && !show
       ? `Last turn: ${nameOf(lt.p)} ${lt.bust ? `got shot, lost ${plural(lt.brains, "brain")}` : `banked ${lt.brains}`} → ${lt.total}`
       : "";
 
-    $("rollBtn").disabled = busy || !!show || g.status !== "live";
+    const ready = !busy && !show && g.status === "live" && !pending;
+    $("rollBtn").disabled = !ready;
     $("rollBtn").textContent = t.rolls ? "Roll again" : "Roll";
-    $("stopBtn").disabled = busy || !!show || !t.rolls || g.status !== "live";
+    $("stopBtn").disabled = !ready || !t.rolls;
     $("stopBtn").innerHTML = t.rolls ? `Stop<small>bank ${t.brains}</small>` : "Stop";
   }
 
+  let justRevealed = -1;
+  let seenB = 0, seenS = 0;       // pile sizes last drawn, so new arrivals animate
+  const calm = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+
   function doRoll(){
-    if (!g || busy || g.status !== "live") return;
-    const bust = roll();
+    if (!g || busy || g.status !== "live" || !allRevealed(g.t)) return;
+    const refilled = roll();
     rolledAt = g.seq + 1;
+    justRevealed = -1;
     busy = true;
     buzz(15);
-    // On a bust the saved game moves straight on; the screen keeps the fatal roll until
-    // the hand-over card comes up.
-    const shown = bust ? { t: structuredClone(g.t), p: g.seats[g.turn] } : null;
-    const res = bust ? endTurn(true) : null;
     save();
-    renderGame(shown);
-    const wait = matchMedia("(prefers-reduced-motion: reduce)").matches ? 150 : 750;
-    setTimeout(() => {
-      busy = false;
-      rolledAt = -1;
-      if (bust){ buzz([60, 40, 160]); handover(res); renderGame(shown); }
-      else renderGame();
-    }, wait);
+    renderGame();
+    if (refilled) event({ kind: "refill", n: refilled, brains: g.t.brains });
+    setTimeout(() => { busy = false; rolledAt = -1; renderGame(); }, calm() ? 100 : 650);
+  }
+
+  function doReveal(i){
+    if (!g || busy || g.status !== "live") return;
+    const x = g.t.last[i];
+    if (!x || x.done) return;
+    const events = reveal(i);
+    justRevealed = i;
+    setTimeout(() => { if (justRevealed === i) justRevealed = -1; }, 800);
+    buzz(isShot(x.f) ? [30, 30, 30] : isBrain(x.f) ? 25 : 10);
+    if (g.t.shots >= 3){
+      // Shot. Turn the rest over, then the saved game moves on while the screen keeps the
+      // fatal roll until the hand-over card comes up.
+      g.t.last.forEach((y, k) => { if (!y.done) events.push(...reveal(k)); });
+      const shown = { t: structuredClone(g.t), p: g.seats[g.turn] };
+      const res = endTurn(true);
+      save();
+      busy = true;
+      renderGame(shown);
+      events.forEach(e => event({ kind: "rescue", ...e }));
+      setTimeout(() => { busy = false; justRevealed = -1; buzz([60, 40, 160]); handover(res); renderGame(shown); }, calm() ? 300 : (events.length ? 2000 : 1100));
+      return;
+    }
+    save();
+    renderGame();
+    events.forEach(e => event({ kind: "rescue", ...e }));
+  }
+
+  // A moment on top of the tray: a rescue, or the cup running dry.
+  function event(e){
+    const box = document.createElement("div");
+    box.className = "event " + e.kind;
+    box.setAttribute("role", "status");
+    if (e.kind === "rescue"){
+      const by = DICE[e.by].name, saved = DICE[e.saved].name;
+      box.innerHTML = `<div class="hearts" aria-hidden="true"><i>♥</i><i>♥</i><i>♥</i><i>♥</i><i>♥</i></div>
+        <div class="ev-big"></div><div class="ev-small"></div>`;
+      box.querySelector(".ev-big").textContent = `${e.by === "h" ? "The Hunk" : "The Hottie"} saves ${e.saved === "h" ? "the Hunk" : "the Hottie"}!`;
+      box.querySelector(".ev-small").textContent = `${saved} escapes back into the cup — minus ${plural(e.lost, "brain")}.`;
+      buzz([20, 60, 20, 60, 20]);
+    } else {
+      box.innerHTML = `<div class="ev-big">Cup's empty!</div><div class="ev-small"></div>`;
+      box.querySelector(".ev-small").textContent = e.n
+        ? `${plural(e.n, "eaten brain die")} went back in the cup to roll again. You keep all ${plural(e.brains, "brain")}.`.replace("dies", "dice")
+        : "Fresh dice from the cup.";
+    }
+    document.body.appendChild(box);
+    setTimeout(() => box.classList.add("going"), 2200);
+    setTimeout(() => box.remove(), 2700);
+    tap(box, () => box.remove());
   }
 
   function doStop(){
-    if (!g || busy || !g.t.rolls || g.status !== "live") return;
+    if (!g || busy || !g.t.rolls || g.status !== "live" || !allRevealed(g.t)) return;
     const res = endTurn(false);
     buzz([20, 40, 20]);
     save();
@@ -744,7 +933,7 @@
     } else {
       q(".head").textContent = res.brains ? `+${res.brains} ${res.brains === 1 ? "brain" : "brains"}` : "Played safe";
       q(".head").className = "head good";
-      q(".sub").textContent = `${nameOf(res.p)} is on ${res.total}.`;
+      q(".sub").textContent = `${nameOf(res.p)} is on ${res.total}.` + (res.rescues ? ` (The heroes got away ${res.rescues === 1 ? "once" : res.rescues + " times"}.)` : "");
     }
     const b = q(".banner");
     if (g.phase === "final" && res && res.total >= TARGET && !res.bust && g.turn !== 0){
@@ -796,8 +985,8 @@
       }
     }
     buzz([30, 60, 30, 60, 120]);
-    const players = [...g.players];
-    tap(q('[data-k="again"]'), () => { ov.remove(); startGame(players); });
+    const players = [...g.players], hh = !!g.hh;
+    tap(q('[data-k="again"]'), () => { ov.remove(); startGame(players, hh); });
     tap(q('[data-k="done"]'), () => { ov.remove(); leaveGame(true); });
     document.body.appendChild(ov);
   }
@@ -810,6 +999,7 @@
     if ((x.seq || 0) > (g.seq || 0)){
       const { _updatedAt, ...rest } = x;
       g = structuredClone(rest);
+      normTurn(g.t);
       renderGame();
       if (g.status === "done" && !document.querySelector(".ov")) finish();
     }
@@ -869,6 +1059,12 @@
 
   // ---- wiring ----
   tap($("startBtn"), () => startGame(picked));
+  $("modeSeg").querySelectorAll("button").forEach(b => tap(b, () => {
+    useHH = b.dataset.hh === "1";
+    try { localStorage.setItem("zombie-dice.hh", useHH ? "1" : "0"); } catch {}
+    renderMode();
+  }));
+  renderMode();
   tap($("rollBtn"), doRoll);
   tap($("stopBtn"), doStop);
   tap($("leaveBtn"), () => leaveGame(false));

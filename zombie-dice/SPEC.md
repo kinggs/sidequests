@@ -24,14 +24,36 @@ The dice (real set: 13 dice in a cup):
 A turn:
 
 1. **Roll** takes dice from the cup until you hold three, then rolls them. The cup is
-   random; you don't choose which colours you get.
+   random; you don't choose which colours you get. The dice land **face down**, and the
+   player **taps each one** to turn it over and count it — a brain chomps into the Eaten
+   pile, a shotgun kicks into the Shot pile, feet hop and stay to be rolled again. Roll and
+   Stop wake up only once all three are counted. A third shotgun ends the turn on the tap
+   that reveals it (the rest turn over by themselves).
 2. **Brains** are eaten — set aside and counted for this turn. **Shotguns** are set aside.
    **Feet** mean the victim ran: those dice stay in your hand and are rolled again next time.
 3. **Three shotguns** (across the whole turn) and you're shot: the turn ends and you lose
    every brain from it.
 4. Otherwise **Stop** banks this turn's brains onto your score, or **Roll** again: your feet
    dice plus new ones from the cup, back up to three.
-5. If the cup runs short, the brain dice go back in the cup — you keep the count.
+5. If the cup runs short for the next roll, the eaten brain dice all go back in the cup
+   (shotguns stay out) — you keep the count. A "Cup's empty!" card says so, and the Eaten
+   pile shows "+N kept from before the refill".
+
+### Hunk & Hottie (Zombie Dice 2: Double Feature)
+
+A toggle on the home screen, remembered on the phone. Two yellow dice come out of the cup
+and two black heroes go in:
+
+| Die | Faces |
+|---|---|
+| Hunk (white ring) | 2 feet, 2 shotguns, 1 **double shotgun**, 1 **double brain** |
+| Hottie (pink ring) | 3 feet, 2 shotguns, 1 brain |
+
+Double brain counts 2, double shotgun counts 2. **They rescue each other:** when one of them
+comes up shotgun while the other is in your brain pile — eaten earlier or on the same roll —
+the other is rescued: out of the pile, back in the cup, and its brains come off your turn.
+A pink card with floating hearts says "The Hunk saves the Hottie!". A hero whose brain die
+went back in the cup at a refill can't be rescued any more.
 
 Unlike Yahtzee there's no choosing which dice to keep: brains and shotguns always stay out
 and feet always get rerolled. The only choice is **roll again or stop**.
@@ -59,8 +81,9 @@ to learn the icons. Players show as `people.avatar`.
 2. **Game** — fixed to the screen, header hidden, screen held awake. Top: a scoreboard of
    every player with avatar, name and score, the thrower lit. Then whose turn it is, a
    banner in the final round or a play-off, and three figures: brains this turn, shotguns
-   (three slots), dice left in the cup. The tray: the three dice just rolled, big, tumbling
-   as they land (still for reduced motion). Under it the brains and shotguns set aside this
+   (three slots), dice left in the cup (coloured dots). The tray: the three dice just
+   rolled, big, tumbling in face down and nudging to be tapped; each flips over on its tap
+   with a little chomp, kick or hop (all still for reduced motion). Under it the brains and shotguns set aside this
    turn as small dice. Bottom: **Stop · bank N** and a big **Roll**, and a quiet armed
    **Abandon**.
 3. **Hand-over** — when a turn ends, a card says what happened ("Banked 5 — Kenny's on 9",
@@ -77,10 +100,15 @@ phone remembers which game it was playing and drops straight back in.
 Under `sidequests/zombie-dice/` via `shared/cloud.js`; people at `sidequests/_shared/people/`.
 
 - `games/<id>` — `{ game: "zombie-dice", players: [personId…], seats: [personId…] (who
-  plays this round — everyone, or the tied players in a play-off), scores: { personId: n },
-  turn: <index into seats>, round, phase: "play"|"final"|"playoff", t: { cup: ["g"|"y"|"r"…],
-  hand: [feet dice], brainDice, shotDice, brains, rolls, last: [{ c, f: "B"|"F"|"S" }] },
-  turns: [{ p, brains, bust, rolls, total }], winner, status: "live"|"done", seq, at, endedAt, by }`
+  plays this round — everyone, or the tied players in a play-off), hh: Hunk & Hottie on,
+  scores: { personId: n }, turn: <index into seats>, round, phase: "play"|"final"|"playoff",
+  t: { cup: ["g"|"y"|"r"|"h"|"t"…], hand: [runner dice], brainDice: [{ c, v }],
+  shotDice: [{ c, n }], brains, shots, rolls, refills, rescues,
+  last: [{ c, f: "B"|"D"|"F"|"S"|"X", done }] }, turns: [{ p, brains, bust, rolls, rescues,
+  total }], winner, status: "live"|"done", seq, at, endedAt, by }`
+
+  A roll is decided when Roll is tapped and saved with every die `done: false`; each tap
+  flips one to `done` and applies it, so a reload mid-roll keeps the unrevealed dice.
 
 Stored ids are read back through `people.resolve`.
 
@@ -88,7 +116,7 @@ Stored ids are read back through `people.resolve`.
 
 - Everyone on their own phone. The whole game is one cloud document, so a second phone can
   already watch it; taking turns from separate phones is the next step.
-- The expansions (Hunk & Hottie, Santa, the Double Feature dice).
+- Santa and the other expansions.
 
 ## Decisions (assumed, not specified)
 
