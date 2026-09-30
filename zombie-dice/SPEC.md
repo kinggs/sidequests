@@ -1,0 +1,98 @@
+# Zombie Dice — Spec
+
+A pass-the-phone version of **Zombie Dice** (Steve Jackson Games) for the family to play
+round the table on one phone. You're a zombie; each turn you roll for brains and push your
+luck until you stop or get shot. First to 13 brains ends it.
+
+## Who uses it
+
+The household, around the table, on one phone. Players are the household's **shared
+people** (`shared/people.js`) — the same list, names and colours as every other sidequest.
+Everyone signs in with Google like the other apps; one signed-in phone is enough to play.
+Each player using their own phone is a later idea (see Out of scope).
+
+## The game
+
+The dice (real set: 13 dice in a cup):
+
+| Die | How many | Brains | Feet | Shotguns |
+|---|---|---|---|---|
+| Green | 6 | 3 | 2 | 1 |
+| Yellow | 4 | 2 | 2 | 2 |
+| Red | 3 | 1 | 2 | 3 |
+
+A turn:
+
+1. **Roll** takes dice from the cup until you hold three, then rolls them. The cup is
+   random; you don't choose which colours you get.
+2. **Brains** are eaten — set aside and counted for this turn. **Shotguns** are set aside.
+   **Feet** mean the victim ran: those dice stay in your hand and are rolled again next time.
+3. **Three shotguns** (across the whole turn) and you're shot: the turn ends and you lose
+   every brain from it.
+4. Otherwise **Stop** banks this turn's brains onto your score, or **Roll** again: your feet
+   dice plus new ones from the cup, back up to three.
+5. If the cup runs short, the brain dice go back in the cup — you keep the count.
+
+Unlike Yahtzee there's no choosing which dice to keep: brains and shotguns always stay out
+and feet always get rerolled. The only choice is **roll again or stop**.
+
+End: when anyone reaches **13** at the end of their turn, the round is played out so everyone
+has had the same number of turns (the round starts with the first player picked). Most
+brains wins. A tie at the top is played off: the tied players take one more round each,
+again and again until one leads.
+
+## Look
+
+`shared/theme.css` (dark system v2). Zombie green (`--accent`) marks the data only: whose
+turn it is and the brains count. The dice are drawn like the real ones — green, yellow and
+red dice, each face a cream disc with a pink **brain**, dark **footprints** or an orange
+**shotgun blast** — with the face's name under it ("Brain", "Ran", "Shot") so nobody has
+to learn the icons. Players show as `people.avatar`.
+
+## Screens
+
+1. **Home** — player chips; tap names in playing order (up to 8), tap again to drop. A line
+   spells out the order. **Start**. A **Resume** row for any unfinished game. **How to play**
+   (collapsed). **Leaderboard** (wins and games per person). **Recent** games with an armed
+   two-tap delete. **Players** (shared add/edit sheet, share link). **Export / Import**.
+   **Install on this phone**.
+2. **Game** — fixed to the screen, header hidden, screen held awake. Top: a scoreboard of
+   every player with avatar, name and score, the thrower lit. Then whose turn it is, a
+   banner in the final round or a play-off, and three figures: brains this turn, shotguns
+   (three slots), dice left in the cup. The tray: the three dice just rolled, big, tumbling
+   as they land (still for reduced motion). Under it the brains and shotguns set aside this
+   turn as small dice. Bottom: **Stop · bank N** and a big **Roll**, and a quiet armed
+   **Abandon**.
+3. **Hand-over** — when a turn ends, a card says what happened ("Banked 5 — Kenny's on 9",
+   or "Shot! Lost 4 brains") and **Pass to Melanie**, whose tap starts their turn. That's
+   the pass-the-phone moment.
+4. **Finish** — the winner, everyone ranked with their score, **Play again** (same players,
+   same order) and **Done**.
+
+A game in progress is saved after every roll, so a reload picks it up where it was. The
+phone remembers which game it was playing and drops straight back in.
+
+## Data model
+
+Under `sidequests/zombie-dice/` via `shared/cloud.js`; people at `sidequests/_shared/people/`.
+
+- `games/<id>` — `{ game: "zombie-dice", players: [personId…], seats: [personId…] (who
+  plays this round — everyone, or the tied players in a play-off), scores: { personId: n },
+  turn: <index into seats>, round, phase: "play"|"final"|"playoff", t: { cup: ["g"|"y"|"r"…],
+  hand: [feet dice], brainDice, shotDice, brains, rolls, last: [{ c, f: "B"|"F"|"S" }] },
+  turns: [{ p, brains, bust, rolls, total }], winner, status: "live"|"done", seq, at, endedAt, by }`
+
+Stored ids are read back through `people.resolve`.
+
+## Out of scope (for now)
+
+- Everyone on their own phone. The whole game is one cloud document, so a second phone can
+  already watch it; taking turns from separate phones is the next step.
+- The expansions (Hunk & Hottie, Santa, the Double Feature dice).
+
+## Decisions (assumed, not specified)
+
+- Target 13, and the official end: finish the round, play off ties.
+- One player can play alone (practice: how few turns to 13?).
+- Abandon deletes the unfinished game; it doesn't count anywhere.
+- No undo: a roll is a roll, and Stop sits well away from Roll.

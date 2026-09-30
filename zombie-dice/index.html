@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0A0D11">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Zombie Dice</title>
+<link rel="stylesheet" href="../shared/theme.css">
+<style>
+  /* Zombie Dice on shared/theme.css. Zombie green is the accent and only marks data: whose
+     turn it is, the brains count. The dice keep their own colours, as on the real set. */
+  :root{ --accent:#A6E36B; --accent-ink:#14240A;
+    --d-g:#3FAE4A; --d-y:#EDBE2C; --d-r:#D8413A; --plate:#F4EFE6; }
+  main{flex:1;min-height:0;padding:4px 16px 16px;overflow-y:auto;max-width:40rem;width:100%;margin:0 auto}
+  .userbtn{flex:none;min-height:var(--tap);padding:0 16px;font-size:.8333rem;white-space:nowrap}
+  .gate p{color:var(--dim)}
+  .sect{color:var(--dim);margin:28px 0 10px}
+  .sect:first-child{margin-top:4px}
+  .row{display:flex;gap:12px;margin-top:14px}
+  .row button{flex:1}
+  .big{min-height:var(--tap-lg);font-size:1.0556rem}
+  .order{margin-top:10px;color:var(--dim);font-size:.8889rem;min-height:1.4em}
+  .order b{color:var(--text)}
+  .chips button .n{flex:none;width:28px;height:28px;border-radius:50%;background:var(--ink-0);color:var(--text);
+    display:inline-grid;place-items:center;font-size:.8333rem;font-family:var(--grot)}
+  details.rules{background:var(--ink-1);border-radius:var(--r-card);padding:0 16px;margin-top:14px}
+  details.rules summary{min-height:var(--tap);display:flex;align-items:center;font-weight:700;cursor:pointer;list-style:none}
+  details.rules summary::-webkit-details-marker{display:none}
+  details.rules summary::after{content:"＋";margin-left:auto;color:var(--dim)}
+  details.rules[open] summary::after{content:"－"}
+  details.rules ol{padding:0 0 14px 1.2em;color:var(--text-2);font-size:.9444rem;line-height:1.5}
+  details.rules li{margin:6px 0}
+  .dicekey{display:grid;grid-template-columns:auto 1fr;gap:8px 12px;align-items:center;margin:4px 0 12px;font-size:.8889rem;color:var(--text-2)}
+  .rows .fig{flex:none;min-width:2.6rem;text-align:center;font-size:1.4444rem;color:var(--accent)}
+  .rows .x{background:transparent;color:var(--dim);font-size:1.2222rem}
+  .rows .x.arm{font-size:.8889rem;background:var(--warn);color:var(--ink-0)}
+
+  /* ---- the dice ---- */
+  .die{position:relative;flex:none;width:var(--ds,96px);height:var(--ds,96px);border-radius:22%;
+    box-shadow:inset 0 -5px 0 rgba(0,0,0,.28),0 3px 10px rgba(0,0,0,.35)}
+  .die.g{background:var(--d-g)} .die.y{background:var(--d-y)} .die.r{background:var(--d-r)}
+  .die .plate{position:absolute;inset:12%;border-radius:50%;background:var(--plate)}
+  .die svg{position:absolute;inset:9%;width:82%;height:82%;display:block}
+  .die.wait{background:transparent;box-shadow:inset 0 0 0 3px var(--line)}
+  .die.wait.g{box-shadow:inset 0 0 0 4px var(--d-g)} .die.wait.y{box-shadow:inset 0 0 0 4px var(--d-y)} .die.wait.r{box-shadow:inset 0 0 0 4px var(--d-r)}
+  .die.wait span{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--grot);font-weight:700;font-size:36px;color:var(--faint)}
+  .die.tumble{animation:tumble .55s cubic-bezier(.2,.7,.3,1)}
+  @keyframes tumble{0%{transform:translateY(-30px) rotate(-200deg) scale(.7);opacity:.3}60%{transform:translateY(4px) rotate(12deg) scale(1.05);opacity:1}100%{transform:none}}
+  @media (prefers-reduced-motion: reduce){ .die.tumble{animation:none} }
+
+  /* ---- game ---- */
+  body.playing .apphead, body.playing main, body.playing .foot{display:none}
+  #game{flex:1;min-height:0;display:flex;flex-direction:column;gap:10px;padding:12px 14px 12px;max-width:40rem;width:100%;margin:0 auto}
+  .board{display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:6px;flex:none}
+  .pl{display:flex;align-items:center;gap:8px;background:var(--ink-1);border-radius:var(--r-ctl);padding:6px 8px;min-width:0}
+  .pl .nm{flex:1;min-width:0;font-size:15px;font-weight:600;color:var(--text-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pl b{font-family:var(--grot);font-size:22px;font-weight:700}
+  .pl.now{box-shadow:inset 0 0 0 2px var(--accent)}
+  .pl.now .nm{color:var(--text)}
+  .pl.now b{color:var(--accent)}
+  .pl.out{opacity:1;color:var(--faint)}
+  .pl.out b,.pl.out .nm{color:var(--faint)}
+  .whose{display:flex;align-items:center;gap:12px;flex:none}
+  .whose h2{font-family:var(--grot);font-size:30px;font-weight:700;color:var(--accent);letter-spacing:-.02em;line-height:1.1;
+    min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .banner{flex:none;background:rgba(255,193,77,.12);color:var(--warn);border-radius:var(--r-ctl);padding:8px 12px;font-size:15px;font-weight:600;line-height:1.35}
+  .last{flex:none;font-size:15px;color:var(--dim);min-height:1.35em}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;flex:none}
+  .stat{background:var(--ink-1);border-radius:var(--r-ctl);padding:8px 6px;text-align:center}
+  .stat b{display:block;font-family:var(--grot);font-size:30px;font-weight:700;line-height:1.1}
+  .stat.brains b{color:var(--accent)}
+  .stat .lbl{color:var(--dim);display:block;margin-top:2px}
+  .shots{display:flex;justify-content:center;gap:6px;height:36px;align-items:center}
+  .shots i{width:22px;height:22px;border-radius:50%;box-shadow:inset 0 0 0 2px var(--faint)}
+  .shots i.hit{background:#FF7A2F;box-shadow:none}
+  .shots.danger i.hit{background:#FF4A2F}
+  .cupdots{display:flex;justify-content:center;gap:3px;flex-wrap:wrap;margin-top:4px}
+  .cupdots i{width:9px;height:9px;border-radius:3px}
+  .cupdots i.g{background:var(--d-g)} .cupdots i.y{background:var(--d-y)} .cupdots i.r{background:var(--d-r)}
+  .tray{flex:1;min-height:150px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+    background:radial-gradient(ellipse at center,#16201A 0%,var(--ink-0) 75%);border-radius:var(--r-card)}
+  .tray .three{display:flex;gap:14px;justify-content:center}
+  .tray .one{display:flex;flex-direction:column;align-items:center;gap:6px}
+  .tray .one span{font-size:15px;font-weight:700;color:var(--text-2)}
+  .tray .hint{font-size:15px;color:var(--dim);text-align:center;padding:0 12px}
+  .piles{flex:none;display:flex;flex-direction:column;gap:6px}
+  .pile{display:flex;align-items:center;gap:8px;min-height:44px}
+  .pile .lbl{flex:none;width:5.2rem;color:var(--dim)}
+  .pile .ds{display:flex;gap:5px;flex-wrap:wrap}
+  .pile .none{font-size:15px;color:var(--faint)}
+  .acts{flex:none;display:grid;grid-template-columns:1fr 1.4fr;gap:10px}
+  .acts button{min-height:84px;font-size:20px;line-height:1.15}
+  .acts button small{display:block;font-size:16px;font-weight:600;margin-top:2px}
+  .acts #rollBtn{font-size:24px;font-family:var(--grot)}
+  .abandon{flex:none;display:flex;justify-content:center}
+  .abandon button{min-height:56px;font-size:15px;padding:0 18px}
+
+  /* ---- hand-over and finish cards ---- */
+  .ov{position:fixed;inset:0;z-index:20;background:rgba(5,7,9,.88);display:flex;align-items:center;justify-content:center;
+    padding:max(16px,env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom))}
+  .card{width:100%;max-width:26rem;background:var(--ink-1);border-radius:22px;padding:22px 18px 18px;display:flex;flex-direction:column;
+    gap:14px;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.6);max-height:100%;overflow-y:auto}
+  .card .head{font-family:var(--grot);font-size:34px;font-weight:700;letter-spacing:-.02em;line-height:1.1}
+  .card .head.shot{color:#FF7A2F}
+  .card .head.good{color:var(--accent)}
+  .card .sub{color:var(--text-2);font-size:1rem}
+  .card .next{display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:4px}
+  .card .next .lbl{color:var(--dim)}
+  .card .next b{font-family:var(--grot);font-size:26px}
+  .card button{min-height:var(--tap-lg);font-size:1.1111rem}
+  .card .rank{list-style:none;display:flex;flex-direction:column;gap:6px;text-align:left}
+  .card .rank li{display:flex;align-items:center;gap:10px;background:var(--ink-2);border-radius:var(--r-ctl);padding:8px 12px}
+  .card .rank li .nm{flex:1;font-weight:600}
+  .card .rank li b{font-family:var(--grot);font-size:24px}
+  .card .rank li.win b{color:var(--accent)}
+  .card .btns{display:flex;flex-direction:column;gap:10px}
+  .crown{display:flex;justify-content:center}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <!-- The three faces, as on the real dice. -->
+  <symbol id="f-B" viewBox="26 32 76 64">
+    <path d="M64 44c-4-6-15-6-19 1-8 0-12 8-9 14-5 5-3 14 4 16 1 7 10 11 16 7 3 3 6 4 8 4s5-1 8-4c6 4 15 0 16-7 7-2 9-11 4-16 3-6-1-14-9-14-4-7-15-7-19-1z" fill="#F48FB1" stroke="#B0476F" stroke-width="2.5"/>
+    <path d="M64 46v38M52 54c4 2 5 6 3 9M76 54c-4 2-5 6-3 9M46 70c4 0 7 2 8 6M82 70c-4 0-7 2-8 6" fill="none" stroke="#B0476F" stroke-width="4" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="f-F" viewBox="0 0 100 100">
+    <g fill="#2A2320">
+      <ellipse cx="34" cy="62" rx="10" ry="16" transform="rotate(-12 34 62)"/>
+      <circle cx="26" cy="38" r="4"/><circle cx="33" cy="35" r="4"/><circle cx="40" cy="37" r="3.6"/><circle cx="45" cy="42" r="3.2"/>
+      <ellipse cx="66" cy="48" rx="10" ry="16" transform="rotate(12 66 48)"/>
+      <circle cx="56" cy="24" r="3.2"/><circle cx="61" cy="20" r="3.6"/><circle cx="68" cy="20" r="4"/><circle cx="75" cy="24" r="4"/>
+    </g>
+  </symbol>
+  <symbol id="f-S" viewBox="0 0 100 100">
+    <path d="M50 6l9 22 20-12-6 22 23 2-19 13 16 17-23-3 2 23-17-15-12 20-5-23-21 10 9-21-22-6 21-10-13-19 22 5z" fill="#FF7A2F" stroke="#B8321A" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M50 30l5 12 12-5-5 12 12 6-13 3 3 13-12-7-8 10-2-13-13 1 9-9-9-9 13 1z" fill="#FFD84A"/>
+  </symbol>
+</svg>
+
+<header class="apphead">
+  <h1>Zombie Dice</h1>
+  <div class="user" id="userBox"></div>
+</header>
+
+<main id="main">
+  <section class="gate hidden" id="gate">
+    <p id="gateMsg">Sign in to play.</p>
+    <button class="primary" id="signInBig">Sign in with Google</button>
+  </section>
+
+  <section class="hidden" id="app">
+    <div id="resume"></div>
+
+    <h2 class="lbl sect">New game</h2>
+    <div class="chips" id="pickChips"></div>
+    <p class="order" id="order"></p>
+    <div class="row"><button class="primary big" id="startBtn">Start</button></div>
+
+    <details class="rules">
+      <summary>How to play</summary>
+      <div class="dicekey" id="dicekey"></div>
+      <ol>
+        <li>13 dice in the cup. <b>Green</b> are easy victims (3 brains), <b>yellow</b> are even, <b>red</b> fight back (3 shotguns).</li>
+        <li><b>Roll</b> takes three dice from the cup and rolls them.</li>
+        <li><b>Brain</b>: eaten — set aside and counted. <b>Shot</b>: set aside. <b>Ran</b> (feet): they got away; those dice get rolled again.</li>
+        <li>Roll again (your runners plus new dice, back up to three), or <b>Stop</b> to bank this turn's brains.</li>
+        <li><b>Three shotguns</b> in one turn and you're shot — you lose every brain from that turn.</li>
+        <li>First to <b>13</b> brains finishes the round so everyone has the same turns. Most brains wins; a tie plays off.</li>
+      </ol>
+    </details>
+
+    <h2 class="lbl sect">Leaderboard</h2>
+    <ul class="rows" id="leaders"></ul>
+
+    <h2 class="lbl sect">Recent</h2>
+    <ul class="rows" id="recent"></ul>
+
+    <h2 class="lbl sect">Players</h2>
+    <ul class="rows" id="people"></ul>
+    <div class="row">
+      <button class="quiet" id="shareBtn">Share link</button>
+      <button class="primary" id="addBtn">Add player</button>
+    </div>
+    <p class="note" style="margin-top:8px">Players are shared by every sidequests app — add someone once and they're in all of them.</p>
+
+    <div class="row">
+      <button class="quiet" id="exportBtn">Export</button>
+      <button class="quiet" id="importBtn">Import</button>
+    </div>
+    <input type="file" id="importFile" accept="application/json,.json" class="hidden">
+    <div id="installHere"></div>
+  </section>
+</main>
+
+<section id="game" class="hidden">
+  <div class="board" id="board"></div>
+  <div class="whose" id="whose"></div>
+  <div class="banner hidden" id="banner"></div>
+  <div class="stats">
+    <div class="stat brains"><b id="stBrains">0</b><span class="lbl">brains</span></div>
+    <div class="stat"><div class="shots" id="stShots"></div><span class="lbl">shotguns</span></div>
+    <div class="stat"><b id="stCup">13</b><span class="lbl">in the cup</span></div>
+  </div>
+  <div class="tray" id="tray"></div>
+  <div class="piles">
+    <div class="pile"><span class="lbl">Eaten</span><div class="ds" id="pileB"></div></div>
+    <div class="pile"><span class="lbl">Shot</span><div class="ds" id="pileS"></div></div>
+  </div>
+  <p class="last" id="last"></p>
+  <div class="acts">
+    <button class="quiet" id="stopBtn">Stop</button>
+    <button class="primary" id="rollBtn">Roll</button>
+  </div>
+  <div class="abandon">
+    <button class="quiet" id="leaveBtn">Home</button>
+    <button class="quiet" id="abandonBtn" style="margin-left:10px">Abandon game</button>
+  </div>
+</section>
+
+<footer class="foot">Zombie Dice <span id="version"></span></footer>
+
+<script type="module">
+  import { cloud } from "../shared/cloud.js";
+  import { phone } from "../shared/phone.js";
+  import { people } from "../shared/people.js";
+
+  // Bump on every change. The deploy skill checks this against the live site.
+  const APP_VERSION = "0.1.0";
+  const APP_ID = "zombie-dice";
+  document.getElementById("version").textContent = "v" + APP_VERSION;
+
+  const $ = id => document.getElementById(id);
+  const MAX_PLAYERS = 8;
+  const TARGET = 13;
+  const HERE = "zombie-dice.game";   // this phone's game in progress (localStorage)
+
+  // ---- the dice: the real set ----
+  const DICE = {
+    g: { name: "Green",  faces: "BBBFFS", n: 6 },
+    y: { name: "Yellow", faces: "BBFFSS", n: 4 },
+    r: { name: "Red",    faces: "BFFSSS", n: 3 }
+  };
+  const FACE = { B: "Brain", F: "Ran", S: "Shot" };
+  const newCup = () => Object.entries(DICE).flatMap(([c, d]) => Array(d.n).fill(c));
+  const freshTurn = () => ({ cup: newCup(), hand: [], brainDice: [], shotDice: [], brains: 0, rolls: 0, last: [] });
+  function rnd(n){ const a = new Uint32Array(1); crypto.getRandomValues(a); return a[0] % n; }
+
+  // ---- state ----
+  let rawGames = [];
+  let games = [];          // stored ids read through people.resolve
+  let unsubs = [];
+  let picked = [];         // lineup for a new game, in playing order
+  let pickedTouched = false;
+  let g = null;            // the game on screen
+  let busy = false;        // dice still tumbling
+  let rolledAt = 0;        // the roll to animate, by seq
+
+  const nameOf = id => people.nameOf(id);
+  const resolveGame = x => {
+    const r = id => people.resolve(id);
+    const scores = {};
+    for (const [k, v] of Object.entries(x.scores || {})) scores[r(k)] = v;
+    return { ...x, players: (x.players || []).map(r), seats: (x.seats || []).map(r), scores,
+      winner: x.winner ? r(x.winner) : null, turns: (x.turns || []).map(t => ({ ...t, p: r(t.p) })) };
+  };
+  const refreshGames = () => { games = rawGames.map(resolveGame); };
+
+  // ---- taps: pointerup, not click ----
+  function tap(node, fn){
+    if (!node) return;
+    let down = false, sx = 0, sy = 0;
+    node.addEventListener("pointerdown", e => { down = true; sx = e.clientX; sy = e.clientY; });
+    node.addEventListener("pointercancel", () => { down = false; });
+    node.addEventListener("pointerup", e => {
+      if (!down) return;
+      down = false;
+      if (Math.abs(e.clientX - sx) > 14 || Math.abs(e.clientY - sy) > 14) return;
+      e.preventDefault();
+      fn(e);
+    });
+    node.addEventListener("click", e => e.preventDefault());
+  }
+  function buzz(p){ if (navigator.vibrate) navigator.vibrate(p); }
+  function armed(btn, label, fn){
+    let timer = null;
+    tap(btn, async () => {
+      if (!timer){
+        timer = setTimeout(() => { timer = null; btn.classList.remove("arm"); btn.textContent = label; }, 5000);
+        btn.classList.add("arm");
+        btn.textContent = "Sure?";
+        buzz(12);
+        return;
+      }
+      clearTimeout(timer); timer = null;
+      btn.classList.remove("arm"); btn.textContent = label;
+      try { await fn(); } catch (e){ toast("Couldn't do that: " + (e.message || e)); }
+    });
+  }
+  function toast(msg){
+    const t = document.createElement("div");
+    t.className = "toast";
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 2600);
+  }
+  const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
+  const listNames = ids => ids.length < 2 ? ids.map(nameOf).join("") : ids.slice(0, -1).map(nameOf).join(", ") + " and " + nameOf(ids[ids.length - 1]);
+
+  function die(c, f, size, extra = ""){
+    const d = document.createElement("div");
+    d.className = `die ${c} ${extra}`;
+    d.style.setProperty("--ds", size + "px");
+    d.setAttribute("role", "img");
+    d.setAttribute("aria-label", `${DICE[c].name} ${f ? FACE[f] : "die"}`);
+    if (f) d.innerHTML = `<div class="plate"><svg><use href="#f-${f}"/></svg></div>`;
+    else d.innerHTML = `<span>?</span>`;
+    return d;
+  }
+
+  // ---- the rules ----
+  function roll(){
+    const t = g.t;
+    const need = 3 - t.hand.length;
+    // Cup running short: the eaten brains go back in; the count stays.
+    if (t.cup.length < need){ t.cup.push(...t.brainDice); t.brainDice = []; }
+    const drawn = [];
+    for (let i = 0; i < need && t.cup.length; i++) drawn.push(t.cup.splice(rnd(t.cup.length), 1)[0]);
+    const results = [...t.hand, ...drawn].map(c => ({ c, f: DICE[c].faces[rnd(6)] }));
+    t.hand = results.filter(x => x.f === "F").map(x => x.c);
+    for (const x of results){
+      if (x.f === "B"){ t.brains++; t.brainDice.push(x.c); }
+      if (x.f === "S") t.shotDice.push(x.c);
+    }
+    t.last = results;
+    t.rolls++;
+    return t.shotDice.length >= 3;
+  }
+
+  // Ends the turn and moves on. Returns what happened, for the hand-over card.
+  function endTurn(bust){
+    const t = g.t;
+    const p = g.seats[g.turn];
+    const gained = bust ? 0 : t.brains;
+    g.scores[p] = (g.scores[p] || 0) + gained;
+    const res = { p, brains: t.brains, bust, rolls: t.rolls, total: g.scores[p] };
+    g.turns = [...(g.turns || []), res];
+    g.lastTurn = res;
+    if (g.phase === "play" && g.scores[p] >= TARGET) g.phase = "final";
+    if (g.turn + 1 < g.seats.length) g.turn++;
+    else {
+      // End of the round.
+      const top = Math.max(...g.seats.map(s => g.scores[s] || 0));
+      if (top >= TARGET){
+        const leaders = g.seats.filter(s => (g.scores[s] || 0) === top);
+        if (leaders.length === 1){
+          g.winner = leaders[0];
+          g.status = "done";
+          g.endedAt = Date.now();
+        } else {
+          g.seats = leaders;
+          g.phase = "playoff";
+        }
+      }
+      g.turn = 0;
+      g.round = (g.round || 1) + 1;
+    }
+    g.t = freshTurn();
+    return res;
+  }
+
+  // ---- home ----
+  function render(){
+    renderPick();
+    renderResume();
+    renderLeaders();
+    renderRecent();
+    renderPeople();
+  }
+
+  function renderPick(){
+    const list = people.active();
+    picked = picked.filter(id => list.some(p => p.id === id));
+    if (!picked.length && !pickedTouched && people.meId()) picked = [people.meId()];
+    const wrap = $("pickChips");
+    wrap.innerHTML = "";
+    if (!list.length){
+      wrap.innerHTML = `<p class="empty">Add players below to get started.</p>`;
+    }
+    for (const p of list){
+      const b = document.createElement("button");
+      b.type = "button";
+      const i = picked.indexOf(p.id);
+      const nm = document.createElement("span");
+      nm.textContent = people.isMe(p.id) ? `${p.name} (you)` : p.name;
+      nm.style.flex = "1";
+      b.append(people.avatar(p.id, 40), nm);
+      if (i >= 0){ const n = document.createElement("span"); n.className = "n"; n.textContent = i + 1; b.append(n); }
+      b.setAttribute("aria-pressed", i >= 0 ? "true" : "false");
+      tap(b, () => {
+        pickedTouched = true;
+        if (i >= 0) picked = picked.filter(x => x !== p.id);
+        else if (picked.length < MAX_PLAYERS) picked = [...picked, p.id];
+        else toast(`${MAX_PLAYERS} players at most`);
+        renderPick();
+      });
+      wrap.appendChild(b);
+    }
+    const o = $("order");
+    if (!picked.length) o.textContent = "Tap names in the order you'll play.";
+    else if (picked.length === 1) o.innerHTML = `<b></b> on your own — how few turns to 13?`;
+    else o.innerHTML = `<b></b> — pass the phone in that order.`;
+    if (picked.length) o.querySelector("b").textContent = picked.map(nameOf).join(", then ");
+    $("startBtn").disabled = !picked.length;
+    $("startBtn").textContent = picked.length > 1 ? `Start · ${picked.length} players` : "Start";
+  }
+
+  function renderResume(){
+    const box = $("resume");
+    box.innerHTML = "";
+    const live = games.filter(x => x.status === "live").sort((a, b) => (b.at || 0) - (a.at || 0));
+    if (!live.length) return;
+    const h = document.createElement("h2");
+    h.className = "lbl sect";
+    h.textContent = "Carry on";
+    const ul = document.createElement("ul");
+    ul.className = "rows";
+    for (const x of live){
+      const li = document.createElement("li");
+      li.innerHTML = `<span class="who"><div class="l1"></div><div class="l2"></div></span>
+        <button type="button" class="x" aria-label="Delete">✕</button><button type="button" class="primary">Resume</button>`;
+      li.querySelector(".l1").textContent = x.players.map(p => `${nameOf(p)} ${x.scores[p] || 0}`).join(" · ");
+      li.querySelector(".l2").textContent = `Round ${x.round || 1} · ${nameOf(x.seats[x.turn])} to play`;
+      tap(li.querySelector(".primary"), () => { phone.fullscreen(); openGame(x.id); });
+      armed(li.querySelector(".x"), "✕", () => store.remove(x.id));
+      ul.appendChild(li);
+    }
+    box.append(h, ul);
+  }
+
+  function renderLeaders(){
+    const ul = $("leaders");
+    ul.innerHTML = "";
+    const done = games.filter(x => x.status === "done");
+    const tally = new Map();
+    for (const x of done){
+      for (const p of x.players){
+        const r = tally.get(p) || { p, wins: 0, played: 0, best: 0 };
+        r.played++;
+        if (x.winner === p) r.wins++;
+        r.best = Math.max(r.best, x.scores[p] || 0);
+        tally.set(p, r);
+      }
+    }
+    const rows = [...tally.values()].filter(r => people.get(r.p)).sort((a, b) => b.wins - a.wins || (b.wins / b.played) - (a.wins / a.played) || b.best - a.best);
+    if (!rows.length){ ul.innerHTML = `<li class="empty">No finished games yet.</li>`; return; }
+    for (const r of rows){
+      const li = document.createElement("li");
+      li.innerHTML = `<span class="who"><div class="l1"></div><div class="l2"></div></span><span class="fig"></span>`;
+      li.prepend(people.avatar(r.p, 40));
+      li.querySelector(".l1").textContent = nameOf(r.p);
+      li.querySelector(".l2").textContent = `${r.wins} of ${r.played} won · best ${r.best}`;
+      li.querySelector(".fig").textContent = r.wins;
+      ul.appendChild(li);
+    }
+  }
+
+  function whenLabel(ms){
+    const d = new Date(ms), today = new Date();
+    if (d.toDateString() === today.toDateString()) return "Today";
+    const y = new Date(); y.setDate(y.getDate() - 1);
+    if (d.toDateString() === y.toDateString()) return "Yesterday";
+    return d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: d.getFullYear() === today.getFullYear() ? undefined : "numeric" });
+  }
+
+  function renderRecent(){
+    const ul = $("recent");
+    ul.innerHTML = "";
+    const rows = games.filter(x => x.status === "done").sort((a, b) => (b.endedAt || b.at || 0) - (a.endedAt || a.at || 0)).slice(0, 30);
+    if (!rows.length){ ul.innerHTML = `<li class="empty">Nothing played yet.</li>`; return; }
+    for (const x of rows){
+      const li = document.createElement("li");
+      li.innerHTML = `<span class="who"><div class="l1"></div><div class="l2"></div></span><button type="button" class="x" aria-label="Delete">✕</button>`;
+      if (x.winner) li.prepend(people.avatar(x.winner, 40));
+      const order = [...x.players].sort((a, b) => (x.scores[b] || 0) - (x.scores[a] || 0));
+      li.querySelector(".l1").textContent = order.map(p => `${nameOf(p)} ${x.scores[p] || 0}`).join(" · ");
+      li.querySelector(".l2").textContent = `${whenLabel(x.endedAt || x.at)} · ${x.winner ? nameOf(x.winner) + " won" : "done"} · ${plural(Math.max(1, (x.round || 2) - 1), "round")}`;
+      armed(li.querySelector("button"), "✕", () => store.remove(x.id));
+      ul.appendChild(li);
+    }
+  }
+
+  function renderPeople(){
+    const ul = $("people");
+    ul.innerHTML = "";
+    const list = people.active();
+    if (!list.length){ ul.innerHTML = `<li class="empty">No players yet. Add yourself first.</li>`; return; }
+    for (const p of list){
+      const li = document.createElement("li");
+      li.innerHTML = `<span class="who"><div class="l1"></div><div class="l2"></div></span><button type="button" class="quiet">Edit</button>`;
+      li.prepend(people.avatar(p.id, 40));
+      li.querySelector(".l1").textContent = people.isMe(p.id) ? `${p.name} (you)` : p.name;
+      li.querySelector(".l2").textContent = p.email || "No Gmail";
+      tap(li.querySelector("button"), () => people.edit(p.id, { noun: "player" }));
+      ul.appendChild(li);
+    }
+  }
+
+  function renderDiceKey(){
+    const k = $("dicekey");
+    k.innerHTML = "";
+    for (const f of "BFS"){
+      const wrap = document.createElement("div");
+      wrap.style.cssText = "display:flex;gap:6px";
+      for (const c of "gyr") wrap.append(die(c, f, 40));
+      const s = document.createElement("span");
+      s.innerHTML = f === "B" ? "<b>Brain</b> — eaten, counts" : f === "F" ? "<b>Ran</b> — roll it again" : "<b>Shot</b> — three and you're out";
+      k.append(wrap, s);
+    }
+    const s = document.createElement("span");
+    s.style.gridColumn = "1 / -1";
+    s.textContent = "Green: 3 brains, 2 feet, 1 shot. Yellow: 2, 2, 2. Red: 1 brain, 2 feet, 3 shots.";
+    k.append(s);
+  }
+
+  // ---- game ----
+  function newGame(players){
+    const scores = {};
+    for (const p of players) scores[p] = 0;
+    return { id: store.newId(), game: APP_ID, players: [...players], seats: [...players], scores, turn: 0, round: 1,
+      phase: "play", t: freshTurn(), turns: [], lastTurn: null, winner: null, status: "live", seq: 0,
+      at: Date.now(), endedAt: null, by: cloud.user ? cloud.user.email : null };
+  }
+
+  function startGame(players){
+    if (!players.length) return;
+    phone.fullscreen();
+    g = newGame(players);
+    rolledAt = -1;
+    save();
+    showGame();
+    handover(null);
+  }
+
+  function openGame(id){
+    const x = games.find(y => y.id === id);
+    if (!x) return;
+    const { _updatedAt, ...rest } = x;
+    g = structuredClone(rest);
+    rolledAt = -1;
+    showGame();
+    if (g.status === "done") finish();
+  }
+
+  function showGame(){
+    try { localStorage.setItem(HERE, g.id); } catch {}
+    document.body.classList.add("playing");
+    $("game").classList.remove("hidden");
+    phone.keepAwake(true);
+    renderGame();
+  }
+
+  function leaveGame(forget){
+    if (forget){ try { localStorage.removeItem(HERE); } catch {} }
+    g = null;
+    document.querySelectorAll(".ov").forEach(n => n.remove());
+    document.body.classList.remove("playing");
+    $("game").classList.add("hidden");
+    phone.keepAwake(false);
+    render();
+  }
+
+  function save(){
+    g.seq = (g.seq || 0) + 1;
+    const { id, ...doc } = g;
+    store.save(id, structuredClone(doc)).catch(e => toast("Couldn't save: " + (e.message || e)));
+  }
+
+  // show: { t, p } to keep the fatal roll on screen after the saved game has moved on.
+  function renderGame(show){
+    if (!g) return;
+    const t = show ? show.t : g.t;
+    const now = show ? show.p : g.seats[g.turn];
+    const live = g.status === "live" || !!show;
+
+    const board = $("board");
+    board.innerHTML = "";
+    for (const p of g.players){
+      const d = document.createElement("div");
+      d.className = "pl" + (p === now && live ? " now" : "") + (g.seats.includes(p) || p === now ? "" : " out");
+      d.innerHTML = `<span class="nm"></span><b></b>`;
+      d.prepend(people.avatar(p, 28));
+      d.querySelector(".nm").textContent = nameOf(p);
+      d.querySelector("b").textContent = g.scores[p] || 0;
+      board.appendChild(d);
+    }
+
+    const w = $("whose");
+    w.innerHTML = `<h2></h2>`;
+    w.prepend(people.avatar(now, 44));
+    w.querySelector("h2").textContent = g.players.length > 1 ? `${nameOf(now)}'s turn` : `Turn ${g.turns.length + (show ? 0 : 1)}`;
+
+    const ban = $("banner");
+    let msg = "";
+    if (g.phase === "final"){
+      const hit = g.players.filter(p => (g.scores[p] || 0) >= TARGET);
+      const left = g.seats.length - g.turn;
+      msg = `Final round — ${listNames(hit)} ${hit.length === 1 ? "has" : "have"} ${TARGET}+. ${plural(left, "turn")} left.`;
+    } else if (g.phase === "playoff"){
+      msg = `Play-off! ${listNames(g.seats)} tied — one more turn each.`;
+    }
+    ban.textContent = msg;
+    ban.classList.toggle("hidden", !msg);
+
+    $("stBrains").textContent = t.brains;
+    const shots = $("stShots");
+    shots.innerHTML = "";
+    shots.classList.toggle("danger", t.shotDice.length >= 2);
+    for (let i = 0; i < 3; i++){ const i_ = document.createElement("i"); if (i < t.shotDice.length) i_.className = "hit"; shots.appendChild(i_); }
+    $("stCup").textContent = t.cup.length;
+
+    // The tray: the dice just rolled, or what the next roll will pick up.
+    const tray = $("tray");
+    tray.innerHTML = "";
+    const size = Math.min(104, Math.floor((Math.min(innerWidth, 640) - 28 - 28 - 20) / 3));
+    const three = document.createElement("div");
+    three.className = "three";
+    const animate = rolledAt === g.seq;
+    if (t.last.length){
+      t.last.forEach((x, i) => {
+        const one = document.createElement("div");
+        one.className = "one";
+        const d = die(x.c, x.f, size, animate ? "tumble" : "");
+        if (animate) d.style.animationDelay = (i * 70) + "ms";
+        const s = document.createElement("span");
+        s.textContent = FACE[x.f];
+        one.append(d, s);
+        three.appendChild(one);
+      });
+      tray.appendChild(three);
+      if (t.hand.length && t.shotDice.length < 3){
+        const h = document.createElement("p");
+        h.className = "hint";
+        h.textContent = `${plural(t.hand.length, "runner")} to chase if you roll again, plus ${3 - t.hand.length} from the cup.`;
+        tray.appendChild(h);
+      }
+    } else {
+      for (let i = 0; i < 3; i++){ const one = document.createElement("div"); one.className = "one"; one.append(die("g", null, size, "wait")); three.appendChild(one); }
+      three.querySelectorAll(".die").forEach(d => d.className = "die wait");
+      tray.appendChild(three);
+      const h = document.createElement("p");
+      h.className = "hint";
+      h.textContent = "Tap Roll to grab three dice from the cup.";
+      tray.appendChild(h);
+    }
+    const cup = document.createElement("div");
+    cup.className = "cupdots";
+    cup.setAttribute("aria-hidden", "true");
+    for (const c of [...t.cup].sort((a, b) => "gyr".indexOf(a) - "gyr".indexOf(b))){ const i_ = document.createElement("i"); i_.className = c; cup.appendChild(i_); }
+    $("stCup").parentElement.querySelector(".cupdots")?.remove();
+    $("stCup").after(cup);
+
+    const pile = (id, list, word) => {
+      const box = $(id);
+      box.innerHTML = "";
+      if (!list.length){ box.innerHTML = `<span class="none">none yet</span>`; return; }
+      for (const c of list) box.appendChild(die(c, word, 36));
+    };
+    pile("pileB", t.brainDice, "B");
+    pile("pileS", t.shotDice, "S");
+    // Brains eaten before the cup was refilled no longer have dice on the table.
+    const extra = t.brains - t.brainDice.length;
+    if (extra > 0){ const s = document.createElement("span"); s.className = "none"; s.textContent = `+${extra} earlier`; $("pileB").appendChild(s); }
+
+    const lt = g.lastTurn;
+    $("last").textContent = lt && !t.rolls && !show
+      ? `Last turn: ${nameOf(lt.p)} ${lt.bust ? `got shot, lost ${plural(lt.brains, "brain")}` : `banked ${lt.brains}`} → ${lt.total}`
+      : "";
+
+    $("rollBtn").disabled = busy || !!show || g.status !== "live";
+    $("rollBtn").textContent = t.rolls ? "Roll again" : "Roll";
+    $("stopBtn").disabled = busy || !!show || !t.rolls || g.status !== "live";
+    $("stopBtn").innerHTML = t.rolls ? `Stop<small>bank ${t.brains}</small>` : "Stop";
+  }
+
+  function doRoll(){
+    if (!g || busy || g.status !== "live") return;
+    const bust = roll();
+    rolledAt = g.seq + 1;
+    busy = true;
+    buzz(15);
+    // On a bust the saved game moves straight on; the screen keeps the fatal roll until
+    // the hand-over card comes up.
+    const shown = bust ? { t: structuredClone(g.t), p: g.seats[g.turn] } : null;
+    const res = bust ? endTurn(true) : null;
+    save();
+    renderGame(shown);
+    const wait = matchMedia("(prefers-reduced-motion: reduce)").matches ? 150 : 750;
+    setTimeout(() => {
+      busy = false;
+      rolledAt = -1;
+      if (bust){ buzz([60, 40, 160]); handover(res); renderGame(shown); }
+      else renderGame();
+    }, wait);
+  }
+
+  function doStop(){
+    if (!g || busy || !g.t.rolls || g.status !== "live") return;
+    const res = endTurn(false);
+    buzz([20, 40, 20]);
+    save();
+    renderGame();
+    handover(res);
+  }
+
+  // The pass-the-phone card. res is the turn that just ended (null at the start of a game).
+  function handover(res){
+    document.querySelectorAll(".ov").forEach(n => n.remove());
+    if (g.status === "done") return finish(res);
+    const next = g.seats[g.turn];
+    const ov = document.createElement("div");
+    ov.className = "ov";
+    ov.innerHTML = `<div class="card" role="dialog" aria-modal="true">
+      <div class="head"></div><div class="sub"></div>
+      <div class="banner hidden"></div>
+      <div class="next"><span class="lbl"></span><b></b></div>
+      <button type="button" class="primary"></button></div>`;
+    const q = s => ov.querySelector(s);
+    const solo = g.players.length === 1;
+    if (!res){
+      q(".head").textContent = "Brains!";
+      q(".head").className = "head good";
+      q(".sub").textContent = solo ? `Get to ${TARGET} in as few turns as you can.` : `First to ${TARGET} brains. ${nameOf(g.seats[0])} goes first.`;
+    } else if (res.bust){
+      q(".head").textContent = "BLAM! Shot.";
+      q(".head").className = "head shot";
+      q(".sub").textContent = res.brains ? `${nameOf(res.p)} loses ${plural(res.brains, "brain")} — still on ${res.total}.` : `${nameOf(res.p)} is still on ${res.total}.`;
+    } else {
+      q(".head").textContent = res.brains ? `+${res.brains} ${res.brains === 1 ? "brain" : "brains"}` : "Played safe";
+      q(".head").className = "head good";
+      q(".sub").textContent = `${nameOf(res.p)} is on ${res.total}.`;
+    }
+    const b = q(".banner");
+    if (g.phase === "final" && res && res.total >= TARGET && !res.bust && g.turn !== 0){
+      b.textContent = `${nameOf(res.p)} has ${res.total}! Everyone left gets one last turn to catch up.`;
+      b.classList.remove("hidden");
+    } else if (g.phase === "playoff" && g.turn === 0){
+      b.textContent = `It's a tie on ${g.scores[g.seats[0]]}. ${listNames(g.seats)} play off — one turn each.`;
+      b.classList.remove("hidden");
+    }
+    const nx = q(".next");
+    nx.prepend(people.avatar(next, 64));
+    q(".next .lbl").textContent = solo ? "Next" : "Pass the phone to";
+    q(".next b").textContent = solo ? `Turn ${g.turns.length + 1}` : nameOf(next);
+    const btn = q("button");
+    btn.textContent = solo ? "Go" : `I'm ${nameOf(next)} — go`;
+    // A short pause so a tap meant for Roll doesn't dismiss the card by accident.
+    btn.disabled = true;
+    setTimeout(() => { btn.disabled = false; }, 500);
+    tap(btn, () => { if (!btn.disabled){ ov.remove(); rolledAt = -1; renderGame(); } });
+    document.body.appendChild(ov);
+  }
+
+  function finish(){
+    document.querySelectorAll(".ov").forEach(n => n.remove());
+    renderGame();
+    const ov = document.createElement("div");
+    ov.className = "ov";
+    ov.innerHTML = `<div class="card" role="dialog" aria-modal="true">
+      <div class="crown"></div><div class="head good"></div><div class="sub"></div>
+      <ul class="rank"></ul>
+      <div class="btns"><button type="button" class="primary" data-k="again">Play again</button>
+      <button type="button" class="quiet" data-k="done">Done</button></div></div>`;
+    const q = s => ov.querySelector(s);
+    const w = g.winner;
+    q(".crown").append(people.avatar(w, 88));
+    const solo = g.players.length === 1;
+    q(".head").textContent = solo ? `${g.scores[w]} brains` : `${nameOf(w)} wins!`;
+    q(".sub").textContent = solo ? `in ${plural(g.turns.length, "turn")}.` : `${g.scores[w]} brains after ${plural(Math.max(1, g.round - 1), "round")}.`;
+    const ul = q(".rank");
+    if (!solo){
+      for (const p of [...g.players].sort((a, b) => (g.scores[b] || 0) - (g.scores[a] || 0))){
+        const li = document.createElement("li");
+        if (p === w) li.className = "win";
+        li.innerHTML = `<span class="nm"></span><b></b>`;
+        li.prepend(people.avatar(p, 36));
+        li.querySelector(".nm").textContent = nameOf(p);
+        li.querySelector("b").textContent = g.scores[p] || 0;
+        ul.appendChild(li);
+      }
+    }
+    buzz([30, 60, 30, 60, 120]);
+    const players = [...g.players];
+    tap(q('[data-k="again"]'), () => { ov.remove(); startGame(players); });
+    tap(q('[data-k="done"]'), () => { ov.remove(); leaveGame(true); });
+    document.body.appendChild(ov);
+  }
+
+  // Another phone (or this one's echo) changed the game on screen.
+  function syncOpenGame(){
+    if (!g || busy) return;
+    const x = games.find(y => y.id === g.id);
+    if (!x){ toast("That game was deleted."); leaveGame(true); return; }
+    if ((x.seq || 0) > (g.seq || 0)){
+      const { _updatedAt, ...rest } = x;
+      g = structuredClone(rest);
+      renderGame();
+      if (g.status === "done" && !document.querySelector(".ov")) finish();
+    }
+  }
+
+  // ---- export / import ----
+  function download(name, text){
+    const url = URL.createObjectURL(new Blob([text], { type: "application/json;charset=utf-8" }));
+    const a = document.createElement("a");
+    a.href = url; a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 4000);
+  }
+  function exportAll(){
+    const data = { app: APP_ID, version: APP_VERSION, exportedAt: new Date().toISOString(), people: people.all(), games: rawGames };
+    download(`zombie-dice-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(data, null, 2));
+  }
+  async function importFile(file){
+    let data;
+    try { data = JSON.parse(await file.text()); } catch { return toast("That file isn't JSON."); }
+    if (!data || !Array.isArray(data.games)) return toast("No games in that file.");
+    people.adopt(data.people);
+    const have = new Set(rawGames.map(x => x.id));
+    let added = 0;
+    for (const raw of data.games){
+      if (!raw || !raw.id || have.has(raw.id) || !Array.isArray(raw.players)) continue;
+      const { id, _updatedAt, ...doc } = raw;
+      await store.save(String(id), doc);
+      added++;
+    }
+    toast(added ? `Imported ${plural(added, "game")}` : "Nothing new to import");
+  }
+
+  function share(){
+    const url = location.origin + location.pathname;
+    if (navigator.share) navigator.share({ title: "Zombie Dice", text: "Zombie Dice — sign in with the Gmail that's been added.", url }).catch(() => {});
+    else if (navigator.clipboard) navigator.clipboard.writeText(url).then(() => toast("Link copied")).catch(() => {});
+  }
+
+  // ---- storage ----
+  // Cloud when set up and signed in; in memory otherwise so the app still runs.
+  const store = {
+    get live(){ return cloud.configured() && !!cloud.user; },
+    newId(){ return this.live ? cloud.newId() : "local-" + Math.random().toString(36).slice(2); },
+    async save(id, doc){
+      if (this.live) return cloud.save(`games/${id}`, doc);
+      rawGames = [...rawGames.filter(x => x.id !== id), { id, ...doc }];
+      refreshGames(); if (!g) render();
+    },
+    async remove(id){
+      if (this.live) return cloud.delete(`games/${id}`);
+      rawGames = rawGames.filter(x => x.id !== id);
+      refreshGames(); render();
+    }
+  };
+
+  // ---- wiring ----
+  tap($("startBtn"), () => startGame(picked));
+  tap($("rollBtn"), doRoll);
+  tap($("stopBtn"), doStop);
+  tap($("leaveBtn"), () => leaveGame(false));
+  armed($("abandonBtn"), "Abandon game", async () => { const id = g.id; leaveGame(true); await store.remove(id); });
+  tap($("addBtn"), async () => {
+    const id = await people.edit(null, { noun: "player" });
+    if (!id) return;
+    pickedTouched = true;
+    if (!picked.includes(id) && picked.length < MAX_PLAYERS) picked = [...picked, id];
+    toast(`${nameOf(id)} added`);
+    render();
+  });
+  tap($("shareBtn"), share);
+  tap($("exportBtn"), exportAll);
+  tap($("importBtn"), () => $("importFile").click());
+  $("importFile").addEventListener("change", e => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (f) importFile(f);
+  });
+  phone.mountInstall($("installHere"), { label: "Install on this phone" });
+  renderDiceKey();
+  addEventListener("resize", () => { if (g && !busy) renderGame(); });
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && g) phone.keepAwake(true); });
+
+  people.onChange(() => { refreshGames(); if (g) renderGame(); else render(); });
+
+  // ---- cloud ----
+  const userBox = $("userBox");
+  await cloud.init(APP_ID);
+
+  function applyUser(user){
+    if (user){
+      userBox.innerHTML = `${user.photoURL ? `<img src="${user.photoURL}" alt="">` : ""}<button class="quiet userbtn" id="signOut">Sign out</button>`;
+      tap($("signOut"), () => cloud.signOut());
+    } else userBox.innerHTML = "";
+    start(user);
+  }
+  cloud.onUser(applyUser);
+  if (!cloud.user) applyUser(null);
+
+  tap($("signInBig"), () => cloud.signIn().catch(err => {
+    $("gateMsg").textContent = "Sign-in failed: " + (err && err.code ? err.code : err);
+  }));
+
+  // ---- app ----
+  let resumed = false;
+  function start(user){
+    unsubs.forEach(u => { try { u(); } catch {} });
+    unsubs = [];
+    const gated = cloud.configured() && !user;
+    $("gate").classList.toggle("hidden", !gated);
+    $("app").classList.toggle("hidden", gated);
+    if (gated){ if (g) leaveGame(false); return; }
+
+    if (cloud.configured()){
+      unsubs.push(people.start({ onError: e => toast("Couldn't save to the cloud: " + (e.message || e)) }));
+      unsubs.push(cloud.watchList("games", rows => {
+        rawGames = rows.filter(r => Array.isArray(r.players));
+        refreshGames();
+        // Reopening the app drops straight back into this phone's game.
+        if (!resumed){
+          resumed = true;
+          let here = null;
+          try { here = localStorage.getItem(HERE); } catch {}
+          const x = here && games.find(y => y.id === here && y.status === "live");
+          if (x && !g) openGame(x.id);
+        }
+        if (g) syncOpenGame(); else render();
+      }, { orderBy: "at", desc: true, limit: 500 }));
+    }
+    render();
+  }
+
+  // ---- offline shell ----
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
+</script>
+</body>
+</html>
