@@ -19,7 +19,21 @@ Each top-level folder with changes is one app. If only `shared/` changed, every 
 
 In each changed `<app-id>/index.html`, find `const APP_VERSION = "x.y.z"` and bump it: patch for fixes, minor for features. Then set `CACHE` in `<app-id>/sw.js` to `"<app-id>-vx.y.z"` with the same number. **Both must change together** or phones keep the stale build.
 
-## 3. Commit and push
+## 3. Smoke test, when `shared/` changed
+
+A change in `shared/` reaches every app, so open them all before pushing:
+
+```bash
+node shared/smoke.mjs
+```
+
+It opens each app at `?mock`, as the owner and as `?mock&as=stranger`, and prints one line an app.
+
+- **Exit 0**: push.
+- **Exit 1**: an app throws or logs an error. Don't push. Tell the owner which app and the line it printed. Push anyway only if the owner says that failure is already known.
+- **Exit 2**: no Playwright here, so it didn't run. Push, and say plainly in the report: "Smoke test skipped: no Playwright." (`PLAYWRIGHT=<path to playwright-core/index.mjs>` points it at a copy installed elsewhere.)
+
+## 4. Commit and push
 
 ```bash
 git add -A
@@ -29,7 +43,7 @@ git push origin main
 
 If push is rejected because `main` moved, `git pull --rebase origin main` and push again. Do not open a pull request unless the owner asks for one.
 
-## 4. Verify it's live
+## 5. Verify it's live
 
 Work out the URL: `https://<owner>.github.io/sidequests/<app-id>/` where `<owner>` comes from `git remote get-url origin`.
 
@@ -66,6 +80,6 @@ If **a** and **b** both hold, say it's live. The only thing this misses that a d
 
 Say so plainly. Give the commit SHA, whether it's on `main`, and what the Pages run said. Suggest checking Settings → Pages in the repo. Don't claim it's live if you couldn't confirm it — and don't claim it failed either, if all you know is that you couldn't reach it.
 
-## 5. Report
+## 6. Report
 
 One or two lines: the URL and the version now live. If the phone was already open on the app, remind the owner to pull-to-refresh or close and reopen the home-screen app, since the service worker fetches the new build on the next load.
