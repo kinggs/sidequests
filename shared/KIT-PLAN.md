@@ -50,7 +50,7 @@ same day; where it changes an earlier row, the earlier row says so.
 | Player ids | An account is its `uid`, a guest is `g_<id>`, a household person with no account keeps their person id. `people.resolve()` leads every old id to the current one. |
 | Today's family people | Nothing folds. A household member's picker shows the household list plus their friends plus their guests. Household people with no account stay where they are, shared by the household. |
 | Records name their players | Every record that names a player also stores `names` (a snapshot) and `uids` (the accounts in it). Why: an outsider can't read the household list, and `uids` is what the rules check. |
-| Rules are tested | `shared/rules-check.mjs` runs in the `deploy-rules` Action before the deploy. A failing check blocks the rules, never an app. ⚠ Owner hasn't confirmed this one; say so to drop it. |
+| Rules are tested | `shared/rules-check.mjs` runs in the `deploy-rules` Action before the deploy. A failing check blocks the rules deploy, never an app. Each rule's cases are written before the rule (owner, 2026-10-01). |
 | QR library | Vendored at `shared/vendor/`, not a CDN. Why: each `sw.js` only caches same-origin files, so a CDN copy fails offline. |
 | Family | Stays, keyed by email, as "the household": owner role, and the apps that haven't adopted Players. Not moved to uid. |
 
@@ -121,7 +121,9 @@ will hit: a permission error that only appears in production. This session close
   @firebase/rules-unit-testing firebase`, then `npx firebase-tools emulators:exec --only
   firestore --project demo-sidequests "node --test shared/rules-check.mjs"`. Add the file to
   the workflow's `paths`. No `package.json` is committed. ⚠ Unproven here: check the first
-  run's log, and that a deliberately broken case fails the job.
+  run's log, and that a deliberately broken case fails the job and stops the deploy.
+- [ ] If the emulator won't run in the Action, stop: leave the deploy step as it was, write
+  what broke in Handover, and finish the rest of the session. The owner decides what next.
 - [ ] `/deployquest`: after a push that touches the rules, wait for the `deploy-rules` run
   and report its result.
 - [ ] `CLAUDE.md`: the testing bullet gains `&as=`, the smoke script and the rules check.
@@ -593,8 +595,6 @@ Replaced the old Session 2 (design). What changed and why:
 
 Still open, for the owner:
 
-1. The rules check gates the rules deploy (Session 0). It's the one piece of ceremony in
-   this plan. Say so to drop it.
-2. After **Delete my account**, the matches that person played keep their name and uid.
+1. After **Delete my account**, the matches that person played keep their name and uid.
    Decide before Session 6 whether the owner should have a "forget this player" action.
-3. Whether a person's win record counts friendlies (Session 5).
+2. Whether a person's win record counts friendlies (Session 5).
