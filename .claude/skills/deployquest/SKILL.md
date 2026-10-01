@@ -43,6 +43,23 @@ git push origin main
 
 If push is rejected because `main` moved, `git pull --rebase origin main` and push again. Do not open a pull request unless the owner asks for one.
 
+### When the push touched the rules
+
+A push that changes `shared/firestore.rules`, `shared/rules-check.mjs` or `firebase.json` starts the `deploy-rules` Action: it runs the rules check on the emulator, then deploys. Wait for it and report its result:
+
+```bash
+SHA=$(git rev-parse HEAD)
+sleep 10
+RUN=$(gh run list --workflow deploy-rules.yml --commit "$SHA" --json databaseId -q '.[0].databaseId')
+gh run watch "$RUN" --exit-status
+```
+
+- **Green**: the check passed and the rules are deployed.
+- **Red on "Check the rules"**: a case failed and the rules were **not** deployed; the apps still run on the old rules. Read the failing case in `gh run view "$RUN" --log-failed` and tell the owner.
+- **Red on "Deploy rules"**: the check passed but the deploy failed. Report the error.
+
+Without `gh`, use the GitHub MCP tools (`list_workflow_runs` for `deploy-rules.yml`, matched on `head_sha`).
+
 ## 5. Verify it's live
 
 Work out the URL: `https://<owner>.github.io/sidequests/<app-id>/` where `<owner>` comes from `git remote get-url origin`.

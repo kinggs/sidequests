@@ -1,7 +1,10 @@
 # Deploys shared/firestore.rules to Firebase whenever it changes on main,
 # so rules edits work from any device — phone cloud sessions included.
+# First it proves the rules against the emulator (shared/rules-check.mjs); a failing case
+# fails the job and the deploy step never runs.
 # Auth: FIREBASE_SERVICE_ACCOUNT repo secret (rules-deployer@kennys-sidequests,
-# Firebase Rules Admin + Firebase Viewer only).
+# Firebase Rules Admin + Firebase Viewer only). The check needs none: demo- projects are
+# emulator-only.
 name: Deploy Firestore rules
 
 on:
@@ -9,6 +12,7 @@ on:
     branches: [main]
     paths:
       - shared/firestore.rules
+      - shared/rules-check.mjs
       - firebase.json
   workflow_dispatch:
 
@@ -17,6 +21,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # The Firestore emulator needs Java 21.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Check the rules
+        run: |
+          npm i --no-save @firebase/rules-unit-testing firebase
+          npx firebase-tools emulators:exec --only firestore --project demo-sidequests "node --test shared/rules-check.mjs"
 
       - name: Write service account key
         env:
