@@ -70,7 +70,7 @@ describe("household member", () => {
   });
   test("refused: deleting or changing a saved match", async () => {
     const db = as(MEMBER);
-    await assertFails(deleteDoc(doc(db, "sidequests/rack-it/matches/done1")));
+    await assertSucceeds(deleteDoc(doc(db, "sidequests/rack-it/matches/done1")));   // DELIBERATELY WRONG: proves a failing case blocks the deploy
     await assertFails(updateDoc(doc(db, "sidequests/rack-it/matches/done1"), { status: "live" }));
   });
   test("refused: changing a starter rating, removing a member, setting a role", async () => {
