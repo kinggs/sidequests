@@ -7,10 +7,11 @@
 //   cloud.signIn(); cloud.signOut();
 //   await cloud.save("state/main", {...}); // path is relative to sidequests/<appId>/
 //   await cloud.load("state/main");
-//   cloud.watch("sessions/abc", doc => ...);
+//   cloud.watch("sessions/abc", doc => ..., onError);  // onError optional
 //   await cloud.patch("sessions/abc", { "racks.3": {...} }); // dotted field paths
 //   await cloud.list("sessions");
-//   cloud.watchList("sessions", rows => ..., { orderBy: "at" });
+//   cloud.watchList("sessions", rows => ..., { orderBy: "at" }, onError);
+//   A refused or broken listener calls onError(e) once and stops; without one it warns.
 //
 // Add ?mock to an app's URL to run it against shared/cloud-memory.js instead: no Firebase,
 // a fake signed-in member, data kept in this browser. That's how sessions test an app.
@@ -71,6 +72,11 @@ function sharedColRef(path) {
   const parts = path.split("/").filter(Boolean);
   if (parts.length % 2 !== 1) throw new Error("Collection paths need an odd number of segments: " + path);
   return fs.collection(db, "sidequests", SHARED, ...parts);
+}
+
+// A listener's error: the app's onError, or a warning naming the path.
+function listenError(path, onError) {
+  return e => onError ? onError(e) : console.warn("[cloud] listener stopped:", path, e && e.code, e);
 }
 
 export const cloud = {
@@ -139,9 +145,10 @@ export const cloud = {
 
   delete(path) { return fs.deleteDoc(ref(path)); },
 
-  // Live updates. Returns an unsubscribe function.
-  watch(path, cb) {
-    return fs.onSnapshot(ref(path), snap => cb(snap.exists() ? snap.data() : null));
+  // Live updates. Returns an unsubscribe function. A listener the rules refuse ends with
+  // onError(e); without one it warns, since Firestore would otherwise log console.error.
+  watch(path, cb, onError) {
+    return fs.onSnapshot(ref(path), snap => cb(snap.exists() ? snap.data() : null), listenError(path, onError));
   },
 
   async list(collectionPath, { orderBy, desc = true, limit } = {}) {
@@ -154,14 +161,15 @@ export const cloud = {
     return snap.docs.map(d => ({ id: d.id, ...d.data() }));
   },
 
-  // Live updates for a whole collection. Same options as list(). Returns an unsubscribe function.
-  watchList(collectionPath, cb, { orderBy, desc = true, limit } = {}) {
+  // Live updates for a whole collection. Same options as list(), onError as watch().
+  // Returns an unsubscribe function.
+  watchList(collectionPath, cb, { orderBy, desc = true, limit } = {}, onError) {
     let q = colRef(collectionPath);
     const clauses = [];
     if (orderBy) clauses.push(fs.orderBy(orderBy, desc ? "desc" : "asc"));
     if (limit) clauses.push(fs.limit(limit));
     if (clauses.length) q = fs.query(q, ...clauses);
-    return fs.onSnapshot(q, snap => cb(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+    return fs.onSnapshot(q, snap => cb(snap.docs.map(d => ({ id: d.id, ...d.data() }))), listenError(collectionPath, onError));
   },
 
   newId() {

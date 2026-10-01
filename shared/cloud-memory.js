@@ -125,15 +125,15 @@ function write(full, data){
   notify();
   return Promise.resolve();
 }
-// A listener the rules refuse never fires: Firestore reports it once and ends it. Without an
-// error callback (cloud.js passes none) the SDK logs it with console.error, so this does too.
+// A listener the rules refuse never fires: Firestore reports it once and ends it, to the
+// onError the app passed, or (like cloud.js) as a warning.
 function subscribe(fn, full, onError){
   read();
   if (full && !allowed("read", full)) {
     setTimeout(() => {
       const e = denied();
       if (onError) onError(e);
-      else console.error("Uncaught Error in snapshot listener:", "FirebaseError: [code=permission-denied]: " + e.message, "(" + full + ")");
+      else console.warn("[cloud] listener stopped:", full, e.code, e);
     }, 0);
     return () => {};
   }
@@ -242,7 +242,7 @@ export const memory = {
   save(path, data){ return saveTo(docPath(path, appBase()), data); },
   patch(path, fields){ return patchTo(docPath(path, appBase()), fields); },
   delete(path){ return write(docPath(path, appBase()), null); },
-  watch(path, cb){
+  watch(path, cb, onError){
     const full = docPath(path, appBase());
     let last;
     return subscribe(() => {
@@ -250,12 +250,12 @@ export const memory = {
       if (sig === last) return;
       last = sig;
       cb(clone(doc));
-    }, full);
+    }, full, onError);
   },
   async list(collectionPath, opts){ const col = colPath(collectionPath, appBase()); check("read", col); return rowsOf(col, opts); },
-  watchList(collectionPath, cb, opts){
+  watchList(collectionPath, cb, opts, onError){
     const col = colPath(collectionPath, appBase());
-    return subscribe(() => cb(rowsOf(col, opts)), col);
+    return subscribe(() => cb(rowsOf(col, opts)), col, onError);
   },
   newId,
 
