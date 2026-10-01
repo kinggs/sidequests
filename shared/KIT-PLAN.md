@@ -93,45 +93,48 @@ will hit: a permission error that only appears in production. This session close
 
 ### `shared/cloud-memory.js`
 
-- [ ] `?mock&as=<name>`: this tab is a different fake user (uid `mock-<name>`, email
+- [x] `?mock&as=<name>`: this tab is a different fake user (uid `mock-<name>`, email
   `<name>@example.com`, **not** on `/members`), held in `sessionStorage`. Signed-out state
   is per user. The store stays shared across tabs. `&role=owner|member` still makes one a
   household member.
-- [ ] **Model the tiers, not the field rules.** A user who isn't on `/members` gets
+- [x] **Model the tiers, not the field rules.** A user who isn't on `/members` gets
   `permission-denied` on every read, write and list under `sidequests/`. That is production
   today. Later sessions open paths by adding rows to one table at the top of the file; the
   header comment says a rules change that opens a path adds its row.
 
 ### `shared/smoke.mjs`
 
-- [ ] A Node script, found the way `make-icons.mjs` finds Playwright. It serves the repo,
+- [x] A Node script, found the way `make-icons.mjs` finds Playwright. It serves the repo,
   opens every app folder at `?mock=reset` then `?mock`, and again at `?mock&as=stranger`.
   It fails on a page error or `console.error`, and prints one line an app. With no
   Playwright it exits 2 and says so.
-- [ ] `/deployquest` runs it before the push when `shared/` changed, and reports a skip
+- [x] `/deployquest` runs it before the push when `shared/` changed, and reports a skip
   plainly.
 
 ### Rules check
 
-- [ ] `shared/rules-check.mjs`: `node:test` cases on `@firebase/rules-unit-testing` for the
+- [x] `shared/rules-check.mjs`: `node:test` cases on `@firebase/rules-unit-testing` for the
   rules as they are: a member reads and writes; a non-member is refused; only the owner
   deletes a Rack It match. The name avoids `*.test.mjs` on purpose, so a bare `node --test`
   doesn't try to run it without the emulator.
-- [ ] `deploy-rules.yml`: before the deploy step, `npm i --no-save
+- [x] `deploy-rules.yml`: before the deploy step, `npm i --no-save
   @firebase/rules-unit-testing firebase`, then `npx firebase-tools emulators:exec --only
   firestore --project demo-sidequests "node --test shared/rules-check.mjs"`. Add the file to
   the workflow's `paths`. No `package.json` is committed. ⚠ Unproven here: check the first
   run's log, and that a deliberately broken case fails the job and stops the deploy.
-- [ ] If the emulator won't run in the Action, stop: leave the deploy step as it was, write
+- [x] (Not needed: it ran.) If the emulator won't run in the Action, stop: leave the deploy step as it was, write
   what broke in Handover, and finish the rest of the session. The owner decides what next.
-- [ ] `/deployquest`: after a push that touches the rules, wait for the `deploy-rules` run
+- [x] `/deployquest`: after a push that touches the rules, wait for the `deploy-rules` run
   and report its result.
-- [ ] `CLAUDE.md`: the testing bullet gains `&as=`, the smoke script and the rules check.
+- [x] `CLAUDE.md`: the testing bullet gains `&as=`, the smoke script and the rules check.
 
 ### Done when
 
 `rack-it/?mock&as=stranger` shows Rack It's "hasn't been invited" screen, the smoke script
 is green, and the Action ran the rules check before deploying.
+
+✓ except the smoke script: green for every app as the owner, red for four as a stranger
+(Handover, Session 0).
 
 ---
 
@@ -598,3 +601,47 @@ Still open, for the owner:
 1. After **Delete my account**, the matches that person played keep their name and uid.
    Decide before Session 6 whether the owner should have a "forget this player" action.
 2. Whether a person's win record counts friendlies (Session 5).
+
+### Session 0, 2026-10-01 (Opus)
+
+Shipped: `?mock&as=<name>` and the two tiers in `cloud-memory.js`, `shared/smoke.mjs`, and
+`shared/rules-check.mjs` running in `deploy-rules` before the deploy. `node --test` passes
+(25).
+
+Proved:
+
+- `rack-it/?mock&as=stranger` shows "this account hasn't been invited yet"; it survives a
+  reload; a second tab at `?mock` is still the owner. `&as=ben&role=member` is a member;
+  Ann signing out leaves the owner signed in.
+- Rules check: 14 cases. Run 36883214524 ran them (14 pass) at 15:19:17, then deployed at
+  15:19:24. A deliberately wrong case (run 36883406744) failed the job with 13 pass, 1 fail,
+  and **Deploy rules** was skipped. Reverted; run 36883562301 is green.
+
+Not green: **the smoke test fails four apps as a stranger.** Around the Clock, Bloc 11,
+Photo Coach and Zombie Dice log "Uncaught Error in snapshot listener: permission-denied".
+They call `cloud.watch`/`watchList`, and `cloud.js` passes Firestore no error callback, so
+the SDK logs it with `console.error`. An outsider opening those apps in production gets the
+same. Rack It and Fair Nine pass. Not fixed, as briefed. The likely fix is one change in
+`cloud.js` (an `onError` on `watch`/`watchList` that warns by default), plus a "not
+invited" screen in each app; the owner decides when. Until then `/deployquest` stops on a
+red smoke unless the owner says the failure is known.
+
+What the plan got wrong, or didn't say:
+
+1. **`cloud.role()` doesn't return null for an outsider; it throws.** The rules let only
+   the household read `/members`, so the read of your own entry is refused. Session 1 says
+   "when `cloud.role()` is null": make `cloud.js` return null on `permission-denied` first.
+   The mock now throws too, as production does. Rack It already catches it.
+2. **Rack It's "hasn't been invited" screen has no Sign out.** A stranger is stuck there.
+   Session 1's outsider screen replaces it.
+3. The emulator needs **Java 21**, so the Action gained `setup-java` (Temurin 21) and
+   `setup-node` (22) steps before the check.
+4. `.claude/skills/sidequest/make-icons.mjs` looks for `chrome-linux/chrome`; Playwright's
+   current Chromium is at `chrome-linux64/chrome`. The smoke script looks for both;
+   make-icons isn't changed.
+5. This desktop has Chromium but no Playwright package and no Java. The smoke script takes
+   `PLAYWRIGHT=<path to playwright-core/index.mjs>` for a copy installed elsewhere.
+6. Running the check locally leaves `node_modules/` and `firestore-debug.log`; neither is
+   in `.gitignore`. Worth adding.
+7. In the mock, `&role=` given with `&as=` writes that user onto `/members` in the shared
+   store, so it sticks until `?mock=reset`.

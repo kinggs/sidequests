@@ -14,6 +14,8 @@ sidequests/
     cloud-memory.js       ← the fake cloud behind ?mock, for testing any app without Firebase
     firebase-config.js    ← one project for all apps, filled in once
     firestore.rules       ← family allowlist; copy of what's published in the console
+    rules-check.mjs       ← cases the rules must pass; the deploy-rules Action runs them first
+    smoke.mjs             ← opens every app as the owner and as a stranger; fails on any error
     KIT.md  KIT-PLAN.md   ← the shared parts an app opts into, and the plan building them
     people.js             ← the household's people, shared by every app (list, "you", add/edit sheet, avatars)
     theme.css             ← the shared look (dark system v2): tokens, fonts, buttons, chips, rows, tiles
@@ -56,7 +58,9 @@ GitHub Pages serves `main` from the repo root. Nothing to configure per app.
 
 - Small commits, one intent each, messages in plain English ("Make the swap button taller").
 - After any change, sanity-check by reading the file back for unbalanced tags and a matching version bump.
-- **Test with `?mock`.** Open any app with `?mock` in the URL (served locally, e.g. `python3 -m http.server`) and `cloud.init` swaps in `shared/cloud-memory.js`: a fake signed-in member, data kept in that browser, watchers across tabs. `?mock=reset` wipes it; `&seed=<url>` starts from a JSON export. Never test against real Firestore data.
+- **Test with `?mock`.** Open any app with `?mock` in the URL (served locally, e.g. `python3 -m http.server`) and `cloud.init` swaps in `shared/cloud-memory.js`: a fake signed-in member, data kept in that browser, watchers across tabs. `?mock=reset` wipes it; `&seed=<url>` starts from a JSON export. `&as=<name>` makes that tab a different user who isn't on `/members`, refused like an outsider in production (`&as=` alone goes back). Never test against real Firestore data.
+- **Smoke test after a `shared/` change:** `node shared/smoke.mjs` opens every app as the owner and as `?mock&as=stranger` and fails on any page error or `console.error`. It needs Playwright; without it, it exits 2 and `/deployquest` reports the skip.
+- **Rules are tested before they deploy.** `shared/rules-check.mjs` holds the cases; the `deploy-rules` Action runs them on the emulator, and a failing case stops the deploy. A rules change adds its cases first.
 - If a request is ambiguous, pick the simplest interpretation, do it, and say what you assumed. Don't stall on questions.
 - When asked for a new app, use `/sidequest`. When asked to remove one, use `/deletequest` (it confirms first).
-- Changing `shared/firestore.rules` needs no CLI or console: push to `main` and a GitHub Action deploys the rules automatically.
+- Changing `shared/firestore.rules` needs no CLI or console: push to `main` and a GitHub Action checks and deploys the rules automatically.
