@@ -24,7 +24,7 @@ Status and build order: `shared/KIT-PLAN.md`.
 - Everyone who signs in has an **account**, keyed by Firebase `uid`, never by email. Other
   sign-in methods (email link, Apple, phone) can then be added later without moving data.
 - An account has a **profile**: full name (from Google, editable) and a photo (Google's, or
-  one taken in the app, shrunk to a 256 px JPEG and stored in the profile document).
+  one taken in the app, shrunk to a 192 px JPEG and stored in the profile document).
   ⚠ Firebase Storage would need the paid Blaze plan, so the photo stays in Firestore.
 - **The household** is the allowlist: an account whose email is in `/members`. A household
   member reads everything under `/sidequests/`, so only people who live here go on it.
