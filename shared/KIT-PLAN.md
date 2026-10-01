@@ -208,7 +208,11 @@ same checklist style. Questions to settle:
    finishes a match?
 6. **Does "family" survive?** Once Rack It runs on Players and `uids`, `/members` may only
    matter for the owner role and the older apps. Should it move to uid keying, or retire?
-7. **The setup picker.** Friends filtered by a `pool` tag? Recent opponents first? Where
+7. **Blaze (pay-as-you-go).** If the ratings in question 5 need trusted server code, that
+   means a Cloud Function, which needs the Blaze plan: a card on file, likely $0 a month at
+   our scale, and a deploy step for the function (a GitHub Action, like the rules). Decide
+   here. Nothing before Session 3 needs it.
+8. **The setup picker.** Friends filtered by a `pool` tag? Recent opponents first? Where
    do **Scan a new player** and **Add a guest** sit?
 
 ## Session 5 — outline (finalised after Session 4)
