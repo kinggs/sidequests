@@ -6,28 +6,59 @@
 //   /sidequests/rack-it/?mock=reset                wipe the fake data first
 //   /sidequests/rack-it/?mock&seed=../x.json       start from an app's JSON export (when empty)
 //   /sidequests/rack-it/?mock&role=member          the fake user as a plain member (default: owner)
+//   /sidequests/rack-it/?mock&as=ann               this tab is another fake user, not on /members
+//   /sidequests/rack-it/?mock&as=ann&role=member   …who is a household member after all
+//   /sidequests/rack-it/?mock&as=                  this tab goes back to the default owner
 //
 // Same surface as cloud.js, including `shared` and the members calls. The data lives in this
 // browser's localStorage, so it survives a reload (resume) and another tab sees every write
-// (watch). Watchers fire on every write, from this tab or another. Firestore's rules aren't
-// modelled: the fake user can read and write everything, and role only changes what an app
-// shows. Check an owner-only rule against shared/firestore.rules, not here.
+// (watch). Watchers fire on every write, from this tab or another.
+//
+// Users. Without &as= the fake user is mock.player@gmail.com, the owner. &as=<name> makes this
+// tab uid mock-<name>, <name>@example.com, held in sessionStorage so a reload keeps it while
+// other tabs stay who they are. Each user signs out on their own; the data is shared.
+//
+// Permissions model the tiers, not the field rules (ACCESS below): a signed-in user on
+// /members reaches what the household reaches, anyone else gets permission-denied, as in
+// production. Owner-only and field-level rules aren't modelled; role only changes what an
+// app shows, so check those against shared/firestore.rules (and shared/rules-check.mjs).
 //
 // A seed is an app export: `state` becomes state/main, `people` the shared people, and every
 // other top-level array of { id } or map of id → object becomes that collection.
 
 const KEY = "cloud-memory";
-const USER = { uid: "mock-uid", email: "mock.player@gmail.com", displayName: "Mock Player", photoURL: null, emailVerified: true };
+const AS_KEY = "cloud-memory.as";
+const OWNER = { uid: "mock-uid", email: "mock.player@gmail.com", displayName: "Mock Player", photoURL: null, emailVerified: true };
+let USER = OWNER;
+function userCalled(name){
+  if (!name) return OWNER;
+  const n = String(name).trim().toLowerCase().replace(/[^a-z0-9-]/g, "") || "someone";
+  return { uid: "mock-" + n, email: n + "@example.com", displayName: n[0].toUpperCase() + n.slice(1), photoURL: null, emailVerified: true };
+}
+
+// Who reaches what: the tiers in shared/firestore.rules, one row per path, first match wins.
+// "household" = signed in with an email on /members; "account" = anyone signed in. A path
+// no row matches is refused, like the rules' catch-all. A rules change that opens a path to
+// a wider tier adds its row here, above the row it narrows.
+const ACCESS = [
+  { path: /^members(\/|$)/,    read: "household", write: "household" },
+  { path: /^sidequests(\/|$)/, read: "household", write: "household" },
+];
 
 let appId = null;
 let currentUser = null;
-let store = { docs: {}, signedOut: false };   // "sidequests/<app>/state/main" → data
+let store = { docs: {}, signedOut: {} };   // docs: "sidequests/<app>/state/main" → data; signedOut: uid → true
 const userListeners = [];
 const watchers = new Set();
 let counter = 0;
 
 const clone = x => x === undefined ? undefined : JSON.parse(JSON.stringify(x));
-function read(){ try { store = JSON.parse(localStorage.getItem(KEY)) || store; } catch {} store.docs = store.docs || {}; }
+function read(){
+  try { store = JSON.parse(localStorage.getItem(KEY)) || store; } catch {}
+  store.docs = store.docs || {};
+  // Before &as=, signed-out was one flag, for the one fake user.
+  if (!isMap(store.signedOut)) store.signedOut = store.signedOut === true ? { [OWNER.uid]: true } : {};
+}
 function persist(){ try { localStorage.setItem(KEY, JSON.stringify(store)); } catch (e) { console.warn("[cloud-memory]", e); } }
 
 // Firestore refuses undefined anywhere in a document; so does this, so a bug shows here first.
@@ -67,19 +98,45 @@ function rowsOf(col, { orderBy, desc = true, limit } = {}){
   return limit ? rows.slice(0, limit) : rows;
 }
 
+// The tier check. Rejects like Firestore: an Error with code "permission-denied".
+const denied = () => Object.assign(new Error("Missing or insufficient permissions."), { code: "permission-denied" });
+function tierOf(user){
+  if (!user) return null;
+  return store.docs["members/" + String(user.email || "").toLowerCase()] ? "household" : "account";
+}
+function allowed(op, full){
+  const tier = tierOf(currentUser);
+  if (!tier) return false;
+  const row = ACCESS.find(r => r.path.test(full));
+  const need = row && row[op];
+  return need === "account" || (need === "household" && tier === "household");
+}
+function check(op, full){ read(); if (!allowed(op, full)) throw denied(); }
+
 function notify(){
   // Async, like onSnapshot: after the write has returned.
   setTimeout(() => watchers.forEach(w => { try { w(); } catch (e) { console.warn("[cloud-memory]", e); } }), 0);
 }
 function write(full, data){
-  if (!currentUser) return Promise.reject(Object.assign(new Error("Missing or insufficient permissions."), { code: "permission-denied" }));
   read();
+  if (!allowed("write", full)) return Promise.reject(denied());
   if (data === null) delete store.docs[full]; else store.docs[full] = data;
   persist();
   notify();
   return Promise.resolve();
 }
-function subscribe(fn){
+// A listener the rules refuse never fires: Firestore reports it once and ends it. Without an
+// error callback (cloud.js passes none) the SDK logs it with console.error, so this does too.
+function subscribe(fn, full, onError){
+  read();
+  if (full && !allowed("read", full)) {
+    setTimeout(() => {
+      const e = denied();
+      if (onError) onError(e);
+      else console.error("Uncaught Error in snapshot listener:", "FirebaseError: [code=permission-denied]: " + e.message, "(" + full + ")");
+    }, 0);
+    return () => {};
+  }
   const w = () => fn();
   watchers.add(w);
   setTimeout(w, 0);
@@ -96,11 +153,13 @@ if (typeof window !== "undefined") window.addEventListener("storage", e => {
 function saveTo(full, data){
   noUndefined(data, full);
   read();
+  if (!allowed("write", full)) return Promise.reject(denied());
   return write(full, deepMerge(store.docs[full], { ...data, _updatedAt: Date.now() }));
 }
 function patchTo(full, fields){
   noUndefined(fields, full);
   read();
+  if (!allowed("write", full)) return Promise.reject(denied());
   if (!store.docs[full]) return Promise.reject(Object.assign(new Error("No document to update: " + full), { code: "not-found" }));
   const doc = clone(store.docs[full]);
   for (const [k, v] of Object.entries({ ...fields, _updatedAt: Date.now() })) {
@@ -136,7 +195,7 @@ export const memory = {
     appId = id;
     const q = new URLSearchParams(location.search);
     const url = new URL(location.href);
-    if (q.get("mock") === "reset") { localStorage.removeItem(KEY); store = { docs: {}, signedOut: false }; url.searchParams.set("mock", ""); }
+    if (q.get("mock") === "reset") { localStorage.removeItem(KEY); store = { docs: {}, signedOut: {} }; url.searchParams.set("mock", ""); }
     read();
     if (q.get("seed")) {
       if (!Object.keys(store.docs).length) await seedFrom(q.get("seed")).catch(e => console.warn("[cloud-memory] seed", e));
@@ -144,12 +203,19 @@ export const memory = {
     }
     const role = q.get("role");
     url.searchParams.delete("role");
+    try {
+      if (q.has("as")) q.get("as") ? sessionStorage.setItem(AS_KEY, q.get("as")) : sessionStorage.removeItem(AS_KEY);
+      USER = userCalled(sessionStorage.getItem(AS_KEY));
+    } catch { USER = userCalled(q.get("as")); }
+    url.searchParams.delete("as");
     history.replaceState(null, "", url.toString().replace("mock=&", "mock&").replace(/mock=$/, "mock"));
+    // The default user is always on /members (the owner unless &role= says otherwise). An
+    // &as= user is on it only once &role= puts them there.
     const members = `members/${USER.email}`;
-    if (!store.docs[members]) { store.docs[members] = { addedBy: null, addedAt: Date.now(), role: "owner" }; persist(); }
-    if (role === "owner" || role === "member") { store.docs[members] = { ...store.docs[members], role }; persist(); }
-    currentUser = store.signedOut ? null : { ...USER };
-    console.info("[cloud-memory] fake cloud for", id, "as", USER.email);
+    if (USER === OWNER && !store.docs[members]) { store.docs[members] = { addedBy: null, addedAt: Date.now(), role: "owner" }; persist(); }
+    if (role === "owner" || role === "member") { store.docs[members] = { addedBy: null, addedAt: Date.now(), ...store.docs[members], role }; persist(); }
+    currentUser = store.signedOut[USER.uid] ? null : { ...USER };
+    console.info("[cloud-memory] fake cloud for", id, "as", USER.email, tierOf(USER) === "household" ? "(household)" : "(not on /members)");
     await new Promise(r => setTimeout(r, 0));
     userListeners.forEach(cb => cb(currentUser));
     return currentUser;
@@ -161,18 +227,18 @@ export const memory = {
     if (currentUser !== null) cb(currentUser);
   },
   async signIn(){
-    read(); store.signedOut = false; persist();
+    read(); delete store.signedOut[USER.uid]; persist();
     currentUser = { ...USER };
     userListeners.forEach(cb => cb(currentUser));
     return { user: currentUser };
   },
   async signOut(){
-    read(); store.signedOut = true; persist();
+    read(); store.signedOut[USER.uid] = true; persist();
     currentUser = null;
     userListeners.forEach(cb => cb(null));
   },
 
-  async load(path){ read(); return clone(store.docs[docPath(path, appBase())]) || null; },
+  async load(path){ const full = docPath(path, appBase()); check("read", full); return clone(store.docs[full]) || null; },
   save(path, data){ return saveTo(docPath(path, appBase()), data); },
   patch(path, fields){ return patchTo(docPath(path, appBase()), fields); },
   delete(path){ return write(docPath(path, appBase()), null); },
@@ -184,28 +250,32 @@ export const memory = {
       if (sig === last) return;
       last = sig;
       cb(clone(doc));
-    });
+    }, full);
   },
-  async list(collectionPath, opts){ read(); return rowsOf(colPath(collectionPath, appBase()), opts); },
+  async list(collectionPath, opts){ const col = colPath(collectionPath, appBase()); check("read", col); return rowsOf(col, opts); },
   watchList(collectionPath, cb, opts){
     const col = colPath(collectionPath, appBase());
-    return subscribe(() => cb(rowsOf(col, opts)));
+    return subscribe(() => cb(rowsOf(col, opts)), col);
   },
   newId,
 
   shared: {
     save(path, data){ return saveTo(docPath(path, SHARED), data); },
     newId,
-    watchList(collectionPath, cb){
+    watchList(collectionPath, cb, onError){
       const col = colPath(collectionPath, SHARED);
-      return subscribe(() => cb(rowsOf(col), { fromCache: false }));
+      return subscribe(() => cb(rowsOf(col), { fromCache: false }), col, e => { console.warn("[cloud.shared]", e); if (onError) onError(e); });
     }
   },
 
-  async listMembers(){ read(); return rowsOf("members").map(r => r.id).sort(); },
+  async listMembers(){ check("read", "members"); return rowsOf("members").map(r => r.id).sort(); },
+  // Like cloud.js: null when signed out. Signed in but not on /members, the read itself is
+  // refused (the rules let only the household read /members), so this rejects.
   async role(){
     read();
-    const m = currentUser && store.docs["members/" + currentUser.email];
+    if (!currentUser) return null;
+    check("read", "members/" + currentUser.email);
+    const m = store.docs["members/" + currentUser.email];
     return m ? (m.role === "owner" ? "owner" : "member") : null;
   },
   addMember(email){
