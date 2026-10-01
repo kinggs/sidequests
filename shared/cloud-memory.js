@@ -10,7 +10,7 @@
 //   /sidequests/rack-it/?mock&as=ann&role=member   …who is a household member after all
 //   /sidequests/rack-it/?mock&as=                  this tab goes back to the default owner
 //
-// Same surface as cloud.js, including `shared` and the members calls. The data lives in this
+// Same surface as cloud.js, including `shared`, the members calls and `account`. The data lives in this
 // browser's localStorage, so it survives a reload (resume) and another tab sees every write
 // (watch). Watchers fire on every write, from this tab or another.
 //
@@ -22,6 +22,12 @@
 // /members reaches what the household reaches, anyone else gets permission-denied, as in
 // production. Owner-only and field-level rules aren't modelled; role only changes what an
 // app shows, so check those against shared/firestore.rules (and shared/rules-check.mjs).
+// The account paths are modelled more closely, since outsiders live there: your own
+// private/friends/guests only, a pair only by one of its two, and a friendship only with
+// the other side's live code.
+//
+// Two tabs test a whole QR scan: rack-it/?mock on My QR, then
+// rack-it/?mock&as=waiter&i=<code> in another tab. Times are milliseconds here.
 //
 // A seed is an app export: `state` becomes state/main, `people` the shared people, and every
 // other top-level array of { id } or map of id → object becomes that collection.
@@ -40,10 +46,28 @@ function userCalled(name){
 // "household" = signed in with an email on /members; "account" = anyone signed in. A path
 // no row matches is refused, like the rules' catch-all. A rules change that opens a path to
 // a wider tier adds its row here, above the row it narrows.
+// A row's read or write is a tier, "anyone" (signed out too), or a check (match, user, data)
+// for the account paths. `data` is the document being written, or null for a delete.
 const ACCESS = [
   { path: /^members(\/|$)/,    read: "household", write: "household" },
   { path: /^sidequests(\/|$)/, read: "household", write: "household" },
+  // Accounts (Session 1). Yours alone: private, friends, guests, as documents or as a list.
+  { path: /^profiles\/([^/]+)\/(private|friends|guests)(\/[^/]+)?$/, read: (m, u) => m[1] === u.uid, write: (m, u) => m[1] === u.uid },
+  // A profile is read one at a time (the bare "profiles" list matches no row, so it's refused).
+  { path: /^profiles\/([^/]+)$/, read: "account", write: (m, u) => m[1] === u.uid },
+  { path: /^invites\/([^/]+)$/, read: "anyone",
+    write: (m, u, d, was) => d ? (!was && d.uid === u.uid && d.expires <= Date.now() + 25 * HOUR) : !!was && was.uid === u.uid },
+  { path: /^friendships\/([^/]+)$/,
+    read: (m, u, d, was) => was ? was.uids.includes(u.uid) : m[1].split("_").includes(u.uid),
+    write: (m, u, d, was) => d ? !was && pairOk(m[1], u, d) : !!was && was.uids.includes(u.uid) },
 ];
+// The friendship create rule: one of the two, carrying the other's live code.
+function pairOk(pair, u, d){
+  const inv = store.docs["invites/" + d.via];
+  return Array.isArray(d.uids) && d.uids.length === 2 && d.uids[0] < d.uids[1]
+    && pair === d.uids.join("_") && d.uids.includes(u.uid)
+    && !!inv && d.uids.includes(inv.uid) && inv.uid !== u.uid && inv.expires > Date.now();
+}
 
 let appId = null;
 let currentUser = null;
@@ -104,11 +128,13 @@ function tierOf(user){
   if (!user) return null;
   return store.docs["members/" + String(user.email || "").toLowerCase()] ? "household" : "account";
 }
-function allowed(op, full){
-  const tier = tierOf(currentUser);
-  if (!tier) return false;
+function allowed(op, full, data = null){
   const row = ACCESS.find(r => r.path.test(full));
   const need = row && row[op];
+  if (need === "anyone") return true;
+  const tier = tierOf(currentUser);
+  if (!tier || !need) return false;
+  if (typeof need === "function") return !!need(full.match(row.path), currentUser, data, store.docs[full] || null);
   return need === "account" || (need === "household" && tier === "household");
 }
 function check(op, full){ read(); if (!allowed(op, full)) throw denied(); }
@@ -119,7 +145,7 @@ function notify(){
 }
 function write(full, data){
   read();
-  if (!allowed("write", full)) return Promise.reject(denied());
+  if (!allowed("write", full, data)) return Promise.reject(denied());
   if (data === null) delete store.docs[full]; else store.docs[full] = data;
   persist();
   notify();
@@ -153,7 +179,6 @@ if (typeof window !== "undefined") window.addEventListener("storage", e => {
 function saveTo(full, data){
   noUndefined(data, full);
   read();
-  if (!allowed("write", full)) return Promise.reject(denied());
   return write(full, deepMerge(store.docs[full], { ...data, _updatedAt: Date.now() }));
 }
 function patchTo(full, fields){
@@ -170,6 +195,103 @@ function patchTo(full, fields){
   }
   return write(full, doc);
 }
+// ---- accounts (cloud.js has the real ones) ----
+const DAY = 24 * 3600 * 1000, HOUR = 3600 * 1000;
+const CODE = /^[A-Za-z0-9]{8,40}$/;
+const needUser = () => {
+  if (!currentUser) throw Object.assign(new Error("Sign in first"), { code: "unauthenticated" });
+  return currentUser;
+};
+const googleName = u => String(u.displayName || (u.email || "").split("@")[0] || "Someone").trim().slice(0, 60);
+const asProfile = (uid, p) => p ? { uid, name: p.name || "", photo: p.photo || p.googlePhoto || "", googlePhoto: p.googlePhoto || "" } : null;
+function getDoc(full){ read(); if (!allowed("read", full)) return Promise.reject(denied()); return Promise.resolve(clone(store.docs[full]) || null); }
+function newCode(){
+  const abc = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  return Array.from(crypto.getRandomValues(new Uint8Array(12)), x => abc[x % 62]).join("");
+}
+function ensureProfile(u){
+  read();
+  const full = "profiles/" + u.uid;
+  if (!store.docs[full]) { store.docs[full] = { name: googleName(u), googlePhoto: u.photoURL || "", createdAt: Date.now() }; persist(); notify(); }
+}
+// Watch whatever fn reads, refused like Firestore when `full` is refused.
+function watchRead(full, fn, cb, onError){
+  let last;
+  return subscribe(() => {
+    const v = fn(), sig = JSON.stringify(v);
+    if (sig === last) return;
+    last = sig;
+    cb(v);
+  }, full, onError);
+}
+
+const account = {
+  async me(){
+    if (!currentUser) return null;
+    return asProfile(currentUser.uid, await getDoc("profiles/" + currentUser.uid));
+  },
+  watchMe(cb, onError){
+    const u = needUser(), full = "profiles/" + u.uid;
+    return watchRead(full, () => asProfile(u.uid, clone(store.docs[full])), cb, onError);
+  },
+  async saveMe({ name, photo } = {}){
+    const u = needUser(), f = {};
+    if (name !== undefined) f.name = String(name).trim().slice(0, 60);
+    if (photo !== undefined) f.photo = photo || "";
+    return saveTo("profiles/" + u.uid, f);
+  },
+  async profile(uid){
+    if (!uid) return null;
+    try { return asProfile(uid, await getDoc("profiles/" + uid)); }
+    catch (e) { console.warn("[cloud.account] profile", uid, e); return null; }
+  },
+  async invite(){
+    const u = needUser();
+    const privPath = `profiles/${u.uid}/private/main`;
+    const priv = (await getDoc(privPath)) || {};
+    if (priv.invite && priv.expires > Date.now() + HOUR) return priv.invite;
+    const me = await this.me();
+    const code = newCode(), expires = Date.now() + DAY;
+    await write("invites/" + code, { uid: u.uid, name: (me && me.name) || googleName(u), expires });
+    await write(privPath, { invite: code, expires });
+    if (priv.invite) write("invites/" + priv.invite, null).catch(() => {});
+    return code;
+  },
+  async lookupInvite(code){
+    if (!CODE.test(String(code || ""))) return null;
+    const d = await getDoc("invites/" + code);
+    return d && d.expires > Date.now() ? { uid: d.uid, name: d.name } : null;
+  },
+  async accept(code, app){
+    const u = needUser();
+    const inv = await this.lookupInvite(code);
+    if (!inv) return null;
+    if (inv.uid === u.uid) return { self: true };
+    const uids = [u.uid, inv.uid].sort(), pair = "friendships/" + uids.join("_");
+    if (await getDoc(pair)) return { ...inv, already: true };
+    await write(pair, { uids, since: Date.now(), via: code, app: String(app || "") });
+    await saveTo(`profiles/${u.uid}/friends/${inv.uid}`, { metAt: Date.now() }).catch(e => console.warn("[cloud.account] card", e));
+    return inv;
+  },
+  watchFriends(cb, onError){
+    const u = needUser(), cards = `profiles/${u.uid}/friends`;
+    return watchRead(cards, () => rowsOf("friendships")
+      .filter(p => Array.isArray(p.uids) && p.uids.includes(u.uid))   // the array-contains query
+      .map(p => {
+        const uid = p.uids.find(x => x !== u.uid) || "", c = store.docs[`${cards}/${uid}`] || {};
+        return { uid, since: p.since || null, app: p.app || "", note: c.note || "", tags: c.tags || [],
+          metAt: c.metAt || p.since || null, metPlace: c.metPlace || "" };
+      })
+      .sort((a, b) => (b.since || 0) - (a.since || 0)), cb, onError);
+  },
+  saveFriend(uid, fields){ const u = needUser(); return saveTo(`profiles/${u.uid}/friends/${uid}`, { ...fields }); },
+  async unfriend(uid){
+    const u = needUser();
+    await write("friendships/" + [u.uid, uid].sort().join("_"), null);
+    await write(`profiles/${u.uid}/friends/${uid}`, null).catch(() => {});
+  }
+};
+
 const newId = () => "m" + Date.now().toString(36) + (counter++).toString(36) + Math.random().toString(36).slice(2, 8);
 
 async function seedFrom(url){
@@ -215,6 +337,7 @@ export const memory = {
     if (USER === OWNER && !store.docs[members]) { store.docs[members] = { addedBy: null, addedAt: Date.now(), role: "owner" }; persist(); }
     if (role === "owner" || role === "member") { store.docs[members] = { addedBy: null, addedAt: Date.now(), ...store.docs[members], role }; persist(); }
     currentUser = store.signedOut[USER.uid] ? null : { ...USER };
+    if (currentUser) ensureProfile(currentUser);
     console.info("[cloud-memory] fake cloud for", id, "as", USER.email, tierOf(USER) === "household" ? "(household)" : "(not on /members)");
     await new Promise(r => setTimeout(r, 0));
     userListeners.forEach(cb => cb(currentUser));
@@ -229,6 +352,7 @@ export const memory = {
   async signIn(){
     read(); delete store.signedOut[USER.uid]; persist();
     currentUser = { ...USER };
+    ensureProfile(currentUser);
     userListeners.forEach(cb => cb(currentUser));
     return { user: currentUser };
   },
@@ -283,5 +407,7 @@ export const memory = {
     read();
     return write("members/" + e, { ...store.docs["members/" + e], addedBy: currentUser ? currentUser.email : null, addedAt: Date.now() });
   },
-  removeMember(email){ return write("members/" + String(email).trim().toLowerCase(), null); }
+  removeMember(email){ return write("members/" + String(email).trim().toLowerCase(), null); },
+
+  account
 };

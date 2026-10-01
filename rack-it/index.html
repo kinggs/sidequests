@@ -108,6 +108,10 @@
   .swatches{display:flex;flex-wrap:wrap;gap:10px}
   .swatches button{width:56px;height:56px;min-height:56px;border-radius:50%;padding:0;background:var(--sw)}
   .swatches button.sel{outline:4px solid var(--text);outline-offset:2px}
+  .outsider{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:16px;text-align:center}
+  .outsider .who{font-family:var(--grot);font-size:1.4444rem;font-weight:600;letter-spacing:-.02em}
+  .outsider>button,#outInstall{width:100%;max-width:22rem}
+  #outInstall .installkit{margin-top:0 !important}
   .row2{display:flex;gap:14px}
   .row2 button{flex:1}
   .danger-note{font-size:.8333rem;color:var(--warn);line-height:1.4}
@@ -348,6 +352,21 @@
   <footer class="foot">Rack It <span id="version"></span></footer>
 </section>
 
+<!-- ============ OUTSIDER (signed in, not on /members; Session 6 replaces it) ============ -->
+<section class="screen hidden" id="scrOutsider">
+  <header class="apphead"><h1>Rack It</h1></header>
+  <div class="outsider">
+    <div id="outAvatar"></div>
+    <div class="who" id="outName"></div>
+    <p class="dim">Rack It opens up to friends soon.</p>
+    <button class="primary" id="outQR">My QR</button>
+    <button class="quiet" id="outFriends">Friends</button>
+    <div id="outInstall"></div>
+    <button class="quiet" id="outSignOut">Sign out</button>
+  </div>
+  <footer class="foot">Rack It <span id="versionOut"></span></footer>
+</section>
+
 <!-- ============ RATINGS ============ -->
 <section class="screen hidden" id="scrRatings">
   <header class="apphead"><h1>Ratings</h1><span class="lbl">Zargo</span></header>
@@ -527,6 +546,10 @@
     <div class="user" id="userBox"></div>
   </header>
   <div class="homebody">
+    <div class="row2">
+      <button class="quiet" id="qrBtn">My QR</button>
+      <button class="quiet" id="friendsBtn">Friends</button>
+    </div>
     <button class="quiet" id="familyBtn">Invites</button>
     <div class="row2">
       <button class="quiet" id="exportBtn">Export</button>
@@ -693,12 +716,14 @@ import { cloud } from "../shared/cloud.js";
 import * as Z from "./zargo.js";
 import { phone } from "../shared/phone.js";
 import { people } from "../shared/people.js";
+import { connect } from "../shared/connect.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "2.4.0";
+const APP_VERSION = "2.5.0";
 const APP_ID = "rack-it";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 document.getElementById("versionMore").textContent = "v" + APP_VERSION;
+document.getElementById("versionOut").textContent = "v" + APP_VERSION;
 
 const $ = id => document.getElementById(id);
 const el = {};
@@ -718,6 +743,7 @@ const el = {};
  "histList",
  "impChoice","impInfo","impMerge","impReplace","impCancel",
  "familyBtn","scrFamily","famBack","famList","famEmail","famAdd","famShare",
+ "scrOutsider","outAvatar","outName","outQR","outFriends","outSignOut","qrBtn","friendsBtn",
  "pfEst","estRef","estRefName","estRefScore","estNewScore","estOut","pfDelete","pfShared",
  "games","foldGame","gameHead","gameName","gameBlurb","raceLen","raceNRow","raceN","winArea","drop","goldChip","doneExtra",
  "rebuild","rbInfo","rbList","rbNote","rbApply","rbCancel","rebuildBtn"
@@ -893,7 +919,7 @@ const keepAwake = on => phone.keepAwake(on);
 
 // Four tabs (SPEC §13.1). Each page belongs to one; the live screen and the sign-in gate
 // belong to none, so they hide the tab bar and the live strip.
-const SCREENS = { gate: "scrGate", ratings: "scrRatings", person: "scrPerson", setup: "scrSetup",
+const SCREENS = { gate: "scrGate", outsider: "scrOutsider", ratings: "scrRatings", person: "scrPerson", setup: "scrSetup",
   matches: "scrMatches", summary: "scrSummary", more: "scrMore", family: "scrFamily", about: "scrAbout",
   live: "scrLive" };
 const TAB_OF = { ratings: "ratings", person: "ratings", setup: "play", matches: "matches", summary: "matches",
@@ -1019,6 +1045,12 @@ async function handleUser(user){
     el.gate.classList.add("hidden");
     if(started) return;
     started = true;
+    // Not on /members: an account, not the household. Nothing of Rack It's is readable to
+    // them yet, so start no watchers; show My QR and Friends (Session 6 opens Rack It up).
+    // A role we can't read (offline on first run) tries the household path as before.
+    let role;
+    try { role = await cloud.role(); } catch(e){ console.warn("[role]", e); }
+    if(role === null && cloud.user === user){ showOutsider(user); return; }
     try {
       people.start({ legacy: () => stateLoaded ? db.players : null, onError: e => console.warn("[people]", e) });
       await loadState();
@@ -1046,6 +1078,7 @@ async function handleUser(user){
   }
 }
 await cloud.init(APP_ID);
+connect.handleInvite({ app: APP_ID });   // a scanned QR: connect first, over whatever's behind
 handleUser(cloud.user);
 cloud.onUser(handleUser);
 el.signInBig.addEventListener("click", () => cloud.signIn().catch(e => {
@@ -1053,6 +1086,19 @@ el.signInBig.addEventListener("click", () => cloud.signIn().catch(e => {
   el.gateErr.classList.remove("hidden");
 }));
 el.signOutBtn.addEventListener("click", () => cloud.signOut());
+
+// ---------- connect: My QR and Friends (shared/connect.js) ----------
+function showOutsider(user){
+  el.outName.textContent = user.displayName || user.email || "";
+  el.outAvatar.replaceChildren(connect.avatar(user.uid, 96, { name: user.displayName || "", photo: user.photoURL || "" }));
+  show("outsider");
+}
+tapBind(el.outQR, () => connect.showQR({ app: APP_ID }));
+tapBind(el.outFriends, () => connect.showFriends());
+tapBind(el.outSignOut, () => cloud.signOut());
+tapBind(el.qrBtn, () => connect.showQR({ app: APP_ID }));
+tapBind(el.friendsBtn, () => connect.showFriends());
+phone.mountInstall(document.getElementById("outInstall"), { label: "Install on this phone" });
 
 // ---------- ratings ----------
 // Everyone, ranked by Zargo. People who haven't played yet go last, by name, unranked.

@@ -17,6 +17,21 @@
 // a fake signed-in member, data kept in this browser. That's how sessions test an app.
 //   cloud.role()                          // "owner" | "member" | null
 //
+// Accounts (anyone signed in, keyed by uid; KIT.md). Outside /sidequests/ on purpose, so a
+// household member can't read someone's friends. shared/connect.js is built on these.
+//   await cloud.account.me()              // your profile { uid, name, photo, googlePhoto }, or null
+//   cloud.account.watchMe(cb)             // the same, live
+//   await cloud.account.saveMe({ name, photo })
+//   await cloud.account.profile(uid)      // anyone's { name, photo }, or null; cached
+//   await cloud.account.invite()          // your live code, renewed when under an hour is left
+//   await cloud.account.lookupInvite(code)  // { uid, name }, or null if gone or expired; works signed out
+//   await cloud.account.accept(code, app)   // { uid, name } | { …, already: true } | { self: true } | null (dead)
+//   cloud.account.watchFriends(cb, onError) // [{ uid, since, app, note, tags, metAt, metPlace }], newest first
+//   await cloud.account.saveFriend(uid, { note, tags, metPlace })  // your private card only
+//   await cloud.account.unfriend(uid)
+// Times come back as milliseconds. Signing in creates your profile from your Google name and
+// photo the first time, and refreshes the Google photo after that.
+//
 // All data for an app lives under /sidequests/<appId>/ in Firestore. Apps never read or
 // write outside their own namespace, so one Firebase project serves the whole repo.
 // The one exception is the household's list of people, at /sidequests/_shared/people/,
@@ -74,6 +89,38 @@ function sharedColRef(path) {
   return fs.collection(db, "sidequests", SHARED, ...parts);
 }
 
+// ---- accounts ----
+const DAY = 24 * 3600 * 1000, HOUR = 3600 * 1000;
+const CODE = /^[A-Za-z0-9]{8,40}$/;
+const ms = t => (t && typeof t.toMillis === "function") ? t.toMillis() : (typeof t === "number" ? t : null);
+const profiles = new Map();   // uid -> Promise<{ name, photo } | null>
+const needUser = () => {
+  if (!currentUser) throw Object.assign(new Error("Sign in first"), { code: "unauthenticated" });
+  return currentUser;
+};
+const googleName = u => String(u.displayName || (u.email || "").split("@")[0] || "Someone").trim().slice(0, 60);
+const asProfile = (uid, p) => p ? { uid, name: p.name || "", photo: p.photo || p.googlePhoto || "", googlePhoto: p.googlePhoto || "" } : null;
+// 12 characters from a 62-letter alphabet: about 71 bits, so a code can't be guessed.
+function newCode() {
+  const abc = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  const out = [];
+  while (out.length < 12) {
+    const b = crypto.getRandomValues(new Uint8Array(16));
+    for (const x of b) if (x < 248 && out.length < 12) out.push(abc[x % 62]);
+  }
+  return out.join("");
+}
+// First sign-in makes the profile; later ones keep the Google photo current.
+async function ensureProfile(u) {
+  try {
+    const r = fs.doc(db, "profiles", u.uid);
+    const snap = await fs.getDoc(r);
+    if (!snap.exists()) await fs.setDoc(r, { name: googleName(u), googlePhoto: u.photoURL || "", createdAt: fs.serverTimestamp() });
+    else if (u.photoURL && snap.data().googlePhoto !== u.photoURL) await fs.updateDoc(r, { googlePhoto: u.photoURL });
+    profiles.delete(u.uid);
+  } catch (e) { console.warn("[cloud.account] profile", e); }
+}
+
 // A listener's error: the app's onError, or a warning naming the path.
 function listenError(path, onError) {
   return e => onError ? onError(e) : console.warn("[cloud] listener stopped:", path, e && e.code, e);
@@ -101,6 +148,7 @@ export const cloud = {
     return new Promise(resolve => {
       authMod.onAuthStateChanged(auth, u => {
         currentUser = u;
+        if (u) ensureProfile(u);
         userListeners.forEach(cb => cb(u));
         resolve(u);
       });
@@ -226,5 +274,99 @@ export const cloud = {
   },
   removeMember(email) {
     return fs.deleteDoc(fs.doc(db, "members", String(email).trim().toLowerCase()));
+  },
+
+  // ---- accounts: anyone signed in, keyed by uid (header; rules in firestore.rules) ----
+  account: {
+    async me() {
+      if (!currentUser) return null;
+      const snap = await fs.getDoc(fs.doc(db, "profiles", currentUser.uid));
+      return asProfile(currentUser.uid, snap.exists() ? snap.data() : null);
+    },
+    watchMe(cb, onError) {
+      const u = needUser();
+      return fs.onSnapshot(fs.doc(db, "profiles", u.uid),
+        snap => cb(asProfile(u.uid, snap.exists() ? snap.data() : null)), listenError("profiles/me", onError));
+    },
+    async saveMe({ name, photo } = {}) {
+      const u = needUser(), f = {};
+      if (name !== undefined) f.name = String(name).trim().slice(0, 60);
+      if (photo !== undefined) f.photo = photo || "";
+      profiles.delete(u.uid);
+      return fs.setDoc(fs.doc(db, "profiles", u.uid), f, { merge: true });
+    },
+    profile(uid) {
+      if (!uid) return Promise.resolve(null);
+      if (!profiles.has(uid)) {
+        const p = fs.getDoc(fs.doc(db, "profiles", uid))
+          .then(snap => { const v = asProfile(uid, snap.exists() ? snap.data() : null); if (!v) profiles.delete(uid); return v; })
+          .catch(e => { profiles.delete(uid); console.warn("[cloud.account] profile", uid, e); return null; });
+        profiles.set(uid, p);
+      }
+      return profiles.get(uid);
+    },
+    // Your code lives in private/main, never in the profile, so having your uid isn't enough
+    // to friend you. Renewed when it has under an hour left; the one it replaces is deleted.
+    async invite() {
+      const u = needUser();
+      const privRef = fs.doc(db, "profiles", u.uid, "private", "main");
+      const priv = (await fs.getDoc(privRef)).data() || {};
+      if (priv.invite && ms(priv.expires) > Date.now() + HOUR) return priv.invite;
+      const me = await this.me();
+      const code = newCode(), expires = fs.Timestamp.fromMillis(Date.now() + DAY);
+      await fs.setDoc(fs.doc(db, "invites", code), { uid: u.uid, name: (me && me.name) || googleName(u), expires });
+      await fs.setDoc(privRef, { invite: code, expires });
+      if (priv.invite) fs.deleteDoc(fs.doc(db, "invites", priv.invite)).catch(() => {});
+      return code;
+    },
+    async lookupInvite(code) {
+      if (!CODE.test(String(code || ""))) return null;
+      const snap = await fs.getDoc(fs.doc(db, "invites", code));
+      if (!snap.exists()) return null;
+      const d = snap.data();
+      return ms(d.expires) > Date.now() ? { uid: d.uid, name: d.name } : null;
+    },
+    // The QR is the consent: one document for the pair, made with their live code.
+    async accept(code, app) {
+      const u = needUser();
+      const inv = await this.lookupInvite(code);
+      if (!inv) return null;
+      if (inv.uid === u.uid) return { self: true };
+      const uids = [u.uid, inv.uid].sort();
+      const pairRef = fs.doc(db, "friendships", uids.join("_"));
+      if ((await fs.getDoc(pairRef)).exists()) return { ...inv, already: true };
+      await fs.setDoc(pairRef, { uids, since: fs.serverTimestamp(), via: code, app: String(app || "") });
+      await fs.setDoc(fs.doc(db, "profiles", u.uid, "friends", inv.uid), { metAt: fs.serverTimestamp() }, { merge: true })
+        .catch(e => console.warn("[cloud.account] card", e));
+      return inv;
+    },
+    // Your pairs joined to your private cards. Two listeners; cb fires when either changes.
+    watchFriends(cb, onError) {
+      const u = needUser();
+      let pairs = null, cards = {};
+      const emit = () => {
+        if (!pairs) return;
+        cb(pairs.map(p => {
+          const uid = p.uids.find(x => x !== u.uid) || "", c = cards[uid] || {};
+          return { uid, since: ms(p.since), app: p.app || "", note: c.note || "", tags: c.tags || [],
+            metAt: ms(c.metAt) ?? ms(p.since), metPlace: c.metPlace || "" };
+        }).sort((a, b) => (b.since || 0) - (a.since || 0)));
+      };
+      const est = { serverTimestamps: "estimate" };
+      const offA = fs.onSnapshot(fs.query(fs.collection(db, "friendships"), fs.where("uids", "array-contains", u.uid)),
+        snap => { pairs = snap.docs.map(d => d.data(est)); emit(); }, listenError("friendships", onError));
+      const offB = fs.onSnapshot(fs.collection(db, "profiles", u.uid, "friends"),
+        snap => { cards = Object.fromEntries(snap.docs.map(d => [d.id, d.data(est)])); emit(); }, listenError("friends", onError));
+      return () => { offA(); offB(); };
+    },
+    saveFriend(uid, fields) {
+      const u = needUser();
+      return fs.setDoc(fs.doc(db, "profiles", u.uid, "friends", uid), { ...fields }, { merge: true });
+    },
+    async unfriend(uid) {
+      const u = needUser();
+      await fs.deleteDoc(fs.doc(db, "friendships", [u.uid, uid].sort().join("_")));
+      await fs.deleteDoc(fs.doc(db, "profiles", u.uid, "friends", uid)).catch(() => {});
+    }
   }
 };
