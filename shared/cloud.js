@@ -196,11 +196,17 @@ export const cloud = {
     return snap.docs.map(d => d.id).sort();
   },
   // "owner", "member", or null when signed out or not invited. Apps hide owner-only
-  // actions from everyone else; the rules refuse them anyway.
+  // actions from everyone else; the rules refuse them anyway. Only the household may read
+  // /members, so for anyone else the read is refused: that's null too, not an error.
   async role() {
     if (!currentUser || !currentUser.email) return null;
-    const snap = await fs.getDoc(fs.doc(db, "members", currentUser.email.toLowerCase()));
-    return snap.exists() ? (snap.data().role === "owner" ? "owner" : "member") : null;
+    try {
+      const snap = await fs.getDoc(fs.doc(db, "members", currentUser.email.toLowerCase()));
+      return snap.exists() ? (snap.data().role === "owner" ? "owner" : "member") : null;
+    } catch (e) {
+      if (e && e.code === "permission-denied") return null;
+      throw e;
+    }
   },
   // Merged, so inviting someone again never wipes their role.
   addMember(email) {

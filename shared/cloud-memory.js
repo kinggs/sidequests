@@ -269,12 +269,12 @@ export const memory = {
   },
 
   async listMembers(){ check("read", "members"); return rowsOf("members").map(r => r.id).sort(); },
-  // Like cloud.js: null when signed out. Signed in but not on /members, the read itself is
-  // refused (the rules let only the household read /members), so this rejects.
+  // Like cloud.js: null when signed out, and null when the read itself is refused (the rules
+  // let only the household read /members, so that's anyone not on it).
   async role(){
     read();
     if (!currentUser) return null;
-    check("read", "members/" + currentUser.email);
+    if (!allowed("read", "members/" + currentUser.email)) return null;
     const m = store.docs["members/" + currentUser.email];
     return m ? (m.role === "owner" ? "owner" : "member") : null;
   },
