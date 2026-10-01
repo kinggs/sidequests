@@ -14,7 +14,7 @@
 import fs from "node:fs";
 import { after, before, beforeEach, describe, test } from "node:test";
 import { assertFails, assertSucceeds, initializeTestEnvironment } from "@firebase/rules-unit-testing";
-import { deleteDoc, doc, getDoc, getDocs, collection, setDoc, setLogLevel, updateDoc } from "firebase/firestore";
+import { deleteDoc, doc, getDoc, getDocs, collection, query, where, setDoc, setLogLevel, updateDoc, serverTimestamp, Timestamp } from "firebase/firestore";
 
 // Every refused write would otherwise log a PERMISSION_DENIED stack; the test names say it.
 setLogLevel("silent");
@@ -42,11 +42,25 @@ beforeEach(async () => {
     await setDoc(doc(db, "sidequests/rack-it/matches/done1"), { status: "done" });
     await setDoc(doc(db, "sidequests/rack-it/matches/live1"), { status: "live" });
     await setDoc(doc(db, "sidequests/rack-it/starters/s1"), { zargo: 400 });
+    // Accounts: Ann, Ben and Cat, none of them household. Ann's code is live; Cat's too.
+    await setDoc(doc(db, "profiles/ann"), { name: "Ann" });
+    await setDoc(doc(db, "profiles/ann/private/main"), { invite: "ANNLIVE", expires: inHours(24) });
+    await setDoc(doc(db, "profiles/ann/friends/cat"), { note: "x" });
+    await setDoc(doc(db, "profiles/ann/guests/g_1"), { name: "Dan" });
+    await setDoc(doc(db, "invites/ANNLIVE"), { uid: "ann", name: "Ann", expires: inHours(24) });
+    await setDoc(doc(db, "invites/ANNOLD"), { uid: "ann", name: "Ann", expires: inHours(-1) });
+    await setDoc(doc(db, "invites/BENLIVE"), { uid: "ben", name: "Ben", expires: inHours(24) });
+    await setDoc(doc(db, "invites/CATLIVE"), { uid: "cat", name: "Cat", expires: inHours(24) });
+    await setDoc(doc(db, "friendships/ann_cat"), { uids: ["ann", "cat"], since: 1, via: "x", app: "rack-it" });
   });
 });
 
 const as = email => env.authenticatedContext(email.split("@")[0], { email, email_verified: true }).firestore();
 const signedOut = () => env.unauthenticatedContext().firestore();
+// An account that isn't household: a uid and a Google email that's not on /members.
+const user = uid => env.authenticatedContext(uid, { email: uid + "@gmail.com", email_verified: true }).firestore();
+function inHours(h){ return Timestamp.fromMillis(Date.now() + h * 3600 * 1000); }
+const pairDoc = (via, extra = {}) => ({ uids: ["ann", "ben"], since: serverTimestamp(), via, app: "rack-it", ...extra });
 
 describe("household member", () => {
   test("reads an app's data and the shared people", async () => {
@@ -129,5 +143,121 @@ describe("outside sidequests/ and members/", () => {
   test("refused: any other top-level path, even for the owner", async () => {
     await assertFails(getDoc(doc(as(OWNER), "elsewhere/x")));
     await assertFails(setDoc(doc(as(OWNER), "elsewhere/x"), { a: 1 }));
+  });
+});
+
+// ---- Session 1: accounts, invites and friendships (KIT-PLAN.md) ----
+
+describe("profiles", () => {
+  test("anyone signed in gets a profile by uid", async () => {
+    await assertSucceeds(getDoc(doc(user("ben"), "profiles/ann")));
+  });
+  test("you create and update your own", async () => {
+    const db = user("ben");
+    await assertSucceeds(setDoc(doc(db, "profiles/ben"), { name: "Ben", googlePhoto: "https://x", createdAt: serverTimestamp(), _updatedAt: serverTimestamp() }));
+    await assertSucceeds(setDoc(doc(db, "profiles/ben"), { name: "Benjamin", photo: "data:image/jpeg;base64,AAAA" }, { merge: true }));
+  });
+  test("you read and write your own private, friends and guests", async () => {
+    const db = user("ann");
+    await assertSucceeds(getDoc(doc(db, "profiles/ann/private/main")));
+    await assertSucceeds(getDocs(collection(db, "profiles/ann/friends")));
+    await assertSucceeds(setDoc(doc(db, "profiles/ann/friends/ben"), { metAt: serverTimestamp() }));
+    await assertSucceeds(setDoc(doc(db, "profiles/ann/guests/g_2"), { name: "Eve" }));
+  });
+  test("refused: listing /profiles", async () => {
+    await assertFails(getDocs(collection(user("ben"), "profiles")));
+    await assertFails(getDocs(collection(as(OWNER), "profiles")));
+  });
+  test("refused: a profile signed out, or someone else's", async () => {
+    await assertFails(getDoc(doc(signedOut(), "profiles/ann")));
+    await assertFails(setDoc(doc(user("ben"), "profiles/ann"), { name: "Not Ann" }));
+  });
+  test("refused: a profile with an extra key, a long name or a big photo", async () => {
+    const db = user("ben");
+    await assertFails(setDoc(doc(db, "profiles/ben"), { name: "Ben", email: "ben@gmail.com" }));
+    await assertFails(setDoc(doc(db, "profiles/ben"), { name: "B".repeat(61) }));
+    await assertFails(setDoc(doc(db, "profiles/ben"), { name: "Ben", photo: "x".repeat(60001) }));
+  });
+  test("refused: reading anyone else's private, friends or guests", async () => {
+    const db = user("ben");
+    await assertFails(getDoc(doc(db, "profiles/ann/private/main")));
+    await assertFails(getDocs(collection(db, "profiles/ann/friends")));
+    await assertFails(getDoc(doc(db, "profiles/ann/friends/cat")));
+    await assertFails(getDocs(collection(db, "profiles/ann/guests")));
+    await assertFails(getDocs(collection(as(OWNER), "profiles/ann/friends")));
+  });
+  test("refused: writing anyone else's private, friends or guests, or any other subcollection", async () => {
+    await assertFails(setDoc(doc(user("ben"), "profiles/ann/friends/ben"), { note: "hi" }));
+    await assertFails(setDoc(doc(user("ann"), "profiles/ann/other/x"), { a: 1 }));
+  });
+});
+
+describe("invites", () => {
+  test("anyone, signed in or not, gets one by its code", async () => {
+    await assertSucceeds(getDoc(doc(signedOut(), "invites/ANNLIVE")));
+    await assertSucceeds(getDoc(doc(user("ben"), "invites/ANNLIVE")));
+  });
+  test("you make your own code for up to 25 hours, and delete it", async () => {
+    const db = user("ben");
+    await assertSucceeds(setDoc(doc(db, "invites/BENNEW"), { uid: "ben", name: "Ben", expires: inHours(24), _updatedAt: serverTimestamp() }));
+    await assertSucceeds(deleteDoc(doc(db, "invites/BENLIVE")));
+  });
+  test("refused: listing invites", async () => {
+    await assertFails(getDocs(collection(user("ben"), "invites")));
+  });
+  test("refused: an invite for another uid, or one that lasts over 25 hours", async () => {
+    const db = user("ben");
+    await assertFails(setDoc(doc(db, "invites/FAKE"), { uid: "ann", name: "Ann", expires: inHours(24) }));
+    await assertFails(setDoc(doc(db, "invites/LONG"), { uid: "ben", name: "Ben", expires: inHours(26) }));
+    await assertFails(setDoc(doc(db, "invites/EXTRA"), { uid: "ben", name: "Ben", expires: inHours(1), forever: true }));
+  });
+  test("refused: changing a code, or deleting someone else's", async () => {
+    await assertFails(updateDoc(doc(user("ann"), "invites/ANNLIVE"), { expires: inHours(25) }));
+    await assertFails(deleteDoc(doc(user("ben"), "invites/ANNLIVE")));
+  });
+});
+
+describe("friendships", () => {
+  test("you connect with someone's live code", async () => {
+    await assertSucceeds(setDoc(doc(user("ben"), "friendships/ann_ben"), pairDoc("ANNLIVE")));
+  });
+  test("either of the two reads it, and finds it in a list of their own", async () => {
+    await assertSucceeds(getDoc(doc(user("ann"), "friendships/ann_cat")));
+    await assertSucceeds(getDoc(doc(user("cat"), "friendships/ann_cat")));
+    await assertSucceeds(getDocs(query(collection(user("cat"), "friendships"), where("uids", "array-contains", "cat"))));
+  });
+  test("one of the two checks a pair that doesn't exist yet", async () => {
+    await assertSucceeds(getDoc(doc(user("ben"), "friendships/ann_ben")));
+  });
+  test("either of the two ends it", async () => {
+    await assertSucceeds(deleteDoc(doc(user("cat"), "friendships/ann_cat")));
+  });
+  test("refused: a friendship with no code, an expired code or a deleted one", async () => {
+    const db = user("ben");
+    const { via, ...noCode } = pairDoc("x");
+    await assertFails(setDoc(doc(db, "friendships/ann_ben"), noCode));
+    await assertFails(setDoc(doc(db, "friendships/ann_ben"), pairDoc("ANNOLD")));
+    await assertFails(setDoc(doc(db, "friendships/ann_ben"), pairDoc("GONE")));
+  });
+  test("refused: your own code, or a third person's", async () => {
+    const db = user("ben");
+    await assertFails(setDoc(doc(db, "friendships/ann_ben"), pairDoc("BENLIVE")));
+    await assertFails(setDoc(doc(db, "friendships/ann_ben"), pairDoc("CATLIVE")));
+  });
+  test("refused: a pair you aren't in, a pair id that doesn't match, or an extra key", async () => {
+    await assertFails(setDoc(doc(user("cat"), "friendships/ann_ben"), pairDoc("ANNLIVE")));
+    await assertFails(setDoc(doc(user("ben"), "friendships/ben_ann"), pairDoc("ANNLIVE")));
+    await assertFails(setDoc(doc(user("ben"), "friendships/ben_ann"), { ...pairDoc("ANNLIVE"), uids: ["ben", "ann"] }));
+    await assertFails(setDoc(doc(user("ben"), "friendships/ann_ben"), pairDoc("ANNLIVE", { note: "x" })));
+  });
+  test("refused: reading a friendship you aren't in, or one that doesn't exist and isn't yours", async () => {
+    await assertFails(getDoc(doc(user("ben"), "friendships/ann_cat")));
+    await assertFails(getDoc(doc(as(OWNER), "friendships/ann_cat")));
+    await assertFails(getDoc(doc(user("ben"), "friendships/ann_dan")));
+    await assertFails(getDocs(collection(user("ann"), "friendships")));
+  });
+  test("refused: editing a friendship, or ending one you aren't in", async () => {
+    await assertFails(updateDoc(doc(user("ann"), "friendships/ann_cat"), { app: "bloc-11" }));
+    await assertFails(deleteDoc(doc(user("ben"), "friendships/ann_cat")));
   });
 });

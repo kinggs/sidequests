@@ -1,10 +1,16 @@
 rules_version = '2';
 
-// One rule set for every app in this repo.
-// Access = you are signed in with Google AND your email has a document in /members.
-// The members list lives in Firestore, not in this file, so the apps can manage it:
-// adding a person (Rack It → More → Invites) takes effect instantly, with no rules
-// deploy and no email addresses in the public repo.
+// One rule set for every app in this repo. Two tiers (shared/KIT-PLAN.md):
+//
+// - The household: signed in with Google AND your email has a document in /members. It
+//   reaches all of /sidequests/** and /members. The members list lives in Firestore, not in
+//   this file, so the apps can manage it: adding a person (Rack It → More → Invites) takes
+//   effect instantly, with no rules deploy and no email addresses in the public repo.
+// - An account: anyone signed in, keyed by uid. It reaches /profiles, /invites and
+//   /friendships, each as narrowly as below, and nothing under /sidequests/ yet.
+//
+// Cost: making a friendship reads the invite with one get(). Every rule here has cases in
+// shared/rules-check.mjs, written before the rule; a failing case stops the deploy.
 //
 // One member is the owner: their /members document carries role: "owner", set by hand in
 // the Firebase console. Only the owner removes a member or changes a member's role, and
@@ -56,6 +62,57 @@ service cloud.firestore {
     match /sidequests/rack-it/starters/{id} {
       allow create: if isFamily();
       allow update, delete: if isOwner();
+    }
+
+    // ---- Accounts: anyone signed in, keyed by uid (Session 1, KIT-PLAN.md) ----
+
+    function signedIn() { return request.auth != null; }
+    function me(uid)    { return signedIn() && request.auth.uid == uid; }
+    function invite(code) { return get(/databases/$(database)/documents/invites/$(code)).data; }
+
+    // Readable one at a time by uid, never listed.
+    match /profiles/{uid} {
+      allow get: if signedIn();
+      allow create, update: if me(uid)
+        && request.resource.data.keys().hasOnly(['name', 'photo', 'googlePhoto', 'createdAt', '_updatedAt'])
+        && request.resource.data.name is string && request.resource.data.name.size() <= 60
+        && request.resource.data.get('photo', '').size() <= 60000;
+      allow delete: if me(uid);
+      // Yours alone: private/main (your live code), friends/<uid> (note, tags, met), guests/<id>.
+      match /{sub}/{doc} {
+        allow read, write: if me(uid) && sub in ['private', 'friends', 'guests'];
+      }
+    }
+
+    // The QR's code. Anyone holding it may read who it's from. It dies after a day.
+    match /invites/{code} {
+      allow get: if true;
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['uid', 'name', 'expires', '_updatedAt'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.name is string && request.resource.data.name.size() <= 60
+        && request.resource.data.expires is timestamp
+        && request.resource.data.expires <= request.time + duration.value(25, 'h');
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+    }
+
+    // A friendship: one document for the pair, id "<lower uid>_<higher uid>". Made only by one
+    // of the two, carrying the other's live code. Either may end it. Nobody edits it.
+    // Either of the two may also ask whether it exists yet (uids never contain "_").
+    match /friendships/{pair} {
+      allow read: if signedIn() && (resource == null
+        ? request.auth.uid in pair.split('_')
+        : request.auth.uid in resource.data.uids);
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['uids', 'since', 'via', 'app', '_updatedAt'])
+        && request.resource.data.uids.size() == 2
+        && request.resource.data.uids[0] < request.resource.data.uids[1]
+        && pair == request.resource.data.uids[0] + '_' + request.resource.data.uids[1]
+        && request.auth.uid in request.resource.data.uids
+        && invite(request.resource.data.via).uid in request.resource.data.uids
+        && invite(request.resource.data.via).uid != request.auth.uid
+        && invite(request.resource.data.via).expires > request.time;
+      allow delete: if signedIn() && request.auth.uid in resource.data.uids;
     }
 
     // Nothing else is reachable.
