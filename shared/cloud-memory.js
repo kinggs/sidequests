@@ -422,6 +422,41 @@ export const memory = {
     return write(full, doc);
   },
   delete(path){ return write(docPath(path, appBase()), null); },
+  // All or nothing, like a Firestore batch: every op is checked against the rules and the
+  // patches' documents first, then all land in one write, so another tab sees one change.
+  batch(ops){
+    read();
+    const next = clone(store.docs), at = Date.now();
+    for (const op of ops){
+      const path = op.save || op.patch || op.delete;
+      if (!path) return Promise.reject(new Error("cloud.batch: an op needs save, patch or delete"));
+      const full = docPath(path, appBase());
+      if (op.delete){
+        if (!allowed("write", full, null)) return Promise.reject(denied());
+        delete next[full];
+        continue;
+      }
+      noUndefined(op.data, full);
+      if (op.patch && !next[full]) return Promise.reject(Object.assign(new Error("No document to update: " + full), { code: "not-found" }));
+      let doc;
+      if (op.save) doc = deepMerge(next[full], { ...op.data, _updatedAt: at });
+      else {
+        doc = clone(next[full]);
+        for (const [k, v] of Object.entries({ ...op.data, _updatedAt: at })){
+          const keys = k.split(".");
+          let o = doc;
+          for (const key of keys.slice(0, -1)){ if (!isMap(o[key])) o[key] = {}; o = o[key]; }
+          o[keys[keys.length - 1]] = clone(v);
+        }
+      }
+      if (!allowed("write", full, doc)) return Promise.reject(denied());
+      next[full] = doc;
+    }
+    store.docs = next;
+    persist();
+    notify();
+    return Promise.resolve();
+  },
   watch(path, cb, onError){
     const full = docPath(path, appBase());
     let last;

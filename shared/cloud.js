@@ -10,6 +10,8 @@
 //   cloud.watch("sessions/abc", doc => ..., onError);  // onError optional
 //   await cloud.patch("sessions/abc", { "racks.3": {...} }); // dotted field paths
 //   await cloud.deleteFields("state/main", ["players"]);     // drop fields, keep the rest
+//   await cloud.batch([{ save: "ratings/a", data }, { patch: "matches/m", data }, { delete: "x/y" }]);
+//                                         // all or nothing: save merges, patch updates, delete deletes
 //   await cloud.list("sessions");
 //   cloud.watchList("sessions", rows => ..., { orderBy: "at" }, onError);
 //   A refused or broken listener calls onError(e) once and stops; without one it warns.
@@ -207,6 +209,20 @@ export const cloud = {
   },
 
   delete(path) { return fs.deleteDoc(ref(path)); },
+
+  // Several writes that land together or not at all (a Firestore batch). Each op is
+  // { save: path, data } (merged, as save), { patch: path, data } (as patch: the document must
+  // exist, dotted paths work) or { delete: path }.
+  batch(ops) {
+    const b = fs.writeBatch(db), at = fs.serverTimestamp();
+    for (const op of ops) {
+      if (op.save) b.set(ref(op.save), { ...op.data, _updatedAt: at }, { merge: true });
+      else if (op.patch) b.update(ref(op.patch), { ...op.data, _updatedAt: at });
+      else if (op.delete) b.delete(ref(op.delete));
+      else throw new Error("cloud.batch: an op needs save, patch or delete");
+    }
+    return b.commit();
+  },
 
   // Live updates. Returns an unsubscribe function. A listener the rules refuse ends with
   // onError(e); without one it warns, since Firestore would otherwise log console.error.
