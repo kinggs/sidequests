@@ -432,7 +432,7 @@ confirms, and **Rebuild ratings** then proposes no change.
 
 ### Rules
 
-- [ ] In `shared/firestore.rules`, proved in `rules-check.mjs` before the app is touched.
+- [x] In `shared/firestore.rules`, proved in `rules-check.mjs` before the app is touched.
   ⚠ This is a sketch: `let`, the ternary and `getAfter()` must each be shown to work in the
   emulator. The uid check goes first so a player's own writes cost no `/members` lookup.
 
@@ -492,48 +492,51 @@ match /sidequests/rack-it/state/main {
 }
 ```
 
-- [ ] Write the update rule's cases first: Save on a rated match (live to pending, `endedBy`
+- [x] Write the update rule's cases first: Save on a rated match (live to pending, `endedBy`
   set to yourself), Confirm, Not right and Withdraw must pass; each "Must refuse" must fail.
-- [ ] **Must refuse:** a match against someone you aren't connected to; a match you aren't
+- [x] **Must refuse:** a match against someone you aren't connected to; a match you aren't
   in; changing `uids` or the players; confirming your own result, by any route (finishing it
   yourself, or rewriting `endedBy`); turning a friendly into a rated match; a rating written outside
   a confirmation; a rating for a player who isn't in that match; listing `ratings` or
   `matches` without the `uids` filter; anything else under `/sidequests/`.
-- [ ] ⚠ What the rules can't check is the arithmetic: the confirming phone works out the
+- [x] ⚠ What the rules can't check is the arithmetic: the confirming phone works out the
   new ratings. The owner's **Rebuild ratings** corrects a wrong one from the matches.
 
 ### `shared/cloud.js` and the mock
 
-- [ ] `cloud.list` and `cloud.watchList` take `where: [field, op, value]`. **No `orderBy`
+- [x] `cloud.list` and `cloud.watchList` take `where: [field, op, value]`. **No `orderBy`
   together with `where`**: that needs a composite index, which needs a deploy and a wider
   role for the service account. Sort on the phone.
-- [ ] `cloud-memory.js` opens the same paths in its table: a non-member reads a match only
+- [x] `cloud-memory.js` opens the same paths in its table: a non-member reads a match only
   when their uid is in `uids`, lists only with the `uids` filter (Firestore refuses the
   query otherwise, so the mock must), gets `ratings/<id>` and `state/main`.
 
 ### Rack It
 
-- [ ] When `cloud.role()` is null the app runs in **friend mode** instead of the Session 1
+- [x] When `cloud.role()` is null the app runs in **friend mode** instead of the Session 1
   screen:
   - **Play**: the same setup, picking from friends and guests.
   - **Ratings**: you and your friends who have a rating, each read by id. No club list.
   - **Matches**: `where: ["uids", "array-contains", <uid>]`, newest first.
   - **More**: My QR, Friends, Profile, Export (your matches), Install, About Zargo, Sign
     out. No Invites, Import or Rebuild.
-- [ ] A player with no rating document starts at `config.startZargo`. A guest's starter
+- [x] A player with no rating document starts at `config.startZargo`. A guest's starter
   estimate is written to `ratings/<g_id>` by the account that made the guest.
-- [ ] First open in friend mode shows, once: "Kenny's household can see the matches you
+- [x] First open in friend mode shows, once: "Kenny's household can see the matches you
   score here."
-- [ ] Test in `?mock` with three tabs (owner, `&as=ann`, `&as=ben`): Ann and Ben connect and
+- [x] Test in `?mock` with three tabs (owner, `&as=ann`, `&as=ben`): Ann and Ben connect and
   play a rated match; Ben confirms; the owner sees it; a fourth tab `&as=cat` sees nothing.
-  Then for real, with the non-member Google account.
-- [ ] SPEC §7, §8, §9, §11, §13. `KIT.md` privacy table.
+  Then for real, with the non-member Google account. (Real phones pending: Handover.)
+- [x] SPEC §7, §8, §9, §11, §13. `KIT.md` privacy table.
 
 ### Done when
 
 A pool friend who isn't on Invites scans, plays a friendly and a rated match against the
 owner, confirms, and sees only their own matches. `rack-it/?mock&as=cat` can't read
 another pair's match.
+
+✓ in `?mock` with four tabs, and the rules on the emulator and in the Action (Handover,
+Session 6). Real phones pending.
 
 ---
 
@@ -604,12 +607,12 @@ Replaced the old Session 2 (design). What changed and why:
 - **Nothing folds.** The household list stays for the household; there's no migration of
   people into friends or guests.
 
-Still open, for the owner:
+Ruled by the owner, 2026-10-02:
 
 1. After **Delete my account**, the matches that person played keep their name and uid.
-   Decide before Session 6 whether the owner should have a "forget this player" action.
-2. Whether a person's win record counts friendlies (Session 5): both readings are in the
-   Session 5 Handover.
+   **No "forget this player" action**: matches are the record.
+2. A person's win record **counts every finished match**, friendlies, Not right and
+   Withdrawn included: it's what happened at the table; the rating is what's rated.
 
 ### Session 0, 2026-10-01 (Opus)
 
@@ -927,3 +930,87 @@ What the plan got wrong, or didn't say:
    that's what Confirm will use, rather than the ratings the match started on.
 9. Rebuild still offers **Apply** after a first rated match when players have no starter document:
    it writes the derived 500s, as before. The numbers and match records show no change.
+
+### Session 6, 2026-10-02 (Opus)
+
+Shipped (Rack It 2.10.0, live): friend mode replaces the outsider screen. An account outside the
+household gets the four tabs over what the rules let it reach: its own matches (one `uids`
+query, no `orderBy`), ratings read one at a time by id, and the config. It can't see Invites,
+Import or Rebuild, and the first open says "Kenny's household can see the matches you score
+here." `cloud.list`/`watchList` take `where`. The mock models Rack It's outsider rules and the
+household's match rule, with `getAfter` in its batch. In `people.js` you're a player when you
+aren't household. SPEC §7, §8.2 (new), §9, §11, §13, `KIT.md` and CLAUDE.md's `&as=` line are
+updated.
+
+Proved:
+
+- `let` (inside a function), the ternary and `getAfter()` each worked in an emulator probe before
+  the rules used them. `get()` reads the state before the batch and `getAfter()` the state after.
+- Rules: 27 new cases, written first. On the old rules 11 were red: every "may do" case, and the
+  household's friendly-to-rated refusal. On the new rules all 76 pass. Each of the 24 guards was
+  removed in turn on a local emulator, and its own case went red. Run 36995144305 ran 76 tests
+  (76 pass) at 10:23:47, then released the rules at 10:23:53.
+- Four tabs in `?mock` (owner, `&as=ann`, `&as=ben`, `&as=cat`): 58 checks, no page errors,
+  console errors or refusal warnings.
+  - Ann and Ben connect. Ann scores a rated match and Ben confirms: both ratings move, each
+    naming the match. The owner's Matches lists it; Cat's is empty.
+  - Cat is refused reading that match, listing bare, listing Ann's, and listing ratings. She can
+    get one rating by id.
+  - Ben is refused all six routes to confirming his own result: a confirm batch, finishing it,
+    `endedBy` to Ann, reopening it, a rating alone, rewriting the score. No rating moved.
+  - Not right and Withdraw stand as friendlies.
+  - Ann, Ben and a household member can't make a live or saved friendly rated.
+  - Ann's guest gets a starter in `ratings/g_…` and no `starters/` document. Rated isn't offered
+    against a guest, and that match's `uids` is Ann's alone.
+  - Ann's export holds her matches only.
+  - Every matches query each outsider's phone ran was `where uids array-contains <uid>` with no
+    `orderBy`, and none of them ever listed ratings.
+- 2.9.0 against 2.10.0, with the same steps on each, identical apart from ids and times:
+  - the Session 5 two-tab proof for two household members (friendly, rated + confirm, Not
+    right, Withdraw, then Rebuild "no change" with 0 match records);
+  - the scored 11-Point-Nine match: the same documents and ratings to full precision;
+  - Rebuild on the owner's 2026-10-02 export: the same proposal (Kenny 507 → 505, Melanie
+    331 → 332, the Session 3 drift already applied live), then no change after Apply.
+- `make verify`: 31 tests pass, with `zargo.js` and its tests untouched. Smoke is green for all
+  six apps.
+
+Not done: the real-phone check, which the owner ruled comes next, before Session 7. On 2.10.0,
+your second Google account plays a friendly and a rated match against you; confirm from each
+side in turn; check it sees only its own matches. Sessions 4 and 5's phone checks are still
+open too.
+
+What the plan got wrong, or didn't say:
+
+1. **The sketch let a player confirm their own result in three ways.** (a) Create the match with
+   `endedBy` set to the other player, then move it to pending. (b) Move it live → pending with
+   no `endedBy`, since `uid != endedBy` holds when it's missing. (c) Reopen pending → live, then
+   re-pend under the other name. Now a new match carries no end or confirm fields; going to
+   pending stamps `endedBy` as you; a pending match only goes to done, touching only the
+   confirmation's fields; and a match with no `endedBy` can't be confirmed.
+2. **The sketch let the confirmer rewrite the score before confirming** (pending was writable
+   like live). That's closed by the same "pending only finishes" rule.
+3. **`rated` must default to true, not false.** A stored match with no field is rated (Session
+   5). With `get('rated', false)` the rules would have read every old match as a friendly.
+4. **Some of the sketch's guards in `confirming()` could never fail on their own.** "The writer
+   is in the match" and "the writer didn't end it" are already enforced by the match update that
+   must sit in the same batch. They were dropped, so every guard left has a case that goes red
+   without it. "Still rated after" was kept: without it, a rating can ride in a Withdraw batch.
+5. **`names` is frozen too.** The plan froze `uids`, `by` and the players; a renamed side would
+   misname the match. Session 7's claim rule will need to allow it explicitly.
+6. **An outsider wasn't in their own picker.** `people.players()` had no "you" without the
+   household list. Also, `people.js`'s `sync()` would have added an outsider to the household
+   list on `poke()`, which the rules refused. Both are fixed.
+7. **The household gained one guard:** a member who isn't the owner can no longer turn a friendly
+   into a rated match, as the owner asked. The app never did it, and the 2.9.0 comparison is
+   identical. The owner still can, as with any saved match.
+8. **Confirm in friend mode reads both ratings fresh** (`cloud.load`), since it watches them one
+   by one and a stale one would be written back.
+9. **A missing match is refused, not null, for an outsider**, because the rule reads
+   `resource.data`. Watch stops cleanly on that error. The mock does the same.
+10. **The mock's `patch` checked permission with no document**, which read as a delete and
+    refused every player. Fixed, and the mock's batch now checks each write against the state
+    the whole batch leaves (`getAfter`).
+11. A friend added from Ratings in friend mode gets no starter form: only a guest's starter is
+    the outsider's to write. The friend plays from their own rating, or from 500.
+12. "Kenny's household" is written into the page; an outsider can't read who the owner is.
+

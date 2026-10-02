@@ -391,9 +391,8 @@ colour, the shared sheet, and for the owner the starter rating override and **Ho
 delete player**; anyone else sees one line saying those are the owner's; a friend's or guest's
 page offers Edit to the owner only, for the override), Cuescore (read-only;
 Add or Change on your own page), the win record per game (finished matches, in picker order) and their matches.
-⚠ The win record counts friendlies and declined or withdrawn matches too, as it did before 2.9.0;
-pending ones aren't finished. Whether it should count rated matches only is the owner's call
-(KIT-PLAN Session 5 Handover).
+The win record counts every finished match, friendlies and declined or withdrawn ones included
+(owner's call, 2026-10-02: it's what happened at the table); pending ones aren't finished.
 
 **Matches.** Live (last 24 hours) first, then newest. Each row: names and score (racks in a race
 in racks, head start included) with the winner's name in bold, then a caps line with game,
