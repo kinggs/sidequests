@@ -2,9 +2,9 @@
 
 Sidequests is opening beyond the family: pool friends, staff at the venues, people without
 a phone. Sessions 0 to 6b built accounts, Connect, Players and rated matches, piloted in Rack
-It (`shared/KIT-HISTORY.md`). On 2026-10-02 the owner's design pass (`design_handoff/`) was
-merged in. **Three sessions are left**, and they close out both: one look for every app,
-friends in place of the household everywhere, and one game on several phones.
+It, and Session 7 put every app's look on v3 and opened Zombie Dice and Around the Clock to
+friends (`shared/KIT-HISTORY.md`). On 2026-10-02 the owner's design pass (`design_handoff/`) was
+merged in. **Two sessions are left**: one game on several phones, and the rest of the apps.
 
 **Start a session with:** "Read `shared/KIT-PLAN.md` and do Session N."
 
@@ -114,7 +114,7 @@ taken with these changes.
 | Session | Steps | Visible change |
 | --- | --- | --- |
 | 0–6b | Done (`KIT-HISTORY.md`) | Accounts, Connect, Players, rated matches, one admin in Rack It |
-| **7** The look, and friends in the games | 1 shared look and test harness · 2 launcher · 3 Rack It on v3 · 4 the open rule and Zombie Dice · 5 Around the Clock | Every screen you open looks like one family; the two games pick friends |
+| 7 | Done (`KIT-HISTORY.md`) | The v3 look, the launcher, Rack It on v3, the open rule in Zombie Dice and Around the Clock |
 | **8** One match, many phones (Rack It) | 1 claiming a guest · 2 seats and the Game QR · 3 two phones score · 4 a scorer, and both sign | Rolf scans and he's in; Melanie scores and both players sign |
 | **9** The rest, and closing out | 1 Bloc 11 · 2 Photo Coach · 3 Zombie Dice on several phones · 4 close-out | The household tier is gone; nothing is left on v2 |
 
@@ -128,89 +128,6 @@ removed (`shared/proofs/`).
 
 **Owner, still open from 6b:** you and Melanie connect with My QR once; Melanie closes and
 reopens Rack It.
-
----
-
-## Session 7 — The look, and friends in the games
-
-### Step 1 — The shared look and the test harness (no app changes)
-
-- [x] **Review, then install** `design_handoff/shared/theme.css` (v3), `ui.js` and `DESIGN.md`
-  into `shared/`. v3 keeps every v2 class the apps use; `.arm`, `.user`, `.you` and `.js` go,
-  so grep the apps for those four first and keep any that are used until its app is visited.
-  In `ui.js`, before it lands: move the Sign in button's inline style into the theme; `sheet`
-  closes on Escape and returns focus to what opened it.
-- [x] `shared/fonts/` and every `sw.js` shell list: `ui.js` is cached like `theme.css`. Bump
-  every app's patch version, since their cached `theme.css` changes.
-- [x] `CLAUDE.md` rule 7 points at `shared/DESIGN.md` and says 60px; the layout block lists
-  `ui.js`, `DESIGN.md`, `KIT-HISTORY.md`. `.claude/skills/sidequest/SKILL.md` §4 as
-  `CHANGES.md` says. `_template/index.html`: the `.me` header and the `ui` import.
-  `rack-it/design/DESIGN.md` gets one line at the top: history, see `shared/DESIGN.md`.
-- [x] **`shared/proofs/`** (not `test/`: a bare `node --test` runs every file under a folder of
-  that name): commit the multi-tab `?mock` runner (owner, `&as=<name>`,
-  `&role=member`, a seed) and the rules guard-mutation script that Sessions 6 and 6b rewrote
-  from scratch. Found the way `smoke.mjs` finds Playwright; neither runs under a bare
-  `node --test`.
-- [x] `smoke.mjs` gains a **signed-out pass**: `?mock&signedout` starts with no user, and each
-  app must show Sign in with no error (the 2.10.0 bug).
-
-**Done when:** every app loads on v3 with nothing changed in its `index.html` but the version,
-smoke is green as owner, stranger and signed out, and the owner has looked at each app on the
-phone. Stop and fix before step 2 if any app looks broken.
-
-### Step 2 — The launcher
-
-- [x] `index.html` becomes the tile grid (frame 2a): icon, name, one line, each tile in its
-  app's accent-soft. The install text goes; each app's account sheet has Install.
-
-### Step 3 — Rack It on v3 (minor bump)
-
-- [x] `connect.js` and `people.js` drop their own `tap`, `armed`, `hold` and `overlay` for
-  `ui.tap`, `ui.hold` and `ui.sheet`. Every two-tap "Sure?" becomes a hold.
-- [x] `ui.account` in the header, as overridden above: Profile, My QR, Friends, Export, Import,
-  Install, Sign out. The More tab keeps the rest.
-- [x] `CHANGES.md` § rack-it: drop the duplicated parts, `--a/--b` alias the accents, the
-  Zargo figure 30px, the live row. **The live screen changes greys only.**
-- [x] SPEC where it names a moved control.
-
-**Done when:** the Session 6 and 6b `?mock` proofs pass from `shared/proofs/`, and a scored
-11-Point-Nine match on 2.11.0 and on this build give the same documents.
-
-### Step 4 — The open rule, and Zombie Dice (rules + minor bump, one push)
-
-- [x] **Rules, cases first.** One block for every app named in an `open` list; Rack It keeps
-  its own block. A record in an open app carries `players` (ids, at most 8), `names`, `uids`
-  and `by`:
-  - read: `uid in uids`, or the owner. Lists carry the `uids` filter, as in Rack It;
-  - create: `by` is you, you're in `uids`, and you're connected to every other account in
-    `uids` (unrolled `exists()`, at most 7);
-  - update: you're in `uids`; never `uids`, `by` or `players` (step 8.2 opens seats);
-  - delete: `by`, or the owner.
-
-  The generic `/sidequests/{appId}/**` household rule skips every app in the list.
-  **Must refuse:** a stranger reading, listing or changing a record they aren't in; creating
-  one that names an account they aren't connected to; a member who isn't the owner listing
-  bare. The mock gets the same tier.
-- [x] `people.start({ household: false })` for everyone but the owner, as Rack It does.
-- [x] **Zombie Dice**: `people.pick` in setup (frame 8a's chips: friends, Show QR, Add a
-  guest), records store `players`, `names`, `uids`, `by`; My QR and Friends in the account
-  sheet; the look as `CHANGES.md` § zombie-dice (frame 5a). The dice and their motion don't
-  change.
-- [x] **Backfill, once, on the owner's phone**, as Rack It 2.11.0 did (History, 6b note 6):
-  every old game gets `names`, `by`, and `uids` for the players who have an account.
-- [x] SPEC: who uses it, people, data.
-
-**Done when:** in `?mock`, the owner sees every game, `&as=mel&role=member` sees only hers,
-`&as=ann` starts a game with a friend and a guest and sees only that, and the old games on a
-seed of the owner's export read the same before and after.
-
-### Step 5 — Around the Clock (minor bump, rules in the same push)
-
-- [ ] Add it to the `open` list, with its cases. Players, backfill, account sheet and SPEC as
-  step 4. The look as `CHANGES.md` § around-the-clock (frame 4a): Undo left of Miss, Abandon
-  behind a hold.
-
-**Done when:** as step 4, for Around the Clock.
 
 ---
 
@@ -391,7 +308,9 @@ with `/sidequest` comes out on v3 with friends, with no hand edits.
 
 ## Handover
 
-Sessions 0 to 6b: `shared/KIT-HISTORY.md`.
+Sessions 0 to 7: `shared/KIT-HISTORY.md`. Session 8 reads Session 7's note there first: the
+browser proofs, the rules check and the guard list live in `shared/proofs/` now, and `ui.js`
+grew a sheet body, tap slop and hold options that the Game QR and join card can use.
 
 ### The design merge, 2026-10-02 (Fable)
 

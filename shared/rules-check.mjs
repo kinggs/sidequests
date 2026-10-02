@@ -827,3 +827,42 @@ describe("The open rule: must refuse", () => {
     await assertFails(getDoc(doc(as(MEMBER), "sidequests/zombie-dice/state/main")));
   });
 });
+
+// ---- Around the Clock on the open rule (Session 7 step 5) ----
+const AC = "sidequests/around-the-clock/games/";
+const atc = (extra = {}) => ({ game: "atc180", players: ["ann", "g_1"], names: ["Ann", "Dan"], uids: ["ann"], by: "ann",
+  throws: { ann: [], g_1: [] }, scores: { ann: 0, g_1: 0 }, turn: 0, log: [], direction: "up", at: 1, status: "live", ...extra });
+
+describe("The open rule: Around the Clock", () => {
+  beforeEach(async () => {
+    await seed(AC + "ac", atc({ players: ["ann", "cat"], names: ["Ann", "Cat"], uids: ["ann", "cat"], throws: { ann: [], cat: [] } }));
+    await seed(AC + "old", { player: "p1", darts: [3, 1, 0], at: 1 });
+    await seed("sidequests/around-the-clock/state/main", { direction: "up", players: { p1: { name: "Ann" } } });
+  });
+
+  test("anyone signed in starts a game with a guest or a friend, plays it, and lists theirs", async () => {
+    const db = user("ann");
+    await assertSucceeds(setDoc(doc(db, AC + "g1"), atc()));
+    await assertSucceeds(setDoc(doc(db, AC + "f1"), atc({ players: ["ann", "cat"], names: ["Ann", "Cat"], uids: ["ann", "cat"] })));
+    await assertSucceeds(updateDoc(doc(user("cat"), AC + "ac"), { "throws.cat": [3], turn: 1, log: [1] }));
+    await assertSucceeds(getDocs(query(collection(db, "sidequests/around-the-clock/games"), where("uids", "array-contains", "ann"))));
+  });
+  test("the owner reads every game, backfills an old one and keeps state/main", async () => {
+    const db = as(OWNER);
+    await assertSucceeds(getDocs(collection(db, "sidequests/around-the-clock/games")));
+    await assertSucceeds(updateDoc(doc(db, AC + "old"), { players: ["owner"], throws: { owner: [3, 1, 0] }, names: ["Owner"], uids: ["owner"], by: "owner" }));
+    await assertSucceeds(getDoc(doc(db, "sidequests/around-the-clock/state/main")));
+  });
+  test("refused: a stranger reading or changing a game, a member listing bare, anyone but the owner on state/main", async () => {
+    await assertFails(getDoc(doc(user("ben"), AC + "ac")));
+    await assertFails(updateDoc(doc(user("ben"), AC + "ac"), { "throws.ben": [3] }));
+    await assertFails(getDocs(collection(as(MEMBER), "sidequests/around-the-clock/games")));
+    await assertFails(getDoc(doc(as(MEMBER), AC + "old")));
+    await assertFails(getDoc(doc(as(MEMBER), "sidequests/around-the-clock/state/main")));
+    await assertFails(setDoc(doc(user("ann"), "sidequests/around-the-clock/state/main"), { direction: "down" }));
+  });
+  test("refused: a game naming someone you aren't connected to, or a player changing who's in it", async () => {
+    await assertFails(setDoc(doc(user("ann"), AC + "x"), atc({ players: ["ann", "ben"], names: ["Ann", "Ben"], uids: ["ann", "ben"] })));
+    await assertFails(updateDoc(doc(user("cat"), AC + "ac"), { players: ["ann", "cat", "g_2"] }));
+  });
+});

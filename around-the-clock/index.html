@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0A0D11">
+<meta name="theme-color" content="#0E0D0B">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -12,54 +12,39 @@
 <title>Around the Clock</title>
 <link rel="stylesheet" href="../shared/theme.css">
 <style>
-  /* Around the Clock on shared/theme.css. Green is this app's accent and only marks its data:
-     who's throwing, the next dart, the score line, your band. Picking players is neutral.
-     Single, double and treble keep their own colours, like a dartboard's. */
+  /* Around the Clock on shared/theme.css (dark system v3, shared/DESIGN.md). Sky is this app's
+     accent and only marks its data: who's throwing, the next dart, the score line, your band.
+     Picking players is neutral. Single, double and treble keep their board colours. */
   :root{
-    --accent:#3EC96F; --accent-ink:#06170C;
+    --accent:var(--sky); --accent-ink:var(--sky-ink); --accent-soft:var(--sky-soft);
     --miss:var(--ink-2); --single:#2F6F9E; --double:#C98A2C; --treble:#3EC96F;
   }
-  main{flex:1;min-height:0;padding:4px 16px 16px;overflow-y:auto;max-width:40rem;width:100%;margin:0 auto}
   body.playing main{overflow:hidden;padding:10px 12px;display:flex;flex-direction:column}
   body.playing footer,body.playing header{display:none}
-  .sect{color:var(--dim);margin:28px 0 10px}
   .sect:first-child,.resume.hidden+.sect{margin-top:4px}
   .hint{margin-top:8px}
-  .userbtn{min-height:var(--tap);padding:0 16px;font-size:.8333rem}
-  .gate p{color:var(--dim)}
-
-  .row{display:flex;gap:14px;margin-top:12px}
-  .row button{flex:1}
-  .row button.big{min-height:var(--tap-lg);font-size:1.1111rem}
   .seg{margin-top:12px}
-  .chips button .n{flex:none;font-family:var(--grot);font-weight:600}
-  .resume{background:var(--ink-1);border-radius:var(--r-card);padding:12px 12px 12px 16px;margin-bottom:14px;display:flex;align-items:center;gap:12px}
-  .resume .t{flex:1;min-width:0}
-  .resume .t small{display:block;color:var(--dim);font-size:.8333rem}
+  .chips button .n{flex:none;margin-left:0}
+  .resume{margin-bottom:14px}
 
   /* ---- progress ---- */
   .tiles{margin:12px 0}
   .chart .cap{font-size:.8333rem;color:var(--dim);text-align:center;padding:6px 0 4px}
 
   /* ---- lists ---- */
-  .rows .score{flex:none;min-width:3rem;text-align:center;font-family:var(--grot);font-size:1.4444rem;font-weight:600}
-  .rows .score.live{color:var(--accent);font-size:.9444rem;font-weight:700}
-  .rows .x{background:transparent;color:var(--dim);font-size:1.2222rem}
-  .rows .x.arm{font-size:.8889rem;background:var(--warn);color:var(--ink-0)}
+  .rows .fig{color:var(--text)}
+  .rows .fig.live{color:var(--accent);font-size:.9444rem;font-weight:700}
 
   /* ---- the game screen: fixed px, never scrolls ---- */
   .game{display:flex;flex-direction:column;flex:1;min-height:0;gap:8px}
   /* One panel per player; tap one to hand them the darts. The thrower's is lit green. */
   .top{display:flex;gap:8px;flex:none}
-  .pl{flex:1 1 0;min-width:0;min-height:0;padding:8px 12px 9px;border-radius:var(--r-ctl);background:var(--ink-1);color:var(--text);
-    display:flex;flex-direction:column;align-items:flex-start;text-align:left;font-weight:400;line-height:1.3}
-  .pl .nm{display:flex;align-items:center;gap:8px;max-width:100%;font-size:16px;font-weight:700;color:var(--dim)}
+  /* The theme's player panels (.pl, 44px score), a button each: tap one to hand them the darts. */
+  .pl{min-height:0;align-items:flex-start;font-weight:400;line-height:1.3}
   .pl .nm .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .pl .ln{display:flex;flex-wrap:wrap;align-items:baseline;column-gap:8px}
-  .pl .sc{font-family:var(--grot);font-size:40px;font-weight:600;letter-spacing:-.02em;line-height:1.05}
   .pl .at{font-size:15px;font-weight:600;color:var(--dim)}
-  .pl.on{background:var(--accent);color:var(--accent-ink)}
-  .pl.on .nm,.pl.on .at{color:var(--accent-ink)}
+  .pl.on .at{color:var(--accent-ink)}
   /* Three or four across: the name needs every pixel, so the avatar goes. */
   .top.many .pl{padding:7px 8px}
   .top.many .nm{font-size:15px}
@@ -69,7 +54,7 @@
   .gline b{color:var(--text);font-weight:700}
   .stage{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
   .stage .on{font-family:var(--grot);font-size:14px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.1em}
-  .stage .on.who{font-family:inherit;font-size:22px;font-weight:800;color:var(--accent);text-transform:none;letter-spacing:0;
+  .stage .on.who{font-family:var(--grot);font-size:22px;font-weight:600;color:var(--accent);text-transform:none;letter-spacing:-.01em;
     max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .stage .num{font-family:var(--grot);font-size:clamp(84px,24dvh,168px);font-weight:600;letter-spacing:-.03em;line-height:.95}
   .slots{display:flex;gap:10px;margin-top:8px}
@@ -77,7 +62,7 @@
     font-family:var(--grot);font-size:30px;font-weight:600;color:var(--dim);border:2px solid transparent}
   .slot.next{border-color:var(--accent)}
   .slot.hit{color:var(--text)}
-  .slot.v0{background:var(--miss)} .slot.v1{background:var(--single);color:#fff} .slot.v2{background:var(--double);color:#1a1006} .slot.v3{background:var(--treble);color:var(--accent-ink)}
+  .slot.v0{background:var(--miss)} .slot.v1{background:var(--single);color:#fff} .slot.v2{background:var(--double);color:#1a1006} .slot.v3{background:var(--treble);color:#06170C}
   .prev{font-size:15px;color:var(--dim);min-height:1.4em;margin-top:6px;text-align:center}
   .prev b{color:var(--text)}
   /* Single, double and treble side by side in board order, the way every other darts app
@@ -87,13 +72,13 @@
   .pad button small{font-family:var(--grot);font-size:15px;font-weight:600}
   .pad .single{background:var(--single);color:#fff}
   .pad .double{background:var(--double);color:#1a1006}
-  .pad .treble{background:var(--treble);color:var(--accent-ink)}
+  .pad .treble{background:var(--treble);color:#06170C}
   .under{display:flex;gap:10px;flex:none}
   .under button{flex:1;min-height:clamp(60px,9dvh,84px);font-size:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1}
   .under button small{font-family:var(--grot);font-size:15px;font-weight:600}
   .under .miss{background:var(--miss);color:var(--text)}
   .quitrow{display:flex;flex:none}
-  .quitrow button{flex:1;min-height:56px;font-size:16px}
+  .quitrow button{flex:1;min-height:var(--tap);font-size:16px}
   @media (max-height:700px){
     .stage .on:not(.who){display:none}
     .stage .on.who{font-size:19px}
@@ -114,7 +99,7 @@
   .finish .head{flex:none;display:flex;flex-direction:column;gap:4px;padding-top:4px}
   .finish .big{font-family:var(--grot);font-size:clamp(64px,17dvh,120px);font-weight:600;letter-spacing:-.03em;line-height:1}
   .finish .sub{color:var(--dim);font-size:17px}
-  .finish .band{font-size:21px;font-weight:800;color:var(--accent)}
+  .finish .band{font-size:21px;font-weight:700;color:var(--accent)}
   .finish .next{color:var(--dim);font-size:15px}
   .finish .scroll{flex:1;min-height:0;overflow-y:auto;margin-top:4px}
   .finish .row{width:100%;margin-top:10px;flex:none}
@@ -139,10 +124,10 @@
 
 <header class="apphead">
   <h1>Around the Clock</h1>
-  <div class="user" id="userBox"></div>
+  <div class="me-host" id="meHost"></div>
 </header>
 
-<main id="main">
+<main class="page" id="main">
   <section class="gate hidden" id="gate">
     <p id="gateMsg">Sign in to keep your scores.</p>
     <button class="primary" id="signInBig">Sign in with Google</button>
@@ -156,6 +141,7 @@
 
     <h2 class="lbl sect">180 Around the Clock</h2>
     <div class="chips" id="whoChips"></div>
+    <div class="row"><button class="quiet" id="qrBtn">Show QR</button><button class="quiet" id="guestBtn">Add a guest</button></div>
     <p class="note hint" id="whoHint"></p>
     <div class="seg" id="dirSeg">
       <button type="button" data-dir="up" aria-pressed="true">1 → 20</button>
@@ -173,20 +159,14 @@
     <h2 class="lbl sect">Recent</h2>
     <ul class="rows" id="recent"></ul>
 
-    <h2 class="lbl sect">Players</h2>
-    <ul class="rows" id="people"></ul>
-    <div class="row">
-      <button class="quiet" id="shareBtn">Share link</button>
-      <button class="primary" id="addBtn">Add player</button>
-    </div>
-    <p class="note hint">Players are shared by every sidequests app — add someone once and they're in all of them.</p>
-
-    <div class="row">
-      <button class="quiet" id="exportBtn">Export</button>
-      <button class="quiet" id="importBtn">Import</button>
+    <div class="hidden" id="household">
+      <h2 class="lbl sect">The household</h2>
+      <ul class="rows" id="people"></ul>
+      <div class="row"><button class="quiet" id="addBtn">Add to the household</button></div>
+      <p class="note hint">The household list is yours, shared by every sidequests app. Everyone else plays with
+        their friends and guests.</p>
     </div>
     <input type="file" id="importFile" accept="application/json,.json" class="hidden">
-    <div id="installHere"></div>
   </section>
 
   <section class="game hidden" id="game">
@@ -208,14 +188,14 @@
       <button type="button" class="miss" data-v="0">Miss<small>0</small></button>
     </div>
     <div class="quitrow">
-      <button type="button" class="quiet quit" id="quitBtn">Abandon</button>
+      <button type="button" class="quiet warnbtn quit" id="quitBtn">Hold to abandon</button>
     </div>
   </section>
 
   <section class="finish hidden" id="finish">
     <div class="head">
       <div class="sub" id="fWho"></div>
-      <div class="big" id="fScore">0</div>
+      <div class="big fig-xl" id="fScore">0</div>
       <ul class="results hidden" id="fResults"></ul>
       <div class="sub" id="fNote"></div>
       <div class="band" id="fBand"></div>
@@ -238,9 +218,11 @@
   import { cloud } from "../shared/cloud.js";
   import { phone } from "../shared/phone.js";
   import { people } from "../shared/people.js";
+  import { connect } from "../shared/connect.js";
+  import { ui } from "../shared/ui.js";
 
   // Bump on every change. The deploy skill checks this against the live site.
-  const APP_VERSION = "0.7.1";
+  const APP_VERSION = "0.8.0";
   const APP_ID = "around-the-clock";
   document.getElementById("version").textContent = "v" + APP_VERSION;
 
@@ -259,11 +241,19 @@
   const points = darts => darts.reduce((a, v) => a + POINTS[v], 0);
 
   // ---- state ----
-  // Players are the household's shared people (shared/people.js); this app only stores games.
+  // Players are you, your friends and guests, and for the owner the household (shared/people.js);
+  // this app only stores games. Anyone signed in plays; each sees the games they're in, and the
+  // owner sees every game (the open rule, KIT-PLAN Session 7).
   let rawGames = [];          // game documents as stored
   let games = [];             // the same, normalised — see normalise()
   let legacyPlayers = null;   // this app's own player list from before people were shared; null until loaded
-  let direction = "up";
+  // The direction is this phone's (it lived in state/main, now the owner's alone).
+  const DIR_KEY = "around-the-clock.direction";
+  let direction = (() => { try { return localStorage.getItem(DIR_KEY) === "down" ? "down" : "up"; } catch { return "up"; } })();
+  let owner = false;          // the one admin: every game, and the household list
+  let run = 0;                // which sign-in start() is on
+  let accountSig = "";        // what the header's avatar last showed (mountAccount)
+  let knownNames = {};        // id → the name a game stored, for players this phone can't name
   let unsubs = [];
   let picked = [];            // who's playing next, in throwing order
   let pickTouched = false;    // once a name is tapped, stop defaulting to just you
@@ -271,8 +261,9 @@
   let live = null;            // the game being played on this phone (normalised shape)
   let finished = null;        // the game just completed, shown on the finish panel
 
-  const nameOf = id => people.nameOf(id);
-  const activeIds = () => people.active().map(p => p.id);
+  const nameOf = id => people.get(id) ? people.nameOf(id) : knownNames[id] || "Someone";
+  const pickable = () => people.players().filter(p => !p.deleted);
+  const activeIds = () => pickable().map(p => p.id);
 
   // ---- one shape for every game ----
   // A game has players in throwing order and each player's darts:
@@ -298,7 +289,8 @@
       log: Array.isArray(r.log) ? r.log.map(Number).filter(i => Number.isInteger(i) && i >= 0 && i < n) : [],
       direction: r.direction === "down" ? "down" : "up",
       at: Number(r.at), endedAt: r.endedAt ? Number(r.endedAt) : null,
-      status: r.status === "live" ? "live" : "done", by: r.by || null
+      status: r.status === "live" ? "live" : "done", by: r.by || null,
+      names: Array.isArray(r.names) ? r.names.map(String) : null, uids: Array.isArray(r.uids) ? r.uids.map(String) : null
     };
   }
   const isGameDoc = r => r && typeof r.at === "number" &&
@@ -307,53 +299,25 @@
   const dartsIn = g => g.players.reduce((n, id) => n + g.throws[id].length, 0);
   const isOver = g => g.players.every(id => g.throws[id].length >= TOTAL_DARTS);
   const ranked = g => [...g.players].sort((a, b) => scoreOf(g, b) - scoreOf(g, a));
-  const clone = g => ({ ...g, players: [...g.players], log: [...g.log],
+  const clone = g => ({ ...g, players: [...g.players], log: [...g.log], names: g.names && [...g.names], uids: g.uids && [...g.uids],
     throws: Object.fromEntries(g.players.map(id => [id, [...g.throws[id]]])) });
   function toDoc(g){
     const scores = {};
     g.players.forEach(id => { scores[id] = scoreOf(g, id); });
     return { game: g.game, players: g.players, throws: g.throws, scores, turn: g.turn, log: g.log,
-      direction: g.direction, at: g.at, endedAt: g.endedAt, status: g.status, by: g.by };
+      direction: g.direction, at: g.at, endedAt: g.endedAt, status: g.status, by: g.by,
+      ...(g.names ? { names: g.names } : {}), ...(g.uids ? { uids: g.uids } : {}) };
   }
   function refreshGames(){
     games = rawGames.filter(isGameDoc).map(normalise).filter(g => Number.isFinite(g.at) && g.players.length);
+    knownNames = {};
+    for (const g of games) if (g.names) g.players.forEach((id, i) => { if (g.names[i]) knownNames[id] = g.names[i]; });
   }
 
-  // ---- taps: pointerup, not click ----
-  function tap(node, fn){
-    if (!node) return;
-    let down = false, sx = 0, sy = 0;
-    node.addEventListener("pointerdown", e => { down = true; sx = e.clientX; sy = e.clientY; });
-    node.addEventListener("pointercancel", () => { down = false; });
-    node.addEventListener("pointerup", e => {
-      if (!down) return;
-      down = false;
-      if (Math.abs(e.clientX - sx) > 14 || Math.abs(e.clientY - sy) > 14) return; // a scroll, not a tap
-      e.preventDefault();
-      fn(e);
-    });
-    node.addEventListener("click", e => e.preventDefault());
-  }
-  function buzz(ms){ if (navigator.vibrate) navigator.vibrate(ms); }
-
-  // Two-tap delete: first tap arms it for five seconds, second tap does it.
-  function armed(btn, label, fn){
-    let timer = null;
-    tap(btn, async () => {
-      if (!timer){
-        timer = setTimeout(() => { timer = null; btn.classList.remove("arm"); btn.textContent = label; }, 5000);
-        btn.classList.add("arm");
-        btn.textContent = "Sure?";
-        buzz(12);
-        return;
-      }
-      clearTimeout(timer); timer = null;
-      btn.disabled = true; btn.textContent = "…";
-      try { await fn(); }
-      catch (e){ toast("Couldn't do that: " + (e.message || e)); }
-      btn.disabled = false; btn.classList.remove("arm"); btn.textContent = label;
-    });
-  }
+  // Taps, holds, toasts and sheets: shared/ui.js.
+  const tap = ui.tap, buzz = ui.buzz, toast = ui.toast;
+  // A row's ⋯: delete behind a hold, for whoever started the game, or the owner.
+  const mayDelete = g => owner || !g.by || g.by === (cloud.user && cloud.user.uid);
 
   // ---- dates ----
   const DAY = 86400000;
@@ -380,7 +344,6 @@
   // Fullscreen, the wake lock and the install button all live in shared/phone.js so every
   // app in the repo behaves the same way on a handset.
   phone.keepAwake(true);
-  phone.mountInstall($("installHere"), { label: "Install on this phone" });
 
   // ---- home ----
   function renderHome(){
@@ -394,11 +357,11 @@
 
   function chipRow(wrap, isOn, onPick, badge){
     wrap.innerHTML = "";
-    const list = people.active();
+    const list = pickable();
     if (!list.length){
       const p = document.createElement("p");
       p.className = "empty";
-      p.textContent = "Add a player below to get started.";
+      p.textContent = "Show your QR to a friend, or add a guest.";
       wrap.appendChild(p);
       return;
     }
@@ -599,10 +562,10 @@
       const solo = g.players.length === 1;
       const order = ranked(g);
       const li = document.createElement("li");
-      li.innerHTML = `<span class="score"></span>
+      li.innerHTML = `<span class="fig"></span>
         <span class="who"><div class="l1"></div><div class="l2"></div></span>
-        <button type="button" class="x" aria-label="Delete">✕</button>`;
-      const sc = li.querySelector(".score");
+        <button type="button" class="more" aria-label="More">⋯</button>`;
+      const sc = li.querySelector(".fig");
       sc.textContent = isLive ? "live" : String(scoreOf(g, order[0]));
       sc.classList.toggle("live", isLive);
       if (solo){
@@ -615,13 +578,18 @@
         li.querySelector(".l1").textContent = order.map(id => `${nameOf(id)} ${scoreOf(g, id)}`).join(" · ");
         li.querySelector(".l2").textContent = `${whenLabel(g.at)} · ${dirLabel(g.direction)}${isLive ? " · in progress" : ""}`;
       }
-      armed(li.querySelector("button"), "✕", () => store.removeGame(g.id));
+      if (mayDelete(g)) ui.menu(li.querySelector(".more"), { title: li.querySelector(".l1").textContent, items: [{ label: "Delete", value: "del",
+        hold: true, run: () => store.removeGame(g.id).catch(e => toast("Couldn't delete: " + (e.message || e))) }] });
+      else li.querySelector(".more").remove();
       ul.appendChild(li);
     }
   }
 
   // ---- players ----
+  // The household list, the owner's: everyone else plays with friends and guests.
   function renderPeople(){
+    $("household").classList.toggle("hidden", !owner);
+    if (!owner) return;
     const ul = $("people");
     ul.innerHTML = "";
     const list = people.active();
@@ -653,15 +621,6 @@
     renderHome();
   }
 
-  function share(){
-    const url = location.origin + location.pathname;
-    if (navigator.share){
-      navigator.share({ title:"Around the Clock", text:"Darts drill scorer — sign in with the Gmail that's been added.", url }).catch(() => {});
-    } else if (navigator.clipboard){
-      navigator.clipboard.writeText(url).then(() => toast("Link copied")).catch(() => {});
-    }
-  }
-
   // ---- the game ----
   function startGame(lineup){
     const ids = (lineup || picked).map(id => people.resolve(id)).filter((id, i, a) => {
@@ -671,7 +630,9 @@
     if (!ids.length){ toast("Pick who's playing first."); return; }
     live = {
       id: store.newId(), game: GAME, players: ids, throws: Object.fromEntries(ids.map(id => [id, []])),
-      turn: 0, log: [], direction, at: Date.now(), endedAt: null, status: "live", by: cloud.user ? cloud.user.email : null
+      turn: 0, log: [], direction, at: Date.now(), endedAt: null, status: "live", by: cloud.user ? cloud.user.uid : null,
+      // Who's in it, for the rules and for phones that can't name everyone (KIT-PLAN Session 7).
+      names: people.names(ids), uids: people.uidsOf(ids)
     };
     store.saveGame(live).catch(e => toast("Couldn't save: " + (e.message || e)));
     remember(live.id);
@@ -913,13 +874,6 @@
     startGame(picked);
   }
 
-  function toast(msg){
-    const t = document.createElement("div");
-    t.className = "toast";
-    t.textContent = msg;
-    document.body.appendChild(t);
-    setTimeout(() => t.remove(), 2600);
-  }
 
   function download(name, text, type){
     const url = URL.createObjectURL(new Blob([text], { type: type + ";charset=utf-8" }));
@@ -966,6 +920,8 @@
     toast(added || newPeople
       ? `Imported ${added} game${added === 1 ? "" : "s"}, ${newPeople} new player${newPeople === 1 ? "" : "s"}`
       : "Nothing new to import");
+    try { localStorage.removeItem(BACKFILL_KEY + cloud.user.uid); } catch {}
+    backfill();
   }
 
   // ---- storage ----
@@ -988,7 +944,7 @@
     },
     async saveDirection(dir){
       direction = dir;
-      if (this.live) return cloud.save("state/main", { direction: dir });
+      try { localStorage.setItem(DIR_KEY, dir); } catch {}
     }
   };
 
@@ -998,13 +954,19 @@
   $("dirSeg").querySelectorAll("button").forEach(b => tap(b, () => { store.saveDirection(b.dataset.dir).catch(() => {}); renderDir(); }));
   $("game").querySelectorAll("[data-v]").forEach(b => tap(b, () => throwDart(Number(b.dataset.v))));
   tap($("undoBtn"), undo);
-  armed($("quitBtn"), "Abandon", abandonGame);
+  ui.hold($("quitBtn"), abandonGame);
   tap($("doneBtn"), leaveToHome);
   tap($("againBtn"), playAgain);
   tap($("addBtn"), addPlayer);
-  tap($("shareBtn"), share);
-  tap($("exportBtn"), exportAll);
-  tap($("importBtn"), () => $("importFile").click());
+  // Setup's other two ways in (design frame 8a): whoever scans your QR, or a guest, joins the lineup.
+  const addToLineup = id => {
+    if (!id) return;
+    pickTouched = true;
+    if (!picked.includes(id) && picked.length < MAX_PLAYERS) picked = [...picked, id];
+    renderHome();
+  };
+  tap($("qrBtn"), async () => addToLineup(await people.scan(APP_ID)));
+  tap($("guestBtn"), async () => addToLineup(await people.addGuest()));
   $("importFile").addEventListener("change", e => {
     const f = e.target.files && e.target.files[0];
     e.target.value = "";
@@ -1022,32 +984,53 @@
   });
 
   // ---- cloud ----
-  const userBox = $("userBox");
   await cloud.init(APP_ID);
+  connect.handleInvite({ app: APP_ID, appName: "Around the Clock" });   // a scanned QR: connect first
 
-  function applyUser(user){
-    if (user) {
-      userBox.innerHTML = `${user.photoURL ? `<img src="${user.photoURL}" alt="">` : ""}<button class="quiet userbtn" id="signOut">Sign out</button>`;
-      tap($("signOut"), () => cloud.signOut());
-    } else {
-      userBox.innerHTML = "";
-    }
-    start(user);
+  // Your avatar in the header, and its sheet: Profile, My QR, Friends, Export, Import (the
+  // owner's), Install on this phone, Sign out.
+  function mountAccount(){
+    const user = cloud.user, me = user ? people.meId() : null, p = me ? people.get(me) : null;
+    const installed = phone.installed();
+    const sig = JSON.stringify([user && user.uid, me, p && [p.name, p.photo, people.colourOf(me)], owner, installed]);
+    if (sig === accountSig) return;
+    accountSig = sig;
+    const extra = !user ? [] : [
+      { label: "Profile", value: "profile", run: () => connect.showProfile() },
+      { label: "My QR", value: "qr", run: () => connect.showQR({ app: APP_ID }) },
+      { label: "Friends", value: "friends", run: () => connect.showFriends() },
+      { label: "Export", value: "export", run: exportAll },
+      ...(owner ? [{ label: "Import", value: "import", run: () => $("importFile").click() }] : []),
+      ...(installed ? [] : [{ label: "Install on this phone", value: "install", run: async () => {
+        const how = await phone.install();
+        if (how) ui.sheet({ title: "Install", text: how });
+      } }]),
+    ];
+    ui.account($("meHost"), user, { onSignIn: () => cloud.signIn().catch(e => toast("Sign-in failed: " + (e.code || e.message || e))),
+      onSignOut: () => cloud.signOut(), extra, name: p ? p.name : "", avatar: me ? people.avatar(me, 48) : null });
   }
+  people.onChange(mountAccount);
 
   // onUser only fires straight away when someone is signed in, so paint the signed-out
   // state ourselves. Also what makes the app run before Firebase is set up.
-  cloud.onUser(applyUser);
-  if (!cloud.user) applyUser(null);
+  cloud.onUser(start);
+  if (!cloud.user) start(null);
 
   tap($("signInBig"), () => cloud.signIn().catch(err => {
     $("gateMsg").textContent = "Sign-in failed: " + (err && err.code ? err.code : err);
   }));
 
   // ---- app ----
-  function start(user){
+  // The owner sees every game and keeps the household list (and this app's old state/main, for
+  // its pre-sharing player list). Everyone else, a household member included, plays with their
+  // friends and guests and sees only the games they're in. A role that can't be read means a
+  // player: what the rules allow anyone.
+  async function start(user){
     unsubs.forEach(u => { try { u(); } catch {} });
     unsubs = [];
+    const mine = ++run;
+    owner = false;
+    mountAccount();
     picked = []; pickTouched = false; progWho = null; live = null; finished = null; autoResumed = false; legacyPlayers = null;
 
     const gated = cloud.configured() && !user;
@@ -1058,29 +1041,64 @@
     show("home");
 
     if (cloud.configured()){
+      let role = null;
+      try { role = await cloud.role(); } catch (e){ console.warn("[role]", e); }
+      if (mine !== run) return;
+      owner = role === "owner";
+      mountAccount();
       unsubs.push(people.start({
-        legacy: () => legacyPlayers,
+        household: owner,
+        legacy: owner ? () => legacyPlayers : undefined,
         onMe: ({ name, added }) => { toast(added ? `Added you as ${name}` : `You're ${name}`); if (!live) renderHome(); },
         onError: e => toast("Couldn't save to the cloud: " + (e.message || e))
       }));
-      unsubs.push(cloud.watch("state/main", doc => {
+      if (owner) unsubs.push(cloud.watch("state/main", doc => {
         legacyPlayers = (doc && doc.players) || {};
-        if (doc && (doc.direction === "up" || doc.direction === "down")) direction = doc.direction;
         people.poke();
         if (!live) renderHome();
       }));
+      const opts = owner ? { orderBy: "at", desc: true, limit: 500 } : { where: ["uids", "array-contains", user.uid] };
       unsubs.push(cloud.watchList("games", rows => {
         rawGames = rows.filter(isGameDoc);
         refreshGames();
+        backfill();
         // The game on this phone is the truth while it's being played; the list only
         // matters for Home. If someone else deleted it out from under us, drop out cleanly.
         if (live && !games.some(g => g.id === live.id) && dartsIn(live)){ toast("That game was deleted elsewhere."); live = null; remember(null); show("home"); }
         if (!live) autoResume();
         if (!live) renderHome();
-      }, { orderBy: "at", desc: true, limit: 500 }));
+      }, opts, e => toast("Couldn't load your games: " + (e.code || e.message || e))));
     }
     renderHome();
   }
+
+  // ---- the backfill, once, on the owner's phone (KIT-PLAN Session 7 step 5) ----
+  // Games from before the open rule name players by the household's ids, by email, and some by
+  // the one-player shape. Each is rewritten in today's shape with its ids resolved (a claimed
+  // person's becomes their uid), names, uids for the players with an account, and by as a uid
+  // (the owner's when the starter can't be named). Again after an Import.
+  const BACKFILL_KEY = "around-the-clock.uids-backfill.";
+  let backfilling = false;
+  async function backfill(){
+    if (!owner || backfilling || !people.ready || !cloud.user) return;
+    try { if (localStorage.getItem(BACKFILL_KEY + cloud.user.uid)) return; } catch {}
+    backfilling = true;
+    try {
+      const byEmail = email => { const p = people.active().find(q => q.email && q.email === String(email || "").toLowerCase()); return p && p.uid; };
+      const ops = rawGames.filter(r => isGameDoc(r) && !Array.isArray(r.uids)).map(r => {
+        const g = normalise(r);
+        const { players, throws, scores, turn, log } = toDoc(g);
+        return { patch: `games/${r.id}`, data: { players, throws, scores, turn, log,
+          names: people.names(players), uids: people.uidsOf(players),
+          by: (r.by && !String(r.by).includes("@") ? r.by : byEmail(r.by)) || cloud.user.uid } };
+      });
+      for (let i = 0; i < ops.length; i += 400) await cloud.batch(ops.slice(i, i + 400));
+      try { localStorage.setItem(BACKFILL_KEY + cloud.user.uid, "1"); } catch {}
+      if (ops.length) console.info(`[backfill] gave ${ops.length} games their names and uids`);
+    } catch (e){ console.warn("[backfill]", e); }
+    finally { backfilling = false; }
+  }
+  people.onChange(backfill);
 
   // ---- offline shell ----
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");

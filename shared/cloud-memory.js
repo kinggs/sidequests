@@ -93,7 +93,7 @@ const ACCESS = [
     write: (m, u, d, was) => d ? !was && pairOk(m[1], u, d) : !!was && was.uids.includes(u.uid) },
 ];
 // The open rule's apps and the collection their records live in (openApps() in the rules).
-const OPEN_APPS = { "zombie-dice": "games" };
+const OPEN_APPS = { "zombie-dice": "games", "around-the-clock": "games" };
 // A new record in an open app: yours, with you in it, at most 8 players, every account in it a
 // player and each other one someone you're connected to.
 function opens(u, d){

@@ -65,6 +65,9 @@ export const GUARDS = [
   { guard: "Open: the owner alone reaches the rest of an open app",
     from: "allow read, write: if isOpen(appId) && isOwner();", to: "allow read, write: if isOpen(appId) && isFamily();",
     red: /a household member who isn't the owner listing bare|anything under an open app/ },
+  { guard: "Open: Around the Clock is on the list",
+    from: "'zombie-dice': 'games', 'around-the-clock': 'games'", to: "'zombie-dice': 'games'",
+    red: /anyone signed in starts a game with a guest or a friend/ },
   // ---- Accounts (Session 1) ----
   { guard: "Accounts: profiles are got one at a time, never listed",
     from: "match /profiles/{uid} {\n      allow get: if signedIn();", to: "match /profiles/{uid} {\n      allow read: if signedIn();",

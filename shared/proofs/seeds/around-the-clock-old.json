@@ -1,0 +1,15 @@
+{
+  "app": "around-the-clock", "version": "0.7.1", "exportedAt": "2026-10-01T20:00:00.000Z",
+  "people": {
+    "pK": { "name": "Mock", "email": "mock.player@gmail.com", "uid": "mock-uid", "colour": "#cf1b1b", "createdAt": 1, "deleted": false },
+    "pM": { "name": "Mel", "email": "mel@example.com", "uid": "mock-mel", "colour": "#4a8fce", "createdAt": 2, "deleted": false },
+    "pR": { "name": "Rolf", "email": "", "colour": "#0f7a3d", "createdAt": 3, "deleted": false }
+  },
+  "games": [
+    { "id": "a1", "game": "atc180", "player": "pK", "darts": [3,3,1,0,1,3], "at": 1759000000000, "status": "done", "direction": "up" },
+    { "id": "a2", "game": "atc180", "players": ["pK", "pM"], "throws": { "pK": [1,1,1], "pM": [3,3,3] }, "turn": 0, "log": [0,0,0,1,1,1],
+      "direction": "down", "at": 1759100000000, "endedAt": 1759100600000, "status": "done", "by": "mock.player@gmail.com" },
+    { "id": "a3", "game": "atc180", "players": ["pM", "pR"], "throws": { "pM": [0,1], "pR": [3] }, "turn": 1, "log": [0,0,1],
+      "direction": "up", "at": 1759200000000, "endedAt": 1759200600000, "status": "done", "by": "mel@example.com" }
+  ]
+}

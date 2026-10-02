@@ -13,11 +13,19 @@ tap three buttons.
 
 ## Who uses it
 
-Kenny, mostly on his own as a practice drill, and with Melanie or friends as a match.
-Everyone signs in with Google and sees the same live data. Anyone can log for anyone (one
-phone at the board is normal), and anyone can add a player. Players are the household's
-**shared people** (`shared/people.js`) — the same list, names and colours as Fair Nine and
-Bloc 11 — so someone added in any app is here too.
+Kenny, mostly on his own as a practice drill, and with Melanie or friends as a match. Since
+0.8.0 anyone with a Google account (the open rule, `shared/KIT-PLAN.md` Session 7). One phone
+at the board logs for everyone in the game.
+
+- **Players** (`shared/people.js`): you, your Connect friends and your guests. The owner's
+  picker also holds the household list, which only the owner keeps (**The household** at the
+  bottom of Home).
+- **Who sees what.** A game is reached by the accounts in it (`uids`) and by the owner, who
+  sees every game. A stranger signs in to an empty app of their own; anyone else, a household
+  member included, sees only the games they're in.
+- **Old games.** The owner's phone backfills them once, in today's shape: ids resolved,
+  `names`, `uids` and `by` as a uid. A person with no account keeps their person id, read by
+  `names`.
 
 ## The game: 180 Around the Clock
 
@@ -35,9 +43,10 @@ Bloc 11 — so someone added in any app is here too.
 
 ## Look
 
-`shared/theme.css` (dark system v2, as Rack It). Players show as avatars (their Google photo
-in a ring of their colour, or their initial) on chips, in the Players list, on the game
-panels (hidden when three or four are playing) and in match results. Green is the app's accent
+`shared/theme.css` (dark system v3, `shared/DESIGN.md`). Players show as avatars (their photo
+in a ring of their colour, or their initial) on chips, in the household list, on the game
+panels (the theme's `.pl`; avatar hidden when three or four are playing) and in match results.
+Sky is the app's accent
 and only marks data: the thrower's panel and name, the next dart's slot, the score line, the
 band you landed in. Picking players and the direction is a neutral light fill. Single, double
 and treble keep their own colours.
@@ -52,10 +61,11 @@ One page, three states.
    drop it. Then an up/down toggle and a big **Start** ("Start · 2 players" for a match).
    Below: **Progress** for a chosen player (best, last, average of the last ten; a line of
    scores over time) counting their solo games and matches alike, **Recent** games with an
-   armed two-tap delete (a match reads "Melanie 87 · Kenny 84"), **Players** (the shared
-   list with each person's colour and game count; **Add player** and **Edit** open the shared
-   sheet — name, colour, optional Gmail, merge a double entry, remove from every app — plus
-   Share link), and **Export / Import**.
+   a `⋯` that holds **Hold to delete** for whoever started it, or the owner (a match reads
+   "Melanie 87 · Kenny 84"), and for the owner **The household** (the shared sheet: name,
+   colour, optional Gmail, merge, remove from every app). Setup offers **Show QR** (whoever
+   scans joins the lineup and your Friends) and **Add a guest**. Your avatar top right opens
+   Profile, My QR, Friends, Export, Import (the owner's), Install on this phone, Sign out.
 2. **Game** — fixed to the screen, never scrolls; the app header is hidden to give it room.
    Top: one panel per player with their avatar, name and running total, large; in a
    match each panel also says the number that player is on, the thrower's panel is lit in
@@ -70,8 +80,8 @@ One page, three states.
    number you're on — S20 D20 T20 when you're on the 20 — because that's how every other
    darts app lays it out and the muscle memory should carry over. Underneath, **Undo** on
    the left (steps back one dart at a time, across numbers and across players, all the way
-   to the first — and hands the darts back to whoever threw it) and **Miss** on the right. A
-   quiet armed **Abandon** sits below them.
+   to the first — and hands the darts back to whoever threw it) and **Miss** on the right.
+   **Hold to abandon** sits below them.
 3. **Finish** — when the last dart lands. On your own: the score against your best and
    average, the band it falls in, how far the next band is, and the full guide. In a match:
    who won (or "Tied on 84"), then each player ranked with their score, their band and a new
@@ -123,16 +133,21 @@ Players live in the shared people list, `sidequests/_shared/people/<id>`, via
 `shared/people.js`. Everything else is under `sidequests/around-the-clock/` via
 `shared/cloud.js`.
 
-- `state/main` — `{ direction: "up"|"down" }`, plus `players` from before people were
-  shared (`{ <id>: { name, email, createdAt, deleted } }`). The app no longer writes
-  `players`; on first run people.js adopted them into the shared list under the same ids.
+- `state/main` — the owner's alone since 0.8.0: `players` from before people were shared
+  (`{ <id>: { name, email, createdAt, deleted } }`), which people.js adopted into the shared
+  list under the same ids, and an old `direction`. The direction is now each phone's own
+  (`localStorage`).
 - `games/<id>` — one document per game, solo or match:
-  `{ game: "atc180", players: [<personId> …], throws: { <personId>: [0-3 …] } (what each dart hit: 0 miss, 1 single, 2 double, 3 treble; points come from `POINTS`), scores: { <personId>: n }, turn: <index into players>, log: [<player index per dart, in throwing order>], direction, at: <epoch ms>, endedAt, status: "live"|"done", by: <email> }`
+  `{ game: "atc180", players: [<personId> …], throws: { <personId>: [0-3 …] } (what each dart hit: 0 miss, 1 single, 2 double, 3 treble; points come from `POINTS`), scores: { <personId>: n }, turn: <index into players>, log: [<player index per dart, in throwing order>], direction, at: <epoch ms>, endedAt, status: "live"|"done", by: <uid>, names: [name…] (beside players), uids: [the accounts among players] }`
+
+  The rules (`openApps()` in `shared/firestore.rules`): you start a game only as yourself, in
+  it, with at most 8 players, naming only accounts you're connected to; a player plays on but
+  never changes `uids`, `players` or `by`; whoever started it deletes it. The owner reaches all.
 
 `throws` is the whole record; `scores` is stored too so lists don't have to add it up. `log`
 is what lets Undo step back across players. Games from before multiplayer have
-`{ player, darts: [...], score }` instead and read as a one-player game — nothing was
-rewritten. Every stored player id is read through `people.resolve`, so a player who was
+`{ player, darts: [...], score }` instead and read as a one-player game; the owner's backfill
+(0.8.0) writes them in today's shape. Every stored player id is read through `people.resolve`, so a player who was
 adopted or merged still finds all their games. `game` names the drill so other games can
 share the collection later.
 
@@ -161,4 +176,4 @@ share the collection later.
 - Adding a player drops them straight into the lineup, since they're usually about to throw.
 - Play again keeps the order; nobody rotates to throw first.
 - The finish panel shows before the save reaches the cloud, so it appears even with no signal.
-- Deleting a finished game is a two-tap arm-and-confirm; abandoning a live game is the same.
+- Deleting a game and abandoning a live one are 600ms holds (0.8.0; they were two taps).
