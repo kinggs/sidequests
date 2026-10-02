@@ -14,7 +14,7 @@
 import fs from "node:fs";
 import { after, before, beforeEach, describe, test } from "node:test";
 import { assertFails, assertSucceeds, initializeTestEnvironment } from "@firebase/rules-unit-testing";
-import { deleteDoc, deleteField, doc, getDoc, getDocs, collection, query, where, setDoc, setLogLevel, updateDoc, serverTimestamp, Timestamp } from "firebase/firestore";
+import { deleteDoc, deleteField, doc, getDoc, getDocs, collection, query, where, setDoc, setLogLevel, updateDoc, serverTimestamp, Timestamp, writeBatch } from "firebase/firestore";
 
 // Every refused write would otherwise log a PERMISSION_DENIED stack; the test names say it.
 setLogLevel("silent");
@@ -345,5 +345,42 @@ describe("Players: guests and a match's names and uids", () => {
     await assertFails(getDoc(doc(db, "sidequests/rack-it/matches/m6")));
     await assertFails(getDocs(query(collection(db, "sidequests/rack-it/matches"), where("uids", "array-contains", "ann"))));
     await assertFails(setDoc(doc(db, "sidequests/rack-it/matches/m7"), { status: "live", uids: ["ann"], by: "ann" }));
+  });
+});
+
+// ---- Session 5: rated matches and confirming (KIT-PLAN.md) ----
+// No new rule, household only: a member already writes any field of a match that isn't done,
+// and any rating. These record the confirm path Session 6 narrows for outsiders, and that a
+// batch holding one refused write lands nothing.
+
+describe("Rated matches: pending, confirm, Not right, Withdraw", () => {
+  test("a member saves a rated match as pending; the other confirms it in one batch with both ratings", async () => {
+    const m = "sidequests/rack-it/matches/r5";
+    await assertSucceeds(setDoc(doc(as(OWNER), m), { status: "live", rated: true, playerA: "owner", playerB: "member",
+      uids: ["owner", "member"], by: "owner" }));
+    await assertSucceeds(updateDoc(doc(as(OWNER), m), { status: "pending", endedBy: "owner", rated: true }));
+    const db = as(MEMBER), b = writeBatch(db);
+    b.set(doc(db, "sidequests/rack-it/ratings/owner"), { zargo: 501, robustness: 1, sessions: 1, match: "r5" }, { merge: true });
+    b.set(doc(db, "sidequests/rack-it/ratings/member"), { zargo: 499, robustness: 1, sessions: 1, match: "r5" }, { merge: true });
+    b.update(doc(db, m), { status: "done", zargoBefore: { a: 500, b: 500 }, zargoAfter: { a: 501, b: 499 }, ratedAt: 1, confirmedBy: "member" });
+    await assertSucceeds(b.commit());
+  });
+  test("Not right and Withdraw: a pending match stands as a friendly", async () => {
+    await env.withSecurityRulesDisabled(async ctx => {
+      await setDoc(doc(ctx.firestore(), "sidequests/rack-it/matches/p1"), { status: "pending", rated: true, endedBy: "owner" });
+      await setDoc(doc(ctx.firestore(), "sidequests/rack-it/matches/p2"), { status: "pending", rated: true, endedBy: "member" });
+    });
+    await assertSucceeds(updateDoc(doc(as(MEMBER), "sidequests/rack-it/matches/p1"), { status: "done", rated: false, declinedBy: "member" }));
+    await assertSucceeds(updateDoc(doc(as(MEMBER), "sidequests/rack-it/matches/p2"), { status: "done", rated: false, withdrawnBy: "member" }));
+  });
+  test("refused: a member turning a saved friendly into a rated match, and the whole batch with it", async () => {
+    await env.withSecurityRulesDisabled(ctx => setDoc(doc(ctx.firestore(), "sidequests/rack-it/matches/f1"), { status: "done", rated: false }));
+    const db = as(MEMBER), b = writeBatch(db);
+    b.set(doc(db, "sidequests/rack-it/ratings/r1"), { zargo: 900 }, { merge: true });
+    b.update(doc(db, "sidequests/rack-it/matches/f1"), { rated: true, ratedAt: 1 });
+    await assertFails(b.commit());
+    let zargo;
+    await env.withSecurityRulesDisabled(async ctx => { zargo = (await getDoc(doc(ctx.firestore(), "sidequests/rack-it/ratings/r1"))).data().zargo; });
+    if (zargo !== 500) throw new Error("a refused batch moved a rating");
   });
 });
