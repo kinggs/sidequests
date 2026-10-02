@@ -1,7 +1,7 @@
 // Network-first shell cache. Bump CACHE whenever index.html changes so old copies are dropped.
-const CACHE = "rack-it-v2.11.0";
+const CACHE = "rack-it-v2.11.1";
 const SHELL = ["./", "./index.html", "./zargo.js", "./manifest.json",
-               "../shared/theme.css", "../shared/fonts/space-grotesk-600.woff2", "../shared/fonts/space-grotesk-700.woff2",
+               "../shared/theme.css", "../shared/ui.js", "../shared/fonts/space-grotesk-600.woff2", "../shared/fonts/space-grotesk-700.woff2",
                "./icon.svg", "./icon-192.png", "./icon-512.png", "./icon-maskable-512.png"];
 
 self.addEventListener("install", e => {

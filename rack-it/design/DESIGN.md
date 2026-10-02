@@ -1,3 +1,5 @@
+> **History.** The look every app follows now is `shared/DESIGN.md` (dark system v3).
+
 # Rack It — dark system v2
 
 > **Read with `V3-PLAN.md`.** claude.ai/design wrote this spec against 1.5.0; Session 6 applies

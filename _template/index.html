@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0A0D11">
+<meta name="theme-color" content="#0E0D0B">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -12,29 +12,22 @@
 <title>__APP_NAME__</title>
 <link rel="stylesheet" href="../shared/theme.css">
 <style>
-  /* The look, the fonts and the shared parts (buttons, chips, card rows, tiles, inputs, the
-     page header) come from shared/theme.css. Set this app's accent, which only ever marks
-     its data; add only what's this app's own below. */
-  :root{ --accent:#23D3B0; --accent-ink:#032721; }
-  main{flex:1;min-height:0;padding:4px 16px 16px;overflow-y:auto;max-width:40rem;width:100%;margin:0 auto}
-  .userbtn{flex:none;min-height:var(--tap);padding:0 16px;font-size:.8333rem;white-space:nowrap}
+  /* The look and every shared part come from shared/theme.css (read shared/DESIGN.md). Pick two
+     accents from the ramp: --accent marks this app's data, --accent-2 its second state (drop
+     those three lines if it has none). Add only what's this app's own below. */
+  :root{ --accent:var(--green); --accent-ink:var(--green-ink); --accent-soft:var(--green-soft);
+         --accent-2:var(--sky);  --accent-2-ink:var(--sky-ink);  --accent-2-soft:var(--sky-soft) }
 </style>
 </head>
 <body>
 
 <header class="apphead">
   <h1>__APP_NAME__</h1>
-  <div class="user" id="userBox">
-    <button class="quiet userbtn" id="signIn">Sign in</button>
-  </div>
+  <div class="me-host" id="meHost"></div>
 </header>
 
-<main id="main">
+<main class="page" id="main">
   <p>Hello. Replace this with the app.</p>
-
-  <!-- Keep this somewhere on the main screen. Chrome stops offering to install once
-       anything is on the home screen, so the app has to offer it itself. -->
-  <div id="installHere"></div>
 </main>
 
 <footer class="foot">__APP_NAME__ <span id="version"></span></footer>
@@ -42,6 +35,7 @@
 <script type="module">
   import { cloud } from "../shared/cloud.js";
   import { phone } from "../shared/phone.js";
+  import { ui } from "../shared/ui.js";
 
   // Bump on every change. The deploy skill checks this against the live site.
   const APP_VERSION = "0.1.0";
@@ -49,25 +43,32 @@
   document.getElementById("version").textContent = "v" + APP_VERSION;
 
   // ---- on a phone ----
-  // The Install button hides itself once the app is installed.
-  phone.mountInstall(document.getElementById("installHere"), { label: "Install on this phone" });
   // If the app has a screen you stare at while doing something else, hold the screen on
   // for it — phone.keepAwake(true) on the way in, phone.keepAwake(false) on the way out —
   // and call phone.fullscreen() from the tap that opens it, for when the app is in a tab.
 
-  // ---- cloud ----
-  const userBox = document.getElementById("userBox");
-  await cloud.init(APP_ID);
+  // ---- the account sheet ----
+  // Your avatar in the header; tapping it opens Sign out and whatever the app adds. Install
+  // lives here: Chrome stops offering to install once anything is on the home screen, so the
+  // app has to offer it itself. Add Export and Import here once the app stores anything.
+  const install = { label: "Install on this phone", value: "install", run: async () => {
+    const how = await phone.install();
+    if (how) ui.sheet({ title: "Install", text: how });
+  } };
+  function mountAccount(user){
+    ui.account(document.getElementById("meHost"), user, {
+      onSignIn: () => cloud.signIn(),
+      onSignOut: () => cloud.signOut(),
+      extra: phone.installed() ? [] : [install]
+    });
+  }
 
+  // ---- cloud ----
+  await cloud.init(APP_ID);
+  mountAccount(cloud.user);
   cloud.onUser(user => {
-    if (user) {
-      userBox.innerHTML = `${user.photoURL ? `<img src="${user.photoURL}" alt="">` : ""}<button class="quiet userbtn" id="signOut">Sign out</button>`;
-      document.getElementById("signOut").onclick = () => cloud.signOut();
-      start(user);
-    } else {
-      userBox.innerHTML = `<button class="quiet userbtn" id="signIn">Sign in</button>`;
-      document.getElementById("signIn").onclick = () => cloud.signIn();
-    }
+    mountAccount(user);
+    if (user) start(user);
   });
 
   if (!cloud.configured()) start(null); // lets the app run before Firebase is set up

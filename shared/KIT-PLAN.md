@@ -78,7 +78,7 @@ same day; where it changes an earlier row, the earlier row says so.
 | A guest who scans the Game QR | May take their seat ("I'm Rolf"): the guest becomes their account in that game. **That was them** stays, for past games. |
 | Shared-game scope | Rack It (co-scoring, a scorer, both sign) and Zombie Dice (turns across phones). Leagues and Around the Clock on several phones are Parked. |
 | The plan doc | Finished sessions live in `KIT-HISTORY.md`. Three sessions remain (owner: no time for more). |
-| Test harness | Committed in `shared/test/`: the multi-tab `?mock` runner and the rules guard-mutation script. |
+| Test harness | Committed in `shared/proofs/`: the multi-tab `?mock` runner and the rules guard-mutation script. |
 
 ## Where this ends
 
@@ -124,7 +124,7 @@ Don't build ahead. Ideas go in **Parked**.
 11-Point-Nine match is unchanged, the app and any rules it needs ship in **one push** (a phone
 on the old build is refused the moment rules land: Session 6b), and it ends with `/deployquest`.
 **Every rules change:** its cases are written first, and each guard turns its own case red when
-removed (`shared/test/`).
+removed (`shared/proofs/`).
 
 **Owner, still open from 6b:** you and Melanie connect with My QR once; Melanie closes and
 reopens Rack It.
@@ -135,22 +135,23 @@ reopens Rack It.
 
 ### Step 1 — The shared look and the test harness (no app changes)
 
-- [ ] **Review, then install** `design_handoff/shared/theme.css` (v3), `ui.js` and `DESIGN.md`
+- [x] **Review, then install** `design_handoff/shared/theme.css` (v3), `ui.js` and `DESIGN.md`
   into `shared/`. v3 keeps every v2 class the apps use; `.arm`, `.user`, `.you` and `.js` go,
   so grep the apps for those four first and keep any that are used until its app is visited.
   In `ui.js`, before it lands: move the Sign in button's inline style into the theme; `sheet`
   closes on Escape and returns focus to what opened it.
-- [ ] `shared/fonts/` and every `sw.js` shell list: `ui.js` is cached like `theme.css`. Bump
+- [x] `shared/fonts/` and every `sw.js` shell list: `ui.js` is cached like `theme.css`. Bump
   every app's patch version, since their cached `theme.css` changes.
-- [ ] `CLAUDE.md` rule 7 points at `shared/DESIGN.md` and says 60px; the layout block lists
+- [x] `CLAUDE.md` rule 7 points at `shared/DESIGN.md` and says 60px; the layout block lists
   `ui.js`, `DESIGN.md`, `KIT-HISTORY.md`. `.claude/skills/sidequest/SKILL.md` §4 as
   `CHANGES.md` says. `_template/index.html`: the `.me` header and the `ui` import.
   `rack-it/design/DESIGN.md` gets one line at the top: history, see `shared/DESIGN.md`.
-- [ ] **`shared/test/`**: commit the multi-tab `?mock` runner (owner, `&as=<name>`,
+- [x] **`shared/proofs/`** (not `test/`: a bare `node --test` runs every file under a folder of
+  that name): commit the multi-tab `?mock` runner (owner, `&as=<name>`,
   `&role=member`, a seed) and the rules guard-mutation script that Sessions 6 and 6b rewrote
   from scratch. Found the way `smoke.mjs` finds Playwright; neither runs under a bare
   `node --test`.
-- [ ] `smoke.mjs` gains a **signed-out pass**: `?mock&signedout` starts with no user, and each
+- [x] `smoke.mjs` gains a **signed-out pass**: `?mock&signedout` starts with no user, and each
   app must show Sign in with no error (the 2.10.0 bug).
 
 **Done when:** every app loads on v3 with nothing changed in its `index.html` but the version,
@@ -172,7 +173,7 @@ phone. Stop and fix before step 2 if any app looks broken.
   Zargo figure 30px, the live row. **The live screen changes greys only.**
 - [ ] SPEC where it names a moved control.
 
-**Done when:** the Session 6 and 6b `?mock` proofs pass from `shared/test/`, and a scored
+**Done when:** the Session 6 and 6b `?mock` proofs pass from `shared/proofs/`, and a scored
 11-Point-Nine match on 2.11.0 and on this build give the same documents.
 
 ### Step 4 — The open rule, and Zombie Dice (rules + minor bump, one push)

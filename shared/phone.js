@@ -3,6 +3,7 @@
 //
 //   import { phone } from "../shared/phone.js";
 //   phone.mountInstall(document.getElementById("installHere"));  // hides itself once installed
+//   phone.install()                // for an account sheet's Install: null once done, else the steps
 //   phone.fullscreen();            // on the tap that opens a focused screen
 //   phone.keepAwake(true);         // hold the screen on; false to let it sleep
 //
@@ -135,4 +136,18 @@ function mountInstall(host, { label = "Install on this phone", className = "quie
   return wrap;
 }
 
-export const phone = { installed, fullscreen, keepAwake, mountInstall };
+// The same offer from a menu item (the account sheet's Install). Call it from the tap. Resolves
+// null when the app installed, or else the manual steps for the app to show.
+async function install(){
+  if (installed()) return null;
+  if (!offer) return steps();
+  try {
+    offer.prompt();
+    const res = await offer.userChoice;
+    offer = null;
+    refresh();
+    return res && res.outcome === "accepted" ? null : steps();
+  } catch { return steps(); }
+}
+
+export const phone = { installed, fullscreen, keepAwake, mountInstall, install };

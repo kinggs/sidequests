@@ -9,6 +9,7 @@
 //   /sidequests/rack-it/?mock&as=ann               this tab is another fake user, not on /members
 //   /sidequests/rack-it/?mock&as=ann&role=member   …who is a household member after all
 //   /sidequests/rack-it/?mock&as=                  this tab goes back to the default owner
+//   /sidequests/rack-it/?mock&signedout            this tab's user starts signed out
 //
 // Same surface as cloud.js, including `shared`, the members calls and `account` (guests too). The data lives in this
 // browser's localStorage, so it survives a reload (resume) and another tab sees every write
@@ -439,12 +440,14 @@ export const memory = {
       USER = userCalled(sessionStorage.getItem(AS_KEY));
     } catch { USER = userCalled(q.get("as")); }
     url.searchParams.delete("as");
+    url.searchParams.delete("signedout");
     history.replaceState(null, "", url.toString().replace("mock=&", "mock&").replace(/mock=$/, "mock"));
     // The default user is always on /members (the owner unless &role= says otherwise). An
     // &as= user is on it only once &role= puts them there.
     const members = `members/${USER.email}`;
     if (USER === OWNER && !store.docs[members]) { store.docs[members] = { addedBy: null, addedAt: Date.now(), role: "owner" }; persist(); }
     if (role === "owner" || role === "member") { store.docs[members] = { addedBy: null, addedAt: Date.now(), ...store.docs[members], role }; persist(); }
+    if (q.has("signedout")) { store.signedOut[USER.uid] = true; persist(); }
     currentUser = store.signedOut[USER.uid] ? null : { ...USER };
     if (currentUser) ensureProfile(currentUser);
     console.info("[cloud-memory] fake cloud for", id, "as", USER.email, tierOf(USER) === "household" ? "(household)" : "(not on /members)");

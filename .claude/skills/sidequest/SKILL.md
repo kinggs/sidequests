@@ -48,17 +48,16 @@ Capture the brief before building. Short is fine, but it must cover: purpose, wh
 
 Replace the `<main>` and the `start()` function in `index.html` with the actual app. Follow every rule in `CLAUDE.md` — especially: one file, `cloud.js` for all storage, big touch targets, `pointerup` not `click`, version stamp in the footer.
 
-The look comes from `shared/theme.css`, which the template already links. Pick the app's
-`--accent` and use it only for the app's data. Build from the theme's parts before writing
-new CSS: `.apphead`, `.lbl` headings, `.primary` and `.quiet` buttons, `.seg`, `.chips`
-(with `people.avatar(id, 40)`), `.rows` card rows, `.tiles`, `.chart`, inputs, `.toast`,
-`.note`. Big figures take `font-family: var(--grot)`.
+Read `shared/DESIGN.md`. Set two accents from the ramp (a free one: the launcher lines the
+apps up, and two never share a first accent). Build from the parts in `shared/theme.css` and
+`shared/ui.js`, which the template already links and imports. Write CSS only for the game
+object.
 
 Keep the phone kit the template gives you:
 
-- `<div id="installHere"></div>` stays on the main screen, with its `phone.mountInstall(...)`.
-  It hides itself once the app is installed, and it's the only way back to the install offer
-  once anything is on the home screen.
+- The avatar's sheet (`ui.account`) keeps **Install on this phone** (`phone.install()`) while the
+  app isn't installed: it's the only way back to the install offer once anything is on the
+  home screen. Export and Import go in the same sheet.
 - If the app has a screen you stare at while doing something else — scoring, timing, counting
   — hold the screen on for it: `phone.keepAwake(true)` on the way in, `false` on the way out.
   Don't hold it for a screen that's just a list.

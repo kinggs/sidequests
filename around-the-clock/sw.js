@@ -1,6 +1,6 @@
 // Network-first shell cache. Bump CACHE whenever index.html changes so old copies are dropped.
-const CACHE = "around-the-clock-v0.7.0";
-const SHELL = ["./", "./index.html", "./manifest.json", "./icon-192.png", "../shared/theme.css",
+const CACHE = "around-the-clock-v0.7.1";
+const SHELL = ["./", "./index.html", "./manifest.json", "./icon-192.png", "../shared/theme.css", "../shared/ui.js",
                "../shared/fonts/space-grotesk-600.woff2", "../shared/fonts/space-grotesk-700.woff2"];
 
 self.addEventListener("install", e => {
