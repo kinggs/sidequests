@@ -770,7 +770,9 @@ Proved:
   Replace with the 2.6.0 file and Merge of a 2.7.0 export both leave the ratings identical.
 - `node --test` 25 pass; smoke green for all six apps.
 
-Not proved: the live move itself, which runs on the owner's first open of 2.7.0.
+Real phones, 2026-10-02 (owner): updated to 2.7.0, tested, and applied **Rebuild ratings**, so
+the drift in note 1 below is gone (expected Kenny 505, Melanie 332). Which checks that covered
+(the numbers before the rebuild, the two `ratings/` documents a match moves) wasn't itemised.
 
 What the plan got wrong, or didn't say:
 
