@@ -2,32 +2,53 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#0A0D11">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0E0D0B">
 <title>Sidequests</title>
 <link rel="stylesheet" href="shared/theme.css">
 <style>
-  body{height:auto;min-height:100dvh;padding:28px 16px;max-width:32rem;margin:0 auto}
-  h1{font-family:var(--grot);font-size:1.4444rem;font-weight:600;letter-spacing:-.02em;margin-bottom:18px}
-  ul{list-style:none;display:flex;flex-direction:column;gap:8px}
-  li a{display:flex;align-items:center;min-height:72px;padding:0 18px;background:var(--ink-1);border-radius:var(--r-card);
-    color:var(--text);text-decoration:none;font-weight:600;touch-action:manipulation}
-  li a:active{background:var(--ink-2)}
-  li a:focus-visible{outline:3px solid var(--text);outline-offset:2px}
-  p{color:var(--dim);font-size:.8333rem;margin-top:20px;line-height:1.45}
-  p b{color:var(--text)}
+  /* The launcher (design_handoff frame 2a): a tile per app in its accent-soft, its icon on its
+     accent. A new app adds one <li> with its own two colours from the ramp. */
+  .head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:28px 0 18px}
+  .head h1{font-family:var(--grot);font-size:1.5556rem;font-weight:600;letter-spacing:-.02em;line-height:1.2}
+  .head .lbl{color:var(--faint)}
+  .apps{list-style:none;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .apps a{display:flex;flex-direction:column;justify-content:space-between;gap:18px;min-height:9.3333rem;padding:16px;min-width:0;overflow-wrap:anywhere;
+    border-radius:22px;background:var(--soft);color:var(--text);text-decoration:none;transition:transform var(--fast) ease}
+  .apps a:active{transform:scale(.98);filter:brightness(1.18)}
+  .apps a:focus-visible{outline:3px solid var(--text);outline-offset:2px}
+  .apps .ic{width:52px;height:52px;border-radius:14px;background:var(--hue);display:grid;place-items:center}
+  .apps .ic img{width:36px;height:36px}
+  .apps b{display:block;font-family:var(--grot);font-size:1.1111rem;font-weight:600;letter-spacing:-.01em;line-height:1.2}
+  .apps small{display:block;font-size:.8333rem;color:var(--dim);line-height:1.35;margin-top:2px}
+  main.page>p{margin-top:24px}
 </style>
 </head>
 <body>
-<h1>Sidequests</h1>
-<ul>
-  <li><a href="./around-the-clock/">Around the Clock</a></li>
-  <li><a href="./bloc-11/">Bloc 11</a></li>
-  <li><a href="./photo-coach/">Photo Coach</a></li>
-  <li><a href="./rack-it/">Rack It</a></li>
-  <li><a href="./zombie-dice/">Zombie Dice</a></li>
-</ul>
-<p>Built in conversation. Each one is a single file.</p>
-<p>To put one on your home screen, open it here in the browser and tap <b>Install on this phone</b> at the bottom. They install fullscreen, with no URL bar. If an app is already on your home screen as a plain shortcut, remove it first — Chrome won't offer the real install while the shortcut is there.</p>
+<main class="page">
+  <div class="head"><h1>Sidequests</h1><span class="lbl" id="count"></span></div>
+  <ul class="apps">
+    <li><a href="./around-the-clock/" style="--hue:var(--sky);--soft:var(--sky-soft)">
+      <span class="ic"><img src="around-the-clock/icon.svg" alt=""></span>
+      <span><b>Around the Clock</b><small>Darts drill, out of 180</small></span></a></li>
+    <li><a href="./bloc-11/" style="--hue:var(--amber);--soft:var(--amber-soft)">
+      <span class="ic"><img src="bloc-11/icon.svg" alt=""></span>
+      <span><b>Bloc 11</b><small>Climbing log</small></span></a></li>
+    <li><a href="./photo-coach/" style="--hue:var(--pink);--soft:var(--pink-soft)">
+      <span class="ic"><img src="photo-coach/icon.svg" alt=""></span>
+      <span><b>Photo Coach</b><small>Feedback on your walks</small></span></a></li>
+    <li><a href="./rack-it/" style="--hue:var(--teal);--soft:var(--teal-soft)">
+      <span class="ic"><img src="rack-it/icon.svg" alt=""></span>
+      <span><b>Rack It</b><small>Pool scoring and ratings</small></span></a></li>
+    <li><a href="./zombie-dice/" style="--hue:var(--lime);--soft:var(--lime-soft)">
+      <span class="ic"><img src="zombie-dice/icon.svg" alt=""></span>
+      <span><b>Zombie Dice</b><small>Pass-the-phone dice</small></span></a></li>
+  </ul>
+  <p class="note">To put one on your home screen, open it and tap <b>Install on this phone</b>.</p>
+</main>
+<script>
+  const n = document.querySelectorAll(".apps li").length;
+  document.getElementById("count").textContent = n + (n === 1 ? " app" : " apps");
+</script>
 </body>
 </html>

@@ -70,10 +70,13 @@ be wrong to share — which game this phone was playing, a collapsed section —
 
 ## 5. Add it to the landing page
 
-Insert a link in the root `index.html` list, keeping alphabetical order:
+Add a tile to the root `index.html` launcher, keeping alphabetical order, in the app's first
+accent (ACCENT is its ramp name, e.g. `green`) and with one line of what it's for:
 
 ```html
-<li><a href="./APP_ID/">APP_NAME</a></li>
+<li><a href="./APP_ID/" style="--hue:var(--ACCENT);--soft:var(--ACCENT-soft)">
+  <span class="ic"><img src="APP_ID/icon.svg" alt=""></span>
+  <span><b>APP_NAME</b><small>One line of what it's for</small></span></a></li>
 ```
 
 ## 6. Deploy

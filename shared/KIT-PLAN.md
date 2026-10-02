@@ -160,7 +160,7 @@ phone. Stop and fix before step 2 if any app looks broken.
 
 ### Step 2 — The launcher
 
-- [ ] `index.html` becomes the tile grid (frame 2a): icon, name, one line, each tile in its
+- [x] `index.html` becomes the tile grid (frame 2a): icon, name, one line, each tile in its
   app's accent-soft. The install text goes; each app's account sheet has Install.
 
 ### Step 3 — Rack It on v3 (minor bump)

@@ -21,7 +21,7 @@ also tell you what happens to its cloud data."* Only proceed on a clear yes.
 git rm -r "<app-id>"
 ```
 
-Remove its `<li>` from the root `index.html` list. Commit (`Delete <app-id>`) and push `main`.
+Remove its tile (`<li>`) from the root `index.html` launcher. Commit (`Delete <app-id>`) and push `main`.
 
 ## 3. Verify it's gone
 
