@@ -5,7 +5,8 @@
 //   unsubs.push(people.start({                      // after sign-in, beside the app's watchers
 //     legacy: () => oldPlayerMapOrNull,             // the app's pre-sharing list, null until loaded
 //     onMe: ({ name, added }) => toast(...),        // the signed-in person was linked or added
-//     onError: e => toast(...)
+//     onError: e => toast(...),
+//     household: false                              // optional: skip the household list (Rack It, bar the owner)
 //   }));
 //   people.active()            // the household: [{ id, name, email, colour, createdAt, uid, photoURL }], you first
 //   people.players()           // the household, your friends and your guests: [{ id, name, kind, … }]
@@ -22,7 +23,9 @@
 //
 // The sources, merged by resolved id:
 // - household: /sidequests/_shared/people, the list every app shares. Watched only when
-//   cloud.role() isn't null: nobody outside the household can read it.
+//   cloud.role() isn't null: nobody outside the household can read it. An app that has no
+//   household tier passes household: false, and a member is then a player like anyone else
+//   (Rack It for everyone but the owner, KIT-PLAN.md Session 6b).
 // - friends: your Connect friends (cloud.account.watchFriends), named and pictured by their
 //   profile. An account's id is its uid.
 // - guests: someone with no phone, a typed name private to you (profiles/<you>/guests/g_<id>).
@@ -389,9 +392,11 @@ function start(o = {}){
   if (!cloud.shared) return healStale();
   if (!cloud.configured() || !cloud.user) return stop;
   const run = runs;
-  // The household list only for the household. A role that can't be read (offline on a first
-  // run) tries the list anyway, as before.
-  cloud.role().catch(e => { console.warn("[people] role", e); return "unknown"; }).then(role => {
+  // The household list only for the household, and only when the app wants it. A role that
+  // can't be read (offline on a first run) tries the list anyway, as before.
+  const role = o.household === false ? Promise.resolve(null)
+    : cloud.role().catch(e => { console.warn("[people] role", e); return "unknown"; });
+  role.then(role => {
     if (run !== runs) return;
     if (role === null){
       household = false; confirmed = true;

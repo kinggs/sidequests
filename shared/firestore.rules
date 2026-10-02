@@ -3,12 +3,15 @@ rules_version = '2';
 // One rule set for every app in this repo. Two tiers (shared/KIT-PLAN.md):
 //
 // - The household: signed in with Google AND your email has a document in /members. It
-//   reaches all of /sidequests/** and /members. The members list lives in Firestore, not in
+//   reaches /members and all of /sidequests/** except Rack It. The members list lives in Firestore, not in
 //   this file, so the apps can manage it: adding a person (Rack It → More → Invites) takes
 //   effect instantly, with no rules deploy and no email addresses in the public repo.
 // - An account: anyone signed in, keyed by uid. It reaches /profiles, /invites and
 //   /friendships, each as narrowly as below, and under /sidequests/ only Rack It's matches
 //   it plays in, one rating at a time, and Rack It's config (Session 6).
+//
+// Rack It has no household tier (Session 6b): the owner is its one admin and sees everything;
+// every other account, a household member included, is a player as above.
 //
 // Cost: making a friendship reads the invite with one get(). Every rule here has cases in
 // shared/rules-check.mjs, written before the rule; a failing case stops the deploy.
@@ -42,18 +45,17 @@ service cloud.firestore {
     }
 
     // Every app keeps its data under /sidequests/<appId>/... (people under _shared).
-    // Rack It's writes are spelled out below instead.
+    // Rack It's reads and writes are spelled out below instead.
     match /sidequests/{appId}/{document=**} {
-      allow read: if isFamily();
+      allow read: if isFamily() && appId != 'rack-it';
       allow write: if isFamily() && appId != 'rack-it';
     }
 
-    // Rack It. Any member scores: state/main, new matches and live ones. Only the owner
-    // deletes a match or changes one that's saved (which is what Rebuild ratings does).
-    // Any member sets a new player's starter rating; only the owner changes or deletes one.
-    // A new collection here needs its own rule, or nobody can write it.
+    // Rack It: one admin, everyone else a player (Session 6b). The owner reads and writes all of
+    // it: lists every match, deletes or rewrites a saved one (which is what Rebuild ratings
+    // does), sets starters and the config. A new collection here needs its own rule.
     //
-    // Outsiders (Session 6): an account plays in Rack It without being household. It reads and
+    // Everyone else, household members included, is a player (Session 6): an account reads and
     // scores only the matches with its uid in `uids`, starts one only alone with a guest or
     // against someone it's connected to, and moves a rating only in the batch where it confirms
     // a rated match the other player ended. The rules can't check the arithmetic; the owner's
@@ -61,26 +63,25 @@ service cloud.firestore {
     // player's own writes cost no /members lookup.
     match /sidequests/rack-it/state/{doc} {
       allow get: if signedIn() && doc == 'main';   // the config; the ratings left it in Session 3
-      allow write: if isFamily();
+      allow write: if isOwner();
     }
     match /sidequests/rack-it/matches/{id} {
-      allow read: if (signedIn() && request.auth.uid in resource.data.get('uids', [])) || isFamily();
-      allow create: if (signedIn() && outsiderStarts()) || isFamily();
+      allow read: if (signedIn() && request.auth.uid in resource.data.get('uids', [])) || isOwner();
+      allow create: if (signedIn() && outsiderStarts()) || isOwner();
       allow update: if (signedIn() && request.auth.uid in resource.data.get('uids', []) && playerScores())
-        || (isFamily() && resource.data.get('status', '') != 'done' && ratedOnlyTurnsOff())
         || isOwner();
       allow delete: if isOwner();
     }
     match /sidequests/rack-it/starters/{id} {
-      allow create: if isFamily();
-      allow update, delete: if isOwner();
+      allow read, write: if isOwner();
     }
     // Each player's rating, keyed by their resolved id (KIT-PLAN.md Session 3). A cache that
-    // Rebuild ratings remakes from the matches, so any member writes it, as state/main was.
-    // Anyone signed in gets one by its id; only the household lists them.
+    // Rebuild ratings remakes from the matches. Anyone signed in gets one by its id; only the
+    // owner lists them or writes one outside a confirmation.
     match /sidequests/rack-it/ratings/{pid} {
       allow get: if signedIn();
-      allow write: if (signedIn() && (confirming(pid) || guestStarter(pid))) || isFamily();
+      allow list: if isOwner();
+      allow write: if (signedIn() && (confirming(pid) || guestStarter(pid))) || isOwner();
     }
 
     // A match with no `rated` field is rated: every match before 2.9.0 moved ratings.

@@ -658,6 +658,11 @@ Then on the two real phones.
   through (Session 6 Handover, 2.10.1). A signed-out pass, once `?mock` can start signed out.
 - iPhone: the home-screen app and Safari keep separate sign-ins, so an iPhone scan always
   lands in Safari. Note it and leave it.
+- **Maybe:** My QR wears the app's look, e.g. Rack It's code on a 9-ball's white circle.
+  `connect.showQR` takes an icon and a colour: the icon in the middle at error-correction level
+  H, rounded dots, and a frame around the code. Keep the code itself square, dark on light, with
+  its quiet zone. Only if it scans first time on both real phones in the pool hall. After
+  Session 7.
 
 ## Handover
 

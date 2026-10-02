@@ -14,7 +14,7 @@
 import fs from "node:fs";
 import { after, before, beforeEach, describe, test } from "node:test";
 import { assertFails, assertSucceeds, initializeTestEnvironment } from "@firebase/rules-unit-testing";
-import { deleteDoc, deleteField, doc, getDoc, getDocs, collection, query, where, setDoc, setLogLevel, updateDoc, serverTimestamp, Timestamp, writeBatch } from "firebase/firestore";
+import { deleteDoc, deleteField, doc, getDoc, getDocs, collection, query, where, orderBy, limit, setDoc, setLogLevel, updateDoc, serverTimestamp, Timestamp, writeBatch } from "firebase/firestore";
 
 // Every refused write would otherwise log a PERMISSION_DENIED stack; the test names say it.
 setLogLevel("silent");
@@ -73,12 +73,8 @@ describe("household member", () => {
   test("writes an app's data", async () => {
     await assertSucceeds(setDoc(doc(as(MEMBER), "sidequests/bloc-11/climbs/c1"), { grade: 5 }));
   });
-  test("starts and scores a Rack It match", async () => {
-    const db = as(MEMBER);
-    await assertSucceeds(setDoc(doc(db, "sidequests/rack-it/matches/new1"), { status: "live" }));
-    await assertSucceeds(updateDoc(doc(db, "sidequests/rack-it/matches/live1"), { status: "done" }));
-    await assertSucceeds(setDoc(doc(db, "sidequests/rack-it/state/main"), { config: {} }));
-  });
+  // Since Session 6b a member who isn't the owner plays Rack It as a player (below), not through
+  // the household rule.
   test("reads the members list and invites someone", async () => {
     const db = as(MEMBER);
     await assertSucceeds(getDocs(collection(db, "members")));
@@ -98,6 +94,12 @@ describe("household member", () => {
 });
 
 describe("owner", () => {
+  test("starts and scores a Rack It match with no uids, and writes state/main", async () => {
+    const db = as(OWNER);
+    await assertSucceeds(setDoc(doc(db, "sidequests/rack-it/matches/new1"), { status: "live" }));
+    await assertSucceeds(updateDoc(doc(db, "sidequests/rack-it/matches/live1"), { status: "done" }));
+    await assertSucceeds(setDoc(doc(db, "sidequests/rack-it/state/main"), { config: {} }));
+  });
   test("deletes and rewrites a saved Rack It match", async () => {
     const db = as(OWNER);
     await assertSucceeds(updateDoc(doc(db, "sidequests/rack-it/matches/done1"), { zargoAfter: 1 }));
@@ -292,15 +294,15 @@ describe("your profile and leaving", () => {
 // ---- Session 3: Rack It's ratings in their own documents (KIT-PLAN.md) ----
 
 describe("Rack It ratings", () => {
-  test("a member lists them, and saving a match writes two", async () => {
-    const db = as(MEMBER);
+  test("the owner lists them, and saving a match writes two", async () => {
+    const db = as(OWNER);
     await assertSucceeds(getDocs(collection(db, "sidequests/rack-it/ratings")));
     await assertSucceeds(setDoc(doc(db, "sidequests/rack-it/ratings/r1"), { zargo: 510, robustness: 3, sessions: 2 }, { merge: true }));
     await assertSucceeds(setDoc(doc(db, "sidequests/rack-it/ratings/r2"), { zargo: 490, robustness: 1, sessions: 1 }));
   });
   test("the migration moves state/main.players out, and Replace deletes a rating", async () => {
     await assertSucceeds(updateDoc(doc(as(OWNER), "sidequests/rack-it/state/main"), { players: deleteField() }));
-    await assertSucceeds(deleteDoc(doc(as(MEMBER), "sidequests/rack-it/ratings/r1")));
+    await assertSucceeds(deleteDoc(doc(as(OWNER), "sidequests/rack-it/ratings/r1")));
   });
   test("refused: listing or writing a rating when not on /members, or anything signed out", async () => {
     // Since Session 6 anyone signed in gets one rating by its id (below); listing stays the household's.
@@ -324,14 +326,14 @@ describe("Players: guests and a match's names and uids", () => {
     await assertSucceeds(setDoc(doc(db, "profiles/ann/guests/g_new"), { name: "Dan's brother", createdAt: serverTimestamp() }));
     await assertSucceeds(getDocs(collection(db, "profiles/ann/guests")));
   });
-  test("a member starts and saves a match against a friend or a guest, with names, uids and by", async () => {
-    const db = as(MEMBER);
+  test("the owner starts and saves a match against a friend or a guest, with names, uids and by", async () => {
+    const db = as(OWNER);
     const m = doc(db, "sidequests/rack-it/matches/m4");
-    await assertSucceeds(setDoc(m, { status: "live", playerA: "member", playerB: "ann",
-      names: { a: "Member", b: "Ann" }, uids: ["member", "ann"], by: "member" }));
+    await assertSucceeds(setDoc(m, { status: "live", playerA: "owner", playerB: "ann",
+      names: { a: "Owner", b: "Ann" }, uids: ["owner", "ann"], by: "owner" }));
     await assertSucceeds(updateDoc(m, { status: "done", zargoAfter: { a: 510, b: 490 } }));
-    await assertSucceeds(setDoc(doc(db, "sidequests/rack-it/matches/m5"), { status: "live", playerA: "member", playerB: "g_1",
-      names: { a: "Member", b: "Dan" }, uids: ["member"], by: "member" }));
+    await assertSucceeds(setDoc(doc(db, "sidequests/rack-it/matches/m5"), { status: "live", playerA: "owner", playerB: "g_1",
+      names: { a: "Owner", b: "Dan" }, uids: ["owner"], by: "owner" }));
     await assertSucceeds(setDoc(doc(db, "sidequests/rack-it/ratings/ann"), { zargo: 490, robustness: 1, sessions: 1 }));
     await assertSucceeds(setDoc(doc(db, "sidequests/rack-it/ratings/g_1"), { zargo: 450, robustness: 0, sessions: 0 }));
   });
@@ -369,8 +371,8 @@ describe("Rated matches: pending, confirm, Not right, Withdraw", () => {
   });
   test("Not right and Withdraw: a pending match stands as a friendly", async () => {
     await env.withSecurityRulesDisabled(async ctx => {
-      await setDoc(doc(ctx.firestore(), "sidequests/rack-it/matches/p1"), { status: "pending", rated: true, endedBy: "owner" });
-      await setDoc(doc(ctx.firestore(), "sidequests/rack-it/matches/p2"), { status: "pending", rated: true, endedBy: "member" });
+      await setDoc(doc(ctx.firestore(), "sidequests/rack-it/matches/p1"), { status: "pending", rated: true, endedBy: "owner", uids: ["owner", "member"] });
+      await setDoc(doc(ctx.firestore(), "sidequests/rack-it/matches/p2"), { status: "pending", rated: true, endedBy: "member", uids: ["owner", "member"] });
     });
     await assertSucceeds(updateDoc(doc(as(MEMBER), "sidequests/rack-it/matches/p1"), { status: "done", rated: false, declinedBy: "member" }));
     await assertSucceeds(updateDoc(doc(as(MEMBER), "sidequests/rack-it/matches/p2"), { status: "done", rated: false, withdrawnBy: "member" }));
@@ -598,5 +600,126 @@ describe("Outsiders in Rack It: must refuse", () => {
     await assertFails(getDocs(collection(db, "sidequests/rack-it/state")));
     await assertFails(getDoc(doc(db, "sidequests/rack-it/elsewhere/x")));
     await assertFails(getDoc(doc(db, "members/ann@gmail.com")));
+  });
+});
+
+// ---- Session 6b: one admin, everyone else a player (KIT-PLAN.md) ----
+// In Rack It the owner is the one admin and sees every match. A member who isn't the owner
+// (MEMBER: Melanie) is a player like Ann or Ben: her own matches, read with the uids filter, and
+// nothing of the household's. Other apps keep the household (the first block above).
+
+const om = (extra = {}) => abMatch({ playerA: "owner", playerB: "member", names: { a: "Owner", b: "Member" },
+  uids: ["owner", "member"], by: "owner", ...extra });
+
+describe("One admin: a member who isn't the owner must refuse", () => {
+  beforeEach(async () => {
+    await seed("friendships/member_owner", { uids: ["member", "owner"], since: 1, via: "x", app: "rack-it" });
+    await seed(M + "om", om());
+    await seed(M + "omDone", om({ status: "done", rated: false, endedAt: 2 }));
+    await seed(M + "omRated", om({ status: "done", endedBy: "owner", ratedAt: 2, confirmedBy: "member" }));
+    await seed(M + "oa", abMatch({ playerA: "owner", playerB: "ann", uids: ["owner", "ann"], by: "owner", status: "done", rated: false }));
+    await seed(R + "member", { zargo: 330, robustness: 40, sessions: 20 });
+  });
+
+  test("reading or listing a match she isn't in", async () => {
+    const db = as(MEMBER), col = collection(db, "sidequests/rack-it/matches");
+    await assertFails(getDoc(doc(db, M + "oa")));
+    await assertFails(getDoc(doc(db, M + "done1")));     // from before 2.8.0: no uids
+    await assertFails(getDocs(col));
+    await assertFails(getDocs(query(col, orderBy("startedAt", "desc"), limit(300))));
+    await assertFails(getDocs(query(col, where("uids", "array-contains", "ann"))));
+  });
+  test("starting or scoring a match the household way: no uids, or one she isn't in", async () => {
+    const db = as(MEMBER);
+    await assertFails(setDoc(doc(db, M + "new1"), { status: "live" }));
+    await assertFails(setDoc(doc(db, M + "new2"), om({ by: "member", uids: ["owner"] })));
+    await assertFails(updateDoc(doc(db, M + "live1"), { status: "done" }));
+    await assertFails(updateDoc(doc(db, M + "oa"), { totals: { a: 0, b: 9 } }));
+  });
+  test("listing ratings or starters, or reading a starter", async () => {
+    const db = as(MEMBER);
+    await assertFails(getDocs(collection(db, "sidequests/rack-it/ratings")));
+    await assertFails(getDocs(collection(db, "sidequests/rack-it/starters")));
+    await assertFails(getDoc(doc(db, "sidequests/rack-it/starters/s1")));
+  });
+  test("writing state/main, a starter, or any rating outside a confirmation", async () => {
+    const db = as(MEMBER);
+    await assertFails(setDoc(doc(db, "sidequests/rack-it/state/main"), { config: {} }));
+    await assertFails(setDoc(doc(db, "sidequests/rack-it/starters/s2"), { zargo: 420 }));
+    await assertFails(updateDoc(doc(db, "sidequests/rack-it/starters/s1"), { zargo: 900 }));
+    await assertFails(setDoc(doc(db, R + "member"), { zargo: 900 }, { merge: true }));
+    await assertFails(setDoc(doc(db, R + "r1"), { zargo: 900 }, { merge: true }));
+    await assertFails(setDoc(doc(db, R + "new"), { zargo: 900, robustness: 0, sessions: 0 }));
+    await assertFails(deleteDoc(doc(db, R + "r1")));
+  });
+  test("changing a saved match, even one she's in", async () => {
+    const db = as(MEMBER);
+    await assertFails(updateDoc(doc(db, M + "omDone"), { totals: { a: 0, b: 9 } }));
+    await assertFails(updateDoc(doc(db, M + "omDone"), { status: "live" }));
+    await assertFails(updateDoc(doc(db, M + "omRated"), { zargoAfter: { a: 1, b: 999 } }));
+    await assertFails(updateDoc(doc(db, M + "done1"), { uids: ["member"] }));
+    await assertFails(deleteDoc(doc(db, M + "omDone")));
+  });
+});
+
+describe("One admin: what the owner and a member may do", () => {
+  beforeEach(async () => {
+    await seed("friendships/member_owner", { uids: ["member", "owner"], since: 1, via: "x", app: "rack-it" });
+    await seed(M + "om", om());
+    await seed(M + "omPendO", om({ status: "pending", endedBy: "owner", endedAt: 2 }));
+    await seed(M + "omPendM", om({ status: "pending", endedBy: "member", endedAt: 2 }));
+    await seed(M + "oa", abMatch({ playerA: "owner", playerB: "ann", uids: ["owner", "ann"], by: "owner", status: "done", rated: false }));
+    await seed(R + "owner", { zargo: 505, robustness: 90, sessions: 30 });
+    await seed(R + "member", { zargo: 330, robustness: 40, sessions: 20 });
+  });
+
+  test("the owner reads, lists and rewrites every match, and lists ratings and starters", async () => {
+    const db = as(OWNER), col = collection(db, "sidequests/rack-it/matches");
+    await assertSucceeds(getDoc(doc(db, M + "oa")));
+    await assertSucceeds(getDoc(doc(db, M + "done1")));
+    await assertSucceeds(getDocs(col));
+    await assertSucceeds(getDocs(query(col, orderBy("startedAt", "desc"), limit(300))));
+    await assertSucceeds(updateDoc(doc(db, M + "oa"), { zargoAfter: { a: 1, b: 2 } }));
+    await assertSucceeds(getDocs(collection(db, "sidequests/rack-it/ratings")));
+    await assertSucceeds(getDocs(collection(db, "sidequests/rack-it/starters")));
+    await assertSucceeds(setDoc(doc(db, "sidequests/rack-it/starters/s2"), { zargo: 420 }));
+    await assertSucceeds(setDoc(doc(db, R + "member"), { zargo: 332 }, { merge: true }));
+    await assertSucceeds(deleteDoc(doc(db, M + "oa")));
+  });
+  test("the owner's backfill gives a match from before 2.8.0 its uids, names and resolved players", async () => {
+    await assertSucceeds(updateDoc(doc(as(OWNER), M + "done1"), { uids: ["owner", "member"], names: { a: "Owner", b: "Member" },
+      playerA: "owner", playerB: "member" }));
+    await assertSucceeds(getDoc(doc(as(MEMBER), M + "done1")));
+  });
+  test("a member reads and lists her own matches with the uids filter", async () => {
+    const db = as(MEMBER);
+    await assertSucceeds(getDoc(doc(db, M + "om")));
+    await assertSucceeds(getDocs(query(collection(db, "sidequests/rack-it/matches"), where("uids", "array-contains", "member"))));
+    await assertSucceeds(getDoc(doc(db, R + "owner")));
+    await assertSucceeds(getDoc(doc(db, "sidequests/rack-it/state/main")));
+  });
+  test("a member plays as an outsider does: starts, scores, saves rated as pending", async () => {
+    const db = as(MEMBER);
+    await assertSucceeds(setDoc(doc(db, M + "m1"), om({ by: "member", playerA: "member", playerB: "owner", uids: ["member", "owner"] })));
+    await assertSucceeds(setDoc(doc(db, M + "m2"), om({ by: "member", playerA: "member", playerB: "g_1", uids: ["member"], rated: false })));
+    await assertSucceeds(updateDoc(doc(db, M + "om"), { "racks.1": { balls: { 1: "a" } }, totals: { a: 1, b: 0 } }));
+    await assertSucceeds(updateDoc(doc(db, M + "om"), { status: "pending", endedBy: "member", endedAt: 3 }));
+  });
+  test("a member confirms the owner's rated match, both ratings in the batch", async () => {
+    const db = as(MEMBER), b = writeBatch(db);
+    for (const pid of ["owner", "member"]) b.set(doc(db, R + pid), { zargo: 400, match: "omPendO" }, { merge: true });
+    b.update(doc(db, M + "omPendO"), { status: "done", zargoBefore: { a: 505, b: 330 }, zargoAfter: { a: 500, b: 335 }, ratedAt: 3, confirmedBy: "member" });
+    await assertSucceeds(b.commit());
+  });
+  test("a member declines and withdraws: it stands as a friendly", async () => {
+    await assertSucceeds(updateDoc(doc(as(MEMBER), M + "omPendO"), { status: "done", rated: false, declinedBy: "member" }));
+    await assertSucceeds(updateDoc(doc(as(MEMBER), M + "omPendM"), { status: "done", rated: false, withdrawnBy: "member" }));
+  });
+  test("a member still reads and writes the other apps, and invites", async () => {
+    const db = as(MEMBER);
+    await assertSucceeds(getDoc(doc(db, "sidequests/bloc-11/state/main")));
+    await assertSucceeds(getDocs(collection(db, "sidequests/_shared/people")));
+    await assertSucceeds(setDoc(doc(db, "sidequests/_shared/people/p2"), { name: "Eve" }));
+    await assertSucceeds(setDoc(doc(db, "members", "new@example.com"), { addedBy: MEMBER }));
   });
 });

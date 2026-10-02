@@ -27,7 +27,8 @@ Status and build order: `shared/KIT-PLAN.md`.
   one taken in the app, shrunk to a 192 px JPEG and stored in the profile document).
   ⚠ Firebase Storage would need the paid Blaze plan, so the photo stays in Firestore.
 - **The household** is the allowlist: an account whose email is in `/members`. A household
-  member reads everything under `/sidequests/`, so only people who live here go on it.
+  member reads everything under `/sidequests/` except in an app that has dropped the household
+  tier (Rack It, from 2.11.0), so only people who live here go on it.
   Playing in an app is never a reason to add someone; that's what Connect is for.
 
 ## Connect
@@ -73,9 +74,10 @@ is:
   **claimed** later: once they're on Connect, you tap "that was them" and their guest games
   become theirs;
 - for household members, **a household person**: the list every app shares today. It stays
-  as it is, and nothing is migrated;
-- for anyone outside the household, **you**: your own account, so you can pick yourself
-  (the household list isn't theirs to read).
+  as it is, and nothing is migrated. An app with no household tier starts Players with
+  `household: false`, and a member then sees no household list (Rack It, bar the owner);
+- for anyone outside the household, or with `household: false`, **you**: your own account, so
+  you can pick yourself (the household list isn't theirs to read).
 
 **Ids.** An account is its `uid`. A guest is `g_<id>`. A household person with no account
 keeps their person id. `people.resolve(id)` leads any id an app ever stored to the current
@@ -102,16 +104,16 @@ puts anyone on `/members`: Invites does that.
 | The name on your QR | Anyone holding the QR within its 24 hours, so the welcome screen can say who it's from |
 | That two people are friends | Those two only |
 | Your notes, tags, met, guests | You only. Your friends can't see your friends. |
-| An app's records | The household sees all of them. An outsider sees only the records with their uid in `uids`, in apps that have opened up (so far Rack It, from 2.10.0). |
-| A Rack It rating | Anyone signed in who has that player's id, one at a time. Only the household can list them. |
+| An app's records | The players in them and the admin. In Rack It (from 2.11.0) that's all: the owner sees every match, and everyone else, household members included, only the records with their uid in `uids`. Apps that haven't adopted Players: the household sees all of them, until Session 8. |
+| A Rack It rating | Anyone signed in who has that player's id, one at a time. Only the owner can list them. |
 
 Email addresses are never in a profile, a friendship or a record's `names`.
 
 ## Data
 
 Accounts are top-level collections, outside `/sidequests/`, on purpose. The rule on
-`/sidequests/{appId}/**` lets every household member read everything under it, so a friends
-list stored there wouldn't be private.
+`/sidequests/{appId}/**` lets every household member read everything under it (bar Rack It), so
+a friends list stored there wouldn't be private.
 
 ```
 /profiles/{uid}                  { name, photo, googlePhoto, createdAt }      — get by uid

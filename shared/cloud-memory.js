@@ -27,7 +27,9 @@
 // private/friends/guests only, a pair only by one of its two, and a friendship only with
 // the other side's live code. So is Rack It's outsider block (Session 6): a match read,
 // started and scored by the players in its `uids`, a list only with the uids filter, a rating
-// got by id and moved only in the batch that confirms, as in shared/firestore.rules.
+// got by id and moved only in the batch that confirms, as in shared/firestore.rules. Rack It
+// has no household tier (Session 6b): the owner reaches all of it, and everyone else, a
+// household member (&role=member) included, is a player.
 //
 // Two tabs test a whole QR scan: rack-it/?mock on My QR, then
 // rack-it/?mock&as=waiter&i=<code> in another tab. Times are milliseconds here.
@@ -46,22 +48,24 @@ function userCalled(name){
 }
 
 // Who reaches what: the tiers in shared/firestore.rules, one row per path, first match wins.
-// "household" = signed in with an email on /members; "account" = anyone signed in. A path
+// "household" = signed in with an email on /members; "owner" = the member with role "owner";
+// "account" = anyone signed in. A path
 // no row matches is refused, like the rules' catch-all. A rules change that opens a path to
 // a wider tier adds its row here, above the row it narrows.
 // A row's read or write is a tier, "anyone" (signed out too), or a check (match, user, data)
 // for the account paths. `data` is the document being written, or null for a delete.
 const ACCESS = [
   { path: /^members(\/|$)/,    read: "household", write: "household" },
-  // Rack It for outsiders (Session 6). The household's own field rules aren't modelled here.
-  { path: /^sidequests\/rack-it\/state\/main$/, read: "account", write: "household" },
-  { path: /^sidequests\/rack-it\/matches$/, read: (m, u, d, was, ctx) => isHousehold(u) || uidsFilter(ctx, u) },
+  // Rack It: the owner, and players (Sessions 6 and 6b). Not the household.
+  { path: /^sidequests\/rack-it\/state\/main$/, read: "account", write: "owner" },
+  { path: /^sidequests\/rack-it\/matches$/, read: (m, u, d, was, ctx) => isOwner(u) || uidsFilter(ctx, u) },
   { path: /^sidequests\/rack-it\/matches\/([^/]+)$/,
-    read: (m, u, d, was) => isHousehold(u) || inUids(was, u),
-    write: (m, u, d, was) => !was ? !!d && (isHousehold(u) || outsiderStarts(u, d))
-      : (!!d && inUids(was, u) && playerScores(u, d, was)) || householdScores(u, d, was) },
+    read: (m, u, d, was) => isOwner(u) || inUids(was, u),
+    write: (m, u, d, was) => !was ? !!d && (isOwner(u) || outsiderStarts(u, d))
+      : (!!d && inUids(was, u) && playerScores(u, d, was)) || isOwner(u) },
   { path: /^sidequests\/rack-it\/ratings\/([^/]+)$/, read: "account",
-    write: (m, u, d, was, ctx) => isHousehold(u) || (!!d && (confirming(m[1], d, ctx.after) || (!was && !!store.docs[`profiles/${u.uid}/guests/${m[1]}`]))) },
+    write: (m, u, d, was, ctx) => isOwner(u) || (!!d && (confirming(m[1], d, ctx.after) || (!was && !!store.docs[`profiles/${u.uid}/guests/${m[1]}`]))) },
+  { path: /^sidequests\/rack-it(\/|$)/, read: "owner", write: "owner" },   // starters, listing ratings
   { path: /^sidequests(\/|$)/, read: "household", write: "household" },
   // Accounts (Session 1). Yours alone: private, friends, guests, as documents or as a list.
   { path: /^profiles\/([^/]+)\/(private|friends|guests)(\/[^/]+)?$/, read: (m, u) => m[1] === u.uid, write: (m, u) => m[1] === u.uid },
@@ -75,9 +79,9 @@ const ACCESS = [
     read: (m, u, d, was) => was ? was.uids.includes(u.uid) : m[1].split("_").includes(u.uid),
     write: (m, u, d, was) => d ? !was && pairOk(m[1], u, d) : !!was && was.uids.includes(u.uid) },
 ];
-// Rack It's outsider rules, as in shared/firestore.rules (Session 6). A match with no `rated`
+// Rack It's player rules, as in shared/firestore.rules (Session 6). A match with no `rated`
 // field is rated.
-const isHousehold = u => tierOf(u) === "household";
+const isOwner = u => tierOf(u) === "household" && (store.docs["members/" + String(u.email || "").toLowerCase()] || {}).role === "owner";
 const inUids = (doc, u) => !!doc && Array.isArray(doc.uids) && doc.uids.includes(u.uid);
 const rated = doc => (doc.rated === undefined ? true : doc.rated) === true;
 const uidsFilter = (ctx, u) => !!ctx.where && ctx.where[0] === "uids" && ctx.where[1] === "array-contains" && ctx.where[2] === u.uid;
@@ -105,13 +109,6 @@ function playerScores(u, now, was){
   }
   return was.status === "pending" && now.status === "done" && keys.every(k => CONFIRM_KEYS.includes(k))
     && (!rated(now) || u.uid !== (was.endedBy ?? u.uid));
-}
-// The household's own match rule: the owner rewrites or deletes any match; a member changes
-// one that isn't finished, and never turns a friendly into a rated match.
-function householdScores(u, d, was){
-  if (!isHousehold(u)) return false;
-  if ((store.docs["members/" + String(u.email || "").toLowerCase()] || {}).role === "owner") return true;
-  return !!d && was.status !== "done" && (!rated(d) || rated(was));
 }
 // A rating moves only in the batch that confirms a rated match: pending before, done and
 // rated after (`after` is the store as the whole batch leaves it), the rating a player in it.
@@ -207,7 +204,7 @@ function allowed(op, full, data = null, ctx = {}){
   const tier = tierOf(currentUser);
   if (!tier || !need) return false;
   if (typeof need === "function") return !!need(full.match(row.path), currentUser, data, store.docs[full] || null, ctx);
-  return need === "account" || (need === "household" && tier === "household");
+  return need === "account" || (need === "household" && tier === "household") || (need === "owner" && isOwner(currentUser));
 }
 function check(op, full, ctx){ read(); if (!allowed(op, full, null, ctx)) throw denied(); }
 

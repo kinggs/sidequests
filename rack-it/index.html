@@ -617,15 +617,6 @@
 </div>
 
 <!-- ============ REBUILD RATINGS ============ -->
-<!-- Friend mode's first open: once per account on this phone (SPEC §8.2). -->
-<div class="overlay hidden" id="hhNote">
-  <div class="card">
-    <h2>Before you play</h2>
-    <p>Kenny's household can see the matches you score here.</p>
-    <button class="primary" id="hhOk">OK</button>
-  </div>
-</div>
-
 <div class="overlay hidden" id="rebuild">
   <div class="card">
     <h2>Rebuild ratings</h2>
@@ -731,7 +722,7 @@ import { people } from "../shared/people.js";
 import { connect } from "../shared/connect.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "2.10.1";
+const APP_VERSION = "2.11.0";
 const APP_ID = "rack-it";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 document.getElementById("versionMore").textContent = "v" + APP_VERSION;
@@ -754,7 +745,7 @@ const el = {};
  "histList",
  "impChoice","impInfo","impMerge","impReplace","impCancel",
  "familyBtn","scrFamily","famBack","famList","famEmail","famAdd","famShare",
- "qrBtn","friendsBtn","profileBtn","hhNote","hhOk",
+ "qrBtn","friendsBtn","profileBtn",
  "pfEst","estRef","estRefName","estRefScore","estNewScore","estOut","pfDelete","pfShared",
  "games","foldGame","gameHead","gameName","gameBlurb","raceLen","raceNRow","raceN","winArea","drop","goldChip","doneExtra",
  "rebuild","rbInfo","rbList","rbNote","rbApply","rbCancel","rebuildBtn",
@@ -971,6 +962,37 @@ async function migrateRatings(){
   migrating = false;
 }
 
+// Once, on the owner's phone (2.11.0, KIT-PLAN.md Session 6b): every match with no `uids` (all
+// from before 2.8.0) gets the accounts of its players, `names` if it has none, and its players'
+// resolved ids (a uid once claimed), so a player reads it, and finds it on their own page, now
+// that only the players and the owner can. Nothing else in the match changes. Only
+// once the people list has come from the server, since resolve() and uidsOf() read it. Again
+// after an import, which can bring old matches back.
+const BACKFILL_KEY = "rack-it.uids-backfill.";
+let backfilling = false;
+async function backfillUids(){
+  if(backfilling || !owner || friendMode || !people.ready || !cloud.user) return;
+  const key = BACKFILL_KEY + cloud.user.uid;
+  try { if(localStorage.getItem(key)) return; } catch(e){}
+  backfilling = true;
+  try {
+    const ops = [];
+    for(const m of await cloud.list("matches")){
+      if(Array.isArray(m.uids)) continue;
+      const ids = [m.playerA, m.playerB].map(people.resolve);
+      const data = { uids: people.uidsOf(ids) };
+      if(!m.names) data.names = { a: people.nameOf(ids[0], ""), b: people.nameOf(ids[1], "") };
+      if(ids[0] && ids[0] !== m.playerA) data.playerA = ids[0];
+      if(ids[1] && ids[1] !== m.playerB) data.playerB = ids[1];
+      ops.push({ patch: "matches/" + m.id, data });
+    }
+    for(let i = 0; i < ops.length; i += 400) await cloud.batch(ops.slice(i, i + 400));   // a batch holds 500
+    try { localStorage.setItem(key, "1"); } catch(e){}
+    console.info("[backfill] gave", ops.length, "matches their uids");
+  } catch(e){ console.warn("[backfill]", e); }
+  backfilling = false;
+}
+
 // A player: the shared person, friend or guest, plus their numbers here. Someone added in
 // another app, who has never played pool, starts at the starter rating. A match's own name
 // for them stands in when this phone doesn't know them (another member's friend or guest).
@@ -1080,6 +1102,7 @@ people.onChange(() => {
   watchRatingIds();
   rekeyStats();
   migrateRatings();   // waits for the people list from the server
+  backfillUids();     // so does this
   rerender();
   paintLiveBar();
 });
@@ -1124,14 +1147,9 @@ const checkLive = paintLiveBar;
 // One member is the owner (members/<email>.role, set in the Firebase console). Only the owner
 // deletes a match or a player, changes a saved match (so Rebuild), sets a starter rating
 // after it exists, replaces everything on import, and removes an invite. The rules refuse
-// those writes from anyone else (shared/firestore.rules); the app hides them, with one line
-// saying why. Unknown (offline on first run) reads as a plain member.
+// those writes from anyone else (shared/firestore.rules); the app hides them. Since 2.11.0 the
+// owner is the only one on the household path (handleUser); everyone else is in friend mode.
 let owner = false;
-async function loadRole(){
-  try { owner = (await cloud.role()) === "owner"; } catch(e){ console.warn("[role]", e); owner = false; }
-  paintOwner();
-  migrateRatings();
-}
 function paintOwner(){
   el.rebuildBtn.classList.toggle("hidden", !owner || friendMode);
   el.ownerNote.classList.toggle("hidden", owner || friendMode);
@@ -1156,15 +1174,18 @@ async function handleUser(user){
     el.gate.classList.add("hidden");
     if(started) return;
     started = true;
-    // Not on /members: an account, not the household, so friend mode (startFriendMode).
-    // A role we can't read (offline on first run) tries the household path as before.
+    // One admin (KIT-PLAN.md Session 6b): the owner sees every match. Everyone else, a household
+    // member included, plays in friend mode (startFriendMode), as do we when the role can't be
+    // read (offline on a first run): it's what the rules allow anyone.
     let role;
     try { role = await cloud.role(); } catch(e){ console.warn("[role]", e); }
-    if(role === null && cloud.user === user){ startFriendMode(); return; }
+    if(role !== "owner"){ if(cloud.user === user) startFriendMode(); return; }
     try {
+      owner = true;
       people.start({ legacy: () => stateLoaded ? legacyPlayers : null, onError: e => console.warn("[people]", e) });
       await loadState();
-      loadRole();
+      paintOwner();
+      backfillUids();
       landed = false;
       watchRatings();
       watchMatches();
@@ -1204,21 +1225,20 @@ el.signInBig.addEventListener("click", () => cloud.signIn().catch(e => {
 }));
 el.signOutBtn.addEventListener("click", () => cloud.signOut());
 
-// ---------- friend mode (KIT-PLAN.md Session 6) ----------
-// Signed in but not on /members: an account plays here as a friend of the household. The same
-// four tabs, but only what the rules let an account reach: the matches with their uid in
-// `uids` (one query with that filter and no orderBy; sorted here), ratings one at a time by id
-// (theirs, their friends' and guests', and everyone in their matches), and the config. No
-// Invites, Import or Rebuild. The household still sees every match, so the first open says so.
+// ---------- friend mode (KIT-PLAN.md Sessions 6 and 6b) ----------
+// Everyone but the owner, household members included: a player. The same four tabs, but only
+// what the rules let a player reach: the matches with their uid in `uids` (one query with that
+// filter and no orderBy; sorted here), ratings one at a time by id (theirs, their friends' and
+// guests', and everyone in their matches), and the config. No Invites, Import or Rebuild. The
+// picker holds you, your friends and your guests, never the household list (household: false).
 async function startFriendMode(){
   friendMode = true;
   paintFriendMode();
-  people.start({ onError: e => console.warn("[people]", e) });
+  people.start({ household: false, onError: e => console.warn("[people]", e) });
   try { await loadState(); } catch(e){ console.warn("[config]", e); stateLoaded = true; }
   landed = false;
   watchRatings();
   watchMatches();
-  explainHousehold();
 }
 function paintFriendMode(){
   el.familyBtn.classList.toggle("hidden", friendMode);
@@ -1226,16 +1246,9 @@ function paintFriendMode(){
   el.rebuildBtn.classList.toggle("hidden", friendMode || !owner);
   el.ownerNote.classList.toggle("hidden", friendMode || owner);
 }
-const HH_KEY = "rack-it.household-note.";
-function explainHousehold(){
-  const key = HH_KEY + ((cloud.user && cloud.user.uid) || "");
-  try { if(localStorage.getItem(key)) return; } catch(e){}
-  el.hhNote.classList.remove("hidden");
-}
-tapBind(el.hhOk, () => {
-  el.hhNote.classList.add("hidden");
-  try { localStorage.setItem(HH_KEY + ((cloud.user && cloud.user.uid) || ""), "1"); } catch(e){}
-});
+// 2.10.x's "Before you play" note went in 2.11.0: only the players and the owner read a match
+// now. Its "seen" flags go with it.
+try { for(const k of Object.keys(localStorage)) if(k.startsWith("rack-it.household-note.")) localStorage.removeItem(k); } catch(e){}
 // One listener a rating, since only the household lists them. Kept in step with who this phone
 // can name and who is in its matches; a rating nobody needs any more stops being watched.
 function watchRatingIds(){
@@ -3741,6 +3754,8 @@ el.impMerge.addEventListener("click", async () => {
   await importAccount(imp);
   pendingImport = null;
   await loadState();
+  try { localStorage.removeItem(BACKFILL_KEY + cloud.user.uid); } catch(e){}
+  backfillUids();
   rerender();
 });
 
@@ -3764,6 +3779,8 @@ el.impReplace.addEventListener("click", async () => {
   await importAccount(imp);
   pendingImport = null;
   await loadState();
+  try { localStorage.removeItem(BACKFILL_KEY + cloud.user.uid); } catch(e){}
+  backfillUids();
   rerender();
 });
 

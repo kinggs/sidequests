@@ -349,7 +349,7 @@ match** or **Discard**. Saving opens the match's summary; discarding goes to Rat
 - **The opponent's phone** shows a strip above the tabs, in amber: "Kenny 5–3 You · rated" with
   **Confirm** and **Not right**. Tapping the words opens the summary. **The scorer's** reads
   "Waiting for Melanie to confirm" with **Withdraw**. Whoever may confirm is any player in `uids`
-  who didn't end it; a household member who scored someone else's match waits for either of them.
+  who didn't end it; the owner, scoring someone else's match, waits for either of them.
 - **Confirm** works the result out from the stored racks and the two ratings as they stand now,
   and writes in one batch: both `ratings/` documents (each with `match: <id>`) and the match
   `{ status: "done", zargoBefore, zargoAfter, ratedAt, confirmedBy }`.
@@ -369,6 +369,9 @@ says when the match is saved or discarded. Deleting the match a phone is scoring
 drops it out cleanly.
 
 ## 7. The four tabs
+
+What follows is the owner's view. Everyone else, household members included, gets the same
+four tabs in friend mode (§8.2, 2.11.0).
 
 **Play · Ratings · Matches · More**, 60px tall, along the bottom of every page but sign-in and
 the live screen (and the same four in friend mode, §8.2): labels in caps, the selected tab in teal with a bar above it. The app always
@@ -409,8 +412,8 @@ counted, **Copy for Cuescore** (§10), and for the owner **Hold to delete match*
 sees why it isn't there).
 
 **More.** My QR, Friends and Profile (§8.1), Invites, Export and Import, Rebuild ratings (owner), Install on this phone, About
-Zargo, Sign out, the version (friend mode drops Invites, Import and Rebuild, §8.2); the account shows in the header. A member sees one line naming
-the owner's actions instead of Rebuild. **Invites** is the members allowlist: add a Gmail,
+Zargo, Sign out, the version (friend mode drops Invites, Import and Rebuild, §8.2); the account shows in the header.
+**Invites** is the members allowlist, for the household's other apps: add a Gmail,
 remove one (owner only, two taps, never yourself), **Share this app**; rows show whose Gmail it
 is. Import's **Replace everything** is the owner's too.
 
@@ -420,8 +423,10 @@ One member is the **owner**: `members/<email>.role: "owner"`, set by hand in the
 Only the owner deletes a match, changes a saved match (so only the owner rebuilds ratings or
 replaces everything on import), changes or deletes a starter rating, deletes a player, and
 removes an invite. `shared/firestore.rules` enforces the Firestore writes; the app hides the
-buttons from everyone else, with a line saying why. Any member still scores, saves, adds a
-player (with a starter estimate) and invites. ⚠ People documents stay writable by any member.
+buttons from everyone else. **Since 2.11.0 the owner is Rack It's one admin** (KIT-PLAN Session
+6b): only the owner runs the path this section describes, reads every match and lists ratings
+and starters. Everyone else, a household member included, is a player in friend mode (§8.2).
+⚠ People documents stay writable by any member.
 
 **Hold to confirm.** End, deleting a match and deleting a player are a 600ms hold with a
 rising fill, never a dialog. Under reduced motion the fill appears at once.
@@ -489,16 +494,17 @@ account, not to Rack It, so they show in every app with Connect.
 
 ### 8.2 Friend mode
 
-Signed in but not on `/members` (`cloud.role()` is null): a pool friend uses Rack It without
-joining the household (KIT-PLAN Session 6, 2.10.0). The same four tabs, with only what the rules
-let an account reach:
+Everyone signed in but the owner (`cloud.role()` isn't `"owner"`, or can't be read): a pool
+friend who isn't household (KIT-PLAN Session 6, 2.10.0), and since 2.11.0 a household member
+too (Session 6b). The same four tabs, with only what the rules let a player reach:
 
-- **Play**: the same setup. The picker holds you, your friends and your guests. You play in
+- **Play**: the same setup. The picker holds you, your friends and your guests, never the
+  household list, even for a household member (`people.start({ household: false })`). You play in
   every match you start: Start reads "You need to be one of the players" otherwise. **Rated** is
   offered against a friend, never a guest. Confirm, Not right and Withdraw work as in §6.1; the
   rules stop a player confirming their own result by any route.
 - **Ratings**: you, your friends who have a rating, and your guests. Each rating is read on its
-  own, by id (only the household lists them), along with everyone in your matches.
+  own, by id (only the owner lists them), along with everyone in your matches.
 - **Matches**: the matches with your uid in `uids`, newest first, read with one query
   (`where: ["uids", "array-contains", <uid>]`, no `orderBy`, sorted on the phone).
 - **More**: My QR, Friends, Profile, Export (your matches and the ratings this phone reads),
@@ -506,21 +512,26 @@ let an account reach:
 - **Add player** (Ratings): Scan or Guest. A guest's starter estimate goes to `ratings/<g_id>`
   once, by the account that made the guest; nobody else writes it, and there's no `starters/`
   document. A friend plays from their own rating, or from 500.
-- The first open, once per account on this phone: "Kenny's household can see the matches you
-  score here." The household sees every match, including two friends'.
+- Only you, the other player and the owner read a match. 2.10.x's first-open note ("Kenny's
+  household can see the matches you score here") went in 2.11.0, with its `localStorage` flags.
+- A match from before 2.8.0 named its players by the household's person ids, which friend mode
+  can't read. The owner's backfill (§9) rewrites them to the resolved ids and adds `names`, so it
+  lists and counts on a player's own page like any other. An unclaimed person keeps their person
+  id, read by `names`.
 - Your own Cuescore link lives on the household's list, so friend mode doesn't offer it.
 
 ## 9. Data
 
-All under `sidequests/rack-it/` in Firestore, via `shared/cloud.js`. The household's by
-`shared/firestore.rules`, with the owner's writes in §7.1. `cloud.role()` reads your own
-`members` document. **An account outside the household** (2.10.0, §8.2) reads and scores only
-the matches with its uid in `uids`, and lists them only with that filter. It starts a match only
+All under `sidequests/rack-it/` in Firestore, via `shared/cloud.js`, guarded by
+`shared/firestore.rules`. `cloud.role()` reads your own `members` document. **The owner** reads
+and writes all of it (§7.1); the household rule that covers the other apps doesn't reach Rack It
+(2.11.0). **Every other account**, a household member included (2.10.0, 2.11.0, §8.2), reads and
+scores only the matches with its uid in `uids`, and lists them only with that filter. It starts a match only
 as `by`, live, alone with a guest or against someone it's connected to. A player never changes
 who's in a match; a pending match only finishes; a rated match is finished only by a player who
 didn't end it, and its two ratings move only in that same batch (each naming the match). Anyone
-signed in gets one rating, or `state/main`, by id. A household member never turns a friendly
-into a rated match either; only the owner rewrites a saved one. ⚠ The rules can't check the
+signed in gets one rating, or `state/main`, by id. Only the owner lists ratings or starters,
+writes `state/main`, a starter or a rating outside a confirmation, or rewrites a saved match. ⚠ The rules can't check the
 arithmetic: the confirming phone works the ratings out, and the owner's Rebuild ratings remakes
 them from the matches.
 
@@ -544,7 +555,7 @@ matches/<id>
   handicap: "off" | "scoring" | "racks"                         // missing = scoring
   playerA, playerB                 // resolved ids when started: a uid, g_<id>, or a person id
   names: { a, b }                  // the names then, so it reads without this phone's lists (2.8.0)
-  uids: [uid, …]                   // the accounts in it, zero to two: who outside the household may read it
+  uids: [uid, …]                   // the accounts in it, zero to two: who besides the owner may read it
   by: uid                          // who started it
   mode: "race" | "fixed" | "open"
   targets: { a, b } | null         // points, or racks in a race in racks
@@ -590,7 +601,12 @@ matches/<id>
   phone reads the old map through `resolve`, so the numbers never change. Only once the people
   list has come from the server, since `resolve` reads it.
 - Matches before 2.8.0 have no `names`, `uids` or `by`, and person ids of the day; they read
-  through `resolve` as before. Nothing is rewritten.
+  through `resolve` as before. **The backfill (2.11.0)**: once the people list has come from the
+  server, the owner's phone gives every match with no `uids` the accounts of its resolved players
+  (`people.uidsOf`), `names` if it has none, and `playerA`/`playerB` as their resolved ids (owner's
+  call, 2026-10-02, so a player's page counts them), in batches. Nothing else in the match changes.
+  It runs once per owner per phone (`localStorage` `rack-it.uids-backfill.<uid>`), and again after
+  an Import. Without it a player would lose every match from before 2.8.0.
 - Offline: Firestore's persistent cache is on; `sw.js` caches the shell (`index.html`,
   `zargo.js`, `shared/theme.css` and the two fonts, manifest, icons), network first.
 
@@ -707,4 +723,5 @@ account, so a static app can't upload results.
 | 2.7.0 | Ratings move from `state/main.players` to one `ratings/<id>` document a player, keyed by the resolved id, a uid once claimed: the ground Players and confirmed rated matches stand on. The owner's phone moves them once. Unclaim goes, since it would orphan records stored under a uid. Nothing changes on screen. |
 | 2.9.0 | Rated matches and confirming (KIT-PLAN Session 5). Setup gains a **Rated** tick, off by default, offered when both players have an account. A friendly moves no rating; a rated match moves both only once the opponent confirms on their own phone, worked out from the ratings at that moment, in one batch. Not right or Withdraw leaves it a friendly. Rebuild replays rated matches by `ratedAt`, else `endedAt`; a match with no `rated` field is rated. For the social leagues, where a rating has to be agreed by both players. |
 | 2.10.0 | Outsiders play in Rack It (KIT-PLAN Session 6): friend mode instead of the outsider screen. The rules open the matches an account plays in, starting one against a connection or a guest, and a rating only in the batch that confirms a rated match the other player ended. Ratings are read by id, matches with one `uids` query. A household member can no longer turn a friendly into a rated match. For pool friends who aren't family. |
+| 2.11.0 | One admin, everyone else a player (KIT-PLAN Session 6b). The owner sees and rewrites every match; everyone else, a household member included, runs friend mode and reads only the matches they play in. The owner's phone backfills `uids` and `names` on matches from before 2.8.0, so the players keep them. The "Before you play" note goes: there's nothing left to warn about. Owner's call, 2026-10-02: "a family member is just another member". Other apps keep the household. |
 | 2.8.0 | Players (KIT-PLAN Session 4): setup's columns become two slots filled from a picker of household, friends and guests, with **Scan a new player** and **Add a guest** there and then. A match stores `names`, `uids` and `by`. Add player is Scan or Guest, then the starter. The Gmail is optional and nothing in Rack It invites anyone any more: adding a player was quietly putting them on `/members`, which is the household's list. |
