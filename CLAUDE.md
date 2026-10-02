@@ -59,6 +59,7 @@ GitHub Pages serves `main` from the repo root. Nothing to configure per app.
 - Small commits, one intent each, messages in plain English ("Make the swap button taller").
 - After any change, sanity-check by reading the file back for unbalanced tags and a matching version bump.
 - **Test with `?mock`.** Open any app with `?mock` in the URL (served locally, e.g. `python3 -m http.server`) and `cloud.init` swaps in `shared/cloud-memory.js`: a fake signed-in member, data kept in that browser, watchers across tabs. `?mock=reset` wipes it; `&seed=<url>` starts from a JSON export. `&as=<name>` makes that tab a different user who isn't on `/members`, refused like an outsider in production (`&as=` alone goes back). Never test against real Firestore data.
+- **`make verify`** runs `node --test` then the smoke test: the gate before any push.
 - **Smoke test after a `shared/` change:** `node shared/smoke.mjs` opens every app as the owner and as `?mock&as=stranger` and fails on any page error or `console.error`. It needs Playwright; without it, it exits 2 and `/deployquest` reports the skip.
 - **Rules are tested before they deploy.** `shared/rules-check.mjs` holds the cases; the `deploy-rules` Action runs them on the emulator, and a failing case stops the deploy. A rules change adds its cases first.
 - If a request is ambiguous, pick the simplest interpretation, do it, and say what you assumed. Don't stall on questions.
