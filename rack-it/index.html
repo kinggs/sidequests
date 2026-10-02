@@ -47,7 +47,7 @@
   .pname>span:first-child{font-size:1.0556rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .pname .you{color:var(--dim);font-weight:600}
   .psub{font-size:.8333rem;font-weight:600;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .prov,.nogmail{color:var(--warn)}
+  .prov{color:var(--warn)}
   .pz{flex:0 0 auto;font-family:var(--grot);font-size:1.4444rem;font-weight:600;letter-spacing:-.02em;text-align:right}
   .pz.unplayed{color:var(--faint)}
 
@@ -143,12 +143,12 @@
   .pickcol{flex:1;display:flex;flex-direction:column;gap:8px;min-width:0}
   .pickcol.ca h3{color:var(--a)}
   .pickcol.cb h3{color:var(--b);text-align:right}
-  .picks{display:flex;flex-direction:column;gap:8px}
-  .picks button{min-height:64px;background:var(--ink-1);display:flex;align-items:center;gap:10px;padding:0 10px;text-align:left;
+  .slot{width:100%;min-height:76px;background:var(--ink-1);display:flex;align-items:center;gap:10px;padding:0 10px;text-align:left;
     border-radius:var(--r-card);font-weight:600}
-  .picks button>span:last-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .pickcol.ca .picks button.sel{background:var(--a);color:var(--a-ink)}
-  .pickcol.cb .picks button.sel{background:var(--b);color:var(--b-ink)}
+  .slot>span:last-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .slot:not(.set){color:var(--dim);justify-content:center;box-shadow:inset 0 0 0 2px var(--line)}
+  .pickcol.ca .slot.set{background:var(--a);color:var(--a-ink)}
+  .pickcol.cb .slot.set{background:var(--b);color:var(--b-ink)}
   .settings{background:var(--ink-1);border-radius:var(--r-card);overflow:hidden}
   .fold+.fold,.fold+#breakBtn{box-shadow:0 -1px 0 var(--line)}
   .foldhead{width:100%;display:flex;align-items:center;gap:12px;background:none;min-height:64px;padding:10px 16px;text-align:left;border-radius:0}
@@ -406,13 +406,11 @@
 <div class="overlay hidden" id="pform">
   <div class="card">
     <h2 id="pfTitle">Add player</h2>
-    <label>Name <input id="pfName" autocomplete="off" maxlength="24"></label>
-    <label><span id="pfEmailLabel">Their Gmail</span>
-      <input id="pfEmail" type="email" inputmode="email" autocomplete="off" placeholder="name@gmail.com">
-    </label>
-    <p class="thint" id="pfEmailNote">They sign in with this and claim the player.</p>
-    <label>Colour</label>
-    <div class="swatches" id="pfColours"></div>
+    <div id="pfFields" style="display:flex;flex-direction:column;gap:10px">
+      <label>Name <input id="pfName" autocomplete="off" maxlength="24"></label>
+      <label>Colour</label>
+      <div class="swatches" id="pfColours"></div>
+    </div>
     <div class="hidden" id="pfEst" style="display:flex;flex-direction:column;gap:10px">
       <label>Starter rating (optional)</label>
       <p class="thint">New players start at 500. To seed something closer, imagine a race to 9
@@ -452,8 +450,8 @@
       <p class="gblurb" id="gameBlurb"></p>
     </div>
     <div class="pick">
-      <div class="pickcol ca"><h3 class="lbl">Teal side</h3><div class="picks" id="pickA"></div></div>
-      <div class="pickcol cb"><h3 class="lbl">Lilac side</h3><div class="picks" id="pickB"></div></div>
+      <div class="pickcol ca"><h3 class="lbl">Teal side</h3><button class="slot" id="pickA"></button></div>
+      <div class="pickcol cb"><h3 class="lbl">Lilac side</h3><button class="slot" id="pickB"></button></div>
     </div>
 
     <div class="settings">
@@ -725,7 +723,7 @@ import { people } from "../shared/people.js";
 import { connect } from "../shared/connect.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "2.7.0";
+const APP_VERSION = "2.8.0";
 const APP_ID = "rack-it";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 document.getElementById("versionMore").textContent = "v" + APP_VERSION;
@@ -738,7 +736,7 @@ const el = {};
  "perHead","perAbout","perEdit","perCue","perCueEdit","perRecord","perMatches","perBack",
  "sumBack","sumWinner","sumMeta","sumScore","sumZargo","sumRacks","sumCopyText","sumCopy",
  "aboutBtn","aboutBack","signOutBtn","versionMore",
- "pform","pfTitle","pfName","pfEmail","pfEmailLabel","pfEmailNote","pfColours","pfZargoRow","pfZargo","pfNote","pfSave","pfCancel","pfOwnerNote",
+ "pform","pfTitle","pfFields","pfName","pfColours","pfZargoRow","pfZargo","pfNote","pfSave","pfCancel","pfOwnerNote",
  "scrSetup","scrLive","pickA","pickB","modes","lenRow","lenLabel","racksIn",
  "targetsRow","tgtA","tgtB","tgtALabel","tgtBLabel","setupHint","setupWarn","breakBtn","breakWho","startBtn",
  "foldLen","foldHcp","lenHead","hcpHead","lenSummary","hcpSummary","goldLen","hcps","raceForm","formTargets","formStart","raceNLabel",
@@ -961,15 +959,17 @@ async function migrateRatings(){
   migrating = false;
 }
 
-// A player: the shared person plus their numbers here. Someone added in another app, who
-// has never played pool, starts at the starter rating.
-function P(id){
+// A player: the shared person, friend or guest, plus their numbers here. Someone added in
+// another app, who has never played pool, starts at the starter rating. A match's own name
+// for them stands in when this phone doesn't know them (another member's friend or guest).
+function P(id, name){
   const person = people.get(id);
-  if(!person) return null;
-  const st = statsOf(person.id) || {};
+  if(!person && !name) return null;
+  const r = person ? person.id : people.resolve(id);
+  const st = statsOf(r) || {};
   return {
-    id: person.id, name: person.name, colour: people.colourOf(person.id), deleted: !!person.deleted,
-    email: person.email || "", uid: person.uid || "",
+    id: r, name: person ? person.name : name, colour: people.colourOf(r), deleted: !!(person && person.deleted),
+    kind: person ? person.kind : "account", email: (person && person.email) || "", uid: (person && person.uid) || "",
     zargo: Number.isFinite(st.zargo) ? st.zargo : cfg().startZargo,
     robustness: st.robustness || 0, sessions: st.sessions || 0
   };
@@ -1041,7 +1041,6 @@ el.tabbar.querySelectorAll("button").forEach(b => b.addEventListener("click", ()
   const tab = b.dataset.tab;
   if(tab === "play"){
     if(setupFresh){ setupFresh = false; openSetup(); } else openPage("setup");
-    if(activePlayers().length < 2) openPlayerForm(null);
   }
   if(tab === "ratings") openPage("ratings");
   if(tab === "matches") openPage("matches");
@@ -1050,9 +1049,17 @@ el.tabbar.querySelectorAll("button").forEach(b => b.addEventListener("click", ()
 
 // Match documents keep the ids they were started with; nameOf reads any of them as the
 // person they are now. Deleted players keep their name in Matches but leave every picker.
+// A match since 2.8.0 also keeps names: { a, b }, read when this phone doesn't know the player.
 const nameOf = id => people.nameOf(id, "(deleted)");
+function sideName(m, side){
+  const p = people.get(side === "a" ? m.playerA : m.playerB);
+  return (p && p.name) || (m.names && m.names[side]) || "(deleted)";
+}
 const activePlayers = () => people.active().map(p => p.id)
   .sort((x, y) => nameOf(x).localeCompare(nameOf(y)));
+// Who Ratings lists: the household's people, your guests, and your friends once they have a
+// rating. Players who aren't on this phone's lists still have numbers; they just aren't listed.
+const ratingIds = () => people.players().filter(p => p.kind !== "account" || hasRating(p.id)).map(p => p.id);
 
 // A rename, merge or new face from another phone or another app shows up here.
 people.onChange(() => {
@@ -1089,7 +1096,7 @@ function paintLiveBar(){
   el.liveBar.classList.toggle("hidden", !on);
   if(!on) return;
   const l = liveDoc, sc = boardScore(l);
-  el.liveWho.textContent = `Live · ${nameOf(l.playerA)} ${sc.a}–${sc.b} ${nameOf(l.playerB)}`;
+  el.liveWho.textContent = `Live · ${sideName(l, "a")} ${sc.a}–${sc.b} ${sideName(l, "b")}`;
   el.resumeBtn.onclick = () => resumeMatch(l.id);
   el.watchBanner.onclick = () => enterWatch(l.id);
 }
@@ -1199,7 +1206,7 @@ phone.mountInstall(document.getElementById("outInstall"), { label: "Install on t
 const fmtRob = n => String(Math.round((n || 0) * 10) / 10);
 function renderRatings(){
   const played = id => P(id).sessions > 0;
-  const ids = activePlayers().sort((x, y) =>
+  const ids = ratingIds().sort((x, y) =>
     (played(y) - played(x)) || (played(x) ? P(y).zargo - P(x).zargo : 0) || nameOf(x).localeCompare(nameOf(y)));
   el.playerList.innerHTML = "";
   el.noPlayers.classList.toggle("hidden", ids.length > 0 || !people.ready);
@@ -1216,14 +1223,12 @@ function renderRatings(){
     const nm = b.querySelector(".pname span");
     nm.textContent = p.name;
     if(people.isMe(id)) nm.insertAdjacentHTML("beforeend", ' <span class="you">you</span>');
-    // Robustness in plain words; amber only for provisional or a missing Gmail.
+    // Robustness in plain words; amber only for provisional. A guest says so.
     const sub = b.querySelector(".psub");
     const racks = `${fmtRob(p.robustness)} ${p.robustness === 1 ? "rack" : "racks"}`;
-    sub.textContent = !played(id) ? "not played yet"
-      : prov ? "provisional · " + (p.email ? racks : "no Gmail")
-      : p.email ? racks + " behind it" : "no Gmail";
-    if(!played(id) && !p.email) sub.insertAdjacentHTML("beforeend", ' · <span class="nogmail">no Gmail</span>');
-    sub.classList.toggle("prov", played(id) && (prov || !p.email));
+    sub.textContent = (!played(id) ? "not played yet" : prov ? "provisional · " + racks : racks + " behind it") +
+      (p.kind === "guest" ? " · guest" : "");
+    sub.classList.toggle("prov", played(id) && prov);
     const z = b.querySelector(".pz");
     z.textContent = Math.round(p.zargo);
     z.classList.toggle("unplayed", !played(id));
@@ -1232,34 +1237,46 @@ function renderRatings(){
     el.playerList.appendChild(li);
   });
 }
-el.addPlayerBtn.addEventListener("click", () => openPlayerForm(null));
+// Add player: someone scans your QR there and then, or a guest with no phone (people.addPlayer),
+// then their starter rating. Nobody is put on Invites: that's the household's list.
+el.addPlayerBtn.addEventListener("click", async () => {
+  const id = await people.addPlayer({ title: "Add player", app: APP_ID });
+  if(!id) return;
+  rerender();
+  // A friend may already have numbers here, from a match another member scored.
+  if(hasRating(id)) return openPerson(id);
+  openPlayerForm(id, { starter: true });
+});
 
 // ---------- player form ----------
-// Name and colour are shared by every app; the Zargo is Rack It's own.
+// Edit: a household person's name and colour, shared by every app, and for the owner the
+// starter override and Delete. A friend's or guest's name isn't the household's to change, so
+// theirs shows only the override. Starter: a new player's starter rating, the Zargo being
+// Rack It's own.
 const PALETTE = people.PALETTE;
-let pfEditing = null, pfColour = PALETTE[5];
-function openPlayerForm(id){
+let pfEditing = null, pfStarter = false, pfColour = PALETTE[5];
+function openPlayerForm(id, { starter = false } = {}){
   pfEditing = id;
-  const p = id ? P(id) : null;
-  el.pfTitle.textContent = p ? "Edit " + p.name : "Add player";
-  el.pfName.value = p ? p.name : "";
-  // Every player needs a Gmail (SPEC §13.8). A claimed player's is their Google account's.
-  el.pfEmail.value = p ? p.email : "";
-  el.pfEmail.disabled = !!(p && p.uid);
-  el.pfEmailLabel.textContent = p && people.isMe(id) ? "Your Gmail" : "Their Gmail";
-  el.pfEmailNote.textContent = p && p.uid ? `Claimed by ${p.email || "a Google account"}.`
-    : p && !p.email ? "No Gmail yet. Add one to save: they sign in with it and claim the player."
-    : "They sign in with this and claim the player.";
+  pfStarter = starter;
+  const p = P(id);
+  if(!p) return;
+  const own = p.kind === "household";
+  el.pfTitle.textContent = starter ? "Starter rating for " + p.name : "Edit " + p.name;
+  el.pfFields.classList.toggle("hidden", starter || !own);
+  el.pfName.value = p.name;
   pfReady();
-  pfColour = p ? p.colour : people.nextColour();
+  pfColour = p.colour;
   // The starter override and Delete are the owner's; you can't delete yourself.
-  el.pfZargoRow.classList.toggle("hidden", !p || !owner);
-  el.pfZargo.value = p ? Math.round(p.zargo) : "";
-  el.pfOwnerNote.classList.toggle("hidden", !p || owner);
-  el.pfOwnerNote.textContent = "Only the owner can change a starter rating or delete a player.";
-  if(p) el.pfEst.classList.add("hidden"); else setupEstimator();
-  el.pfDelete.classList.toggle("hidden", !p || !owner || people.isMe(id));
-  el.pfShared.classList.toggle("hidden", !p);
+  el.pfZargoRow.classList.toggle("hidden", starter || !owner);
+  el.pfZargo.value = Math.round(p.zargo);
+  el.pfOwnerNote.classList.toggle("hidden", starter || owner);
+  el.pfOwnerNote.textContent = own ? "Only the owner can change a starter rating or delete a player."
+    : "Only the owner can change a starter rating.";
+  if(starter) setupEstimator(id); else el.pfEst.classList.add("hidden");
+  el.pfDelete.classList.toggle("hidden", starter || !own || !owner || people.isMe(id));
+  el.pfShared.classList.toggle("hidden", starter || !own);
+  el.pfCancel.classList.toggle("hidden", starter);
+  el.pfSave.textContent = starter ? "Done" : "Save";
   el.pfNote.classList.add("hidden");
   el.pfColours.innerHTML = "";
   PALETTE.forEach(c => {
@@ -1275,14 +1292,11 @@ function openPlayerForm(id){
     el.pfColours.appendChild(s);
   });
   el.pform.classList.remove("hidden");
-  if(!p) el.pfName.focus();
 }
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 function pfReady(){
-  el.pfSave.disabled = !el.pfName.value.trim() || !EMAIL_RE.test(el.pfEmail.value.trim());
+  el.pfSave.disabled = !el.pfName.value.trim();
 }
 el.pfName.addEventListener("input", pfReady);
-el.pfEmail.addEventListener("input", () => { el.pfNote.classList.add("hidden"); pfReady(); });
 el.pfCancel.addEventListener("click", () => el.pform.classList.add("hidden"));
 // A sign-in Gmail, and merging someone added twice, live in the sheet every app shares.
 el.pfShared.addEventListener("click", () => {
@@ -1300,38 +1314,27 @@ holdBind(el.pfDelete, () => {
   rerender();
 });
 el.pfSave.addEventListener("click", async () => {
-  const name = el.pfName.value.trim();
-  const email = el.pfEmail.value.trim().toLowerCase();
-  if(!name){ el.pfName.focus(); return; }
-  if(!EMAIL_RE.test(email)){ el.pfEmail.focus(); return; }
-  const twin = people.active().find(q => q.id !== people.resolve(pfEditing) && (q.email || "").toLowerCase() === email);
-  if(twin){
-    el.pfNote.textContent = `${twin.name} already has that Gmail.`;
-    el.pfNote.classList.remove("hidden");
-    return;
-  }
-  // Saving a new Gmail invites it, so they can sign in straight away.
-  const invite = () => cloud.addMember(email).catch(e => console.warn("[invite]", e));
-  if(pfEditing){
-    const p = P(pfEditing);
+  const p = P(pfEditing);
+  if(!p) return el.pform.classList.add("hidden");
+  if(pfStarter){
+    // Untouched, the estimate is the default start; either way it's written down, so the new
+    // player shows on Ratings from now.
+    const est = estUsed ? estimateZargo() : null;
+    const zargo = est === null ? cfg().startZargo : est;
+    if(!hasRating(p.id)){
+      saveStarter(p.id, zargo);
+      savePlayer(p.id, { zargo, robustness: 0, sessions: 0 }).catch(e => console.warn(e));
+    }
+  } else {
+    const name = el.pfName.value.trim();
+    if(p.kind === "household" && !name){ el.pfName.focus(); return; }
     const z = parseInt(el.pfZargo.value, 10);
     if(owner && Number.isFinite(z) && z !== Math.round(p.zargo)){
-      if(!confirm(`Set ${name}'s starter rating to ${z}? Their Zargo shows ${z} now. Rebuild ratings (under More) replays their matches from it.`)) return;
+      if(!confirm(`Set ${p.name}'s starter rating to ${z}? Their Zargo shows ${z} now. Rebuild ratings (under More) replays their matches from it.`)) return;
       saveStarter(p.id, z);
       savePlayer(p.id, { zargo: z }).catch(e => console.warn(e));
     }
-    people.update(p.id, p.uid ? { name, colour: pfColour } : { name, colour: pfColour, email });
-    if(!p.uid && email !== p.email) invite();
-  } else {
-    // The list is shared with the other apps, so the Melanie being added may already be there.
-    const twin = people.active().find(q => q.name.trim().toLowerCase() === name.toLowerCase());
-    if(twin && !confirm(`There's already a ${twin.name} — every sidequests app uses the same list. Add another ${name} anyway?`)) return;
-    const est = estUsed ? estimateZargo() : null;
-    const id = people.add({ name, email, colour: pfColour });
-    invite();
-    const zargo = est === null ? cfg().startZargo : est;
-    saveStarter(id, zargo);
-    savePlayer(id, { zargo, robustness: 0, sessions: 0 }).catch(e => console.warn(e));
+    if(p.kind === "household") people.update(p.id, { name, colour: pfColour });
   }
   el.pform.classList.add("hidden");
   rerender();
@@ -1342,8 +1345,9 @@ el.pfSave.addEventListener("click", async () => {
 // often; Zargo's scale says 100 points apart = twice the points, so the gap is
 // 100 × log2(9/n). Rough by design — it self-corrects with every rack played.
 let estUsed = false;
-function setupEstimator(){
-  const ids = activePlayers().filter(hasRating);   // only someone who's actually played makes a yardstick
+function setupEstimator(newId){
+  // Only someone who's actually played makes a yardstick.
+  const ids = ratingIds().filter(id => id !== newId && hasRating(id)).sort((x, y) => nameOf(x).localeCompare(nameOf(y)));
   estUsed = false;
   el.pfEst.classList.toggle("hidden", ids.length === 0);
   if(!ids.length) return;
@@ -1436,15 +1440,16 @@ async function loadRecent(){
     if(!el.scrSetup.classList.contains("hidden")) renderSetup();
   } catch(e){ console.warn("[recent]", e); }
 }
-function opponentsFirst(ids, of){
-  const rank = new Map();
-  recentMatches.forEach((m, i) => {
+// Who `of` played lately, newest first (everyone who played lately, with no `of`): the picker
+// offers them first, so the last opponent is the top of the list.
+function recentFor(of){
+  const out = [];
+  for(const m of recentMatches){
     const a = people.resolve(m.playerA), b = people.resolve(m.playerB);
     const opp = !of ? [a, b] : a === of ? [b] : b === of ? [a] : [];
-    opp.forEach(x => { if(!rank.has(x)) rank.set(x, i); });
-  });
-  const r = id => rank.has(id) ? rank.get(id) : Infinity;
-  return ids.slice().sort((x, y) => r(x) - r(y) || nameOf(x).localeCompare(nameOf(y)));
+    for(const x of opp) if(!out.includes(x)) out.push(x);
+  }
+  return out;
 }
 
 function openSetup(){
@@ -1605,24 +1610,17 @@ function renderSetup(){
   el.games.querySelectorAll("button").forEach(b =>
     b.classList.toggle("sel", b.dataset.game === setup.game));
 
-  // ---- players: you first on teal, the teal player's recent opponents first on lilac ----
-  const ids = activePlayers();
+  // ---- players: two slots, each filled from the picker (people.pick); you on teal ----
   const me = people.meId();
   // The people list can arrive after setup opens: pre-select you once it does.
-  if(!setup.a && !setup.b && me && ids.includes(me)) setup.a = me;
-  const orderA = ids.slice().sort((x, y) => (y === me) - (x === me));
-  const orderB = opponentsFirst(ids, setup.a);
-  [["pickA","a",orderA],["pickB","b",orderB]].forEach(([box, side, order]) => {
-    el[box].innerHTML = "";
-    order.forEach(id => {
-      const b = document.createElement("button");
-      const n = document.createElement("span");
-      n.textContent = nameOf(id);
-      b.append(people.avatar(id, 40), n);
-      b.classList.toggle("sel", setup[side] === id);
-      b.addEventListener("click", () => pickSide(side, id));
-      el[box].appendChild(b);
-    });
+  if(!setup.a && !setup.b && me && activePlayers().includes(me)) setup.a = me;
+  [["pickA","a"],["pickB","b"]].forEach(([box, side]) => {
+    const id = setup[side], slot = el[box], n = document.createElement("span");
+    slot.innerHTML = "";
+    slot.classList.toggle("set", !!id);
+    n.textContent = id ? nameOf(id) : "Pick a player";
+    if(id) slot.append(people.avatar(id, 40));
+    slot.append(n);
   });
 
   // ---- length ----
@@ -1727,6 +1725,16 @@ function renderSetup(){
   el.startBtn.disabled = !(a && b && plan);
   el.startBtn.textContent = !(a && b) ? "Pick two players" : plan ? "Start" : "Set the length first";
 }
+// A slot opens the picker: on teal, you first then whoever played lately; on lilac, the teal
+// player's recent opponents, the last one first. Scanning or adding a guest there fills it.
+async function chooseSide(side){
+  const recent = side === "a" ? [people.meId(), ...recentFor(null)] : recentFor(setup.a);
+  const id = await people.pick({ title: side === "a" ? "Teal side" : "Lilac side", recent, app: APP_ID });
+  if(id && id !== setup[side]) pickSide(side, id);
+  else renderSetup();
+}
+tapBind(el.pickA, () => chooseSide("a"));
+tapBind(el.pickB, () => chooseSide("b"));
 // Picking the player who's already on the other side swaps the two sides. The break stays
 // with the person who had it.
 function pickSide(side, id){
@@ -1777,6 +1785,10 @@ async function startMatch(){
   const game = setup.game, handicap = setup.handicap;
   const { mode, targets, racks } = plan;
   setupFresh = true;
+  // Beside the ids, the names as they are now and the accounts in it (KIT.md, What an app
+  // stores), so the match reads without this phone's lists, and `by`, who scored it.
+  const ids = [people.resolve(setup.a), people.resolve(setup.b)];
+  const [nameA, nameB] = people.names(ids);
   // The Racks lever's head start: racks the underdog has already won when the match begins.
   const start = handicap === "racks" ? plan.start : null;
   const eA = expectedShareA(a.zargo, b.zargo);
@@ -1784,7 +1796,7 @@ async function startMatch(){
   live = {
     id,
     game, handicap, start,
-    playerA: setup.a, playerB: setup.b,
+    playerA: ids[0], playerB: ids[1],
     nameA: a.name, nameB: b.name,
     H: eA / (1 - eA), eA,
     zargoBefore: { a: a.zargo, b: b.zargo },
@@ -1800,7 +1812,10 @@ async function startMatch(){
   const s0 = startOf(live);
   await cloud.save("matches/" + id, Object.assign({
     game: live.game, handicap: live.handicap,
-    playerA: setup.a, playerB: setup.b,
+    playerA: ids[0], playerB: ids[1],
+    names: { a: nameA || a.name, b: nameB || b.name },
+    uids: people.uidsOf(ids),
+    by: (cloud.user && cloud.user.uid) || null,
     mode,
     targets,
     racksPlanned: live.racksPlanned,
@@ -2640,7 +2655,7 @@ function resumeFromEnd(banked){
 const rackResults = (game, points) => Z.rackResults(game, points, cfg());
 const weightOf = Z.weightOf;
 function zargoOutcome(results){
-  const pa = P(live.playerA), pb = P(live.playerB);
+  const pa = P(live.playerA, live.nameA), pb = P(live.playerB, live.nameB);
   return Z.zargoOutcome({ za: live.zargoBefore.a, zb: live.zargoBefore.b,
     sessionsA: pa.sessions, sessionsB: pb.sessions, robustnessA: pa.robustness, robustnessB: pb.robustness }, results, cfg());
 }
@@ -2734,7 +2749,7 @@ async function finish(status, t, lead, winner, z, weight){
   };
   if(status === "done" && z){
     // Discarding never touches ratings; saving moves both and feeds robustness.
-    const pa = P(live.playerA), pb = P(live.playerB);
+    const pa = P(live.playerA, live.nameA), pb = P(live.playerB, live.nameB);
     patch.zargoAfter = { a: z.a.to, b: z.b.to };
     await savePlayer(live.playerA, {
       zargo: z.a.to,
@@ -2920,8 +2935,8 @@ function watchOver(doc){
   const w = t.winner;
   resetExtra();
   el.doneTitle.textContent = doc.status === "discarded" ? "Match discarded"
-    : (w ? nameOf(doc[w === "a" ? "playerA" : "playerB"]) + " wins" : "Match over");
-  el.doneBody.textContent = scoreLine(doc, nameOf(doc.playerA), nameOf(doc.playerB), t);
+    : (w ? sideName(doc, w) + " wins" : "Match over");
+  el.doneBody.textContent = scoreLine(doc, sideName(doc, "a"), sideName(doc, "b"), t);
   el.doneZargo.classList.add("hidden");
   el.doneAnyway.classList.add("hidden");
   el.doneNext.textContent = "Done";
@@ -2931,7 +2946,7 @@ function watchOver(doc){
   el.done.classList.remove("hidden");
 }
 function renderWatch(doc){
-  const nA = nameOf(doc.playerA), nB = nameOf(doc.playerB);
+  const nA = sideName(doc, "a"), nB = sideName(doc, "b");
   const keys = Object.keys(doc.racks || {}).map(Number).filter(n => n > 0);
   const rackNo = keys.length ? Math.max(...keys) : 1;
   const rack = (doc.racks || {})[rackNo] || { balls: {} };
@@ -2987,7 +3002,8 @@ async function resumeMatch(id){
 
   // Read the session's ids as whoever those people are now.
   const ida = people.resolve(doc.playerA), idb = people.resolve(doc.playerB);
-  const a = P(ida), b = P(idb);
+  const nm = doc.names || {};
+  const a = P(ida, nm.a), b = P(idb, nm.b);
   if(!a || !b || a.deleted || b.deleted || ida === idb){
     alert("One of those players has been deleted or merged, so this match can't be resumed.");
     return;
@@ -3073,8 +3089,8 @@ function matchRow(s, { from = "matches" } = {}){
   b.className = "hrow" + (on ? " live" : "");
   b.innerHTML = `<span class="hscore"><span></span><span class="fig"></span><span></span></span><span class="lbl hmeta"></span>`;
   const [nA, fig, nB] = b.querySelector(".hscore").children;
-  nA.textContent = nameOf(s.playerA);
-  nB.textContent = nameOf(s.playerB);
+  nA.textContent = sideName(s, "a");
+  nB.textContent = sideName(s, "b");
   fig.textContent = `${sc.a}–${sc.b}`;
   if(!on && t.winner) (t.winner === "a" ? nA : nB).classList.add("won");
   b.querySelector(".hmeta").textContent = on
@@ -3131,7 +3147,7 @@ const countedRacks = s => Z.countedRacks(s, cfg());
 function renderSummary(){
   const s = matches.find(x => x.id === summaryId);
   if(!s || s.status === "discarded") return false;
-  const nA = nameOf(s.playerA), nB = nameOf(s.playerB), t = s.totals || {}, game = gameOf(s);
+  const nA = sideName(s, "a"), nB = sideName(s, "b"), t = s.totals || {}, game = gameOf(s);
   el.sumWinner.textContent = s.status === "live" ? "Still being played"
     : t.winner ? `${t.winner === "a" ? nA : nB} won` : "Tied";
   el.sumMeta.textContent = `${GAME_LABEL[game]} · ${lengthText(s)} · ${whenText(s.startedAt)}`;
@@ -3174,7 +3190,7 @@ holdBind(el.sumDelete, async () => {
 const DISCIPLINE = { standard: "9-Ball", golden: "9-Ball (Golden Nine)", league: "9-Ball (11-Point-Nine)",
   eight: "8-Ball", tenpoint: "8-Ball (10-point)" };
 function cuescoreLine(s){
-  const nA = nameOf(s.playerA), nB = nameOf(s.playerB), t = s.totals || {}, game = gameOf(s);
+  const nA = sideName(s, "a"), nB = sideName(s, "b"), t = s.totals || {}, game = gameOf(s);
   const tg = s.targets, st = startOf(s);
   const race = racesRacks(s) && tg
       ? (tg.a === tg.b ? `race to ${tg.a}` : `race to ${tg.a} v ${tg.b}`) +
@@ -3234,6 +3250,8 @@ function renderPerson(){
       : "It moves a little after every saved match.");
 
   // Cuescore: your own link is yours to set; anyone else's reads only (SPEC §13.8).
+  // A friend's or guest's name isn't the household's to edit; the owner still sets their starter.
+  el.perEdit.classList.toggle("hidden", person.kind !== "household" && !owner);
   el.perCue.textContent = person.cuescoreId ? `Player ${person.cuescoreId}` : "Not added";
   el.perCueEdit.classList.toggle("hidden", !me);
   el.perCueEdit.textContent = person.cuescoreId ? "Change your Cuescore link" : "Add your Cuescore link";

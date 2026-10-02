@@ -10,7 +10,7 @@
 //   /sidequests/rack-it/?mock&as=ann&role=member   …who is a household member after all
 //   /sidequests/rack-it/?mock&as=                  this tab goes back to the default owner
 //
-// Same surface as cloud.js, including `shared`, the members calls and `account`. The data lives in this
+// Same surface as cloud.js, including `shared`, the members calls and `account` (guests too). The data lives in this
 // browser's localStorage, so it survives a reload (resume) and another tab sees every write
 // (watch). Watchers fire on every write, from this tab or another.
 //
@@ -291,6 +291,16 @@ const account = {
     const u = needUser();
     await write("friendships/" + [u.uid, uid].sort().join("_"), null);
     await write(`profiles/${u.uid}/friends/${uid}`, null).catch(() => {});
+  },
+  watchGuests(cb, onError){
+    const u = needUser(), col = `profiles/${u.uid}/guests`;
+    return watchRead(col, () => rowsOf(col).map(({ _updatedAt, ...g }) => g), cb, onError);
+  },
+  async addGuest(name){
+    const u = needUser(), id = "g_" + newId();
+    saveTo(`profiles/${u.uid}/guests/${id}`, { name: String(name).trim().slice(0, 60), createdAt: Date.now() })
+      .catch(e => console.warn("[cloud.account] guest", e));
+    return id;
   },
   async exportMe(){
     const u = needUser(), base = "profiles/" + u.uid;

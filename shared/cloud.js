@@ -30,6 +30,8 @@
 //   cloud.account.watchFriends(cb, onError) // [{ uid, since, app, note, tags, metAt, metPlace }], newest first
 //   await cloud.account.saveFriend(uid, { note, tags, metPlace })  // your private card only
 //   await cloud.account.unfriend(uid)
+//   cloud.account.watchGuests(cb, onError) // [{ id, name, createdAt, claimedBy }]: your guests, people with no phone
+//   await cloud.account.addGuest(name)    // the new guest's id, "g_<id>"; written in the background
 //   await cloud.account.exportMe()        // { uid, profile, friends: { uid: card }, guests: { id: guest } }
 //   await cloud.account.importMe(json)    // your own export only: name, photo, cards, guests; never a friendship
 //   await cloud.account.deleteMe()        // every document of yours, one by one, then signs out
@@ -380,6 +382,20 @@ export const cloud = {
       const u = needUser();
       await fs.deleteDoc(fs.doc(db, "friendships", [u.uid, uid].sort().join("_")));
       await fs.deleteDoc(fs.doc(db, "profiles", u.uid, "friends", uid)).catch(() => {});
+    },
+    // Guests are yours alone (profiles/<you>/guests), named by you: someone with no phone.
+    watchGuests(cb, onError) {
+      const u = needUser();
+      return fs.onSnapshot(fs.collection(db, "profiles", u.uid, "guests"),
+        snap => cb(snap.docs.map(d => ({ id: d.id, ...plain(d.data({ serverTimestamps: "estimate" })) }))), listenError("guests", onError));
+    },
+    // The id comes back at once, so a match can start offline; the write syncs later.
+    async addGuest(name) {
+      const u = needUser();
+      const id = "g_" + fs.doc(fs.collection(db, "profiles", u.uid, "guests")).id;
+      fs.setDoc(fs.doc(db, "profiles", u.uid, "guests", id), { name: String(name).trim().slice(0, 60), createdAt: fs.serverTimestamp() })
+        .catch(e => console.warn("[cloud.account] guest", e));
+      return id;
     },
     async exportMe() {
       const u = needUser();

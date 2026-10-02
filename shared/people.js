@@ -1,4 +1,4 @@
-// shared/people.js — the household's people, shared by every app.
+// shared/people.js — Players: everyone an app can name, from three sources (KIT.md, Players).
 //
 //   import { people } from "../shared/people.js";
 //   people.onChange(render);                        // once, at load
@@ -7,19 +7,33 @@
 //     onMe: ({ name, added }) => toast(...),        // the signed-in person was linked or added
 //     onError: e => toast(...)
 //   }));
-//   people.active()            // [{ id, name, email, colour, createdAt, uid, photoURL }], you first
+//   people.active()            // the household: [{ id, name, email, colour, createdAt, uid, photoURL }], you first
+//   people.players()           // the household, your friends and your guests: [{ id, name, kind, … }]
 //   people.resolve(id)         // any id an app ever stored → who that is today
-//   people.get(id), people.nameOf(id), people.colourOf(id), people.meId(), people.isMe(id)
-//   people.avatar(id, 36)      // <span>: their Google photo in a ring of their colour, or their initial
-//   await people.edit(null, { noun: "player" })     // the shared add sheet → new id, or null
+//   people.get(id)             // { id, name, photo, colour, kind, … } | null; kind "household" | "account" | "guest"
+//   people.nameOf(id), people.colourOf(id), people.meId(), people.isMe(id)
+//   people.avatar(id, 36)      // <span>: their photo in a ring of their colour, or their initial
+//   await people.pick({ title, recent, exclude, app })  // the picker sheet → an id, or null
+//   await people.addPlayer({ app })                     // just Scan a new player or Add a guest → an id, or null
+//   people.names(ids), people.uidsOf(ids)  // what a record stores beside its player ids: names, and the accounts
+//   await people.edit(null, { noun: "player" })     // add a household person (household only) → new id, or null
 //   people.edit(id)            // edit, merge into someone else, or remove
 //   people.edit(id, { cuescore: true })             // …plus the Cuescore profile link (cue apps; yours only)
 //
-// Every person needs a Gmail: they sign in with it and it claims them. On sign-in the
-// account is linked to the person with its email; failing that, a "Which player are you?"
-// card lists the unclaimed people. A claimed person carries uid, claimedAt and the Google
-// photoURL, refreshed on every sign-in. A claim is for good: a wrong one is fixed by the
-// owner editing the person document in the Firebase console (KIT-PLAN.md, Parked).
+// The sources, merged by resolved id:
+// - household: /sidequests/_shared/people, the list every app shares. Watched only when
+//   cloud.role() isn't null: nobody outside the household can read it.
+// - friends: your Connect friends (cloud.account.watchFriends), named and pictured by their
+//   profile. An account's id is its uid.
+// - guests: someone with no phone, a typed name private to you (profiles/<you>/guests/g_<id>).
+// A household person who has claimed is also an account: the household's name and colour win.
+// Anyone with no colour gets one hashed from their id.
+//
+// A household person may carry a Gmail. On sign-in the account is linked to the person with
+// its email; failing that, a "Which player are you?" card lists the unclaimed people. A claimed
+// person carries uid, claimedAt and the Google photoURL, refreshed on every sign-in. A claim is
+// for good: a wrong one is fixed by the owner editing the person document in the Firebase
+// console (KIT-PLAN.md, Parked). Adding a person never puts them on /members: Invites does that.
 //
 // Ids. A claimed person's id is their account's uid: active(), meId() and resolve() return
 // it, and every call here accepts it. Anyone unclaimed keeps their person document's id.
@@ -44,6 +58,11 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const lower = x => String(x || "").trim().toLowerCase();
 
 let all = {};             // id -> person, pointers and removed people included
+let friends = {};         // uid -> { name, photo, since, named }: your Connect friends
+let guests = {};          // g_<id> -> { name, createdAt, claimedBy }: yours
+let household = true;     // false once cloud.role() says this account isn't on /members
+let offs = [];            // the friends and guests listeners
+let runs = 0;             // bumped by stop(), so a late role() answer can't start a stale watch
 let seen = "";            // the last snapshot, so an unchanged one doesn't re-render the app
 let confirmed = false;    // the server has answered, so "missing" really means missing
 let unsub = null;
@@ -109,17 +128,43 @@ function active(){
 
 function get(id){
   const d = docOf(id);
-  if (d && all[d]) return { ...all[d], id: all[d].uid || d, docId: d };
+  if (d && all[d]){
+    const p = all[d], f = p.uid && friends[p.uid];
+    return { ...p, id: p.uid || d, docId: d, kind: "household", photo: p.photoURL || (f && f.photo) || "" };
+  }
   const r = resolve(id);
   if (!r) return null;
+  const f = friends[r];
+  if (f) return { id: r, uid: r, name: f.name, photo: f.photo, photoURL: f.photo, colour: "", createdAt: f.since || 0, kind: "account" };
+  const g = guests[r];
+  if (g) return { id: r, name: g.name, photo: "", colour: "", createdAt: g.createdAt || 0, claimedBy: g.claimedBy || "", kind: "guest" };
   // Not adopted yet (first run, or offline on a phone that has never seen the list):
   // fall back to the app's own old entry so names still show.
   const old = opts.legacy ? (opts.legacy() || {})[r] : null;
   return old && old.name
-    ? { id: r, name: String(old.name), email: old.email || "", colour: old.colour || "", createdAt: old.createdAt || 0, deleted: !!old.deleted }
+    ? { id: r, name: String(old.name), email: old.email || "", colour: old.colour || "", createdAt: old.createdAt || 0, deleted: !!old.deleted, kind: "household", photo: "" }
     : null;
 }
 const nameOf = (id, fallback = "Someone") => { const p = get(id); return (p && p.name) || fallback; };
+
+// Everyone a picker offers: the household (not removed), then friends and guests who aren't
+// already in it. Ids as resolve() gives them.
+function players(){
+  const out = active().map(p => ({ ...p, kind: "household", photo: p.photoURL || "" }));
+  const seen = new Set(out.map(p => p.id));
+  for (const id of [...Object.keys(friends), ...Object.keys(guests)]){
+    const r = resolve(id), p = get(r);
+    if (seen.has(r) || !p || p.deleted || p.claimedBy) continue;
+    seen.add(r);
+    out.push(p);
+  }
+  return out;
+}
+// What a record keeps beside its player ids, so it reads without this list: the names as they
+// are now, and the accounts in it (what the rules check). A guest or an unclaimed household
+// person has no account.
+const names = ids => ids.map(id => nameOf(id, ""));
+const uidsOf = ids => [...new Set(ids.map(get).filter(p => p && p.uid).map(p => p.uid))];
 function hash(s){ let h = 7; for (const ch of String(s)) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return h; }
 function colourOf(id){
   const p = get(id);
@@ -338,23 +383,62 @@ function start(o = {}){
   opts = o; meHandled = null; tried.clear();
   if (!cloud.shared) return healStale();
   if (!cloud.configured() || !cloud.user) return stop;
-  unsub = cloud.shared.watchList(COL, (rows, meta) => {
-    const next = {};
-    for (const { id, _updatedAt, ...p } of rows) next[id] = p;
-    const sig = JSON.stringify(next);
-    const was = confirmed;
-    if (!meta.fromCache) confirmed = true;
-    if (sig === seen && was === confirmed) return;
-    seen = sig;
-    all = next;
-    sync();
-    notify();
-  }, report);
+  const run = runs;
+  // The household list only for the household. A role that can't be read (offline on a first
+  // run) tries the list anyway, as before.
+  cloud.role().catch(e => { console.warn("[people] role", e); return "unknown"; }).then(role => {
+    if (run !== runs) return;
+    if (role === null){ household = false; confirmed = true; notify(); return; }
+    unsub = cloud.shared.watchList(COL, (rows, meta) => {
+      const next = {};
+      for (const { id, _updatedAt, ...p } of rows) next[id] = p;
+      const sig = JSON.stringify(next);
+      const was = confirmed;
+      if (!meta.fromCache) confirmed = true;
+      if (sig === seen && was === confirmed) return;
+      seen = sig;
+      all = next;
+      sync();
+      notify();
+    }, report);
+  });
+  const acc = cloud.account;
+  if (acc && acc.watchFriends && acc.watchGuests){
+    offs.push(acc.watchFriends(onFriends, e => console.warn("[people] friends", e)));
+    offs.push(acc.watchGuests(onGuests, e => console.warn("[people] guests", e)));
+  } else console.warn("[people] this cloud.js has no friends or guests; reload for them");
   return stop;
 }
 function stop(){
+  runs++;
   if (unsub){ try { unsub(); } catch {} }
-  unsub = null; all = {}; seen = ""; confirmed = false;
+  for (const off of offs){ try { off(); } catch {} }
+  unsub = null; offs = []; all = {}; seen = ""; confirmed = false;
+  friends = {}; guests = {}; household = true;
+}
+// Friends come as uids; each one's name and photo are read once from their profile.
+function onFriends(list){
+  const next = {};
+  for (const f of list){
+    const was = friends[f.uid];
+    next[f.uid] = was ? { ...was, since: f.since || 0 } : { name: "", photo: "", since: f.since || 0, named: false };
+    if (!was) named(f.uid);
+  }
+  friends = next;
+  notify();
+}
+function named(uid){
+  return cloud.account.profile(uid).then(p => {
+    if (!friends[uid]) return;
+    friends = { ...friends, [uid]: { ...friends[uid], name: (p && p.name) || "", photo: (p && p.photo) || "", named: true } };
+    notify();
+  });
+}
+function onGuests(rows){
+  const next = {};
+  for (const { id, name, createdAt, claimedBy } of rows) next[id] = { name: name || "", createdAt: createdAt || 0, claimedBy: claimedBy || "" };
+  guests = next;
+  notify();
 }
 // A half-updated page: the browser's cache handed over an older cloud.js than this
 // people.js. Fetch the current one past the cache and reload — once, so it can't loop.
@@ -445,6 +529,9 @@ const CSS = `
   border-radius:50%;background:var(--c);padding:3px;overflow:hidden;font-family:inherit;font-weight:800;line-height:1;font-size:calc(var(--s) * .45)}
 .pk-av img{display:block;width:100%;height:100%;box-sizing:border-box;border-radius:50%;object-fit:cover;border:2px solid #0b0f12;background:#0b0f12}
 .pk-av.pk-init{padding:0}
+.pk-card .pk-pick>span:last-child{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pk-pick small{font-size:15px;font-weight:600;color:var(--ink-dim,#aab3bd);margin-left:8px}
+.pk-new{display:flex;flex-direction:column;gap:8px;margin-top:8px}
 `;
 function injectCss(){
   if (document.getElementById("pk-css")) return;
@@ -479,13 +566,14 @@ function avatar(id, size = 36){
     node.style.color = inkOn(colour);
     node.textContent = ([...String((p && p.name) || "?").trim()][0] || "?").toUpperCase();
   };
-  if (p && p.photoURL){
+  const photo = p && (p.photo || p.photoURL);
+  if (photo){
     const img = document.createElement("img");
     img.alt = "";
     img.referrerPolicy = "no-referrer";   // Google's photo links refuse some referrers
     img.decoding = "async";
     img.addEventListener("error", () => { img.remove(); initial(); });
-    img.src = p.photoURL;
+    img.src = photo;
     node.append(img);
   } else initial();
   return node;
@@ -500,10 +588,13 @@ function cuescoreIdFrom(text){
   return m ? m[1] : null;
 }
 
+// The household's sheet: a new household person (household members only), or one already on
+// the list. A friend's name is their own and a guest's is yours, so neither is edited here.
 function edit(id = null, { noun = "person", cuescore = false } = {}){
   injectCss();
   const p = id ? get(id) : null;
-  if (id && !p) return Promise.resolve(null);
+  if (id && (!p || p.kind !== "household")) return Promise.resolve(null);
+  if (!id && !household) return Promise.resolve(null);
   document.querySelectorAll(".pk-ov").forEach(n => n.remove());
   return new Promise(done => {
     const ov = document.createElement("div");
@@ -514,10 +605,12 @@ function edit(id = null, { noun = "person", cuescore = false } = {}){
       <input type="text" id="pk-name" maxlength="24" autocomplete="off">
       <label>Colour</label>
       <div class="pk-sw"></div>
-      <label for="pk-email" data-k="emaillabel">Their Gmail</label>
-      <input type="email" id="pk-email" inputmode="email" autocomplete="off" placeholder="name@gmail.com">
-      <p class="pk-fixed" data-k="claimed" hidden></p>
-      <p class="pk-note" data-k="emailwhy">They sign in with this and claim the player.</p>
+      <div data-k="emailbox">
+        <label for="pk-email" data-k="emaillabel">Their Gmail (optional)</label>
+        <input type="email" id="pk-email" inputmode="email" autocomplete="off" placeholder="name@gmail.com">
+        <p class="pk-fixed" data-k="claimed" hidden></p>
+        <p class="pk-note" data-k="emailwhy">If they ever sign in with it, this is them.</p>
+      </div>
       <div data-k="cuebox" hidden>
         <label for="pk-cue">Cuescore profile link (optional)</label>
         <input type="url" id="pk-cue" inputmode="url" autocomplete="off" placeholder="https://cuescore.com/player/…">
@@ -565,11 +658,14 @@ function edit(id = null, { noun = "person", cuescore = false } = {}){
     emailIn.hidden = claimed;
     q('[data-k="claimed"]').hidden = !claimed;
     if (claimed) q('[data-k="claimed"]').textContent = `Claimed by ${p.email || "a Google account"}`;
-    q('[data-k="emaillabel"]').textContent = self ? "Your Gmail" : "Their Gmail";
+    q('[data-k="emaillabel"]').textContent = self ? "Your Gmail" : "Their Gmail (optional)";
     q('[data-k="emailwhy"]').hidden = claimed;
-    if (p && !p.email) q('[data-k="emailwhy"]').textContent = "No Gmail yet. Add one to save: they sign in with it and claim the player.";
+    // Adding asks only for a name: a Gmail no longer invites anyone (Invites does that), and
+    // someone with an account joins as a friend instead.
+    q('[data-k="emailbox"]').hidden = !p;
     const say = msg => { warn.hidden = !msg; warn.textContent = msg || ""; };
-    const ready = () => { saveBtn.disabled = !nameIn.value.trim() || !EMAIL.test(lower(emailIn.value)); };
+    const emailOk = () => !lower(emailIn.value) || EMAIL.test(lower(emailIn.value));
+    const ready = () => { saveBtn.disabled = !nameIn.value.trim() || !emailOk(); };
 
     let colour = p ? colourOf(p.id) : nextColour();
     const sw = q(".pk-sw");
@@ -601,10 +697,10 @@ function edit(id = null, { noun = "person", cuescore = false } = {}){
       const email = lower(emailIn.value);
       const selfId = p ? p.docId : null;
       if (!name){ nameIn.focus(); return; }
-      if (!EMAIL.test(email)){ say("Add their Gmail: they sign in with it."); emailIn.focus(); return; }
+      if (!emailOk()){ say("That doesn't look like an email address."); emailIn.focus(); return; }
       const cuescoreId = cueEdit ? cuescoreIdFrom(cueIn.value) : undefined;
       if (cuescoreId === null){ say("That Cuescore link doesn't end in a player number."); cueIn.focus(); return; }
-      const twin = current().find(x => x.id !== selfId && lower(x.email) === email);
+      const twin = email && current().find(x => x.id !== selfId && lower(x.email) === email);
       if (twin){ say(`${twin.name} already has that email.`); return; }
       const clash = current().find(x => x.id !== selfId && lower(x.name) === lower(name));
       if (clash && !sameNameOk){
@@ -615,13 +711,11 @@ function edit(id = null, { noun = "person", cuescore = false } = {}){
       let out;
       const extra = cueEdit ? { cuescoreId } : {};
       if (p){ update(p.id, { name, colour, ...(claimed ? {} : { email }), ...extra }); out = p.id; }
-      else out = add({ name, email, colour });
-      // Giving a Gmail puts it on the family list, so they can sign in straight away.
-      if (email && email !== lower(p && p.email)) cloud.addMember(email).catch(report);
+      else out = resolve(add({ name, colour }));
       close(out);
     }
     tap(saveBtn, save);
-    nameIn.addEventListener("keydown", e => { if (e.key === "Enter") emailIn.focus(); });
+    nameIn.addEventListener("keydown", e => { if (e.key === "Enter") p ? emailIn.focus() : save(); });
     emailIn.addEventListener("keydown", e => { if (e.key === "Enter") cueEdit ? cueIn.focus() : save(); });
     cueIn.addEventListener("keydown", e => { if (e.key === "Enter") save(); });
 
@@ -650,10 +744,148 @@ function edit(id = null, { noun = "person", cuescore = false } = {}){
   });
 }
 
+// ---- picking a player ----
+// The sheet an app opens for each player slot: recent first (the app passes the ids, newest
+// first), then everyone by name, a search box once there are more than eight, then two ways to
+// add someone there and then. Resolves to the id picked, or null.
+const appOfPage = () => location.pathname.split("/").filter(Boolean).filter(x => !/\.html$/.test(x)).pop() || "";
+function pick({ title = "Pick a player", recent = [], exclude = [], app = "", fresh = false } = {}){
+  injectCss();
+  document.querySelectorAll(".pk-ov").forEach(n => n.remove());
+  return new Promise(done => {
+    const ov = document.createElement("div");
+    ov.className = "pk-ov";
+    ov.innerHTML = `<div class="pk-card" role="dialog" aria-modal="true" aria-labelledby="pk-pick-title">
+      <h2 id="pk-pick-title"></h2>
+      <div data-k="choose">
+        <input type="search" data-k="find" placeholder="Search" autocomplete="off" aria-label="Search players" hidden>
+        <div class="pk-list" data-k="list"></div>
+        <p class="pk-note" data-k="none" hidden>Nobody here yet. Scan someone's phone, or add a guest.</p>
+        <div class="pk-new">
+          <button type="button" class="pk-go" data-k="scan">Scan a new player</button>
+          <button type="button" class="pk-quiet" data-k="guest">Add a guest</button>
+          <p class="pk-note">A guest is someone with no phone: just a name, kept on your account.</p>
+          <button type="button" class="pk-quiet" data-k="cancel">Cancel</button>
+        </div>
+      </div>
+      <div data-k="guestform" hidden>
+        <label for="pk-guest">Guest's name</label>
+        <input type="text" id="pk-guest" maxlength="24" autocomplete="off">
+        <p class="pk-warn" hidden></p>
+        <div class="pk-row">
+          <button type="button" class="pk-quiet" data-k="back">Back</button>
+          <button type="button" class="pk-go" data-k="addguest" disabled>Add</button>
+        </div>
+      </div>
+    </div>`;
+    const q = k => ov.querySelector(`[data-k="${k}"]`);
+    ov.querySelector("h2").textContent = fresh ? (title === "Pick a player" ? "Add a player" : title) : title;
+    if (fresh){ q("list").hidden = true; }
+    const skip = new Set(exclude.filter(Boolean).map(resolve));
+    const onKey = e => { if (e.key === "Escape") close(null); };
+    let unwatch = () => {};
+    function close(id){
+      ov.remove();
+      unwatch();
+      document.removeEventListener("keydown", onKey);
+      done(id || null);
+    }
+    document.addEventListener("keydown", onKey);
+
+    let painted = "";
+    function paint(){
+      if (fresh) return;
+      const list = players().filter(p => !skip.has(p.id));
+      const order = [...new Set(recent.filter(Boolean).map(resolve))];
+      const rank = id => { const i = order.indexOf(id); return i < 0 ? Infinity : i; };
+      list.sort((a, b) => rank(a.id) - rank(b.id) || String(a.name).localeCompare(String(b.name)));
+      const find = q("find");
+      find.hidden = list.length <= 8;
+      const term = find.hidden ? "" : find.value.trim().toLowerCase();
+      const shown = term ? list.filter(p => String(p.name).toLowerCase().includes(term)) : list;
+      const sig = JSON.stringify([term, shown.map(p => [p.id, p.name, p.photo, colourOf(p.id)])]);
+      if (sig === painted) return;
+      painted = sig;
+      const box = q("list");
+      box.innerHTML = "";
+      q("none").hidden = list.length > 0;
+      for (const p of shown){
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "pk-pick";
+        b.append(avatar(p.id, 36));
+        const n = document.createElement("span");
+        n.textContent = p.name || "…";
+        const tag = mine(p) ? "you" : p.kind === "guest" ? "guest" : p.kind === "account" ? "friend" : "";
+        if (tag){ const t = document.createElement("small"); t.textContent = tag; n.append(t); }
+        b.append(n);
+        tap(b, () => close(p.id));
+        box.append(b);
+      }
+    }
+    q("find").addEventListener("input", paint);
+    unwatch = onChange(() => { if (!ov.isConnected) return unwatch(); paint(); });
+
+    tap(q("cancel"), () => close(null));
+    tap(q("scan"), async () => {
+      ov.hidden = true;
+      const id = await scan(app || appOfPage());
+      if (id) return close(id);
+      ov.hidden = false;
+    });
+
+    // A guest: a name, private to you. A name already in the list asks once.
+    const nameIn = ov.querySelector("#pk-guest"), warn = ov.querySelector('[data-k="guestform"] .pk-warn');
+    const say = msg => { warn.hidden = !msg; warn.textContent = msg || ""; };
+    let sameOk = false;
+    tap(q("guest"), () => { q("choose").hidden = true; q("guestform").hidden = false; nameIn.value = ""; say(""); nameIn.focus(); });
+    tap(q("back"), () => { q("guestform").hidden = true; q("choose").hidden = false; });
+    nameIn.addEventListener("input", () => { sameOk = false; say(""); q("addguest").disabled = !nameIn.value.trim(); });
+    async function addGuest(){
+      const name = nameIn.value.trim().replace(/\s+/g, " ");
+      if (!name) return;
+      const twin = players().find(x => String(x.name).trim().toLowerCase() === name.toLowerCase());
+      if (twin && !sameOk){ sameOk = true; say(`There's already a ${twin.name}. Tap Add again if this is someone else.`); return; }
+      q("addguest").disabled = true;
+      try {
+        const id = await cloud.account.addGuest(name);
+        guests = { ...guests, [id]: { name, createdAt: Date.now(), claimedBy: "" } };
+        notify();
+        close(id);
+      } catch (e){ report(e); say("Couldn't add the guest: " + ((e && e.message) || e)); q("addguest").disabled = false; }
+    }
+    tap(q("addguest"), addGuest);
+    nameIn.addEventListener("keydown", e => { if (e.key === "Enter") addGuest(); });
+
+    paint();
+    document.body.appendChild(ov);
+  });
+}
+const addPlayer = (o = {}) => pick({ ...o, fresh: true });
+
+// My QR, there and then: whoever scans it is a friend, and is the one picked. The Connect part
+// loads only now, so an app that never scans never fetches it.
+async function scan(app){
+  let connect;
+  try { ({ connect } = await import("./connect.js")); }
+  catch (e){ report(e); return null; }
+  const uid = await new Promise(res => {
+    let got = null;
+    connect.showQR({ app, onFriend: u => { got = u; }, onClose: () => res(got) });
+  });
+  if (!uid) return null;
+  if (!friends[uid]){
+    friends = { ...friends, [uid]: { name: "", photo: "", since: Date.now(), named: false } };
+    await named(uid).catch(() => {});
+  }
+  return uid;
+}
+
 export const people = {
   PALETTE,
   start, stop, poke, onChange,
-  active, get, resolve, nameOf, colourOf, nextColour, meId, isMe, avatar,
+  active, players, get, resolve, nameOf, colourOf, nextColour, meId, isMe, avatar,
+  names, uidsOf, pick, addPlayer,
   add, update, remove, merge, adopt, edit,
   all: () => ({ ...all }),
   get ready(){ return confirmed; }

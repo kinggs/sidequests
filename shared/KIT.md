@@ -16,7 +16,7 @@ Status and build order: `shared/KIT-PLAN.md`.
 | **Theme** | `theme.css` | The shared look | — | ✓ |
 | **Sign-in** | `cloud.js` | Google sign-in, an account (uid) with a name and photo | Storage | ✓ |
 | **Connect** | `connect.js` | My QR, scan to connect, friends list with note, met and tags | Sign-in | ✓ |
-| **Players** | `people.js` | Pick who's playing: a friend, a QR scan, or a guest | Connect | Sessions 3–4 |
+| **Players** | `people.js` | Pick who's playing: a friend, a QR scan, or a guest | Connect | ✓ in Rack It; other apps Session 8 |
 | **Household** | `cloud.js` | The `/members` allowlist and owner role | Sign-in | ✓ |
 
 ## Sign-in and accounts
@@ -82,6 +82,15 @@ one, so a household person who signs in becomes their uid without a record being
 **What an app stores.** Beside the player ids, every record keeps `names` (a snapshot, so
 it reads without the household list) and `uids` (the accounts in it, which is what the
 rules check). Get them from `people.names(ids)` and `people.uidsOf(ids)`.
+
+**The calls.** `people.pick({ title, recent, app })` is the sheet for one player slot: the
+`recent` ids first, then everyone by name, a search past eight, then **Scan a new player**
+(My QR; whoever scans is picked) and **Add a guest**. `people.addPlayer()` is those two
+buttons alone. `people.players()` lists all three sources; `people.active()` stays the
+household only, so an app that hasn't adopted Players sees no change. `people.get(id)` gives
+`{ id, name, photo, colour, kind }`, `kind` being `"household"`, `"account"` or `"guest"`.
+Adding a household person (`people.edit(null)`) asks only for a name, and nothing in Players
+puts anyone on `/members`: Invites does that.
 
 ## Privacy
 

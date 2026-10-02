@@ -4,6 +4,7 @@
 //   await cloud.init("rack-it");
 //   connect.handleInvite({ app: "rack-it", onDone }); // first, before the app's own start
 //   connect.showQR({ app: "rack-it" });               // My QR
+//   connect.showQR({ app, onFriend: uid => …, onClose }) // …and who scanned it (people.pick's Scan)
 //   connect.showFriends();                            // Friends: each one's card (note, met, tags), Remove
 //   connect.showProfile({ onClose });                 // your name and photo; Delete my account
 //   connect.avatar(uid, 36)                           // <span>: their photo in a neutral ring, or their initial
@@ -229,7 +230,9 @@ function linkFor(app, code){
   return url.toString().replace("mock=&", "mock&");
 }
 
-function showQR({ app = "" } = {}){
+// onFriend(uid) hears who scanned it, a beat after "Connected with …" shows, and then it closes.
+// onClose() runs whenever it closes.
+function showQR({ app = "", onFriend = null, onClose = null } = {}){
   const ov = overlay(`
     <div class="cn-head"><span class="lbl">My QR</span><button type="button" class="quiet" data-k="close">Close</button></div>
     <div class="cn-mid">
@@ -243,7 +246,13 @@ function showQR({ app = "" } = {}){
   phone.fullscreen();
   phone.keepAwake(true);
   let unwatch = () => {}, timer = null;
-  const close = () => { ov.remove(); unwatch(); clearTimeout(timer); phone.keepAwake(false); };
+  let closed = false;
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    ov.remove(); unwatch(); clearTimeout(timer); phone.keepAwake(false);
+    if (onClose) try { onClose(); } catch (e) { console.warn("[connect]", e); }
+  };
   tap(q("close"), close);
 
   const me = cloud.user;
@@ -288,7 +297,9 @@ function showQR({ app = "" } = {}){
       mid.innerHTML = `<h2>Connected with ${esc((p && p.name) || "them")}</h2><p class="cn-dim">You're in each other's Friends now.</p>`;
       mid.prepend(avatar(fresh.uid, 96, p));
       if (navigator.vibrate) navigator.vibrate(30);
-      timer = setTimeout(close, 4000);
+      if (onFriend){
+        timer = setTimeout(() => { try { onFriend(fresh.uid); } catch (e) { console.warn("[connect]", e); } close(); }, 1500);
+      } else timer = setTimeout(close, 4000);
     });
   }, e => { q("msg").textContent = "Couldn't watch for new friends: " + (e.code || e.message); });
   return close;

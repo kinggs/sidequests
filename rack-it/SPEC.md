@@ -21,7 +21,7 @@ is reference only.
 
 | Concept | Definition |
 |---|---|
-| **Player** | A person on the household's shared list (`shared/people.js`): name, colour, Gmail, photo. Rack It adds their numbers. |
+| **Player** | Anyone `shared/people.js` can name: a household person, a friend (an account, by QR) or a guest (a typed name). Rack It adds their numbers. |
 | **Zargo** | One rating per player: odds on a rack. 100 apart, the stronger player expects to win two racks for every one. Starts at 500. |
 | **Robustness** | How many racks' worth of evidence sits behind a Zargo. Under 30 the rating is **provisional**. |
 | **Starter rating** | Where a player's Zargo begins before any match: 500, an estimate, or an override. |
@@ -239,10 +239,12 @@ room, and opening a fold scrolls it into view.
    in order, a line each ("Nine-ball · every ball scores, 11 a rack"), and all five fit a phone
    screen; picking one closes it. The last game picked is remembered per phone (`localStorage`
    `rack-it.game`).
-2. **Players:** Teal side and Lilac side columns with avatars. You're pre-selected on teal; the
-   lilac column lists the teal player's most recent opponents first, then everyone by name.
-   Tapping the player who's on the other side swaps the two, and the break stays with whoever
-   had it.
+2. **Players:** a Teal side and a Lilac side slot, each showing its player's avatar and name, or
+   "Pick a player". You're pre-selected on teal. A slot opens the picker (`people.pick`, §8):
+   on teal you first, then whoever played lately; on lilac the teal player's recent opponents,
+   the last one first; then everyone by name, with a search box past eight. **Scan a new
+   player** opens My QR and picks whoever scans it; **Add a guest** takes a name. Picking the
+   player who's on the other side swaps the two, and the break stays with whoever had it.
 3. **Length**, **Handicap** and **Break**: one settings card, a row each showing the current
    choice. Length and Handicap open on tap; Break flips on tap (teal breaks first by default).
 4. The handicap row shows the proposal and, open, the targets, both editable. The odds sentence
@@ -345,23 +347,26 @@ watching it, a **live strip** above the tabs shows "Live · Kenny 14–9 Melanie
 and **Watch**. The newest 300 matches are watched as one live list, so the strip, Matches, a
 person's page and a summary update without a reload.
 
-**Ratings.** Everyone, ranked by Zargo, one card each: rank, avatar, name ("you"), and the Zargo
-right-aligned in large figures. Under the name, robustness in words: "41 racks behind it", or in
-amber "provisional · 22 racks", "provisional · no Gmail" or "no Gmail". People who haven't played
-go last, by name, unranked, "not played yet", their number dimmed. **Add player** under the
-list. Tap a row for their page.
+**Ratings.** The household's people, your guests, and your friends who have a rating, ranked by
+Zargo, one card each: rank, avatar, name ("you"), and the Zargo right-aligned in large figures.
+Under the name, robustness in words: "41 racks behind it", or in amber "provisional · 22 racks";
+a guest adds "· guest". People who haven't played go last, by name, unranked, "not played yet",
+their number dimmed. **Add player** under the list: **Scan a new player** or **Add a guest**, then
+their starter rating (§3.1). It never puts anyone on Invites. Tap a row for their page.
 
 **A person's page.** 72px avatar, Zargo with robustness, one line on what the number means
 ("Against someone on 497, Kenny would expect to win two racks for every one"), **Edit** (name,
-Gmail, colour, the shared sheet, and for the owner the starter rating override and **Hold to
-delete player**; anyone else sees one line saying those are the owner's), Cuescore (read-only;
+colour, the shared sheet, and for the owner the starter rating override and **Hold to
+delete player**; anyone else sees one line saying those are the owner's; a friend's or guest's
+page offers Edit to the owner only, for the override), Cuescore (read-only;
 Add or Change on your own page), the win record per game (finished matches, in picker order) and their matches.
 
 **Matches.** Live (last 24 hours) first, then newest. Each row: names and score (racks in a race
 in racks, head start included) with the winner's name in bold, then a caps line with game,
 length and handicap, and when (a time today, else a date), or "tied". A live row is tinted teal
 and reads "Live · 11-Point-Nine · rack 3". Discarded matches don't show. No Delete in the list:
-a live row resumes; a finished one opens its summary.
+a live row resumes; a finished one opens its summary. A player this phone doesn't know (another
+member's friend or guest) reads by the match's own `names`, in every list and summary.
 
 **Summary.** Winner, game, length, when, the score line, the Zargo movement, the racks that
 counted, **Copy for Cuescore** (§10), and for the owner **Hold to delete match** (anyone else
@@ -396,10 +401,15 @@ Stored ids are read through `people.resolve`, so a merge in any app carries hist
   ratings are keyed by it and old matches still find their players. When someone claims, their
   numbers are copied from `ratings/<person id>` to `ratings/<uid>`; the old document stays, unread.
 
-- **Gmail is required** to add or save a player: they sign in with it and it claims the player.
-  Saving a new one invites it. A Gmail already on someone else is refused. Older players
-  without one show **No Gmail** and can't be saved until they have one. Adding a name that's
-  already on the list asks first.
+- **Players** (`people.js`, KIT.md): the household's people, your Connect friends and your
+  guests, one list in the picker. A friend's id is their uid and their name and photo are their
+  profile's; a guest is `g_<id>`, a name kept under your account (`profiles/<you>/guests`), seen
+  by nobody else. A household person who has claimed is also an account: the household's name
+  and colour win.
+- **A Gmail is optional** (2.8.0). The shared sheet offers it when editing a household person, so
+  they claim themselves on sign-in; adding a household person asks only for a name. Nothing here
+  invites anyone: **Invites** (More) is the only way onto `/members`. A Gmail already on someone
+  else is refused. Adding a name that's already on the list asks first.
 - **Claiming.** On sign-in the account links to the person with its `uid`, else its email, and
   stamps `uid`, `claimedAt` and the Google `photoURL` (refreshed every sign-in). With no match,
   **Which player are you?** lists the unclaimed people (no Gmail first); picking one writes your
@@ -467,7 +477,10 @@ starters/<id>                                                 // read through pe
 matches/<id>
   game: "standard" | "golden" | "league" | "eight" | "tenpoint"  // missing = league
   handicap: "off" | "scoring" | "racks"                         // missing = scoring
-  playerA, playerB                                              // person ids when started
+  playerA, playerB                 // resolved ids when started: a uid, g_<id>, or a person id
+  names: { a, b }                  // the names then, so it reads without this phone's lists (2.8.0)
+  uids: [uid, …]                   // the accounts in it, zero to two: what Session 6's rules check
+  by: uid                          // who started it
   mode: "race" | "fixed" | "open"
   targets: { a, b } | null         // points, or racks in a race in racks
   start: { a, b }                  // Racks lever only: the head start
@@ -505,6 +518,8 @@ matches/<id>
   never over a number already there), then `state/main.players` is deleted. Until then every
   phone reads the old map through `resolve`, so the numbers never change. Only once the people
   list has come from the server, since `resolve` reads it.
+- Matches before 2.8.0 have no `names`, `uids` or `by`, and person ids of the day; they read
+  through `resolve` as before. Nothing is rewritten.
 - Offline: Firestore's persistent cache is on; `sw.js` caches the shell (`index.html`,
   `zargo.js`, `shared/theme.css` and the two fonts, manifest, icons), network first.
 
@@ -619,3 +634,4 @@ account, so a static app can't upload results.
 | 2.5.1 | The page is pinned to the screen (`position: fixed`), not sized by `100dvh`: on a real phone the tab bar could sit below the bottom edge on Play, leaving no way to More. The live screen still hides it. Friends says "Tap someone to remove them." |
 | 2.6.0 | Connect's friend card (note, met, tags, tag filters), Profile with your own photo, and Delete my account. The photo lives in the profile document, since Storage needs the paid plan. Delete is a hold and a typed DELETE. |
 | 2.7.0 | Ratings move from `state/main.players` to one `ratings/<id>` document a player, keyed by the resolved id, a uid once claimed: the ground Players and confirmed rated matches stand on. The owner's phone moves them once. Unclaim goes, since it would orphan records stored under a uid. Nothing changes on screen. |
+| 2.8.0 | Players (KIT-PLAN Session 4): setup's columns become two slots filled from a picker of household, friends and guests, with **Scan a new player** and **Add a guest** there and then. A match stores `names`, `uids` and `by`. Add player is Scan or Guest, then the starter. The Gmail is optional and nothing in Rack It invites anyone any more: adding a player was quietly putting them on `/members`, which is the household's list. |
