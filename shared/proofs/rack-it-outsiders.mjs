@@ -117,7 +117,9 @@ ok(exp.matches.length >= 4 && exp.matches.every(x => x.uids.includes("mock-ann")
 for (const [n, p] of Object.entries(out)){
   const qs = await p.evaluate(() => window.__mockQueries);
   const ms = qs.filter(q => q.col === "sidequests/rack-it/matches");
-  ok(ms.length > 0 && ms.every(q => JSON.stringify(q.opts.where) === JSON.stringify(["uids", "array-contains", "mock-" + n]) && !q.opts.orderBy), `${n}: every matches query filtered by her uid, no orderBy`);
+  // Since 2.16.0 friend mode also lists the matches it scored for others: scorer == her uid.
+  const mine = w => JSON.stringify(w) === JSON.stringify(["uids", "array-contains", "mock-" + n]) || JSON.stringify(w) === JSON.stringify(["scorer", "==", "mock-" + n]);
+  ok(ms.length > 0 && ms.every(q => mine(q.opts.where) && !q.opts.orderBy), `${n}: every matches query filtered by her uid, no orderBy`);
   ok(!qs.some(q => q.col === "sidequests/rack-it/ratings" || q.col.startsWith("sidequests/rack-it/starters")), `${n}: never lists ratings or starters`);
 }
 summary();

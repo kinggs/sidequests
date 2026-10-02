@@ -13,6 +13,7 @@ shares `pw.mjs` with them.
 | `claim-guest.mjs` | Session 8 step 1: That was them, in Rack It, Zombie Dice and Around the Clock | Playwright |
 | `rack-it-seats.mjs` | Session 8 step 2: Who's playing chips, the Game QR, a guest's seat taken, the Home card | Playwright |
 | `rack-it-two-phones.mjs` | Session 8 step 3: two phones score one match; a tab offline for five changes; a race; Undo on the echo strip | Playwright |
+| `rack-it-scorer.mjs` | Session 8 step 4: Mel scores a rated match for the owner and Ann; both sign; Rebuild agrees | Playwright |
 | `rev-probe.mjs` | Session 8 step 3's probe: queued offline writes against a counter and against the chain, on the emulator | Java 21, npx |
 | `zombie-dice-open.mjs` | Session 7 step 4: the open rule in Zombie Dice, on a seed of old games (`seeds/`); with `OLD=<git rev>`, old build against new | Playwright |
 | `rules.mjs` | `shared/rules-check.mjs` against the rules on a local emulator | Java 21, npx |

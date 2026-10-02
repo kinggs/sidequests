@@ -526,6 +526,10 @@ describe("Outsiders in Rack It: must refuse", () => {
     await assertFails(updateDoc(doc(user("ann"), M + "live"), { status: "done", ratedAt: 3 }));
     if (await ratingOf("ann") !== 500) throw new Error("a refused confirm moved a rating");
   });
+  test("confirming your own result: a rated match with one account, against a guest", async () => {
+    await seed(M + "pendGuest", abMatch({ playerB: "g_1", names: { a: "Ann", b: "Dan" }, uids: ["ann"], status: "pending", endedBy: "ann", endedAt: 2 }));
+    await assertFails(confirmBatch("ann", "pendGuest", { ratings: ["ann"] }));
+  });
   test("confirming your own result: rewriting endedBy", async () => {
     const db = user("ann");
     await assertFails(updateDoc(doc(db, M + "pendA"), { endedBy: "ben" }));
@@ -1237,5 +1241,116 @@ describe("Two phones: must refuse", () => {
   test("the owner's stale write", async () => {
     await assertFails(updateDoc(doc(as(OWNER), M + "om"), { turn: "b", rev: link(3, "o3", "o1") }));
     await assertFails(updateDoc(doc(as(OWNER), M + "om"), { turn: "b" }));
+  });
+});
+
+// ---- Session 8 step 4: a scorer, and both sign (KIT-PLAN.md) ----
+// A match may carry scorer: <uid>, someone who isn't playing: whoever starts it, connected to
+// each player, and never in `uids` (the ratings rule trusts uids to be the players). The scorer
+// reads and scores like a player, ends it, and may Withdraw; never confirms. A rated match is
+// done only once every player who didn't end it has confirmed: each adds only their own key to
+// `confirms`, and the last one's Confirm is the batch that moves both ratings. Cat scores for Ann
+// and Ben (Cat is connected to Ann; Cat and Ben connect below).
+
+const scored = (extra = {}) => abMatch({ by: "cat", scorer: "cat", ...extra });
+// `who` confirms the scorer's match: their key in confirms, pending stays pending.
+const confirmKey = (who, id) => updateDoc(doc(user(who), M + id), { ["confirms." + who]: 2 });
+
+describe("A scorer: what may be done", () => {
+  beforeEach(async () => {
+    await seed("friendships/ben_cat", { uids: ["ben", "cat"], since: 1, via: "x", app: "rack-it" });
+    await seed(M + "sLive", scored());
+    await seed(M + "sPend", scored({ status: "pending", endedBy: "cat", endedAt: 2 }));
+    await seed(M + "sPendAnn", scored({ status: "pending", endedBy: "cat", endedAt: 2, confirms: { ann: 2 } }));
+    await seed(R + "ann", { zargo: 500, robustness: 4, sessions: 3 });
+    await seed(R + "ben", { zargo: 500, robustness: 4, sessions: 3 });
+  });
+  test("whoever starts a match for two friends scores it, not playing", async () => {
+    await assertSucceeds(setDoc(doc(user("cat"), M + "s1"), scored()));
+    await assertSucceeds(setDoc(doc(user("cat"), M + "s2"), scored({ playerB: "g_1", names: { a: "Ann", b: "Dan" }, uids: ["ann"], rated: false })));
+  });
+  test("the scorer reads it, finds it with a scorer query, scores it link by link, and ends it", async () => {
+    const db = user("cat");
+    await assertSucceeds(getDoc(doc(db, M + "sLive")));
+    await assertSucceeds(getDocs(query(collection(db, "sidequests/rack-it/matches"), where("scorer", "==", "cat"))));
+    await assertSucceeds(updateDoc(doc(db, M + "sLive"), { "racks.1": { balls: { 1: "a" } }, rev: link(1, "c1", "") }));
+    await assertSucceeds(updateDoc(doc(db, M + "sLive"), { status: "pending", endedBy: "cat", endedAt: 3, rev: link(2, "c2", "c1") }));
+  });
+  test("the players score it too", async () => {
+    await assertSucceeds(updateDoc(doc(user("ben"), M + "sLive"), { "racks.1": { balls: { 1: "b" } }, rev: link(1, "b1", "") }));
+  });
+  test("both sign: one player's Confirm adds only their key; the other's is the batch that moves both", async () => {
+    await assertSucceeds(confirmKey("ann", "sPend"));
+    await assertSucceeds(confirmBatch("ben", "sPendAnn"));
+    if (await ratingOf("ann") !== 510) throw new Error("the second Confirm's batch didn't land");
+  });
+  test("either player's Not right, or the scorer's Withdraw, makes it a friendly at once", async () => {
+    await assertSucceeds(updateDoc(doc(user("ann"), M + "sPend"), { status: "done", rated: false, declinedBy: "ann" }));
+    await assertSucceeds(updateDoc(doc(user("cat"), M + "sPendAnn"), { status: "done", rated: false, withdrawnBy: "cat" }));
+  });
+});
+
+describe("A scorer: must refuse", () => {
+  beforeEach(async () => {
+    await seed("friendships/ben_cat", { uids: ["ben", "cat"], since: 1, via: "x", app: "rack-it" });
+    await seed(M + "sLive", scored());
+    await seed(M + "sPend", scored({ status: "pending", endedBy: "cat", endedAt: 2 }));
+    await seed(M + "sPendAnn", scored({ status: "pending", endedBy: "cat", endedAt: 2, confirms: { ann: 2 } }));
+    await seed(M + "abLive", abMatch());
+    await seed(R + "ann", { zargo: 500, robustness: 4, sessions: 3 });
+    await seed(R + "ben", { zargo: 500, robustness: 4, sessions: 3 });
+  });
+  test("the scorer confirming, or writing a rating", async () => {
+    await assertFails(confirmBatch("cat", "sPend"));
+    await assertFails(confirmBatch("cat", "sPendAnn"));
+    await assertFails(confirmKey("cat", "sPend"));
+    await assertFails(updateDoc(doc(user("cat"), M + "sPend"), { status: "done", withdrawnBy: "cat" }));
+    await assertFails(setDoc(doc(user("cat"), R + "ann"), { zargo: 900, match: "sPendAnn" }, { merge: true }));
+    if (await ratingOf("ann") !== 500) throw new Error("a refused confirm moved a rating");
+  });
+  test("the scorer turning a friendly into a rated match", async () => {
+    await seed(M + "sFriendly", scored({ rated: false }));
+    await assertFails(updateDoc(doc(user("cat"), M + "sFriendly"), { rated: true, rev: link(1, "c1", "") }));
+  });
+  test("the scorer withdrawing in someone else's name", async () => {
+    await assertFails(updateDoc(doc(user("cat"), M + "sPend"), { status: "done", rated: false, withdrawnBy: "ann" }));
+  });
+  test("adding your own confirm to a match you ended", async () => {
+    await seed(M + "pendA", abMatch({ status: "pending", endedBy: "ann", endedAt: 2 }));
+    await assertFails(confirmKey("ann", "pendA"));
+  });
+  test("a player confirming twice to stand in for the other", async () => {
+    await assertFails(confirmBatch("ann", "sPendAnn"));
+    await assertFails(confirmBatch("ben", "sPend"));
+  });
+  test("confirms naming anyone but the writer, or moving the score with it", async () => {
+    await assertFails(updateDoc(doc(user("ann"), M + "sPend"), { "confirms.ben": 2 }));
+    await assertFails(updateDoc(doc(user("ann"), M + "sPend"), { "confirms.ann": 2, "confirms.ben": 2 }));
+    await assertFails(updateDoc(doc(user("ann"), M + "sPend"), { "confirms.ann": 2, totals: { a: 9, b: 0 } }));
+    await assertFails(updateDoc(doc(user("ann"), M + "sPendAnn"), { confirms: {} }));
+  });
+  test("a scorer who is also in uids, or not connected to a player", async () => {
+    await assertFails(setDoc(doc(user("cat"), M + "x1"), scored({ uids: ["ann", "ben", "cat"] })));
+    await assertFails(setDoc(doc(user("cat"), M + "x2"), scored({ playerB: "cat", uids: ["ann", "cat"] })));
+    await assertFails(setDoc(doc(user("cat"), M + "x3"), scored({ playerB: "eve", uids: ["ann", "eve"] })));
+    await assertFails(setDoc(doc(user("cat"), M + "x4"), scored({ by: "ann" })));
+    await assertFails(setDoc(doc(user("cat"), M + "x5"), scored({ status: "pending" })));
+    await assertFails(setDoc(doc(user("cat"), M + "x6"), scored({ endedBy: "cat" })));
+    await assertFails(setDoc(doc(user("cat"), M + "x7"), scored({ confirms: { ann: 1 } })));
+    await assertFails(setDoc(doc(user("cat"), M + "x8"), scored({ playerA: "eve", playerB: "ann", uids: ["eve", "ann"] })));
+  });
+  test("a player naming a scorer, or making themselves one later", async () => {
+    await assertFails(setDoc(doc(user("ann"), M + "x6"), abMatch({ playerB: "cat", names: { a: "Ann", b: "Cat" }, uids: ["ann", "cat"], scorer: "ben" })));
+    await assertFails(updateDoc(doc(user("ann"), M + "abLive"), { scorer: "cat", rev: link(1, "a1", "") }));
+    await assertFails(updateDoc(doc(user("cat"), M + "sLive"), { scorer: "eve", rev: link(1, "c1", "") }));
+  });
+  test("the scorer changing who's playing", async () => {
+    await assertFails(updateDoc(doc(user("cat"), M + "sLive"), { uids: ["ann", "ben", "cat"], rev: link(1, "c1", "") }));
+    await assertFails(updateDoc(doc(user("cat"), M + "sLive"), { playerB: "cat", rev: link(1, "c1", "") }));
+  });
+  test("a stranger reading it, scoring it, or listing by someone else's scorer", async () => {
+    await assertFails(getDoc(doc(user("eve"), M + "sLive")));
+    await assertFails(updateDoc(doc(user("eve"), M + "sLive"), { turn: "b", rev: link(1, "e1", "") }));
+    await assertFails(getDocs(query(collection(user("eve"), "sidequests/rack-it/matches"), where("scorer", "==", "cat"))));
   });
 });

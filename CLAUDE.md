@@ -18,6 +18,7 @@ sidequests/
     smoke.mjs             ← opens every app as the owner, a stranger and signed out; fails on any error
     proofs/               ← the multi-tab ?mock proofs and the rules guard check (proofs/README.md)
     KIT.md  KIT-PLAN.md   ← the shared parts an app opts into, and the plan building them
+    CONNECT.md            ← Connect and shared games: the Game QR, seats, several phones, a scorer
     KIT-HISTORY.md        ← the plan's finished sessions and their Handover notes
     people.js             ← the household's people, shared by every app (list, "you", add/edit sheet, avatars)
     DESIGN.md             ← the look (dark system v3): read it before building or touching a screen

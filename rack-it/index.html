@@ -221,7 +221,9 @@
   #presence{flex:0 0 44px;padding:0 12px;overflow:hidden}
   #presence .say{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
   :root.multi{--multi:44px}   /* on <html>: --bs is worked out on :root */
-  #echo{position:fixed;left:12px;right:12px;z-index:5}
+  :root.scoringfor{--multi:44px} :root.multi.scoringfor{--multi:88px}
+  #scoringFor{flex:0 0 44px;min-height:0;padding:0 12px}
+  #echo{position:fixed;left:12px;right:12px;z-index:5;min-height:44px;height:44px;padding:0 2px 0 14px}
   /* ---- rack ---- */
   .rack{flex:1 1 0;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--rack-gap);padding:6px 0}
   .rackrow{display:flex;gap:var(--rack-gap);justify-content:center}
@@ -631,6 +633,7 @@
 <!-- ============ LIVE SCORING ============ -->
 <section class="screen hidden" id="scrLive">
   <div class="turnbar"></div>
+  <div class="livestrip hidden" id="scoringFor"><span><span id="scoringWho"></span></span></div>
   <div class="scores">
     <button class="side on" data-p="a" id="sideA">
       <div class="name"><span id="nameA">Player A</span></div>
@@ -649,7 +652,7 @@
     <div class="leadmid"></div>
   </div>
 
-  <div class="matchbar">
+  <div class="matchbar" id="matchbar">
     <span class="lbl" id="rackNo">Rack 1</span>
     <span class="lead" id="lead"></span>
     <button class="breakchip" id="breakFlip">Break ⇄ —</button>
@@ -726,7 +729,7 @@ import { connect } from "../shared/connect.js";
 import { ui } from "../shared/ui.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "2.15.0";
+const APP_VERSION = "2.16.0";
 const APP_ID = "rack-it";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 document.getElementById("versionMore").textContent = "v" + APP_VERSION;
@@ -753,7 +756,7 @@ const el = {};
  "games","foldGame","gameHead","gameName","gameBlurb","raceLen","raceNRow","raceN","winArea","drop","goldChip","doneExtra",
  "rebuild","rbInfo","rbList","rbNote","rbApply","rbCancel","rebuildBtn",
  "ratedBtn","ratedWho","pendBar","pendWho","pendGo","pendNo","perClaim","perClaimNote",
- "inCard","inWho","inWhat","inOpen","whoChips","liveMore","presence","echo"
+ "inCard","inWho","inWhat","inOpen","whoChips","liveMore","presence","echo","scoringFor","scoringWho","matchbar"
 ].forEach(id => el[id] = $(id));
 
 function buzz(ms){ if(navigator.vibrate) navigator.vibrate(ms); }
@@ -1081,7 +1084,16 @@ function watchMatches(){
   if(unsubMatches) unsubMatches();
   // Friend mode lists only the matches it plays in, which is the query its rule checks.
   const opts = friendMode ? { where: ["uids", "array-contains", cloud.user.uid] } : { orderBy: "startedAt", desc: true, limit: 300 };
-  unsubMatches = cloud.watchList("matches", rows => {
+  // Friend mode also lists the matches it scored for others (Session 8 step 4): a second query.
+  let played = [], scoredFor = [];
+  const offScored = friendMode ? cloud.watchList("matches", rows => { scoredFor = rows; got(played, true); },
+    { where: ["scorer", "==", cloud.user.uid] }, e => console.warn("[matches]", e)) : null;
+  const offPlayed = cloud.watchList("matches", rows => { played = rows; got(rows); }, opts, friendMode ? e => console.warn("[matches]", e) : undefined);
+  unsubMatches = () => { offPlayed(); if(offScored) offScored(); };
+  function got(rowsIn, fromScored){
+    if(fromScored && !landed) return;
+    const seen = new Set(rowsIn.map(x => x.id));
+    const rows = friendMode ? [...rowsIn, ...scoredFor.filter(x => !seen.has(x.id))] : rowsIn;
     matches = friendMode ? rows.sort((x, y) => (y.startedAt || 0) - (x.startedAt || 0)) : rows;
     watchRatingIds();
     // Someone else's match you're in is the Home card (inDoc); the strip is the rest.
@@ -1097,7 +1109,7 @@ function watchMatches(){
     if(current === "matches") renderMatches();
     if(current === "person") renderPerson();
     if(current === "summary") renderSummary();
-  }, opts, friendMode ? e => console.warn("[matches]", e) : undefined);
+  }
 }
 function openSetupTab(){ setupFresh = false; openSetup(); }
 
@@ -1544,6 +1556,7 @@ function openSetup(){
   setup.a = selfPlayable(me) ? me : null;   // you, on the teal side
   setup.b = null;
   setup.rated = false;
+  setup.touched = false;   // until you change a side, the people list arriving late still pre-picks you
   applyGameDefaults();
   el.foldGame.classList.remove("open");
   el.foldLen.classList.remove("open");
@@ -1700,7 +1713,7 @@ function renderSetup(){
   // ---- players: two slots, each filled from the picker (people.pick); you on teal ----
   const me = people.meId();
   // The people list can arrive after setup opens: pre-select you once it does.
-  if(!setup.a && !setup.b && selfPlayable(me)) setup.a = me;
+  if(!setup.a && !setup.b && !setup.touched && selfPlayable(me)) setup.a = me;
   [["pickA","a"],["pickB","b"]].forEach(([box, side]) => {
     const id = setup[side], slot = el[box], n = document.createElement("span");
     slot.innerHTML = "";
@@ -1817,12 +1830,15 @@ function renderSetup(){
   el.ratedBtn.classList.toggle("hidden", !offered);
   el.ratedBtn.classList.toggle("on", setup.rated);
   el.ratedBtn.setAttribute("aria-checked", String(setup.rated));
-  el.ratedWho.textContent = setup.rated ? `On · moves ratings once ${namesOr(confirmersOf([a, b]))} confirms` : "Off · a friendly";
-  // Friend mode scores only matches you play in (the rules refuse the rest).
-  const outOfIt = friendMode && a && b && !people.isMe(a.id) && !people.isMe(b.id);
-  el.startBtn.disabled = !(a && b && plan) || outOfIt;
-  el.startBtn.textContent = !(a && b) ? "Pick two players" : outOfIt ? "You need to be one of the players"
-    : plan ? "Start" : "Set the length first";
+  // You start it, but you aren't playing: you score it (Session 8 step 4), and both players confirm.
+  const scoring = !!(a && b) && !people.isMe(a.id) && !people.isMe(b.id);
+  const signers = confirmersOf([a, b]);
+  el.ratedWho.textContent = setup.rated ? `On · moves ratings once ${scoring ? signers.join(" and ") : namesOr(signers)} confirm${scoring && signers.length > 1 ? "" : "s"}` : "Off · a friendly";
+  // In friend mode you score for two players only if you're connected to each (the rules check).
+  const stranger = scoring && friendMode && [a, b].some(p => p.kind === "household");
+  el.startBtn.disabled = !(a && b && plan) || stranger;
+  el.startBtn.textContent = !(a && b) ? "Pick two players" : stranger ? "Pick friends or guests"
+    : !plan ? "Set the length first" : scoring ? `Score it for ${a.name} and ${b.name}` : "Start";
 }
 // A slot opens the picker: on teal, you first then whoever played lately; on lilac, the teal
 // player's recent opponents, the last one first. Scanning or adding a guest there fills it.
@@ -1860,6 +1876,7 @@ function paintWhoChips(){
 }
 function chipTap(id, fresh){
   id = people.resolve(id);
+  setup.touched = true;
   if(!fresh && (setup.a === id || setup.b === id)){
     if(setup.a === id) setup.a = null; else setup.b = null;
     proposeTargets(); renderSetup(); return;
@@ -1878,6 +1895,7 @@ ui.tap(el.pickB, () => chooseSide("b"), LOOSE);
 // Picking the player who's already on the other side swaps the two sides. The break stays
 // with the person who had it.
 function pickSide(side, id){
+  setup.touched = true;
   const opp = other(side);
   if(setup[opp] === id){
     setup[opp] = setup[side];
@@ -1922,7 +1940,9 @@ let live = null;
 async function startMatch(){
   const a = P(setup.a), b = P(setup.b);
   const plan = a && b ? plannedMatch() : null;
-  if(!plan || (friendMode && !people.isMe(a.id) && !people.isMe(b.id))) return;
+  if(!plan) return;
+  // Not playing: you're its scorer. uids stays the players only, as the ratings rule trusts it.
+  const scorer = !people.isMe(a.id) && !people.isMe(b.id) ? myUid() : null;
   const game = setup.game, handicap = setup.handicap;
   const { mode, targets, racks } = plan;
   setupFresh = true;
@@ -1949,7 +1969,7 @@ async function startMatch(){
     balls: {}, rack: newRack(), history: [],
     banked: newBanked(),
     rated: !!(setup.rated && ratedOffered(a, b)), uids: people.uidsOf(ids),
-    by: myUid(),
+    by: myUid(), scorer,
     rev: { n: 0, key: "" }, sent: [], phones: {}, log: {},
     autoShown: false
   };
@@ -1961,6 +1981,7 @@ async function startMatch(){
     uids: people.uidsOf(ids),
     by: (cloud.user && cloud.user.uid) || null,
     rated: live.rated,
+    ...(scorer ? { scorer } : {}),
     mode,
     targets,
     racksPlanned: live.racksPlanned,
@@ -2068,6 +2089,8 @@ function followLive(){
 function dropLive(){
   if(live && live.unwatch) live.unwatch();
   live = null;
+  el.scoringFor.classList.add("hidden");
+  document.documentElement.classList.remove("scoringfor");
   hideEcho();
   paintPresence();
 }
@@ -2159,8 +2182,10 @@ function echo(theirs, before){
     });
     el.echo.append(u);
   }
-  const top = (live.game === "league" ? el.rack : el.winArea).getBoundingClientRect().top;
-  el.echo.style.top = Math.max(0, top + 4) + "px";
+  // Over the presence row (there whenever another phone has written), never over a ball.
+  paintPresence();
+  const over = el.presence.classList.contains("hidden") ? null : el.presence.getBoundingClientRect();
+  el.echo.style.top = (over ? over.top : el.matchbar.getBoundingClientRect().bottom) + "px";
   el.echo.classList.remove("hidden");
   clearTimeout(echoTimer);
   echoTimer = setTimeout(hideEcho, 5000);
@@ -3073,7 +3098,8 @@ function declare(resume){
     const pa = P(live.playerA, live.nameA), pb = P(live.playerB, live.nameB);
     const zNow = Z.zargoOutcome({ za: pa.zargo, zb: pb.zargo, sessionsA: pa.sessions, sessionsB: pb.sessions,
       robustnessA: pa.robustness, robustnessB: pb.robustness }, results, cfg());
-    el.doneZargo.textContent = `Rated · ratings move once ${namesOr(confirmersOf([pa, pb]))} confirms. As things stand: ` +
+    const signers = confirmersOf([pa, pb]);
+    el.doneZargo.textContent = `Rated · ratings move once ${live.scorer ? signers.join(" and ") + " confirm" : namesOr(signers) + " confirms"}. As things stand: ` +
       `${live.nameA} ${Math.round(zNow.a.from)} → ${Math.round(zNow.a.to)} · ` +
       `${live.nameB} ${Math.round(zNow.b.from)} → ${Math.round(zNow.b.to)}` +
       (zNow.cal ? ` · calibrating ${zNow.cal === "a" ? live.nameA : live.nameB}` : "");
@@ -3128,6 +3154,11 @@ async function finish(status, t, lead, winner, z, weight){
 
 function render(){
   if(!live) return;
+  // Scoring for two others (Session 8 step 4): a banner over the panels.
+  const forOthers = !!live.scorer && live.scorer === myUid();
+  el.scoringFor.classList.toggle("hidden", !forOthers);
+  document.documentElement.classList.toggle("scoringfor", forOthers);
+  if(forOthers) el.scoringWho.textContent = `Scoring for ${firstName(live.nameA)} and ${firstName(live.nameB)}`;
   // The Game QR seats people only against its starter's friendships, so it's the starter's to show.
   el.liveMore.classList.toggle("hidden", live.by !== myUid());
   paintTurn(state.turn);
@@ -3552,38 +3583,51 @@ const sideOfUid = (m, uid) => people.resolve(m.playerA) === uid ? "a" : people.r
 const uidName = (m, uid) => { const side = sideOfUid(m, uid); return side ? sideName(m, side) : people.nameOf(uid, "someone"); };
 // A stored match's players with an account who didn't end it: the ones who may confirm.
 const confirmers = m => (m.uids || []).filter(u => u !== m.endedBy && sideOfUid(m, u));
+// Who still has to confirm: with a scorer both players sign (Session 8 step 4), one key each.
+const stillToSign = m => confirmers(m).filter(u => !(m.confirms && m.confirms[u]));
+const scorerOf = m => m.scorer ? firstName(people.nameOf(m.scorer, "someone")) : "";
 let pendBusy = false;
 function paintPendBar(){
   // TAB_OF first: the gate can paint before the rest of this script has run (top-level await).
   const ok = !!TAB_OF[current] && !live && !watching && !!myUid();
   const pending = ok ? matches.filter(m => m.status === "pending") : [];
-  const ask = pending.find(m => confirmers(m).includes(myUid()));
-  const wait = ask ? null : pending.find(m => m.endedBy === myUid());
+  const ask = pending.find(m => stillToSign(m).includes(myUid()));
+  const wait = ask ? null : pending.find(m => m.endedBy === myUid() || confirmers(m).includes(myUid()));
   const m = ask || wait;
   el.pendBar.classList.toggle("hidden", !m);
   if(!m) return;
   if(ask){
     const sc = boardScore(m), mine = sideOfUid(m, myUid());
     const who = side => side === mine ? "You" : sideName(m, side);
-    el.pendWho.textContent = `${who("a")} ${sc.a}–${sc.b} ${who("b")} · rated`;
+    el.pendWho.textContent = `${who("a")} ${sc.a}–${sc.b} ${who("b")} · rated` + (m.scorer ? ` · scored by ${scorerOf(m)}` : "");
     el.pendGo.classList.remove("hidden");
     el.pendGo.onclick = () => confirmMatch(m.id);
     el.pendNo.textContent = "Not right";
     el.pendNo.onclick = () => standAsFriendly(m.id, "declinedBy");
   } else {
-    el.pendWho.textContent = `Waiting for ${namesOr(confirmers(m).map(u => uidName(m, u)))} to confirm`;
+    const waiting = stillToSign(m).map(u => uidName(m, u));
+    el.pendWho.textContent = `Waiting for ${m.scorer ? waiting.join(" and ") : namesOr(waiting)} to confirm`;
     el.pendGo.classList.add("hidden");
-    el.pendNo.textContent = "Withdraw";
-    el.pendNo.onclick = () => standAsFriendly(m.id, "withdrawnBy");
+    // The scorer or whoever ended it may Withdraw; a player who has signed may still say Not right.
+    const mine = m.endedBy === myUid();
+    el.pendNo.textContent = mine ? "Withdraw" : "Not right";
+    el.pendNo.onclick = () => standAsFriendly(m.id, mine ? "withdrawnBy" : "declinedBy");
   }
   el.pendWho.onclick = () => openSummary(m.id, "matches");
 }
 const stillPending = id => matches.find(x => x.id === id && x.status === "pending");
 async function confirmMatch(id){
   const m = stillPending(id);
-  if(!m || pendBusy || !confirmers(m).includes(myUid())) return;
+  if(!m || pendBusy || !stillToSign(m).includes(myUid())) return;
   pendBusy = true;
   try {
+    // Both sign: not the last to confirm, so only your key goes in; ratings wait for the other.
+    if(stillToSign(m).length > 1){
+      await cloud.patch("matches/" + id, { ["confirms." + myUid()]: Date.now() });
+      pendBusy = false;
+      paintLiveBar();
+      return;
+    }
     // Friend mode reads both ratings as they stand now, rather than trust a listener to have
     // caught up: the confirm writes them, and the rules can't check the arithmetic.
     if(friendMode) for(const pid of new Set([people.resolve(m.playerA), people.resolve(m.playerB)])){

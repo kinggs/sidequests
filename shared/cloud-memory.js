@@ -63,12 +63,14 @@ const ACCESS = [
   { path: /^members(\/|$)/,    read: "household", write: "household" },
   // Rack It: the owner, and players (Sessions 6 and 6b). Not the household.
   { path: /^sidequests\/rack-it\/state\/main$/, read: "account", write: "owner" },
-  { path: /^sidequests\/rack-it\/matches$/, read: (m, u, d, was, ctx) => isOwner(u) || uidsFilter(ctx, u) },
+  { path: /^sidequests\/rack-it\/matches$/, read: (m, u, d, was, ctx) => isOwner(u) || uidsFilter(ctx, u) || scorerFilter(ctx, u) },
   { path: /^sidequests\/rack-it\/matches\/([^/]+)$/,
     // A Game QR (Session 8): a live match is got by anyone connected to its starter.
-    read: (m, u, d, was) => isOwner(u) || inUids(was, u) || (!!was && was.status === "live" && connectedTo(u.uid, was.by)),
-    write: (m, u, d, was) => !was ? !!d && (isOwner(u) || outsiderStarts(u, d))
-      : (!!d && inUids(was, u) && playerScores(u, d, was)) || (!!d && (rackClaim(u, d, was) || takesSeat(u, d, was)))
+    read: (m, u, d, was) => isOwner(u) || inUids(was, u) || (!!was && was.scorer === u.uid)
+      || (!!was && was.status === "live" && connectedTo(u.uid, was.by)),
+    write: (m, u, d, was) => !was ? !!d && (isOwner(u) || outsiderStarts(u, d) || scorerStarts(u, d))
+      : (!!d && inUids(was, u) && playerScores(u, d, was)) || (!!d && was.scorer === u.uid && scorerScores(u, d, was))
+        || (!!d && (rackClaim(u, d, was) || takesSeat(u, d, was)))
         || (isOwner(u) && (!d || ownerKeepsChain(u, d, was))) },
   { path: /^sidequests\/rack-it\/ratings\/([^/]+)$/, read: "account",
     write: (m, u, d, was, ctx) => isOwner(u) || (!!d && (confirming(m[1], d, ctx.after) || (!was && !!store.docs[`profiles/${u.uid}/guests/${m[1]}`])
@@ -130,6 +132,7 @@ const inUids = (doc, u) => !!doc && Array.isArray(doc.uids) && doc.uids.includes
 const isStaff = u => isOwner(u) || !!store.docs["sidequests/sessions-loyalty/staff/" + u.uid];
 const uidIs = (ctx, u) => !!ctx.where && ctx.where[0] === "uid" && ctx.where[1] === "==" && ctx.where[2] === u.uid;
 const rated = doc => (doc.rated === undefined ? true : doc.rated) === true;
+const scorerFilter = (ctx, u) => !!ctx.where && ctx.where[0] === "scorer" && ctx.where[1] === "==" && ctx.where[2] === u.uid;
 const uidsFilter = (ctx, u) => !!ctx.where && ctx.where[0] === "uids" && ctx.where[1] === "array-contains" && ctx.where[2] === u.uid;
 function same(a, b){
   if (isMap(a) && isMap(b)) return [...new Set([...Object.keys(a), ...Object.keys(b)])].every(k => same(a[k], b[k]));
@@ -139,7 +142,7 @@ const changed = (was, now) => [...new Set([...Object.keys(was), ...Object.keys(n
 function outsiderStarts(u, d){
   const uids = Array.isArray(d.uids) ? d.uids : [];
   return d.by === u.uid && uids.includes(u.uid) && d.status === "live"
-    && !["endedBy", "confirmedBy", "ratedAt", "declinedBy", "withdrawnBy"].some(k => k in d)
+    && !["endedBy", "confirmedBy", "ratedAt", "declinedBy", "withdrawnBy", "scorer", "confirms"].some(k => k in d)
     && (uids.length === 1 || (uids.length === 2 && !!store.docs["friendships/" + [...uids].sort().join("_")]));
 }
 // Two phones, one match (Session 8 step 3): a live score write is the next link of the chain;
@@ -155,18 +158,46 @@ function myPhone(u, keys, now, was){
 const ownerKeepsChain = (u, d, was) => was.status !== "live" || !Array.isArray(was.uids)
   || myPhone(u, changed(was, d), d, was) || nextLink(d, was) || rackSwap(d, was);
 const CONFIRM_KEYS = ["status", "rated", "zargoBefore", "zargoAfter", "ratedAt", "confirmedBy", "declinedBy", "withdrawnBy", "_updatedAt"];
+function liveScore(u, keys, now, was){
+  const by = now.endedBy ?? null;
+  return (myPhone(u, keys, now, was) || nextLink(now, was)) && ["live", "pending", "done", "discarded"].includes(now.status)
+    && (now.status === "pending" ? by === u.uid : by === (was.endedBy ?? null))
+    && !(now.status === "done" && rated(now));
+}
 function playerScores(u, now, was){
   const keys = changed(was, now);
-  if (["uids", "by", "playerA", "playerB", "names"].some(k => keys.includes(k))) return false;
+  if (["uids", "by", "playerA", "playerB", "names", "scorer"].some(k => keys.includes(k))) return false;
   if (rated(now) && !rated(was)) return false;
-  if (was.status === "live"){
-    const by = now.endedBy ?? null;
-    return (myPhone(u, keys, now, was) || nextLink(now, was)) && ["live", "pending", "done", "discarded"].includes(now.status)
-      && (now.status === "pending" ? by === u.uid : by === (was.endedBy ?? null))
-      && !(now.status === "done" && rated(now));
-  }
-  return was.status === "pending" && now.status === "done" && keys.every(k => CONFIRM_KEYS.includes(k))
-    && (!rated(now) || u.uid !== (was.endedBy ?? u.uid));
+  if (was.status === "live") return liveScore(u, keys, now, was);
+  if (was.status !== "pending") return false;
+  if (now.status === "pending") return confirmsMine(u, keys, now, was);
+  return now.status === "done" && keys.every(k => CONFIRM_KEYS.includes(k))
+    && (!rated(now) || (u.uid !== (was.endedBy ?? u.uid) && othersConfirmed(u, was)));
+}
+// Both sign (Session 8 step 4): a player adds only their own key to confirms; a rated match is
+// done once every other player who didn't end it has.
+function confirmsMine(u, keys, now, was){
+  const w = isMap(was.confirms) ? was.confirms : {}, c = isMap(now.confirms) ? now.confirms : {};
+  return keys.every(k => k === "confirms" || k === "_updatedAt") && u.uid !== (was.endedBy ?? u.uid)
+    && Object.keys(w).every(k => k in c) && changed(w, c).every(k => k === u.uid);
+}
+const othersConfirmed = (u, was) => (was.uids || []).filter(x => x !== was.endedBy && x !== u.uid)
+  .every(x => isMap(was.confirms) && x in was.confirms);
+// The scorer (step 4): starts it not playing, connected to each player; scores and ends it; may
+// Withdraw; never confirms.
+function scorerStarts(u, d){
+  const uids = Array.isArray(d.uids) ? d.uids : null;
+  return !!uids && d.scorer === u.uid && d.by === u.uid && d.status === "live" && uids.length <= 2 && !uids.includes(u.uid)
+    && !["endedBy", "confirmedBy", "ratedAt", "declinedBy", "withdrawnBy", "confirms"].some(k => k in d)
+    && uids.every(x => connectedTo(u.uid, x));
+}
+function scorerScores(u, now, was){
+  const keys = changed(was, now);
+  if (["uids", "by", "playerA", "playerB", "names", "scorer", "confirms"].some(k => keys.includes(k))) return false;
+  if (rated(now) && !rated(was)) return false;
+  if (was.status === "live") return liveScore(u, keys, now, was);
+  return was.status === "pending" && now.status === "done" && !rated(now)
+    && keys.every(k => ["status", "rated", "withdrawnBy", "_updatedAt"].includes(k)) && now.withdrawnBy === u.uid;
 }
 // A rating moves only in the batch that confirms a rated match: pending before, done and
 // rated after (`after` is the store as the whole batch leaves it), the rating a player in it.

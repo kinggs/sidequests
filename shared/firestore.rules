@@ -142,12 +142,14 @@ service cloud.firestore {
       allow write: if isOwner();
     }
     match /sidequests/rack-it/matches/{id} {
-      allow read: if (signedIn() && request.auth.uid in resource.data.get('uids', [])) || isOwner();
+      allow read: if (signedIn() && (request.auth.uid in resource.data.get('uids', [])
+          || resource.data.get('scorer', '') == request.auth.uid)) || isOwner();
       // A Game QR (Session 8): someone connected to the starter gets a live match, never a list.
       allow get: if signedIn() && resource.data.get('status', '') == 'live'
         && connected(request.auth.uid, resource.data.get('by', ''));
-      allow create: if (signedIn() && outsiderStarts()) || isOwner();
+      allow create: if (signedIn() && (outsiderStarts() || scorerStarts())) || isOwner();
       allow update: if (signedIn() && request.auth.uid in resource.data.get('uids', []) && playerScores())
+        || (signedIn() && resource.data.get('scorer', '') == request.auth.uid && scorerScores())
         || (signedIn() && (rackClaim() || takesSeat()))
         || (isOwner() && ownerKeepsChain());
       allow delete: if isOwner();
@@ -221,7 +223,7 @@ service cloud.firestore {
     function outsiderStarts() {
       let m = request.resource.data;
       return m.by == request.auth.uid && request.auth.uid in m.uids && m.status == 'live'
-        && !m.keys().hasAny(['endedBy', 'confirmedBy', 'ratedAt', 'declinedBy', 'withdrawnBy'])
+        && !m.keys().hasAny(['endedBy', 'confirmedBy', 'ratedAt', 'declinedBy', 'withdrawnBy', 'scorer', 'confirms'])
         && (m.uids.size() == 1 || (m.uids.size() == 2 && connected(m.uids[0], m.uids[1])));
     }
     // A player's write to a match they're in. Never who's in it. A live match is scored, saved
@@ -233,20 +235,62 @@ service cloud.firestore {
       let was = resource.data;
       let now = request.resource.data;
       let keys = now.diff(was).affectedKeys();
-      return !keys.hasAny(['uids', 'by', 'playerA', 'playerB', 'names'])
+      return !keys.hasAny(['uids', 'by', 'playerA', 'playerB', 'names', 'scorer'])
         && ratedOnlyTurnsOff()
-        && (was.status == 'live'
-          ? (myPhone(keys) || nextLink())
-            && now.status in ['live', 'pending', 'done', 'discarded']
-            && (now.status == 'pending'
-              ? now.get('endedBy', null) == request.auth.uid
-              : now.get('endedBy', null) == was.get('endedBy', null))
-            && !(now.status == 'done' && rated(now))
-          : was.status == 'pending' && now.status == 'done'
-            && keys.hasOnly(['status', 'rated', 'zargoBefore', 'zargoAfter', 'ratedAt', 'confirmedBy',
-                             'declinedBy', 'withdrawnBy', '_updatedAt'])
-            // Someone else ended it; a match with no endedBy can't be confirmed.
-            && (!rated(now) || request.auth.uid != was.get('endedBy', request.auth.uid)));
+        && (was.status == 'live' ? liveScore(keys)
+          : was.status == 'pending' && (now.status == 'pending' ? confirmsMine(keys)
+            : now.status == 'done'
+              && keys.hasOnly(['status', 'rated', 'zargoBefore', 'zargoAfter', 'ratedAt', 'confirmedBy',
+                               'declinedBy', 'withdrawnBy', '_updatedAt'])
+              // Someone else ended it (a match with no endedBy can't be confirmed), and every
+              // other player who didn't end it has already confirmed (both sign, Session 8).
+              && (!rated(now) || (request.auth.uid != was.get('endedBy', request.auth.uid) && othersConfirmed()))));
+    }
+    // A live match is scored link by link; going to pending stamps endedBy as yourself, and a
+    // rated match is never finished from live. Players and the scorer alike.
+    function liveScore(keys) {
+      let was = resource.data;
+      let now = request.resource.data;
+      return (myPhone(keys) || nextLink())
+        && now.status in ['live', 'pending', 'done', 'discarded']
+        && (now.status == 'pending'
+          ? now.get('endedBy', null) == request.auth.uid
+          : now.get('endedBy', null) == was.get('endedBy', null))
+        && !(now.status == 'done' && rated(now));
+    }
+    // Both sign (Session 8 step 4): on a pending match someone else ended, a player adds their
+    // own key to confirms, and nothing else moves. The last player's Confirm is the batch.
+    function confirmsMine(keys) {
+      let was = resource.data.get('confirms', {});
+      return keys.hasOnly(['confirms', '_updatedAt']) && request.auth.uid != resource.data.get('endedBy', request.auth.uid)
+        && request.resource.data.confirms.keys().hasAll(was.keys())
+        && request.resource.data.confirms.diff(was).affectedKeys().hasOnly([request.auth.uid]);
+    }
+    function othersConfirmed() {
+      let was = resource.data;
+      return was.get('confirms', {}).keys().hasAll(was.uids.removeAll([was.get('endedBy', ''), request.auth.uid]));
+    }
+    // The scorer (step 4): someone who isn't playing, named `scorer` by themselves when they
+    // started it. Scores and ends it like a player; may Withdraw; never confirms.
+    function scorerScores() {
+      let was = resource.data;
+      let now = request.resource.data;
+      let keys = now.diff(was).affectedKeys();
+      return !keys.hasAny(['uids', 'by', 'playerA', 'playerB', 'names', 'scorer', 'confirms'])
+        && ratedOnlyTurnsOff()
+        && (was.status == 'live' ? liveScore(keys)
+          : was.status == 'pending' && now.status == 'done' && !rated(now)
+            && keys.hasOnly(['status', 'rated', 'withdrawnBy', '_updatedAt']) && now.get('withdrawnBy', '') == request.auth.uid);
+    }
+    // A new match its starter scores without playing: live, not ended, the starter not in uids,
+    // and connected to each player with an account (a guest needs none).
+    function scorerStarts() {
+      let m = request.resource.data;
+      return m.get('scorer', '') == request.auth.uid && m.by == request.auth.uid && m.status == 'live'
+        && m.uids is list && m.uids.size() <= 2 && !(request.auth.uid in m.uids)
+        && !m.keys().hasAny(['endedBy', 'confirmedBy', 'ratedAt', 'declinedBy', 'withdrawnBy', 'confirms'])
+        && (m.uids.size() < 1 || connected(request.auth.uid, m.uids[0]))
+        && (m.uids.size() < 2 || connected(request.auth.uid, m.uids[1]));
     }
     // Two phones, one match (Session 8 step 3). A write to a live match's score is the next link
     // of a chain, rev: { n, key, was }: one more than the stored n, built on the stored key, with

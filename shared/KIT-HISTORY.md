@@ -1,6 +1,6 @@
 # The kit — finished sessions
 
-Sessions 0 to 7 of `shared/KIT-PLAN.md`, moved here verbatim on 2026-10-02 so the plan stays
+Sessions 0 to 8 of `shared/KIT-PLAN.md`, moved here verbatim on 2026-10-02 so the plan stays
 short. Read a session's Handover note here when a later session builds on it; the plan says
 which. Nothing in this file is still to do.
 
@@ -609,6 +609,96 @@ seed of the owner's export read the same before and after.
 
 ---
 
+## Session 8 — One match, many phones (Rack It)
+
+Read `design_handoff/shared/CONNECT.md` §1 to §4 and frames 8a to 8d, with the overrides
+above. Each step is rules and app in one push.
+
+### Step 1 — Claiming a guest
+
+- [x] On a guest: **That was them** → pick a friend. It rewrites that guest's records where
+  you are `by`: the player id becomes the friend's uid and `uids` gains it. The guest document
+  gets `claimedBy`, so `people.resolve` leads there. Guests play friendlies only, so no rating
+  is replayed: if the friend has no rating document, the guest's starter becomes theirs.
+- [x] **One rule shape, `seatSwap()`**, used here and in step 2: exactly one player id that
+  starts `g_` becomes an account's uid, `uids` gains exactly that uid, and nothing else
+  changes (`names` stays: History, Session 6 note 5). Here the writer is `by` and is connected
+  to the uid. In Rack It it checks `playerA`/`playerB`; in the open rule, `players[0..7]`
+  unrolled. Cases first.
+- [x] It reaches every app already on the open rule (Zombie Dice, Around the Clock).
+
+### Step 2 — Seats and the Game QR
+
+- [x] `connect.showQR({ app, game })`: the same screen as My QR with the headline "Join
+  Kenny's match" and **Copy link**. Link `…/rack-it/?g=<matchId>&i=<code>`; `i` is your live
+  code, so the scan makes the friendship first, as today. `handleInvite` reads `?g=`.
+- [x] **A player already in `uids`** (a friend picked at setup) needs no write: the link opens
+  the match. Their Home shows a `.resume` card, "Kenny's match · you're in", from the live
+  matches query they already run. The card is the notification.
+- [x] **A guest's seat.** Rule: a live match is readable (`get`, never `list`) by an account
+  connected to `by`. The join card lists the open guest seats, "Which one are you?", and the
+  choice is a `seatSwap()` written by the joiner, who must be connected to `by`. The starter's
+  phone then stamps `claimedBy` on its guest and offers **That was them** for earlier games.
+  A seat taken mid-match leaves it a friendly: `rated` only ever turns off.
+- [x] Setup's "Who's playing" as frame 8a: chips of recent players and friends, **Show QR**,
+  **Add a guest**. Whoever scans appears as a chip, chosen. The `⋯` sheet in play gains
+  "Invite to this game".
+- [x] **Must refuse:** claiming a seat held by an account; claiming in a match whose starter
+  you aren't connected to; claiming two seats; reading a finished match that way.
+
+### Step 3 — Two phones score one match
+
+- [x] ⚠ **Probe first**, on the emulator and in `?mock`: a `rev` field that every score write
+  must raise by exactly one (rule: `now.rev == was.get('rev', 0) + 1` on a live match's score
+  fields). A phone that was offline, or lost a race, gets its write refused, re-reads, and
+  re-applies its tap if it still makes sense; otherwise it says what it missed ("3 changes
+  while you were away"). Why not plain last-write-wins: Rack It saves match state, so a stale
+  phone's late write would rewind the game. If the probe shows a queued offline write can't be
+  refused cleanly, stop and write it up for the owner.
+- [x] Score writes become patches of what changed, carrying `by` and `at`; the log records
+  `by` for every change. A phone scoring alone and offline still queues and lands in order.
+- [x] **The echo strip** (`.echo`): another phone changed the match in the last five seconds →
+  "Melanie · 7 to Gareth · Undo". Undo undoes their change, as a normal write.
+- [x] **Light presence** (`.presence`): `phones.<uid>.at`, patched on open, on hide and with a
+  score. Avatars under the panels; the sheet says "last seen 3 min ago". A presence write
+  touches only your own `phones` entry and not `rev`.
+- [x] Words as CONNECT §6. Never "sync", "session", "lock", "host" or "client" on screen.
+
+**Done when:** two tabs score one 11-Point-Nine match alternately and the result equals the
+same taps on one phone; a tab held offline for five changes comes back without rewinding
+anything; a solo match is unchanged against the build before.
+
+### Step 4 — A scorer, and both sign
+
+- [x] A match may carry `scorer: <uid>`, someone who isn't playing. `uids` stays the players
+  only, because the ratings rule trusts it. **The scorer is whoever starts the match**: a new
+  create branch where `by` and `scorer` are you, you're not in `uids`, and you're connected to
+  each player. The scorer reads and scores like a player, ends it (`endedBy` is the scorer),
+  and may Withdraw. The scorer never confirms. Their Matches lists what they scored (a second
+  query, `scorer == uid`).
+- [x] The scorer's banner: "Scoring for Kenny and Rolf" (`.livestrip`). The players' phones
+  get the Home card and the full screen, and may tap too.
+- [x] **Both sign.** The rule becomes "every player who didn't end it has confirmed". A
+  player's Confirm on a scorer-ended match adds them to `confirms` (pending stays pending,
+  only that key moves, only your own uid). The last Confirm is today's batch: both ratings and
+  the match to `done`. The rule for `done` and rated: every uid in `uids` other than `endedBy`
+  and the writer is already in `confirms`. Either player's **Not right** makes it a friendly
+  at once. The scorer sees "Waiting for Kenny and Rolf", then "Waiting for Rolf".
+- [x] **Must refuse:** the scorer confirming, or writing a rating; a player confirming twice
+  to stand in for the other; `confirms` naming anyone but the writer; a scorer who is also in
+  `uids`; every route in History Session 6's list, re-run.
+- [x] SPEC §5, §6.1, §7, §9; `KIT.md` (Shared games); install `CONNECT.md` into `shared/`,
+  rewritten to what was built.
+
+**Done when:** in `?mock`, Mel scores a rated match for the owner and Ann; ratings don't move
+after one Confirm and move after the second, in one write; Rebuild then proposes no change.
+Then on three real phones.
+
+✓ in `?mock`, and the rules on the emulator and in the Action (Handover, Session 8). Three real
+phones pending.
+
+---
+
 ## Handover
 
 ### Architecture review, 2026-10-01 (Fable)
@@ -1201,3 +1291,93 @@ What the plan got wrong, or didn't say:
 12. The pack's launcher tile "Ask for a new one" leads nowhere, so it was left out.
 13. Steps 3 to 5 changed `people.js`, `connect.js` and `ui.js` without bumping Bloc 11 and Photo
     Coach: their service workers fetch network-first, so the new files arrive on the next open.
+
+### Session 8, 2026-10-02 (Opus)
+
+Shipped, all live, one push a step, each with its rules: That was them in Rack It 2.13.0, Zombie
+Dice 0.4.0 and Around the Clock 0.9.0 (rules run 37014350018); seats and the Game QR in Rack It
+2.14.0 (37016570746); two phones scoring one match, 2.15.0 (37020126726); a scorer and both
+sign, 2.16.0 (STEP4RUN). `shared/CONNECT.md` is the design as built. The loyalty app landed on
+`main` in parallel twice; both rebases were clean bar one appended-cases conflict in
+`rules-check.mjs`, kept both sides.
+
+Proved:
+
+- Rules: 43 new cases, written first and red on the rules before them, then 162 pass (the
+  loyalty app's 12 included). The mutation check ran in full after steps 3 and 4: every guard
+  has a case that goes red without it (44 new guards). Six of Session 6's "may do" cases now
+  carry a link, as the app's writes do.
+- The probe (`shared/proofs/rev-probe.mjs`), on the emulator with the real SDK: Ann offline taps
+  five times, Ben online taps twice, Ann reconnects. With the plan's counter (`n == was.n + 1`),
+  Ann's writes 1–2 were refused and 3–5 **landed**, rewinding Ben's; with the chain (`was` must
+  be the stored `key`), all five were refused and Ann's phone came back showing Ben's score.
+- `?mock` proofs, all with no page errors, console errors or refusal warnings:
+  - `claim-guest.mjs` (18): Ann claims Dan as Cat from his page; the match, Dan's starter, and
+    on their next open Zombie Dice and Around the Clock follow; names stay; refusals hold.
+  - `rack-it-seats.mjs` (22): the chips, the Game QR from `⋯`, Cat takes Dan's seat, Ann's QR
+    says "Cat joined · lilac side", Ben (a stranger who scans) is connected but finds it full,
+    That was them offered once Ann saves, the Home card, a finished match unreadable that way.
+  - `rack-it-two-phones.mjs` (17): two tabs score one 11-Point-Nine match alternately and it
+    saves the same racks and totals as the same taps on one tab; Cat held offline while Ann
+    makes five changes comes back to "5 changes while you were away" with nothing rewound; a
+    one-tap race puts Cat's tap back; the echo strip's Undo; presence on both phones.
+  - `rack-it-scorer.mjs` (25): Mel scores a rated match for the owner and Ann; no rating moves
+    after Ann's Confirm; the owner's moves both in one write; Rebuild moves no rating and changes
+    no match; Mel can't confirm or stand in, Ann can't confirm twice.
+  - Re-run on each step: `rack-it-same-match.mjs` (a solo match saves the same documents as the
+    build before, bookkeeping fields aside), the Session 6 outsider proof (56, every route in its
+    list), the open-rule proofs for Zombie Dice and Around the Clock.
+- `make verify` green throughout: 41 node tests, smoke on seven apps as owner, stranger and
+  signed out.
+
+Not done: the three real phones (step 4's "Done when"), and the owner and Melanie connecting with
+My QR. ⚠ A phone still on 2.14.0 or older that is mid-match when 2.15.0's rules land has its
+writes refused (they carry no link): it must reopen Rack It, then Resume.
+
+What the plan got wrong, or didn't say:
+
+1. **A `rev` counter can't refuse a queued offline write cleanly.** The probe above: once the
+   server has moved on, a stale phone's later queued writes match the counter by luck. Each
+   write names the link it built on (`rev: { n, key, was }`); the counter stays for counting
+   ("5 changes while you were away").
+2. **The open rule's records key scores by player id** (Zombie Dice `scores`, `seats`; Around the
+   Clock `throws`, `scores`), so a claim there can't leave "nothing else" unchanged. The rules
+   police who's in it (one guest seat to the newcomer, positional, `by` and `names` kept) and let
+   the score maps move, which any player may already do. Rack It's `rackSwap()` does freeze
+   everything else.
+3. **A claim made in one app must reach the others.** The guest is account-wide, so every app
+   rewrites its own records of a claimed guest on its next open (`healClaims`, one rewrite a
+   guest at a time: the claim and the heal raced in the first run).
+4. **Only the starter can show a useful Game QR**: the seat rule asks that the joiner be
+   connected to `by`, and the QR connects the scanner to whoever shows it. The `⋯` shows only on
+   the starter's phone.
+5. **The starter's phone stamps `claimedBy` only on the hold**, not when the seat is taken:
+   `claimedBy` now rewrites the guest's games everywhere, so the starter confirms it.
+6. **Score writes stay one rack record a write**, not field patches. With the chain refusing
+   stale writes, the rack is safe as a unit, and it keeps 11-Point-Nine's documents identical.
+7. **A friend of the starter can get any of their live matches by id.** Session 6's case
+   "reading a match you aren't in" moved from Cat (Ann's friend) to Eve. Ids are random; the Game
+   QR is the only way to one.
+8. **The owner keeps to the chain on a live match** (a match from before 2.8.0 and a seat
+   changing hands aside): the owner is the likeliest scorer, and their stale phone would rewind a
+   game as anyone's would.
+9. **The owner scoring two others now needs both to confirm**, not either: they're its scorer.
+10. **"Rebuild proposes no change"**: a first Rebuild on fresh data still offers to record the
+    starters it took from first matches. The proof checks what matters: no rating moves, no
+    match changes.
+11. **Setup re-picked you** whenever both sides were empty, so you couldn't step out to score.
+    It stops once you've touched a side.
+12. Rack It's top-level-await trap again (2.10.1): signed out, `handleUser(null)` paints before
+    the rest of the script, so the seat-offer state is declared beside `friendMode`.
+13. `rack-it-one-admin.mjs`'s two checks of Zombie Dice and Around the Clock as a member fail on
+    the tree before this session too: Session 7 opened those apps, so "reads its data" is now
+    refused by design. The checks are stale, not fixed here.
+14. Playwright isn't installed in this repo; the proofs ran with `PLAYWRIGHT=` pointing at a copy
+    elsewhere on the machine (`shared/proofs/README.md`).
+15. ⚠ A claimed guest's starter becomes the friend's when they have none, and a guest's starter
+    is whatever its maker typed. Low stakes (the friend's first rated match moves it, and
+    Rebuild remakes it), but it is a number someone else chose.
+
+For Session 9 step 3: the echo strip, presence, `send()`/`linkFields()` and `followLive()` live
+in Rack It's page. Zombie Dice needs them moved to `connect.js` or `ui.js` first; the rules'
+`nextLink()` and `myPhone()` are written for Rack It's match block and want an open-rule twin.

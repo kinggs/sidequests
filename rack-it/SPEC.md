@@ -252,7 +252,9 @@ room, and opening a fold scrolls it into view.
    and guests (eight at most), then **Show QR** (My QR; whoever scans is picked) and **+ Add a
    guest**. A chip fills the empty side, lilac once you're on teal, or takes lilac's place; a
    chosen chip, tapped, steps out. A friend picked here finds the match on their phone's Home
-   (§7).
+   (§7). Step yourself out and pick two others, and you **score it for them** (2.16.0): Start
+   reads "Score it for Kenny and Rolf" (§6.2). In friend mode they must be your friends or
+   guests.
    **Players:** a Teal side and a Lilac side slot, each showing its player's avatar and name, or
    "Pick a player". You're pre-selected on teal. A slot opens the picker (`people.pick`, §8):
    on teal you first, then whoever played lately; on lilac the teal player's recent opponents,
@@ -356,13 +358,32 @@ match** or **Discard**. Saving opens the match's summary; discarding goes to Rat
 - **The opponent's phone** shows a strip above the tabs, in amber: "Kenny 5–3 You · rated" with
   **Confirm** and **Not right**. Tapping the words opens the summary. **The scorer's** reads
   "Waiting for Melanie to confirm" with **Withdraw**. Whoever may confirm is any player in `uids`
-  who didn't end it; the owner, scoring someone else's match, waits for either of them.
+  who didn't end it. A match with a scorer (§6.2) waits for both players.
 - **Confirm** works the result out from the stored racks and the two ratings as they stand now,
   and writes in one batch: both `ratings/` documents (each with `match: <id>`) and the match
   `{ status: "done", zargoBefore, zargoAfter, ratedAt, confirmedBy }`.
 - **Not right** or **Withdraw** writes `{ status: "done", rated: false }` with `declinedBy` or
   `withdrawnBy`. It stands as a friendly.
 - A pending match can't be resumed. ⚠ It never expires (KIT-PLAN Parked).
+
+### 6.2 A scorer, and both sign (2.16.0, KIT-PLAN Session 8 step 4)
+
+- **Whoever starts a match they don't play in scores it**: the match carries `scorer: <uid>`
+  and `by` is them; `uids` stays the two players only, because the ratings rule trusts it. The
+  rules let them start it only connected to each player with an account.
+- The scorer's live screen has a banner over the panels, "Scoring for Kenny and Rolf"
+  (`.livestrip`, 44px, taken from the rack). Nothing else changes for them. They score, end it
+  (`endedBy` is the scorer) and may **Withdraw**; they never confirm.
+- The players find the match on Home and may score it too (§6, Two phones).
+- **Both sign.** A rated match the scorer ended needs **every player who didn't end it** to
+  confirm. The first player's Confirm adds only their own key (`confirms.<uid>: <ms>`) and moves
+  nothing; their strip then says "Waiting for Rolf to confirm" with **Not right**. The last
+  Confirm is §6.1's batch: both ratings and the match, in one write. Either player's **Not
+  right** makes it a friendly at once. The players' strip reads "Kenny 5–3 You · rated · scored
+  by Melanie". The scorer's reads "Waiting for Kenny and Rolf to confirm", then "Waiting for
+  Rolf".
+- The scorer's Matches lists what they scored: friend mode runs a second query
+  (`where: ["scorer", "==", <uid>]`) beside its `uids` one.
 - A match started before 2.9.0 and resumed on 2.9.0 has no `rated` field: it saves as rated when
   both players have an account, otherwise as a friendly.
 
@@ -629,6 +650,8 @@ matches/<id>
   endedBy: uid                     // a rated match: who saved it, so the other player confirms
   ratedAt, confirmedBy: uid        // a confirmed rated match: when, and who
   declinedBy | withdrawnBy: uid    // a rated match that stands as a friendly instead
+  scorer: uid                      // someone scoring it who isn't playing (2.16.0); never in uids
+  confirms: { "<uid>": <ms> }      // both sign: players who confirmed a scorer's match, one key each
   zargoBefore: { a, b }, zargoAfter: { a, b } | null   // a rated match: the ratings at confirmation
                                    // (before 2.9.0, at the start); a friendly: the start's, after null
   racks: {
@@ -790,6 +813,7 @@ account, so a static app can't upload results.
 | 2.9.0 | Rated matches and confirming (KIT-PLAN Session 5). Setup gains a **Rated** tick, off by default, offered when both players have an account. A friendly moves no rating; a rated match moves both only once the opponent confirms on their own phone, worked out from the ratings at that moment, in one batch. Not right or Withdraw leaves it a friendly. Rebuild replays rated matches by `ratedAt`, else `endedAt`; a match with no `rated` field is rated. For the social leagues, where a rating has to be agreed by both players. |
 | 2.10.0 | Outsiders play in Rack It (KIT-PLAN Session 6): friend mode instead of the outsider screen. The rules open the matches an account plays in, starting one against a connection or a guest, and a rating only in the batch that confirms a rated match the other player ended. Ratings are read by id, matches with one `uids` query. A household member can no longer turn a friendly into a rated match. For pool friends who aren't family. |
 | 2.11.0 | One admin, everyone else a player (KIT-PLAN Session 6b). The owner sees and rewrites every match; everyone else, a household member included, runs friend mode and reads only the matches they play in. The owner's phone backfills `uids` and `names` on matches from before 2.8.0, so the players keep them. The "Before you play" note goes: there's nothing left to warn about. Owner's call, 2026-10-02: "a family member is just another member". Other apps keep the household. |
+| 2.16.0 | A scorer, and both sign (KIT-PLAN Session 8 step 4): whoever starts a match they don't play in scores it, and a rated match then needs both players' Confirm; the first adds only their own key, the last is the batch. `uids` stays the players, so the ratings rule is untouched. The owner scoring someone else's match now waits for both, not either. |
 | 2.15.0 | Two phones score one match (KIT-PLAN Session 8 step 3): every write is a link in a chain the rules check, so a stale phone is refused rather than rewinding the game; the probe showed a plain counter lets late queued writes land. The echo strip, Undo of the other phone's change, a lost tap put back when it still makes sense, and light presence (no heartbeat: six tables of three phones for three hours would be most of the free write quota). |
 | 2.14.0 | Seats and the Game QR (KIT-PLAN Session 8 step 2): Who's playing is chips with Show QR and Add a guest; the live screen's ⋯ shows a Game QR; a scan connects you to the starter, then you take the guest seat that was you. A friend picked at setup finds the match as a card on Home. A live match is readable by the starter's friends, by id only, so the QR link is enough to join without opening anyone's match list. |
 | 2.13.0 | That was them (KIT-PLAN Session 8 step 1): a guest who has since joined is claimed from their page, and the matches you started with them become theirs, through one rule shape (`seatSwap`) that Game QR seats will use too. A claimed guest's starter becomes the friend's only when the friend has no rating, so nothing earned is overwritten. |

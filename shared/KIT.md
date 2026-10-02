@@ -18,7 +18,7 @@ Status and build order: `shared/KIT-PLAN.md`. Finished sessions: `shared/KIT-HIS
 | **Connect** | `connect.js` | My QR, scan to connect, friends list with note, met and tags | Sign-in | ✓ |
 | **Players** | `people.js` | Pick who's playing: a friend, a QR scan, or a guest | Connect | ✓ in Rack It; other apps Sessions 7 and 9 |
 | **UI** | `ui.js` | Tap, hold-to-confirm, toast, bottom sheet, row menu, the account sheet (`DESIGN.md`) | Theme | Session 7 |
-| **Shared games** | `connect.js` | A Game QR, seats, one game on several phones, a scorer (`KIT-PLAN.md` Session 8) | Players | Session 8 |
+| **Shared games** | `connect.js`, the rules; the rest in Rack It | A Game QR, guest seats, one game on several phones, a scorer and both sign (`CONNECT.md`) | Players | ✓ in Rack It (2.16.0); Zombie Dice Session 9 |
 | **Household** | `cloud.js` | The `/members` allowlist and owner role | Sign-in | ✓ |
 
 ## Sign-in and accounts
@@ -100,6 +100,22 @@ household only, so an app that hasn't adopted Players sees no change. `people.ge
 Adding a household person (`people.edit(null)`) asks only for a name, and nothing in Players
 puts anyone on `/members`: Invites does that.
 
+## Shared games
+
+One game on several phones. The design and what was built: `shared/CONNECT.md`. In short:
+
+- **Game QR**: `connect.showQR({ app, game: { id, title } })`, the My QR screen headed "Join
+  Kenny's match", link `…/<app>/?g=<id>&i=<code>`. The scan makes the friendship first, then
+  `connect.handleInvite`'s `onDone({ …, game })` hands the app the game. Only the starter shows
+  it: a seat is taken only by someone connected to the starter.
+- **Seats**: a guest's seat becomes the joiner's uid (`seatSwap()` in the rules); `names` keeps
+  the name. **That was them** gives a guest's other games to the account (`people.claim`).
+- **Several phones scoring**: every write is the next link of a chain (`rev`), so a stale
+  phone's write is refused, never rewinds the game. The echo strip says what another phone just
+  did, with Undo; light presence (`phones.<uid>.at`) says when each was last seen.
+- **A scorer**: whoever starts a game they don't play in; never in `uids`, never confirms. A
+  rated result then needs every player who didn't end it to confirm (`confirms`).
+
 ## Privacy
 
 | Data | Who can read it |
@@ -108,6 +124,7 @@ puts anyone on `/members`: Invites does that.
 | The name on your QR | Anyone holding the QR within its 24 hours, so the welcome screen can say who it's from |
 | That two people are friends | Those two only |
 | Your notes, tags, met, guests | You only. Your friends can't see your friends. |
+| A live Rack It match | Also anyone connected to its starter, one match by id (the Game QR), never a list. A match's scorer reads it too. |
 | An app's records | The players in them and the admin. In Rack It (from 2.11.0) that's all: the owner sees every match, and everyone else, household members included, only the records with their uid in `uids`. Apps that haven't adopted Players: the household sees all of them, until the app is visited (`KIT-PLAN.md` Sessions 7 and 9). |
 | A Rack It rating | Anyone signed in who has that player's id, one at a time. Only the owner can list them. |
 | A Sessions Loyalty card and its entries | That member, and the club's staff. The staff note on a member: staff only. The club's rewards and ways to earn: anyone signed in. (`sessions-loyalty/SPEC.md` §6) |

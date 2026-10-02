@@ -161,7 +161,8 @@ for (const [name, fn] of Object.entries(refused))
 ok(await C(mel, c => c.list("matches", { where: ["uids", "array-contains", "mock-mel"] }).then(r => r.length)) === 2, "mel lists her own two with the uids filter");
 await mel.evaluate(() => { window.__mockQueries = window.__appQueries; });
 const qs = (await mel.evaluate(() => window.__mockQueries)).filter(q => q.col === "sidequests/rack-it/matches");
-ok(qs.length > 0 && qs.every(q => JSON.stringify(q.opts.where) === '["uids","array-contains","mock-mel"]' && !q.opts.orderBy), `mel's phone ran ${qs.length} matches queries, every one filtered by her uid`);
+// Since 2.16.0 friend mode also lists the matches it scored for others (scorer == her uid).
+ok(qs.length > 0 && qs.every(q => ['["uids","array-contains","mock-mel"]', '["scorer","==","mock-mel"]'].includes(JSON.stringify(q.opts.where)) && !q.opts.orderBy), `mel's phone ran ${qs.length} matches queries, every one filtered by her uid`);
 
 // ---- C. Rack It signed out ----
 await C(owner, c => c.signOut());
