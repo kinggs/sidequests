@@ -26,6 +26,8 @@
 // - friends: your Connect friends (cloud.account.watchFriends), named and pictured by their
 //   profile. An account's id is its uid.
 // - guests: someone with no phone, a typed name private to you (profiles/<you>/guests/g_<id>).
+// - you, when you aren't household: your own account, named and pictured by your profile, so
+//   an outsider can pick themselves (KIT-PLAN.md Session 6). meId() is then your uid.
 // A household person who has claimed is also an account: the household's name and colour win.
 // Anyone with no colour gets one hashed from their id.
 //
@@ -60,6 +62,7 @@ const lower = x => String(x || "").trim().toLowerCase();
 let all = {};             // id -> person, pointers and removed people included
 let friends = {};         // uid -> { name, photo, since, named }: your Connect friends
 let guests = {};          // g_<id> -> { name, createdAt, claimedBy }: yours
+let self = null;          // { name, photo }: you, from your profile, when you aren't household
 let household = true;     // false once cloud.role() says this account isn't on /members
 let offs = [];            // the friends and guests listeners
 let runs = 0;             // bumped by stop(), so a late role() answer can't start a stale watch
@@ -134,6 +137,7 @@ function get(id){
   }
   const r = resolve(id);
   if (!r) return null;
+  if (self && r === myUid()) return { id: r, uid: r, name: self.name, photo: self.photo, photoURL: self.photo, colour: "", createdAt: 0, kind: "account" };
   const f = friends[r];
   if (f) return { id: r, uid: r, name: f.name, photo: f.photo, photoURL: f.photo, colour: "", createdAt: f.since || 0, kind: "account" };
   const g = guests[r];
@@ -152,7 +156,7 @@ const nameOf = (id, fallback = "Someone") => { const p = get(id); return (p && p
 function players(){
   const out = active().map(p => ({ ...p, kind: "household", photo: p.photoURL || "" }));
   const seen = new Set(out.map(p => p.id));
-  for (const id of [...Object.keys(friends), ...Object.keys(guests)]){
+  for (const id of [...(self ? [myUid()] : []), ...Object.keys(friends), ...Object.keys(guests)]){
     const r = resolve(id), p = get(r);
     if (seen.has(r) || !p || p.deleted || p.claimedBy) continue;
     seen.add(r);
@@ -181,7 +185,7 @@ function meDoc(){
   const p = list.find(q => q.uid && q.uid === myUid()) || list.find(mine);
   return p ? p.id : null;
 }
-const meId = () => { const d = meDoc(); return d ? resolve(d) : null; };
+const meId = () => { const d = meDoc(); return d ? resolve(d) : self ? myUid() : null; };
 const isMe = id => mine(get(id));
 
 // ---- writing ----
@@ -304,6 +308,7 @@ function linked(id, added){
   notify();
   if (opts.onMe) setTimeout(() => { try { opts.onMe({ id: resolve(id), name: nameOf(id), added }); } catch {} }, 0);
 }
+const googleFirst = u => String((u && (u.displayName || String(u.email || "").split("@")[0])) || "You").trim();
 function addMe(){
   const u = cloud.user;
   const name = (u.displayName || myEmail().split("@")[0]).trim().split(/\s+/)[0].slice(0, 24);
@@ -369,7 +374,7 @@ function askWhoIAm(){
 // Only once the server has answered (so nobody gets added twice from a stale cache) and
 // the app's own old list has loaded (so it's adopted before anyone is added fresh).
 function sync(){
-  if (!confirmed || !cloud.user) return;
+  if (!confirmed || !cloud.user || !household) return;   // an outsider never joins the household list
   let legacy = null;
   if (opts.legacy){ legacy = opts.legacy(); if (legacy == null) return; }
   adopt(legacy);
@@ -388,7 +393,16 @@ function start(o = {}){
   // run) tries the list anyway, as before.
   cloud.role().catch(e => { console.warn("[people] role", e); return "unknown"; }).then(role => {
     if (run !== runs) return;
-    if (role === null){ household = false; confirmed = true; notify(); return; }
+    if (role === null){
+      household = false; confirmed = true;
+      const u = cloud.user, fallback = googleFirst(u);
+      self = { name: fallback, photo: (u && u.photoURL) || "" };
+      if (cloud.account && cloud.account.watchMe)
+        offs.push(cloud.account.watchMe(p => { self = { name: (p && p.name) || fallback, photo: (p && p.photo) || "" }; notify(); },
+          e => console.warn("[people] me", e)));
+      notify();
+      return;
+    }
     unsub = cloud.shared.watchList(COL, (rows, meta) => {
       const next = {};
       for (const { id, _updatedAt, ...p } of rows) next[id] = p;
@@ -414,7 +428,7 @@ function stop(){
   if (unsub){ try { unsub(); } catch {} }
   for (const off of offs){ try { off(); } catch {} }
   unsub = null; offs = []; all = {}; seen = ""; confirmed = false;
-  friends = {}; guests = {}; household = true;
+  friends = {}; guests = {}; household = true; self = null;
 }
 // Friends come as uids; each one's name and photo are read once from their profile.
 function onFriends(list){
