@@ -14,7 +14,11 @@
 //                                         // all or nothing: save merges, patch updates, delete deletes
 //   await cloud.list("sessions");
 //   cloud.watchList("sessions", rows => ..., { orderBy: "at" }, onError);
+//   cloud.watchList("matches", rows => ..., { where: ["uids", "array-contains", uid] }, onError);
 //   A refused or broken listener calls onError(e) once and stops; without one it warns.
+//   `where` never goes with `orderBy`: together they need a composite index, which needs a
+//   deploy this repo doesn't do. Sort on the phone. An outsider's list must carry the `where`
+//   its rule checks (Rack It's matches: their uid in `uids`), or Firestore refuses the query.
 //
 // Add ?mock to an app's URL to run it against shared/cloud-memory.js instead: no Firebase,
 // a fake signed-in member, data kept in this browser. That's how sessions test an app.
@@ -131,6 +135,18 @@ async function ensureProfile(u) {
   } catch (e) { console.warn("[cloud.account] profile", e); }
 }
 
+// A collection with list()'s options: where: [field, op, value], or orderBy (desc unless
+// desc: false), and limit.
+function listQuery(collectionPath, { where, orderBy, desc = true, limit } = {}) {
+  if (where && orderBy) throw new Error("cloud.list: where with orderBy needs a composite index; sort on the phone");
+  const clauses = [];
+  if (where) clauses.push(fs.where(...where));
+  if (orderBy) clauses.push(fs.orderBy(orderBy, desc ? "desc" : "asc"));
+  if (limit) clauses.push(fs.limit(limit));
+  const col = colRef(collectionPath);
+  return clauses.length ? fs.query(col, ...clauses) : col;
+}
+
 // A listener's error: the app's onError, or a warning naming the path.
 function listenError(path, onError) {
   return e => onError ? onError(e) : console.warn("[cloud] listener stopped:", path, e && e.code, e);
@@ -230,25 +246,16 @@ export const cloud = {
     return fs.onSnapshot(ref(path), snap => cb(snap.exists() ? snap.data() : null), listenError(path, onError));
   },
 
-  async list(collectionPath, { orderBy, desc = true, limit } = {}) {
-    let q = colRef(collectionPath);
-    const clauses = [];
-    if (orderBy) clauses.push(fs.orderBy(orderBy, desc ? "desc" : "asc"));
-    if (limit) clauses.push(fs.limit(limit));
-    if (clauses.length) q = fs.query(q, ...clauses);
-    const snap = await fs.getDocs(q);
+  async list(collectionPath, opts = {}) {
+    const snap = await fs.getDocs(listQuery(collectionPath, opts));
     return snap.docs.map(d => ({ id: d.id, ...d.data() }));
   },
 
   // Live updates for a whole collection. Same options as list(), onError as watch().
   // Returns an unsubscribe function.
-  watchList(collectionPath, cb, { orderBy, desc = true, limit } = {}, onError) {
-    let q = colRef(collectionPath);
-    const clauses = [];
-    if (orderBy) clauses.push(fs.orderBy(orderBy, desc ? "desc" : "asc"));
-    if (limit) clauses.push(fs.limit(limit));
-    if (clauses.length) q = fs.query(q, ...clauses);
-    return fs.onSnapshot(q, snap => cb(snap.docs.map(d => ({ id: d.id, ...d.data() }))), listenError(collectionPath, onError));
+  watchList(collectionPath, cb, opts = {}, onError) {
+    return fs.onSnapshot(listQuery(collectionPath, opts || {}),
+      snap => cb(snap.docs.map(d => ({ id: d.id, ...d.data() }))), listenError(collectionPath, onError));
   },
 
   newId() {

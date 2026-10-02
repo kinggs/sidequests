@@ -20,11 +20,14 @@
 //
 // Permissions model the tiers, not the field rules (ACCESS below): a signed-in user on
 // /members reaches what the household reaches, anyone else gets permission-denied, as in
-// production. Owner-only and field-level rules aren't modelled; role only changes what an
-// app shows, so check those against shared/firestore.rules (and shared/rules-check.mjs).
+// production. Owner-only and field-level rules aren't modelled, except on Rack It's matches
+// (below); elsewhere role only changes what an app shows, so check those against
+// shared/firestore.rules (and shared/rules-check.mjs).
 // The account paths are modelled more closely, since outsiders live there: your own
 // private/friends/guests only, a pair only by one of its two, and a friendship only with
-// the other side's live code.
+// the other side's live code. So is Rack It's outsider block (Session 6): a match read,
+// started and scored by the players in its `uids`, a list only with the uids filter, a rating
+// got by id and moved only in the batch that confirms, as in shared/firestore.rules.
 //
 // Two tabs test a whole QR scan: rack-it/?mock on My QR, then
 // rack-it/?mock&as=waiter&i=<code> in another tab. Times are milliseconds here.
@@ -50,6 +53,15 @@ function userCalled(name){
 // for the account paths. `data` is the document being written, or null for a delete.
 const ACCESS = [
   { path: /^members(\/|$)/,    read: "household", write: "household" },
+  // Rack It for outsiders (Session 6). The household's own field rules aren't modelled here.
+  { path: /^sidequests\/rack-it\/state\/main$/, read: "account", write: "household" },
+  { path: /^sidequests\/rack-it\/matches$/, read: (m, u, d, was, ctx) => isHousehold(u) || uidsFilter(ctx, u) },
+  { path: /^sidequests\/rack-it\/matches\/([^/]+)$/,
+    read: (m, u, d, was) => isHousehold(u) || inUids(was, u),
+    write: (m, u, d, was) => !was ? !!d && (isHousehold(u) || outsiderStarts(u, d))
+      : (!!d && inUids(was, u) && playerScores(u, d, was)) || householdScores(u, d, was) },
+  { path: /^sidequests\/rack-it\/ratings\/([^/]+)$/, read: "account",
+    write: (m, u, d, was, ctx) => isHousehold(u) || (!!d && (confirming(m[1], d, ctx.after) || (!was && !!store.docs[`profiles/${u.uid}/guests/${m[1]}`]))) },
   { path: /^sidequests(\/|$)/, read: "household", write: "household" },
   // Accounts (Session 1). Yours alone: private, friends, guests, as documents or as a list.
   { path: /^profiles\/([^/]+)\/(private|friends|guests)(\/[^/]+)?$/, read: (m, u) => m[1] === u.uid, write: (m, u) => m[1] === u.uid },
@@ -63,6 +75,52 @@ const ACCESS = [
     read: (m, u, d, was) => was ? was.uids.includes(u.uid) : m[1].split("_").includes(u.uid),
     write: (m, u, d, was) => d ? !was && pairOk(m[1], u, d) : !!was && was.uids.includes(u.uid) },
 ];
+// Rack It's outsider rules, as in shared/firestore.rules (Session 6). A match with no `rated`
+// field is rated.
+const isHousehold = u => tierOf(u) === "household";
+const inUids = (doc, u) => !!doc && Array.isArray(doc.uids) && doc.uids.includes(u.uid);
+const rated = doc => (doc.rated === undefined ? true : doc.rated) === true;
+const uidsFilter = (ctx, u) => !!ctx.where && ctx.where[0] === "uids" && ctx.where[1] === "array-contains" && ctx.where[2] === u.uid;
+function same(a, b){
+  if (isMap(a) && isMap(b)) return [...new Set([...Object.keys(a), ...Object.keys(b)])].every(k => same(a[k], b[k]));
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+const changed = (was, now) => [...new Set([...Object.keys(was), ...Object.keys(now)])].filter(k => !same(was[k], now[k]));
+function outsiderStarts(u, d){
+  const uids = Array.isArray(d.uids) ? d.uids : [];
+  return d.by === u.uid && uids.includes(u.uid) && d.status === "live"
+    && !["endedBy", "confirmedBy", "ratedAt", "declinedBy", "withdrawnBy"].some(k => k in d)
+    && (uids.length === 1 || (uids.length === 2 && !!store.docs["friendships/" + [...uids].sort().join("_")]));
+}
+const CONFIRM_KEYS = ["status", "rated", "zargoBefore", "zargoAfter", "ratedAt", "confirmedBy", "declinedBy", "withdrawnBy", "_updatedAt"];
+function playerScores(u, now, was){
+  const keys = changed(was, now);
+  if (["uids", "by", "playerA", "playerB", "names"].some(k => keys.includes(k))) return false;
+  if (rated(now) && !rated(was)) return false;
+  if (was.status === "live"){
+    const by = now.endedBy ?? null;
+    return ["live", "pending", "done", "discarded"].includes(now.status)
+      && (now.status === "pending" ? by === u.uid : by === (was.endedBy ?? null))
+      && !(now.status === "done" && rated(now));
+  }
+  return was.status === "pending" && now.status === "done" && keys.every(k => CONFIRM_KEYS.includes(k))
+    && (!rated(now) || u.uid !== (was.endedBy ?? u.uid));
+}
+// The household's own match rule: the owner rewrites or deletes any match; a member changes
+// one that isn't finished, and never turns a friendly into a rated match.
+function householdScores(u, d, was){
+  if (!isHousehold(u)) return false;
+  if ((store.docs["members/" + String(u.email || "").toLowerCase()] || {}).role === "owner") return true;
+  return !!d && was.status !== "done" && (!rated(d) || rated(was));
+}
+// A rating moves only in the batch that confirms a rated match: pending before, done and
+// rated after (`after` is the store as the whole batch leaves it), the rating a player in it.
+function confirming(pid, d, after){
+  const path = "sidequests/rack-it/matches/" + d.match, was = store.docs[path], now = after && after[path];
+  return !!d.match && !!was && !!now && was.status === "pending" && now.status === "done" && rated(now)
+    && Array.isArray(now.uids) && now.uids.includes(pid);
+}
+
 // The friendship create rule: one of the two, carrying the other's live code.
 function pairOk(pair, u, d){
   const inv = store.docs["invites/" + d.via];
@@ -112,11 +170,21 @@ function colPath(path, base){
 const appBase = () => { if (!appId) throw new Error("cloud.init(appId) must be called first"); return ["sidequests", appId]; };
 const SHARED = ["sidequests", "_shared"];
 
-function rowsOf(col, { orderBy, desc = true, limit } = {}){
+// where: [field, op, value], op "==" or "array-contains". Like cloud.js, never with orderBy.
+// A test that sets window.__mockQueries = [] before the app loads gets every list and
+// watchList pushed onto it as { col, opts }.
+function logQuery(col, opts){ try { if (globalThis.__mockQueries) globalThis.__mockQueries.push({ col, opts: clone(opts || {}) }); } catch {} }
+function rowsOf(col, { where, orderBy, desc = true, limit } = {}){
+  if (where && orderBy) throw new Error("cloud.list: where with orderBy needs a composite index; sort on the phone");
   const prefix = col + "/";
   let rows = Object.entries(store.docs)
     .filter(([p]) => p.startsWith(prefix) && !p.slice(prefix.length).includes("/"))
     .map(([p, d]) => ({ id: p.slice(prefix.length), ...clone(d) }));
+  if (where) {
+    const [f, op, v] = where;
+    if (op !== "==" && op !== "array-contains") throw new Error("cloud-memory: where supports == and array-contains, not " + op);
+    rows = rows.filter(r => op === "==" ? same(r[f], v) : Array.isArray(r[f]) && r[f].some(x => same(x, v)));
+  }
   if (orderBy) {
     rows = rows.filter(r => r[orderBy] !== undefined);   // Firestore drops docs missing the field
     rows.sort((x, y) => (x[orderBy] < y[orderBy] ? -1 : x[orderBy] > y[orderBy] ? 1 : 0) * (desc ? -1 : 1));
@@ -130,16 +198,18 @@ function tierOf(user){
   if (!user) return null;
   return store.docs["members/" + String(user.email || "").toLowerCase()] ? "household" : "account";
 }
-function allowed(op, full, data = null){
+// ctx: { where } for a list, { after } for a write: the store as the write (or the whole batch)
+// leaves it, which is what the rules' getAfter() reads.
+function allowed(op, full, data = null, ctx = {}){
   const row = ACCESS.find(r => r.path.test(full));
   const need = row && row[op];
   if (need === "anyone") return true;
   const tier = tierOf(currentUser);
   if (!tier || !need) return false;
-  if (typeof need === "function") return !!need(full.match(row.path), currentUser, data, store.docs[full] || null);
+  if (typeof need === "function") return !!need(full.match(row.path), currentUser, data, store.docs[full] || null, ctx);
   return need === "account" || (need === "household" && tier === "household");
 }
-function check(op, full){ read(); if (!allowed(op, full)) throw denied(); }
+function check(op, full, ctx){ read(); if (!allowed(op, full, null, ctx)) throw denied(); }
 
 function notify(){
   // Async, like onSnapshot: after the write has returned.
@@ -147,7 +217,7 @@ function notify(){
 }
 function write(full, data){
   read();
-  if (!allowed("write", full, data)) return Promise.reject(denied());
+  if (!allowed("write", full, data, { after: { ...store.docs, [full]: data } })) return Promise.reject(denied());
   if (data === null) delete store.docs[full]; else store.docs[full] = data;
   persist();
   notify();
@@ -155,9 +225,9 @@ function write(full, data){
 }
 // A listener the rules refuse never fires: Firestore reports it once and ends it, to the
 // onError the app passed, or (like cloud.js) as a warning.
-function subscribe(fn, full, onError){
+function subscribe(fn, full, onError, ctx){
   read();
-  if (full && !allowed("read", full)) {
+  if (full && !allowed("read", full, null, ctx)) {
     setTimeout(() => {
       const e = denied();
       if (onError) onError(e);
@@ -186,8 +256,9 @@ function saveTo(full, data){
 function patchTo(full, fields){
   noUndefined(fields, full);
   read();
-  if (!allowed("write", full)) return Promise.reject(denied());
-  if (!store.docs[full]) return Promise.reject(Object.assign(new Error("No document to update: " + full), { code: "not-found" }));
+  // The rules see the patched document (write() checks it); a missing one is refused to anyone
+  // who couldn't read it, as Firestore does, and is not-found to anyone who could.
+  if (!store.docs[full]) return Promise.reject(allowed("read", full) ? Object.assign(new Error("No document to update: " + full), { code: "not-found" }) : denied());
   const doc = clone(store.docs[full]);
   for (const [k, v] of Object.entries({ ...fields, _updatedAt: Date.now() })) {
     const keys = k.split(".");
@@ -422,17 +493,17 @@ export const memory = {
     return write(full, doc);
   },
   delete(path){ return write(docPath(path, appBase()), null); },
-  // All or nothing, like a Firestore batch: every op is checked against the rules and the
-  // patches' documents first, then all land in one write, so another tab sees one change.
+  // All or nothing, like a Firestore batch: the patches' documents are checked first, then every
+  // write against the rules, then all land in one write, so another tab sees one change.
   batch(ops){
     read();
-    const next = clone(store.docs), at = Date.now();
+    const next = clone(store.docs), at = Date.now(), touched = [];
     for (const op of ops){
       const path = op.save || op.patch || op.delete;
       if (!path) return Promise.reject(new Error("cloud.batch: an op needs save, patch or delete"));
       const full = docPath(path, appBase());
+      touched.push(full);
       if (op.delete){
-        if (!allowed("write", full, null)) return Promise.reject(denied());
         delete next[full];
         continue;
       }
@@ -449,9 +520,10 @@ export const memory = {
           o[keys[keys.length - 1]] = clone(v);
         }
       }
-      if (!allowed("write", full, doc)) return Promise.reject(denied());
       next[full] = doc;
     }
+    // Each write against the store as it was and as the whole batch leaves it (getAfter).
+    for (const full of touched) if (!allowed("write", full, next[full] || null, { after: next })) return Promise.reject(denied());
     store.docs = next;
     persist();
     notify();
@@ -467,10 +539,13 @@ export const memory = {
       cb(clone(doc));
     }, full, onError);
   },
-  async list(collectionPath, opts){ const col = colPath(collectionPath, appBase()); check("read", col); return rowsOf(col, opts); },
+  async list(collectionPath, opts = {}){ const col = colPath(collectionPath, appBase()); logQuery(col, opts); check("read", col, { where: opts.where }); return rowsOf(col, opts); },
   watchList(collectionPath, cb, opts, onError){
     const col = colPath(collectionPath, appBase());
-    return subscribe(() => cb(rowsOf(col, opts)), col, onError);
+    opts = opts || {};
+    logQuery(col, opts);
+    rowsOf(col, opts);   // a bad query throws here, as Firestore's does
+    return subscribe(() => cb(rowsOf(col, opts)), col, onError, { where: opts.where });
   },
   newId,
 
