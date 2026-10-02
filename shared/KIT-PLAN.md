@@ -667,7 +667,15 @@ Proved:
   and deletes the old one, Remove empties both lists.
 - `rack-it/?mock&as=stranger` shows the outsider screen; Sign out returns to sign-in.
 
-Not done: **the real-phone test** with a non-member Google account (pending the owner).
+Real phones, 2026-10-02 (owner): the basics work, and a second Google account of the
+owner's, not on `/members`, connected. One fault: on Play the tab bar sat below the screen, so
+More was unreachable. Reproduced in Chromium by making the page taller than the screen (the tab
+bar at 995–1055 on an 844px screen); fixed in 2.5.1 by pinning the page with `position: fixed`
+instead of `100dvh`. ⚠ The cause on the phone is a guess (a stale `dvh` after My QR's
+fullscreen); the owner confirms on the phone. Still to report: which runs were the installed app
+and which a plain browser, whether redirect sign-in looped, and yesterday's code being refused.
+To rerun the scan, both sides use Friends → tap the row → Remove (two taps); a code still in its
+24 hours connects again. Deleting the test account entirely is Session 2.
 A scored 11-Point-Nine match wasn't replayed by hand; no scoring code changed and the Zargo
 tests pass.
 
