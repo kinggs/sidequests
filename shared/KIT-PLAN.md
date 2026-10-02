@@ -722,8 +722,8 @@ Proved in `?mock`, at 390×844 and 360×640, no console errors:
 - Rules: three cases pin down the delete path and the photo limit; no rule changed. Run
   36978336900: 39 pass, then deployed. `node --test` 25 pass; smoke green.
 
-Not done: **"survive a reload on another phone"** and a real delete need the owner's phones.
-The test account from Session 1 is the one to delete: Profile → hold → DELETE.
+Real phones, 2026-10-02: the owner checked 2.6.0 on the phones and reported "looks good".
+Which steps that covered (the photo on the other phone, the real delete) wasn't itemised.
 
 What the plan got wrong, or didn't say:
 
