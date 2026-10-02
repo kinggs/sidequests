@@ -5,6 +5,8 @@
 //   connect.handleInvite({ app: "rack-it", appName: "Rack It", onDone }); // first, before the app's own start
 //   connect.showQR({ app: "rack-it" });               // My QR
 //   connect.showQR({ app, onFriend: uid => …, onClose }) // …and who scanned it (people.pick's Scan)
+//   const qr = connect.showQR({ app, game: { id, title } })  // a Game QR: "Join Kenny's match", ?g=<id>&i=<code>
+//   qr.say("Rolf joined · lilac side"); qr()             // …a line under it, from the app watching its match; close
 //   connect.showFriends();                            // Friends: each one's card (note, met, tags), Remove
 //   connect.showProfile({ onClose });                 // your name and photo; Delete my account
 //   connect.avatar(uid, 36)                           // <span>: their photo in a neutral ring, or their initial
@@ -21,21 +23,25 @@ import { ui } from "./ui.js";
 import qrcode from "./vendor/qrcode.js";
 
 const KEY = "connect.invite";   // the scanned code, kept through the Google sign-in redirect
+const GAME = "connect.game";    // a Game QR's match id, kept beside it
 
 // Before anything else: save the code and take it out of the address bar, so a reload or a
 // shared screenshot doesn't carry it, and the sign-in redirect can't lose it.
 (function keepCode(){
   try {
     const url = new URL(location.href);
-    const code = url.searchParams.get("i");
+    const code = url.searchParams.get("i"), game = url.searchParams.get("g");
     if (code === null) return;
     if (code) localStorage.setItem(KEY, code);
+    if (game) localStorage.setItem(GAME, game); else localStorage.removeItem(GAME);
     url.searchParams.delete("i");
+    url.searchParams.delete("g");
     history.replaceState(history.state, "", url.toString().replace("mock=&", "mock&").replace(/mock=$/, "mock"));
   } catch {}
 })();
 const savedCode = () => { try { return localStorage.getItem(KEY) || ""; } catch { return ""; } };
-const forget = () => { try { localStorage.removeItem(KEY); } catch {} };
+const savedGame = () => { try { return localStorage.getItem(GAME) || ""; } catch { return ""; } };
+const forget = () => { try { localStorage.removeItem(KEY); localStorage.removeItem(GAME); } catch {} };
 
 const tap = ui.tap;
 
@@ -120,14 +126,16 @@ function avatar(uid, size = 36, known = null){
 
 // ---- arriving through a QR ----
 let inviteDone = false;
-// appName is what the signed-out card calls the app the QR was opened in.
+// appName is what the signed-out card calls the app the QR was opened in. A Game QR's scan ends
+// as soon as the friendship is made (or was already there): onDone({ uid, name, game }) and the
+// app shows the match.
 function handleInvite({ app = "", appName = "", onDone } = {}){
-  const code = savedCode();
+  const code = savedCode(), game = savedGame();
   if (!code || inviteDone) return false;
   inviteDone = true;
   const ov = overlay(`<div class="cn-mid"></div>`);
   const mid = ov.querySelector(".cn-mid");
-  const finish = result => { forget(); ov.remove(); off(); if (onDone) try { onDone(result); } catch {} };
+  const finish = result => { forget(); ov.remove(); off(); if (onDone) try { onDone(result && game ? { ...result, game } : result); } catch {} };
   let busy = false;
   const off = (() => {
     // Signing in on this card brings the user back here, so connect then.
@@ -161,7 +169,9 @@ function handleInvite({ app = "", appName = "", onDone } = {}){
       if (!cloud.user){
         const inv = await cloud.account.lookupInvite(code);
         if (!inv) return dead();
-        card(`<h2>Connect with ${esc(inv.name)}</h2>
+        card(game ? `<h2>Join ${esc(inv.name)}'s match</h2>
+          <p class="cn-dim">Sign in${appName ? ` to ${esc(appName)}` : ""}, and you'll join the match and each other's Friends.</p>`
+          : `<h2>Connect with ${esc(inv.name)}</h2>
           <p class="cn-dim">${appName ? `Sign in to ${esc(appName)}, and you'll be in each other's Friends.`
             : "Sign in, and you'll be in each other's Friends."}</p>`,
           [["Sign in with Google", "primary cn-big", () => cloud.signIn().catch(e => trouble(e))],
@@ -173,6 +183,7 @@ function handleInvite({ app = "", appName = "", onDone } = {}){
       if (!r) return dead();
       forget();
       if (!r.self && !r.already) stampPlace(r.uid);
+      if (game) return finish(r);
       if (r.self) return card(`<h2>That's your own QR.</h2><p class="cn-dim">Show it to someone else to connect.</p>`,
         [["OK", "primary cn-big", () => finish(r)]]);
       card(`<h2>${r.already ? "You're already connected with" : "You're connected with"} ${esc(r.name)}</h2>
@@ -198,23 +209,27 @@ function qrSvg(text){
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${n + pad * 2} ${n + pad * 2}" shape-rendering="crispEdges" role="img" aria-label="QR code">
     <path fill="#000" d="${d}"/></svg>`;
 }
-function linkFor(app, code){
+function linkFor(app, code, game = ""){
   const url = new URL(`../${app}/`, import.meta.url);
   if (cloud.mock) url.search = "mock";   // so a test tab opens the fake cloud too
+  if (game) url.searchParams.set("g", game);
   url.searchParams.set("i", code);
   return url.toString().replace("mock=&", "mock&");
 }
 
 // onFriend(uid) hears who scanned it, a beat after "Connected with …" shows, and then it closes.
 // onClose() runs whenever it closes.
-function showQR({ app = "", onFriend = null, onClose = null } = {}){
+// game: { id, title } makes it a Game QR: the headline is the title ("Join Kenny's match"), the
+// link carries ?g=<id>, and it stays open when someone scans; the app says who joined (.say).
+function showQR({ app = "", onFriend = null, onClose = null, game = null } = {}){
   const ov = overlay(`
-    <div class="cn-head"><span class="lbl">My QR</span><button type="button" class="quiet" data-k="close">Close</button></div>
+    <div class="cn-head"><span class="lbl">${game ? "Game QR" : "My QR"}</span><button type="button" class="quiet" data-k="close">Close</button></div>
     <div class="cn-mid">
       <div data-k="who"></div>
       <h2 data-k="name"></h2>
       <div class="cn-qr" data-k="qr" hidden></div>
       <p class="cn-dim" data-k="msg">Making your code…</p>
+      <p data-k="joined" hidden></p>
       <button type="button" class="quiet" data-k="copy" hidden>Copy link</button>
     </div>`);
   const q = s => ov.querySelector(`[data-k="${s}"]`);
@@ -229,20 +244,22 @@ function showQR({ app = "", onFriend = null, onClose = null } = {}){
     if (onClose) try { onClose(); } catch (e) { console.warn("[connect]", e); }
   };
   tap(q("close"), close);
+  close.say = text => { q("joined").hidden = !text; q("joined").textContent = text || ""; if (text && navigator.vibrate) navigator.vibrate(30); };
 
   const me = cloud.user;
   if (!me){ q("msg").textContent = "Sign in first."; return close; }
   cloud.account.me().then(p => {
-    q("name").textContent = (p && p.name) || me.displayName || "";
+    q("name").textContent = game ? game.title : (p && p.name) || me.displayName || "";
     q("who").replaceChildren(avatar(me.uid, 72, p));
   }).catch(() => {});
 
   cloud.account.invite().then(code => {
     if (!ov.isConnected) return;
-    const link = linkFor(app, code);
+    const link = linkFor(app, code, game && game.id);
     q("qr").innerHTML = qrSvg(link);
     q("qr").hidden = false;
-    q("msg").textContent = "Point their phone's camera at this. Lasts a day.";
+    q("msg").textContent = game ? "Point their phone's camera at this. They join the match and your Friends in one go."
+      : "Point their phone's camera at this. Lasts a day.";
     q("copy").hidden = false;
     ov.dataset.link = link;
     tap(q("copy"), () => {
@@ -268,6 +285,8 @@ function showQR({ app = "", onFriend = null, onClose = null } = {}){
       .catch(e => console.warn("[connect] card", e));
     cloud.account.profile(fresh.uid).then(p => {
       if (!ov.isConnected) return;
+      // A Game QR stays up: the match may have another seat, and the app says who joined.
+      if (game){ if (q("joined").hidden) close.say(`Connected with ${(p && p.name) || "them"}`); return; }
       const mid = ov.querySelector(".cn-mid");
       mid.innerHTML = `<h2>Connected with ${esc((p && p.name) || "them")}</h2><p class="cn-dim">You're in each other's Friends now.</p>`;
       mid.prepend(avatar(fresh.uid, 96, p));

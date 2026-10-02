@@ -862,14 +862,14 @@ const myGuests = () => Object.entries(guests).filter(([, g]) => !g.claimedBy)
 // Pick the friend a guest was, then a hold, then: the guest points at them (claimedBy), and the
 // app rewrites its records, the ones you started with that guest in them (rewrite(gid, uid)).
 // Resolves the uid, or null. `uid` skips the picker (a Game QR seat already said who it was).
-async function claim(gid, { app = "", rewrite = null, uid = null } = {}){
+async function claim(gid, { app = "", rewrite = null, uid = null, lead = "" } = {}){
   const g = guests[gid];
   if (!g || g.claimedBy) return null;
   const who = uid || await pick({ title: `Who was ${g.name}?`, app, friends: true, exclude: [gid] });
   if (!who || who === gid || isGuest(who)) return null;
   const them = nameOf(who, "them");
   const ok = await ui.sheet({ title: `That was ${them}?`,
-    text: `${g.name}'s games that you started become ${them}'s, in every app, and ${g.name} leaves your guests. This can't be undone.`,
+    text: `${lead}${g.name}'s games that you started become ${them}'s, in every app, and ${g.name} leaves your guests. This can't be undone.`,
     items: [{ label: `Give ${g.name}'s games to ${them}`, value: true, hold: true }] });
   if (!ok) return null;
   guests = { ...guests, [gid]: { ...g, claimedBy: who } };

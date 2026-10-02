@@ -248,7 +248,12 @@ room, and opening a fold scrolls it into view.
    in order, a line each ("Nine-ball · every ball scores, 11 a rack"), and all five fit a phone
    screen; picking one closes it. The last game picked is remembered per phone (`localStorage`
    `rack-it.game`).
-2. **Players:** a Teal side and a Lilac side slot, each showing its player's avatar and name, or
+2. **Who's playing** (2.14.0, frame 8a): chips of you, whoever played lately, then your friends
+   and guests (eight at most), then **Show QR** (My QR; whoever scans is picked) and **+ Add a
+   guest**. A chip fills the empty side, lilac once you're on teal, or takes lilac's place; a
+   chosen chip, tapped, steps out. A friend picked here finds the match on their phone's Home
+   (§7).
+   **Players:** a Teal side and a Lilac side slot, each showing its player's avatar and name, or
    "Pick a player". You're pre-selected on teal. A slot opens the picker (`people.pick`, §8):
    on teal you first, then whoever played lately; on lilac the teal player's recent opponents,
    the last one first; then everyone by name, with a search box past eight. **Scan a new
@@ -285,6 +290,8 @@ Full-bleed: no tab bar. The screen holds a wake lock and asks for fullscreen (`s
   when racing in racks), the lead in the leader's colour, and the **break chip** ("Break ⇄ G",
   the breaker's initial), which flips on tap. "Table clear" takes the lead's place when all
   nine are down.
+- The match bar's **⋯** (the starter's phone only, 2.14.0) opens a sheet with **Invite to this
+  game**: the Game QR (§8.1).
 - Controls, three sizes so they can't be confused by feel: **Undo** (everything in the current
   rack, up to 60 steps), **Next rack** (11-Point-Nine only; elsewhere Undo takes its room), and
   **End**, which you **hold for 600ms** (a fill rises; let go to cancel; a buzz when it lands).
@@ -377,7 +384,10 @@ four tabs in friend mode (§8.2, 2.11.0).
 the live screen (and the same four in friend mode, §8.2): labels in caps, the selected tab in teal with a bar above it. The app always
 opens on **Play** (owner's call, 2.0.1). While a match is live and this phone isn't scoring or
 watching it, a **live strip** above the tabs shows "Live · Kenny 14–9 Melanie" with **Resume**
-and **Watch**. A rated match waiting for confirmation has its own strip (§6.1). The newest 300 matches are watched as one live list, so the strip, Matches, a
+and **Watch**. A rated match waiting for confirmation has its own strip (§6.1). Someone else's
+live match you're a player in is a card at the top of Play instead (2.14.0): "Kenny's match ·
+you're in", "Live · 11-Point-Nine · lilac side", **Open**. There are no notifications; the card
+is the invite. The newest 300 matches are watched as one live list, so the strip, Matches, a
 person's page and a summary update without a reload.
 
 **Ratings.** The household's people, your guests, and your friends who have a rating, ranked by
@@ -504,6 +514,17 @@ account, not to Rack It, so they show in every app with Connect.
   Google photo**. Friends see this name and photo. **Hold to delete my account**, then type
   DELETE: your pairs, cards, guests, live code and profile go, one by one, and you're signed
   out. Matches you played keep your name. A friend's own card about you stays theirs, unseen.
+- **The Game QR** (2.14.0, KIT-PLAN Session 8): the live screen's ⋯ → **Invite to this game**
+  shows the My QR screen headed "Join Kenny's match", with the link
+  `…/rack-it/?g=<match id>&i=<your code>`, so a scan makes the friendship first, as My QR does,
+  then opens the match. Already a player in it, it just opens. Otherwise the join card lists the
+  guest seats, "Which one are you?" ("I'm Dan · lilac side"), and taking one makes that side
+  your uid (`seatSwap()`: that side and `uids`, nothing else; `names` keeps "Dan"). A match with
+  no guest seat left says it's full. The Game QR says "Rolf joined · lilac side". The starter's
+  phone remembers which of its live matches' sides were guests (`localStorage`
+  `rack-it.seats`), and once it isn't scoring asks "Rolf took Dan's seat. That was Rolf?" for
+  Dan's other games (§8, That was them). Only the starter shows the Game QR: a seat is taken
+  only by someone connected to the match's starter.
 - **Outsiders** play in friend mode (§8.2).
 
 ### 8.2 Friend mode
@@ -544,7 +565,9 @@ scores only the matches with its uid in `uids`, and lists them only with that fi
 as `by`, live, alone with a guest or against someone it's connected to. A player never changes
 who's in a match; a pending match only finishes; a rated match is finished only by a player who
 didn't end it, and its two ratings move only in that same batch (each naming the match). Anyone
-signed in gets one rating, or `state/main`, by id. Only the owner lists ratings or starters,
+signed in gets one rating, or `state/main`, by id. Anyone connected to a live match's starter
+gets that match by id (never a list: the Game QR), and may take a guest's seat in it for
+themselves (2.14.0). Only the owner lists ratings or starters,
 writes `state/main`, a starter or a rating outside a confirmation, or rewrites a saved match. ⚠ The rules can't check the
 arithmetic: the confirming phone works the ratings out, and the owner's Rebuild ratings remakes
 them from the matches.
@@ -738,6 +761,7 @@ account, so a static app can't upload results.
 | 2.9.0 | Rated matches and confirming (KIT-PLAN Session 5). Setup gains a **Rated** tick, off by default, offered when both players have an account. A friendly moves no rating; a rated match moves both only once the opponent confirms on their own phone, worked out from the ratings at that moment, in one batch. Not right or Withdraw leaves it a friendly. Rebuild replays rated matches by `ratedAt`, else `endedAt`; a match with no `rated` field is rated. For the social leagues, where a rating has to be agreed by both players. |
 | 2.10.0 | Outsiders play in Rack It (KIT-PLAN Session 6): friend mode instead of the outsider screen. The rules open the matches an account plays in, starting one against a connection or a guest, and a rating only in the batch that confirms a rated match the other player ended. Ratings are read by id, matches with one `uids` query. A household member can no longer turn a friendly into a rated match. For pool friends who aren't family. |
 | 2.11.0 | One admin, everyone else a player (KIT-PLAN Session 6b). The owner sees and rewrites every match; everyone else, a household member included, runs friend mode and reads only the matches they play in. The owner's phone backfills `uids` and `names` on matches from before 2.8.0, so the players keep them. The "Before you play" note goes: there's nothing left to warn about. Owner's call, 2026-10-02: "a family member is just another member". Other apps keep the household. |
+| 2.14.0 | Seats and the Game QR (KIT-PLAN Session 8 step 2): Who's playing is chips with Show QR and Add a guest; the live screen's ⋯ shows a Game QR; a scan connects you to the starter, then you take the guest seat that was you. A friend picked at setup finds the match as a card on Home. A live match is readable by the starter's friends, by id only, so the QR link is enough to join without opening anyone's match list. |
 | 2.13.0 | That was them (KIT-PLAN Session 8 step 1): a guest who has since joined is claimed from their page, and the matches you started with them become theirs, through one rule shape (`seatSwap`) that Game QR seats will use too. A claimed guest's starter becomes the friend's only when the friend has no rating, so nothing earned is overwritten. |
 | 2.12.0 | Rack It on the shared v3 look (KIT-PLAN Session 7 step 3): warm greys, the teal and lilac from the ramp, the Zargo figure 30px, bottom sheets for the player form, picker, Import and Rebuild, and your avatar's account sheet for Profile, My QR, Friends, Export, Import, Install and Sign out. Every two-tap "Sure?" and `confirm()` became a hold. The live screen changes only its greys and, through the ramp, a shade lighter teal (#2FD4B3) and lilac (#C0A5FF); it keeps its 40px tap slop, and its Undo, Next rack and Break stay on `click`. |
 | 2.8.0 | Players (KIT-PLAN Session 4): setup's columns become two slots filled from a picker of household, friends and guests, with **Scan a new player** and **Add a guest** there and then. A match stores `names`, `uids` and `by`. Add player is Scan or Guest, then the starter. The Gmail is optional and nothing in Rack It invites anyone any more: adding a player was quietly putting them on `/members`, which is the household's list. |

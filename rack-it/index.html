@@ -128,6 +128,11 @@
   .setupbody>*,.homebody>*{flex-shrink:0}
   .setupfoot{flex:0 0 auto;display:flex;flex-direction:column;gap:10px;padding:10px 16px 14px;box-shadow:0 -1px 0 var(--line)}
   .pick{display:flex;gap:12px}
+  .whobox{display:flex;flex-direction:column;gap:8px}
+  .whobox .chips button{flex:0 1 auto}
+  .whobox .chips .add{color:var(--text);padding:0 16px}
+  .morechip{padding:0 14px;font-size:24px;font-weight:700;letter-spacing:0;color:var(--text)}
+  #inCard .t{display:flex;flex-direction:column}
   .pickcol{flex:1;display:flex;flex-direction:column;gap:8px;min-width:0}
   .pickcol.ca h3{color:var(--a)}
   .pickcol.cb h3{color:var(--b);text-align:right}
@@ -421,12 +426,21 @@
     <div class="me-host"></div>
   </header>
   <div class="setupbody">
+    <div class="resume hidden" id="inCard">
+      <span class="t"><span id="inWho"></span><small id="inWhat"></small></span>
+      <button id="inOpen">Open</button>
+    </div>
     <div class="settings">
       <div class="fold" id="foldGame">
         <button class="foldhead" id="gameHead"><span class="foldk lbl">Game</span><span class="foldv" id="gameName">&mdash;</span></button>
         <div class="foldbody" id="games"></div>
       </div>
       <p class="gblurb" id="gameBlurb"></p>
+    </div>
+    <div class="whobox">
+      <h3 class="lbl">Who's playing</h3>
+      <div class="chips" id="whoChips"></div>
+      <p class="thint">Someone new scans your QR and appears here, already picked. Pick a friend who isn't here and they'll find the match on their phone.</p>
     </div>
     <div class="pick">
       <div class="pickcol ca"><h3 class="lbl">Teal side</h3><button class="slot" id="pickA"></button></div>
@@ -634,6 +648,7 @@
     <span class="lbl" id="rackNo">Rack 1</span>
     <span class="lead" id="lead"></span>
     <button class="breakchip" id="breakFlip">Break ⇄ —</button>
+    <button class="breakchip morechip" id="liveMore" aria-label="More">⋯</button>
   </div>
 
   <div class="rack" id="rack"></div>
@@ -704,7 +719,7 @@ import { connect } from "../shared/connect.js";
 import { ui } from "../shared/ui.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "2.13.0";
+const APP_VERSION = "2.14.0";
 const APP_ID = "rack-it";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 document.getElementById("versionMore").textContent = "v" + APP_VERSION;
@@ -730,7 +745,8 @@ const el = {};
  "pfEst","estRef","estRefName","estRefScore","estNewScore","estOut","pfDelete","pfShared",
  "games","foldGame","gameHead","gameName","gameBlurb","raceLen","raceNRow","raceN","winArea","drop","goldChip","doneExtra",
  "rebuild","rbInfo","rbList","rbNote","rbApply","rbCancel","rebuildBtn",
- "ratedBtn","ratedWho","pendBar","pendWho","pendGo","pendNo","perClaim","perClaimNote"
+ "ratedBtn","ratedWho","pendBar","pendWho","pendGo","pendNo","perClaim","perClaimNote",
+ "inCard","inWho","inWhat","inOpen","whoChips","liveMore"
 ].forEach(id => el[id] = $(id));
 
 function buzz(ms){ if(navigator.vibrate) navigator.vibrate(ms); }
@@ -1052,7 +1068,7 @@ people.onChange(() => {
 // ---------- every match, watched ----------
 // One live list feeds Matches, a person's page, a summary and the live strip, so a match
 // started on another phone shows up without a reload.
-let matches = [], unsubMatches = null, liveDoc = null, landed = false;
+let matches = [], unsubMatches = null, liveDoc = null, inDoc = null, landed = false;
 const LIVE_WINDOW = 24 * 3600 * 1000;
 function watchMatches(){
   if(unsubMatches) unsubMatches();
@@ -1061,7 +1077,12 @@ function watchMatches(){
   unsubMatches = cloud.watchList("matches", rows => {
     matches = friendMode ? rows.sort((x, y) => (y.startedAt || 0) - (x.startedAt || 0)) : rows;
     watchRatingIds();
-    liveDoc = rows.find(x => x.status === "live" && x.startedAt > Date.now() - LIVE_WINDOW) || null;
+    // Someone else's match you're in is the Home card (inDoc); the strip is the rest.
+    const fresh = rows.filter(x => x.status === "live" && x.startedAt > Date.now() - LIVE_WINDOW);
+    const theirs = x => x.by && x.by !== myUid() && (x.uids || []).includes(myUid());
+    liveDoc = fresh.find(x => !theirs(x)) || null;
+    inDoc = fresh.find(theirs) || null;
+    noticeSeats();
     // Always opens on Play; a live match shows in the strip above the tabs.
     if(!landed){ landed = true; if(current === "gate") openSetupTab(); }
     healClaims();
@@ -1075,6 +1096,8 @@ function openSetupTab(){ setupFresh = false; openSetup(); }
 
 // The slim bar above the tabs: the match that's on, with Resume and Watch.
 function paintLiveBar(){
+  paintInCard();
+  offerSeats();
   const on = !!liveDoc && !live && !watching && !!TAB_OF[current];
   el.liveBar.classList.toggle("hidden", !on);
   paintPendBar();
@@ -1110,6 +1133,13 @@ let started = false;
 let friendMode = false;              // signed in but not on /members (friend mode, below)
 let accountSig = "";                 // what the header's avatar last showed (mountAccount)
 const ratingWatches = new Map();     // friend mode's one listener a rating
+let seatOffers = [], offering = false;   // a Game QR seat taken from a guest, to ask about (offerSeats)
+// Run fn once the signed-in app is up (a Game QR's scan can finish before it is).
+function whenStarted(fn){
+  if(started && stateLoaded && landed) return fn();
+  const t = setInterval(() => { if(started && stateLoaded && landed){ clearInterval(t); fn(); } }, 200);
+  setTimeout(() => clearInterval(t), 20000);
+}
 async function handleUser(user){
   if(user){
     mountAccount();
@@ -1158,7 +1188,8 @@ async function handleUser(user){
   }
 }
 await cloud.init(APP_ID);
-connect.handleInvite({ app: APP_ID, appName: "Rack It" });   // a scanned QR: connect first, over whatever's behind
+// A scanned QR: connect first, over whatever's behind. A Game QR then shows its match.
+connect.handleInvite({ app: APP_ID, appName: "Rack It", onDone: r => { if(r && r.game) whenStarted(() => joinMatch(r.game)); } });
 handleUser(cloud.user);
 cloud.onUser(handleUser);
 ui.tap(el.signInBig, () => cloud.signIn().catch(e => {
@@ -1672,6 +1703,8 @@ function renderSetup(){
     slot.append(n);
   });
 
+  paintWhoChips();
+
   // ---- length ----
   el.modes.classList.toggle("hidden", !(league && !racksLever));
   el.modes.querySelectorAll("button").forEach(b => b.classList.toggle("sel", b.dataset.mode === setup.mode));
@@ -1786,6 +1819,47 @@ function renderSetup(){
 }
 // A slot opens the picker: on teal, you first then whoever played lately; on lilac, the teal
 // player's recent opponents, the last one first. Scanning or adding a guest there fills it.
+// Who's playing (frame 8a): you, whoever played lately, then your friends and guests, as chips;
+// then Show QR and Add a guest. A chip fills the empty side (lilac first once you're on teal), or
+// takes lilac's place; a chosen one, tapped, steps out. Whoever scans appears here, chosen.
+const CHIPS_MAX = 8;
+let chipsSig = "";
+function paintWhoChips(){
+  const me = people.meId();
+  const pool = people.players().filter(p => !p.deleted && (!friendMode || p.kind !== "household"));
+  const order = [...new Set([me, setup.a, setup.b, ...recentFor(null)].filter(Boolean).map(people.resolve))];
+  const rank = id => { const i = order.indexOf(id); return i < 0 ? Infinity : i; };
+  const list = pool.sort((x, y) => rank(x.id) - rank(y.id) || String(x.name).localeCompare(String(y.name)))
+    .slice(0, CHIPS_MAX);
+  for(const id of [setup.a, setup.b]) if(id && !list.some(p => p.id === id) && people.get(id)) list.push(people.get(id));
+  const sig = JSON.stringify([list.map(p => [p.id, p.name, p.photo]), setup.a, setup.b]);
+  if(sig === chipsSig) return;
+  chipsSig = sig;
+  const chips = list.map(p => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.setAttribute("aria-pressed", String(p.id === setup.a || p.id === setup.b));
+    b.append(people.avatar(p.id, 36));
+    const n = document.createElement("span");
+    n.textContent = p.name + (people.isMe(p.id) ? " (you)" : "");
+    b.append(n);
+    ui.tap(b, () => chipTap(p.id), LOOSE);
+    return b;
+  });
+  const add = (label, fn) => { const b = document.createElement("button"); b.type = "button"; b.className = "add"; b.textContent = label; ui.tap(b, fn, LOOSE); return b; };
+  chips.push(add("Show QR", async () => { const id = await people.scan(APP_ID); if(id) chipTap(id, true); }));
+  chips.push(add("+ Add a guest", async () => { const id = await people.addGuest(); if(id) chipTap(id, true); }));
+  el.whoChips.replaceChildren(...chips);
+}
+function chipTap(id, fresh){
+  id = people.resolve(id);
+  if(!fresh && (setup.a === id || setup.b === id)){
+    if(setup.a === id) setup.a = null; else setup.b = null;
+    proposeTargets(); renderSetup(); return;
+  }
+  if(setup.a === id || setup.b === id) return renderSetup();
+  pickSide(!setup.a ? "a" : "b", id);
+}
 async function chooseSide(side){
   const recent = side === "a" ? [people.meId(), ...recentFor(null)] : recentFor(setup.a);
   const id = await people.pick({ title: side === "a" ? "Teal side" : "Lilac side", recent, app: APP_ID });
@@ -1868,6 +1942,7 @@ async function startMatch(){
     balls: {}, rack: newRack(), history: [],
     banked: newBanked(),
     rated: !!(setup.rated && ratedOffered(a, b)), uids: people.uidsOf(ids),
+    by: myUid(),
     autoShown: false
   };
   const s0 = startOf(live);
@@ -1889,6 +1964,7 @@ async function startMatch(){
     totals: { a:0, b:0, racksA: s0.a, racksB: s0.b, dead:0, lead:0, winner: null }
   }, start ? { start } : {}));
   state.turn = live.breaker;   // the breaker shoots first
+  rememberSeats(id, ids[0], ids[1]);
   el.done.classList.add("hidden");
   show("live");
   render();
@@ -2837,6 +2913,8 @@ async function finish(status, t, lead, winner, z, weight){
 
 function render(){
   if(!live) return;
+  // The Game QR seats people only against its starter's friendships, so it's the starter's to show.
+  el.liveMore.classList.toggle("hidden", live.by !== myUid());
   paintTurn(state.turn);
   el.nameA.textContent = live.nameA;
   el.nameB.textContent = live.nameB;
@@ -2966,6 +3044,7 @@ let watching = null;
 
 function enterWatch(id){
   if(watching) stopWatchSub();
+  el.liveMore.classList.add("hidden");
   watching = { id, unsub: null };
   el.undo.style.display = "none";
   el.next.style.display = "none";
@@ -3105,6 +3184,7 @@ async function resumeMatch(id){
     // both players have an account to confirm it with; otherwise it saves as a friendly.
     rated: doc.rated === undefined ? ratedOffered(a, b) : !!doc.rated,
     uids: doc.uids || people.uidsOf([ida, idb]),
+    by: doc.by || null,
     autoShown: false
   };
   state.turn = doc.turn || live.breaker;
@@ -3114,6 +3194,119 @@ async function resumeMatch(id){
 }
 
 function refreshHome(){ openPage(lastPage); }
+
+// ---------- one match, many phones: the Game QR and seats (KIT-PLAN.md Session 8) ----------
+// The Home card: someone else's live match you're in (a friend picked you at setup, or you took a
+// seat). It's the invite; there are no notifications. Open shows the match.
+const sideOfMe = m => sideOfUid(m, myUid());
+const firstName = n => String(n || "").trim().split(/\s+/)[0] || "Someone";
+const starterName = m => { const side = sideOfUid(m, m.by); return firstName(side ? sideName(m, side) : people.nameOf(m.by, "Someone")); };
+function paintInCard(){
+  const m = inDoc && !live && !watching ? inDoc : null;
+  el.inCard.classList.toggle("hidden", !m);
+  if(!m) return;
+  const side = sideOfMe(m);
+  el.inWho.textContent = `${starterName(m)}'s match · you're in`;
+  el.inWhat.textContent = `Live · ${GAME_LABEL[gameOf(m)]}${side ? " · " + (side === "a" ? "teal" : "lilac") + " side" : ""}`;
+  el.inOpen.onclick = () => openShared(m.id);
+}
+// A match you're a player in, started on another phone.
+function openShared(id){ enterWatch(id); }
+
+// Scanned a Game QR (?g=): you're in already, or you pick the guest seat that was you.
+async function joinMatch(id){
+  let m;
+  try { m = await cloud.load("matches/" + id); }
+  catch(e){ m = null; }
+  if(!m || m.status !== "live"){
+    return ui.sheet({ title: "That match has finished", text: "Ask them to show the QR again if there's another one on.", cancel: false,
+      items: [{ label: "OK", value: true, primary: true }] });
+  }
+  if((m.uids || []).includes(myUid())) return openShared(id);
+  const seats = ["a", "b"].filter(side => String(side === "a" ? m.playerA : m.playerB).startsWith("g_"));
+  const who = starterName(m);
+  if(!seats.length){
+    return ui.sheet({ title: `${who}'s match is full`, text: "Both sides already have a player with a phone.", cancel: false,
+      items: [{ label: "OK", value: true, primary: true }] });
+  }
+  const sideWord = side => side === "a" ? "teal" : "lilac";
+  const pickSeat = await ui.sheet({ title: `${who}'s match`,
+    text: `${GAME_LABEL[gameOf(m)]} · ${lengthText(m)}. Which one are you? You'd be in ${who}'s Friends too.`,
+    items: [...seats.map(side => ({ label: `I'm ${sideName(m, side)} · ${sideWord(side)} side`, value: side, primary: true })),
+      { label: "Not now", value: null }], cancel: false });
+  if(!pickSeat) return;
+  const me = myUid();
+  try {
+    await cloud.patch("matches/" + id, { [pickSeat === "a" ? "playerA" : "playerB"]: me, uids: [...(m.uids || []), me] });
+    ui.toast(`You're in, on the ${sideWord(pickSeat)} side`);
+    openShared(id);
+  } catch(e){
+    console.warn("[seat]", e);
+    ui.toast(e && e.code === "permission-denied" ? "Someone else just took that seat." : "Couldn't take the seat: " + (e.message || e));
+  }
+}
+
+// The starter's phone remembers which sides of its live matches are its guests, so when someone
+// takes one by Game QR it can say who, and offer That was them for the guest's other games.
+const SEATS_KEY = "rack-it.seats";
+const readSeats = () => { try { return JSON.parse(localStorage.getItem(SEATS_KEY)) || {}; } catch(e){ return {}; } };
+const writeSeats = v => { try { localStorage.setItem(SEATS_KEY, JSON.stringify(v)); } catch(e){} };
+function rememberSeats(id, a, b){
+  const g = x => String(x || "").startsWith("g_") ? x : null;
+  if(!g(a) && !g(b)) return;
+  writeSeats(Object.assign(readSeats(), { [id]: { a: g(a), b: g(b), at: Date.now() } }));
+}
+function noticeSeats(){
+  const all = readSeats();
+  let changed = false;
+  for(const [id, sides] of Object.entries(all)){
+    const m = matches.find(x => x.id === id);
+    if(!m){ if(Date.now() - (sides.at || 0) > LIVE_WINDOW){ delete all[id]; changed = true; } continue; }
+    for(const side of ["a", "b"]){
+      const gid = sides[side], now = side === "a" ? m.playerA : m.playerB;
+      if(!gid || now === gid) continue;
+      sides[side] = null; changed = true;
+      if(String(now).startsWith("g_")) continue;
+      const who = people.nameOf(now, "Someone"), guest = (m.names && m.names[side]) || "the guest";
+      ui.toast(`${firstName(who)} joined · ${side === "a" ? "teal" : "lilac"} side`);
+      if(people.guests().some(g => g.id === gid)) seatOffers.push({ gid, uid: now, who, guest });
+    }
+    if(!sides.a && !sides.b){ delete all[id]; changed = true; }
+  }
+  if(changed) writeSeats(all);
+}
+// Asked once the phone isn't scoring: were the guest's other games theirs too?
+async function offerSeats(){
+  if(offering || !seatOffers.length || live || watching || !TAB_OF[current]) return;   // seatOffers first: this runs signed out before `live` exists
+  offering = true;
+  const o = seatOffers.shift();
+  await people.claim(o.gid, { app: APP_ID, uid: o.uid, rewrite: claimRewrite,
+    lead: `${firstName(o.who)} took ${o.guest}'s seat. ` }).catch(e => console.warn("[seat]", e));
+  offering = false;
+  if(seatOffers.length) offerSeats();
+}
+
+// The live screen's ⋯: Invite to this game shows the Game QR, which says who joined.
+ui.tap(el.liveMore, async () => {
+  const id = live ? live.id : watching ? watching.id : null;
+  if(!id) return;
+  const v = await ui.sheet({ title: "This match", items: [{ label: "Invite to this game", value: "invite" }] });
+  if(v === "invite") inviteToGame(id);
+}, LOOSE);
+function inviteToGame(id){
+  const me = people.meId();
+  const qr = connect.showQR({ app: APP_ID, game: { id, title: `Join ${firstName(people.nameOf(me, "my"))}'s match` } });
+  let seen = null;
+  const off = cloud.watch("matches/" + id, m => {
+    if(!m) return;
+    const now = [m.playerA, m.playerB];
+    if(seen) now.forEach((x, i) => {
+      if(x !== seen[i] && !String(x).startsWith("g_")) qr.say(`${firstName(people.nameOf(x, i ? m.names && m.names.b : m.names && m.names.a))} joined · ${i ? "lilac" : "teal"} side`);
+    });
+    seen = now;
+  }, e => console.warn("[invite]", e));
+  const t = setInterval(() => { if(!document.querySelector(".cn-ov")){ clearInterval(t); off(); } }, 500);
+}
 
 // ---------- rated matches: confirming (KIT-PLAN.md Session 5) ----------
 // A rated match is saved as pending, with endedBy, and moves nothing. The other player confirms it

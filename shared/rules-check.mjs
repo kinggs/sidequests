@@ -494,7 +494,9 @@ describe("Outsiders in Rack It: must refuse", () => {
     await assertFails(setDoc(doc(user("cat"), M + "x"), abMatch({ by: "cat" })));
     await assertFails(setDoc(doc(user("ann"), M + "x"), abMatch({ by: "ann", uids: ["ben"] })));
     await assertFails(setDoc(doc(user("ann"), M + "x"), abMatch({ by: "ben" })));
-    await assertFails(getDoc(doc(user("cat"), M + "live")));
+    // Cat is Ann's friend, so since Session 8 she may get Ann's live match by its id (a Game QR);
+    // Eve, connected to nobody, may not.
+    await assertFails(getDoc(doc(user("eve"), M + "live")));
     await assertFails(getDoc(doc(user("cat"), M + "nothing-here")));
     await assertFails(getDocs(query(collection(user("cat"), "sidequests/rack-it/matches"), where("uids", "array-contains", "ann"))));
     await assertFails(updateDoc(doc(user("cat"), M + "live"), { turn: "b" }));
@@ -1109,5 +1111,66 @@ describe("Claiming a guest: must refuse", () => {
     await seed("friendships/ann_fay", { uids: ["ann", "fay"], since: 1, via: "x", app: "rack-it" });
     await assertFails(setDoc(doc(db, R + "fay"), { zargo: 420, robustness: 0, sessions: 0, from: "g_1" }));
     await assertFails(setDoc(doc(user("ben"), R + "cat"), { zargo: 420, robustness: 0, sessions: 0, from: "g_1" }));
+  });
+});
+
+// ---- Session 8 step 2: seats and the Game QR (KIT-PLAN.md) ----
+// Someone connected to a live match's starter may get that match (never list it) and take a
+// guest's seat in it for themselves: seatSwap() written by the joiner. Cat is Ann's friend; Ben
+// isn't. The owner's two-guest match is for taking two seats.
+
+describe("Seats: what may be done", () => {
+  beforeEach(async () => {
+    await seed(M + "danLive", annDan({ status: "live", endedAt: null }));
+    await seed(M + "danA", annDan({ status: "live", endedAt: null, playerA: "g_1", playerB: "ann", names: { a: "Dan", b: "Ann" } }));
+  });
+  test("a friend of the starter gets a live match, and takes a guest's seat on either side", async () => {
+    const db = user("cat");
+    await assertSucceeds(getDoc(doc(db, M + "danLive")));
+    await assertSucceeds(updateDoc(doc(db, M + "danLive"), { playerB: "cat", uids: ["ann", "cat"] }));
+    await assertSucceeds(updateDoc(doc(db, M + "danA"), { playerA: "cat", uids: ["ann", "cat"] }));
+  });
+  test("…then scores it as a player", async () => {
+    await assertSucceeds(updateDoc(doc(user("cat"), M + "danLive"), { playerB: "cat", uids: ["ann", "cat"] }));
+    await assertSucceeds(getDoc(doc(user("cat"), M + "danLive")));
+  });
+});
+
+describe("Seats: must refuse", () => {
+  beforeEach(async () => {
+    await seed("friendships/cat_owner", { uids: ["cat", "owner"], since: 1, via: "x", app: "rack-it" });
+    await seed(M + "danLive", annDan({ status: "live", endedAt: null }));
+    await seed(M + "danDone", annDan());
+    await seed(M + "abLive", abMatch({ rated: false }));
+    await seed(M + "twoGuests", abMatch({ playerA: "g_1", playerB: "g_2", names: { a: "Dan", b: "Eve" }, uids: [], by: "owner", rated: false }));
+  });
+  test("reading or seating yourself in a match whose starter you aren't connected to", async () => {
+    await assertFails(getDoc(doc(user("ben"), M + "danLive")));
+    await assertFails(updateDoc(doc(user("ben"), M + "danLive"), { playerB: "ben", uids: ["ann", "ben"] }));
+  });
+  test("reading a finished match that way, or taking a seat in one", async () => {
+    await assertFails(getDoc(doc(user("cat"), M + "danDone")));
+    await assertFails(updateDoc(doc(user("cat"), M + "danDone"), { playerB: "cat", uids: ["ann", "cat"] }));
+  });
+  test("listing the starter's matches that way", async () => {
+    const col = collection(user("cat"), "sidequests/rack-it/matches");
+    await assertFails(getDocs(query(col, where("by", "==", "ann"))));
+    await assertFails(getDocs(query(col, where("status", "==", "live"))));
+  });
+  test("taking a seat held by an account", async () => {
+    await assertFails(updateDoc(doc(user("cat"), M + "abLive"), { playerB: "cat", uids: ["ann", "cat"] }));
+    await assertFails(updateDoc(doc(user("cat"), M + "abLive"), { playerB: "cat", uids: ["ann", "ben", "cat"] }));
+  });
+  test("taking two seats, at once or one after the other", async () => {
+    const db = user("cat");
+    await assertFails(updateDoc(doc(db, M + "twoGuests"), { playerA: "cat", playerB: "cat", uids: ["cat"] }));
+    await assertSucceeds(updateDoc(doc(db, M + "twoGuests"), { playerA: "cat", uids: ["cat"] }));
+    await assertFails(updateDoc(doc(db, M + "twoGuests"), { playerB: "cat", uids: ["cat", "cat"] }));
+  });
+  test("seating someone else, or changing anything else as you sit down", async () => {
+    const db = user("cat");
+    await assertFails(updateDoc(doc(db, M + "danLive"), { playerB: "fay", uids: ["ann", "fay"] }));
+    await assertFails(updateDoc(doc(db, M + "danLive"), { playerB: "cat", uids: ["ann", "cat"], rated: true }));
+    await assertFails(updateDoc(doc(db, M + "danLive"), { playerB: "cat", uids: ["ann", "cat"], "totals.a": 5 }));
   });
 });

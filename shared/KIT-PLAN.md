@@ -151,21 +151,21 @@ above. Each step is rules and app in one push.
 
 ### Step 2 — Seats and the Game QR
 
-- [ ] `connect.showQR({ app, game })`: the same screen as My QR with the headline "Join
+- [x] `connect.showQR({ app, game })`: the same screen as My QR with the headline "Join
   Kenny's match" and **Copy link**. Link `…/rack-it/?g=<matchId>&i=<code>`; `i` is your live
   code, so the scan makes the friendship first, as today. `handleInvite` reads `?g=`.
-- [ ] **A player already in `uids`** (a friend picked at setup) needs no write: the link opens
+- [x] **A player already in `uids`** (a friend picked at setup) needs no write: the link opens
   the match. Their Home shows a `.resume` card, "Kenny's match · you're in", from the live
   matches query they already run. The card is the notification.
-- [ ] **A guest's seat.** Rule: a live match is readable (`get`, never `list`) by an account
+- [x] **A guest's seat.** Rule: a live match is readable (`get`, never `list`) by an account
   connected to `by`. The join card lists the open guest seats, "Which one are you?", and the
   choice is a `seatSwap()` written by the joiner, who must be connected to `by`. The starter's
   phone then stamps `claimedBy` on its guest and offers **That was them** for earlier games.
   A seat taken mid-match leaves it a friendly: `rated` only ever turns off.
-- [ ] Setup's "Who's playing" as frame 8a: chips of recent players and friends, **Show QR**,
+- [x] Setup's "Who's playing" as frame 8a: chips of recent players and friends, **Show QR**,
   **Add a guest**. Whoever scans appears as a chip, chosen. The `⋯` sheet in play gains
   "Invite to this game".
-- [ ] **Must refuse:** claiming a seat held by an account; claiming in a match whose starter
+- [x] **Must refuse:** claiming a seat held by an account; claiming in a match whose starter
   you aren't connected to; claiming two seats; reading a finished match that way.
 
 ### Step 3 — Two phones score one match

@@ -63,9 +63,10 @@ const ACCESS = [
   { path: /^sidequests\/rack-it\/state\/main$/, read: "account", write: "owner" },
   { path: /^sidequests\/rack-it\/matches$/, read: (m, u, d, was, ctx) => isOwner(u) || uidsFilter(ctx, u) },
   { path: /^sidequests\/rack-it\/matches\/([^/]+)$/,
-    read: (m, u, d, was) => isOwner(u) || inUids(was, u),
+    // A Game QR (Session 8): a live match is got by anyone connected to its starter.
+    read: (m, u, d, was) => isOwner(u) || inUids(was, u) || (!!was && was.status === "live" && connectedTo(u.uid, was.by)),
     write: (m, u, d, was) => !was ? !!d && (isOwner(u) || outsiderStarts(u, d))
-      : (!!d && inUids(was, u) && playerScores(u, d, was)) || (!!d && rackClaim(u, d, was)) || isOwner(u) },
+      : (!!d && inUids(was, u) && playerScores(u, d, was)) || (!!d && (rackClaim(u, d, was) || takesSeat(u, d, was))) || isOwner(u) },
   { path: /^sidequests\/rack-it\/ratings\/([^/]+)$/, read: "account",
     write: (m, u, d, was, ctx) => isOwner(u) || (!!d && (confirming(m[1], d, ctx.after) || (!was && !!store.docs[`profiles/${u.uid}/guests/${m[1]}`])
       || claimedStarter(m[1], u, d, was))) },
@@ -175,6 +176,7 @@ function rackSwap(d, was){
       || (isGuestId(was.playerB) && d.playerB === x && d.playerA === was.playerA));
 }
 const rackClaim = (u, d, was) => was.by === u.uid && rackSwap(d, was) && connectedTo(u.uid, newcomerOf(d));
+const takesSeat = (u, d, was) => newcomerOf(d) === u.uid && was.status === "live" && rackSwap(d, was) && connectedTo(u.uid, was.by);
 function openSwap(d, was){
   const x = newcomerOf(d), wp = was.players || [], np = d.players || [];
   return !!x && !changed(was, d).some(k => k === "by" || k === "names") && gainsOnly(was, d, x) && !wp.includes(x)
