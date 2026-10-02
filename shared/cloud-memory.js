@@ -396,6 +396,21 @@ export const memory = {
   async load(path){ const full = docPath(path, appBase()); check("read", full); return clone(store.docs[full]) || null; },
   save(path, data){ return saveTo(docPath(path, appBase()), data); },
   patch(path, fields){ return patchTo(docPath(path, appBase()), fields); },
+  deleteFields(path, fields){
+    const full = docPath(path, appBase());
+    read();
+    if (!allowed("write", full)) return Promise.reject(denied());
+    if (!store.docs[full]) return Promise.reject(Object.assign(new Error("No document to update: " + full), { code: "not-found" }));
+    const doc = clone(store.docs[full]);
+    for (const k of fields){
+      const keys = k.split(".");
+      let o = doc;
+      for (const key of keys.slice(0, -1)) o = isMap(o) ? o[key] : undefined;
+      if (isMap(o)) delete o[keys[keys.length - 1]];
+    }
+    doc._updatedAt = Date.now();
+    return write(full, doc);
+  },
   delete(path){ return write(docPath(path, appBase()), null); },
   watch(path, cb, onError){
     const full = docPath(path, appBase());

@@ -144,14 +144,14 @@ The full definition, the per-game weights and the known challenges are in
   score; the new rating is `their Zargo − 100 × log2(theirScore / newScore)`, between 100 and
   900. Untouched, it's 500.
 - Editing a player allows a **starter rating override**, confirmed. Both write
-  `starters/<personId>` and `state/main`, so the number shows at once.
+  `starters/<id>` and `ratings/<id>`, so the number shows at once.
 
 ### 3.2 Rebuild ratings
 
 More → **Rebuild ratings** replays every saved match in the order it ended (`zargo.js`
 `replay`), from each player's starter rating, with the running matches played and robustness,
 exactly as saving did. It shows the change per player first ("Kenny 505 → 507") and the number
-of match records that change; **Apply** writes `state/main.players` and each match's
+of match records that change; **Apply** writes each player's `ratings/<id>` and each match's
 `zargoBefore` and `zargoAfter`.
 
 - A player with no starter document starts from their first match's `zargoBefore`, or, if
@@ -388,8 +388,13 @@ rising fill, never a dialog. Under reduced motion the fill appears at once.
 ## 8. People, Gmail and claiming
 
 Players are the household's shared people (`shared/people.js`, `/sidequests/_shared/people/`),
-the same list Around the Clock and Bloc 11 use. Rack It keeps only its numbers, keyed by person
-id. Stored ids are read through `people.resolve`, so a merge in any app carries history with it.
+the same list Around the Clock and Bloc 11 use. Rack It keeps only its numbers, in `ratings/<id>`.
+Stored ids are read through `people.resolve`, so a merge in any app carries history with it.
+
+- **Ids.** A claimed player's id is their account's `uid`; anyone unclaimed keeps their person
+  id. `people.resolve` turns any stored id (an old person id, a merged one) into that, so
+  ratings are keyed by it and old matches still find their players. When someone claims, their
+  numbers are copied from `ratings/<person id>` to `ratings/<uid>`; the old document stays, unread.
 
 - **Gmail is required** to add or save a player: they sign in with it and it claims the player.
   Saving a new one invites it. A Gmail already on someone else is refused. Older players
@@ -400,8 +405,9 @@ id. Stored ids are read through `people.resolve`, so a merge in any app carries 
   **Which player are you?** lists the unclaimed people (no Gmail first); picking one writes your
   email over theirs. **I'm not on the list** adds you under your Google first name. With nobody
   unclaimed you're added without asking.
-- A claimed player's Gmail is locked ("Claimed by …"). **Unclaim** (two taps) clears `uid`,
-  `claimedAt`, `photoURL` and the Gmail, so the right person can claim them.
+- A claimed player's Gmail is locked ("Claimed by …"), for good. There's no Unclaim: records
+  stored under the uid would be orphaned by it. A wrong claim is fixed by the owner editing the
+  person document in the Firebase console.
 - **Avatar** (`people.avatar(id, size)`): the photo in a 3px ring of the player's colour with a
   2px dark gap, or their initial on their colour. 36px in lists, 72px on a person's page.
 - **Deleting** a player (owner only) is soft and shared by every app: they leave every list and
@@ -445,15 +451,17 @@ All under `sidequests/rack-it/` in Firestore, via `shared/cloud.js`. Members-onl
 `members` document.
 
 ```
+ratings/<id>                                                  // id: people.resolve(), a uid once claimed
+  zargo, robustness, sessions                                   // sessions = matches played
+
 state/main
-  players: { <personId>: { zargo, robustness, sessions } }     // sessions = matches played
   config:  { games: { league: { points: { low, nine }, w }, golden: { points: { big, small,
              win, foul: [1, 1, 2], intentional }, w }, standard: { w },
              eight: { w, eightOnBreak: "spot" | "win" },
              tenpoint: { points: { winner, ball, left }, meanLoserBalls, w, eightOnBreak } },
              K: 8, provisionalRacks: 30, startZargo: 500 }       // old config.points still read
 
-starters/<personId>
+starters/<id>                                                 // read through people.resolve
   zargo, setAt, setBy                                           // an email, or "rebuild"
 
 matches/<id>
@@ -489,17 +497,26 @@ matches/<id>
   before 2.4.0 has no `left`, so it's read the way it was entered instead — the loser's own
   group's balls in `balls`, the group from `groups` or guessed from who potted what, capped at 7.
   Both paths are tested; nothing needs rebuilding.
-- Writes: racks with `cloud.patch` per rack; `state/main` and `starters` with `cloud.save`.
+- Writes: racks with `cloud.patch` per rack; `ratings`, `starters` and `state/main` with
+  `cloud.save`. Saving a match writes its two players' `ratings/` documents.
+- **The move to `ratings/` (2.7.0).** Ratings used to sit in `state/main.players`, keyed by the
+  person id of the day. The owner's phone moves them once: each entry goes to
+  `ratings/<resolve(id)>` (the better-established one when two old ids are one person, and
+  never over a number already there), then `state/main.players` is deleted. Until then every
+  phone reads the old map through `resolve`, so the numbers never change. Only once the people
+  list has come from the server, since `resolve` reads it.
 - Offline: Firestore's persistent cache is on; `sw.js` caches the shell (`index.html`,
   `zargo.js`, `shared/theme.css` and the two fonts, manifest, icons), network first.
 
-**Export** downloads one JSON file: `app: "rack-it"`, `state`, `people`, `starters`, `matches`,
-and `account` (your profile, friends' cards and guests, `cloud.account.exportMe`). Import brings
+**Export** downloads one JSON file: `app: "rack-it"`, `state` (the config), `people`, `ratings`,
+`starters`, `matches`, and `account` (your profile, friends' cards and guests, `cloud.account.exportMe`). Import brings
 `account` back only when it's yours, and never remakes a friendship.
 It holds email addresses, so it never goes in the repo. **Import** accepts `app` `"rack-it"` or
 `"fair-nine"` (1.x exports, whose matches sit under `sessions`), keeps document ids, and asks:
 **Merge** adds what's missing and never overwrites; **Replace** (confirmed) wipes matches,
-starters and `state/main` first. People go to the shared list by adoption, never removed.
+starters, ratings and `state/main` first. A file from before 2.7.0 carries its ratings in
+`state.players`; they're read through `resolve` into `ratings/`. People go to the shared list
+by adoption, never removed.
 
 **The move from Fair Nine.** Until 1.5.0 the app lived at `fair-nine/` with data at
 `sidequests/fair-nine/{state,sessions}`. 2.0.0 starts empty at `rack-it/`; the owner imports the
@@ -601,3 +618,4 @@ account, so a static app can't upload results.
 | 2.5.0 | Connect, piloted here: My QR and Friends under More, and an outsider screen for accounts that aren't on `/members`, instead of a dead end. Friendships live outside `/sidequests/`, so the household can't read them. |
 | 2.5.1 | The page is pinned to the screen (`position: fixed`), not sized by `100dvh`: on a real phone the tab bar could sit below the bottom edge on Play, leaving no way to More. The live screen still hides it. Friends says "Tap someone to remove them." |
 | 2.6.0 | Connect's friend card (note, met, tags, tag filters), Profile with your own photo, and Delete my account. The photo lives in the profile document, since Storage needs the paid plan. Delete is a hold and a typed DELETE. |
+| 2.7.0 | Ratings move from `state/main.players` to one `ratings/<id>` document a player, keyed by the resolved id, a uid once claimed: the ground Players and confirmed rated matches stand on. The owner's phone moves them once. Unclaim goes, since it would orphan records stored under a uid. Nothing changes on screen. |

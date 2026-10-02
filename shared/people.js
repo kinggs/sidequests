@@ -12,13 +12,19 @@
 //   people.get(id), people.nameOf(id), people.colourOf(id), people.meId(), people.isMe(id)
 //   people.avatar(id, 36)      // <span>: their Google photo in a ring of their colour, or their initial
 //   await people.edit(null, { noun: "player" })     // the shared add sheet → new id, or null
-//   people.edit(id)            // edit, unclaim, merge into someone else, or remove
+//   people.edit(id)            // edit, merge into someone else, or remove
 //   people.edit(id, { cuescore: true })             // …plus the Cuescore profile link (cue apps; yours only)
 //
 // Every person needs a Gmail: they sign in with it and it claims them. On sign-in the
 // account is linked to the person with its email; failing that, a "Which player are you?"
 // card lists the unclaimed people. A claimed person carries uid, claimedAt and the Google
-// photoURL, refreshed on every sign-in.
+// photoURL, refreshed on every sign-in. A claim is for good: a wrong one is fixed by the
+// owner editing the person document in the Firebase console (KIT-PLAN.md, Parked).
+//
+// Ids. A claimed person's id is their account's uid: active(), meId() and resolve() return
+// it, and every call here accepts it. Anyone unclaimed keeps their person document's id.
+// Records stored under the old document id still read through resolve(), so nothing is
+// rewritten. (Every call also still accepts the document id.)
 //
 // Why: Melanie is one person whether she's playing pool, darts or climbing, so she's added
 // once, here, at /sidequests/_shared/people/<id>. Each app keeps its own records (games,
@@ -63,28 +69,49 @@ function write(id, fields){
 }
 
 // ---- reading ----
-function resolve(id){
-  let cur = id == null ? id : String(id);
-  for (let i = 0; i < 8 && cur && all[cur] && all[cur].mergedInto && all[cur].mergedInto !== cur; i++) cur = all[cur].mergedInto;
+// The person document an id names: a document id, or a claimed person's uid, followed
+// through merges. null when nobody has that id (yet).
+let byUid = new Map(), indexed = null;
+function docOf(id){
+  if (id == null || id === "") return null;
+  if (indexed !== all){
+    indexed = all;
+    byUid = new Map();
+    // One account, one person; if a merged pointer still carries the uid, the live one wins.
+    for (const [d, p] of Object.entries(all)) if (p && p.uid && (!byUid.has(p.uid) || all[byUid.get(p.uid)].mergedInto)) byUid.set(p.uid, d);
+  }
+  let cur = all[String(id)] ? String(id) : byUid.get(String(id));
+  if (!cur) return null;
+  for (let i = 0; i < 8 && all[cur] && all[cur].mergedInto && all[cur].mergedInto !== cur; i++) cur = all[cur].mergedInto;
   return cur;
+}
+// Any id an app ever stored → the id that person has today: their uid once claimed.
+function resolve(id){
+  if (id == null) return id;
+  const d = docOf(id);
+  if (!d) return String(id);
+  return (all[d] && all[d].uid) || d;
 }
 
 const myEmail = () => lower(cloud.user && cloud.user.email);
 const myUid = () => (cloud.user && cloud.user.uid) || "";
 const mine = p => !!p && ((!!p.uid && p.uid === myUid()) || (!!myEmail() && lower(p.email) === myEmail()));
+// Internal: keyed by document id, which is what writes need.
 const current = () => Object.entries(all)
   .filter(([, p]) => p && !p.deleted && !p.mergedInto)
   .map(([id, p]) => ({ id, ...p }));
+const byAdded = list => list.sort((a, b) => (mine(b) - mine(a)) || (a.createdAt || 0) - (b.createdAt || 0) || (a.id < b.id ? -1 : 1));
 
-// You first, then everyone else in the order they were added.
+// You first, then everyone else in the order they were added. Ids as resolve() gives them.
 function active(){
-  return current().sort((a, b) => (mine(b) - mine(a)) || (a.createdAt || 0) - (b.createdAt || 0) || (a.id < b.id ? -1 : 1));
+  return byAdded(current()).map(p => ({ ...p, id: p.uid || p.id, docId: p.id }));
 }
 
 function get(id){
+  const d = docOf(id);
+  if (d && all[d]) return { ...all[d], id: all[d].uid || d, docId: d };
   const r = resolve(id);
   if (!r) return null;
-  if (all[r]) return { id: r, ...all[r] };
   // Not adopted yet (first run, or offline on a phone that has never seen the list):
   // fall back to the app's own old entry so names still show.
   const old = opts.legacy ? (opts.legacy() || {})[r] : null;
@@ -96,18 +123,20 @@ const nameOf = (id, fallback = "Someone") => { const p = get(id); return (p && p
 function hash(s){ let h = 7; for (const ch of String(s)) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return h; }
 function colourOf(id){
   const p = get(id);
-  return (p && p.colour) || PALETTE[hash(p ? p.id : id) % PALETTE.length];
+  // Hashed from the document id, so claiming doesn't change an uncoloured person's colour.
+  return (p && p.colour) || PALETTE[hash(p ? (p.docId || p.id) : id) % PALETTE.length];
 }
 function nextColour(){
   const list = current();
   const used = new Set(list.map(p => p.colour));
   return PALETTE.find(c => !used.has(c)) || PALETTE[list.length % PALETTE.length];
 }
-function meId(){
+function meDoc(){
   const list = current();
   const p = list.find(q => q.uid && q.uid === myUid()) || list.find(mine);
   return p ? p.id : null;
 }
+const meId = () => { const d = meDoc(); return d ? resolve(d) : null; };
 const isMe = id => mine(get(id));
 
 // ---- writing ----
@@ -118,7 +147,7 @@ function add({ name, email = "", colour = "" }){
   return id;
 }
 function update(id, fields){
-  const r = resolve(id);
+  const r = docOf(id);
   if (!r || !all[r]) return;
   const f = { ...fields };
   if ("email" in f) f.email = lower(f.email);
@@ -127,7 +156,7 @@ function update(id, fields){
   notify();
 }
 function remove(id){
-  const r = resolve(id);
+  const r = docOf(id);
   if (!r || !all[r]) return;
   write(r, { deleted: true });
   notify();
@@ -135,8 +164,9 @@ function remove(id){
 
 // Fold one entry into another. The spare stays as a pointer, so every record that
 // mentions it — in any app — now reads as the person it was merged into.
+// A claimed spare hands its account to an unclaimed survivor, so the uid keeps its records.
 function merge(from, into, quiet){
-  const a = resolve(from), b = resolve(into);
+  const a = docOf(from), b = docOf(into);
   if (!a || !b || a === b || !all[a] || !all[b]) return false;
   const key = `merge:${a}>${b}`;
   if (tried.has(key)) return false;
@@ -144,6 +174,7 @@ function merge(from, into, quiet){
   const fill = {};
   if (!all[b].email && all[a].email) fill.email = all[a].email;
   if (!all[b].colour && all[a].colour) fill.colour = all[a].colour;
+  if (!all[b].uid && all[a].uid) Object.assign(fill, { uid: all[a].uid, claimedAt: all[a].claimedAt || Date.now(), photoURL: all[a].photoURL || "" });
   if (Object.keys(fill).length) write(b, fill);
   write(a, { deleted: true, mergedInto: b });
   if (!quiet) notify();
@@ -165,7 +196,7 @@ function adopt(map){
     const name = String(p.name).trim(), email = lower(p.email);
     const createdAt = Number(p.createdAt) || Date.now();
     if (p.mergedInto){ write(id, { name, createdAt, deleted: true, mergedInto: String(p.mergedInto) }); continue; }
-    const live = active();
+    const live = byAdded(current());   // document ids: a pointer must name a document
     const match = p.deleted ? null
       : (email && live.find(q => lower(q.email) === email))
         || live.find(q => lower(q.name) === lower(name) && !(email && q.email));
@@ -207,13 +238,13 @@ function ensureMe(){
   const u = cloud.user, email = myEmail();
   if (!u || !email || meHandled === email) return;
   meHandled = email;
-  const id = meId();
+  const id = meDoc();
   if (id){ stamp(id); return; }
   const free = unclaimed();
   if (!free.length) return addMe();
   askWhoIAm();
 }
-const unclaimed = () => active().filter(p => !p.uid && !mine(p))
+const unclaimed = () => current().filter(p => !p.uid && !mine(p))
   .sort((a, b) => (!!a.email - !!b.email) || String(a.name).localeCompare(String(b.name)));
 function stamp(id, extra = {}){
   const u = cloud.user, p = all[id];
@@ -226,7 +257,7 @@ function stamp(id, extra = {}){
 }
 function linked(id, added){
   notify();
-  if (opts.onMe) setTimeout(() => { try { opts.onMe({ id, name: nameOf(id), added }); } catch {} }, 0);
+  if (opts.onMe) setTimeout(() => { try { opts.onMe({ id: resolve(id), name: nameOf(id), added }); } catch {} }, 0);
 }
 function addMe(){
   const u = cloud.user;
@@ -254,7 +285,7 @@ function askWhoIAm(){
   const close = () => { ov.remove(); unwatch(); };
   const unwatch = onChange(() => {
     if (!ov.isConnected) return unwatch();
-    if (meId() || !cloud.user) return close();   // claimed from another phone, or signed out
+    if (meDoc() || !cloud.user) return close();   // claimed from another phone, or signed out
     paint();
   });
   let painted = "";
@@ -502,10 +533,6 @@ function edit(id = null, { noun = "person", cuescore = false } = {}){
       </div>
       <p class="pk-note">One list for every sidequests app — add someone once and they're in all of them.</p>
       <div class="pk-more" hidden>
-        <div data-k="unclaimbox" hidden>
-          <div class="pk-row"><button type="button" class="pk-quiet" data-k="unclaim">Unclaim</button></div>
-          <p class="pk-note">For a mix-up: unlinks the Google account and clears the Gmail, so the right person can claim this player.</p>
-        </div>
         <div data-k="mergebox">
           <label for="pk-same">Added twice? Same person as…</label>
           <select id="pk-same"><option value="">Pick someone</option></select>
@@ -532,7 +559,8 @@ function edit(id = null, { noun = "person", cuescore = false } = {}){
     q("#pk-title").textContent = p ? `Edit ${p.name}` : `Add a ${noun}`;
     nameIn.value = p ? p.name : "";
     emailIn.value = p ? (p.email || "") : "";
-    // A claimed person's Gmail is their Google account's; it changes only by unclaiming.
+    // A claimed person's Gmail is their Google account's, for good (Unclaim went in Session 3:
+    // records stored under the uid would be orphaned by it).
     const claimed = !!(p && p.uid);
     emailIn.hidden = claimed;
     q('[data-k="claimed"]').hidden = !claimed;
@@ -571,7 +599,7 @@ function edit(id = null, { noun = "person", cuescore = false } = {}){
     function save(){
       const name = nameIn.value.trim().replace(/\s+/g, " ");
       const email = lower(emailIn.value);
-      const selfId = p ? p.id : null;
+      const selfId = p ? p.docId : null;
       if (!name){ nameIn.focus(); return; }
       if (!EMAIL.test(email)){ say("Add their Gmail: they sign in with it."); emailIn.focus(); return; }
       const cuescoreId = cueEdit ? cuescoreIdFrom(cueIn.value) : undefined;
@@ -613,13 +641,6 @@ function edit(id = null, { noun = "person", cuescore = false } = {}){
         const into = sel.value;
         if (merge(p.id, into)) close(into);
       });
-      if (claimed){
-        q('[data-k="unclaimbox"]').hidden = false;
-        armed(q('[data-k="unclaim"]'), "Unclaim", "Sure? Tap again", () => {
-          update(p.id, { uid: "", claimedAt: 0, email: "", photoURL: "" });
-          close(p.id);
-        });
-      }
       if (isMe(p.id)) q('[data-k="removebox"]').hidden = true;   // you can't remove yourself
       else armed(q('[data-k="remove"]'), "Remove from every app", "Sure? Tap again", () => { remove(p.id); close(null); });
     }

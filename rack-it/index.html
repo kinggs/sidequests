@@ -433,7 +433,7 @@
       <button class="primary" id="pfSave">Save</button>
       <button class="quiet" id="pfCancel">Cancel</button>
     </div>
-    <button class="quiet hidden" id="pfShared">Cuescore link, unclaim, or merge a double entry</button>
+    <button class="quiet hidden" id="pfShared">Cuescore link, or merge a double entry</button>
     <button class="quiet warnbtn hold hidden" id="pfDelete">Hold to delete player</button>
   </div>
 </div>
@@ -725,7 +725,7 @@ import { people } from "../shared/people.js";
 import { connect } from "../shared/connect.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "2.6.0";
+const APP_VERSION = "2.7.0";
 const APP_ID = "rack-it";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 document.getElementById("versionMore").textContent = "v" + APP_VERSION;
@@ -805,7 +805,7 @@ function holdBind(node, fn, { tap = null, holding = null } = {}){
 // ---------- data ----------
 // The rating engine and the rack scoring it reads live in zargo.js, pure and tested
 // (zargo.test.mjs). These wrappers hand it this app's config.
-let db = { players:{}, config: Z.DEFAULT_CONFIG };
+let db = { config: Z.DEFAULT_CONFIG };
 const cfg = () => db.config || Z.DEFAULT_CONFIG;
 const withGames = Z.withGames;
 const LIVE_POINTS = () => Z.livePoints(cfg());
@@ -865,27 +865,100 @@ const expectedShareA = Z.expectedShareA;
 const expectedEightPoints = pA => Z.expectedEightPoints(pA, cfg());
 
 // Players are the household's shared people (shared/people.js): names and colours are the
-// same in every app. db.players keeps only what's Rack It's own — zargo, robustness,
-// sessions (matches played) — keyed by the person's id. Entries from before the list was shared also carry
-// a name and colour; people.js adopts those into the shared list.
-let stateLoaded = false;
+// same in every app. Rack It keeps only its numbers — zargo, robustness, sessions (matches
+// played) — in ratings/<id>, one document a player, keyed by the id people.resolve() gives:
+// the account's uid once someone has claimed, else their person id (KIT-PLAN.md Session 3).
+// Until 2.7.0 they all sat in state/main.players, keyed by whatever id was current then.
+// The owner's phone moves them over once (migrateRatings); until it has, every phone reads
+// the old map through resolve(), so the numbers are the same either way.
+let stateLoaded = false, ratingsLoaded = false;
+let ratings = {};          // ratings/<id>, as watched
+let legacyPlayers = {};    // state/main.players, until it's moved; its old entries carry names for people.js
+let legacyView = {};       // the same, keyed by resolved id
+let unsubRatings = null;
 async function loadState(){
   const s = await cloud.load("state/main");
-  if(s && s.players){
-    db = { players: s.players, config: withGames(s.config) };
-    // Merge-save adds config.games beside the old config.points, which stays readable.
-    if(!(s.config && s.config.games))
-      cloud.save("state/main", { config: { games: db.config.games } }).catch(e => console.warn("[config]", e));
-  }
-  else { db = { players:{}, config: Z.DEFAULT_CONFIG }; await cloud.save("state/main", db); }
+  legacyPlayers = (s && s.players) || {};
+  db = { config: withGames(s && s.config) };
+  // Merge-save adds config.games beside the old config.points, which stays readable.
+  if(!s) await cloud.save("state/main", { config: db.config });
+  else if(!(s.config && s.config.games))
+    cloud.save("state/main", { config: { games: db.config.games } }).catch(e => console.warn("[config]", e));
   stateLoaded = true;
   people.poke();
-  rekeyStats();
+  relegacy();
+  migrateRatings();
+}
+function watchRatings(){
+  if(unsubRatings) unsubRatings();
+  unsubRatings = cloud.watchList("ratings", rows => {
+    const next = {};
+    for(const { id, _updatedAt, ...st } of rows) next[id] = st;
+    ratings = next;
+    ratingsLoaded = true;
+    rekeyStats();
+    migrateRatings();
+    if(started) rerender();
+  }, {}, e => console.warn("[ratings]", e));
+}
+
+// Two old ids that turn out to be one person: the better-established numbers win, and on a
+// tie the entry under the surviving id.
+function relegacy(){
+  const view = {};
+  for(const [old, st] of Object.entries(legacyPlayers)){
+    if(!st || !Number.isFinite(st.zargo)) continue;
+    const id = people.resolve(old), cur = view[id];
+    const keep = { zargo: st.zargo, robustness: st.robustness || 0, sessions: st.sessions || 0 };
+    if(!cur || keep.sessions > cur.sessions || (keep.sessions === cur.sessions && id === old)) view[id] = keep;
+  }
+  legacyView = view;
+}
+// A player's numbers: their ratings document, over the old map until that's moved.
+const statsOf = id => {
+  const r = people.resolve(id), st = Object.assign({}, legacyView[r], ratings[r]);
+  return Number.isFinite(st.zargo) ? st : null;
+};
+// Every player with numbers, by resolved id.
+function allStats(){
+  const out = {};
+  for(const id of new Set([...Object.keys(legacyView), ...Object.keys(ratings)])){
+    if(people.resolve(id) !== id) continue;   // an old key, waiting for rekeyStats
+    const st = statsOf(id);
+    if(st) out[id] = st;
+  }
+  return out;
 }
 
 function savePlayer(id, fields){
-  db.players[id] = Object.assign(db.players[id] || {}, fields);
-  return cloud.save("state/main", { players: { [id]: fields } });
+  const r = people.resolve(id);
+  ratings[r] = Object.assign({}, ratings[r], fields);
+  return cloud.save("ratings/" + r, fields);
+}
+
+// Once, on the owner's phone: every state/main.players entry to ratings/<resolved id>, then
+// state/main.players goes. Only once the people list has come from the server, since that's
+// what resolve() reads. A number already in ratings/ (a match saved on a phone that got
+// 2.7.0 first) is newer, so it stays. starters/ are read through resolve() and stay put.
+let migrating = false;
+async function migrateRatings(){
+  if(migrating || !owner || !stateLoaded || !ratingsLoaded || !people.ready || !Object.keys(legacyPlayers).length) return;
+  migrating = true;
+  try {
+    relegacy();
+    const have = {};
+    for(const { id, _updatedAt, ...st } of await cloud.list("ratings")) have[id] = st;
+    for(const [id, st] of Object.entries(legacyView)){
+      const f = {};
+      for(const k of ["zargo", "robustness", "sessions"]) if(have[id] === undefined || have[id][k] === undefined) f[k] = st[k];
+      if(Object.keys(f).length) await savePlayer(id, f);
+    }
+    await cloud.deleteFields("state/main", ["players"]);
+    console.info("[ratings] moved", Object.keys(legacyView).length, "players from state/main to ratings/");
+    legacyPlayers = {};
+    relegacy();
+  } catch(e){ console.warn("[ratings] migration", e); }
+  migrating = false;
 }
 
 // A player: the shared person plus their numbers here. Someone added in another app, who
@@ -893,7 +966,7 @@ function savePlayer(id, fields){
 function P(id){
   const person = people.get(id);
   if(!person) return null;
-  const st = db.players[person.id] || {};
+  const st = statsOf(person.id) || {};
   return {
     id: person.id, name: person.name, colour: people.colourOf(person.id), deleted: !!person.deleted,
     email: person.email || "", uid: person.uid || "",
@@ -901,17 +974,19 @@ function P(id){
     robustness: st.robustness || 0, sessions: st.sessions || 0
   };
 }
-const hasRating = id => { const st = db.players[people.resolve(id)]; return !!st && Number.isFinite(st.zargo); };
+const hasRating = id => !!statsOf(id);
 
-// When an old player id turns out to be someone another app already had, or two entries
-// are merged, the numbers follow them to the id that survives. If both ids have numbers,
-// the better-established rating wins.
+// When two entries are merged, or someone claims and their id becomes their uid, the
+// numbers follow them to the id that survives. If both ids have numbers, the
+// better-established rating wins. The old document stays, unread.
 function rekeyStats(){
   if(!stateLoaded) return;
-  for(const [old, st] of Object.entries(db.players)){
+  relegacy();
+  if(!ratingsLoaded) return;
+  for(const [old, st] of Object.entries(ratings)){
     const id = people.resolve(old);
     if(id === old || !st || !Number.isFinite(st.zargo)) continue;
-    const cur = db.players[id];
+    const cur = ratings[id];
     if(cur && Number.isFinite(cur.zargo) && (cur.sessions || 0) >= (st.sessions || 0)) continue;
     savePlayer(id, { zargo: st.zargo, robustness: st.robustness || 0, sessions: st.sessions || 0 })
       .catch(e => console.warn("[rekey]", e));
@@ -983,6 +1058,7 @@ const activePlayers = () => people.active().map(p => p.id)
 people.onChange(() => {
   if(!started || !stateLoaded) return;
   rekeyStats();
+  migrateRatings();   // waits for the people list from the server
   rerender();
   paintLiveBar();
 });
@@ -1029,6 +1105,7 @@ let owner = false;
 async function loadRole(){
   try { owner = (await cloud.role()) === "owner"; } catch(e){ console.warn("[role]", e); owner = false; }
   paintOwner();
+  migrateRatings();
 }
 function paintOwner(){
   el.rebuildBtn.classList.toggle("hidden", !owner);
@@ -1058,10 +1135,11 @@ async function handleUser(user){
     try { role = await cloud.role(); } catch(e){ console.warn("[role]", e); }
     if(role === null && cloud.user === user){ showOutsider(user); return; }
     try {
-      people.start({ legacy: () => stateLoaded ? db.players : null, onError: e => console.warn("[people]", e) });
+      people.start({ legacy: () => stateLoaded ? legacyPlayers : null, onError: e => console.warn("[people]", e) });
       await loadState();
       loadRole();
       landed = false;
+      watchRatings();
       watchMatches();
     } catch(e){
       el.gateErr.textContent = (e && e.code === "permission-denied")
@@ -1073,6 +1151,9 @@ async function handleUser(user){
   } else {
     started = false;
     stateLoaded = false;
+    ratingsLoaded = false;
+    ratings = {}; legacyPlayers = {}; legacyView = {};
+    if(unsubRatings){ unsubRatings(); unsubRatings = null; }
     owner = false;
     people.stop();
     if(unsubMatches){ unsubMatches(); unsubMatches = null; }
@@ -1166,7 +1247,7 @@ function openPlayerForm(id){
   el.pfEmail.value = p ? p.email : "";
   el.pfEmail.disabled = !!(p && p.uid);
   el.pfEmailLabel.textContent = p && people.isMe(id) ? "Your Gmail" : "Their Gmail";
-  el.pfEmailNote.textContent = p && p.uid ? `Claimed by ${p.email || "a Google account"}. Unclaim from the button below.`
+  el.pfEmailNote.textContent = p && p.uid ? `Claimed by ${p.email || "a Google account"}.`
     : p && !p.email ? "No Gmail yet. Add one to save: they sign in with it and claim the player."
     : "They sign in with this and claim the player.";
   pfReady();
@@ -3276,7 +3357,7 @@ el.famShare.addEventListener("click", () => {
 
 // ---------- starter ratings and Rebuild ----------
 // A starter rating has its own document, starters/<personId>: { zargo, setAt, setBy }, so
-// every rating can be replayed from it. state/main gets the number too, so it shows at once.
+// every rating can be replayed from it. ratings/<id> gets the number too, so it shows at once.
 async function loadStarters(){
   const out = {};
   for(const { id, _updatedAt, ...st } of await cloud.list("starters")) out[id] = st;
@@ -3290,7 +3371,8 @@ function saveStarter(id, zargo, setBy){
 // Every rating replayed from the saved matches, in the order they ended (zargo.js replay).
 // Old matches' player ids are read as who they are today. Someone with no starter document
 // starts where their first match found them (a starter set before starters had documents),
-// or, if they've never played, at the rating state/main holds; Apply writes those down.
+// or, if they've never played, at the rating they hold; Apply writes those down, and every
+// player's numbers to ratings/<id>.
 async function planRebuild(){
   const [all, docs] = await Promise.all([cloud.list("matches"), loadStarters()]);
   const done = all.filter(m => m.status === "done").map(m => Object.assign({}, m,
@@ -3306,11 +3388,8 @@ async function planRebuild(){
     const id = side === "a" ? m.playerA : m.playerB, z = m.zargoBefore && m.zargoBefore[side];
     if(!starters[id] && !derived[id] && Number.isFinite(z)) derived[id] = { zargo: z };
   }
-  for(const [old, st] of Object.entries(db.players)){
-    const id = people.resolve(old);
-    if(id === old && !starters[id] && !derived[id] && st && Number.isFinite(st.zargo) && !(st.sessions > 0))
-      derived[id] = { zargo: st.zargo };
-  }
+  for(const [id, st] of Object.entries(allStats()))
+    if(!starters[id] && !derived[id] && !(st.sessions > 0)) derived[id] = { zargo: st.zargo };
   const result = Z.replay(done, Object.assign({}, derived, starters), cfg());
   const stored = new Map(done.map(m => [m.id, m]));
   const moved = (x, y) => !x || !y || Math.abs(x.a - y.a) > 1e-9 || Math.abs(x.b - y.b) > 1e-9;
@@ -3319,12 +3398,8 @@ async function planRebuild(){
 }
 async function applyRebuild(plan){
   for(const [id, st] of Object.entries(plan.derived)) await saveStarter(id, st.zargo, "rebuild");
-  const players = {};
-  for(const [id, p] of Object.entries(plan.result.players)){
-    players[id] = { zargo: p.zargo, robustness: p.robustness, sessions: p.sessions };
-    db.players[id] = Object.assign(db.players[id] || {}, players[id]);
-  }
-  await cloud.save("state/main", { players });
+  for(const [id, p] of Object.entries(plan.result.players))
+    await savePlayer(id, { zargo: p.zargo, robustness: p.robustness, sessions: p.sessions });
   for(const m of plan.changed)
     await cloud.patch("matches/" + m.id, { zargoBefore: m.before, zargoAfter: m.after }).catch(e => console.warn("[rebuild]", e));
   rerender();
@@ -3382,8 +3457,9 @@ el.exportBtn.addEventListener("click", async () => {
     cloud.list("matches", { orderBy: "startedAt", desc: true }), loadStarters()]);
   const data = {
     app: APP_ID, appVersion: APP_VERSION, exportedAt: new Date().toISOString(),
-    state: { players: db.players, config: cfg() },
+    state: { config: cfg() },
     people: people.all(),
+    ratings: allStats(),
     starters,
     matches: all.map(withMatchFields),
     // Your profile, friends' cards and guests (shared/connect.js); Import restores them.
@@ -3410,12 +3486,12 @@ el.importFile.addEventListener("change", async () => {
   try {
     const data = JSON.parse(await f.text());
     const list = Array.isArray(data.matches) ? data.matches : data.sessions;
-    if((data.app && !IMPORT_APPS.includes(data.app)) || !data.state || !data.state.players || !Array.isArray(list))
+    if((data.app && !IMPORT_APPS.includes(data.app)) || !data.state || !(data.ratings || data.state.players) || !Array.isArray(list))
       throw new Error("not a Rack It (or Fair Nine) export");
     pendingImport = Object.assign({}, data, { matches: list, starters: data.starters || {} });
     const yours = data.account && cloud.user && data.account.uid === cloud.user.uid;
     el.impInfo.textContent =
-      `${Object.keys(data.state.players).length} players, ${list.length} matches` +
+      `${Object.keys(data.ratings || data.state.players).length} players, ${list.length} matches` +
       (data.exportedAt ? `, exported ${data.exportedAt.slice(0, 10)}` : "") +
       ". Merge adds what's missing (by match id) and never overwrites. Replace wipes the cloud data first." +
       (yours ? " Your profile and friends' cards come back too; friendships themselves can't." : "");
@@ -3434,6 +3510,21 @@ async function importAccount(imp){
   try { await cloud.account.importMe(imp.account); } catch(e){ console.warn("[import] account", e); }
 }
 
+// An export's numbers by resolved id: `ratings` from 2.7.0, `state.players` before it (read
+// the way relegacy() reads it). Call after people.adopt, so resolve() knows the file's people.
+function importedRatings(imp){
+  const out = {};
+  for(const [old, st] of Object.entries(imp.state.players || {})){
+    if(!st || !Number.isFinite(st.zargo)) continue;
+    const id = people.resolve(old), cur = out[id];
+    const keep = { zargo: st.zargo, robustness: st.robustness || 0, sessions: st.sessions || 0 };
+    if(!cur || keep.sessions > cur.sessions || (keep.sessions === cur.sessions && id === old)) out[id] = keep;
+  }
+  for(const [id, st] of Object.entries(imp.ratings || {}))
+    if(st && Number.isFinite(st.zargo)) out[people.resolve(id)] = { zargo: st.zargo, robustness: st.robustness || 0, sessions: st.sessions || 0 };
+  return out;
+}
+
 async function writeImportedMatch(s){
   const doc = withMatchFields(s);
   delete doc.id;
@@ -3449,10 +3540,8 @@ el.impMerge.addEventListener("click", async () => {
   // the players); the ratings stay here.
   people.adopt(imp.people);
   people.adopt(imp.state.players);
-  for(const [id, st] of Object.entries(imp.state.players)){
-    if(!db.players[id] && st && Number.isFinite(st.zargo))
-      await savePlayer(id, { zargo: st.zargo, robustness: st.robustness || 0, sessions: st.sessions || 0 });
-  }
+  for(const [id, st] of Object.entries(importedRatings(imp)))
+    if(!hasRating(id)) await savePlayer(id, st);
   const haveStarters = await loadStarters();
   for(const [id, st] of Object.entries(imp.starters))
     if(!haveStarters[id] && st && Number.isFinite(st.zargo)) await cloud.save("starters/" + id, st);
@@ -3471,10 +3560,13 @@ el.impReplace.addEventListener("click", async () => {
   el.impChoice.classList.add("hidden");
   for(const s of await cloud.list("matches")) await cloud.delete("matches/" + s.id);
   for(const s of await cloud.list("starters")) await cloud.delete("starters/" + s.id);
+  for(const s of await cloud.list("ratings")) await cloud.delete("ratings/" + s.id);
   await cloud.delete("state/main");
+  ratings = {}; legacyPlayers = {}; legacyView = {};
   people.adopt(imp.people);
   people.adopt(imp.state.players);
-  await cloud.save("state/main", { players: imp.state.players, config: imp.state.config || Z.DEFAULT_CONFIG });
+  await cloud.save("state/main", { config: imp.state.config || Z.DEFAULT_CONFIG });
+  for(const [id, st] of Object.entries(importedRatings(imp))) await savePlayer(id, st);
   for(const [id, st] of Object.entries(imp.starters))
     if(st && Number.isFinite(st.zargo)) await cloud.save("starters/" + id, st);
   for(const s of imp.matches) if(s.id) await writeImportedMatch(s);

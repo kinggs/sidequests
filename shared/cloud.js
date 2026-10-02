@@ -9,6 +9,7 @@
 //   await cloud.load("state/main");
 //   cloud.watch("sessions/abc", doc => ..., onError);  // onError optional
 //   await cloud.patch("sessions/abc", { "racks.3": {...} }); // dotted field paths
+//   await cloud.deleteFields("state/main", ["players"]);     // drop fields, keep the rest
 //   await cloud.list("sessions");
 //   cloud.watchList("sessions", rows => ..., { orderBy: "at" }, onError);
 //   A refused or broken listener calls onError(e) once and stops; without one it warns.
@@ -194,6 +195,13 @@ export const cloud = {
   // Use this for concurrent edits from two phones so they don't clobber each other.
   patch(path, fields) {
     return fs.updateDoc(ref(path), { ...fields, _updatedAt: fs.serverTimestamp() });
+  },
+
+  // Remove fields from a document that exists (dotted paths work); the rest stays.
+  deleteFields(path, fields) {
+    const f = { _updatedAt: fs.serverTimestamp() };
+    for (const k of fields) f[k] = fs.deleteField();
+    return fs.updateDoc(ref(path), f);
   },
 
   delete(path) { return fs.deleteDoc(ref(path)); },
