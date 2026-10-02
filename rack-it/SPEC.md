@@ -367,7 +367,7 @@ a live row resumes; a finished one opens its summary.
 counted, **Copy for Cuescore** (§10), and for the owner **Hold to delete match** (anyone else
 sees why it isn't there).
 
-**More.** My QR and Friends (§8.1), Invites, Export and Import, Rebuild ratings (owner), Install on this phone, About
+**More.** My QR, Friends and Profile (§8.1), Invites, Export and Import, Rebuild ratings (owner), Install on this phone, About
 Zargo, Sign out, the version; the account shows in the header. A member sees one line naming
 the owner's actions instead of Rebuild. **Invites** is the members allowlist: add a Gmail,
 remove one (owner only, two taps, never yourself), **Share this app**; rows show whose Gmail it
@@ -422,9 +422,17 @@ account, not to Rack It, so they show in every app with Connect.
   once: "You're connected with Kenny Inggs". Signed out, a card says who it's from and offers
   **Sign in with Google**. A dead code says "This QR has expired. Ask them to show it again."
   Your own code says so. A code is spent once its outcome is shown.
-- **Friends** (More, and the outsider screen): avatar, full name and "Since …", newest first,
-  with a search box from six friends. Tap a row for **Remove** (two taps). Notes, tags and
-  where you met are Session 2.
+- **Friends** (More, and the outsider screen): avatar, full name, and your note or where and
+  when you met, newest first, with a search box from six friends and a chip for each tag
+  you've used, which filters the list. Tap a row for their **card**, private to you: **Note**,
+  **Met** (stamped at connect, with a place that defaults to the last one you typed, kept on
+  this phone), **Tags** (the ones you've used, or a new one), **Save**, and **Remove** (two
+  taps).
+- **Profile** (More, and the outsider screen): your name, and **Take or pick a photo**, shrunk
+  to a 192px JPEG kept in the profile (under the rules' 60,000 characters), or **Use my
+  Google photo**. Friends see this name and photo. **Hold to delete my account**, then type
+  DELETE: your pairs, cards, guests, live code and profile go, one by one, and you're signed
+  out. Matches you played keep your name. A friend's own card about you stays theirs, unseen.
 - **Outsiders.** Signed in but not on `/members` (`cloud.role()` is null): Rack It starts none of
   its watchers and shows their avatar and name, **My QR**, **Friends**, **Install on this
   phone**, **Sign out**, and "Rack It opens up to friends soon." Players, matches and ratings
@@ -485,7 +493,9 @@ matches/<id>
 - Offline: Firestore's persistent cache is on; `sw.js` caches the shell (`index.html`,
   `zargo.js`, `shared/theme.css` and the two fonts, manifest, icons), network first.
 
-**Export** downloads one JSON file: `app: "rack-it"`, `state`, `people`, `starters`, `matches`.
+**Export** downloads one JSON file: `app: "rack-it"`, `state`, `people`, `starters`, `matches`,
+and `account` (your profile, friends' cards and guests, `cloud.account.exportMe`). Import brings
+`account` back only when it's yours, and never remakes a friendship.
 It holds email addresses, so it never goes in the repo. **Import** accepts `app` `"rack-it"` or
 `"fair-nine"` (1.x exports, whose matches sit under `sessions`), keeps document ids, and asks:
 **Merge** adds what's missing and never overwrites; **Replace** (confirmed) wipes matches,
@@ -590,3 +600,4 @@ account, so a static app can't upload results.
 | 2.4.0 | The 8-ball drop is gone. Nobody taps fourteen balls mid-rack, and a half-tapped drop scored Ten-Point-Eight wrong; the rack-end card asks for the loser's balls *left on the table* instead, one tap, and the rack stores that count. |
 | 2.5.0 | Connect, piloted here: My QR and Friends under More, and an outsider screen for accounts that aren't on `/members`, instead of a dead end. Friendships live outside `/sidequests/`, so the household can't read them. |
 | 2.5.1 | The page is pinned to the screen (`position: fixed`), not sized by `100dvh`: on a real phone the tab bar could sit below the bottom edge on Play, leaving no way to More. The live screen still hides it. Friends says "Tap someone to remove them." |
+| 2.6.0 | Connect's friend card (note, met, tags, tag filters), Profile with your own photo, and Delete my account. The photo lives in the profile document, since Storage needs the paid plan. Delete is a hold and a typed DELETE. |

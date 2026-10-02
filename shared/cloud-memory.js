@@ -54,7 +54,9 @@ const ACCESS = [
   // Accounts (Session 1). Yours alone: private, friends, guests, as documents or as a list.
   { path: /^profiles\/([^/]+)\/(private|friends|guests)(\/[^/]+)?$/, read: (m, u) => m[1] === u.uid, write: (m, u) => m[1] === u.uid },
   // A profile is read one at a time (the bare "profiles" list matches no row, so it's refused).
-  { path: /^profiles\/([^/]+)$/, read: "account", write: (m, u) => m[1] === u.uid },
+  // Its name and photo are capped, as in the rules: the photo's limit is what sizes the JPEG.
+  { path: /^profiles\/([^/]+)$/, read: "account",
+    write: (m, u, d) => m[1] === u.uid && (!d || (String(d.name || "").length <= 60 && String(d.photo || "").length <= 60000)) },
   { path: /^invites\/([^/]+)$/, read: "anyone",
     write: (m, u, d, was) => d ? (!was && d.uid === u.uid && d.expires <= Date.now() + 25 * HOUR) : !!was && was.uid === u.uid },
   { path: /^friendships\/([^/]+)$/,
@@ -289,6 +291,34 @@ const account = {
     const u = needUser();
     await write("friendships/" + [u.uid, uid].sort().join("_"), null);
     await write(`profiles/${u.uid}/friends/${uid}`, null).catch(() => {});
+  },
+  async exportMe(){
+    const u = needUser(), base = "profiles/" + u.uid;
+    const rows = sub => { check("read", `${base}/${sub}`); return Object.fromEntries(rowsOf(`${base}/${sub}`).map(({ id, _updatedAt, ...d }) => [id, d])); };
+    const me = (await getDoc(base)) || {};
+    return { uid: u.uid, profile: { name: me.name || "", photo: me.photo || "" }, friends: rows("friends"), guests: rows("guests") };
+  },
+  async importMe(data){
+    const u = needUser();
+    if (!data || data.uid !== u.uid) throw Object.assign(new Error("That export belongs to another account"), { code: "wrong-account" });
+    const p = data.profile || {};
+    if (p.name) await this.saveMe({ name: p.name, photo: p.photo || "" });
+    let n = 0;
+    for (const [sub, map] of [["friends", data.friends], ["guests", data.guests]])
+      for (const [id, doc] of Object.entries(map || {})) { await saveTo(`profiles/${u.uid}/${sub}/${id}`, doc); n++; }
+    return n;
+  },
+  async deleteMe(){
+    const u = needUser(), base = "profiles/" + u.uid;
+    const gone = full => write(full, null).catch(e => console.warn("[cloud.account] delete", full, e));
+    read();
+    for (const p of rowsOf("friendships").filter(p => Array.isArray(p.uids) && p.uids.includes(u.uid))) await gone("friendships/" + p.id);
+    for (const sub of ["friends", "guests"]) for (const r of rowsOf(`${base}/${sub}`)) await gone(`${base}/${sub}/${r.id}`);
+    const priv = (await getDoc(base + "/private/main")) || {};
+    if (priv.invite) await gone("invites/" + priv.invite);
+    await gone(base + "/private/main");
+    await write(base, null);
+    await memory.signOut();
   }
 };
 
@@ -299,6 +329,7 @@ async function seedFrom(url){
   const app = data.app || appId;
   const put = (path, doc) => { store.docs[path] = { ...clone(doc), _updatedAt: Date.now() }; };
   for (const [key, value] of Object.entries(data)) {
+    if (key === "account") continue;   // the exporter's account (cloud.account.exportMe), not app data
     if (key === "state" && isMap(value)) put(`sidequests/${app}/state/main`, value);
     else if (key === "people" && isMap(value)) for (const [id, p] of Object.entries(value)) put(`sidequests/_shared/people/${id}`, p);
     else if (Array.isArray(value) && value.every(r => isMap(r) && r.id))

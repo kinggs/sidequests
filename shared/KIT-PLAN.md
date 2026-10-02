@@ -672,7 +672,7 @@ owner's, not on `/members`, connected. One fault: on Play the tab bar sat below 
 More was unreachable. Reproduced in Chromium by making the page taller than the screen (the tab
 bar at 995–1055 on an 844px screen); fixed in 2.5.1 by pinning the page with `position: fixed`
 instead of `100dvh`. ⚠ The cause on the phone is a guess (a stale `dvh` after My QR's
-fullscreen); the owner confirms on the phone. Still to report: which runs were the installed app
+fullscreen); the owner confirmed More is reachable on 2.5.1. Still to report: which runs were the installed app
 and which a plain browser, whether redirect sign-in looped, and yesterday's code being refused.
 To rerun the scan, both sides use Friends → tap the row → Remove (two taps); a code still in its
 24 hours connects again. Deleting the test account entirely is Session 2.

@@ -4,7 +4,8 @@
 //   await cloud.init("rack-it");
 //   connect.handleInvite({ app: "rack-it", onDone }); // first, before the app's own start
 //   connect.showQR({ app: "rack-it" });               // My QR
-//   connect.showFriends();                            // the Friends list, with Remove
+//   connect.showFriends();                            // Friends: each one's card (note, met, tags), Remove
+//   connect.showProfile({ onClose });                 // your name and photo; Delete my account
 //   connect.avatar(uid, 36)                           // <span>: their photo in a neutral ring, or their initial
 //
 // Meeting someone: you open My QR, they point their camera at it, and the link opens this
@@ -83,8 +84,16 @@ const CSS = `
 .cn-head button{width:auto;padding:0 18px}
 .cn-ov input{width:100%}
 .cn-ov .rows>li{cursor:default}
-.cn-ov .rows .cn-row{flex-wrap:wrap}
-.cn-ov .rows .cn-rm{flex:1 0 100%;margin:4px 6px 6px 0}
+.cn-ov textarea{width:100%;font:inherit;font-size:1rem;color:var(--text,#e8edf3);background:var(--ink-2,#1b232e);border:none;
+  border-radius:var(--r-ctl,14px);padding:14px;resize:vertical;-webkit-user-select:text;user-select:text}
+.cn-ov textarea:focus{outline:2px solid var(--accent,#23d3b0)}
+.cn-who{display:flex;justify-content:center;padding:4px 0}
+.cn-add{display:flex;gap:10px}
+.cn-add button{width:auto;padding:0 20px}
+.cn-ov .chips button{width:auto;flex:0 1 auto;min-width:0;padding:0 18px}
+.cn-warn{color:var(--warn,#ffc14d)}
+.cn-leave{margin-top:28px;padding-top:16px;border-top:1px solid var(--line,rgba(232,237,243,.1));display:flex;flex-direction:column;gap:12px}
+.cn-leave>div{display:flex;flex-direction:column;gap:12px}
 .cn-av{display:inline-flex;align-items:center;justify-content:center;flex:none;box-sizing:border-box;width:var(--s);height:var(--s);
   border-radius:50%;padding:3px;background:var(--text-2,#c3ceda);overflow:hidden;font-family:var(--grot,inherit);font-weight:700;
   line-height:1;font-size:calc(var(--s) * .42);color:var(--ink-0,#0a0d11)}
@@ -187,6 +196,7 @@ function handleInvite({ app = "", onDone } = {}){
       const r = await cloud.account.accept(code, app);
       if (!r) return dead();
       forget();
+      if (!r.self && !r.already) stampPlace(r.uid);
       if (r.self) return card(`<h2>That's your own QR.</h2><p class="cn-dim">Show it to someone else to connect.</p>`,
         [["OK", "primary cn-big", () => finish(r)]]);
       card(`<h2>${r.already ? "You're already connected with" : "You're connected with"} ${esc(r.name)}</h2>
@@ -269,6 +279,9 @@ function showQR({ app = "" } = {}){
     const fresh = list.find(f => !seen.has(f.uid));
     seen = uids;
     if (!fresh || !ov.isConnected) return;
+    // Your card for them: stamped now, since only the scanner's side was made with the pair.
+    cloud.account.saveFriend(fresh.uid, { metAt: Date.now(), ...(lastPlace() ? { metPlace: lastPlace() } : {}) })
+      .catch(e => console.warn("[connect] card", e));
     cloud.account.profile(fresh.uid).then(p => {
       if (!ov.isConnected) return;
       const mid = ov.querySelector(".cn-mid");
@@ -281,17 +294,33 @@ function showQR({ app = "" } = {}){
   return close;
 }
 
-// ---- Friends ----
+// ---- Friends, and each friend's card ----
+// The card is yours alone (profiles/<you>/friends/<them>): a note, when and where you met,
+// and tags. Tags you've used are offered again, and filter the list.
+const PLACE = "connect.place";   // the last place typed, offered for the next one
+const lastPlace = () => { try { return localStorage.getItem(PLACE) || ""; } catch { return ""; } };
+const keepPlace = p => { try { if (p) localStorage.setItem(PLACE, p); } catch {} };
 const when = t => t ? new Date(t).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "";
+const whenFull = t => t ? new Date(t).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" }) : "";
+const tagOf = t => String(t || "").trim().toLowerCase().replace(/\s+/g, " ").slice(0, 24);
+const tagsUsed = list => [...new Set(list.flatMap(f => f.tags || []))].sort();
+
+// Stamp where you met on a new card, from the last place you typed.
+function stampPlace(uid){
+  const place = lastPlace();
+  if (place) cloud.account.saveFriend(uid, { metPlace: place }).catch(e => console.warn("[connect] place", e));
+}
+
 function showFriends(){
   const ov = overlay(`
     <div class="cn-top">
       <div class="cn-head"><h2>Friends</h2><button type="button" class="quiet" data-k="close">Close</button></div>
       <input type="text" data-k="find" placeholder="Search" autocomplete="off" aria-label="Search friends" hidden>
+      <div class="chips cn-tags" data-k="tags" hidden></div>
       <ul class="rows" data-k="list"><li class="empty">Loading…</li></ul>
     </div>`);
   const q = s => ov.querySelector(`[data-k="${s}"]`);
-  let friends = [], names = {}, open = null;
+  let friends = [], names = {}, tag = "";
   const unwatch = cloud.account.watchFriends(list => {
     friends = list;
     Promise.all(list.map(f => cloud.account.profile(f.uid).then(p => { names[f.uid] = p; }))).then(paint);
@@ -305,41 +334,224 @@ function showFriends(){
     if (!ov.isConnected) return;
     const list = q("list"), find = q("find").value.trim().toLowerCase();
     q("find").hidden = friends.length < 6;
-    const shown = friends.filter(f => !find || String((names[f.uid] || {}).name || "").toLowerCase().includes(find));
+    const used = tagsUsed(friends);
+    if (tag && !used.includes(tag)) tag = "";
+    const box = q("tags");
+    box.hidden = !used.length;
+    box.replaceChildren(...used.map(t => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = t;
+      b.setAttribute("aria-pressed", String(t === tag));
+      tap(b, () => { tag = tag === t ? "" : t; paint(); });
+      return b;
+    }));
+    const shown = friends.filter(f => (!find || String((names[f.uid] || {}).name || "").toLowerCase().includes(find))
+      && (!tag || (f.tags || []).includes(tag)));
     list.innerHTML = "";
     if (!friends.length){ list.innerHTML = `<li class="empty">No friends yet. Open My QR and let them scan it.</li>`; return; }
-    if (!shown.length){ list.innerHTML = `<li class="empty">Nobody called that.</li>`; return; }
-    const hint = document.createElement("li");
-    hint.className = "empty";
-    hint.textContent = "Tap someone to remove them.";
+    if (!shown.length){ list.innerHTML = `<li class="empty">Nobody matches.</li>`; return; }
     for (const f of shown){
       const p = names[f.uid];
       const li = document.createElement("li");
-      li.className = "cn-row";
       li.append(avatar(f.uid, 44, p));
       const who = document.createElement("div");
       who.className = "who";
       who.innerHTML = `<div class="l1"></div><div class="l2"></div>`;
       who.firstChild.textContent = (p && p.name) || "…";
-      who.lastChild.textContent = f.since ? "Since " + when(f.since) : "";
+      who.lastChild.textContent = f.note || [f.metPlace, when(f.metAt || f.since)].filter(Boolean).join(" · ");
       li.append(who);
-      tap(li, e => { if (e.target.closest("button")) return; open = open === f.uid ? null : f.uid; paint(); });
-      if (open === f.uid){
-        const rm = document.createElement("button");
-        rm.type = "button";
-        rm.className = "quiet warnbtn cn-rm";
-        rm.textContent = "Remove";
-        armed(rm, "Remove", `Remove ${(p && p.name) || "them"}? Tap again`, () => {
-          rm.disabled = true;
-          cloud.account.unfriend(f.uid).then(() => { open = null; }, e => { rm.disabled = false; rm.textContent = "Couldn't remove: " + (e.code || e.message); });
-        });
-        li.append(rm);
-      }
+      tap(li, () => openCard(f, p, used));
       list.append(li);
     }
+    const hint = document.createElement("li");
+    hint.className = "empty";
+    hint.textContent = "Tap someone for your note, where you met and tags.";
     list.append(hint);
   }
   return close;
 }
 
-export const connect = { handleInvite, showQR, showFriends, avatar };
+function openCard(f, p, used){
+  const name = (p && p.name) || "them";
+  const ov = overlay(`
+    <div class="cn-top">
+      <div class="cn-head"><h2 data-k="name"></h2><button type="button" class="quiet" data-k="close">Close</button></div>
+      <div class="cn-who" data-k="who"></div>
+      <label class="lbl" for="cn-note">Note</label>
+      <textarea id="cn-note" data-k="note" rows="3" maxlength="500" placeholder="Waiter, Tuesdays"></textarea>
+      <span class="lbl">Met</span>
+      <p data-k="met"></p>
+      <input type="text" data-k="place" maxlength="60" placeholder="Where?" aria-label="Where you met" autocomplete="off">
+      <span class="lbl">Tags</span>
+      <div class="chips" data-k="tags"></div>
+      <div class="cn-add"><input type="text" data-k="newtag" maxlength="24" placeholder="New tag" aria-label="New tag" autocomplete="off">
+        <button type="button" class="quiet" data-k="addtag">Add</button></div>
+      <p class="cn-dim">Only you see this card.</p>
+      <button type="button" class="primary cn-big" data-k="save">Save</button>
+      <button type="button" class="quiet warnbtn" data-k="remove">Remove</button>
+      <p class="cn-warn" data-k="msg" hidden></p>
+    </div>`);
+  const q = s => ov.querySelector(`[data-k="${s}"]`);
+  q("name").textContent = name;
+  q("who").append(avatar(f.uid, 72, p));
+  q("note").value = f.note || "";
+  q("met").textContent = whenFull(f.metAt || f.since) || "Not stamped";
+  q("place").value = f.metPlace || lastPlace();
+  const chosen = new Set(f.tags || []);
+  const offered = new Set([...used, ...chosen]);
+  const paintTags = () => q("tags").replaceChildren(...[...offered].sort().map(t => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = t;
+    b.setAttribute("aria-pressed", String(chosen.has(t)));
+    tap(b, () => { chosen.has(t) ? chosen.delete(t) : chosen.add(t); paintTags(); });
+    return b;
+  }));
+  paintTags();
+  const addTag = () => {
+    const t = tagOf(q("newtag").value);
+    if (!t) return;
+    offered.add(t); chosen.add(t);
+    q("newtag").value = "";
+    paintTags();
+  };
+  tap(q("addtag"), addTag);
+  q("newtag").addEventListener("keydown", e => { if (e.key === "Enter") addTag(); });
+  const say = m => { q("msg").hidden = !m; q("msg").textContent = m || ""; };
+  const close = () => ov.remove();
+  tap(q("close"), close);
+  tap(q("save"), () => {
+    addTag();
+    const place = q("place").value.trim().slice(0, 60);
+    keepPlace(place);
+    cloud.account.saveFriend(f.uid, { note: q("note").value.trim().slice(0, 500), tags: [...chosen].slice(0, 12), metPlace: place })
+      .then(close, e => say("Couldn't save: " + (e.code || e.message)));
+  });
+  armed(q("remove"), "Remove", `Remove ${name}? Tap again`, () => {
+    cloud.account.unfriend(f.uid).then(close, e => say("Couldn't remove: " + (e.code || e.message)));
+  });
+  return close;
+}
+
+// ---- Your profile ----
+// Your name and photo, as your friends see them. A photo is shrunk to a 192px JPEG and kept
+// in the profile document (Firebase Storage would need the paid plan), so it must stay
+// under the rule's 60,000 characters.
+const PHOTO_MAX = 60000;
+async function shrink(file){
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((ok, no) => {
+      const i = new Image();
+      i.onload = () => ok(i);
+      i.onerror = () => no(new Error("That file isn't a picture this phone can read."));
+      i.src = url;
+    });
+    const S = 192, c = document.createElement("canvas");
+    c.width = c.height = S;
+    const side = Math.min(img.naturalWidth, img.naturalHeight);
+    c.getContext("2d").drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, S, S);
+    for (const quality of [0.82, 0.7, 0.58, 0.45, 0.32]){
+      const data = c.toDataURL("image/jpeg", quality);
+      if (data.length <= PHOTO_MAX) return data;
+    }
+    throw new Error("That photo won't shrink small enough. Try another.");
+  } finally { URL.revokeObjectURL(url); }
+}
+
+// Press and hold for 600ms (theme.css draws the fill), for what can't be undone.
+function hold(btn, fn){
+  let t = null;
+  const stop = () => { clearTimeout(t); t = null; btn.classList.remove("holding"); };
+  btn.addEventListener("pointerdown", () => { btn.classList.add("holding"); t = setTimeout(() => { stop(); fn(); }, 600); });
+  for (const ev of ["pointerup", "pointerleave", "pointercancel"]) btn.addEventListener(ev, stop);
+  btn.addEventListener("click", e => e.preventDefault());
+  btn.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fn(); } });
+}
+
+function showProfile({ onClose } = {}){
+  const ov = overlay(`
+    <div class="cn-top">
+      <div class="cn-head"><h2>Profile</h2><button type="button" class="quiet" data-k="close">Close</button></div>
+      <div class="cn-who" data-k="who"></div>
+      <label class="lbl" for="cn-name">Name</label>
+      <input type="text" id="cn-name" data-k="name" maxlength="60" autocomplete="off">
+      <input type="file" data-k="file" accept="image/*" capture="user" hidden>
+      <button type="button" class="quiet" data-k="pick">Take or pick a photo</button>
+      <button type="button" class="quiet" data-k="google" hidden>Use my Google photo</button>
+      <p class="cn-dim">Your name and photo show to the people you connect with.</p>
+      <button type="button" class="primary cn-big" data-k="save" disabled>Save</button>
+      <p class="cn-warn" data-k="msg" hidden></p>
+      <div class="cn-leave">
+        <button type="button" class="quiet warnbtn hold" data-k="hold">Hold to delete my account</button>
+        <div data-k="confirm" hidden>
+          <p class="cn-dim">This removes your profile, photo, friends, notes and guests, then signs you out.
+            Matches you played keep your name. Type DELETE to go ahead.</p>
+          <input type="text" data-k="typed" autocomplete="off" autocapitalize="characters" aria-label="Type DELETE">
+          <button type="button" class="warnbtn" data-k="delete" disabled>Delete my account</button>
+        </div>
+      </div>
+    </div>`);
+  const q = s => ov.querySelector(`[data-k="${s}"]`);
+  const say = m => { q("msg").hidden = !m; q("msg").textContent = m || ""; };
+  const close = () => { ov.remove(); if (onClose) try { onClose(); } catch {} };
+  tap(q("close"), close);
+  const u = cloud.user;
+  if (!u){ say("Sign in first."); return close; }
+
+  let me = null, photo;   // photo: undefined = unchanged, "" = back to Google's, data URL = new
+  const preview = () => {
+    const shown = photo === undefined ? me && me.photo : (photo || (me && me.googlePhoto) || "");
+    q("who").replaceChildren(avatar(null, 96, { name: q("name").value || (me && me.name), photo: shown }));
+    q("google").hidden = !(me && me.googlePhoto) || (photo === undefined ? !(me && me.photo && me.photo !== me.googlePhoto) : !photo);
+  };
+  const ready = () => { q("save").disabled = !q("name").value.trim(); };
+  cloud.account.me().then(p => {
+    me = p || { name: u.displayName || "", photo: u.photoURL || "", googlePhoto: u.photoURL || "" };
+    q("name").value = me.name;
+    preview(); ready();
+  }).catch(e => say("Couldn't load your profile: " + (e.code || e.message)));
+  q("name").addEventListener("input", ready);
+
+  tap(q("pick"), () => q("file").click());
+  q("file").addEventListener("change", async () => {
+    const f = q("file").files[0];
+    q("file").value = "";
+    if (!f) return;
+    say("");
+    try { photo = await shrink(f); preview(); } catch (e){ say(e.message); }
+  });
+  tap(q("google"), () => { photo = ""; preview(); });
+  tap(q("save"), () => {
+    const fields = { name: q("name").value.trim() };
+    if (photo !== undefined) fields.photo = photo;
+    q("save").disabled = true;
+    cloud.account.saveMe(fields).then(close, e => { ready(); say("Couldn't save: " + (e.code || e.message)); });
+  });
+
+  hold(q("hold"), () => { q("hold").hidden = true; q("confirm").hidden = false; q("typed").focus(); });
+  q("typed").addEventListener("input", () => { q("delete").disabled = q("typed").value.trim().toUpperCase() !== "DELETE"; });
+  tap(q("delete"), async () => {
+    if (q("delete").disabled) return;
+    q("delete").disabled = true;
+    say("Deleting…");
+    try {
+      await cloud.account.deleteMe();
+      try { localStorage.removeItem(PLACE); } catch {}
+      ov.remove();
+      const done = overlay(`<div class="cn-mid"><h2>Your account is deleted.</h2>
+        <p class="cn-dim">Signing in again starts a new one.</p></div>`);
+      const ok = document.createElement("button");
+      ok.type = "button"; ok.className = "primary cn-big"; ok.textContent = "OK";
+      tap(ok, () => { done.remove(); if (onClose) try { onClose(); } catch {} });
+      done.querySelector(".cn-mid").append(ok);
+    } catch (e){
+      say("Couldn't finish deleting: " + (e.code || e.message) + ". Try again; what's gone stays gone.");
+      q("delete").disabled = false;
+    }
+  });
+  return close;
+}
+
+export const connect = { handleInvite, showQR, showFriends, showProfile, avatar };

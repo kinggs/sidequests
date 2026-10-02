@@ -261,3 +261,28 @@ describe("friendships", () => {
     await assertFails(deleteDoc(doc(user("ben"), "friendships/ann_cat")));
   });
 });
+
+// ---- Session 2: your profile and photo, leaving (KIT-PLAN.md) ----
+
+describe("your profile and leaving", () => {
+  test("a photo up to 60,000 characters fits", async () => {
+    await assertSucceeds(setDoc(doc(user("ann"), "profiles/ann"), { name: "Ann", photo: "x".repeat(60000) }, { merge: true }));
+  });
+  test("Delete my account removes each of your documents, one by one", async () => {
+    const db = user("ann");
+    await assertSucceeds(deleteDoc(doc(db, "friendships/ann_cat")));
+    await assertSucceeds(deleteDoc(doc(db, "profiles/ann/friends/cat")));
+    await assertSucceeds(deleteDoc(doc(db, "profiles/ann/guests/g_1")));
+    await assertSucceeds(deleteDoc(doc(db, "invites/ANNLIVE")));
+    await assertSucceeds(deleteDoc(doc(db, "invites/ANNOLD")));
+    await assertSucceeds(deleteDoc(doc(db, "profiles/ann/private/main")));
+    await assertSucceeds(deleteDoc(doc(db, "profiles/ann")));
+  });
+  test("refused: deleting someone else's profile, card, guest or code", async () => {
+    const db = user("ben");
+    await assertFails(deleteDoc(doc(db, "profiles/ann")));
+    await assertFails(deleteDoc(doc(db, "profiles/ann/friends/cat")));
+    await assertFails(deleteDoc(doc(db, "profiles/ann/guests/g_1")));
+    await assertFails(deleteDoc(doc(db, "invites/ANNLIVE")));
+  });
+});

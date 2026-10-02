@@ -365,6 +365,7 @@
     <p class="dim">Rack It opens up to friends soon.</p>
     <button class="primary" id="outQR">My QR</button>
     <button class="quiet" id="outFriends">Friends</button>
+    <button class="quiet" id="outProfile">Profile</button>
     <div id="outInstall"></div>
     <button class="quiet" id="outSignOut">Sign out</button>
   </div>
@@ -554,6 +555,7 @@
       <button class="quiet" id="qrBtn">My QR</button>
       <button class="quiet" id="friendsBtn">Friends</button>
     </div>
+    <button class="quiet" id="profileBtn">Profile</button>
     <button class="quiet" id="familyBtn">Invites</button>
     <div class="row2">
       <button class="quiet" id="exportBtn">Export</button>
@@ -723,7 +725,7 @@ import { people } from "../shared/people.js";
 import { connect } from "../shared/connect.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "2.5.1";
+const APP_VERSION = "2.6.0";
 const APP_ID = "rack-it";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 document.getElementById("versionMore").textContent = "v" + APP_VERSION;
@@ -747,7 +749,7 @@ const el = {};
  "histList",
  "impChoice","impInfo","impMerge","impReplace","impCancel",
  "familyBtn","scrFamily","famBack","famList","famEmail","famAdd","famShare",
- "scrOutsider","outAvatar","outName","outQR","outFriends","outSignOut","qrBtn","friendsBtn",
+ "scrOutsider","outAvatar","outName","outQR","outFriends","outSignOut","qrBtn","friendsBtn","outProfile","profileBtn",
  "pfEst","estRef","estRefName","estRefScore","estNewScore","estOut","pfDelete","pfShared",
  "games","foldGame","gameHead","gameName","gameBlurb","raceLen","raceNRow","raceN","winArea","drop","goldChip","doneExtra",
  "rebuild","rbInfo","rbList","rbNote","rbApply","rbCancel","rebuildBtn"
@@ -1092,9 +1094,14 @@ el.signInBig.addEventListener("click", () => cloud.signIn().catch(e => {
 el.signOutBtn.addEventListener("click", () => cloud.signOut());
 
 // ---------- connect: My QR and Friends (shared/connect.js) ----------
+// Your profile's name and photo (Profile edits them), Google's until it has loaded.
 function showOutsider(user){
-  el.outName.textContent = user.displayName || user.email || "";
-  el.outAvatar.replaceChildren(connect.avatar(user.uid, 96, { name: user.displayName || "", photo: user.photoURL || "" }));
+  const paint = p => {
+    el.outName.textContent = (p && p.name) || user.displayName || user.email || "";
+    el.outAvatar.replaceChildren(connect.avatar(user.uid, 96, p || { name: user.displayName || "", photo: user.photoURL || "" }));
+  };
+  paint(null);
+  cloud.account.me().then(p => { if(p && cloud.user === user) paint(p); }).catch(() => {});
   show("outsider");
 }
 tapBind(el.outQR, () => connect.showQR({ app: APP_ID }));
@@ -1102,6 +1109,8 @@ tapBind(el.outFriends, () => connect.showFriends());
 tapBind(el.outSignOut, () => cloud.signOut());
 tapBind(el.qrBtn, () => connect.showQR({ app: APP_ID }));
 tapBind(el.friendsBtn, () => connect.showFriends());
+tapBind(el.profileBtn, () => connect.showProfile());
+tapBind(el.outProfile, () => connect.showProfile({ onClose: () => { if(cloud.user && current === "outsider") showOutsider(cloud.user); } }));
 phone.mountInstall(document.getElementById("outInstall"), { label: "Install on this phone" });
 
 // ---------- ratings ----------
@@ -3376,7 +3385,9 @@ el.exportBtn.addEventListener("click", async () => {
     state: { players: db.players, config: cfg() },
     people: people.all(),
     starters,
-    matches: all.map(withMatchFields)
+    matches: all.map(withMatchFields),
+    // Your profile, friends' cards and guests (shared/connect.js); Import restores them.
+    account: await cloud.account.exportMe().catch(e => { console.warn("[export] account", e); return null; })
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
   const a = document.createElement("a");
@@ -3402,10 +3413,12 @@ el.importFile.addEventListener("change", async () => {
     if((data.app && !IMPORT_APPS.includes(data.app)) || !data.state || !data.state.players || !Array.isArray(list))
       throw new Error("not a Rack It (or Fair Nine) export");
     pendingImport = Object.assign({}, data, { matches: list, starters: data.starters || {} });
+    const yours = data.account && cloud.user && data.account.uid === cloud.user.uid;
     el.impInfo.textContent =
       `${Object.keys(data.state.players).length} players, ${list.length} matches` +
       (data.exportedAt ? `, exported ${data.exportedAt.slice(0, 10)}` : "") +
-      ". Merge adds what's missing (by match id) and never overwrites. Replace wipes the cloud data first.";
+      ". Merge adds what's missing (by match id) and never overwrites. Replace wipes the cloud data first." +
+      (yours ? " Your profile and friends' cards come back too; friendships themselves can't." : "");
     el.impChoice.classList.remove("hidden");
   } catch(e){
     el.impInfo.textContent = "";
@@ -3413,6 +3426,13 @@ el.importFile.addEventListener("change", async () => {
   }
 });
 el.impCancel.addEventListener("click", () => { pendingImport = null; el.impChoice.classList.add("hidden"); });
+
+// Your own account's part of an export: name, photo, friends' cards, guests. Never a
+// friendship, and never from someone else's file (cloud.account.importMe refuses it).
+async function importAccount(imp){
+  if(!imp.account || !cloud.user || imp.account.uid !== cloud.user.uid) return;
+  try { await cloud.account.importMe(imp.account); } catch(e){ console.warn("[import] account", e); }
+}
 
 async function writeImportedMatch(s){
   const doc = withMatchFields(s);
@@ -3438,6 +3458,7 @@ el.impMerge.addEventListener("click", async () => {
     if(!haveStarters[id] && st && Number.isFinite(st.zargo)) await cloud.save("starters/" + id, st);
   const existing = new Set((await cloud.list("matches")).map(s => s.id));
   for(const s of imp.matches) if(s.id && !existing.has(s.id)) await writeImportedMatch(s);
+  await importAccount(imp);
   pendingImport = null;
   await loadState();
   rerender();
@@ -3457,6 +3478,7 @@ el.impReplace.addEventListener("click", async () => {
   for(const [id, st] of Object.entries(imp.starters))
     if(st && Number.isFinite(st.zargo)) await cloud.save("starters/" + id, st);
   for(const s of imp.matches) if(s.id) await writeImportedMatch(s);
+  await importAccount(imp);
   pendingImport = null;
   await loadState();
   rerender();

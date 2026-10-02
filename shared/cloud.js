@@ -29,6 +29,9 @@
 //   cloud.account.watchFriends(cb, onError) // [{ uid, since, app, note, tags, metAt, metPlace }], newest first
 //   await cloud.account.saveFriend(uid, { note, tags, metPlace })  // your private card only
 //   await cloud.account.unfriend(uid)
+//   await cloud.account.exportMe()        // { uid, profile, friends: { uid: card }, guests: { id: guest } }
+//   await cloud.account.importMe(json)    // your own export only: name, photo, cards, guests; never a friendship
+//   await cloud.account.deleteMe()        // every document of yours, one by one, then signs out
 // Times come back as milliseconds. Signing in creates your profile from your Google name and
 // photo the first time, and refreshes the Google photo after that.
 //
@@ -99,6 +102,8 @@ const needUser = () => {
   return currentUser;
 };
 const googleName = u => String(u.displayName || (u.email || "").split("@")[0] || "Someone").trim().slice(0, 60);
+// Timestamps to milliseconds, so an export is plain JSON.
+const plain = o => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, ms(v) ?? v]));
 const asProfile = (uid, p) => p ? { uid, name: p.name || "", photo: p.photo || p.googlePhoto || "", googlePhoto: p.googlePhoto || "" } : null;
 // 12 characters from a 62-letter alphabet: about 71 bits, so a code can't be guessed.
 function newCode() {
@@ -367,6 +372,43 @@ export const cloud = {
       const u = needUser();
       await fs.deleteDoc(fs.doc(db, "friendships", [u.uid, uid].sort().join("_")));
       await fs.deleteDoc(fs.doc(db, "profiles", u.uid, "friends", uid)).catch(() => {});
+    },
+    async exportMe() {
+      const u = needUser();
+      const rows = async sub => Object.fromEntries((await fs.getDocs(fs.collection(db, "profiles", u.uid, sub)))
+        .docs.map(d => [d.id, plain(d.data())]));
+      const me = (await fs.getDoc(fs.doc(db, "profiles", u.uid))).data() || {};
+      return { uid: u.uid, profile: { name: me.name || "", photo: me.photo || "" },
+        friends: await rows("friends"), guests: await rows("guests") };
+    },
+    // A friendship needs the other side's live code, so import restores only what's yours:
+    // your name and photo, your cards and your guests. Someone else's file is refused.
+    async importMe(data) {
+      const u = needUser();
+      if (!data || data.uid !== u.uid) throw Object.assign(new Error("That export belongs to another account"), { code: "wrong-account" });
+      const p = data.profile || {};
+      if (p.name) await this.saveMe({ name: p.name, photo: p.photo || "" });
+      let n = 0;
+      for (const [sub, map] of [["friends", data.friends], ["guests", data.guests]])
+        for (const [id, doc] of Object.entries(map || {})) { await fs.setDoc(fs.doc(db, "profiles", u.uid, sub, id), doc, { merge: true }); n++; }
+      return n;
+    },
+    // Firestore doesn't cascade, so each document goes on its own: your pairs, cards, guests,
+    // live code, private/main, then the profile. Records in apps keep your name (Session 6).
+    async deleteMe() {
+      const u = needUser();
+      const gone = r => fs.deleteDoc(r).catch(e => console.warn("[cloud.account] delete", r.path, e));
+      const pairs = await fs.getDocs(fs.query(fs.collection(db, "friendships"), fs.where("uids", "array-contains", u.uid)));
+      for (const d of pairs.docs) await gone(d.ref);
+      for (const sub of ["friends", "guests"])
+        for (const d of (await fs.getDocs(fs.collection(db, "profiles", u.uid, sub))).docs) await gone(d.ref);
+      const privRef = fs.doc(db, "profiles", u.uid, "private", "main");
+      const priv = (await fs.getDoc(privRef)).data() || {};
+      if (priv.invite) await gone(fs.doc(db, "invites", priv.invite));
+      await gone(privRef);
+      await fs.deleteDoc(fs.doc(db, "profiles", u.uid));
+      profiles.delete(u.uid);
+      await authMod.signOut(auth);
     }
   }
 };
