@@ -3,7 +3,7 @@
 A phone-first scorer for five cue games — three nine-ball, two 8-ball — between any two
 players, with one rating across all of them (**Zargo**) and handicaps that keep a mismatched
 pair close. Matches sync to the cloud, so any invited phone can score, resume or watch.
-Invite-only: members sign in with Google.
+Invite-only: members sign in with Google. Anyone else who signs in gets My QR and Friends (§8.1).
 
 This spec is the app as it is (2.2.0). The rating's reasoning is in [`ZARGO.md`](ZARGO.md); the
 build sessions and their handovers are in [`V3-PLAN.md`](V3-PLAN.md); the look (dark system v2)
@@ -367,7 +367,7 @@ a live row resumes; a finished one opens its summary.
 counted, **Copy for Cuescore** (§10), and for the owner **Hold to delete match** (anyone else
 sees why it isn't there).
 
-**More.** Invites, Export and Import, Rebuild ratings (owner), Install on this phone, About
+**More.** My QR and Friends (§8.1), Invites, Export and Import, Rebuild ratings (owner), Install on this phone, About
 Zargo, Sign out, the version; the account shows in the header. A member sees one line naming
 the owner's actions instead of Rebuild. **Invites** is the members allowlist: add a Gmail,
 remove one (owner only, two taps, never yourself), **Share this app**; rows show whose Gmail it
@@ -407,6 +407,28 @@ id. Stored ids are read through `people.resolve`, so a merge in any app carries 
 - **Deleting** a player (owner only) is soft and shared by every app: they leave every list and
   picker, their matches keep their name. You can't delete yourself.
 - ⚠ Any member can write any person; the Cuescore rule below is enforced in the app only.
+
+### 8.1 Connect
+
+Rack It is the pilot for Connect (`shared/connect.js`, `shared/KIT.md`). Friends belong to the
+account, not to Rack It, so they show in every app with Connect.
+
+- **My QR** (More, and the outsider screen): your name, avatar and a large QR of
+  `…/rack-it/?i=<code>`. It holds the screen on and goes fullscreen. The code lasts 24 hours
+  and renews itself when you open My QR with under an hour left. **Copy link** sends it by
+  message. When someone scans it while it's open, it says "Connected with …" and closes.
+- **Scanning.** The link opens Rack It. The code is saved and taken out of the address bar
+  before anything else, so it survives the Google sign-in. Signed in, you're connected at
+  once: "You're connected with Kenny Inggs". Signed out, a card says who it's from and offers
+  **Sign in with Google**. A dead code says "This QR has expired. Ask them to show it again."
+  Your own code says so. A code is spent once its outcome is shown.
+- **Friends** (More, and the outsider screen): avatar, full name and "Since …", newest first,
+  with a search box from six friends. Tap a row for **Remove** (two taps). Notes, tags and
+  where you met are Session 2.
+- **Outsiders.** Signed in but not on `/members` (`cloud.role()` is null): Rack It starts none of
+  its watchers and shows their avatar and name, **My QR**, **Friends**, **Install on this
+  phone**, **Sign out**, and "Rack It opens up to friends soon." Players, matches and ratings
+  are the household's only, as before.
 
 ## 9. Data
 
@@ -476,7 +498,8 @@ it was. `fair-nine/` now holds only a "Rack It has moved" page and a service wor
 clears Fair Nine's caches, unregisters itself and reloads its windows.
 
 **Testing.** `?mock` runs against `shared/cloud-memory.js` (CLAUDE.md): a fake owner, fake data.
-`?mock&role=member` makes the fake user a plain member. The rules aren't modelled there.
+`?mock&role=member` makes the fake user a plain member, `?mock&as=<name>` someone who isn't on
+`/members`. Two tabs test a QR scan: `?mock` on My QR, then `?mock&as=waiter&i=<code>`.
 
 ## 10. Cuescore
 
@@ -521,7 +544,7 @@ account, so a static app can't upload results.
   a shortcut that opens in a tab. More carries **Install on this phone**. Chrome can't move an
   installed app to a new id, so everyone reinstalled once at 2.0.0.
 - **Sign-in** shows its button only once the auth state is known, so it never flashes. An
-  account that isn't invited sees "Ask Kenny to add your Gmail under Invites".
+  account that isn't on `/members` gets the outsider screen (§8.1), with Sign out.
 
 ## 12. Out of scope
 
@@ -565,3 +588,4 @@ account, so a static app can't upload results.
 | 2.2.4 | End asks first when the match still has racks in it, and the result card offers **Back to the match** until you Save. 11-Point-Nine's End is unchanged. |
 | 2.3.0 | Game is a dropdown with the two sentences that say what it is and how it scores, not five buttons: with five games the names alone stopped being enough. |
 | 2.4.0 | The 8-ball drop is gone. Nobody taps fourteen balls mid-rack, and a half-tapped drop scored Ten-Point-Eight wrong; the rack-end card asks for the loser's balls *left on the table* instead, one tap, and the rack stores that count. |
+| 2.5.0 | Connect, piloted here: My QR and Friends under More, and an outsider screen for accounts that aren't on `/members`, instead of a dead end. Friendships live outside `/sidequests/`, so the household can't read them. |

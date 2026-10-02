@@ -14,8 +14,8 @@ Status and build order: `shared/KIT-PLAN.md`.
 | **Storage** | `cloud.js` | Data under `sidequests/<app>/`, offline cache, `?mock` | — | ✓ |
 | **Phone** | `phone.js` | Install button, fullscreen, keep awake | — | ✓ |
 | **Theme** | `theme.css` | The shared look | — | ✓ |
-| **Sign-in** | `cloud.js` | Google sign-in, an account (uid) with a name and photo | Storage | partly |
-| **Connect** | `connect.js` | My QR, scan to connect, friends list with note, met and tags | Sign-in | Sessions 1–2 |
+| **Sign-in** | `cloud.js` | Google sign-in, an account (uid) with a name and photo | Storage | ✓ (photo upload: Session 2) |
+| **Connect** | `connect.js` | My QR, scan to connect, friends list with note, met and tags | Sign-in | QR, scan, Friends ✓; the card: Session 2 |
 | **Players** | `people.js` | Pick who's playing: a friend, a QR scan, or a guest | Connect | Sessions 3–4 |
 | **Household** | `cloud.js` | The `/members` allowlist and owner role | Sign-in | ✓ |
 
