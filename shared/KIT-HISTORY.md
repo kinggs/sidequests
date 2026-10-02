@@ -1297,7 +1297,7 @@ What the plan got wrong, or didn't say:
 Shipped, all live, one push a step, each with its rules: That was them in Rack It 2.13.0, Zombie
 Dice 0.4.0 and Around the Clock 0.9.0 (rules run 37014350018); seats and the Game QR in Rack It
 2.14.0 (37016570746); two phones scoring one match, 2.15.0 (37020126726); a scorer and both
-sign, 2.16.0 (STEP4RUN). `shared/CONNECT.md` is the design as built. The loyalty app landed on
+sign, 2.16.0 (37024822755). `shared/CONNECT.md` is the design as built. The loyalty app landed on
 `main` in parallel twice; both rebases were clean bar one appended-cases conflict in
 `rules-check.mjs`, kept both sides.
 
