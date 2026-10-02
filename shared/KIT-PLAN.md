@@ -145,7 +145,7 @@ and ratings don't change.
 
 ### Rules (`shared/firestore.rules`)
 
-- [ ] Add, above the catch-all, with cases in `rules-check.mjs` for each line of "Must
+- [x] Add, above the catch-all, with cases in `rules-check.mjs` for each line of "Must
   refuse" below:
 
 ```
@@ -196,15 +196,15 @@ match /friendships/{pair} {
 }
 ```
 
-- [ ] **Must refuse:** a friendship with no code, an expired code, a deleted code, your own
+- [x] **Must refuse:** a friendship with no code, an expired code, a deleted code, your own
   code, or a code belonging to a third person; reading a friendship you aren't in; listing
   `/profiles`; reading anyone else's `private`, `friends` or `guests`; a profile with an
   extra key; an invite for another uid or one that lasts over 25 hours.
-- [ ] Update the header comment to name both tiers. Cost: one `get()` per connection.
+- [x] Update the header comment to name both tiers. Cost: one `get()` per connection.
 
 ### `shared/cloud.js`: an `account` section
 
-- [ ] Uid-keyed, beside `shared` and the members calls. The header comment lists them.
+- [x] Uid-keyed, beside `shared` and the members calls. The header comment lists them.
   - `account.me()`, `account.watchMe(cb)`: your profile, or null.
   - `account.saveMe(fields)`: name and photo. First sign-in creates the profile from
     Google's `displayName` and `photoURL`.
@@ -225,7 +225,7 @@ match /friendships/{pair} {
 
 ### `shared/cloud-memory.js`
 
-- [ ] Mirror `account`, with its refusals: wrong, expired or own code; reading a pair you
+- [x] Mirror `account`, with its refusals: wrong, expired or own code; reading a pair you
   aren't in; someone else's `private`, `friends`, `guests`. Two tabs test the whole scan:
   - Tab A: `rack-it/?mock`, opening My QR. Copy its link.
   - Tab B: `rack-it/?mock&as=waiter&i=<code>`, which connects, and both Friends lists
@@ -235,38 +235,39 @@ match /friendships/{pair} {
 
 A module like `people.js`: its own sheets and styles, built from `theme.css` parts.
 
-- [ ] `connect.handleInvite({ app, onDone })`, called first at startup:
+- [x] `connect.handleInvite({ app, onDone })`, called first at startup:
   - It saves `?i=<code>` to `localStorage` before anything else, so the code survives the
     Google redirect, then clears it from the URL.
   - **Signed out**: `lookupInvite`, then a full-screen card: "Connect with Kenny Inggs" and
     **Sign in with Google**.
   - **Signed in**: `accept`, then "You're connected with Kenny Inggs" with their avatar.
   - **Dead code**: "This QR has expired. Ask them to show it again."
-- [ ] `connect.showQR({ app })`: name, avatar and a large QR of `…/<app>/?i=<code>`.
+- [x] `connect.showQR({ app })`: name, avatar and a large QR of `…/<app>/?i=<code>`.
   `phone.keepAwake` while it's open, `phone.fullscreen()` on the way in. It closes with
   "Connected with …" when a new pair arrives while it's open.
-- [ ] The QR library is vendored: one MIT file (e.g. `qrcode-generator`) at
+- [x] The QR library is vendored: one MIT file (e.g. `qrcode-generator`) at
   `shared/vendor/qrcode.js`, its licence in the file. ⚠ It ships as a classic script; add
   the `export` line or load it as a script. Don't use a CDN: the service worker only caches
   same-origin files.
-- [ ] `connect.showFriends()`: avatar and full name, newest first, with a search box. Tap a
+- [x] `connect.showFriends()`: avatar and full name, newest first, with a search box. Tap a
   row for **Remove** (confirmed). The card's note, tags and place are Session 2.
-- [ ] `connect.avatar(uid, size)`: the profile photo in a neutral ring, or the initial.
+- [x] `connect.avatar(uid, size)`: the profile photo in a neutral ring, or the initial.
   Same look as `people.avatar`.
 
 ### Rack It (minor bump, from 2.4.0)
 
-- [ ] Call `connect.handleInvite({ app: "rack-it" })` before `people.start`.
-- [ ] **Outsiders**: when `cloud.role()` is null, don't start the Rack It watchers. Show a
+- [x] Call `connect.handleInvite({ app: "rack-it" })` before `people.start`.
+- [x] **Outsiders**: when `cloud.role()` is null, don't start the Rack It watchers. Show a
   simple screen: their avatar and name, **My QR**, **Friends**, **Install on this phone**,
   **Sign out**, and "Rack It opens up to friends soon." Session 6 replaces it.
-- [ ] Members: **My QR** and **Friends** under More, beside Invites.
-- [ ] `rack-it/SPEC.md`: a short section on Connect, plus a §13 line.
+- [x] Members: **My QR** and **Friends** under More, beside Invites.
+- [x] `rack-it/SPEC.md`: a short section on Connect, plus a §13 line.
 - [ ] Test the two-tab scan in `?mock`, at 390×844 and 360×640. Then for real, with a Google
   account that isn't on `/members`: once on Android with Rack It installed, once in a plain
   browser. ⚠ Redirect sign-in can fail where the browser blocks third-party storage
   (`github.io` and `firebaseapp.com` are different sites); if the stranger's sign-in loops,
   that's why. Record what happened in Handover.
+  (`?mock` part done at both sizes; the real phones are pending: Handover, Session 1.)
 
 ### Done when
 
@@ -645,3 +646,48 @@ What the plan got wrong, or didn't say:
    in `.gitignore`. Worth adding.
 7. In the mock, `&role=` given with `&as=` writes that user onto `/members` in the shared
    store, so it sticks until `?mock=reset`.
+
+### Session 1, 2026-10-01 (Opus)
+
+Shipped (Rack It 2.5.0, live): the account rules, `cloud.account` and its mock,
+`shared/connect.js` with `shared/vendor/qrcode.js`, and in Rack It **My QR** and **Friends**
+under More and an outsider screen. First, two fixes in `cloud.js` and the mock: `role()` is
+null for an outsider, and `watch`/`watchList` take an `onError` and warn without one.
+
+Proved:
+
+- Smoke test green for all six apps, owner and stranger (it was red for four). `node --test`
+  passes (25).
+- Rules: 22 new cases, written first and red until the rules went in. Each guard was removed in
+  turn on a local emulator and its own case went red. Run 36885880782 ran 36 tests (36 pass)
+  at 15:39:36, then released the rules at 15:39:43.
+- Two-tab scan in `?mock` at 390×844 and 360×640, no console errors: both Friends lists
+  update, My QR closes with "Connected with Waiter", a signed-out scanner gets the sign-in card
+  and is connected after it, an expired code is refused, reopening My QR mints a fresh code
+  and deletes the old one, Remove empties both lists.
+- `rack-it/?mock&as=stranger` shows the outsider screen; Sign out returns to sign-in.
+
+Not done: **the real-phone test** with a non-member Google account (pending the owner).
+A scored 11-Point-Nine match wasn't replayed by hand; no scoring code changed and the Zargo
+tests pass.
+
+What the plan got wrong, or didn't say:
+
+1. **The friendship read rule refused `accept`.** Checking "already connected" reads a pair
+   that may not exist, and `resource.data.uids` on a missing document is refused. Either of the
+   two may now read a missing pair (`request.auth.uid in pair.split('_')`; uids never hold
+   `_`). Someone outside the pair is still refused either way, so it reveals nothing.
+2. **Where the profile is made** wasn't said. `cloud.js` makes it on sign-in, in every app,
+   and refreshes the Google photo. One read a sign-in.
+3. **A code must be spent when its outcome shows, not when the card is closed.** Otherwise a
+   phone closed on "expired" shows it again on every open. The smoke-style test caught it.
+4. `qrcode-generator` ships an ES-module build (`dist/qrcode.mjs`), so no `export` line was
+   needed; the full MIT text is in the header.
+5. Added **Copy link** on My QR (for sending a code by message, and the two-tab test).
+6. The mock's `ACCESS` rows can now be checks on the path and data, not only tiers. Its
+   refusals for someone else's cards or pair can't be reached through `account` (every call
+   targets your own paths), so they guard against a future bug rather than being tested.
+7. The four apps that were red as a stranger now load without errors, but show an empty app
+   rather than a "not invited" screen. The owner decides whether each gets one.
+8. The rules check runs locally with `mise exec java@temurin-21 -- npx firebase-tools
+   emulators:exec …` from a scratch folder holding the npm packages, so nothing lands in the repo.
