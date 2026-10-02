@@ -11,7 +11,8 @@
 //   Z.expectedEightPoints(pA, cfg)               // Ten-Point-Eight's expected points a rack
 //   Z.eightQuota(pA, racks, cfg)                 // …times the racks PLAYED, the scoring handicap's spot
 //   Z.eightLead(t, quota)                        // that spot as a lead: > 0 means B is ahead
-//   Z.replay(matches, starters, cfg)             // every rating rebuilt from the match history
+//   Z.replay(matches, starters, cfg)             // every rating rebuilt from the rated matches
+//   Z.isRated(match), Z.ratedOrder(match)        // whether a match moved ratings, and where it sits
 //
 // index.html imports it; zargo.test.mjs proves it with `node --test` from the repo root. The reasoning
 // is in ZARGO.md. `cfg` is always a config that has been through withGames().
@@ -319,13 +320,19 @@ export function raceChart(pA, n){
 }
 
 // ---------- rebuilding every rating ----------
-// Replays the saved matches in the order they ended, from each player's starter rating (else
-// cfg.startZargo), with the running matches and robustness, exactly as saving them did.
+// Replays the rated matches in the order they were rated, from each player's starter rating
+// (else cfg.startZargo), with the running matches and robustness, exactly as confirming them did.
 //   matches:  match documents with id, and playerA/playerB already resolved to today's ids
 //   starters: { personId: zargo } or { personId: { zargo } }
 // Returns every player's end state and each replayed match's ratings before and after.
-// Live and discarded matches, a player against themselves, and a match with no counted
-// racks are skipped: saving never moved a rating for any of those.
+// Only a finished, rated match moves a rating (KIT-PLAN.md Session 5). rated: false is a friendly
+// (or a rated match declined or withdrawn), and adds nothing, not even to matches played or
+// robustness. A match with no `rated` field is rated: every match before 2.9.0 moved ratings.
+// The order is ratedAt (the opponent confirmed), else endedAt, which is all a match from before
+// 2.9.0 has. Live, pending and discarded matches, a player against themselves, and a match with no
+// counted racks are skipped: none of those ever moved a rating.
+export const isRated = m => !!m && m.status === "done" && m.rated !== false;
+export const ratedOrder = m => m.ratedAt || m.endedAt || 0;
 export function replay(matches, starters = {}, cfg = DEFAULT_CONFIG){
   const startOf = id => {
     const s = starters[id];
@@ -337,9 +344,9 @@ export function replay(matches, starters = {}, cfg = DEFAULT_CONFIG){
   Object.keys(starters).forEach(who);
 
   const done = (matches || [])
-    .filter(m => m && m.status === "done" && m.playerA && m.playerB && m.playerA !== m.playerB)
+    .filter(m => isRated(m) && m.playerA && m.playerB && m.playerA !== m.playerB)
     .slice()
-    .sort((x, y) => (x.endedAt || 0) - (y.endedAt || 0) || (x.startedAt || 0) - (y.startedAt || 0) ||
+    .sort((x, y) => ratedOrder(x) - ratedOrder(y) || (x.startedAt || 0) - (y.startedAt || 0) ||
       String(x.id).localeCompare(String(y.id)));
 
   const out = [];

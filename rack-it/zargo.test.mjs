@@ -444,3 +444,65 @@ test("replay: an 8-ball match moves ratings like a nine-ball one with the same w
     assert.equal(players.A.sessions, 1);
   }
 });
+
+// ---------- rated and friendly (KIT-PLAN.md Session 5) ----------
+// One Trad-Nine match, A beats B 2–1, both new and level: settling, d = 8 × 0.5 × (2 − 3 × 0.5) = 2,
+// boosted 4× to ±8, robustness 1.5 each (worked in the 8-ball test above).
+const tradAB = (id, extra = {}) => ({ id, endedAt: 100, startedAt: 90, status: "done", game: "standard",
+  handicap: "off", playerA: "A", playerB: "B",
+  racks: { 1: { winner: "a", kind: "win" }, 2: { winner: "a", kind: "win" }, 3: { winner: "b", kind: "win" } }, ...extra });
+
+test("replay: a match with no rated field is rated, the same as rated: true", () => {
+  const old = Z.replay([tradAB("m")], {}, cfg), ticked = Z.replay([tradAB("m", { rated: true })], {}, cfg);
+  assert.deepEqual(ticked, old);
+  near(old.players.A.zargo, 508);
+  near(old.players.B.zargo, 492);
+  assert.equal(old.players.A.sessions, 1);
+  assert.ok(Z.isRated(tradAB("m")));
+});
+
+test("replay: a friendly moves nothing, adds no robustness and no match played", () => {
+  const { players, matches } = Z.replay([tradAB("f", { rated: false })], { A: 520 }, cfg);
+  assert.deepEqual(matches, []);
+  assert.deepEqual(players, { A: { zargo: 520, robustness: 0, sessions: 0 } });
+  assert.equal(Z.isRated(tradAB("f", { rated: false })), false);
+});
+
+test("replay: a friendly between two rated matches leaves the second exactly as without it", () => {
+  // Without the friendly, the second rated match finds both players at 1 match: still settling.
+  const r1 = tradAB("r1"), r2 = tradAB("r2", { endedAt: 300, startedAt: 290 });
+  const friendly = tradAB("f", { endedAt: 200, startedAt: 190, rated: false,
+    racks: { 1: { winner: "b", kind: "win" }, 2: { winner: "b", kind: "win" } } });
+  assert.deepEqual(Z.replay([r1, friendly, r2], {}, cfg), Z.replay([r1, r2], {}, cfg));
+});
+
+test("replay: pending, declined and withdrawn matches move nothing", () => {
+  const out = Z.replay([
+    tradAB("p", { status: "pending", rated: true, endedBy: "u1" }),
+    tradAB("d", { rated: false, declinedBy: "u2" }),
+    tradAB("w", { rated: false, withdrawnBy: "u1" })
+  ], {}, cfg);
+  assert.deepEqual(out.matches, []);
+  assert.deepEqual(out.players, {});
+});
+
+test("replay: a rated match sits where it was confirmed (ratedAt), not where it ended", () => {
+  // X ended at 100 but was confirmed at 300, after Y (ended 200, from before 2.9.0: no ratedAt).
+  const x = tradAB("x", { endedAt: 100, ratedAt: 300 }), y = tradAB("y", { endedAt: 200, startedAt: 150 });
+  assert.deepEqual(Z.replay([x, y], {}, cfg).matches.map(m => m.id), ["y", "x"]);
+  // Without ratedAt the same two fall back to endedAt, as every match before 2.9.0 does.
+  const { ratedAt, ...xOld } = x;
+  assert.deepEqual(Z.replay([xOld, y], {}, cfg).matches.map(m => m.id), ["x", "y"]);
+  assert.equal(Z.ratedOrder(x), 300);
+  assert.equal(Z.ratedOrder(xOld), 100);
+});
+
+test("replay: a match from before 2.9.0 left open across another still sorts by endedAt (Session 3, note 1)", () => {
+  // Long started first and ended last; Short was played in between. Saving rated Long from the
+  // ratings at its start, but replay puts it after Short: the gap the owner's Rebuild closed on
+  // 2026-10-02. ratedAt || endedAt changes nothing for these, since neither has a ratedAt.
+  const long = tradAB("long", { startedAt: 10, endedAt: 300 }), short = tradAB("short", { startedAt: 100, endedAt: 200 });
+  const out = Z.replay([long, short], {}, cfg).matches;
+  assert.deepEqual(out.map(m => m.id), ["short", "long"]);
+  assert.deepEqual(out[1].before, { a: 508, b: 492 });   // after Short, not the 500s it started on
+});
