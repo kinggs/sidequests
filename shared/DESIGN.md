@@ -39,10 +39,10 @@ soft (a tinted ground for a live row or strip):
 | name | accent | use it for |
 | --- | --- | --- |
 | teal | `--teal` | Rack It (side A) |
-| green | `--green` | free |
+| green | `--green` | Sessions Loyalty (points in) |
 | lime | `--lime` | Zombie Dice |
 | amber | `--amber` | Bloc 11 |
-| coral | `--coral` | free (Zombie Dice's second: a shot) |
+| coral | `--coral` | free (Zombie Dice's second: a shot; Sessions Loyalty's second: points out) |
 | pink | `--pink` | Photo Coach |
 | lilac | `--lilac` | Rack It's second (side B) |
 | sky | `--sky` | Around the Clock (Bloc 11's second: projecting) |

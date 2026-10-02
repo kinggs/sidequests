@@ -108,6 +108,7 @@ puts anyone on `/members`: Invites does that.
 | Your notes, tags, met, guests | You only. Your friends can't see your friends. |
 | An app's records | The players in them and the admin. In Rack It (from 2.11.0) that's all: the owner sees every match, and everyone else, household members included, only the records with their uid in `uids`. Apps that haven't adopted Players: the household sees all of them, until the app is visited (`KIT-PLAN.md` Sessions 7 and 9). |
 | A Rack It rating | Anyone signed in who has that player's id, one at a time. Only the owner can list them. |
+| A Sessions Loyalty card and its entries | That member, and the club's staff. The staff note on a member: staff only. The club's rewards and ways to earn: anyone signed in. (`sessions-loyalty/SPEC.md` §6) |
 
 Email addresses are never in a profile, a friendship or a record's `names`.
 

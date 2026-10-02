@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0E0D0B">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Sessions Loyalty</title>
+<link rel="stylesheet" href="../shared/theme.css">
+<style>
+  /* The look and every shared part come from shared/theme.css (shared/DESIGN.md). Green marks
+     points coming in and the balance; coral marks points going out (a redeem). Below is only
+     what is this app's own: the loyalty card, an item's picture, and the scanner. */
+  :root{ --accent:var(--green); --accent-ink:var(--green-ink); --accent-soft:var(--green-soft);
+         --accent-2:var(--coral); --accent-2-ink:var(--coral-ink); --accent-2-soft:var(--coral-soft) }
+
+  /* The loyalty card: the club's name, yours, your tier, your points. */
+  .lcard{background:var(--ink-1);border-radius:var(--r-card);padding:16px 18px 14px;display:flex;flex-direction:column;gap:4px;margin-top:4px}
+  .lcard .top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .lcard .club{color:var(--faint)}
+  .lcard .tier{font-family:var(--grot);font-weight:700;font-size:.7778rem;letter-spacing:.1em;text-transform:uppercase;padding:7px 12px;border-radius:999px;background:var(--ink-2);color:var(--text-2)}
+  .lcard .name{font-family:var(--grot);font-size:1.3333rem;font-weight:600;letter-spacing:-.01em;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .lcard .pts{margin:8px 0 0;color:var(--accent)}
+  .lcard .pts small{display:block;font-family:ui-sans-serif,system-ui,sans-serif;font-size:.8889rem;font-weight:600;color:var(--dim);letter-spacing:0;margin-top:2px}
+  .lcard .meta{display:flex;justify-content:space-between;gap:12px;margin-top:10px;color:var(--dim);font-size:.8889rem}
+  .lcard .meta span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  /* An item's picture: its emoji, or the photo staff added, on a tile. */
+  .pic{flex:none;width:48px;height:48px;border-radius:var(--r-ctl);background:var(--ink-2);display:grid;place-items:center;font-size:1.5rem;line-height:1;overflow:hidden}
+  .pic img{width:100%;height:100%;object-fit:cover;display:block}
+  .pic.big{width:7rem;height:7rem;font-size:3.2rem;margin:0 auto}
+  .rows>li.void .l1{text-decoration:line-through;color:var(--dim)}
+
+  /* The scanner: the camera's view, square, with the code's quiet zone drawn on it. */
+  .scan{position:fixed;inset:0;z-index:40;background:var(--ink-0);display:flex;flex-direction:column;gap:14px;overflow-y:auto;
+    padding:max(16px,env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom))}
+  .scan .head{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:60px}
+  .scan video{display:block;width:min(100%,60dvh);aspect-ratio:1;object-fit:cover;border-radius:var(--r-card);background:#000;margin:0 auto}
+  .scan .box{width:100%;max-width:26rem;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+
+  /* Pages that stack: the member's page over the Members tab. */
+  .pagehead{display:flex;align-items:center;gap:12px;margin:4px 0 14px}
+  .pagehead h2{flex:1;min-width:0;font-family:var(--grot);font-size:1.3333rem;font-weight:600;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pagehead .more{flex:none;width:56px;min-width:56px;padding:0;background:transparent;color:var(--dim);font-size:1.4444rem;letter-spacing:.1em}
+  .who-big{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;padding:6px 0 4px}
+  .who-big .nm{font-family:var(--grot);font-size:1.3333rem;font-weight:600}
+  .stack{display:flex;flex-direction:column;gap:10px}
+  .seg+.rows,.seg+button,.rows+button{margin-top:12px}
+  .sheet .hint{font-size:.8889rem;color:var(--dim);padding:0 2px}
+  .sheet label{margin-top:6px}
+  .sheet .live{font-family:var(--grot);font-size:1.3333rem;font-weight:600;color:var(--accent);padding:6px 2px 2px}
+  .sheet .seg button{width:auto;text-align:center;padding:0 4px;justify-content:center}
+  .sheet .row button{width:auto}
+  .me-host{display:flex;align-items:center;gap:10px}
+  .apphead .lbl{flex:none}
+</style>
+</head>
+<body>
+
+<header class="apphead">
+  <h1 id="title">Sessions</h1>
+  <span class="lbl" id="sideLbl"></span>
+  <div class="me-host" id="meHost"></div>
+</header>
+
+<main class="page" id="main"></main>
+
+<footer class="foot" id="foot">Sessions Loyalty <span id="version"></span></footer>
+<nav class="tabbar hidden" id="tabs" aria-label="Staff"></nav>
+
+<script type="module">
+  import { cloud } from "../shared/cloud.js";
+  import { phone } from "../shared/phone.js";
+  import { ui } from "../shared/ui.js";
+  import { connect } from "../shared/connect.js";
+  import * as L from "./loyalty.js";
+
+  // Bump on every change. The deploy skill checks this against the live site.
+  const APP_VERSION = "0.1.0";
+  const APP_ID = "sessions-loyalty";
+  const APP_NAME = "Sessions Loyalty";
+  document.getElementById("version").textContent = "v" + APP_VERSION;
+
+  // ---- state ----
+  let user = null, staff = false, owner = false;
+  let settings = L.withDefaults(null);
+  let rewards = [], earns = [];
+  let card = null, myEntries = null;            // the member side
+  let cards = [], recent = [], staffList = [];  // the staff side
+  let member = null, memberEntries = null;      // the member page open on the staff side
+  let tab = "scan", viewAsMember = false, find = "", itemsSeg = "rewards";
+  let unsubs = [], pageUnsubs = [];
+  const profiles = new Map();                   // uid -> { name, photo } once read
+
+  const $ = id => document.getElementById(id);
+  const main = $("main"), tabsEl = $("tabs");
+  const fmt = n => Math.trunc(Number(n) || 0).toLocaleString("en");
+  const esc = s => String(s ?? "");
+  const when = at => {
+    if (!at) return "";
+    const d = new Date(at), now = new Date();
+    if (L.sameDay(at, now.getTime())) return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+    return d.toLocaleDateString(undefined, { day: "numeric", month: "short", ...(d.getFullYear() !== now.getFullYear() ? { year: "numeric" } : {}) })
+      + ", " + d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  };
+  const dateOf = at => at ? new Date(at).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "";
+  const report = (what, e) => { console.warn("[" + APP_ID + "]", what, e); ui.toast(what + ": " + ((e && (e.code || e.message)) || e)); };
+
+  // ---- DOM ----
+  function h(tag, attrs = {}, ...kids){
+    const n = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs)){
+      if (v == null || v === false) continue;
+      if (k === "class") n.className = v;
+      else if (k === "text") n.textContent = v;
+      else if (k === "html") n.innerHTML = v;
+      else if (k === "tap") ui.tap(n, v);
+      else if (k === "hold") ui.hold(n, v);
+      else if (k.startsWith("on")) n.addEventListener(k.slice(2), v);
+      else if (k === "hidden") n.hidden = !!v;
+      else n.setAttribute(k, v === true ? "" : v);
+    }
+    for (const kid of kids.flat()) if (kid != null && kid !== false) n.append(kid.nodeType ? kid : document.createTextNode(String(kid)));
+    return n;
+  }
+  const lbl = text => h("div", { class: "lbl sect", text });
+  const empty = text => h("li", { class: "empty", text });
+  const btn = (text, cls, fn, extra = {}) => h("button", { type: "button", class: cls, text, tap: fn, ...extra });
+
+  // A sheet with inputs (the theme's .sheet, built here): resolves with the values, or null.
+  function form({ title, text = "", fields = [], submit = "Save", onChange = null, extra = [] }){
+    return new Promise(resolve => {
+      const scrim = h("div", { class: "scrim" });
+      const box = h("div", { class: "sheet", role: "dialog", "aria-modal": "true", tabindex: "-1" });
+      if (title) box.append(h("h2", { text: title }));
+      if (text) box.append(h("p", { text }));
+      const inputs = {};
+      const live = h("div", { class: "live", hidden: true });
+      const values = () => Object.fromEntries(Object.entries(inputs).map(([k, i]) => [k, i.seg ? i.value : i.value]));
+      const changed = () => { if (!onChange) return; const v = onChange(values()); live.hidden = !v; live.textContent = v || ""; ok.disabled = !ready(); };
+      const ready = () => fields.every(f => !f.required || String(inputs[f.key].value || "").trim());
+      for (const f of fields){
+        if (f.type === "seg"){
+          const seg = h("div", { class: "seg" });
+          const holder = { seg: true, value: f.value };
+          for (const [v, label] of f.options){
+            const b = btn(label, "", () => { holder.value = v; seg.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", String(x === b))); changed(); }, { "aria-pressed": String(v === f.value) });
+            seg.append(b);
+          }
+          inputs[f.key] = holder;
+          box.append(h("label", { text: f.label }), seg);
+          continue;
+        }
+        if (f.type === "custom"){ box.append(f.node); continue; }
+        const inp = f.type === "textarea"
+          ? h("textarea", { id: "f-" + f.key, rows: f.rows || 3, maxlength: f.max || 500, placeholder: f.placeholder || "" })
+          : h("input", { id: "f-" + f.key, type: f.type || "text", inputmode: f.inputmode, maxlength: f.max || 80, placeholder: f.placeholder || "", autocomplete: "off", step: f.step });
+        inp.value = f.value ?? "";
+        inp.addEventListener("input", changed);
+        if (f.type !== "textarea") inp.addEventListener("keydown", e => { if (e.key === "Enter" && !ok.disabled) ok.click(); });
+        inputs[f.key] = inp;
+        box.append(h("label", { for: "f-" + f.key, text: f.label }), inp);
+        if (f.hint) box.append(h("p", { class: "hint", text: f.hint }));
+      }
+      box.append(live);
+      for (const x of extra) box.append(x);
+      const ok = btn(submit, "primary big", () => close(values()));
+      const cancel = btn("Cancel", "cancel", () => close(null));
+      box.append(ok, cancel);
+      const onKey = e => { if (e.key === "Escape"){ e.preventDefault(); close(null); } };
+      const opener = document.activeElement;
+      const close = v => { document.removeEventListener("keydown", onKey); scrim.remove(); if (opener && opener.focus) opener.focus({ preventScroll: true }); resolve(v); };
+      scrim.addEventListener("pointerup", e => { if (e.target === scrim) close(null); });
+      document.addEventListener("keydown", onKey);
+      scrim.append(box);
+      document.body.append(scrim);
+      changed(); ok.disabled = !ready();
+      const first = fields.find(f => f.focus);
+      if (first && inputs[first.key].focus) inputs[first.key].focus();
+    });
+  }
+
+  // ---- people ----
+  async function profileOf(uid){
+    if (!profiles.has(uid)){
+      const p = await cloud.account.profile(uid).catch(() => null);
+      profiles.set(uid, p || { name: "", photo: "" });
+    }
+    return profiles.get(uid);
+  }
+  const avatar = (uid, size, name) => connect.avatar(uid, size, { name, photo: (profiles.get(uid) || {}).photo || "" });
+
+  // ---- the account sheet ----
+  const install = { label: "Install on this phone", value: "install", run: async () => {
+    const how = await phone.install();
+    if (how) ui.sheet({ title: "Install", text: how });
+  } };
+  function mountAccount(u){
+    const extra = u ? [
+      { label: "My QR", value: "qr", run: () => connect.showQR({ app: APP_ID }) },
+      { label: "Profile", value: "profile", run: () => connect.showProfile({ onClose: render }) },
+      ...(staff ? [viewAsMember ? { label: "Staff side", value: "staffside", run: () => { viewAsMember = false; render(); } }
+                               : { label: "View as a member", value: "memberside", run: () => { viewAsMember = true; render(); } }] : []),
+      { label: "Export", value: "export", run: exportData },
+      ...(phone.installed() ? [] : [install])
+    ] : [];
+    ui.account($("meHost"), u, { onSignIn: () => cloud.signIn().catch(e => report("Couldn't sign in", e)), onSignOut: () => cloud.signOut(), extra });
+  }
+
+  // ---- cloud ----
+  await cloud.init(APP_ID);
+  mountAccount(cloud.user);
+  // A scanned QR: connect, as in Rack It. Signed in as staff, Done opens that member's card.
+  connect.handleInvite({ app: APP_ID, appName: APP_NAME, onDone: r => {
+    if (staff && r && r.uid && !r.self) openMember(r.uid, r.name);
+    else render();
+  } });
+  cloud.onUser(u => {
+    stopAll();
+    user = u;
+    mountAccount(u);
+    if (u) start(u); else render();
+  });
+  if (!cloud.configured()) render();
+
+  function stopAll(){
+    for (const off of [...unsubs, ...pageUnsubs]) { try { off(); } catch {} }
+    unsubs = []; pageUnsubs = [];
+    staff = false; owner = false; card = null; myEntries = null; cards = []; recent = []; staffList = []; member = null; memberEntries = null;
+    viewAsMember = false; tab = "scan";
+  }
+
+  async function start(u){
+    render();
+    let role = null;
+    try { role = await cloud.role(); } catch (e) { console.warn("[" + APP_ID + "] role", e); }
+    owner = role === "owner";
+    let mine = null;
+    try { mine = await cloud.load("staff/" + u.uid); } catch (e) { console.warn("[" + APP_ID + "] staff", e); }
+    if (cloud.user !== u) return;   // signed out meanwhile
+    staff = owner || !!mine;
+    mountAccount(u);
+    const onErr = what => e => report(what, e);
+    unsubs.push(cloud.watch("settings/main", d => { settings = L.withDefaults(d); render(); }, onErr("Couldn't read the settings")));
+    unsubs.push(cloud.watchList("rewards", rows => { rewards = sortItems(rows); render(); }, {}, onErr("Couldn't read the rewards")));
+    unsubs.push(cloud.watchList("earns", rows => { earns = sortItems(rows); render(); }, {}, onErr("Couldn't read the ways to earn")));
+    // Your own card and entries: what every account reads.
+    unsubs.push(cloud.watch("cards/" + u.uid, d => { card = d; render(); }, onErr("Couldn't read your card")));
+    unsubs.push(cloud.watchList("entries", rows => { myEntries = rows.sort((a, b) => (b.at || 0) - (a.at || 0)); render(); },
+      { where: ["uid", "==", u.uid] }, onErr("Couldn't read your history")));
+    if (staff){
+      unsubs.push(cloud.watchList("cards", rows => { cards = rows; render(); }, {}, onErr("Couldn't read the members")));
+      unsubs.push(cloud.watchList("entries", rows => { recent = rows; render(); }, { orderBy: "at", limit: 150 }, onErr("Couldn't read recent entries")));
+      unsubs.push(cloud.watchList("staff", rows => { staffList = rows; render(); }, {}, onErr("Couldn't read the staff list")));
+    }
+    render();
+  }
+  const sortItems = rows => rows.sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || (a.createdAt || 0) - (b.createdAt || 0));
+  const staffName = () => (profiles.get(user.uid) || {}).name || user.displayName || "Staff";
+
+  // ---- render ----
+  function render(){
+    if (!user){
+      tabsEl.classList.add("hidden");
+      $("sideLbl").textContent = "";
+      main.replaceChildren(h("div", { class: "gate" },
+        h("p", { text: "Show your QR at the bar, collect points, claim rewards." }),
+        btn("Sign in with Google", "primary big", () => cloud.signIn().catch(e => report("Couldn't sign in", e)))));
+      return;
+    }
+    if (staff && !viewAsMember) renderStaff(); else renderMember();
+  }
+
+  // ---- the member side ----
+  function renderMember(){
+    tabsEl.classList.add("hidden");
+    $("sideLbl").textContent = "";
+    const t = L.tierFor(card ? card.xp : 0, settings);
+    const points = card ? Number(card.points) || 0 : 0;
+    const name = (profiles.get(user.uid) || {}).name || (card && card.name) || user.displayName || "";
+    const page = [];
+    const lc = h("div", { class: "lcard" },
+      h("div", { class: "top" }, h("span", { class: "lbl club", text: settings.name }), card ? h("span", { class: "tier", text: t.name }) : null),
+      h("div", { class: "name", text: name }));
+    if (card){
+      const away = L.nextReward(points, rewards.filter(r => r.active !== false));
+      lc.append(
+        h("div", { class: "fig-xl pts" }, fmt(points), h("small", { text: `points · ${fmt(card.xp)} XP${t.next ? ` · ${t.next.name} at ${fmt(t.next.xp)}` : ""}` })),
+        h("div", { class: "meta" }, h("span", { text: "Member since " + dateOf(card.since) }), h("span", { text: card.memberNo ? "#" + card.memberNo : (card.status === "member" ? "Member" : card.status === "lapsed" ? "Lapsed" : "") })));
+      page.push(lc);
+      page.push(btn("Show my QR", "primary big wide", () => { phone.fullscreen(); connect.showQR({ app: APP_ID }); }, { style: "margin-top:12px" }));
+      if (away){
+        const pct = Math.min(100, Math.round(points / (Number(away.reward.cost) || 1) * 100));
+        page.push(h("div", { class: "card", style: "margin-top:12px" },
+          h("div", { text: `Your next reward is ${fmt(away.away)} points away` }),
+          h("div", { class: "brow" }, h("div", { class: "track" }, h("i", { style: `width:${pct}%` })), h("span", { class: "n", text: fmt(away.reward.cost) })),
+          h("p", { class: "note", text: away.reward.title })));
+      } else if (rewards.some(r => r.active !== false && (Number(r.cost) || 0) > 0)){
+        page.push(h("p", { class: "note", style: "margin-top:12px", text: "You can afford every reward. Show your QR at the bar." }));
+      }
+    } else {
+      lc.append(h("p", { class: "note", style: "margin-top:6px", text: "Not a member yet. Show your QR at the bar and they'll sign you up." }));
+      page.push(lc);
+      page.push(btn("Show my QR", "primary big wide", () => { phone.fullscreen(); connect.showQR({ app: APP_ID }); }, { style: "margin-top:12px" }));
+    }
+
+    page.push(lbl("Rewards"));
+    const rl = h("ul", { class: "rows" });
+    const shownR = rewards.filter(r => r.active !== false);
+    if (!shownR.length) rl.append(empty("No rewards yet."));
+    for (const r of shownR){
+      const cost = Number(r.cost) || 0, can = L.canAfford(points, r);
+      rl.append(h("li", { tap: () => ui.sheet({ title: r.title, text: [r.blurb, r.condition].filter(Boolean).join(" · ") || (cost ? `${fmt(cost)} points` : "Free"),
+          items: [{ label: "Show my QR", value: "qr", primary: true }] }).then(v => { if (v === "qr") connect.showQR({ app: APP_ID }); }) },
+        pic(r), h("div", { class: "who" }, h("div", { class: "l1", text: r.title }), h("div", { class: "l2", text: r.condition || r.blurb || "" })),
+        h("span", { class: "fig" + (can ? "" : " off"), text: cost ? fmt(cost) : "Free" })));
+    }
+    page.push(rl);
+
+    page.push(lbl("Earn"));
+    const el = h("ul", { class: "rows" });
+    const shownE = earns.filter(r => r.active !== false);
+    if (!shownE.length) el.append(empty("No tasks yet."));
+    for (const e of shownE){
+      el.append(h("li", { tap: () => ui.sheet({ title: e.title, text: (e.blurb ? e.blurb + " " : "") + `Do it, then show your QR at the bar and staff add the ${fmt(e.points)} points.`,
+          items: [{ label: "Show my QR", value: "qr", primary: true }] }).then(v => { if (v === "qr") connect.showQR({ app: APP_ID }); }) },
+        pic(e), h("div", { class: "who" }, h("div", { class: "l1", text: e.title }), h("div", { class: "l2", text: e.blurb || "" })),
+        h("span", { class: "fig", text: "+" + fmt(e.points) })));
+    }
+    page.push(el);
+
+    page.push(lbl("Recent"));
+    page.push(entriesList(myEntries, { who: false }));
+    if (staff) page.push(btn("Back to the staff side", "quiet wide", () => { viewAsMember = false; render(); }, { style: "margin-top:16px" }));
+    main.replaceChildren(...page);
+  }
+  const pic = item => h("div", { class: "pic" }, item.photo ? h("img", { src: item.photo, alt: "" }) : (item.emoji || "⭐"));
+  const entryTitle = e => e.kind === "spend" ? `${L.rand(e.rands)} at the bar` : e.kind === "redeem" ? `${e.title || "Reward"} (redeemed)` : e.kind === "adjust" ? (e.note || "Adjustment") : (e.title || "Points");
+
+  // Entries as rows. who: show the member's name (the staff side); menu: the ⋯ (the member page).
+  function entriesList(list, { who = true, menu = null, tapRow = null, limit = 0 } = {}){
+    const ul = h("ul", { class: "rows" });
+    if (list === null){ ul.append(empty("Loading…")); return ul; }
+    if (!list.length){ ul.append(empty(who ? "Nothing logged yet." : "Nothing logged yet. Show your QR at the bar.")); return ul; }
+    for (const e of (limit ? list.slice(0, limit) : list)){
+      const p = Number(e.points) || 0;
+      const li = h("li", { class: e.voided ? "void" : "", tap: tapRow ? () => tapRow(e) : null },
+        h("div", { class: "who" },
+          h("div", { class: "l1", text: (who && e.name ? e.name + " · " : "") + entryTitle(e) }),
+          h("div", { class: "l2", text: [when(e.at), e.voided ? "voided" : (e.kind === "spend" && e.note ? e.note : ""), who ? "" : (e.byName ? "by " + e.byName : "")].filter(Boolean).join(" · ") })),
+        h("span", { class: "fig" + (e.voided ? " off" : p < 0 ? " alt" : ""), text: L.signed(p) }));
+      if (menu){ const m = h("button", { type: "button", class: "more", text: "⋯", "aria-label": "More" }); menu(m, e); li.append(m); }
+      ul.append(li);
+    }
+    return ul;
+  }
+
+  // ---- the staff side ----
+  const TABS = [["scan", "Scan"], ["members", "Members"], ["items", "Items"], ["more", "More"]];
+  function renderStaff(){
+    $("sideLbl").textContent = "Staff";
+    tabsEl.classList.remove("hidden");
+    tabsEl.replaceChildren(...TABS.map(([id, label]) => btn(label, id === tab ? "sel" : "", () => { tab = id; member = null; closePage(); render(); })));
+    if (tab === "scan") renderScan();
+    else if (tab === "members") member ? renderMemberPage() : renderMembers();
+    else if (tab === "items") renderItems();
+    else renderMore();
+  }
+
+  function renderScan(){
+    const today = recent.filter(e => !e.voided && L.sameDay(e.at, Date.now()));
+    const t = L.totals(today);
+    main.replaceChildren(
+      btn("Scan a member's QR", "primary big wide", scanMember, { style: "margin-top:8px" }),
+      btn("Sign up a new member", "quiet wide", signUp, { style: "margin-top:12px" }),
+      lbl("Today"),
+      h("div", { class: "tiles" },
+        h("div", { class: "tile" }, h("b", { text: fmt(t.visits) }), h("span", { text: "visits" })),
+        h("div", { class: "tile" }, h("b", { text: L.rand(t.rands) }), h("span", { text: "at the bar" })),
+        h("div", { class: "tile on" }, h("b", { text: fmt(t.earned) }), h("span", { text: "points" }))),
+      lbl("Recent"),
+      entriesList(recent, { who: true, limit: 30, tapRow: e => openMember(e.uid, e.name) }));
+  }
+
+  function renderMembers(){
+    const q = h("input", { type: "search", placeholder: "Search members", "aria-label": "Search members", autocomplete: "off" });
+    q.value = find;
+    q.addEventListener("input", () => { find = q.value; paint(); });
+    const ul = h("ul", { class: "rows" });
+    const paint = () => {
+      const term = find.trim().toLowerCase();
+      const list = cards.filter(c => !term || String(c.name || "").toLowerCase().includes(term) || String(c.memberNo || "").toLowerCase() === term)
+        .sort((a, b) => (b.lastAt || b.since || 0) - (a.lastAt || a.since || 0));
+      ul.replaceChildren();
+      if (!cards.length) ul.append(empty("Nobody yet. Scan a member's QR to make their card."));
+      else if (!list.length) ul.append(empty("Nobody matches."));
+      for (const c of list){
+        const t = L.tierFor(c.xp, settings);
+        ul.append(h("li", { tap: () => openMember(c.uid || c.id, c.name) },
+          avatar(c.uid || c.id, 44, c.name),
+          h("div", { class: "who" }, h("div", { class: "l1", text: c.name || "…" }),
+            h("div", { class: "l2", text: [t.name, `${fmt(c.points)} points`, c.memberNo ? "#" + c.memberNo : "", c.status === "lapsed" ? "lapsed" : ""].filter(Boolean).join(" · ") }))));
+      }
+    };
+    paint();
+    main.replaceChildren(q, h("div", { style: "height:12px" }), ul, btn("From your friends", "quiet wide", fromFriends, { style: "margin-top:16px" }));
+  }
+
+  // Your Connect friends who have no card yet: make one without a scan.
+  async function fromFriends(){
+    let friends = [];
+    try {
+      friends = await new Promise((res, rej) => { const off = cloud.account.watchFriends(list => { off(); res(list); }, rej); });
+    } catch (e){ return report("Couldn't read your friends", e); }
+    const have = new Set(cards.map(c => c.uid || c.id));
+    const rows = friends.filter(f => !have.has(f.uid));
+    if (!rows.length) return ui.toast(friends.length ? "Every friend of yours already has a card." : "No friends yet. Scan someone's QR.");
+    await Promise.all(rows.map(f => profileOf(f.uid)));
+    const v = await ui.sheet({ title: "Make a card for", items: rows.map(f => ({ label: profiles.get(f.uid).name || "Someone", value: f.uid })) });
+    if (v) openMember(v, profiles.get(v).name);
+  }
+
+  // ---- scanning ----
+  const CODE = /^[A-Za-z0-9]{8,40}$/;
+  function codeFrom(text){
+    const t = String(text || "").trim();
+    if (CODE.test(t)) return t;
+    try { const c = new URL(t).searchParams.get("i"); if (c && CODE.test(c)) return c; } catch {}
+    const m = t.match(/[?&]i=([A-Za-z0-9]{8,40})/);
+    return m ? m[1] : null;
+  }
+  // The camera in the app where the phone can read a QR (Android Chrome); a pasted link or code
+  // anywhere. Resolves with the code, or null.
+  function scanQR(title = "Scan their QR"){
+    return new Promise(resolve => {
+      const ov = h("div", { class: "scan", role: "dialog", "aria-modal": "true" });
+      const video = h("video", { playsinline: true, muted: true, autoplay: true, hidden: true });
+      const msg = h("p", { class: "note", text: "Point the camera at the QR on their phone." });
+      const paste = h("input", { type: "text", placeholder: "Or paste the link or code", "aria-label": "Paste the link or code", autocomplete: "off" });
+      let stream = null, timer = 0, done = false;
+      const close = v => {
+        if (done) return; done = true;
+        cancelAnimationFrame(timer);
+        if (stream) stream.getTracks().forEach(t => t.stop());
+        ov.remove(); resolve(v || null);
+      };
+      const take = text => { const c = codeFrom(text); if (c) close(c); else { msg.textContent = "That isn't a sidequests QR or link."; msg.className = "gate-err"; } };
+      paste.addEventListener("keydown", e => { if (e.key === "Enter") take(paste.value); });
+      paste.addEventListener("paste", () => setTimeout(() => take(paste.value), 0));
+      ov.append(
+        h("div", { class: "head" }, h("span", { class: "lbl", text: title }), btn("Close", "quiet", () => close(null))),
+        video,
+        h("div", { class: "box" }, msg, paste, btn("Use what I pasted", "", () => take(paste.value))));
+      document.body.append(ov);
+      (async () => {
+        if (!("BarcodeDetector" in window) || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+          msg.textContent = "This phone can't scan in the app. Scan with the camera app instead (the link opens here), or paste it.";
+          return;
+        }
+        let detector;
+        try {
+          detector = new BarcodeDetector({ formats: ["qr_code"] });
+          stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+        } catch (e){
+          msg.textContent = "The camera isn't available here. Scan with the camera app instead (the link opens here), or paste it.";
+          return;
+        }
+        if (done){ stream.getTracks().forEach(t => t.stop()); return; }
+        video.srcObject = stream; video.hidden = false;
+        try { await video.play(); } catch {}
+        const look = async () => {
+          if (done) return;
+          try {
+            const codes = await detector.detect(video);
+            const hit = codes.map(c => codeFrom(c.rawValue)).find(Boolean);
+            if (hit){ ui.buzz(30); return close(hit); }
+          } catch {}
+          timer = requestAnimationFrame(() => setTimeout(look, 120));
+        };
+        look();
+      })();
+    });
+  }
+  async function scanMember(){
+    phone.fullscreen();
+    const code = await scanQR("Scan a member's QR");
+    if (!code) return;
+    await codeToMember(code);
+  }
+  // A code from a scan: connect (the pair carries app: sessions-loyalty), then their card.
+  async function codeToMember(code, { thenOpen = true } = {}){
+    let r;
+    try { r = await cloud.account.accept(code, APP_ID); } catch (e){ return report("Couldn't connect", e), null; }
+    if (!r){ ui.sheet({ title: "This QR has expired", text: "Ask them to open My QR again." }); return null; }
+    if (r.self){ ui.sheet({ title: "That's your own QR", text: "Scan a member's." }); return null; }
+    if (thenOpen) await openMember(r.uid, r.name);
+    return r;
+  }
+  // Sign up: show this staff account's QR; whoever scans it becomes a card.
+  function signUp(){
+    phone.fullscreen();
+    connect.showQR({ app: APP_ID, onFriend: uid => openMember(uid, "") });
+  }
+
+  // ---- a member's page ----
+  async function openMember(uid, name){
+    if (!uid) return;
+    closePage();
+    tab = "members"; member = uid; find = "";
+    const have = cards.find(c => (c.uid || c.id) === uid);
+    const p = await profileOf(uid);
+    const nm = (p && p.name) || name || (have && have.name) || "Someone";
+    try {
+      if (!have){
+        await cloud.save("cards/" + uid, { uid, name: nm, since: Date.now(), memberNo: "", status: "casual", points: 0, xp: 0, lastAt: 0, by: user.uid });
+        ui.toast(`New card for ${nm}`);
+      } else if (p && p.name && p.name !== have.name) await cloud.patch("cards/" + uid, { name: p.name });
+    } catch (e){ report("Couldn't make the card", e); }
+    if (member !== uid) return;   // another page opened meanwhile
+    memberEntries = null;
+    pageUnsubs.push(cloud.watchList("entries", rows => { memberEntries = rows.sort((a, b) => (b.at || 0) - (a.at || 0)); render(); },
+      { where: ["uid", "==", uid] }, e => report("Couldn't read their history", e)));
+    render();
+  }
+  function closePage(){ for (const off of pageUnsubs) { try { off(); } catch {} } pageUnsubs = []; member = null; memberEntries = null; }
+  const cardOf = uid => cards.find(c => (c.uid || c.id) === uid) || null;
+
+  function renderMemberPage(){
+    const uid = member, c = cardOf(uid);
+    if (!c){ main.replaceChildren(h("p", { class: "empty", text: "Making their card…" })); return; }
+    const t = L.tierFor(c.xp, settings);
+    const page = [];
+    const more = h("button", { type: "button", class: "more", text: "⋯", "aria-label": "More" });
+    const isStaff = staffList.some(s => s.id === uid);
+    ui.menu(more, { title: c.name, items: [
+      ...(owner ? [isStaff ? { label: "Remove from staff", value: "unstaff", hold: true, run: () => cloud.delete("staff/" + uid).then(() => ui.toast("No longer staff"), e => report("Couldn't remove", e)) }
+                           : { label: "Make staff", value: "staff", run: () => cloud.save("staff/" + uid, { name: c.name, addedAt: Date.now(), addedBy: user.uid }).then(() => ui.toast(c.name + " is staff"), e => report("Couldn't add staff", e)) }] : []),
+      { label: "Rebuild this card from its entries", value: "rebuild", run: () => rebuildCards([uid]) }
+    ] });
+    page.push(h("div", { class: "pagehead" }, btn("Back", "back", () => { closePage(); render(); }), h("h2", { text: c.name }), more));
+    page.push(h("div", { class: "who-big" }, avatar(uid, 72, c.name),
+      h("div", { class: "tier", style: "font-family:var(--grot);font-weight:700;font-size:.7778rem;letter-spacing:.1em;text-transform:uppercase;padding:7px 12px;border-radius:999px;background:var(--ink-2);color:var(--text-2)", text: t.name + (isStaff ? " · staff" : "") }),
+      h("div", { class: "fig-xl", style: "color:var(--accent)", text: fmt(c.points) }),
+      h("div", { class: "note", text: `points · ${fmt(c.xp)} XP${t.next ? ` · ${t.next.name} in ${fmt(t.next.away)}` : ""}` })));
+    page.push(h("div", { class: "stack", style: "margin-top:14px" },
+      btn("Log a spend", "primary big wide", () => logSpend(c)),
+      h("div", { class: "row", style: "margin-top:0" }, btn("Award", "", () => award(c)), btn("Redeem", "", () => redeem(c)), btn("Adjust", "", () => adjust(c)))));
+
+    // Details: member number, status, the staff note.
+    const noteBox = h("textarea", { id: "note", rows: 2, maxlength: 500, placeholder: "Only staff see this" });
+    const numIn = h("input", { type: "text", id: "memberNo", maxlength: 24, placeholder: "e.g. 42", autocomplete: "off" });
+    numIn.value = c.memberNo || "";
+    let status = c.status || "casual";
+    const seg = h("div", { class: "seg" }, ...[["casual", "Casual"], ["member", "Member"], ["lapsed", "Lapsed"]].map(([v, label]) =>
+      btn(label, "", function(){ status = v; seg.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", String(x.textContent === label))); }, { "aria-pressed": String(v === status) })));
+    let noteLoaded = false;
+    cloud.load("notes/" + uid).then(n => { if (n && n.text && !noteBox.value) noteBox.value = n.text; noteLoaded = true; }).catch(e => report("Couldn't read the note", e));
+    const save = btn("Save details", "wide", async () => {
+      save.disabled = true;
+      try {
+        await cloud.patch("cards/" + uid, { memberNo: numIn.value.trim().slice(0, 24), status });
+        if (noteLoaded || noteBox.value) await cloud.save("notes/" + uid, { text: noteBox.value.trim().slice(0, 500), updatedAt: Date.now(), by: user.uid });
+        ui.toast("Saved");
+      } catch (e){ report("Couldn't save", e); }
+      save.disabled = false;
+    });
+    page.push(lbl("Details"));
+    page.push(h("div", { class: "card" },
+      h("label", { for: "memberNo", text: "Member number" }), numIn,
+      h("label", { text: "Status" }), seg,
+      h("label", { for: "note", text: "Staff note" }), noteBox,
+      h("div", { style: "height:12px" }), save,
+      h("p", { class: "note", style: "margin-top:10px", text: "Member since " + dateOf(c.since) + ". The note is staff-only; the member sees the rest." })));
+
+    const month = L.inMonth(memberEntries || [], L.monthKey(Date.now()));
+    const mt = L.totals(month);
+    page.push(lbl("This month"));
+    page.push(h("div", { class: "tiles" },
+      h("div", { class: "tile" }, h("b", { text: fmt(mt.visits) }), h("span", { text: "visits" })),
+      h("div", { class: "tile" }, h("b", { text: L.rand(mt.rands) }), h("span", { text: "at the bar" })),
+      h("div", { class: "tile on" }, h("b", { text: fmt(mt.earned) }), h("span", { text: "points" }))));
+
+    page.push(lbl("History"));
+    page.push(entriesList(memberEntries, { who: false, menu: (m, e) => ui.menu(m, { title: entryTitle(e), text: `${when(e.at)} · ${L.signed(e.points)} points · by ${e.byName || "staff"}`, items: [
+      ...(e.voided ? [] : [{ label: "Void", value: "void", hold: true, run: () => voidEntry(c, e) }]),
+      ...(owner ? [{ label: "Delete", value: "del", hold: true, run: () => deleteEntry(c, e) }] : [])
+    ] }) }));
+    main.replaceChildren(...page);
+  }
+
+  // One batch: the entry, and the card's figures after it.
+  async function logEntry(c, fields){
+    const uid = c.uid || c.id;
+    const e = L.makeEntry({ ...fields, uid, name: c.name, by: user.uid, byName: staffName() });
+    const after = L.cardAfter(c, [...(memberEntries || []).filter(x => x.uid === uid), e]);
+    const figures = memberEntries ? { points: after.points, xp: after.xp, lastAt: after.lastAt }
+      : { points: (Number(c.points) || 0) + e.points, xp: (Number(c.xp) || 0) + e.xp, lastAt: e.at };
+    await cloud.batch([{ save: "entries/" + cloud.newId(), data: e }, { patch: "cards/" + uid, data: figures }]);
+    ui.buzz(16);
+  }
+  async function logSpend(c){
+    const v = await form({ title: "Log a spend", text: `${c.name} · ${fmt(c.points)} points`, submit: "Log it",
+      fields: [{ key: "rands", label: "Rands spent", type: "number", inputmode: "decimal", step: "0.01", placeholder: "0", required: true, focus: true },
+               { key: "note", label: "Note (optional)", placeholder: "Table 3, two lagers", max: 200 }],
+      onChange: f => { const p = L.pointsFor(f.rands, settings); return f.rands ? `= ${fmt(p.points)} points · ${fmt(p.xp)} XP` : ""; } });
+    if (!v) return;
+    const rands = Number(v.rands) || 0;
+    if (rands <= 0) return ui.toast("Enter what they spent.");
+    const p = L.pointsFor(rands, settings);
+    try { await logEntry(c, { kind: "spend", rands, points: p.points, xp: p.xp, note: v.note }); ui.toast(`${L.rand(rands)} · +${fmt(p.points)} points`); }
+    catch (e){ report("Couldn't log it", e); }
+  }
+  async function award(c){
+    const list = earns.filter(e => e.active !== false);
+    if (!list.length) return ui.toast("No ways to earn yet. Add them under Items.");
+    const v = await ui.sheet({ title: "Award", text: c.name, items: list.map(e => ({ label: `+${fmt(e.points)} · ${e.title}`, value: e.id })) });
+    if (!v) return;
+    const e = list.find(x => x.id === v);
+    try { await logEntry(c, { kind: "earn", points: Number(e.points) || 0, xp: Number(e.points) || 0, item: e.id, title: e.title }); ui.toast(`+${fmt(e.points)} · ${e.title}`); }
+    catch (err){ report("Couldn't award it", err); }
+  }
+  async function redeem(c){
+    const live = rewards.filter(r => r.active !== false);
+    const can = live.filter(r => L.canAfford(c.points, r)), cant = live.length - can.length;
+    if (!can.length) return ui.toast(live.length ? `${c.name} can't afford any reward yet.` : "No rewards yet. Add them under Items.");
+    const v = await ui.sheet({ title: "Redeem", text: `${c.name} · ${fmt(c.points)} points` + (cant ? ` · ${cant} more need more points` : ""),
+      items: can.map(r => ({ label: `${Number(r.cost) ? fmt(r.cost) : "Free"} · ${r.title}`, value: r.id })) });
+    if (!v) return;
+    const r = can.find(x => x.id === v);
+    try { await logEntry(c, { kind: "redeem", points: -(Number(r.cost) || 0), xp: 0, item: r.id, title: r.title }); ui.toast(`Redeemed · ${r.title}`); }
+    catch (err){ report("Couldn't redeem it", err); }
+  }
+  async function adjust(c){
+    const v = await form({ title: "Adjust points", text: `${c.name} · ${fmt(c.points)} points`, submit: "Adjust",
+      fields: [{ key: "points", label: "Points (minus to take away)", type: "number", inputmode: "numeric", placeholder: "0", required: true, focus: true },
+               { key: "note", label: "Why", placeholder: "Missed a spend on Friday", required: true, max: 200 }] });
+    if (!v) return;
+    const p = Math.trunc(Number(v.points) || 0);
+    if (!p) return ui.toast("Enter the points.");
+    try { await logEntry(c, { kind: "adjust", points: p, xp: Math.max(0, p), note: v.note }); ui.toast(`${L.signed(p)} points`); }
+    catch (err){ report("Couldn't adjust", err); }
+  }
+  async function voidEntry(c, e){
+    const uid = c.uid || c.id;
+    const after = L.cardAfter(c, (memberEntries || []).map(x => x.id === e.id ? { ...x, voided: true } : x));
+    try {
+      await cloud.batch([{ patch: "entries/" + e.id, data: { voided: true, voidedBy: user.uid, voidedAt: Date.now() } },
+        { patch: "cards/" + uid, data: { points: after.points, xp: after.xp, lastAt: after.lastAt } }]);
+      ui.toast("Voided");
+    } catch (err){ report("Couldn't void it", err); }
+  }
+  async function deleteEntry(c, e){
+    const uid = c.uid || c.id;
+    const after = L.cardAfter(c, (memberEntries || []).filter(x => x.id !== e.id));
+    try {
+      await cloud.batch([{ delete: "entries/" + e.id }, { patch: "cards/" + uid, data: { points: after.points, xp: after.xp, lastAt: after.lastAt } }]);
+      ui.toast("Deleted");
+    } catch (err){ report("Couldn't delete it", err); }
+  }
+  // Every card (or the ones named) remade from its entries.
+  async function rebuildCards(only = null){
+    let all;
+    try { all = await cloud.list("entries"); } catch (e){ return report("Couldn't read the entries", e); }
+    const byUid = new Map();
+    for (const e of all){ if (!byUid.has(e.uid)) byUid.set(e.uid, []); byUid.get(e.uid).push(e); }
+    const ops = [];
+    for (const c of cards){
+      const uid = c.uid || c.id;
+      if (only && !only.includes(uid)) continue;
+      const after = L.cardAfter(c, byUid.get(uid) || []);
+      if (after.points !== c.points || after.xp !== c.xp || after.lastAt !== (c.lastAt || 0)) ops.push({ patch: "cards/" + uid, data: { points: after.points, xp: after.xp, lastAt: after.lastAt } });
+    }
+    if (!ops.length) return ui.toast("Nothing to change.");
+    try { for (let i = 0; i < ops.length; i += 400) await cloud.batch(ops.slice(i, i + 400)); ui.toast(`${ops.length} card${ops.length === 1 ? "" : "s"} rebuilt`); }
+    catch (e){ report("Couldn't rebuild", e); }
+  }
+
+  // ---- items ----
+  function renderItems(){
+    const seg = h("div", { class: "seg" }, ...[["rewards", "Rewards"], ["earns", "Earn"]].map(([v, label]) =>
+      btn(label, "", () => { itemsSeg = v; render(); }, { "aria-pressed": String(itemsSeg === v) })));
+    const isR = itemsSeg === "rewards", list = isR ? rewards : earns, col = itemsSeg;
+    const ul = h("ul", { class: "rows" });
+    if (!list.length) ul.append(empty(isR ? "No rewards yet." : "No ways to earn yet."));
+    for (const it of list){
+      const m = h("button", { type: "button", class: "more", text: "⋯", "aria-label": "More" });
+      ui.menu(m, { title: it.title, items: [
+        { label: "Edit", value: "edit", run: () => editItem(col, it) },
+        { label: it.active === false ? "Show" : "Hide", value: "toggle", run: () => cloud.patch(`${col}/${it.id}`, { active: it.active === false }).catch(e => report("Couldn't save", e)) },
+        { label: "Delete", value: "del", hold: true, run: () => cloud.delete(`${col}/${it.id}`).then(() => ui.toast("Deleted"), e => report("Couldn't delete", e)) }
+      ] });
+      ul.append(h("li", { class: it.active === false ? "void" : "" }, pic(it),
+        h("div", { class: "who" }, h("div", { class: "l1", text: it.title }), h("div", { class: "l2", text: it.active === false ? "Hidden" : (it.condition || it.blurb || "") })),
+        h("span", { class: "fig" + (it.active === false ? " off" : ""), text: isR ? (Number(it.cost) ? String(Math.trunc(it.cost)) : "Free") : String(Math.trunc(it.points)) }), m));
+    }
+    const page = [seg, ul, btn(isR ? "Add a reward" : "Add a way to earn", "wide", () => editItem(col, null))];
+    if (!rewards.length && !earns.length) page.push(btn("Start from the Sessions list", "quiet wide", seedList, { style: "margin-top:12px" }),
+      h("p", { class: "note", style: "margin-top:10px", text: "The club's eight rewards and eight ways to earn as they were in the old app. Edit them after." }));
+    main.replaceChildren(...page);
+  }
+  async function seedList(){
+    const { rewards: rs, earns: es } = L.seedItems();
+    const now = Date.now();
+    const ops = [...rs.map(r => ({ save: "rewards/" + cloud.newId(), data: { ...r, photo: "", createdAt: now } })),
+                 ...es.map(e => ({ save: "earns/" + cloud.newId(), data: { ...e, createdAt: now } }))];
+    try { await cloud.batch(ops); ui.toast("16 items added"); } catch (e){ report("Couldn't add them", e); }
+  }
+  const PHOTO_MAX = 100000;
+  async function shrink(file){
+    const url = URL.createObjectURL(file);
+    try {
+      const img = await new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => no(new Error("That file isn't a picture this phone can read.")); i.src = url; });
+      const S = 320, c = document.createElement("canvas");
+      c.width = c.height = S;
+      const side = Math.min(img.naturalWidth, img.naturalHeight);
+      c.getContext("2d").drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, S, S);
+      for (const q of [0.8, 0.68, 0.55, 0.42, 0.3]){ const d = c.toDataURL("image/jpeg", q); if (d.length <= PHOTO_MAX) return d; }
+      throw new Error("That photo won't shrink small enough. Try another.");
+    } finally { URL.revokeObjectURL(url); }
+  }
+  async function editItem(col, it){
+    const isR = col === "rewards";
+    let photo = it ? (it.photo || "") : "";
+    const preview = h("div", { class: "pic big" });
+    const paintPic = () => preview.replaceChildren(photo ? h("img", { src: photo, alt: "" }) : (it && it.emoji) || "⭐");
+    const file = h("input", { type: "file", accept: "image/*", hidden: true });
+    file.addEventListener("change", async () => { const f = file.files[0]; file.value = ""; if (!f) return; try { photo = await shrink(f); paintPic(); } catch (e){ ui.toast(e.message); } });
+    const photoRow = isR ? h("div", { class: "row" }, btn("Add a photo", "quiet", () => file.click()), btn("Remove photo", "quiet", () => { photo = ""; paintPic(); })) : null;
+    paintPic();
+    const v = await form({ title: it ? "Edit" : (isR ? "New reward" : "New way to earn"), submit: it ? "Save" : "Add",
+      fields: [
+        { type: "custom", node: preview },
+        ...(isR ? [{ type: "custom", node: photoRow }, { type: "custom", node: file }] : []),
+        { key: "emoji", label: "Emoji", value: it ? it.emoji : "", placeholder: "🍺", max: 8 },
+        { key: "title", label: "Title", value: it ? it.title : "", required: true, focus: !it, max: 60 },
+        { key: "blurb", label: "What it is", value: it ? it.blurb : "", type: "textarea", rows: 2, max: 200 },
+        ...(isR ? [{ key: "cost", label: "Cost in points (0 is free)", type: "number", inputmode: "numeric", value: it ? it.cost : 0 },
+                   { key: "condition", label: "Condition, if free with something", value: it ? it.condition : "", placeholder: "With a 2-hour booking", max: 80 }]
+                : [{ key: "points", label: "Points it awards", type: "number", inputmode: "numeric", value: it ? it.points : 200, required: true }]),
+        { key: "active", label: "Shown to members", type: "seg", value: it ? (it.active === false ? "no" : "yes") : "yes", options: [["yes", "Shown"], ["no", "Hidden"]] }
+      ] });
+    if (!v) return;
+    const base = { emoji: String(v.emoji || "").trim().slice(0, 8), title: String(v.title || "").trim().slice(0, 60), blurb: String(v.blurb || "").trim().slice(0, 200), active: v.active !== "no" };
+    const data = isR ? { ...base, cost: Math.max(0, Math.trunc(Number(v.cost) || 0)), condition: String(v.condition || "").trim().slice(0, 80), photo }
+                     : { ...base, points: Math.max(0, Math.trunc(Number(v.points) || 0)) };
+    if (!data.title) return;
+    try {
+      if (it) await cloud.patch(`${col}/${it.id}`, data);
+      else await cloud.save(`${col}/${cloud.newId()}`, { ...data, order: (isR ? rewards : earns).length, createdAt: Date.now() });
+      ui.toast("Saved");
+    } catch (e){ report("Couldn't save", e); }
+  }
+
+  // ---- more ----
+  function renderMore(){
+    const page = [];
+    page.push(lbl("Settings"));
+    page.push(btn("Club name, rates and tiers", "wide", editSettings));
+    page.push(h("p", { class: "note", style: "margin-top:8px", text: `${settings.name} · ${settings.pointsPerRand} point${settings.pointsPerRand === 1 ? "" : "s"} and ${settings.xpPerRand} XP a rand · ${settings.tiers.map(t => `${t.name} at ${fmt(t.xp)}`).join(", ")}` }));
+    if (owner){
+      page.push(lbl("Staff"));
+      const ul = h("ul", { class: "rows" });
+      if (!staffList.length) ul.append(empty("Only you. Add staff by scanning their QR."));
+      for (const s of staffList){
+        const m = h("button", { type: "button", class: "more", text: "⋯", "aria-label": "More" });
+        ui.menu(m, { title: s.name || s.id, items: [{ label: "Remove from staff", value: "rm", hold: true, run: () => cloud.delete("staff/" + s.id).then(() => ui.toast("Removed"), e => report("Couldn't remove", e)) }] });
+        ul.append(h("li", {}, avatar(s.id, 44, s.name), h("div", { class: "who" }, h("div", { class: "l1", text: s.name || "…" }), h("div", { class: "l2", text: "since " + dateOf(s.addedAt) })), m));
+      }
+      page.push(ul, btn("Add staff", "wide", addStaff, { style: "margin-top:12px" }));
+    }
+    page.push(lbl("Data"));
+    page.push(h("div", { class: "stack" },
+      btn("Export everything", "wide", exportData),
+      ...(owner ? [btn("Import", "wide", importData)] : []),
+      btn("Rebuild points", "quiet wide hold", null, { hold: () => rebuildCards() }),
+      btn("View as a member", "quiet wide", () => { viewAsMember = true; render(); })));
+    page.push(h("p", { class: "note", style: "margin-top:10px", text: "Rebuild remakes every card's points and XP from its entries. Hold it." }));
+    page.push(h("p", { class: "note", style: "margin-top:16px", text: `Sessions Loyalty v${APP_VERSION} · staff side` }));
+    main.replaceChildren(...page);
+  }
+  async function editSettings(){
+    const t = settings.tiers;
+    const v = await form({ title: "Settings", fields: [
+      { key: "name", label: "Club name", value: settings.name, required: true, max: 40 },
+      { key: "ppr", label: "Points a rand", type: "number", inputmode: "decimal", step: "0.01", value: settings.pointsPerRand, required: true },
+      { key: "xpr", label: "XP a rand", type: "number", inputmode: "decimal", step: "0.01", value: settings.xpPerRand, required: true },
+      { key: "t1", label: "First tier (from 0 XP)", value: t[0].name, required: true, max: 20 },
+      { key: "t2", label: "Second tier", value: (t[1] || { name: "Silver" }).name, max: 20 },
+      { key: "t2xp", label: "…from XP", type: "number", inputmode: "numeric", value: (t[1] || { xp: 5000 }).xp },
+      { key: "t3", label: "Third tier", value: (t[2] || { name: "Gold" }).name, max: 20 },
+      { key: "t3xp", label: "…from XP", type: "number", inputmode: "numeric", value: (t[2] || { xp: 15000 }).xp }
+    ] });
+    if (!v) return;
+    const tiers = [{ name: String(v.t1).trim(), xp: 0 }];
+    if (String(v.t2).trim()) tiers.push({ name: String(v.t2).trim(), xp: Math.max(1, Math.trunc(Number(v.t2xp) || 0)) });
+    if (String(v.t3).trim()) tiers.push({ name: String(v.t3).trim(), xp: Math.max(1, Math.trunc(Number(v.t3xp) || 0)) });
+    try {
+      await cloud.save("settings/main", { name: String(v.name).trim().slice(0, 40), pointsPerRand: Math.max(0, Number(v.ppr) || 0), xpPerRand: Math.max(0, Number(v.xpr) || 0), tiers, updatedBy: user.uid });
+      ui.toast("Saved");
+    } catch (e){ report("Couldn't save", e); }
+  }
+  async function addStaff(){
+    const code = await scanQR("Scan the new staff member's QR");
+    if (!code) return;
+    const r = await codeToMember(code, { thenOpen: false });
+    if (!r) return;
+    const p = await profileOf(r.uid);
+    try { await cloud.save("staff/" + r.uid, { name: (p && p.name) || r.name || "", addedAt: Date.now(), addedBy: user.uid }); ui.toast(`${(p && p.name) || r.name} is staff`); }
+    catch (e){ report("Couldn't add staff", e); }
+  }
+
+  // ---- export and import ----
+  function download(name, data){
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const a = h("a", { href: URL.createObjectURL(blob), download: name });
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  }
+  async function exportData(){
+    const stamp = new Date().toISOString().slice(0, 10);
+    try {
+      if (staff && !viewAsMember){
+        const [sts, rs, es, cs, ns, en] = await Promise.all([cloud.load("settings/main"), cloud.list("rewards"), cloud.list("earns"), cloud.list("cards"), cloud.list("notes"), cloud.list("entries")]);
+        download(`sessions-loyalty-${stamp}.json`, { app: APP_ID, version: APP_VERSION, exportedAt: new Date().toISOString(), settings: sts || {}, staff: staffList, rewards: rs, earns: es, cards: cs, notes: ns, entries: en });
+      } else {
+        download(`sessions-loyalty-${stamp}-mine.json`, { app: APP_ID, version: APP_VERSION, exportedAt: new Date().toISOString(), uid: user.uid, card: card || null, entries: myEntries || [] });
+      }
+      ui.toast("Exported");
+    } catch (e){ report("Couldn't export", e); }
+  }
+  function importData(){
+    const file = h("input", { type: "file", accept: "application/json,.json", hidden: true });
+    file.addEventListener("change", async () => {
+      const f = file.files[0]; file.remove();
+      if (!f) return;
+      try {
+        const data = JSON.parse(await f.text());
+        if (data.app !== APP_ID) throw new Error("That isn't a Sessions Loyalty export.");
+        const ops = [];
+        const strip = ({ id, _updatedAt, ...d }) => d;
+        if (data.settings) ops.push({ save: "settings/main", data: strip(data.settings) });
+        for (const col of ["staff", "rewards", "earns", "cards", "notes", "entries"])
+          for (const row of (data[col] || [])) if (row && row.id) ops.push({ save: `${col}/${row.id}`, data: strip(row) });
+        for (let i = 0; i < ops.length; i += 400) await cloud.batch(ops.slice(i, i + 400));
+        ui.toast(`${ops.length} documents imported`);
+      } catch (e){ report("Couldn't import", e); }
+    });
+    document.body.append(file); file.click();
+  }
+
+  // ---- offline shell ----
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
+</script>
+</body>
+</html>
