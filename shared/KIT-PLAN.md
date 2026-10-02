@@ -165,13 +165,13 @@ phone. Stop and fix before step 2 if any app looks broken.
 
 ### Step 3 — Rack It on v3 (minor bump)
 
-- [ ] `connect.js` and `people.js` drop their own `tap`, `armed`, `hold` and `overlay` for
+- [x] `connect.js` and `people.js` drop their own `tap`, `armed`, `hold` and `overlay` for
   `ui.tap`, `ui.hold` and `ui.sheet`. Every two-tap "Sure?" becomes a hold.
-- [ ] `ui.account` in the header, as overridden above: Profile, My QR, Friends, Export, Import,
+- [x] `ui.account` in the header, as overridden above: Profile, My QR, Friends, Export, Import,
   Install, Sign out. The More tab keeps the rest.
-- [ ] `CHANGES.md` § rack-it: drop the duplicated parts, `--a/--b` alias the accents, the
+- [x] `CHANGES.md` § rack-it: drop the duplicated parts, `--a/--b` alias the accents, the
   Zargo figure 30px, the live row. **The live screen changes greys only.**
-- [ ] SPEC where it names a moved control.
+- [x] SPEC where it names a moved control.
 
 **Done when:** the Session 6 and 6b `?mock` proofs pass from `shared/proofs/`, and a scored
 11-Point-Nine match on 2.11.0 and on this build give the same documents.

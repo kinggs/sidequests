@@ -9,6 +9,7 @@ shares `pw.mjs` with them.
 | `h.mjs` | Helpers for multi-tab `?mock` proofs: a tab per user (`&as=`, `&role=`, a seed), `C`/`tryC` to call `cloud` in a tab, the fake store, Rack It's scoring | Playwright |
 | `rack-it-outsiders.mjs` | Session 6: Ann, Ben and Cat outside the household | Playwright |
 | `rack-it-one-admin.mjs` | Session 6b: the owner, Melanie as a member, Ann; with `OLD=<git rev>` and `SEED=<export>`, old build against new | Playwright |
+| `rack-it-same-match.mjs` | The ground rule: one 11-Point-Nine match on `OLD=<git rev>` and on this build saves the same documents | Playwright |
 | `rules.mjs` | `shared/rules-check.mjs` against the rules on a local emulator | Java 21, npx |
 | `mutate.mjs`, `guards.mjs` | Loosens each guard in turn; its own case must go red | Java 21, npx |
 

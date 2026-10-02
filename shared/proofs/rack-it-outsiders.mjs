@@ -4,7 +4,7 @@
 //
 //   node shared/proofs/rack-it-outsiders.mjs
 import fs from "node:fs";
-import { ok, summary, serve, browser, tab, C, tryC, text, store, scoreLeague, RACKS, matchesOf, ratingsOf, startMatch } from "./h.mjs";
+import { ok, summary, accountItems, account, serve, browser, tab, C, tryC, text, store, scoreLeague, RACKS, matchesOf, ratingsOf, startMatch } from "./h.mjs";
 const srv = await serve();
 const { b, ctx } = await browser();
 const R = srv.base + "/rack-it/";
@@ -94,7 +94,7 @@ ok(JSON.stringify(await ratingsOf(owner)) === rb, "the friendly moved no rating"
 
 await ann.bringToFront(); await ann.click('.tabbar button[data-tab="ratings"]'); await ann.waitForTimeout(300);
 await ann.bringToFront(); await ann.click("#addPlayerBtn"); await ann.waitForTimeout(300);
-await ann.bringToFront(); await ann.click('.pk-ov [data-k="guest"]'); await ann.fill("#pk-guest", "Dan"); await ann.bringToFront(); await ann.click('.pk-ov [data-k="addguest"]'); await ann.waitForTimeout(400);
+await ann.bringToFront(); await ann.click('.sheet [data-k="guest"]'); await ann.fill("#pk-guest", "Dan"); await ann.bringToFront(); await ann.click('.sheet [data-k="addguest"]'); await ann.waitForTimeout(400);
 ok(await ann.locator("#pform").isVisible(), "ann: the guest's starter form opens");
 await ann.bringToFront(); await ann.click("#pfSave"); await ann.waitForTimeout(400);
 const g = Object.keys(await ratingsOf(owner)).find(k => k.startsWith("g_"));
@@ -109,8 +109,9 @@ ok(await tryC(ben, c => c.save("matches/x1", { by: "mock-ben", uids: ["mock-ben"
 ok(await tryC(cat, c => c.save("matches/x2", { by: "mock-cat", uids: ["mock-ann", "mock-ben"], status: "live" })) === "permission-denied", "cat can't start a match she isn't in");
 await cat.evaluate(() => { window.__mockQueries = window.__appQueries; });
 await ann.bringToFront(); await ann.click('.tabbar button[data-tab="more"]'); await ann.waitForTimeout(300);
-ok(!(await ann.locator("#familyBtn").isVisible()) && !(await ann.locator("#importBtn").isVisible()) && !(await ann.locator("#rebuildBtn").isVisible()), "ann's More has no Invites, Import or Rebuild");
-const [dl] = await Promise.all([ann.waitForEvent("download"), ann.click("#exportBtn")]);
+const annItems = await accountItems(ann);
+ok(!(await ann.locator("#familyBtn").isVisible()) && !annItems.includes("Import") && !(await ann.locator("#rebuildBtn").isVisible()), "ann has no Invites, Import or Rebuild: " + annItems.join(", "));
+const [dl] = await Promise.all([ann.waitForEvent("download"), account(ann, "Export")]);
 const exp = JSON.parse(await fs.promises.readFile(await dl.path(), "utf8"));
 ok(exp.matches.length >= 4 && exp.matches.every(x => x.uids.includes("mock-ann")), `ann's export: ${exp.matches.length} matches, all hers`);
 for (const [n, p] of Object.entries(out)){

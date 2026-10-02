@@ -411,11 +411,16 @@ confirm"), the racks that
 counted, **Copy for Cuescore** (§10), and for the owner **Hold to delete match** (anyone else
 sees why it isn't there).
 
-**More.** My QR, Friends and Profile (§8.1), Invites, Export and Import, Rebuild ratings (owner), Install on this phone, About
-Zargo, Sign out, the version (friend mode drops Invites, Import and Rebuild, §8.2); the account shows in the header.
+**Your account** (2.12.0, `shared/DESIGN.md`): your profile's avatar sits top right on Play,
+Ratings, Matches and More (`ui.account`). Tapping it opens a bottom sheet with your name, then
+**Profile**, **My QR** and **Friends** (§8.1), **Export**, **Import** (the owner's), **Install on
+this phone** (until it's installed) and **Sign out**.
+
+**More.** Invites, Rebuild ratings (owner), About Zargo, the version (friend mode drops Invites
+and Rebuild, §8.2), and a line saying what moved under your picture.
 **Invites** is the members allowlist, for the household's other apps: add a Gmail,
-remove one (owner only, two taps, never yourself), **Share this app**; rows show whose Gmail it
-is. Import's **Replace everything** is the owner's too.
+remove one (owner only, **Hold to remove**, never yourself), **Share this app**; rows show whose
+Gmail it is. Import's **Hold to replace everything** is the owner's too.
 
 ### 7.1 The owner
 
@@ -428,8 +433,10 @@ buttons from everyone else. **Since 2.11.0 the owner is Rack It's one admin** (K
 and starters. Everyone else, a household member included, is a player in friend mode (§8.2).
 ⚠ People documents stay writable by any member.
 
-**Hold to confirm.** End, deleting a match and deleting a player are a 600ms hold with a
-rising fill, never a dialog. Under reduced motion the fill appears at once.
+**Hold to confirm.** End, deleting a match or a player, changing a starter rating, removing an
+invite and replacing everything on import are a 600ms hold with a rising fill (`ui.hold`), never
+a dialog or a second tap. Under reduced motion the fill appears at once; the hold stays 600ms.
+The player form, Import and Rebuild open as bottom sheets.
 
 ## 8. People, Gmail and claiming
 
@@ -470,7 +477,7 @@ Stored ids are read through `people.resolve`, so a merge in any app carries hist
 Rack It is the pilot for Connect (`shared/connect.js`, `shared/KIT.md`). Friends belong to the
 account, not to Rack It, so they show in every app with Connect.
 
-- **My QR** (More, and the outsider screen): your name, avatar and a large QR of
+- **My QR** (your account sheet, §7): your name, avatar and a large QR of
   `…/rack-it/?i=<code>`. It holds the screen on and goes fullscreen. The code lasts 24 hours
   and renews itself when you open My QR with under an hour left. **Copy link** sends it by
   message. When someone scans it while it's open, it says "Connected with …" and closes.
@@ -479,13 +486,13 @@ account, not to Rack It, so they show in every app with Connect.
   once: "You're connected with Kenny Inggs". Signed out, a card says who it's from and offers
   **Sign in with Google**. A dead code says "This QR has expired. Ask them to show it again."
   Your own code says so. A code is spent once its outcome is shown.
-- **Friends** (More, and the outsider screen): avatar, full name, and your note or where and
+- **Friends** (your account sheet): avatar, full name, and your note or where and
   when you met, newest first, with a search box from six friends and a chip for each tag
   you've used, which filters the list. Tap a row for their **card**, private to you: **Note**,
   **Met** (stamped at connect, with a place that defaults to the last one you typed, kept on
-  this phone), **Tags** (the ones you've used, or a new one), **Save**, and **Remove** (two
-  taps).
-- **Profile** (More, and the outsider screen): your name, and **Take or pick a photo**, shrunk
+  this phone), **Tags** (the ones you've used, or a new one), **Save**, and **Hold to
+  remove**.
+- **Profile** (your account sheet): your name, and **Take or pick a photo**, shrunk
   to a 192px JPEG kept in the profile (under the rules' 60,000 characters), or **Use my
   Google photo**. Friends see this name and photo. **Hold to delete my account**, then type
   DELETE: your pairs, cards, guests, live code and profile go, one by one, and you're signed
@@ -507,8 +514,8 @@ too (Session 6b). The same four tabs, with only what the rules let a player reac
   own, by id (only the owner lists them), along with everyone in your matches.
 - **Matches**: the matches with your uid in `uids`, newest first, read with one query
   (`where: ["uids", "array-contains", <uid>]`, no `orderBy`, sorted on the phone).
-- **More**: My QR, Friends, Profile, Export (your matches and the ratings this phone reads),
-  Install, About Zargo, Sign out. No Invites, Import or Rebuild.
+- **Your account sheet**: Profile, My QR, Friends, Export (your matches and the ratings this
+  phone reads), Install, Sign out. **More**: About Zargo. No Invites, Import or Rebuild.
 - **Add player** (Ratings): Scan or Guest. A guest's starter estimate goes to `ratings/<g_id>`
   once, by the account that made the guest; nobody else writes it, and there's no `starters/`
   document. A friend plays from their own rating, or from 500.
@@ -670,7 +677,7 @@ account, so a static app can't upload results.
   player. Amber only ever means careful or incomplete. No state rests on colour alone.
 - **Installing.** The manifest asks for `fullscreen` then `standalone`, portrait, id
   `/sidequests/rack-it/`, with PNG icons at 192, 512 and maskable 512; without PNGs Chrome makes
-  a shortcut that opens in a tab. More carries **Install on this phone**. Chrome can't move an
+  a shortcut that opens in a tab. Your account sheet carries **Install on this phone**. Chrome can't move an
   installed app to a new id, so everyone reinstalled once at 2.0.0.
 - **Sign-in** shows its button only once the auth state is known, so it never flashes. An
   account that isn't on `/members` gets friend mode (§8.2).
@@ -724,4 +731,5 @@ account, so a static app can't upload results.
 | 2.9.0 | Rated matches and confirming (KIT-PLAN Session 5). Setup gains a **Rated** tick, off by default, offered when both players have an account. A friendly moves no rating; a rated match moves both only once the opponent confirms on their own phone, worked out from the ratings at that moment, in one batch. Not right or Withdraw leaves it a friendly. Rebuild replays rated matches by `ratedAt`, else `endedAt`; a match with no `rated` field is rated. For the social leagues, where a rating has to be agreed by both players. |
 | 2.10.0 | Outsiders play in Rack It (KIT-PLAN Session 6): friend mode instead of the outsider screen. The rules open the matches an account plays in, starting one against a connection or a guest, and a rating only in the batch that confirms a rated match the other player ended. Ratings are read by id, matches with one `uids` query. A household member can no longer turn a friendly into a rated match. For pool friends who aren't family. |
 | 2.11.0 | One admin, everyone else a player (KIT-PLAN Session 6b). The owner sees and rewrites every match; everyone else, a household member included, runs friend mode and reads only the matches they play in. The owner's phone backfills `uids` and `names` on matches from before 2.8.0, so the players keep them. The "Before you play" note goes: there's nothing left to warn about. Owner's call, 2026-10-02: "a family member is just another member". Other apps keep the household. |
+| 2.12.0 | Rack It on the shared v3 look (KIT-PLAN Session 7 step 3): warm greys, the teal and lilac from the ramp, the Zargo figure 30px, bottom sheets for the player form, picker, Import and Rebuild, and your avatar's account sheet for Profile, My QR, Friends, Export, Import, Install and Sign out. Every two-tap "Sure?" and `confirm()` became a hold. The live screen changes only its greys and, through the ramp, a shade lighter teal (#2FD4B3) and lilac (#C0A5FF); it keeps its 40px tap slop, and its Undo, Next rack and Break stay on `click`. |
 | 2.8.0 | Players (KIT-PLAN Session 4): setup's columns become two slots filled from a picker of household, friends and guests, with **Scan a new player** and **Add a guest** there and then. A match stores `names`, `uids` and `by`. Add player is Scan or Guest, then the starter. The Gmail is optional and nothing in Rack It invites anyone any more: adding a player was quietly putting them on `/members`, which is the household's list. |

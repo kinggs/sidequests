@@ -56,6 +56,8 @@
 // person themselves, or a pointer to the matching person another app already added.
 
 import { cloud } from "./cloud.js";
+import { ui } from "./ui.js";
+const tap = ui.tap;
 
 export const PALETTE = ["#cf1b1b", "#e8730c", "#f2c204", "#0f7a3d", "#2f9e8f", "#4a8fce", "#6b2fa0", "#c2497e"];
 const COL = "people";
@@ -323,55 +325,53 @@ function addMe(){
 
 function askWhoIAm(){
   injectCss();
-  document.querySelectorAll(".pk-ov").forEach(n => n.remove());
-  const ov = document.createElement("div");
-  ov.className = "pk-ov pk-who";
-  ov.innerHTML = `<div class="pk-card" role="dialog" aria-modal="true" aria-labelledby="pk-who-title">
-    <h2 id="pk-who-title">Which player are you?</h2>
-    <p class="pk-note"></p>
-    <div class="pk-list"></div>
-    <p class="pk-warn" hidden></p>
-    <button type="button" class="pk-quiet" data-k="none">I'm not on the list</button>
-  </div>`;
-  const q = s => ov.querySelector(s);
-  q(".pk-note").textContent = `Signed in as ${myEmail()}. Pick yourself once and your games, climbs and photo follow you in every app.`;
-  const close = () => { ov.remove(); unwatch(); };
-  const unwatch = onChange(() => {
-    if (!ov.isConnected) return unwatch();
-    if (meDoc() || !cloud.user) return close();   // claimed from another phone, or signed out
-    paint();
-  });
-  let painted = "";
-  function paint(){
-    // Only when the list itself changed, so a repaint never swallows a tap mid-press.
-    const list = unclaimed();
-    const sig = JSON.stringify(list.map(p => [p.id, p.name, p.colour, p.photoURL]));
-    if (sig === painted) return;
-    painted = sig;
-    const box = q(".pk-list");
-    box.innerHTML = "";
-    for (const p of list){
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = "pk-pick";
-      b.append(avatar(p.id, 36));
-      const n = document.createElement("span");
-      n.textContent = p.name;
-      b.append(n);
-      tap(b, () => {
-        const cur = all[p.id];
-        if (!cur || cur.uid || cur.deleted || cur.mergedInto){ say("Someone else just took that one."); painted = ""; paint(); return; }
-        close();
-        stamp(p.id, { email: myEmail() });
-        linked(p.id, false);
-      });
-      box.append(b);
+  let unwatch = () => {};
+  ui.sheet({ title: "Which player are you?", cancel: false, dismiss: false, className: "pk-sheet", body: close => {
+    const box = document.createElement("div");
+    box.className = "pk-body";
+    box.innerHTML = `<p class="pk-note"></p>
+      <div class="pk-list"></div>
+      <p class="pk-warn" hidden></p>
+      <button type="button" class="quiet" data-k="none">I'm not on the list</button>`;
+    const q = sel => box.querySelector(sel);
+    q(".pk-note").textContent = `Signed in as ${myEmail()}. Pick yourself once and your games, climbs and photo follow you in every app.`;
+    unwatch = onChange(() => {
+      if (!box.isConnected) return;
+      if (meDoc() || !cloud.user) return close(null);   // claimed from another phone, or signed out
+      paint();
+    });
+    let painted = "";
+    function paint(){
+      // Only when the list itself changed, so a repaint never swallows a tap mid-press.
+      const list = unclaimed();
+      const sig = JSON.stringify(list.map(p => [p.id, p.name, p.colour, p.photoURL]));
+      if (sig === painted) return;
+      painted = sig;
+      const list_ = q(".pk-list");
+      list_.innerHTML = "";
+      for (const p of list){
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "pk-pick";
+        b.append(avatar(p.id, 36));
+        const n = document.createElement("span");
+        n.textContent = p.name;
+        b.append(n);
+        tap(b, () => {
+          const cur = all[p.id];
+          if (!cur || cur.uid || cur.deleted || cur.mergedInto){ say("Someone else just took that one."); painted = ""; paint(); return; }
+          close(null);
+          stamp(p.id, { email: myEmail() });
+          linked(p.id, false);
+        });
+        list_.append(b);
+      }
     }
-  }
-  const say = msg => { const w = q(".pk-warn"); w.hidden = !msg; w.textContent = msg || ""; };
-  tap(q('[data-k="none"]'), () => { close(); addMe(); });
-  paint();
-  document.body.appendChild(ov);
+    const say = msg => { const w = q(".pk-warn"); w.hidden = !msg; w.textContent = msg || ""; };
+    tap(q('[data-k="none"]'), () => { close(null); addMe(); });
+    paint();
+    return box;
+  } }).then(() => unwatch());
 }
 
 // Only once the server has answered (so nobody gets added twice from a stale cache) and
@@ -480,76 +480,35 @@ function poke(){
 }
 function onChange(fn){ listeners.add(fn); return () => listeners.delete(fn); }
 
-// ---- taps: pointerup, not click (same as the apps) ----
-function tap(node, fn){
-  let down = false, sx = 0, sy = 0;
-  node.addEventListener("pointerdown", e => { down = true; sx = e.clientX; sy = e.clientY; });
-  node.addEventListener("pointercancel", () => { down = false; });
-  node.addEventListener("pointerup", e => {
-    if (!down) return;
-    down = false;
-    if (Math.abs(e.clientX - sx) > 14 || Math.abs(e.clientY - sy) > 14) return;
-    e.preventDefault();
-    fn(e);
-  });
-  node.addEventListener("click", e => e.preventDefault());
-}
-// First tap arms it for five seconds, second tap does it.
-function armed(btn, label, sure, fn){
-  let timer = null;
-  tap(btn, () => {
-    if (!timer){
-      timer = setTimeout(() => { timer = null; btn.classList.remove("pk-arm"); btn.textContent = label; }, 5000);
-      btn.classList.add("pk-arm");
-      btn.textContent = typeof sure === "function" ? sure() : sure;
-      if (navigator.vibrate) navigator.vibrate(12);
-      return;
-    }
-    clearTimeout(timer); timer = null;
-    fn();
-  });
-}
-
-// ---- the shared add / edit sheet ----
-// Colours come from shared/theme.css (or the app's own CSS variables where it has them:
-// --panel, --bg, --ink, --ink-dim, --danger). --pk-card overrides the card if --panel is
-// see-through; --pk-go and --pk-go-ink colour Save, falling back to --accent.
+// ---- the shared add / edit sheet, the picker and "Which player are you?" ----
+// Bottom sheets (ui.sheet) on shared/theme.css. Here only what's this file's own: the list of
+// people, the colour swatches and the avatar.
 const CSS = `
-.pk-ov{position:fixed;inset:0;z-index:25;background:rgba(0,0,0,.78);display:flex;align-items:center;justify-content:center;
-  padding:max(16px,env(safe-area-inset-top)) 14px max(16px,env(safe-area-inset-bottom));overflow-y:auto}
-.pk-card{width:100%;max-width:26rem;margin:auto;background:var(--pk-card,var(--panel,#1a2027));color:var(--ink,#eef0f2);
-  border:1px solid rgba(255,255,255,.16);border-radius:18px;padding:18px 16px 16px;display:flex;flex-direction:column;gap:6px;
-  font-size:18px;line-height:1.4;box-shadow:0 10px 40px rgba(0,0,0,.6);text-align:left}
-.pk-card *{box-sizing:border-box;touch-action:manipulation}
-.pk-card [hidden]{display:none !important}
-.pk-card h2{font-size:22px;font-weight:800;margin:0 0 4px}
-.pk-card label{display:block;font-size:15px;font-weight:600;color:var(--ink-dim,#aab3bd);margin:8px 0 2px}
-.pk-card input,.pk-card select{width:100%;min-height:56px;padding:0 14px;font:inherit;font-size:18px;color:var(--ink,#eef0f2);
-  background:var(--bg,#101418);border:1px solid rgba(255,255,255,.2);border-radius:12px;-webkit-user-select:text;user-select:text}
-.pk-card button{min-height:56px;padding:0 18px;border-radius:12px;border:1px solid transparent;font:inherit;font-size:18px;font-weight:700}
-.pk-card button:focus-visible{outline:3px solid #fff;outline-offset:2px}
-.pk-card .pk-go{background:var(--pk-go,var(--accent,#4a8fce));color:var(--pk-go-ink,var(--accent-ink,#fff))}
-.pk-card .pk-quiet{background:transparent;color:var(--ink-dim,#aab3bd);border-color:rgba(255,255,255,.26)}
-.pk-card .pk-arm{background:var(--danger,#e2603f);color:#fff;border-color:transparent}
-.pk-row{display:flex;gap:10px;margin-top:10px}
-.pk-row>*{flex:1}
+.pk-sheet button{justify-content:center}
+.pk-sheet .pk-pick{justify-content:flex-start;gap:12px;padding:0 12px;background:var(--ink-2);color:var(--text);font-weight:600}
+.pk-body{display:flex;flex-direction:column;gap:8px}
+.pk-body [hidden]{display:none !important}
+.pk-body label{margin:6px 0 0}
+.pk-body input[type=search],.pk-body input[type=url]{font:inherit;color:var(--text);background:var(--ink-2);border:1px solid var(--line);
+  border-radius:var(--r-chip);padding:13px 14px;width:100%;min-height:var(--tap);-webkit-user-select:text;user-select:text}
+.pk-row{display:flex;gap:10px;margin-top:6px}
+.pk-row>*{flex:1;min-width:0}
 .pk-sw{display:flex;flex-wrap:wrap;gap:10px;margin-top:2px}
-.pk-card .pk-sw button{width:56px;height:56px;padding:0;border-radius:50%;background:var(--c);border:none;
+.pk-sheet .pk-sw button{flex:none;width:56px;height:56px;min-height:56px;padding:0;border-radius:50%;background:var(--c);
   box-shadow:inset -4px -5px 8px rgba(0,0,0,.35)}
-.pk-card .pk-sw button[aria-pressed="true"]{outline:4px solid var(--ink,#fff);outline-offset:2px}
-.pk-note{font-size:15px;color:var(--ink-dim,#aab3bd);margin:4px 0 0}
-.pk-warn{font-size:16px;color:#e8b04a;margin:6px 0 0}
-.pk-more{border-top:1px solid rgba(255,255,255,.14);margin-top:14px;padding-top:4px;display:flex;flex-direction:column;gap:8px}
-.pk-card button:disabled{opacity:.4}
-.pk-fixed{min-height:56px;display:flex;align-items:center;font-size:18px;font-weight:600;word-break:break-all}
-.pk-list{display:flex;flex-direction:column;gap:8px;margin:8px 0;max-height:52vh;overflow-y:auto}
-.pk-card .pk-pick{display:flex;align-items:center;gap:12px;text-align:left;background:rgba(255,255,255,.07);color:inherit;min-height:60px;padding:0 12px}
+.pk-sheet .pk-sw button[aria-pressed="true"]{outline:4px solid var(--text);outline-offset:2px}
+.pk-note{font-size:.8333rem;color:var(--dim);line-height:1.45}
+.pk-warn{font-size:.8889rem;color:var(--warn)}
+.pk-more{border-top:1px solid var(--line);margin-top:10px;padding-top:6px;display:flex;flex-direction:column;gap:8px}
+.pk-more>div{display:flex;flex-direction:column;gap:8px}
+.pk-fixed{min-height:56px;display:flex;align-items:center;font-weight:600;word-break:break-all}
+.pk-list{display:flex;flex-direction:column;gap:8px}
 .pk-av{display:inline-flex;align-items:center;justify-content:center;flex:none;box-sizing:border-box;width:var(--s);height:var(--s);
-  border-radius:50%;background:var(--c);padding:3px;overflow:hidden;font-family:inherit;font-weight:800;line-height:1;font-size:calc(var(--s) * .45)}
-.pk-av img{display:block;width:100%;height:100%;box-sizing:border-box;border-radius:50%;object-fit:cover;border:2px solid #0b0f12;background:#0b0f12}
+  border-radius:50%;background:var(--c);padding:3px;overflow:hidden;font-family:var(--grot,inherit);font-weight:700;line-height:1;font-size:calc(var(--s) * .45)}
+.pk-av img{display:block;width:100%;height:100%;box-sizing:border-box;border-radius:50%;object-fit:cover;border:2px solid var(--ink-0);background:var(--ink-0)}
 .pk-av.pk-init{padding:0}
-.pk-card .pk-pick>span:last-child{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.pk-pick small{font-size:15px;font-weight:600;color:var(--ink-dim,#aab3bd);margin-left:8px}
+.pk-pick>span:last-child{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
+.pk-pick small{font-size:.8333rem;font-weight:600;color:var(--dim);margin-left:8px}
 .pk-new{display:flex;flex-direction:column;gap:8px;margin-top:8px}
 `;
 function injectCss(){
@@ -609,17 +568,17 @@ function cuescoreIdFrom(text){
 
 // The household's sheet: a new household person (household members only), or one already on
 // the list. A friend's name is their own and a guest's is yours, so neither is edited here.
+// Merge and Remove are holds: they reach every app.
 function edit(id = null, { noun = "person", cuescore = false } = {}){
   injectCss();
   const p = id ? get(id) : null;
   if (id && (!p || p.kind !== "household")) return Promise.resolve(null);
   if (!id && !household) return Promise.resolve(null);
-  document.querySelectorAll(".pk-ov").forEach(n => n.remove());
-  return new Promise(done => {
-    const ov = document.createElement("div");
-    ov.className = "pk-ov";
-    ov.innerHTML = `<div class="pk-card" role="dialog" aria-modal="true" aria-labelledby="pk-title">
-      <h2 id="pk-title"></h2>
+  let focusName = null;
+  const shown = ui.sheet({ title: p ? `Edit ${p.name}` : `Add a ${noun}`, cancel: false, className: "pk-sheet", body: close => {
+    const box = document.createElement("div");
+    box.className = "pk-body";
+    box.innerHTML = `
       <label for="pk-name">Name</label>
       <input type="text" id="pk-name" maxlength="24" autocomplete="off">
       <label>Colour</label>
@@ -640,26 +599,26 @@ function edit(id = null, { noun = "person", cuescore = false } = {}){
       </div>
       <p class="pk-warn" hidden></p>
       <div class="pk-row">
-        <button type="button" class="pk-quiet" data-k="cancel">Cancel</button>
-        <button type="button" class="pk-go" data-k="save">Save</button>
+        <button type="button" class="quiet" data-k="cancel">Cancel</button>
+        <button type="button" class="primary" data-k="save">Save</button>
       </div>
       <p class="pk-note">One list for every sidequests app — add someone once and they're in all of them.</p>
       <div class="pk-more" hidden>
         <div data-k="mergebox">
           <label for="pk-same">Added twice? Same person as…</label>
           <select id="pk-same"><option value="">Pick someone</option></select>
-          <div class="pk-row"><button type="button" class="pk-quiet" data-k="merge">Merge</button></div>
+          <button type="button" class="quiet warnbtn" data-k="merge">Hold to merge</button>
           <p class="pk-note">Folds this entry into the one you pick. Everything logged for either, in every app, ends up under that one name.</p>
         </div>
         <div data-k="removebox">
-          <div class="pk-row"><button type="button" class="pk-quiet" data-k="remove">Remove from every app</button></div>
+          <button type="button" class="quiet warnbtn" data-k="remove">Hold to remove from every app</button>
           <p class="pk-note">Past games and climbs keep their name.</p>
         </div>
-      </div>
-    </div>`;
-    const q = s => ov.querySelector(s);
+      </div>`;
+    const q = sel => box.querySelector(sel);
     const nameIn = q("#pk-name"), emailIn = q("#pk-email"), cueIn = q("#pk-cue"), warn = q(".pk-warn");
     const saveBtn = q('[data-k="save"]');
+    focusName = nameIn;
     const self = !!p && isMe(p.id);
     // Only you set your own Cuescore link, and never while adding someone. Anyone else's reads only.
     const cueEdit = cuescore && self;
@@ -668,7 +627,6 @@ function edit(id = null, { noun = "person", cuescore = false } = {}){
     cueIn.value = p && p.cuescoreId ? p.cuescoreId : "";
     if (cuescore && p && !self)
       q('[data-k="cueshow"] .pk-fixed').textContent = p.cuescoreId ? `cuescore.com/player/${p.cuescoreId}` : "Not added";
-    q("#pk-title").textContent = p ? `Edit ${p.name}` : `Add a ${noun}`;
     nameIn.value = p ? p.name : "";
     emailIn.value = p ? (p.email || "") : "";
     // A claimed person's Gmail is their Google account's, for good (Unclaim went in Session 3:
@@ -697,14 +655,6 @@ function edit(id = null, { noun = "person", cuescore = false } = {}){
       tap(b, () => { colour = c; sw.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", String(x === b))); });
       sw.appendChild(b);
     }
-
-    const onKey = e => { if (e.key === "Escape") close(null); };
-    function close(result){
-      ov.remove();
-      document.removeEventListener("keydown", onKey);
-      done(result);
-    }
-    document.addEventListener("keydown", onKey);
     tap(q('[data-k="cancel"]'), () => close(null));
 
     let sameNameOk = false;
@@ -749,18 +699,20 @@ function edit(id = null, { noun = "person", cuescore = false } = {}){
         sel.appendChild(o);
       }
       if (!others.length) q('[data-k="mergebox"]').hidden = true;
-      armed(q('[data-k="merge"]'), "Merge", () => sel.value ? `Merge into ${nameOf(sel.value)}?` : "Pick someone first", () => {
+      const mergeBtn = q('[data-k="merge"]');
+      sel.addEventListener("change", () => { mergeBtn.textContent = sel.value ? `Hold to merge into ${nameOf(sel.value)}` : "Hold to merge"; });
+      ui.hold(mergeBtn, () => {
         if (!sel.value){ say("Pick who they really are first."); return; }
         const into = sel.value;
         if (merge(p.id, into)) close(into);
       });
       if (isMe(p.id)) q('[data-k="removebox"]').hidden = true;   // you can't remove yourself
-      else armed(q('[data-k="remove"]'), "Remove from every app", "Sure? Tap again", () => { remove(p.id); close(null); });
+      else ui.hold(q('[data-k="remove"]'), () => { remove(p.id); close(null); });
     }
-
-    document.body.appendChild(ov);
-    if (!p) nameIn.focus();
-  });
+    return box;
+  } });
+  if (!p && focusName) focusName.focus();
+  return shown;
 }
 
 // ---- picking a player ----
@@ -770,46 +722,35 @@ function edit(id = null, { noun = "person", cuescore = false } = {}){
 const appOfPage = () => location.pathname.split("/").filter(Boolean).filter(x => !/\.html$/.test(x)).pop() || "";
 function pick({ title = "Pick a player", recent = [], exclude = [], app = "", fresh = false } = {}){
   injectCss();
-  document.querySelectorAll(".pk-ov").forEach(n => n.remove());
-  return new Promise(done => {
-    const ov = document.createElement("div");
-    ov.className = "pk-ov";
-    ov.innerHTML = `<div class="pk-card" role="dialog" aria-modal="true" aria-labelledby="pk-pick-title">
-      <h2 id="pk-pick-title"></h2>
-      <div data-k="choose">
+  let unwatch = () => {};
+  return ui.sheet({ title: fresh ? (title === "Pick a player" ? "Add a player" : title) : title, cancel: false,
+    className: "pk-sheet", body: close => {
+    const box = document.createElement("div");
+    box.className = "pk-body";
+    box.innerHTML = `
+      <div class="pk-body" data-k="choose">
         <input type="search" data-k="find" placeholder="Search" autocomplete="off" aria-label="Search players" hidden>
         <div class="pk-list" data-k="list"></div>
         <p class="pk-note" data-k="none" hidden>Nobody here yet. Scan someone's phone, or add a guest.</p>
         <div class="pk-new">
-          <button type="button" class="pk-go" data-k="scan">Scan a new player</button>
-          <button type="button" class="pk-quiet" data-k="guest">Add a guest</button>
+          <button type="button" class="primary" data-k="scan">Scan a new player</button>
+          <button type="button" class="quiet" data-k="guest">Add a guest</button>
           <p class="pk-note">A guest is someone with no phone: just a name, kept on your account.</p>
-          <button type="button" class="pk-quiet" data-k="cancel">Cancel</button>
+          <button type="button" class="cancel" data-k="cancel">Cancel</button>
         </div>
       </div>
-      <div data-k="guestform" hidden>
+      <div class="pk-body" data-k="guestform" hidden>
         <label for="pk-guest">Guest's name</label>
         <input type="text" id="pk-guest" maxlength="24" autocomplete="off">
         <p class="pk-warn" hidden></p>
         <div class="pk-row">
-          <button type="button" class="pk-quiet" data-k="back">Back</button>
-          <button type="button" class="pk-go" data-k="addguest" disabled>Add</button>
+          <button type="button" class="quiet" data-k="back">Back</button>
+          <button type="button" class="primary" data-k="addguest" disabled>Add</button>
         </div>
-      </div>
-    </div>`;
-    const q = k => ov.querySelector(`[data-k="${k}"]`);
-    ov.querySelector("h2").textContent = fresh ? (title === "Pick a player" ? "Add a player" : title) : title;
+      </div>`;
+    const q = k => box.querySelector(`[data-k="${k}"]`);
     if (fresh){ q("list").hidden = true; }
     const skip = new Set(exclude.filter(Boolean).map(resolve));
-    const onKey = e => { if (e.key === "Escape") close(null); };
-    let unwatch = () => {};
-    function close(id){
-      ov.remove();
-      unwatch();
-      document.removeEventListener("keydown", onKey);
-      done(id || null);
-    }
-    document.addEventListener("keydown", onKey);
 
     let painted = "";
     function paint(){
@@ -825,8 +766,8 @@ function pick({ title = "Pick a player", recent = [], exclude = [], app = "", fr
       const sig = JSON.stringify([term, shown.map(p => [p.id, p.name, p.photo, colourOf(p.id)])]);
       if (sig === painted) return;
       painted = sig;
-      const box = q("list");
-      box.innerHTML = "";
+      const list_ = q("list");
+      list_.innerHTML = "";
       q("none").hidden = list.length > 0;
       for (const p of shown){
         const b = document.createElement("button");
@@ -839,22 +780,23 @@ function pick({ title = "Pick a player", recent = [], exclude = [], app = "", fr
         if (tag){ const t = document.createElement("small"); t.textContent = tag; n.append(t); }
         b.append(n);
         tap(b, () => close(p.id));
-        box.append(b);
+        list_.append(b);
       }
     }
     q("find").addEventListener("input", paint);
-    unwatch = onChange(() => { if (!ov.isConnected) return unwatch(); paint(); });
+    unwatch = onChange(() => { if (box.isConnected) paint(); });
 
     tap(q("cancel"), () => close(null));
     tap(q("scan"), async () => {
-      ov.hidden = true;
+      const scrim = box.closest(".scrim");
+      if (scrim) scrim.hidden = true;
       const id = await scan(app || appOfPage());
       if (id) return close(id);
-      ov.hidden = false;
+      if (scrim) scrim.hidden = false;
     });
 
     // A guest: a name, private to you. A name already in the list asks once.
-    const nameIn = ov.querySelector("#pk-guest"), warn = ov.querySelector('[data-k="guestform"] .pk-warn');
+    const nameIn = box.querySelector("#pk-guest"), warn = q("guestform").querySelector(".pk-warn");
     const say = msg => { warn.hidden = !msg; warn.textContent = msg || ""; };
     let sameOk = false;
     tap(q("guest"), () => { q("choose").hidden = true; q("guestform").hidden = false; nameIn.value = ""; say(""); nameIn.focus(); });
@@ -877,8 +819,8 @@ function pick({ title = "Pick a player", recent = [], exclude = [], app = "", fr
     nameIn.addEventListener("keydown", e => { if (e.key === "Enter") addGuest(); });
 
     paint();
-    document.body.appendChild(ov);
-  });
+    return box;
+  } }).then(id => { unwatch(); return id || null; });
 }
 const addPlayer = (o = {}) => pick({ ...o, fresh: true });
 

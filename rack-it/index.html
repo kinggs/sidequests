@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<meta name="theme-color" content="#0A0D11">
+<meta name="theme-color" content="#0E0D0B">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -12,15 +12,16 @@
 <title>Rack It</title>
 <link rel="stylesheet" href="../shared/theme.css">
 <style>
-  /* Rack It on shared/theme.css (dark system v2): the tokens, fonts, base elements and shared
-     parts live there. Here: the players' sides, and every part that's Rack It's own. A
-     player's colour only ever means that player: teal is side A, lilac side B. */
+  /* Rack It on shared/theme.css (dark system v3, shared/DESIGN.md): the tokens, fonts, base
+     elements and shared parts live there. Here: the players' sides, and every part that's Rack
+     It's own. A player's colour only ever means that player: teal is side A, lilac side B. */
   :root{
+    --accent:var(--teal);    --accent-ink:var(--teal-ink);    --accent-soft:var(--teal-soft);
+    --accent-2:var(--lilac); --accent-2-ink:var(--lilac-ink); --accent-2-soft:var(--lilac-soft);
+    --a:var(--accent);   --a-ink:var(--accent-ink);   --a-soft:var(--accent-soft);
+    --b:var(--accent-2); --b-ink:var(--accent-2-ink); --b-soft:var(--accent-2-soft);
     --ground-a:#07201C;   /* the body tint while that player shoots */
     --ground-b:#170F28;
-    --a:#23D3B0; --a-ink:#032721; --a-soft:#0F2A26;
-    --b:#B49BFF; --b-ink:#1A0F30; --b-soft:#221C36;
-    --accent:var(--a); --accent-ink:var(--a-ink);
     --rack-gap:clamp(6px, 1.4vh, 12px);
     /* Five rows of balls have to fit what the live screen's fixed chrome leaves: turn bar 5,
        score head 136, lead rail 8, match bar 48, controls 76 + 16, plus the rack's padding
@@ -48,7 +49,7 @@
   .pname .you{color:var(--dim);font-weight:600}
   .psub{font-size:.8333rem;font-weight:600;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .prov{color:var(--warn)}
-  .pz{flex:0 0 auto;font-family:var(--grot);font-size:1.4444rem;font-weight:600;letter-spacing:-.02em;text-align:right}
+  .pz{flex:0 0 auto;font-family:var(--grot);font-size:1.6667rem;font-weight:600;letter-spacing:-.02em;text-align:right}
   .pz.unplayed{color:var(--faint)}
 
   /* ---- Matches ---- */
@@ -62,25 +63,11 @@
   .hrow.live{background:var(--a-soft);box-shadow:inset 3px 0 0 var(--a)}
   .hrow.live .hmeta{color:var(--a)}
 
-  /* ---- the live-match strip and the four tabs ---- */
-  .livestrip{flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:8px 12px;
-    background:var(--a-soft);box-shadow:inset 0 1px 0 rgba(35,211,176,.3)}
-  .livestrip>span{flex:1;min-width:0;display:flex;align-items:center;gap:8px;font-size:.9444rem;font-weight:700;color:var(--a)}
-  .livestrip>span::before{content:"";flex:0 0 8px;height:8px;border-radius:50%;background:var(--a)}
+  /* ---- the live-match strip and the four tabs: theme.css's, plus the strip's second button ---- */
   .livestrip>span>span{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;line-height:1.3}
-  .livestrip button{flex:0 0 auto;min-height:var(--tap);padding:0 14px;font-size:.9444rem}
-  .livestrip .resume{background:var(--a);color:var(--a-ink)}
-  .livestrip .watch{background:transparent;color:var(--a);box-shadow:inset 0 0 0 1px rgba(35,211,176,.45)}
-  /* A rated match waiting for the other player: amber, since it's not finished yet. */
-  .pendstrip{background:rgba(255,193,77,.12);box-shadow:inset 0 1px 0 rgba(255,193,77,.35)}
-  .pendstrip>span{color:var(--warn)}
-  .pendstrip>span::before{background:var(--warn)}
-  .pendstrip .resume{background:var(--warn);color:var(--ink-0)}
-  .pendstrip .watch{color:var(--warn);box-shadow:inset 0 0 0 1px rgba(255,193,77,.55)}
-  .tabbar{flex:0 0 auto;display:flex;background:var(--ink-0);box-shadow:inset 0 1px 0 var(--line)}
-  .tabbar button{flex:1;min-height:60px;border-radius:0;background:none;color:var(--dim);padding:0 2px;position:relative}
-  .tabbar button.sel{color:var(--a)}
-  .tabbar button.sel::before{content:"";position:absolute;left:30%;right:30%;top:0;height:3px;border-radius:0 0 3px 3px;background:var(--a)}
+  .livestrip .watch{background:transparent;color:var(--a);box-shadow:inset 0 0 0 1px rgba(47,212,179,.45)}
+  .livestrip.pend .watch{color:var(--warn);box-shadow:inset 0 0 0 1px rgba(255,193,77,.55)}
+  .apphead .lbl{margin-left:auto}
 
   /* ---- a person's page, a match summary, More ---- */
   .perhead{display:flex;align-items:center;gap:16px}
@@ -97,7 +84,7 @@
   .copybox{font-size:.8889rem;line-height:1.45;background:var(--ink-2);border-radius:var(--r-chip);padding:12px 14px;
     -webkit-user-select:text;user-select:text;word-break:break-word}
   .linkbtn{display:flex;align-items:center;justify-content:center;min-height:var(--tap);border-radius:var(--r-ctl);
-    box-shadow:inset 0 0 0 1px rgba(232,237,243,.18);color:var(--text-2);font-weight:700;text-decoration:none}
+    box-shadow:inset 0 0 0 1px rgba(240,236,228,.18);color:var(--text-2);font-weight:700;text-decoration:none}
   .linkbtn:focus-visible{outline:3px solid var(--text);outline-offset:2px}
   .fitem{display:flex;align-items:center;gap:10px;background:var(--ink-1);border-radius:var(--r-card);padding:8px 8px 8px 14px;min-height:72px}
   .fitem>span{flex:1;min-width:0;font-size:.9444rem;font-weight:600;word-break:break-all}
@@ -105,16 +92,15 @@
   .fitem>span small{display:block;font-size:.8333rem;color:var(--dim);font-weight:600;word-break:break-all}
   .fitem .you{flex:0 0 auto;color:var(--dim);padding-right:10px}
   .fitem button{flex:0 0 auto;padding:0 16px;font-size:.8333rem}
-  .famin,.card input,.card select,.field input{font:inherit;color:var(--text);background:var(--ink-2);
+  .famin,.sheet input,.sheet select,.field input{font:inherit;color:var(--text);background:var(--ink-2);
     border:1px solid var(--line);border-radius:var(--r-chip);padding:13px 14px;width:100%;min-height:var(--tap)}
-  .famin:focus,.card input:focus,.field input:focus{outline:2px solid var(--a);outline-offset:0}
+  .famin:focus,.sheet input:focus,.field input:focus{outline:2px solid var(--a);outline-offset:0}
 
 
-  /* ---- overlays (player form, import, rebuild) ---- */
-  .overlay{position:fixed;inset:0;background:rgba(10,13,17,.94);z-index:20;display:flex;align-items:center;justify-content:center;padding:22px 16px;overflow-y:auto}
-  .card{margin:auto;width:100%;max-width:24rem;background:var(--ink-1);border:1px solid var(--line);border-radius:var(--r-card);padding:22px 18px;display:flex;flex-direction:column;gap:16px}
-  .card h2{font-family:var(--grot);font-size:1.3333rem;font-weight:600;letter-spacing:-.01em}
-  .card label{display:flex;flex-direction:column;gap:7px;font-size:.8889rem;color:var(--dim);font-weight:600}
+  /* ---- sheets (player form, import, rebuild): theme.css's .scrim and .sheet ---- */
+  .sheet label{display:flex;flex-direction:column;gap:7px;margin:0}
+  .sheet .row2 button,.sheet>button{justify-content:center}
+  .sheet .swatches button{width:56px}
   .swatches{display:flex;flex-wrap:wrap;gap:10px}
   .swatches button{width:56px;height:56px;min-height:56px;border-radius:50%;padding:0;background:var(--sw)}
   .swatches button.sel{outline:4px solid var(--text);outline-offset:2px}
@@ -211,7 +197,7 @@
   .leadrail{flex:0 0 8px;position:relative;background:var(--ink-1)}
   .leadfill{position:absolute;top:0;bottom:0;left:50%;width:0;background:var(--a);transition:left .25s ease,width .25s ease}
   .leadfill.b{background:var(--b)}
-  .leadmid{position:absolute;left:50%;top:0;bottom:0;width:2px;margin-left:-1px;background:rgba(232,237,243,.4)}
+  .leadmid{position:absolute;left:50%;top:0;bottom:0;width:2px;margin-left:-1px;background:rgba(240,236,228,.4)}
 
   /* Match bar: rack and dead balls · the numeric lead · the break chip. */
   .matchbar{flex:0 0 48px;display:flex;align-items:center;gap:10px;padding:0 12px;background:var(--ink-0)}
@@ -228,7 +214,7 @@
 
   /* ---- rack ---- */
   .rack{flex:1 1 0;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--rack-gap);padding:6px 0}
-  .row{display:flex;gap:var(--rack-gap);justify-content:center}
+  .rackrow{display:flex;gap:var(--rack-gap);justify-content:center}
   .ball{
     width:var(--bs);height:var(--bs);border-radius:50%;border:none;padding:0;position:relative;min-height:0;
     background:var(--bc);cursor:pointer;
@@ -236,7 +222,7 @@
     transition:transform .09s ease, background-color .18s ease, box-shadow .18s ease;
   }
   /* A dark ball keeps its edge against the dark ground. */
-  .ball.darkball{box-shadow:inset -6px -9px 16px rgba(0,0,0,.5), inset 5px 6px 11px rgba(255,255,255,.26), 0 0 0 1px rgba(232,237,243,.22), 0 3px 6px rgba(0,0,0,.45)}
+  .ball.darkball{box-shadow:inset -6px -9px 16px rgba(0,0,0,.5), inset 5px 6px 11px rgba(255,255,255,.26), 0 0 0 1px rgba(240,236,228,.22), 0 3px 6px rgba(0,0,0,.45)}
   .ball:active{transform:scale(.9)}
   .pip{
     position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
@@ -248,11 +234,11 @@
   .stripe::before{content:"";position:absolute;left:0;right:0;top:19%;bottom:19%;background:var(--bc)}
   .ball.striped{background:#f4efe3}
   /* Claimed: flat in the player's colour. */
-  .ball.claimed{background:var(--own);box-shadow:0 0 0 2px rgba(10,13,17,.7)}
+  .ball.claimed{background:var(--own);box-shadow:0 0 0 2px rgba(14,13,11,.7)}
   .ball.claimed .stripe{display:none}
   .ball.claimed .pip{background:transparent;color:var(--own-ink);width:var(--bs);height:var(--bs);font-size:calc(var(--bs) * .43)}
   /* Dead: an empty grey disc with the number struck through, a different shape from claimed. */
-  .ball.dead{background:var(--ink-2);box-shadow:inset 0 0 0 2px rgba(168,182,196,.3)}
+  .ball.dead{background:var(--ink-2);box-shadow:inset 0 0 0 2px rgba(174,167,156,.3)}
   .ball.dead .stripe{display:none}
   .ball.dead .pip{background:transparent;color:var(--faint);width:var(--bs);height:var(--bs);font-size:calc(var(--bs) * .36)}
   .ball.dead::after{content:"";position:absolute;left:30%;right:30%;top:50%;height:3px;margin-top:-1.5px;border-radius:2px;background:var(--dim)}
@@ -294,7 +280,7 @@
   .dcell .ball{display:block;pointer-events:none;transition:opacity .15s ease, transform .15s ease}
   .dcell::before{content:"";position:absolute;left:50%;top:50%;width:var(--bs);height:var(--bs);
     margin:calc(var(--bs) / -2) 0 0 calc(var(--bs) / -2);border-radius:50%;
-    box-shadow:inset 0 0 0 2px rgba(232,237,243,.2);opacity:0;transition:opacity .15s ease}
+    box-shadow:inset 0 0 0 2px rgba(240,236,228,.2);opacity:0;transition:opacity .15s ease}
   .dcell.gone .ball{opacity:0;transform:scale(.6)}
   .dcell.gone::before{opacity:1}
 
@@ -308,7 +294,7 @@
     display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;line-height:1.1}
   #end small{font-size:15px;font-weight:700}
   .controls.game #undo{flex:1 1 auto}
-  .controls.watching #end{flex:1 1 auto;margin:0;color:var(--text);box-shadow:inset 0 0 0 1px rgba(232,237,243,.18)}
+  .controls.watching #end{flex:1 1 auto;margin:0;color:var(--text);box-shadow:inset 0 0 0 1px rgba(240,236,228,.18)}
 
   /* A short phone gives up a little of everything but the balls. */
   @media (max-height: 700px){
@@ -329,14 +315,14 @@
 
   /* ---- rack complete, match end, and the live screen's questions ---- */
   .done{
-    position:fixed;inset:0;background:rgba(10,13,17,.94);z-index:10;
+    position:fixed;inset:0;background:rgba(14,13,11,.94);z-index:10;
     display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:28px 20px;text-align:center;
   }
   .done h2{font-family:var(--grot);font-size:30px;font-weight:600;letter-spacing:-.02em;line-height:1.2}
   .done p{color:var(--text-2);font-size:19px;line-height:1.5;max-width:30ch}
   .done p .warn{font-weight:700}
   .done button{min-height:76px;width:100%;max-width:22rem;padding:0 24px;border-radius:var(--r-card);background:var(--text);color:var(--ink-0);font-size:20px}
-  .done .ghost{background:none;color:var(--text-2);box-shadow:inset 0 0 0 1px rgba(232,237,243,.18);min-height:60px;font-size:18px}
+  .done .ghost{background:none;color:var(--text-2);box-shadow:inset 0 0 0 1px rgba(240,236,228,.18);min-height:60px;font-size:18px}
   .done .warnbtn{color:var(--warn);box-shadow:inset 0 0 0 1px rgba(255,193,77,.55)}
   /* Ten-Point-Eight's rack-end card asks the one thing the win buttons can't say: how many of
      the loser's own balls were still on the table. Eight numbers, one tap, no arithmetic. */
@@ -364,7 +350,7 @@
 
 <!-- ============ RATINGS ============ -->
 <section class="screen hidden" id="scrRatings">
-  <header class="apphead"><h1>Ratings</h1><span class="lbl">Zargo</span></header>
+  <header class="apphead"><h1>Ratings</h1><span class="lbl">Zargo</span><div class="me-host"></div></header>
   <div class="homebody">
     <ul class="plist" id="playerList"></ul>
     <p class="empty hidden" id="noPlayers">No players yet. Add the first two and start a match.</p>
@@ -393,8 +379,8 @@
 </section>
 
 <!-- ============ PLAYER FORM ============ -->
-<div class="overlay hidden" id="pform">
-  <div class="card">
+<div class="scrim hidden" id="pform">
+  <div class="sheet" role="dialog" aria-modal="true">
     <h2 id="pfTitle">Add player</h2>
     <div id="pfFields" style="display:flex;flex-direction:column;gap:10px">
       <label>Name <input id="pfName" autocomplete="off" maxlength="24"></label>
@@ -430,6 +416,7 @@
 <section class="screen hidden" id="scrSetup">
   <header class="apphead">
     <h1>New match</h1>
+    <div class="me-host"></div>
   </header>
   <div class="setupbody">
     <div class="settings">
@@ -507,7 +494,7 @@
 
 <!-- ============ MATCHES ============ -->
 <section class="screen hidden" id="scrMatches">
-  <header class="apphead"><h1>Matches</h1></header>
+  <header class="apphead"><h1>Matches</h1><div class="me-host"></div></header>
   <ul class="plist histlist" id="histList"></ul>
 </section>
 
@@ -537,26 +524,16 @@
 <section class="screen hidden" id="scrMore">
   <header class="apphead">
     <h1>More</h1>
-    <div class="user" id="userBox"></div>
+    <div class="me-host"></div>
   </header>
   <div class="homebody">
-    <div class="row2">
-      <button class="quiet" id="qrBtn">My QR</button>
-      <button class="quiet" id="friendsBtn">Friends</button>
-    </div>
-    <button class="quiet" id="profileBtn">Profile</button>
+    <p class="note">My QR, Friends, Profile, Export and Sign out are under your picture, top right.</p>
     <button class="quiet" id="familyBtn">Invites</button>
-    <div class="row2">
-      <button class="quiet" id="exportBtn">Export</button>
-      <button class="quiet" id="importBtn">Import</button>
-    </div>
     <input type="file" id="importFile" accept="application/json,.json" class="hidden">
     <button class="quiet" id="rebuildBtn">Rebuild ratings</button>
     <p class="note hidden" id="ownerNote">Rebuilding ratings, deleting matches and players, changing a starter rating and
       removing an invite are for the owner, so nothing is undone by accident.</p>
-    <div id="installHere"></div>
     <button class="quiet" id="aboutBtn">About Zargo</button>
-    <button class="quiet" id="signOutBtn">Sign out</button>
     <footer class="foot">Rack It <span id="versionMore"></span></footer>
   </div>
 </section>
@@ -606,19 +583,21 @@
 </section>
 
 <!-- ============ IMPORT CHOICE ============ -->
-<div class="overlay hidden" id="impChoice">
-  <div class="card">
+<div class="scrim hidden" id="impChoice">
+  <div class="sheet" role="dialog" aria-modal="true">
     <h2>Import</h2>
     <p class="thint" id="impInfo"></p>
     <button class="primary" id="impMerge">Merge into existing</button>
-    <button class="quiet" id="impReplace">Replace everything</button>
+    <button class="quiet warnbtn" id="impReplace">Hold to replace everything</button>
+    <p class="note">Replace wipes the current ratings, starter ratings and matches first. The player list is
+      shared with the other apps, so nobody leaves it. It can't be undone.</p>
     <button class="quiet" id="impCancel">Cancel</button>
   </div>
 </div>
 
 <!-- ============ REBUILD RATINGS ============ -->
-<div class="overlay hidden" id="rebuild">
-  <div class="card">
+<div class="scrim hidden" id="rebuild">
+  <div class="sheet" role="dialog" aria-modal="true">
     <h2>Rebuild ratings</h2>
     <p class="thint" id="rbInfo"></p>
     <ul class="reclist" id="rbList"></ul>
@@ -687,14 +666,14 @@
   </div>
 </section>
 
-<div class="livestrip pendstrip hidden" id="pendBar">
+<div class="livestrip pend hidden" id="pendBar">
   <span><span id="pendWho"></span></span>
-  <button class="resume" id="pendGo">Confirm</button>
+  <button class="go" id="pendGo">Confirm</button>
   <button class="watch" id="pendNo">Not right</button>
 </div>
 <div class="livestrip hidden" id="liveBar">
   <span><span id="liveWho"></span></span>
-  <button class="resume" id="resumeBtn">Resume</button>
+  <button class="go" id="resumeBtn">Resume</button>
   <button class="watch" id="watchBanner">Watch</button>
 </div>
 <nav class="tabbar hidden" id="tabbar">
@@ -720,20 +699,21 @@ import * as Z from "./zargo.js";
 import { phone } from "../shared/phone.js";
 import { people } from "../shared/people.js";
 import { connect } from "../shared/connect.js";
+import { ui } from "../shared/ui.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "2.11.1";
+const APP_VERSION = "2.12.0";
 const APP_ID = "rack-it";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 document.getElementById("versionMore").textContent = "v" + APP_VERSION;
 
 const $ = id => document.getElementById(id);
 const el = {};
-["userBox","gate","gateErr","playerList","noPlayers","addPlayerBtn",
+["gate","gateErr","playerList","noPlayers","addPlayerBtn",
  "scrGate","scrRatings","scrPerson","scrMatches","scrSummary","scrMore","scrAbout","tabbar",
  "perHead","perAbout","perEdit","perCue","perCueEdit","perRecord","perMatches","perBack",
  "sumBack","sumWinner","sumMeta","sumScore","sumZargo","sumRacks","sumCopyText","sumCopy",
- "aboutBtn","aboutBack","signOutBtn","versionMore",
+ "aboutBtn","aboutBack","versionMore",
  "pform","pfTitle","pfFields","pfName","pfColours","pfZargoRow","pfZargo","pfNote","pfSave","pfCancel","pfOwnerNote",
  "scrSetup","scrLive","pickA","pickB","modes","lenRow","lenLabel","racksIn",
  "targetsRow","tgtA","tgtB","tgtALabel","tgtBLabel","setupHint","setupWarn","breakBtn","breakWho","startBtn",
@@ -741,11 +721,10 @@ const el = {};
  "sideA","sideB","nameA","nameB","rawA","rawB","subA","subB","lead","leadFill","controls",
  "rackNo","breakFlip","rack","undo","next","end","sumDelete","sumDeleteNote","ownerNote",
  "done","doneTitle","doneBody","doneZargo","doneNext","doneAnyway","doneBack","signInBig",
- "watchBanner","liveBar","liveWho","resumeBtn","exportBtn","importBtn","importFile",
+ "watchBanner","liveBar","liveWho","resumeBtn","importFile",
  "histList",
  "impChoice","impInfo","impMerge","impReplace","impCancel",
  "familyBtn","scrFamily","famBack","famList","famEmail","famAdd","famShare",
- "qrBtn","friendsBtn","profileBtn",
  "pfEst","estRef","estRefName","estRefScore","estNewScore","estOut","pfDelete","pfShared",
  "games","foldGame","gameHead","gameName","gameBlurb","raceLen","raceNRow","raceN","winArea","drop","goldChip","doneExtra",
  "rebuild","rbInfo","rbList","rbNote","rbApply","rbCancel","rebuildBtn",
@@ -754,50 +733,10 @@ const el = {};
 
 function buzz(ms){ if(navigator.vibrate) navigator.vibrate(ms); }
 
-// pointerup-driven taps (prototype pattern) for the latency-critical controls
-function tapBind(node, fn){
-  let down = false, sx = 0, sy = 0;
-  node.addEventListener("pointerdown", e => { down = true; sx = e.clientX; sy = e.clientY; });
-  node.addEventListener("pointercancel", () => { down = false; });
-  node.addEventListener("pointerup", e => {
-    if(!down) return;
-    down = false;
-    if(Math.abs(e.clientX - sx) > 40 || Math.abs(e.clientY - sy) > 40) return;
-    fn();
-  });
-  node.addEventListener("click", e => e.preventDefault());
-}
-
-// Hold to confirm (DESIGN §5), for what can't be undone from the screen: End, and deleting a
-// match or a player. A 600ms press fills the button from the bottom and buzzes when it lands;
-// letting go or sliding off first cancels. No dialog. `tap` makes a plain tap run something
-// else instead while its test holds (End becomes Stop watching).
-const HOLD_MS = 600;
-function holdBind(node, fn, { tap = null, holding = null } = {}){
-  let timer = null, down = false, sx = 0, sy = 0;
-  const stop = () => { clearTimeout(timer); timer = null; node.classList.remove("holding"); if(holding) holding(false); };
-  node.addEventListener("pointerdown", e => {
-    down = true; sx = e.clientX; sy = e.clientY;
-    if(tap && tap.when()) return;
-    stop();
-    node.classList.add("holding");
-    if(holding) holding(true);
-    timer = setTimeout(() => { timer = null; stop(); buzz(16); fn(); }, HOLD_MS);
-  });
-  node.addEventListener("pointermove", e => {
-    if(timer && (Math.abs(e.clientX - sx) > 40 || Math.abs(e.clientY - sy) > 40)) stop();
-  });
-  node.addEventListener("pointerup", e => {
-    const was = down; down = false;
-    if(timer){ stop(); return; }
-    if(was && tap && tap.when() && Math.abs(e.clientX - sx) <= 40 && Math.abs(e.clientY - sy) <= 40) tap.run();
-  });
-  node.addEventListener("pointercancel", () => { down = false; stop(); });
-  node.addEventListener("pointerleave", () => { if(timer) stop(); });
-  node.addEventListener("click", e => e.preventDefault());
-  node.addEventListener("contextmenu", e => e.preventDefault());
-  node.addEventListener("keydown", e => { if(e.key === "Enter" || e.key === " "){ e.preventDefault(); tap && tap.when() ? tap.run() : fn(); } });
-}
+// Taps come off pointerup (ui.tap) and careful things are a 600ms hold (ui.hold, DESIGN §5): End,
+// and deleting a match or a player. The live screen's controls forgive a sloppy tap mid-game,
+// as they always have: 40px of movement, not 14.
+const LOOSE = { slop: 40 };
 
 // ---------- data ----------
 // The rating engine and the rack scoring it reads live in zargo.js, pure and tested
@@ -1071,7 +1010,7 @@ function rerender(){
 }
 
 let setupFresh = true;   // Play starts a new setup after a match; otherwise it keeps your picks
-el.tabbar.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+el.tabbar.querySelectorAll("button").forEach(b => ui.tap(b, () => {
   const tab = b.dataset.tab;
   if(tab === "play"){
     if(setupFresh){ setupFresh = false; openSetup(); } else openPage("setup");
@@ -1154,6 +1093,7 @@ function paintOwner(){
   el.rebuildBtn.classList.toggle("hidden", !owner || friendMode);
   el.ownerNote.classList.toggle("hidden", owner || friendMode);
   el.impReplace.classList.toggle("hidden", !owner);
+  mountAccount();
   rerender();
   if(current === "family") openFamily();
 }
@@ -1164,13 +1104,11 @@ function paintOwner(){
 let started = false;
 // Declared before handleUser, which runs signed out before the rest of this script (2.10.1).
 let friendMode = false;              // signed in but not on /members (friend mode, below)
+let accountSig = "";                 // what the header's avatar last showed (mountAccount)
 const ratingWatches = new Map();     // friend mode's one listener a rating
 async function handleUser(user){
   if(user){
-    el.userBox.innerHTML = `<img alt="" referrerpolicy="no-referrer"><span></span>`;
-    if(user.photoURL) el.userBox.querySelector("img").src = user.photoURL;
-    else el.userBox.querySelector("img").remove();
-    el.userBox.querySelector("span").textContent = user.displayName || user.email;
+    mountAccount();
     el.gate.classList.add("hidden");
     if(started) return;
     started = true;
@@ -1209,7 +1147,7 @@ async function handleUser(user){
     people.stop();
     if(unsubMatches){ unsubMatches(); unsubMatches = null; }
     matches = []; liveDoc = null;
-    el.userBox.innerHTML = "";
+    mountAccount();
     el.gateErr.classList.add("hidden");
     el.gate.classList.remove("hidden");
     show("gate");
@@ -1219,11 +1157,38 @@ await cloud.init(APP_ID);
 connect.handleInvite({ app: APP_ID, appName: "Rack It" });   // a scanned QR: connect first, over whatever's behind
 handleUser(cloud.user);
 cloud.onUser(handleUser);
-el.signInBig.addEventListener("click", () => cloud.signIn().catch(e => {
+ui.tap(el.signInBig, () => cloud.signIn().catch(e => {
   el.gateErr.textContent = "Sign-in failed: " + (e.message || e);
   el.gateErr.classList.remove("hidden");
 }));
-el.signOutBtn.addEventListener("click", () => cloud.signOut());
+
+// ---------- your account: the avatar in each tab's header (ui.account) ----------
+// Your profile's picture. Tapping it opens Profile, My QR and Friends (shared/connect.js),
+// Export, Import (the owner's), Install on this phone and Sign out. More keeps the rest.
+function mountAccount(){
+  const user = cloud.user, me = user ? people.meId() : null, p = me ? people.get(me) : null;
+  const installed = phone.installed();
+  // Drawn again only when something it shows changed, so a repaint never swallows a tap.
+  const sig = JSON.stringify([user && user.uid, me, p && [p.name, p.photo, people.colourOf(me)], owner, installed]);
+  if(sig === accountSig) return;
+  accountSig = sig;
+  const extra = !user ? [] : [
+    { label: "Profile", value: "profile", run: () => connect.showProfile() },
+    { label: "My QR", value: "qr", run: () => connect.showQR({ app: APP_ID }) },
+    { label: "Friends", value: "friends", run: () => connect.showFriends() },
+    { label: "Export", value: "export", run: exportAll },
+    ...(owner ? [{ label: "Import", value: "import", run: () => el.importFile.click() }] : []),
+    ...(installed ? [] : [{ label: "Install on this phone", value: "install", run: async () => {
+      const how = await phone.install();
+      if(how) ui.sheet({ title: "Install", text: how });
+    } }]),
+  ];
+  for(const host of document.querySelectorAll(".me-host"))
+    ui.account(host, user, { onSignIn: () => cloud.signIn().catch(e => ui.toast("Sign-in failed: " + (e.message || e))),
+      onSignOut: () => cloud.signOut(), extra,
+      name: p ? p.name : "", avatar: me ? people.avatar(me, 48) : null });
+}
+people.onChange(mountAccount);
 
 // ---------- friend mode (KIT-PLAN.md Sessions 6 and 6b) ----------
 // Everyone but the owner, household members included: a player. The same four tabs, but only
@@ -1242,7 +1207,7 @@ async function startFriendMode(){
 }
 function paintFriendMode(){
   el.familyBtn.classList.toggle("hidden", friendMode);
-  el.importBtn.classList.toggle("hidden", friendMode);
+  mountAccount();
   el.rebuildBtn.classList.toggle("hidden", friendMode || !owner);
   el.ownerNote.classList.toggle("hidden", friendMode || owner);
 }
@@ -1268,10 +1233,6 @@ function unwatchRatingIds(){
   ratingWatches.clear();
 }
 
-// ---------- connect: My QR and Friends (shared/connect.js) ----------
-tapBind(el.qrBtn, () => connect.showQR({ app: APP_ID }));
-tapBind(el.friendsBtn, () => connect.showFriends());
-tapBind(el.profileBtn, () => connect.showProfile());
 
 // ---------- ratings ----------
 // Everyone, ranked by Zargo. People who haven't played yet go last, by name, unranked.
@@ -1304,14 +1265,14 @@ function renderRatings(){
     const z = b.querySelector(".pz");
     z.textContent = Math.round(p.zargo);
     z.classList.toggle("unplayed", !played(id));
-    b.addEventListener("click", () => openPerson(id));
+    ui.tap(b, () => openPerson(id));
     li.appendChild(b);
     el.playerList.appendChild(li);
   });
 }
 // Add player: someone scans your QR there and then, or a guest with no phone (people.addPlayer),
 // then their starter rating. Nobody is put on Invites: that's the household's list.
-el.addPlayerBtn.addEventListener("click", async () => {
+ui.tap(el.addPlayerBtn, async () => {
   const id = await people.addPlayer({ title: "Add player", app: APP_ID });
   if(!id) return;
   rerender();
@@ -1359,7 +1320,7 @@ function openPlayerForm(id, { starter = false } = {}){
     s.style.setProperty("--sw", c);
     s.classList.toggle("sel", c === pfColour);
     s.setAttribute("aria-label", "colour " + c);
-    s.addEventListener("click", () => {
+    ui.tap(s, () => {
       pfColour = c;
       el.pfColours.querySelectorAll("button").forEach(x => x.classList.remove("sel"));
       s.classList.add("sel");
@@ -1372,9 +1333,9 @@ function pfReady(){
   el.pfSave.disabled = !el.pfName.value.trim();
 }
 el.pfName.addEventListener("input", pfReady);
-el.pfCancel.addEventListener("click", () => el.pform.classList.add("hidden"));
+ui.tap(el.pfCancel, () => el.pform.classList.add("hidden"));
 // A sign-in Gmail, and merging someone added twice, live in the sheet every app shares.
-el.pfShared.addEventListener("click", () => {
+ui.tap(el.pfShared, () => {
   const id = pfEditing;
   el.pform.classList.add("hidden");
   // The sheet lets only you edit your own Cuescore link; anyone else's shows read-only.
@@ -1382,13 +1343,13 @@ el.pfShared.addEventListener("click", () => {
 });
 // Players are shared by every sidequests app, so a deleted player leaves every list and picker;
 // their past matches keep their name. Owner only, behind the hold.
-holdBind(el.pfDelete, () => {
+ui.hold(el.pfDelete, () => {
   if(!pfEditing || !owner) return;
   people.remove(pfEditing);
   el.pform.classList.add("hidden");
   rerender();
 });
-el.pfSave.addEventListener("click", async () => {
+ui.tap(el.pfSave, async () => {
   const p = P(pfEditing);
   if(!p) return el.pform.classList.add("hidden");
   if(pfStarter){
@@ -1405,7 +1366,10 @@ el.pfSave.addEventListener("click", async () => {
     if(p.kind === "household" && !name){ el.pfName.focus(); return; }
     const z = parseInt(el.pfZargo.value, 10);
     if(owner && Number.isFinite(z) && z !== Math.round(p.zargo)){
-      if(!confirm(`Set ${p.name}'s starter rating to ${z}? Their Zargo shows ${z} now. Rebuild ratings (under More) replays their matches from it.`)) return;
+      const sure = await ui.sheet({ title: `Starter rating ${z}`,
+        text: `${p.name}'s Zargo shows ${z} now. Rebuild ratings (under More) replays their matches from it.`,
+        items: [{ label: `Set it to ${z}`, value: "yes", hold: true }] });
+      if(sure !== "yes") return;
       saveStarter(p.id, z);
       savePlayer(p.id, { zargo: z }).catch(e => console.warn(e));
     }
@@ -1555,9 +1519,9 @@ function revealFold(fold){
   requestAnimationFrame(() =>
     fold.scrollIntoView({ block: "nearest", behavior: still ? "auto" : "smooth" }));
 }
-el.lenHead.addEventListener("click", () => { el.foldLen.classList.toggle("open"); revealFold(el.foldLen); });
-el.hcpHead.addEventListener("click", () => { el.foldHcp.classList.toggle("open"); revealFold(el.foldHcp); });
-el.gameHead.addEventListener("click", () => { el.foldGame.classList.toggle("open"); revealFold(el.foldGame); });
+ui.tap(el.lenHead, () => { el.foldLen.classList.toggle("open"); revealFold(el.foldLen); });
+ui.tap(el.hcpHead, () => { el.foldHcp.classList.toggle("open"); revealFold(el.foldHcp); });
+ui.tap(el.gameHead, () => { el.foldGame.classList.toggle("open"); revealFold(el.foldGame); });
 // One row a game inside the dropdown, built from GAME_ORDER so there's one list of games, not two.
 GAME_ORDER.forEach(g => {
   const b = document.createElement("button");
@@ -1570,7 +1534,7 @@ GAME_ORDER.forEach(g => {
   desc.className = "gdesc";
   desc.textContent = GAME_GIST[g];
   b.append(name, desc);
-  b.addEventListener("click", () => {
+  ui.tap(b, () => {
     setup.game = g;
     try { localStorage.setItem(GAME_KEY, g); } catch(e){}
     applyGameDefaults();
@@ -1586,14 +1550,14 @@ function typedRace(){
   const n = parseInt(el.raceN.value, 10);
   return n >= 1 && n <= raceMax() ? n : null;
 }
-el.raceLen.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+el.raceLen.querySelectorAll("button").forEach(b => ui.tap(b, () => {
   setup.raceOther = b.dataset.n === "other";
   setup.raceTo = setup.raceOther ? typedRace() : +b.dataset.n;
   proposeTargets();
   renderSetup();
   if(setup.raceOther) el.raceN.focus();
 }));
-el.goldLen.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+el.goldLen.querySelectorAll("button").forEach(b => ui.tap(b, () => {
   const len = b.dataset.len;
   if(len === "other" && !(setup.mode === "race" && setup.raceOther)) el.raceN.value = raceChip();
   setup.mode = len === "fixed" ? "fixed" : "race";
@@ -1604,7 +1568,7 @@ el.goldLen.querySelectorAll("button").forEach(b => b.addEventListener("click", (
   if(setup.raceOther) el.raceN.focus();
 }));
 el.raceN.addEventListener("input", () => { setup.raceTo = typedRace(); proposeTargets(); renderSetup(); });
-el.hcps.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+el.hcps.querySelectorAll("button").forEach(b => ui.tap(b, () => {
   const h = b.dataset.h;
   if(h === setup.handicap || !hcpAllowed(h)) return;
   const wasRacks = setup.handicap === "racks";
@@ -1614,7 +1578,7 @@ el.hcps.querySelectorAll("button").forEach(b => b.addEventListener("click", () =
   proposeTargets();
   renderSetup();
 }));
-el.raceForm.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+el.raceForm.querySelectorAll("button").forEach(b => ui.tap(b, () => {
   setup.form = b.dataset.form;
   renderSetup();
 }));
@@ -1824,8 +1788,8 @@ async function chooseSide(side){
   if(id && id !== setup[side]) pickSide(side, id);
   else renderSetup();
 }
-tapBind(el.pickA, () => chooseSide("a"));
-tapBind(el.pickB, () => chooseSide("b"));
+ui.tap(el.pickA, () => chooseSide("a"), LOOSE);
+ui.tap(el.pickB, () => chooseSide("b"), LOOSE);
 // Picking the player who's already on the other side swaps the two sides. The break stays
 // with the person who had it.
 function pickSide(side, id){
@@ -1858,14 +1822,14 @@ function showShortRaceWarning(a, b, eA){
 
 el.racksIn.addEventListener("input", () => { proposeTargets(); renderSetup(); });
 el.modes.querySelectorAll("button").forEach(b =>
-  b.addEventListener("click", () => { setup.mode = b.dataset.mode; proposeTargets(); renderSetup(); }));
-el.breakBtn.addEventListener("click", () => {
+  ui.tap(b, () => { setup.mode = b.dataset.mode; proposeTargets(); renderSetup(); }));
+ui.tap(el.breakBtn, () => {
   if(!(setup.a && setup.b)) return;
   setup.breaker = setup.breaker === "a" ? "b" : "a";
   renderSetup();
 });
-el.startBtn.addEventListener("click", startMatch);
-tapBind(el.ratedBtn, () => { setup.rated = !setup.rated; renderSetup(); });
+ui.tap(el.startBtn, startMatch);
+ui.tap(el.ratedBtn, () => { setup.rated = !setup.rated; renderSetup(); }, LOOSE);
 
 // ---------- live session ----------
 let live = null;
@@ -1956,7 +1920,7 @@ const state = { turn: "a" };
 const nodes = {};
 ROWS.forEach(row => {
   const r = document.createElement("div");
-  r.className = "row";
+  r.className = "rackrow";
   row.forEach(n => {
     const b = document.createElement("button");
     b.className = "ball" + (n === 9 ? " striped" : "") + (DARK.includes(n) ? " darkball" : "");
@@ -2135,10 +2099,10 @@ const intentionalsBy = (banked, side) =>
   f.addEventListener("pointercancel", () => { clearTimeout(timer); down = false; });
   f.addEventListener("click", e => e.preventDefault());
   f.addEventListener("contextmenu", e => e.preventDefault());
-  winCols[side].querySelectorAll(".win").forEach(b => tapBind(b, () => {
+  winCols[side].querySelectorAll(".win").forEach(b => ui.tap(b, () => {
     if(!live || live.game === "league") return;
     win(side, WIN_KINDS[live.game][+b.dataset.i][0]);
-  }));
+  }, LOOSE));
 });
 
 // The ball drop, nine-ball only: 1–5 over 6–9, a log for replays and never the score — potting
@@ -2153,7 +2117,7 @@ function dropCell(n, into, cells){
   cell.className = "dcell";
   cell.innerHTML = `<span class="ball${striped(n) ? " striped" : ""}${DARK.includes(n) ? " darkball" : ""}">${striped(n) ? '<span class="stripe"></span>' : ""}<span class="pip">${n}</span></span>`;
   cell.querySelector(".ball").style.setProperty("--bc", COLOURS[n]);
-  tapBind(cell, () => dropBall(n));
+  ui.tap(cell, () => dropBall(n), LOOSE);
   into.appendChild(cell);
   cells[n] = cell;
 }
@@ -2222,8 +2186,8 @@ function setTurn(p){
   render();
   sync();
 }
-tapBind(el.sideA, () => setTurn("a"));
-tapBind(el.sideB, () => setTurn("b"));
+ui.tap(el.sideA, () => setTurn("a"), LOOSE);
+ui.tap(el.sideB, () => setTurn("b"), LOOSE);
 
 el.undo.addEventListener("click", () => {
   if(!live || !live.history.length) return;
@@ -2243,7 +2207,7 @@ el.breakFlip.addEventListener("click", () => {
 el.next.addEventListener("click", rackComplete);
 el.doneBack.addEventListener("click", () => { el.done.classList.add("hidden"); });
 
-holdBind(el.end, () => endMatch(), {
+ui.hold(el.end, () => endMatch(), {
   tap: { when: () => !!watching, run: () => stopWatch() },
   holding: on => { if(!watching) el.end.querySelector("small").textContent = on ? "holding…" : "hold"; }
 });
@@ -2554,7 +2518,7 @@ function paintBallsLeft(lName, left){
     b.textContent = n;
     b.classList.toggle("sel", n === left);
     b.setAttribute("aria-label", `${n} of ${lName}'s balls left, so ${7 - n} down and ${7 - n} to them`);
-    tapBind(b, () => setBallsLeft(n));
+    ui.tap(b, () => setBallsLeft(n), LOOSE);
     nums.appendChild(b);
   }
   el.doneExtra.append(cap, nums);
@@ -3089,16 +3053,16 @@ function renderWatch(doc){
 async function resumeMatch(id){
   let doc;
   try { doc = await cloud.load("matches/" + id); }
-  catch(e){ console.warn("[resume]", e); alert("Couldn't load that match."); return; }
-  if(!doc){ alert("That match is gone."); await refreshHome(); return; }
-  if(doc.status !== "live"){ alert("That match has already been finished."); await refreshHome(); return; }
+  catch(e){ console.warn("[resume]", e); ui.toast("Couldn't load that match."); return; }
+  if(!doc){ ui.toast("That match is gone."); await refreshHome(); return; }
+  if(doc.status !== "live"){ ui.toast("That match has already been finished."); await refreshHome(); return; }
 
   // Read the session's ids as whoever those people are now.
   const ida = people.resolve(doc.playerA), idb = people.resolve(doc.playerB);
   const nm = doc.names || {};
   const a = P(ida, nm.a), b = P(idb, nm.b);
   if(!a || !b || a.deleted || b.deleted || ida === idb){
-    alert("One of those players has been deleted or merged, so this match can't be resumed.");
+    ui.toast("One of those players has been deleted or merged, so this match can't be resumed.");
     return;
   }
 
@@ -3212,7 +3176,7 @@ async function confirmMatch(id){
       { patch: "matches/" + id, data: { status: "done", zargoBefore: { a: z.a.from, b: z.b.from },
         zargoAfter: { a: z.a.to, b: z.b.to }, ratedAt: Date.now(), confirmedBy: myUid() } }
     ]);
-  } catch(e){ console.warn("[confirm]", e); alert("Couldn't confirm that match: " + (e.message || e)); }
+  } catch(e){ console.warn("[confirm]", e); ui.toast("Couldn't confirm that match: " + (e.message || e)); }
   pendBusy = false;
   paintLiveBar();
 }
@@ -3221,7 +3185,7 @@ async function standAsFriendly(id, field){
   if(!stillPending(id) || pendBusy) return;
   pendBusy = true;
   try { await cloud.patch("matches/" + id, { status: "done", rated: false, [field]: myUid() }); }
-  catch(e){ console.warn("[friendly]", e); alert("Couldn't change that match: " + (e.message || e)); }
+  catch(e){ console.warn("[friendly]", e); ui.toast("Couldn't change that match: " + (e.message || e)); }
   pendBusy = false;
   paintLiveBar();
 }
@@ -3275,7 +3239,7 @@ function matchRow(s, { from = "matches" } = {}){
       (s.status === "pending" ? " · waiting to confirm" : s.rated === false ? " · friendly" : "");
   b.setAttribute("aria-label", `${nA.textContent} ${sc.a}, ${nB.textContent} ${sc.b}. ` +
     (on ? "Live, tap to resume." : t.winner ? `${(t.winner === "a" ? nA : nB).textContent} won.` : "Tied."));
-  b.addEventListener("click", () => on ? resumeMatch(s.id) : openSummary(s.id, from));
+  ui.tap(b, () => on ? resumeMatch(s.id) : openSummary(s.id, from));
   li.appendChild(b);
   return li;
 }
@@ -3291,7 +3255,7 @@ function renderMatches(){
 // ratings, so they're rebuilt without it.
 async function deleteMatch(s){
   try { await cloud.delete("matches/" + s.id); }
-  catch(e){ console.warn("[delete]", e); alert("Couldn't delete that match."); return false; }
+  catch(e){ console.warn("[delete]", e); ui.toast("Couldn't delete that match."); return false; }
   if(Z.isRated(s)) rebuildRatings(null).catch(e => console.warn("[rebuild]", e));
   if(live && live.id === s.id){ live = null; el.done.classList.add("hidden"); }
   if(watching && watching.id === s.id) stopWatch();
@@ -3310,12 +3274,12 @@ function openSummary(id, from){
   if(renderSummary()){ show("summary"); return; }
   // Not in the watched list yet (just saved, or older than it reaches): read it once.
   cloud.load("matches/" + id).then(doc => {
-    if(!doc){ alert("That match is gone."); return openPage(summaryFrom); }
+    if(!doc){ ui.toast("That match is gone."); return openPage(summaryFrom); }
     matches = matches.concat([{ id, ...doc }]);
     if(renderSummary()) show("summary");
-  }).catch(e => { console.warn("[summary]", e); alert("Couldn't load that match."); });
+  }).catch(e => { console.warn("[summary]", e); ui.toast("Couldn't load that match."); });
 }
-el.sumBack.addEventListener("click", () => openPage(summaryFrom));
+ui.tap(el.sumBack, () => openPage(summaryFrom));
 
 // The racks that counted (zargo.js): every Golden-Nine and Trad-Nine rack with a winner; for
 // 11-Point-Nine, every rack but a last one dropped at End.
@@ -3361,7 +3325,7 @@ function renderSummary(){
   el.sumDelete.textContent = s.status === "live" ? "Hold to delete this live match" : "Hold to delete match";
   return true;
 }
-holdBind(el.sumDelete, async () => {
+ui.hold(el.sumDelete, async () => {
   const s = matches.find(x => x.id === summaryId);
   if(!s || !owner) return;
   if(await deleteMatch(s)) openPage(summaryFrom);
@@ -3385,7 +3349,7 @@ function cuescoreLine(s){
   const date = s.startedAt ? new Date(s.startedAt).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "";
   return `${nA} ${racksA}–${racksB} ${nB} · ${DISCIPLINE[game]} · ${race}${points} · ${date}`;
 }
-el.sumCopy.addEventListener("click", async () => {
+ui.tap(el.sumCopy, async () => {
   const text = el.sumCopyText.textContent;
   try {
     await navigator.clipboard.writeText(text);
@@ -3403,9 +3367,9 @@ el.sumCopy.addEventListener("click", async () => {
 // Zargo with what it means, a win record per game, their matches, and Edit (SPEC §13.4).
 let personId = null;
 function openPerson(id){ personId = id; if(renderPerson()) show("person"); }
-el.perBack.addEventListener("click", () => openPage("ratings"));
-el.perEdit.addEventListener("click", () => personId && openPlayerForm(personId));
-el.perCueEdit.addEventListener("click", async () => {
+ui.tap(el.perBack, () => openPage("ratings"));
+ui.tap(el.perEdit, () => personId && openPlayerForm(personId));
+ui.tap(el.perCueEdit, async () => {
   if(!personId) return;
   await people.edit(personId, { noun: "player", cuescore: true });
   rerender();
@@ -3464,10 +3428,10 @@ function renderPerson(){
 }
 
 // ---------- invites (the members allowlist) ----------
-el.familyBtn.addEventListener("click", openFamily);
-el.famBack.addEventListener("click", () => openPage("more"));
-el.aboutBtn.addEventListener("click", () => show("about"));
-el.aboutBack.addEventListener("click", () => openPage("more"));
+ui.tap(el.familyBtn, openFamily);
+ui.tap(el.famBack, () => openPage("more"));
+ui.tap(el.aboutBtn, () => show("about"));
+ui.tap(el.aboutBack, () => openPage("more"));
 
 async function openFamily(){
   show("family");
@@ -3512,27 +3476,19 @@ async function openFamily(){
 function removeMemberButton(em){
   const d = document.createElement("button");
   d.className = "quiet warnbtn";
-  d.textContent = "Remove";
-  let armed = null;
-  d.addEventListener("click", async () => {
-    if(!armed){
-      armed = setTimeout(() => { armed = null; d.textContent = "Remove"; }, 5000);
-      d.textContent = "Sure?";
-      buzz([12]);
-      return;
-    }
-    clearTimeout(armed); armed = null;
+  d.textContent = "Hold to remove";
+  ui.hold(d, async () => {
     d.disabled = true; d.textContent = "…";
     try { await cloud.removeMember(em); openFamily(); }
     catch(e){
-      d.disabled = false; d.textContent = "Remove";
-      alert("Couldn't remove: " + (e.message || e));
+      d.disabled = false; d.textContent = "Hold to remove";
+      ui.toast("Couldn't remove: " + (e.message || e));
     }
   });
   return d;
 }
 
-el.famAdd.addEventListener("click", async () => {
+ui.tap(el.famAdd, async () => {
   const em = el.famEmail.value.trim().toLowerCase();
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){ el.famEmail.focus(); return; }
   el.famAdd.disabled = true;
@@ -3540,11 +3496,11 @@ el.famAdd.addEventListener("click", async () => {
     await cloud.addMember(em);
     el.famEmail.value = "";
     await openFamily();
-  } catch(e){ alert("Couldn't add: " + (e.message || e)); }
+  } catch(e){ ui.toast("Couldn't add: " + (e.message || e)); }
   el.famAdd.disabled = false;
 });
 
-el.famShare.addEventListener("click", () => {
+ui.tap(el.famShare, () => {
   const url = location.origin + location.pathname;
   if(navigator.share){
     navigator.share({ title: "Rack It", text: "Pool scorer — sign in with the Gmail you were invited with.", url }).catch(() => {});
@@ -3637,23 +3593,21 @@ async function rebuildRatings(card){
     el.rbApply.disabled = true;
     el.rbApply.textContent = "Applying…";
     try { await applyRebuild(plan); el.rebuild.classList.add("hidden"); }
-    catch(e){ console.warn("[rebuild]", e); alert("Couldn't apply: " + (e.message || e)); el.rbApply.disabled = false; el.rbApply.textContent = "Apply"; }
+    catch(e){ console.warn("[rebuild]", e); ui.toast("Couldn't apply: " + (e.message || e)); el.rbApply.disabled = false; el.rbApply.textContent = "Apply"; }
   };
   el.rebuild.classList.remove("hidden");
 }
-el.rebuildBtn.addEventListener("click", async () => {
+ui.tap(el.rebuildBtn, async () => {
   if(!owner) return;
   el.rebuildBtn.disabled = true;
   try { await rebuildRatings(true); }
-  catch(e){ console.warn("[rebuild]", e); alert("Couldn't rebuild: " + (e.message || e)); }
+  catch(e){ console.warn("[rebuild]", e); ui.toast("Couldn't rebuild: " + (e.message || e)); }
   el.rebuildBtn.disabled = false;
 });
-el.rbCancel.addEventListener("click", () => el.rebuild.classList.add("hidden"));
+ui.tap(el.rbCancel, () => el.rebuild.classList.add("hidden"));
 
 // ---------- export / import ----------
-phone.mountInstall(document.getElementById("installHere"), { label: "Install on this phone" });
-
-el.exportBtn.addEventListener("click", async () => {
+async function exportAll(){
   // Friend mode exports your matches and the ratings it can read; starters are the household's.
   const [all, starters] = friendMode
     ? [(await cloud.list("matches", { where: ["uids", "array-contains", cloud.user.uid] }))
@@ -3675,14 +3629,13 @@ el.exportBtn.addEventListener("click", async () => {
   a.download = "rack-it-" + new Date().toISOString().slice(0, 10) + ".json";
   a.click();
   URL.revokeObjectURL(a.href);
-});
+}
 
 // Import is also the move from Fair Nine (sidequests/fair-nine/sessions) to Rack It
 // (sidequests/rack-it/matches): a 1.x export carries app "fair-nine" and its matches under
 // "sessions". Document ids are kept either way.
 const IMPORT_APPS = ["fair-nine", "rack-it"];
 let pendingImport = null;
-el.importBtn.addEventListener("click", () => el.importFile.click());
 el.importFile.addEventListener("change", async () => {
   const f = el.importFile.files[0];
   el.importFile.value = "";
@@ -3702,10 +3655,10 @@ el.importFile.addEventListener("change", async () => {
     el.impChoice.classList.remove("hidden");
   } catch(e){
     el.impInfo.textContent = "";
-    alert("Couldn't read that file: " + (e.message || e));
+    ui.toast("Couldn't read that file: " + (e.message || e));
   }
 });
-el.impCancel.addEventListener("click", () => { pendingImport = null; el.impChoice.classList.add("hidden"); });
+ui.tap(el.impCancel, () => { pendingImport = null; el.impChoice.classList.add("hidden"); });
 
 // Your own account's part of an export: name, photo, friends' cards, guests. Never a
 // friendship, and never from someone else's file (cloud.account.importMe refuses it).
@@ -3736,7 +3689,7 @@ async function writeImportedMatch(s){
   await cloud.save("matches/" + s.id, doc);
 }
 
-el.impMerge.addEventListener("click", async () => {
+ui.tap(el.impMerge, async () => {
   const imp = pendingImport;
   el.impChoice.classList.add("hidden");
   if(!imp) return;
@@ -3759,10 +3712,9 @@ el.impMerge.addEventListener("click", async () => {
   rerender();
 });
 
-el.impReplace.addEventListener("click", async () => {
+ui.hold(el.impReplace, async () => {
   const imp = pendingImport;
   if(!imp || !owner) return;
-  if(!confirm("Replace ALL Rack It data with this file? Current ratings, starter ratings and matches are wiped first. (The player list is shared with the other apps, so nobody is removed from it.) This can't be undone.")) return;
   el.impChoice.classList.add("hidden");
   for(const s of await cloud.list("matches")) await cloud.delete("matches/" + s.id);
   for(const s of await cloud.list("starters")) await cloud.delete("starters/" + s.id);

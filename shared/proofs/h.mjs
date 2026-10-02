@@ -134,3 +134,19 @@ export async function startMatch(p, { a, b, rated = false }){
   }
   return offered;
 }
+
+// ---- the account sheet (ui.account): your avatar in the showing page's header ----
+// Its items' labels, then closed again.
+export async function accountItems(p){
+  await p.bringToFront();
+  await p.locator(".me:visible").first().click(); await p.waitForTimeout(300);
+  const items = await p.locator(".scrim .sheet button").allInnerTexts();
+  await p.keyboard.press("Escape"); await p.waitForTimeout(200);
+  return items.filter(t => t !== "Cancel");
+}
+// Open the account sheet and tap one item.
+export async function account(p, label){
+  await p.bringToFront();
+  await p.locator(".me:visible").first().click(); await p.waitForTimeout(300);
+  await p.locator(".scrim .sheet button", { hasText: label }).first().click(); await p.waitForTimeout(300);
+}

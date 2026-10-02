@@ -17,6 +17,7 @@
 
 import { cloud } from "./cloud.js";
 import { phone } from "./phone.js";
+import { ui } from "./ui.js";
 import qrcode from "./vendor/qrcode.js";
 
 const KEY = "connect.invite";   // the scanned code, kept through the Google sign-in redirect
@@ -36,35 +37,7 @@ const KEY = "connect.invite";   // the scanned code, kept through the Google sig
 const savedCode = () => { try { return localStorage.getItem(KEY) || ""; } catch { return ""; } };
 const forget = () => { try { localStorage.removeItem(KEY); } catch {} };
 
-// ---- taps: pointerup, not click (same as the apps) ----
-function tap(node, fn){
-  let down = false, sx = 0, sy = 0;
-  node.addEventListener("pointerdown", e => { down = true; sx = e.clientX; sy = e.clientY; });
-  node.addEventListener("pointercancel", () => { down = false; });
-  node.addEventListener("pointerup", e => {
-    if (!down) return;
-    down = false;
-    if (Math.abs(e.clientX - sx) > 14 || Math.abs(e.clientY - sy) > 14) return;
-    e.preventDefault();
-    fn(e);
-  });
-  node.addEventListener("click", e => e.preventDefault());
-}
-// First tap arms it for five seconds, second tap does it.
-function armed(btn, label, sure, fn){
-  let timer = null;
-  tap(btn, () => {
-    if (!timer){
-      timer = setTimeout(() => { timer = null; btn.classList.remove("arm"); btn.textContent = label; }, 5000);
-      btn.classList.add("arm");
-      btn.textContent = sure;
-      if (navigator.vibrate) navigator.vibrate(12);
-      return;
-    }
-    clearTimeout(timer); timer = null;
-    fn();
-  });
-}
+const tap = ui.tap;
 
 // ---- looks: shared/theme.css's parts, plus these ----
 const CSS = `
@@ -402,7 +375,7 @@ function openCard(f, p, used){
         <button type="button" class="quiet" data-k="addtag">Add</button></div>
       <p class="cn-dim">Only you see this card.</p>
       <button type="button" class="primary cn-big" data-k="save">Save</button>
-      <button type="button" class="quiet warnbtn" data-k="remove">Remove</button>
+      <button type="button" class="quiet warnbtn" data-k="remove">Hold to remove</button>
       <p class="cn-warn" data-k="msg" hidden></p>
     </div>`);
   const q = s => ov.querySelector(`[data-k="${s}"]`);
@@ -441,7 +414,7 @@ function openCard(f, p, used){
     cloud.account.saveFriend(f.uid, { note: q("note").value.trim().slice(0, 500), tags: [...chosen].slice(0, 12), metPlace: place })
       .then(close, e => say("Couldn't save: " + (e.code || e.message)));
   });
-  armed(q("remove"), "Remove", `Remove ${name}? Tap again`, () => {
+  ui.hold(q("remove"), () => {
     cloud.account.unfriend(f.uid).then(close, e => say("Couldn't remove: " + (e.code || e.message)));
   });
   return close;
@@ -473,16 +446,6 @@ async function shrink(file){
   } finally { URL.revokeObjectURL(url); }
 }
 
-// Press and hold for 600ms (theme.css draws the fill), for what can't be undone.
-function hold(btn, fn){
-  let t = null;
-  const stop = () => { clearTimeout(t); t = null; btn.classList.remove("holding"); };
-  btn.addEventListener("pointerdown", () => { btn.classList.add("holding"); t = setTimeout(() => { stop(); fn(); }, 600); });
-  for (const ev of ["pointerup", "pointerleave", "pointercancel"]) btn.addEventListener(ev, stop);
-  btn.addEventListener("click", e => e.preventDefault());
-  btn.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fn(); } });
-}
-
 function showProfile({ onClose } = {}){
   const ov = overlay(`
     <div class="cn-top">
@@ -497,7 +460,7 @@ function showProfile({ onClose } = {}){
       <button type="button" class="primary cn-big" data-k="save" disabled>Save</button>
       <p class="cn-warn" data-k="msg" hidden></p>
       <div class="cn-leave">
-        <button type="button" class="quiet warnbtn hold" data-k="hold">Hold to delete my account</button>
+        <button type="button" class="quiet warnbtn" data-k="hold">Hold to delete my account</button>
         <div data-k="confirm" hidden>
           <p class="cn-dim">This removes your profile, photo, friends, notes and guests, then signs you out.
             Matches you played keep your name. Type DELETE to go ahead.</p>
@@ -543,7 +506,7 @@ function showProfile({ onClose } = {}){
     cloud.account.saveMe(fields).then(close, e => { ready(); say("Couldn't save: " + (e.code || e.message)); });
   });
 
-  hold(q("hold"), () => { q("hold").hidden = true; q("confirm").hidden = false; q("typed").focus(); });
+  ui.hold(q("hold"), () => { q("hold").hidden = true; q("confirm").hidden = false; q("typed").focus(); });
   q("typed").addEventListener("input", () => { q("delete").disabled = q("typed").value.trim().toUpperCase() !== "DELETE"; });
   tap(q("delete"), async () => {
     if (q("delete").disabled) return;

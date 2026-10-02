@@ -12,7 +12,7 @@
 // D. The other apps as a member, old build against new: page text must match, so it only
 //    holds across builds that didn't change those apps.
 import fs from "node:fs";
-import { ok, summary, errors, ROOT, oldBuild, serve, browser, tab, C, tryC, text, store, scoreLeague, RACKS, matchesOf, ratingsOf, startMatch } from "./h.mjs";
+import { ok, summary, errors, accountItems, ROOT, oldBuild, serve, browser, tab, C, tryC, text, store, scoreLeague, RACKS, matchesOf, ratingsOf, startMatch } from "./h.mjs";
 const NEW = ROOT, OLD = process.env.OLD ? oldBuild(process.env.OLD) : null;
 const SEEDFILE = process.env.SEED || null;
 const tabTo = async (p, t) => { await p.bringToFront(); await p.click(`.tabbar button[data-tab="${t}"]`); await p.waitForTimeout(400); };
@@ -42,10 +42,10 @@ async function seedRun(root, label){
   out.melRecord = section(page, "RECORD", "MATCHES");
   out.melPageMatches = await mel.locator("#scrPerson li").count();
   await tabTo(owner, "more"); await owner.click("#rebuildBtn"); await owner.waitForTimeout(1500);
-  out.rebuild = await text(owner, "#rebuild .card");
+  out.rebuild = await text(owner, "#rebuild .card, #rebuild .sheet");
   await owner.click("#rbApply"); await owner.waitForTimeout(2500);
   await owner.click("#rebuildBtn").catch(() => {}); await owner.waitForTimeout(1500);
-  out.rebuildAgain = await text(owner, "#rebuild .card");
+  out.rebuildAgain = await text(owner, "#rebuild .card, #rebuild .sheet");
   await owner.click("#rbCancel").catch(() => {});
   await tabTo(owner, "ratings"); out.ratingsAfter = await text(owner, "#playerList");
   out.ratingDocs = await ratingsOf(owner);
@@ -114,10 +114,11 @@ for (const [n, p] of [["mel", mel], ["ann", ann]]){
 const docs0 = await store(owner);
 ok(!Object.entries(docs0).some(([k, v]) => k.startsWith("sidequests/_shared/people/") && v.uid === "mock-mel"), "Rack It didn't put Melanie on the household list");
 await tabTo(mel, "more");
-ok(!(await mel.locator("#familyBtn").isVisible()) && !(await mel.locator("#importBtn").isVisible()) && !(await mel.locator("#rebuildBtn").isVisible())
-  && await mel.locator("#qrBtn").isVisible() && await mel.locator("#exportBtn").isVisible(), "mel's More: My QR and Export, no Invites, Import or Rebuild");
+const melItems = await accountItems(mel);
+ok(!(await mel.locator("#familyBtn").isVisible()) && !melItems.includes("Import") && !(await mel.locator("#rebuildBtn").isVisible())
+  && melItems.includes("My QR") && melItems.includes("Export"), "mel: My QR and Export in her sheet, no Invites, Import or Rebuild: " + melItems.join(", "));
 await tabTo(owner, "more");
-ok(await owner.locator("#familyBtn").isVisible() && await owner.locator("#rebuildBtn").isVisible() && await owner.locator("#importBtn").isVisible(), "the owner's More keeps Invites, Import and Rebuild");
+ok(await owner.locator("#familyBtn").isVisible() && await owner.locator("#rebuildBtn").isVisible() && (await accountItems(owner)).includes("Import"), "the owner's More keeps Invites, Import and Rebuild");
 ok(await startMatch(owner, { b: "Mel", rated: true }), "owner: Rated offered against Melanie");
 await scoreLeague(owner, RACKS);
 let pend = (await matchesOf(owner)).find(m => m.status === "pending");
@@ -130,7 +131,7 @@ pend = (await matchesOf(owner)).find(m => m.id === pend.id);
 ok(pend.status === "done" && pend.confirmedBy === "mock-mel" && rt["mock-uid"].match === pend.id && rt["mock-mel"].match === pend.id, "mel confirmed: both ratings moved, naming the match");
 await startMatch(owner, { b: "Ann" }); await scoreLeague(owner, RACKS);
 await tabTo(mel, "play");
-const melPicker = await (async () => { await mel.click("#pickB"); await mel.waitForTimeout(300); const t = await text(mel, ".pk-ov .pk-list"); await mel.locator('.pk-ov [data-k="cancel"]').click(); return t; })();
+const melPicker = await (async () => { await mel.click("#pickB"); await mel.waitForTimeout(300); const t = await text(mel, ".sheet .pk-list"); await mel.locator('.sheet [data-k="cancel"]').click(); return t; })();
 ok(/Mel/.test(melPicker) && /Mock Player/.test(melPicker) && !/Ann/.test(melPicker), "mel's picker: herself and her friends only: " + melPicker.replace(/\n+/g, " | "));
 await startMatch(mel, { b: "Mock Player" }); await scoreLeague(mel, RACKS);
 const all = await matchesOf(owner);
