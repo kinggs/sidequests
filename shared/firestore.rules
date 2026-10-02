@@ -7,7 +7,8 @@ rules_version = '2';
 //   this file, so the apps can manage it: adding a person (Rack It → More → Invites) takes
 //   effect instantly, with no rules deploy and no email addresses in the public repo.
 // - An account: anyone signed in, keyed by uid. It reaches /profiles, /invites and
-//   /friendships, each as narrowly as below, and nothing under /sidequests/ yet.
+//   /friendships, each as narrowly as below, and under /sidequests/ only Rack It's matches
+//   it plays in, one rating at a time, and Rack It's config (Session 6).
 //
 // Cost: making a friendship reads the invite with one get(). Every rule here has cases in
 // shared/rules-check.mjs, written before the rule; a failing case stops the deploy.
@@ -51,12 +52,23 @@ service cloud.firestore {
     // deletes a match or changes one that's saved (which is what Rebuild ratings does).
     // Any member sets a new player's starter rating; only the owner changes or deletes one.
     // A new collection here needs its own rule, or nobody can write it.
+    //
+    // Outsiders (Session 6): an account plays in Rack It without being household. It reads and
+    // scores only the matches with its uid in `uids`, starts one only alone with a guest or
+    // against someone it's connected to, and moves a rating only in the batch where it confirms
+    // a rated match the other player ended. The rules can't check the arithmetic; the owner's
+    // Rebuild ratings remakes every rating from the matches. The uid checks come first, so a
+    // player's own writes cost no /members lookup.
     match /sidequests/rack-it/state/{doc} {
+      allow get: if signedIn() && doc == 'main';   // the config; the ratings left it in Session 3
       allow write: if isFamily();
     }
     match /sidequests/rack-it/matches/{id} {
-      allow create: if isFamily();
-      allow update: if isOwner() || (isFamily() && resource.data.get('status', '') != 'done');
+      allow read: if (signedIn() && request.auth.uid in resource.data.get('uids', [])) || isFamily();
+      allow create: if (signedIn() && outsiderStarts()) || isFamily();
+      allow update: if (signedIn() && request.auth.uid in resource.data.get('uids', []) && playerScores())
+        || (isFamily() && resource.data.get('status', '') != 'done' && ratedOnlyTurnsOff())
+        || isOwner();
       allow delete: if isOwner();
     }
     match /sidequests/rack-it/starters/{id} {
@@ -65,8 +77,60 @@ service cloud.firestore {
     }
     // Each player's rating, keyed by their resolved id (KIT-PLAN.md Session 3). A cache that
     // Rebuild ratings remakes from the matches, so any member writes it, as state/main was.
-    match /sidequests/rack-it/ratings/{id} {
-      allow write: if isFamily();
+    // Anyone signed in gets one by its id; only the household lists them.
+    match /sidequests/rack-it/ratings/{pid} {
+      allow get: if signedIn();
+      allow write: if (signedIn() && (confirming(pid) || guestStarter(pid))) || isFamily();
+    }
+
+    // A match with no `rated` field is rated: every match before 2.9.0 moved ratings.
+    function rated(m) { return m.get('rated', true) == true; }
+    function ratedOnlyTurnsOff() { return !rated(request.resource.data) || rated(resource.data); }
+    function connected(a, b) {
+      return exists(/databases/$(database)/documents/friendships/$(a < b ? a + '_' + b : b + '_' + a));
+    }
+    // A new match an outsider plays in: started by them, live, not yet ended, alone with a
+    // guest or against someone they're connected to.
+    function outsiderStarts() {
+      let m = request.resource.data;
+      return m.by == request.auth.uid && request.auth.uid in m.uids && m.status == 'live'
+        && !m.keys().hasAny(['endedBy', 'confirmedBy', 'ratedAt', 'declinedBy', 'withdrawnBy'])
+        && (m.uids.size() == 1 || (m.uids.size() == 2 && connected(m.uids[0], m.uids[1])));
+    }
+    // A player's write to a match they're in. Never who's in it. A live match is scored, saved
+    // or discarded; going to pending stamps endedBy as yourself, and a rated match is never
+    // finished from live. A pending match only finishes, touching only the confirmation's
+    // fields: rated by a player who didn't end it (Confirm), or as a friendly (Not right,
+    // Withdraw). rated only ever turns off.
+    function playerScores() {
+      let was = resource.data;
+      let now = request.resource.data;
+      let keys = now.diff(was).affectedKeys();
+      return !keys.hasAny(['uids', 'by', 'playerA', 'playerB', 'names'])
+        && ratedOnlyTurnsOff()
+        && (was.status == 'live'
+          ? now.status in ['live', 'pending', 'done', 'discarded']
+            && (now.status == 'pending'
+              ? now.get('endedBy', null) == request.auth.uid
+              : now.get('endedBy', null) == was.get('endedBy', null))
+            && !(now.status == 'done' && rated(now))
+          : was.status == 'pending' && now.status == 'done'
+            && keys.hasOnly(['status', 'rated', 'zargoBefore', 'zargoAfter', 'ratedAt', 'confirmedBy',
+                             'declinedBy', 'withdrawnBy', '_updatedAt'])
+            // Someone else ended it; a match with no endedBy can't be confirmed.
+            && (!rated(now) || request.auth.uid != was.get('endedBy', request.auth.uid)));
+    }
+    // A rating moves only in the batch that confirms a rated match: pending before the batch,
+    // done and still rated after it, and the rating a player in it. Who may confirm is the match
+    // update's rule above, which has to pass in the same batch.
+    function confirming(pid) {
+      let path = /databases/$(database)/documents/sidequests/rack-it/matches/$(request.resource.data.match);
+      let now = getAfter(path).data;
+      return get(path).data.status == 'pending' && now.status == 'done' && rated(now) && pid in now.uids;
+    }
+    // A guest's starter estimate, written once by the account that made the guest.
+    function guestStarter(pid) {
+      return resource == null && exists(/databases/$(database)/documents/profiles/$(request.auth.uid)/guests/$(pid));
     }
 
     // ---- Accounts: anyone signed in, keyed by uid (Session 1, KIT-PLAN.md) ----
