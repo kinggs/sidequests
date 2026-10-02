@@ -38,6 +38,7 @@
 //   await cloud.account.unfriend(uid)
 //   cloud.account.watchGuests(cb, onError) // [{ id, name, createdAt, claimedBy }]: your guests, people with no phone
 //   await cloud.account.addGuest(name)    // the new guest's id, "g_<id>"; written in the background
+//   await cloud.account.claimGuest(id, uid) // That was them: the guest points at that account (claimedBy)
 //   await cloud.account.exportMe()        // { uid, profile, friends: { uid: card }, guests: { id: guest } }
 //   await cloud.account.importMe(json)    // your own export only: name, photo, cards, guests; never a friendship
 //   await cloud.account.deleteMe()        // every document of yours, one by one, then signs out
@@ -419,6 +420,12 @@ export const cloud = {
       fs.setDoc(fs.doc(db, "profiles", u.uid, "guests", id), { name: String(name).trim().slice(0, 60), createdAt: fs.serverTimestamp() })
         .catch(e => console.warn("[cloud.account] guest", e));
       return id;
+    },
+    // That was them: the guest was this account all along (people.claim). A pointer, so
+    // people.resolve leads the guest's id to the uid; the records are the app's to rewrite.
+    claimGuest(id, uid) {
+      const u = needUser();
+      return fs.setDoc(fs.doc(db, "profiles", u.uid, "guests", id), { claimedBy: String(uid), claimedAt: fs.serverTimestamp() }, { merge: true });
     },
     async exportMe() {
       const u = needUser();

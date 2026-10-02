@@ -73,8 +73,10 @@ is:
 - **someone new**, who scans your QR there and then and is added as a friend and a player
   in one go;
 - **a guest**: a typed name for someone with no phone, private to you. A guest can be
-  **claimed** later: once they're on Connect, you tap "that was them" and their guest games
-  become theirs;
+  **claimed** later: once they're on Connect, you tap **That was them** (`people.claim`, from a
+  guest's page or the account sheet's **Your guests**) and the games you started with them become
+  theirs, in every app, through one rule shape (`seatSwap()` in the rules). The guest keeps a
+  pointer (`claimedBy`), so `people.resolve` leads there;
 - for household members, **a household person**: the list every app shares today. It stays
   as it is, and nothing is migrated. An app with no household tier starts Players with
   `household: false`, and a member then sees no household list (Rack It, bar the owner);

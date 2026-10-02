@@ -18,6 +18,10 @@
 //   await people.addPlayer({ app })                     // just Scan a new player or Add a guest → an id, or null
 //   await people.addGuest(), await people.scan(app)     // straight to a guest's name, or to My QR → an id, or null
 //   people.names(ids), people.uidsOf(ids)  // what a record stores beside its player ids: names, and the accounts
+//   await people.claim(gid, { app, rewrite })   // That was them: pick the friend, hold; rewrite(gid, uid) → the uid, or null
+//   people.showGuests({ app, rewrite })     // the account sheet's Your guests, each one claimable
+//   people.guests(), people.claimedGuests() // your unclaimed guests; the claimed ones, [{ id, claimedBy }]
+//   people.swapId(doc, from, to)            // one id swapped for another everywhere in a record, deep
 //   await people.edit(null, { noun: "player" })     // add a household person (household only) → new id, or null
 //   people.edit(id)            // edit, merge into someone else, or remove
 //   people.edit(id, { cuescore: true })             // …plus the Cuescore profile link (cue apps; yours only)
@@ -116,6 +120,9 @@ function docOf(id){
 // Any id an app ever stored → the id that person has today: their uid once claimed.
 function resolve(id){
   if (id == null) return id;
+  // A guest you've claimed (That was them) is the account it pointed at.
+  const g = guests[String(id)];
+  if (g && g.claimedBy && g.claimedBy !== String(id)) return resolve(g.claimedBy);
   const d = docOf(id);
   if (!d) return String(id);
   return (all[d] && all[d].uid) || d;
@@ -721,7 +728,7 @@ function edit(id = null, { noun = "person", cuescore = false } = {}){
 // first), then everyone by name, a search box once there are more than eight, then two ways to
 // add someone there and then. Resolves to the id picked, or null.
 const appOfPage = () => location.pathname.split("/").filter(Boolean).filter(x => !/\.html$/.test(x)).pop() || "";
-function pick({ title = "Pick a player", recent = [], exclude = [], app = "", fresh = false, guest = false } = {}){
+function pick({ title = "Pick a player", recent = [], exclude = [], app = "", fresh = false, guest = false, friends: onlyFriends = false } = {}){
   injectCss();
   let unwatch = () => {};
   return ui.sheet({ title: fresh ? (title === "Pick a player" ? "Add a player" : title) : title, cancel: false,
@@ -751,12 +758,13 @@ function pick({ title = "Pick a player", recent = [], exclude = [], app = "", fr
       </div>`;
     const q = k => box.querySelector(`[data-k="${k}"]`);
     if (fresh){ q("list").hidden = true; }
+    if (onlyFriends){ q("guest").hidden = true; q("guest").nextElementSibling.hidden = true; q("none").textContent = "No friends yet. Scan their phone."; }
     const skip = new Set(exclude.filter(Boolean).map(resolve));
 
     let painted = "";
     function paint(){
       if (fresh) return;
-      const list = players().filter(p => !skip.has(p.id));
+      const list = players().filter(p => !skip.has(p.id) && (!onlyFriends || (p.uid && !mine(p))));
       const order = [...new Set(recent.filter(Boolean).map(resolve))];
       const rank = id => { const i = order.indexOf(id); return i < 0 ? Infinity : i; };
       list.sort((a, b) => rank(a.id) - rank(b.id) || String(a.name).localeCompare(String(b.name)));
@@ -846,11 +854,62 @@ async function scan(app){
   return uid;
 }
 
+// ---- That was them: a guest turns out to be an account (KIT-PLAN.md Session 8) ----
+// Your guests, not yet claimed: the ones That was them is offered for.
+const myGuests = () => Object.entries(guests).filter(([, g]) => !g.claimedBy)
+  .map(([id, g]) => ({ id, name: g.name, createdAt: g.createdAt || 0 })).sort((a, b) => String(a.name).localeCompare(String(b.name)));
+
+// Pick the friend a guest was, then a hold, then: the guest points at them (claimedBy), and the
+// app rewrites its records, the ones you started with that guest in them (rewrite(gid, uid)).
+// Resolves the uid, or null. `uid` skips the picker (a Game QR seat already said who it was).
+async function claim(gid, { app = "", rewrite = null, uid = null } = {}){
+  const g = guests[gid];
+  if (!g || g.claimedBy) return null;
+  const who = uid || await pick({ title: `Who was ${g.name}?`, app, friends: true, exclude: [gid] });
+  if (!who || who === gid || isGuest(who)) return null;
+  const them = nameOf(who, "them");
+  const ok = await ui.sheet({ title: `That was ${them}?`,
+    text: `${g.name}'s games that you started become ${them}'s, in every app, and ${g.name} leaves your guests. This can't be undone.`,
+    items: [{ label: `Give ${g.name}'s games to ${them}`, value: true, hold: true }] });
+  if (!ok) return null;
+  guests = { ...guests, [gid]: { ...g, claimedBy: who } };
+  notify();
+  try {
+    await cloud.account.claimGuest(gid, who);
+    if (rewrite) await rewrite(gid, who);
+    ui.toast(`${g.name}'s games are ${them}'s now`);
+  } catch (e){ report(e); ui.toast("Couldn't finish: " + ((e && e.message) || e)); }
+  return who;
+}
+const isGuest = id => String(id || "").startsWith("g_");
+// Your guests who have been claimed: [{ id, claimedBy }]. Each app rewrites any record of its own
+// still naming one (the claim happened in another app, or on another phone).
+const claimedGuests = () => Object.entries(guests).filter(([, g]) => g.claimedBy).map(([id, g]) => ({ id, claimedBy: g.claimedBy }));
+// The account sheet's Your guests: each one, and That was them.
+async function showGuests({ app = "", rewrite = null } = {}){
+  const list = myGuests();
+  const gid = await ui.sheet({ title: "Your guests",
+    text: list.length ? "Someone with no phone, kept on your account. Tap one who has since joined, to give them their games."
+      : "No guests yet. Add one when you pick a player.",
+    items: list.map(g => ({ label: g.name, value: g.id })) });
+  if (gid) return claim(gid, { app, rewrite });
+  return null;
+}
+// One id swapped for another everywhere in a record: values and map keys, deep. What an app's
+// rewrite uses for score maps keyed by player id. `names` is names, not ids, so it never matches.
+function swapId(x, from, to){
+  if (x === from) return to;
+  if (Array.isArray(x)) return x.map(v => swapId(v, from, to));
+  if (x && typeof x === "object") return Object.fromEntries(Object.entries(x).map(([k, v]) => [k === from ? to : k, swapId(v, from, to)]));
+  return x;
+}
+
 export const people = {
   PALETTE,
   start, stop, poke, onChange,
   active, players, get, resolve, nameOf, colourOf, nextColour, meId, isMe, avatar,
   names, uidsOf, pick, addPlayer, addGuest, scan: (app = "") => scan(app || appOfPage()),
+  guests: myGuests, claimedGuests, claim, showGuests, swapId,
   add, update, remove, merge, adopt, edit,
   all: () => ({ ...all }),
   get ready(){ return confirmed; }

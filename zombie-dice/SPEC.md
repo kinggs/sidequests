@@ -13,6 +13,11 @@ their own phone is a later idea (see Out of scope).
 - **Players** (`shared/people.js`, Players in `shared/KIT.md`): you, your Connect friends and
   your guests. The owner's picker also holds the household list, which only the owner keeps
   (the household section at the bottom of Home).
+- **That was them** (0.4.0, KIT-PLAN Session 8): your account sheet's **Your guests** lists the
+  guests you've made; tap one who has since joined, pick the friend, hold. Each game you started
+  with that guest becomes the friend's: their id replaces the guest's everywhere in it (seats,
+  scores), `uids` gains them, and `names` keeps the name as it was. A guest claimed in another
+  app is followed here the next time this app opens.
 - **Who sees what.** A game is reached by the accounts in it (`uids`) and by the owner, who
   is the one admin and sees every game. A stranger signs in to an empty app of their own.
   Anyone else, a household member included, sees only the games they're in.

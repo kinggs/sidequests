@@ -65,9 +65,10 @@ const ACCESS = [
   { path: /^sidequests\/rack-it\/matches\/([^/]+)$/,
     read: (m, u, d, was) => isOwner(u) || inUids(was, u),
     write: (m, u, d, was) => !was ? !!d && (isOwner(u) || outsiderStarts(u, d))
-      : (!!d && inUids(was, u) && playerScores(u, d, was)) || isOwner(u) },
+      : (!!d && inUids(was, u) && playerScores(u, d, was)) || (!!d && rackClaim(u, d, was)) || isOwner(u) },
   { path: /^sidequests\/rack-it\/ratings\/([^/]+)$/, read: "account",
-    write: (m, u, d, was, ctx) => isOwner(u) || (!!d && (confirming(m[1], d, ctx.after) || (!was && !!store.docs[`profiles/${u.uid}/guests/${m[1]}`]))) },
+    write: (m, u, d, was, ctx) => isOwner(u) || (!!d && (confirming(m[1], d, ctx.after) || (!was && !!store.docs[`profiles/${u.uid}/guests/${m[1]}`])
+      || claimedStarter(m[1], u, d, was))) },
   { path: /^sidequests\/rack-it(\/|$)/, read: "owner", write: "owner" },   // starters, listing ratings
   // The open apps (Session 7): each record reached by the accounts in its uids, a list only with
   // the uids filter, and the rest of the app the owner's. Not the household.
@@ -76,7 +77,7 @@ const ACCESS = [
   { path: /^sidequests\/([^/]+)\/([^/]+)\/([^/]+)$/, when: m => OPEN_APPS[m[1]] === m[2],
     read: (m, u, d, was) => isOwner(u) || inUids(was, u),
     write: (m, u, d, was) => isOwner(u) || (!was ? !!d && opens(u, d)
-      : d ? inUids(was, u) && !["uids", "players", "by"].some(k => !same(was[k], d[k]))
+      : d ? inUids(was, u) && (!["uids", "players", "by"].some(k => !same(was[k], d[k])) || openClaim(u, d, was))
       : was.by === u.uid) },
   { path: /^sidequests\/([^/]+)(\/|$)/, when: m => m[1] in OPEN_APPS, read: "owner", write: "owner" },
   // Sessions Loyalty: staff (the staff/ list, and the owner) and members (sessions-loyalty/SPEC.md §6).
@@ -157,6 +158,36 @@ function confirming(pid, d, after){
   const path = "sidequests/rack-it/matches/" + d.match, was = store.docs[path], now = after && after[path];
   return !!d.match && !!was && !!now && was.status === "pending" && now.status === "done" && rated(now)
     && Array.isArray(now.uids) && now.uids.includes(pid);
+}
+
+// seatSwap() (Session 8): one guest seat becomes x, the newcomer, appended to uids.
+const connectedTo = (a, b) => !!store.docs["friendships/" + [a, b].sort().join("_")];
+const isGuestId = id => typeof id === "string" && id.startsWith("g_");
+const newcomerOf = d => Array.isArray(d.uids) && d.uids.length ? d.uids[d.uids.length - 1] : null;
+function gainsOnly(was, d, x){
+  const w = Array.isArray(was.uids) ? was.uids : [];
+  return !!x && !w.includes(x) && d.uids.length === w.length + 1 && same(d.uids.filter(y => y !== x), w);
+}
+function rackSwap(d, was){
+  const x = newcomerOf(d);
+  return !!x && changed(was, d).every(k => ["playerA", "playerB", "uids", "_updatedAt"].includes(k)) && gainsOnly(was, d, x)
+    && ((isGuestId(was.playerA) && d.playerA === x && d.playerB === was.playerB)
+      || (isGuestId(was.playerB) && d.playerB === x && d.playerA === was.playerA));
+}
+const rackClaim = (u, d, was) => was.by === u.uid && rackSwap(d, was) && connectedTo(u.uid, newcomerOf(d));
+function openSwap(d, was){
+  const x = newcomerOf(d), wp = was.players || [], np = d.players || [];
+  return !!x && !changed(was, d).some(k => k === "by" || k === "names") && gainsOnly(was, d, x) && !wp.includes(x)
+    && np.length === wp.length && np.filter(y => y === x).length === 1
+    && wp.every((p, i) => np[i] === p || (np[i] === x && isGuestId(p)));
+}
+const openClaim = (u, d, was) => was.by === u.uid && openSwap(d, was) && connectedTo(u.uid, newcomerOf(d));
+// That was them: the claimed guest's starter becomes the friend's, numbers unchanged.
+function claimedStarter(pid, u, d, was){
+  const from = d.from, g = store.docs["sidequests/rack-it/ratings/" + from], guest = store.docs[`profiles/${u.uid}/guests/${from}`];
+  return !was && isGuestId(from) && !!g && !!guest && guest.claimedBy === pid && connectedTo(u.uid, pid)
+    && Object.keys(d).every(k => ["zargo", "robustness", "sessions", "from", "_updatedAt"].includes(k))
+    && d.zargo === g.zargo && (d.robustness || 0) === (g.robustness || 0) && (d.sessions || 0) === (g.sessions || 0);
 }
 
 // The friendship create rule: one of the two, carrying the other's live code.
@@ -411,6 +442,7 @@ const account = {
       .catch(e => console.warn("[cloud.account] guest", e));
     return id;
   },
+  claimGuest(id, uid){ const u = needUser(); return saveTo(`profiles/${u.uid}/guests/${id}`, { claimedBy: String(uid), claimedAt: Date.now() }); },
   async exportMe(){
     const u = needUser(), base = "profiles/" + u.uid;
     const rows = sub => { check("read", `${base}/${sub}`); return Object.fromEntries(rowsOf(`${base}/${sub}`).map(({ id, _updatedAt, ...d }) => [id, d])); };

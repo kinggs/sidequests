@@ -138,16 +138,16 @@ above. Each step is rules and app in one push.
 
 ### Step 1 — Claiming a guest
 
-- [ ] On a guest: **That was them** → pick a friend. It rewrites that guest's records where
+- [x] On a guest: **That was them** → pick a friend. It rewrites that guest's records where
   you are `by`: the player id becomes the friend's uid and `uids` gains it. The guest document
   gets `claimedBy`, so `people.resolve` leads there. Guests play friendlies only, so no rating
   is replayed: if the friend has no rating document, the guest's starter becomes theirs.
-- [ ] **One rule shape, `seatSwap()`**, used here and in step 2: exactly one player id that
+- [x] **One rule shape, `seatSwap()`**, used here and in step 2: exactly one player id that
   starts `g_` becomes an account's uid, `uids` gains exactly that uid, and nothing else
   changes (`names` stays: History, Session 6 note 5). Here the writer is `by` and is connected
   to the uid. In Rack It it checks `playerA`/`playerB`; in the open rule, `players[0..7]`
   unrolled. Cases first.
-- [ ] It reaches every app already on the open rule (Zombie Dice, Around the Clock).
+- [x] It reaches every app already on the open rule (Zombie Dice, Around the Clock).
 
 ### Step 2 — Seats and the Game QR
 

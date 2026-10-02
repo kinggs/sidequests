@@ -222,7 +222,7 @@
   import { ui } from "../shared/ui.js";
 
   // Bump on every change. The deploy skill checks this against the live site.
-  const APP_VERSION = "0.8.0";
+  const APP_VERSION = "0.9.0";
   const APP_ID = "around-the-clock";
   document.getElementById("version").textContent = "v" + APP_VERSION;
 
@@ -992,13 +992,14 @@
   function mountAccount(){
     const user = cloud.user, me = user ? people.meId() : null, p = me ? people.get(me) : null;
     const installed = phone.installed();
-    const sig = JSON.stringify([user && user.uid, me, p && [p.name, p.photo, people.colourOf(me)], owner, installed]);
+    const sig = JSON.stringify([user && user.uid, me, p && [p.name, p.photo, people.colourOf(me)], owner, installed, people.guests().length]);
     if (sig === accountSig) return;
     accountSig = sig;
     const extra = !user ? [] : [
       { label: "Profile", value: "profile", run: () => connect.showProfile() },
       { label: "My QR", value: "qr", run: () => connect.showQR({ app: APP_ID }) },
       { label: "Friends", value: "friends", run: () => connect.showFriends() },
+      ...(people.guests().length ? [{ label: "Your guests", value: "guests", run: () => people.showGuests({ app: APP_ID, rewrite: claimRewrite }) }] : []),
       { label: "Export", value: "export", run: exportAll },
       ...(owner ? [{ label: "Import", value: "import", run: () => $("importFile").click() }] : []),
       ...(installed ? [] : [{ label: "Install on this phone", value: "install", run: async () => {
@@ -1010,6 +1011,42 @@
       onSignOut: () => cloud.signOut(), extra, name: p ? p.name : "", avatar: me ? people.avatar(me, 48) : null });
   }
   people.onChange(mountAccount);
+  // That was them (KIT-PLAN.md Session 8): each game you started with that guest in it becomes the
+  // friend's. The guest's id is swapped for theirs everywhere in it (seats, scores), uids gains them,
+  // and names stays: the rules' seatSwap.
+  // One rewrite a guest at a time: the claim and healClaims below can both start one.
+  const claiming = new Map();
+  function claimRewrite(gid, uid){
+    if (!claiming.has(gid)) claiming.set(gid, rewriteClaim(gid, uid).finally(() => claiming.delete(gid)));
+    return claiming.get(gid);
+  }
+  async function rewriteClaim(gid, uid){
+    const me = cloud.user && cloud.user.uid;
+    const ops = rawGames.filter(x => x.by === me && Array.isArray(x.players) && x.players.includes(gid) && !(x.uids || []).includes(uid))
+      .map(({ id, _updatedAt, names, uids, by, ...rest }) => {
+        const swapped = people.swapId(rest, gid, uid), data = {};
+        for (const [k, v] of Object.entries(swapped)) if (JSON.stringify(v) !== JSON.stringify(rest[k])) data[k] = v;
+        data.uids = [...(uids || []), uid];
+        return { patch: `games/${id}`, data };
+      });
+    for (let i = 0; i < ops.length; i += 400) await cloud.batch(ops.slice(i, i + 400));
+    console.info("[claim]", gid, "→", uid, "in", ops.length, "games");
+  }
+  // A guest claimed in another app, or on another phone: your games with them follow, once.
+  let healing = false;
+  const healed = new Set();
+  async function healClaims(){
+    const me = cloud.user && cloud.user.uid;
+    if (healing || !me) return;
+    const todo = people.claimedGuests().filter(g => !healed.has(g.id)
+      && rawGames.some(x => x.by === me && Array.isArray(x.players) && x.players.includes(g.id)));
+    if (!todo.length) return;
+    healing = true;
+    try { for (const g of todo){ healed.add(g.id); await claimRewrite(g.id, g.claimedBy); } }
+    catch (e){ console.warn("[claim]", e); }
+    finally { healing = false; }
+  }
+  people.onChange(healClaims);
 
   // onUser only fires straight away when someone is signed in, so paint the signed-out
   // state ourselves. Also what makes the app run before Firebase is set up.
@@ -1062,6 +1099,7 @@
         rawGames = rows.filter(isGameDoc);
         refreshGames();
         backfill();
+        healClaims();
         // The game on this phone is the truth while it's being played; the list only
         // matters for Home. If someone else deleted it out from under us, drop out cleanly.
         if (live && !games.some(g => g.id === live.id) && dartsIn(live)){ toast("That game was deleted elsewhere."); live = null; remember(null); show("home"); }

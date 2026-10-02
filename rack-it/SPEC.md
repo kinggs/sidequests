@@ -454,6 +454,13 @@ Stored ids are read through `people.resolve`, so a merge in any app carries hist
   profile's; a guest is `g_<id>`, a name kept under your account (`profiles/<you>/guests`), seen
   by nobody else. A household person who has claimed is also an account: the household's name
   and colour win.
+- **That was them** (2.13.0, KIT-PLAN Session 8): a guest who has since joined is claimed from
+  their page: pick the friend, then a hold. Every match you started with the guest becomes the
+  friend's (that side's id becomes their uid and `uids` gains it; `names` keeps the guest's name,
+  as it was at the table), and the guest points at the friend (`claimedBy`), so `people.resolve`
+  leads there. Guests play friendlies only, so no rating is replayed; a friend with no rating
+  takes the guest's starter (`ratings/<uid>` with `from: <g_id>`). Your other apps follow the next
+  time each opens. Only the match's starter may, and only for someone they're connected to.
 - **A Gmail is optional** (2.8.0). The shared sheet offers it when editing a household person, so
   they claim themselves on sign-in; adding a household person asks only for a name. Nothing here
   invites anyone: **Invites** (More) is the only way onto `/members`. A Gmail already on someone
@@ -731,5 +738,6 @@ account, so a static app can't upload results.
 | 2.9.0 | Rated matches and confirming (KIT-PLAN Session 5). Setup gains a **Rated** tick, off by default, offered when both players have an account. A friendly moves no rating; a rated match moves both only once the opponent confirms on their own phone, worked out from the ratings at that moment, in one batch. Not right or Withdraw leaves it a friendly. Rebuild replays rated matches by `ratedAt`, else `endedAt`; a match with no `rated` field is rated. For the social leagues, where a rating has to be agreed by both players. |
 | 2.10.0 | Outsiders play in Rack It (KIT-PLAN Session 6): friend mode instead of the outsider screen. The rules open the matches an account plays in, starting one against a connection or a guest, and a rating only in the batch that confirms a rated match the other player ended. Ratings are read by id, matches with one `uids` query. A household member can no longer turn a friendly into a rated match. For pool friends who aren't family. |
 | 2.11.0 | One admin, everyone else a player (KIT-PLAN Session 6b). The owner sees and rewrites every match; everyone else, a household member included, runs friend mode and reads only the matches they play in. The owner's phone backfills `uids` and `names` on matches from before 2.8.0, so the players keep them. The "Before you play" note goes: there's nothing left to warn about. Owner's call, 2026-10-02: "a family member is just another member". Other apps keep the household. |
+| 2.13.0 | That was them (KIT-PLAN Session 8 step 1): a guest who has since joined is claimed from their page, and the matches you started with them become theirs, through one rule shape (`seatSwap`) that Game QR seats will use too. A claimed guest's starter becomes the friend's only when the friend has no rating, so nothing earned is overwritten. |
 | 2.12.0 | Rack It on the shared v3 look (KIT-PLAN Session 7 step 3): warm greys, the teal and lilac from the ramp, the Zargo figure 30px, bottom sheets for the player form, picker, Import and Rebuild, and your avatar's account sheet for Profile, My QR, Friends, Export, Import, Install and Sign out. Every two-tap "Sure?" and `confirm()` became a hold. The live screen changes only its greys and, through the ramp, a shade lighter teal (#2FD4B3) and lilac (#C0A5FF); it keeps its 40px tap slop, and its Undo, Next rack and Break stay on `click`. |
 | 2.8.0 | Players (KIT-PLAN Session 4): setup's columns become two slots filled from a picker of household, friends and guests, with **Scan a new player** and **Add a guest** there and then. A match stores `names`, `uids` and `by`. Add player is Scan or Guest, then the starter. The Gmail is optional and nothing in Rack It invites anyone any more: adding a player was quietly putting them on `/members`, which is the household's list. |

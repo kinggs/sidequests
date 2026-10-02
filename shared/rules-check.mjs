@@ -1011,3 +1011,103 @@ describe("Sessions Loyalty: a member", () => {
     await assertFails(getDoc(doc(db, SL + "cards/ann")));
   });
 });
+
+// ---- Session 8 step 1: claiming a guest, "That was them" (KIT-PLAN.md) ----
+// Whoever started a record (`by`) may give a guest's seat in it to a friend: exactly one player
+// id that starts g_ becomes the friend's uid, and `uids` gains exactly that uid. Ann's guest
+// g_1 (Dan) turns out to be Cat, her friend. In Rack It nothing else changes; in the open rule
+// the score maps keyed by the guest's id may move to the friend (any player may change scores),
+// but `by` and `names` stay. If Cat has no rating, Dan's starter becomes hers.
+
+const annDan = (extra = {}) => abMatch({ playerB: "g_1", names: { a: "Ann", b: "Dan" }, uids: ["ann"], rated: false,
+  status: "done", endedAt: 2, ...extra });
+
+describe("Claiming a guest: what may be done", () => {
+  beforeEach(async () => {
+    await seed(M + "dan", annDan());
+    await seed(M + "danA", annDan({ playerA: "g_1", playerB: "ann", names: { a: "Dan", b: "Ann" } }));
+    await seed(M + "danLive", annDan({ status: "live", endedAt: null }));
+    await seed(R + "g_1", { zargo: 420, robustness: 0, sessions: 0 });
+    await seed(ZD + "dan", zd({ players: ["ann", "g_1"], names: ["Ann", "Dan"], uids: ["ann"], seats: ["ann", "g_1"], scores: { ann: 9, g_1: 13 } }));
+    await seed(AC + "dan", atc());
+  });
+
+  test("Rack It: the starter gives the guest's seat to a friend, on either side, live or saved", async () => {
+    const db = user("ann");
+    await assertSucceeds(updateDoc(doc(db, M + "dan"), { playerB: "cat", uids: ["ann", "cat"] }));
+    await assertSucceeds(updateDoc(doc(db, M + "danA"), { playerA: "cat", uids: ["ann", "cat"] }));
+    await assertSucceeds(updateDoc(doc(db, M + "danLive"), { playerB: "cat", uids: ["ann", "cat"] }));
+  });
+  test("Rack It: once the guest is claimed, their starter becomes the friend's when she has no rating", async () => {
+    await seed("profiles/ann/guests/g_1", { name: "Dan", claimedBy: "cat" });
+    await assertSucceeds(setDoc(doc(user("ann"), R + "cat"), { zargo: 420, robustness: 0, sessions: 0, from: "g_1" }));
+  });
+  test("the open rule: the starter gives the guest's seat and scores to a friend", async () => {
+    await assertSucceeds(updateDoc(doc(user("ann"), ZD + "dan"), { players: ["ann", "cat"], uids: ["ann", "cat"],
+      seats: ["ann", "cat"], scores: { ann: 9, cat: 13 } }));
+    await assertSucceeds(updateDoc(doc(user("ann"), AC + "dan"), { players: ["ann", "cat"], uids: ["ann", "cat"],
+      throws: { ann: [], cat: [] }, scores: { ann: 0, cat: 0 } }));
+  });
+});
+
+describe("Claiming a guest: must refuse", () => {
+  beforeEach(async () => {
+    await seed("friendships/ann_ben", { uids: ["ann", "ben"], since: 1, via: "x", app: "rack-it" });
+    await seed(M + "dan", annDan());
+    await seed(M + "benDan", annDan({ playerA: "ben", by: "ben", uids: ["ben"], names: { a: "Ben", b: "Dan" } }));
+    await seed(M + "ab", abMatch({ status: "done", rated: false, endedAt: 2 }));
+    await seed(R + "g_1", { zargo: 420, robustness: 0, sessions: 0 });
+    await seed(R + "ben", { zargo: 500, robustness: 4, sessions: 3 });
+    await seed(ZD + "dan", zd({ players: ["ann", "g_1"], names: ["Ann", "Dan"], uids: ["ann"], seats: ["ann", "g_1"], scores: { ann: 9, g_1: 13 } }));
+    await seed(ZD + "dan2", zd({ players: ["ann", "g_1", "g_2"], names: ["Ann", "Dan", "Eve"], uids: ["ann"], seats: ["ann", "g_1", "g_2"] }));
+  });
+
+  test("a claim by anyone but the starter", async () => {
+    // Ben's match with his own guest: Ann isn't its starter, nor in it. Cat isn't the starter of Ann's.
+    await assertFails(updateDoc(doc(user("ann"), M + "benDan"), { playerB: "cat", uids: ["ben", "cat"] }));
+    await assertFails(updateDoc(doc(user("cat"), M + "dan"), { playerB: "cat", uids: ["ann", "cat"] }));
+  });
+  test("a claim for someone the starter isn't connected to", async () => {
+    await assertFails(updateDoc(doc(user("ann"), M + "dan"), { playerB: "eve", uids: ["ann", "eve"] }));
+    await assertFails(updateDoc(doc(user("ann"), ZD + "dan"), { players: ["ann", "eve"], uids: ["ann", "eve"] }));
+  });
+  test("a claim of a seat held by an account", async () => {
+    await assertFails(updateDoc(doc(user("ann"), M + "ab"), { playerB: "cat", uids: ["ann", "ben", "cat"] }));
+    await assertFails(updateDoc(doc(user("ann"), M + "ab"), { playerB: "cat", uids: ["ann", "cat"] }));
+    await assertFails(updateDoc(doc(user("ann"), M + "ab"), { playerA: "cat", uids: ["ann", "ben", "cat"] }));
+  });
+  test("a claim whose uids gain someone other than the new player, or two", async () => {
+    const db = user("ann");
+    await assertFails(updateDoc(doc(db, M + "dan"), { playerB: "cat", uids: ["ann", "ben"] }));
+    await assertFails(updateDoc(doc(db, M + "dan"), { playerB: "cat", uids: ["ann", "cat", "ben"] }));
+    await assertFails(updateDoc(doc(db, M + "dan"), { playerB: "cat", uids: ["cat"] }));
+    await assertFails(updateDoc(doc(db, M + "dan"), { playerB: "ann", uids: ["ann", "ann"] }));
+    await assertFails(updateDoc(doc(db, M + "dan"), { playerB: "cat", uids: ["ben", "cat"] }));
+  });
+  test("a claim that changes anything else in a Rack It match", async () => {
+    const db = user("ann");
+    await assertFails(updateDoc(doc(db, M + "dan"), { playerB: "cat", uids: ["ann", "cat"], names: { a: "Ann", b: "Cat" } }));
+    await assertFails(updateDoc(doc(db, M + "dan"), { playerB: "cat", uids: ["ann", "cat"], rated: true }));
+    await assertFails(updateDoc(doc(db, M + "dan"), { playerB: "cat", uids: ["ann", "cat"], totals: { a: 9, b: 0 } }));
+  });
+  test("the open rule: a claim that changes by or names, two seats, or another seat", async () => {
+    const db = user("ann");
+    await assertFails(updateDoc(doc(db, ZD + "dan"), { players: ["ann", "cat"], uids: ["ann", "cat"], names: ["Ann", "Cat"] }));
+    await assertFails(updateDoc(doc(db, ZD + "dan"), { players: ["ann", "cat"], uids: ["ann", "cat"], by: "cat" }));
+    await assertFails(updateDoc(doc(db, ZD + "dan2"), { players: ["ann", "cat", "cat"], uids: ["ann", "cat"] }));
+    await assertFails(updateDoc(doc(db, ZD + "dan2"), { players: ["cat", "g_1", "g_2"], uids: ["ann", "cat"] }));
+    await assertFails(updateDoc(doc(db, ZD + "dan2"), { players: ["ann", "g_2", "cat"], uids: ["ann", "cat"] }));
+  });
+  test("a claimed starter over a rating that exists, a different number, or a guest not claimed by her", async () => {
+    await seed("profiles/ann/guests/g_1", { name: "Dan", claimedBy: "ben" });
+    const db = user("ann");
+    await assertFails(setDoc(doc(db, R + "ben"), { zargo: 420, robustness: 0, sessions: 0, from: "g_1" }));
+    await seed("profiles/ann/guests/g_1", { name: "Dan", claimedBy: "cat" });
+    await assertFails(setDoc(doc(db, R + "cat"), { zargo: 900, robustness: 0, sessions: 0, from: "g_1" }));
+    await assertFails(setDoc(doc(db, R + "cat"), { zargo: 420, robustness: 50, sessions: 0, from: "g_1" }));
+    await assertFails(setDoc(doc(db, R + "eve"), { zargo: 420, robustness: 0, sessions: 0, from: "g_1" }));
+    await seed("friendships/ann_fay", { uids: ["ann", "fay"], since: 1, via: "x", app: "rack-it" });
+    await assertFails(setDoc(doc(db, R + "fay"), { zargo: 420, robustness: 0, sessions: 0, from: "g_1" }));
+    await assertFails(setDoc(doc(user("ben"), R + "cat"), { zargo: 420, robustness: 0, sessions: 0, from: "g_1" }));
+  });
+});

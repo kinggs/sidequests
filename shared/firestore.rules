@@ -70,7 +70,7 @@ service cloud.firestore {
         && signedIn() && request.auth.uid in resource.data.get('uids', []);
       allow create: if isOpen(appId) && openApps()[appId] == coll && signedIn() && opens();
       allow update: if isOpen(appId) && openApps()[appId] == coll && signedIn()
-        && request.auth.uid in resource.data.get('uids', []) && keepsWho();
+        && request.auth.uid in resource.data.get('uids', []) && (keepsWho() || openClaim());
       allow delete: if isOpen(appId) && openApps()[appId] == coll && signedIn()
         && resource.data.get('by', '') == request.auth.uid;
     }
@@ -94,6 +94,39 @@ service cloud.firestore {
       return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['uids', 'players', 'by']);
     }
 
+    // ---- A guest's seat becomes an account's: seatSwap() (KIT-PLAN Session 8) ----
+    // Exactly one player id that starts g_ becomes an account's uid, and `uids` gains exactly that
+    // uid, appended. The newcomer is the last uid. `names` stays: it's who sat there then.
+    function newcomer() { return request.resource.data.uids[request.resource.data.uids.size() - 1]; }
+    function isGuest(id) { return id is string && id.matches('g_.*'); }
+    function gainsOnly(x) {
+      let was = resource.data.get('uids', []);
+      return !(x in was) && request.resource.data.uids.size() == was.size() + 1
+        && request.resource.data.uids.removeAll([x]) == was;
+    }
+    // In the open rule, seat by seat (unrolled, at most 8): unchanged, or the one guest seat that
+    // became x. The score maps keyed by the guest's id may move with it, as any player may change
+    // scores; who's in it may not, beyond the seat.
+    function openSeat(x, i) {
+      let was = resource.data.players;
+      return was.size() <= i || request.resource.data.players[i] == was[i]
+        || (request.resource.data.players[i] == x && isGuest(was[i]));
+    }
+    function openSwap() {
+      let was = resource.data;
+      let now = request.resource.data;
+      let x = newcomer();
+      return !now.diff(was).affectedKeys().hasAny(['by', 'names'])
+        && gainsOnly(x) && !(x in was.players) && now.players.size() == was.players.size()
+        && now.players.removeAll([x]).size() == was.players.size() - 1
+        && openSeat(x, 0) && openSeat(x, 1) && openSeat(x, 2) && openSeat(x, 3)
+        && openSeat(x, 4) && openSeat(x, 5) && openSeat(x, 6) && openSeat(x, 7);
+    }
+    // That was them (step 1): whoever started it gives a guest's seat to someone they're connected to.
+    function openClaim() {
+      return resource.data.get('by', '') == request.auth.uid && openSwap() && connected(request.auth.uid, newcomer());
+    }
+
     // Rack It: one admin, everyone else a player (Session 6b). The owner reads and writes all of
     // it: lists every match, deletes or rewrites a saved one (which is what Rebuild ratings
     // does), sets starters and the config. A new collection here needs its own rule.
@@ -112,6 +145,7 @@ service cloud.firestore {
       allow read: if (signedIn() && request.auth.uid in resource.data.get('uids', [])) || isOwner();
       allow create: if (signedIn() && outsiderStarts()) || isOwner();
       allow update: if (signedIn() && request.auth.uid in resource.data.get('uids', []) && playerScores())
+        || (signedIn() && rackClaim())
         || isOwner();
       allow delete: if isOwner();
     }
@@ -124,7 +158,7 @@ service cloud.firestore {
     match /sidequests/rack-it/ratings/{pid} {
       allow get: if signedIn();
       allow list: if isOwner();
-      allow write: if (signedIn() && (confirming(pid) || guestStarter(pid))) || isOwner();
+      allow write: if (signedIn() && (confirming(pid) || guestStarter(pid) || claimedStarter(pid))) || isOwner();
     }
 
     // Sessions Loyalty (sessions-loyalty/SPEC.md §6): a club's staff and its members. Staff are
@@ -210,6 +244,19 @@ service cloud.firestore {
             // Someone else ended it; a match with no endedBy can't be confirmed.
             && (!rated(now) || request.auth.uid != was.get('endedBy', request.auth.uid)));
     }
+    // seatSwap() in Rack It: one side, a guest, becomes x, and nothing else in the match changes.
+    function rackSwap() {
+      let was = resource.data;
+      let now = request.resource.data;
+      let x = newcomer();
+      return now.diff(was).affectedKeys().hasOnly(['playerA', 'playerB', 'uids', '_updatedAt']) && gainsOnly(x)
+        && ((isGuest(was.playerA) && now.playerA == x && now.playerB == was.playerB)
+          || (isGuest(was.playerB) && now.playerB == x && now.playerA == was.playerA));
+    }
+    // That was them: the starter gives a guest's seat to someone they're connected to.
+    function rackClaim() {
+      return resource.data.get('by', '') == request.auth.uid && rackSwap() && connected(request.auth.uid, newcomer());
+    }
     // A rating moves only in the batch that confirms a rated match: pending before the batch,
     // done and still rated after it, and the rating a player in it. Who may confirm is the match
     // update's rule above, which has to pass in the same batch.
@@ -221,6 +268,19 @@ service cloud.firestore {
     // A guest's starter estimate, written once by the account that made the guest.
     function guestStarter(pid) {
       return resource == null && exists(/databases/$(database)/documents/profiles/$(request.auth.uid)/guests/$(pid));
+    }
+
+    // That was them: a claimed guest's starter becomes the friend's, when the friend has no
+    // rating. Written by the account whose guest it was, with the guest's numbers unchanged.
+    function claimedStarter(pid) {
+      let r = request.resource.data;
+      let from = r.get('from', '');
+      let g = get(/databases/$(database)/documents/sidequests/rack-it/ratings/$(from)).data;
+      return resource == null && isGuest(from)
+        && r.keys().hasOnly(['zargo', 'robustness', 'sessions', 'from', '_updatedAt'])
+        && get(/databases/$(database)/documents/profiles/$(request.auth.uid)/guests/$(from)).data.get('claimedBy', '') == pid
+        && connected(request.auth.uid, pid)
+        && r.zargo == g.zargo && r.get('robustness', 0) == g.get('robustness', 0) && r.get('sessions', 0) == g.get('sessions', 0);
     }
 
     // ---- Accounts: anyone signed in, keyed by uid (Session 1, KIT-PLAN.md) ----
