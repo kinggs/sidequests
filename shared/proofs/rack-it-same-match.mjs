@@ -6,10 +6,13 @@
 import { ok, summary, oldBuild, ROOT, serve, browser, tab, store, scoreLeague, RACKS, startMatch } from "./h.mjs";
 if (!process.env.OLD){ console.log("Needs OLD=<git rev> to compare against."); process.exit(2); }
 
-// Ids and times differ run to run: a guest's id becomes "GUEST", a time "T".
+// Ids and times differ run to run: a guest's id becomes "GUEST", a time "T". From 2.15.0 every
+// write also carries rev, log and phones (KIT-PLAN Session 8 step 3): which phone did what, not
+// the score, so they're left out too.
+const BOOKKEEPING = ["_updatedAt", "rev", "log", "phones"];
 function mask(x, ids){
   if (Array.isArray(x)) return x.map(v => mask(v, ids));
-  if (x && typeof x === "object") return Object.fromEntries(Object.entries(x).filter(([k]) => k !== "_updatedAt")
+  if (x && typeof x === "object") return Object.fromEntries(Object.entries(x).filter(([k]) => !BOOKKEEPING.includes(k))
     .map(([k, v]) => [ids[k] || k, mask(v, ids)]).sort(([a], [b]) => a < b ? -1 : 1));
   if (typeof x === "string" && ids[x]) return ids[x];
   if (typeof x === "number" && x > 1e12) return "T";

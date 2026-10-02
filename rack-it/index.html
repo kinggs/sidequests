@@ -26,7 +26,7 @@
     /* Five rows of balls have to fit what the live screen's fixed chrome leaves: turn bar 5,
        score head 136, lead rail 8, match bar 48, controls 76 + 16, plus the rack's padding
        and four gaps, about 60. dvh tracks the visible area with or without Chrome's URL bar. */
-    --bs:clamp(52px, min(23vw, (100dvh - 349px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) / 5), 96px);
+    --bs:clamp(52px, min(23vw, (100dvh - 349px - var(--multi, 0px) - env(safe-area-inset-top) - env(safe-area-inset-bottom)) / 5), 96px);
   }
   /* The page is pinned to the visible screen, not sized by 100dvh: Android Chrome can keep a
      stale dvh after leaving fullscreen (My QR goes fullscreen), which pushed the tab bar off
@@ -217,6 +217,11 @@
     color:var(--text-2);font-family:var(--grot);font-size:14px;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
   .breakchip::after{content:"";position:absolute;left:-4px;right:-4px;top:-8px;bottom:-8px}   /* a 60px target in a 48px bar */
 
+  /* ---- one match, many phones: who else is here, and what their phone just did ---- */
+  #presence{flex:0 0 44px;padding:0 12px;overflow:hidden}
+  #presence .say{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  :root.multi{--multi:44px}   /* on <html>: --bs is worked out on :root */
+  #echo{position:fixed;left:12px;right:12px;z-index:5}
   /* ---- rack ---- */
   .rack{flex:1 1 0;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--rack-gap);padding:6px 0}
   .rackrow{display:flex;gap:var(--rack-gap);justify-content:center}
@@ -303,7 +308,7 @@
 
   /* A short phone gives up a little of everything but the balls. */
   @media (max-height: 700px){
-    :root{--bs:clamp(52px, min(23vw, (100dvh - 307px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) / 5), 96px)}
+    :root{--bs:clamp(52px, min(23vw, (100dvh - 307px - var(--multi, 0px) - env(safe-area-inset-top) - env(safe-area-inset-bottom)) / 5), 96px)}
     .side{height:116px;padding:11px 14px 9px}
     .raw{font-size:52px;line-height:52px;margin-top:4px}
     .sub{font-size:15px;line-height:20px;min-height:20px;margin-top:4px}
@@ -651,6 +656,8 @@
     <button class="breakchip morechip" id="liveMore" aria-label="More">⋯</button>
   </div>
 
+  <div class="presence hidden" id="presence"></div>
+  <div class="echo hidden" id="echo" role="status"></div>
   <div class="rack" id="rack"></div>
 
   <div class="winarea hidden" id="winArea">
@@ -719,7 +726,7 @@ import { connect } from "../shared/connect.js";
 import { ui } from "../shared/ui.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "2.14.0";
+const APP_VERSION = "2.15.0";
 const APP_ID = "rack-it";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 document.getElementById("versionMore").textContent = "v" + APP_VERSION;
@@ -746,7 +753,7 @@ const el = {};
  "games","foldGame","gameHead","gameName","gameBlurb","raceLen","raceNRow","raceN","winArea","drop","goldChip","doneExtra",
  "rebuild","rbInfo","rbList","rbNote","rbApply","rbCancel","rebuildBtn",
  "ratedBtn","ratedWho","pendBar","pendWho","pendGo","pendNo","perClaim","perClaimNote",
- "inCard","inWho","inWhat","inOpen","whoChips","liveMore"
+ "inCard","inWho","inWhat","inOpen","whoChips","liveMore","presence","echo"
 ].forEach(id => el[id] = $(id));
 
 function buzz(ms){ if(navigator.vibrate) navigator.vibrate(ms); }
@@ -1943,6 +1950,7 @@ async function startMatch(){
     banked: newBanked(),
     rated: !!(setup.rated && ratedOffered(a, b)), uids: people.uidsOf(ids),
     by: myUid(),
+    rev: { n: 0, key: "" }, sent: [], phones: {}, log: {},
     autoShown: false
   };
   const s0 = startOf(live);
@@ -1969,22 +1977,224 @@ async function startMatch(){
   show("live");
   render();
   sync();
+  followLive();
 }
 
 // live sync: the session document updates after every ball so a second phone can watch
-function sync(extra){
-  if(!live) return;
-  const t = totals(), p = rackPoints(), r = racksWon();
-  const rec = live.game === "league"
+// The rack in progress as the match document stores it.
+function rackRecord(){
+  return live.game === "league"
     ? { balls: live.balls, breaker: live.breaker, at: live.rackAt }
     : { winner: live.rack.winner, kind: live.rack.kind, fouls: live.rack.fouls,
         balls: live.rack.balls, pottedAt: live.rack.pottedAt, groups: live.rack.groups || { a: null },
         left: Z.ballsLeft(live.rack), breaker: live.breaker, at: live.rackAt };
-  cloud.patch("matches/" + live.id, Object.assign({
+}
+function sync(extra){
+  if(!live) return;
+  const t = totals(), p = rackPoints(), r = racksWon();
+  const rec = rackRecord();
+  const now = { rackNo: live.rackNo, rec: JSON.parse(JSON.stringify(rec)), turn: state.turn };
+  const change = describe(live.last, now);
+  live.last = now;
+  send(Object.assign({
     ["racks." + live.rackNo]: rec,
     turn: state.turn,
     totals: { a: t.a, b: t.b, racksA: r.a, racksB: r.b, dead: live.banked.dead + p.dead, lead: matchResult(t, r).lead, winner: null }
-  }, extra || {})).catch(e => console.warn("[sync]", e));
+  }, extra || {}), change);
+}
+
+// ---------- one match, many phones: every write is a link (KIT-PLAN.md Session 8 step 3) ----------
+// Every write to the live match carries rev: { n, key, was }, the next link of a chain: one more
+// than the last n this phone knows, built on that key. Another phone's write moves the chain on, so
+// a write built on an old link (offline, or a race lost by a second) is refused by the rules
+// instead of rewinding the match. The match's watcher (followLive) then brings this phone up to
+// date, and puts a single lost tap back if what it touched hasn't changed. log.<n> says who did
+// what, for the echo strip; phones.<uid>.at is when each phone was last seen.
+const newKey = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+function linkFields(say = ""){
+  const me = myUid(), at = Date.now();
+  const rev = { n: (live.rev.n || 0) + 1, key: newKey(), was: live.rev.key || "", by: me, at };
+  live.rev = rev;
+  return { rev, ["log." + rev.n]: { by: me, at, say, key: rev.key }, ["phones." + me]: { at } };
+}
+// Send a write to the live match as a link; a refusal means another phone moved it on.
+function send(fields, change = {}){
+  if(!live) return Promise.resolve(false);
+  const link = linkFields(change.say || "");
+  live.sent.push({ key: link.rev.key, n: link.rev.n, op: change.op || null, say: change.say || "" });
+  if(live.sent.length > 40) live.sent.shift();
+  const id = live.id;
+  return cloud.patch("matches/" + id, Object.assign(fields, link)).then(() => true, e => {
+    if(e && e.code === "permission-denied"){ catchUp(id); return false; }
+    console.warn("[sync]", e); return false;
+  });
+}
+// What a write did, in the echo strip's words ("7 to Gareth"), and the one change it made, so a
+// refused tap can be put back if nothing else touched it.
+function describe(was, now){
+  if(!was) return {};
+  const nm = side => side === "a" ? live.nameA : side === "b" ? live.nameB : "";
+  if(now.rackNo !== was.rackNo) return { say: "Rack " + now.rackNo };
+  const a = was.rec || {}, b = now.rec || {};
+  const balls = [...new Set([...Object.keys(a.balls || {}), ...Object.keys(b.balls || {})])]
+    .filter(k => (a.balls || {})[k] !== (b.balls || {})[k]);
+  if(live.game === "league" && balls.length === 1){
+    const k = balls[0], to = (b.balls || {})[k];
+    return { say: to === "dead" ? `${k} dead` : to ? `${k} to ${nm(to)}` : `${k} back on the table`,
+      op: { type: "ball", n: k, from: (a.balls || {})[k] || null, to: to || null } };
+  }
+  if(b.winner && !a.winner) return { say: `Rack to ${nm(b.winner)}${b.kind && KIND_LABEL[b.kind] ? " · " + KIND_LABEL[b.kind] : ""}` };
+  if(a.winner && !b.winner) return { say: "Rack win undone" };
+  for(const side of ["a", "b"]) if(((b.fouls || {})[side] || 0) > ((a.fouls || {})[side] || 0)) return { say: "Foul by " + nm(side) };
+  if(balls.length === 1) return { say: (b.balls || {})[balls[0]] ? `${balls[0]} potted` : `${balls[0]} back` };
+  if(b.left !== a.left && b.left != null) return { say: `${b.left} left` };
+  if(b.breaker !== a.breaker) return { say: nm(b.breaker) + " breaks" };
+  if(now.turn !== was.turn) return { say: nm(now.turn) + " to shoot", op: { type: "turn", from: was.turn, to: now.turn } };
+  return { say: balls.length ? "Rack changed" : "" };
+}
+// A write's promise settles when the server answers, which offline is never: wait three seconds,
+// then carry on, as the write still lands in order when the signal comes back.
+const settled = p => Promise.race([p, new Promise(r => setTimeout(() => r(true), 3000))]);
+
+// While this phone scores, it watches its own match. Another phone's link moves this one on.
+function followLive(){
+  if(!live) return;
+  if(live.unwatch) live.unwatch();
+  const id = live.id;
+  live.unwatch = cloud.watch("matches/" + id, doc => { if(live && live.id === id) onLiveDoc(doc); },
+    e => console.warn("[live]", e));
+  seen("open");
+}
+function dropLive(){
+  if(live && live.unwatch) live.unwatch();
+  live = null;
+  hideEcho();
+  paintPresence();
+}
+// Re-read now: a refused write means the chain moved on; the watcher may not have said yet.
+function catchUp(id){
+  cloud.load("matches/" + id).then(doc => { if(live && live.id === id && doc) onLiveDoc(doc); }, e => console.warn("[live]", e));
+}
+function onLiveDoc(doc){
+  if(!doc){ ui.toast("That match was deleted."); dropLive(); el.done.classList.add("hidden"); openPage(lastPage); return; }
+  live.phones = doc.phones || {};
+  live.log = doc.log || {};
+  // A seat changed hands (a Game QR): the side's id, and the accounts in the match.
+  for(const side of ["a", "b"]){
+    const key = side === "a" ? "playerA" : "playerB", now = people.resolve(doc[key]);
+    if(now && now !== live[key]){
+      live[key] = now;
+      const p = P(now, doc.names && doc.names[side]);
+      if(p) live[side === "a" ? "nameA" : "nameB"] = p.name;
+    }
+  }
+  live.uids = doc.uids || live.uids;
+  paintPresence();
+  if(doc.status !== "live"){
+    // Another phone saved or discarded it: this phone stops scoring and says so.
+    const by = doc.rev && doc.rev.by && doc.rev.by !== myUid() ? people.nameOf(doc.rev.by, "") : "";
+    dropLive();
+    watchOver(doc);
+    if(by) el.doneBody.textContent = `${firstName(by)} ${doc.status === "discarded" ? "discarded" : "saved"} it. ` + el.doneBody.textContent;
+    return;
+  }
+  const r = doc.rev || { n: 0, key: "" };
+  // In step, or a snapshot of one of this phone's own writes arriving after its next tap.
+  if((r.key || "") === (live.rev.key || "") || live.sent.some(x => x.key === r.key)) return render();
+  // The chain moved on without us. Which of this phone's writes landed?
+  const landedKey = s => live.log[s.n] && live.log[s.n].key === s.key;
+  const lost = live.sent.filter(s => !landedKey(s));
+  const base = lost.length ? lost[0].n - 1 : live.rev.n;
+  const theirs = Object.entries(live.log).filter(([n, e]) => +n > base && e && e.by !== myUid()).sort((x, y) => x[0] - y[0]);
+  const before = { rackNo: live.rackNo, balls: JSON.parse(JSON.stringify(live.balls)), rack: JSON.parse(JSON.stringify(live.rack)),
+    turn: state.turn, breaker: live.breaker };
+  const next = liveFromDoc(live.id, doc);
+  if(!next) return;
+  Object.assign(next, { unwatch: live.unwatch, sent: [], autoShown: live.autoShown && next.rackNo === live.rackNo });
+  live = next;
+  state.turn = doc.turn || live.breaker;
+  // The other phone moved to the next rack (or back): this phone's rack-end card is stale.
+  if(before.rackNo !== live.rackNo) el.done.classList.add("hidden");
+  render();
+  // One lost tap against one change of theirs: put it back if what it touched is as it was.
+  if(lost.length === 1 && theirs.length <= 1 && reapply(lost[0].op)) return echo(theirs, null);
+  echo(theirs, lost.length ? null : before);
+  if(lost.length) ui.toast(lost.length === 1 ? "Your tap didn't count: the other phone got there first." : `Your last ${lost.length} taps didn't count.`);
+}
+// Put a refused tap back, if the ball or turn it changed is still as it was before it.
+function reapply(op){
+  if(!op || !live) return false;
+  if(op.type === "ball" && live.game === "league" && (live.balls[op.n] || null) === op.from){
+    push();
+    if(op.to) live.balls[op.n] = op.to; else delete live.balls[op.n];
+    render(); sync();
+    return true;
+  }
+  if(op.type === "turn" && state.turn === op.from){ state.turn = op.to; render(); sync(); return true; }
+  return false;
+}
+
+// ---- the echo strip: another phone changed the match in the last five seconds ----
+// "Melanie · 7 to Gareth" with Undo, which puts back the rack as it was before their change, as a
+// normal write. A run of changes (this phone was away) is counted instead, with no Undo.
+let echoTimer = null;
+function echo(theirs, before){
+  if(!theirs.length || !live) return;
+  const [, e] = theirs[theirs.length - 1];
+  const who = firstName(people.nameOf(e.by, "Someone"));
+  const text = theirs.length > 1 ? `${theirs.length} changes while you were away` : `${who} · ${e.say || "a change"}`;
+  const undo = theirs.length === 1 && before && before.rackNo === live.rackNo;
+  el.echo.innerHTML = "<span></span>";
+  el.echo.firstChild.textContent = text;
+  if(theirs.length === 1){ const b = document.createElement("b"); b.textContent = who; el.echo.firstChild.textContent = ` · ${e.say || "a change"}`; el.echo.firstChild.prepend(b); }
+  if(undo){
+    const u = document.createElement("button");
+    u.type = "button"; u.textContent = "Undo";
+    ui.tap(u, () => {
+      hideEcho();
+      if(!live || live.rackNo !== before.rackNo) return;
+      push();
+      live.balls = before.balls; live.rack = before.rack; live.breaker = before.breaker; state.turn = before.turn;
+      render(); sync();
+    });
+    el.echo.append(u);
+  }
+  const top = (live.game === "league" ? el.rack : el.winArea).getBoundingClientRect().top;
+  el.echo.style.top = Math.max(0, top + 4) + "px";
+  el.echo.classList.remove("hidden");
+  clearTimeout(echoTimer);
+  echoTimer = setTimeout(hideEcho, 5000);
+}
+function hideEcho(){ clearTimeout(echoTimer); el.echo.classList.add("hidden"); }
+
+// ---- light presence: when each phone in the match was last seen ----
+// phones.<uid>.at, stamped on open, on hide and with every score. No heartbeat (KIT-PLAN.md).
+function seen(why){
+  if(!live || !myUid()) return;
+  const me = myUid(), at = Date.now();
+  live.phones = Object.assign({}, live.phones, { [me]: { at } });
+  cloud.patch("matches/" + live.id, { ["phones." + me]: { at } }).catch(e => console.warn("[presence]", why, e));
+}
+document.addEventListener("visibilitychange", () => { if(document.visibilityState === "hidden") seen("hide"); });
+const ago = at => { const m = Math.round((Date.now() - at) / 60000); return m < 1 ? "just now" : m < 60 ? `last seen ${m} min ago` : "last seen a while ago"; };
+function paintPresence(){
+  const others = live ? Object.entries(live.phones || {}).filter(([uid, p]) => uid !== myUid() && p && p.at) : [];
+  document.documentElement.classList.toggle("multi", others.length > 0);
+  el.presence.classList.toggle("hidden", !others.length);
+  if(!others.length) return;
+  others.sort((x, y) => y[1].at - x[1].at);
+  const nodes = others.map(([uid, p]) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "ph";
+    b.setAttribute("aria-label", people.nameOf(uid, "Someone"));
+    b.append(people.avatar(uid, 36));
+    ui.tap(b, () => ui.sheet({ title: people.nameOf(uid, "Someone"), text: ago(p.at).replace(/^l/, "L").replace(/^j/, "J") }));
+    return b;
+  });
+  const say = document.createElement("span");
+  say.className = "say";
+  say.textContent = others.map(([uid, p]) => `${firstName(people.nameOf(uid, "Someone"))} ${ago(p.at)}`).join(" · ");
+  el.presence.replaceChildren(...nodes, say);
 }
 
 // ---- the prototype scoring engine, wired to the session ----
@@ -2765,9 +2975,8 @@ async function finishMatch(banked){
 
   if(live.banked.racks === 0){
     // Zero complete racks: discard silently, ratings untouched.
-    await cloud.patch("matches/" + live.id, { status: "discarded", endedAt: Date.now() })
-      .catch(e => console.warn(e));
-    live = null;
+    await settled(send({ status: "discarded", endedAt: Date.now() }, { say: "Discarded" }));
+    dropLive();
     el.done.classList.add("hidden");
     openPage("ratings");
     return;
@@ -2899,9 +3108,15 @@ async function finish(status, t, lead, winner, z, weight){
     patch.rated = !!live.rated;
     if(live.rated){ patch.status = "pending"; patch.endedBy = (cloud.user && cloud.user.uid) || null; }
   }
-  await cloud.patch("matches/" + live.id, patch).catch(e => console.warn(e));
+  const saved = await settled(send(patch, { say: status === "discarded" ? "Discarded" : "Saved" }));
+  if(!saved){
+    // Another phone changed the match while the result card was up: catch up, and End again.
+    el.done.classList.add("hidden");
+    ui.toast("The other phone changed the match first. Have a look, then end it again.");
+    return;
+  }
   const id = live.id;
-  live = null;
+  dropLive();
   el.done.classList.add("hidden");
   el.doneZargo.classList.add("hidden");
   el.doneAnyway.classList.add("hidden");
@@ -3139,15 +3354,28 @@ async function resumeMatch(id){
   catch(e){ console.warn("[resume]", e); ui.toast("Couldn't load that match."); return; }
   if(!doc){ ui.toast("That match is gone."); await refreshHome(); return; }
   if(doc.status !== "live"){ ui.toast("That match has already been finished."); await refreshHome(); return; }
+  const next = liveFromDoc(id, doc);
+  if(!next){
+    ui.toast("One of those players has been deleted or merged, so this match can't be resumed.");
+    return;
+  }
+  live = next;
+  state.turn = doc.turn || live.breaker;
+  el.done.classList.add("hidden");
+  show("live");
+  render();
+  followLive();
+}
 
+// The in-memory match, rebuilt from its document: racks below the highest are banked, the highest
+// is in progress, and undo history starts empty. Resume uses it, and so does a phone that another
+// phone has moved on (followLive). null when a player has been deleted or merged away.
+function liveFromDoc(id, doc){
   // Read the session's ids as whoever those people are now.
   const ida = people.resolve(doc.playerA), idb = people.resolve(doc.playerB);
   const nm = doc.names || {};
   const a = P(ida, nm.a), b = P(idb, nm.b);
-  if(!a || !b || a.deleted || b.deleted || ida === idb){
-    ui.toast("One of those players has been deleted or merged, so this match can't be resumed.");
-    return;
-  }
+  if(!a || !b || a.deleted || b.deleted || ida === idb) return null;
 
   const zb = doc.zargoBefore || { a: a.zargo, b: b.zargo };
   const eA = expectedShareA(zb.a, zb.b);
@@ -3164,7 +3392,7 @@ async function resumeMatch(id){
   });
   const now = racks[cur] || {};
 
-  live = {
+  const out = {
     id,
     game, handicap: handicapOf(doc), start: doc.start || null,
     playerA: ida, playerB: idb,
@@ -3185,12 +3413,13 @@ async function resumeMatch(id){
     rated: doc.rated === undefined ? ratedOffered(a, b) : !!doc.rated,
     uids: doc.uids || people.uidsOf([ida, idb]),
     by: doc.by || null,
+    scorer: doc.scorer || null,
+    rev: { n: (doc.rev && doc.rev.n) || 0, key: (doc.rev && doc.rev.key) || "" },
+    sent: [], phones: doc.phones || {}, log: doc.log || {},
     autoShown: false
   };
-  state.turn = doc.turn || live.breaker;
-  el.done.classList.add("hidden");
-  show("live");
-  render();
+  out.last = { rackNo: cur, rec: JSON.parse(JSON.stringify(racks[cur] || {})), turn: doc.turn || out.breaker };
+  return out;
 }
 
 function refreshHome(){ openPage(lastPage); }
@@ -3210,8 +3439,8 @@ function paintInCard(){
   el.inWhat.textContent = `Live · ${GAME_LABEL[gameOf(m)]}${side ? " · " + (side === "a" ? "teal" : "lilac") + " side" : ""}`;
   el.inOpen.onclick = () => openShared(m.id);
 }
-// A match you're a player in, started on another phone.
-function openShared(id){ enterWatch(id); }
+// A match you're a player in, started on another phone: score it too (Session 8 step 3).
+function openShared(id){ resumeMatch(id); }
 
 // Scanned a Game QR (?g=): you're in already, or you pick the guest seat that was you.
 async function joinMatch(id){
@@ -3454,7 +3683,7 @@ async function deleteMatch(s){
   try { await cloud.delete("matches/" + s.id); }
   catch(e){ console.warn("[delete]", e); ui.toast("Couldn't delete that match."); return false; }
   if(Z.isRated(s)) rebuildRatings(null).catch(e => console.warn("[rebuild]", e));
-  if(live && live.id === s.id){ live = null; el.done.classList.add("hidden"); }
+  if(live && live.id === s.id){ dropLive(); el.done.classList.add("hidden"); }
   if(watching && watching.id === s.id) stopWatch();
   matches = matches.filter(x => x.id !== s.id);
   if(liveDoc && liveDoc.id === s.id) liveDoc = null;

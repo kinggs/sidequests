@@ -10,6 +10,7 @@
 //   /sidequests/rack-it/?mock&as=ann&role=member   …who is a household member after all
 //   /sidequests/rack-it/?mock&as=                  this tab goes back to the default owner
 //   /sidequests/rack-it/?mock&signedout            this tab's user starts signed out
+//   cloud.network(false) / cloud.network(true)     a test hook: hold this tab offline, then send its queue
 //
 // Same surface as cloud.js, including `shared`, the members calls and `account` (guests too). The data lives in this
 // browser's localStorage, so it survives a reload (resume) and another tab sees every write
@@ -34,6 +35,7 @@
 // The open apps (Session 7, OPEN_APPS) work the same way: a record reached by the accounts in
 // its uids, listed only with that filter, and the owner reaches all.
 //
+// cloud.network(false) holds a tab offline (Session 8): the two-phone proof's stale phone.
 // Two tabs test a whole QR scan: rack-it/?mock on My QR, then
 // rack-it/?mock&as=waiter&i=<code> in another tab. Times are milliseconds here.
 //
@@ -66,7 +68,8 @@ const ACCESS = [
     // A Game QR (Session 8): a live match is got by anyone connected to its starter.
     read: (m, u, d, was) => isOwner(u) || inUids(was, u) || (!!was && was.status === "live" && connectedTo(u.uid, was.by)),
     write: (m, u, d, was) => !was ? !!d && (isOwner(u) || outsiderStarts(u, d))
-      : (!!d && inUids(was, u) && playerScores(u, d, was)) || (!!d && (rackClaim(u, d, was) || takesSeat(u, d, was))) || isOwner(u) },
+      : (!!d && inUids(was, u) && playerScores(u, d, was)) || (!!d && (rackClaim(u, d, was) || takesSeat(u, d, was)))
+        || (isOwner(u) && (!d || ownerKeepsChain(u, d, was))) },
   { path: /^sidequests\/rack-it\/ratings\/([^/]+)$/, read: "account",
     write: (m, u, d, was, ctx) => isOwner(u) || (!!d && (confirming(m[1], d, ctx.after) || (!was && !!store.docs[`profiles/${u.uid}/guests/${m[1]}`])
       || claimedStarter(m[1], u, d, was))) },
@@ -139,6 +142,18 @@ function outsiderStarts(u, d){
     && !["endedBy", "confirmedBy", "ratedAt", "declinedBy", "withdrawnBy"].some(k => k in d)
     && (uids.length === 1 || (uids.length === 2 && !!store.docs["friendships/" + [...uids].sort().join("_")]));
 }
+// Two phones, one match (Session 8 step 3): a live score write is the next link of the chain;
+// a presence write touches only your own phones entry.
+function nextLink(now, was){
+  const w = isMap(was.rev) ? was.rev : {}, r = isMap(now.rev) ? now.rev : {};
+  return r.n === (w.n || 0) + 1 && r.was === (w.key || "") && typeof r.key === "string" && !!r.key && r.key !== (w.key || "");
+}
+function myPhone(u, keys, now, was){
+  return keys.every(k => k === "phones" || k === "_updatedAt")
+    && changed(isMap(was.phones) ? was.phones : {}, isMap(now.phones) ? now.phones : {}).every(k => k === u.uid);
+}
+const ownerKeepsChain = (u, d, was) => was.status !== "live" || !Array.isArray(was.uids)
+  || myPhone(u, changed(was, d), d, was) || nextLink(d, was) || rackSwap(d, was);
 const CONFIRM_KEYS = ["status", "rated", "zargoBefore", "zargoAfter", "ratedAt", "confirmedBy", "declinedBy", "withdrawnBy", "_updatedAt"];
 function playerScores(u, now, was){
   const keys = changed(was, now);
@@ -146,7 +161,7 @@ function playerScores(u, now, was){
   if (rated(now) && !rated(was)) return false;
   if (was.status === "live"){
     const by = now.endedBy ?? null;
-    return ["live", "pending", "done", "discarded"].includes(now.status)
+    return (myPhone(u, keys, now, was) || nextLink(now, was)) && ["live", "pending", "done", "discarded"].includes(now.status)
       && (now.status === "pending" ? by === u.uid : by === (was.endedBy ?? null))
       && !(now.status === "done" && rated(now));
   }
@@ -202,6 +217,10 @@ function pairOk(pair, u, d){
 
 let appId = null;
 let currentUser = null;
+// cloud.network(false) holds this tab offline, as Firestore's cache does: it stops seeing other
+// tabs' writes, its own writes wait in a queue (seen here at once), and network(true) sends them
+// in order through the rules, each resolving or refusing then. A test hook; apps never call it.
+let offline = false, queue = [];
 let store = { docs: {}, signedOut: {} };   // docs: "sidequests/<app>/state/main" → data; signedOut: uid → true
 const userListeners = [];
 const watchers = new Set();
@@ -209,6 +228,7 @@ let counter = 0;
 
 const clone = x => x === undefined ? undefined : JSON.parse(JSON.stringify(x));
 function read(){
+  if (offline) return;   // held offline (network below): this tab sees the store as it last had it
   try { store = JSON.parse(localStorage.getItem(KEY)) || store; } catch {}
   store.docs = store.docs || {};
   // Before &as=, signed-out was one flag, for the one fake user.
@@ -314,18 +334,53 @@ function subscribe(fn, full, onError, ctx){
 
 // Another tab wrote: re-read and tell this tab's watchers.
 if (typeof window !== "undefined") window.addEventListener("storage", e => {
-  if (e.key !== KEY) return;
+  if (e.key !== KEY || offline) return;
   read();
   watchers.forEach(w => { try { w(); } catch {} });
 });
 
+function enqueue(kind, full, data){
+  return new Promise((res, rej) => { queue.push({ kind, full, data, res, rej }); notify(); });
+}
+function applyQueued(doc, q){
+  if (q.kind === "save") return deepMerge(doc, { ...q.data, _updatedAt: Date.now() });
+  if (!doc) return doc;
+  const out = clone(doc);
+  for (const [k, v] of Object.entries(q.data)){
+    const keys = k.split(".");
+    let o = out;
+    for (const key of keys.slice(0, -1)){ if (!isMap(o[key])) o[key] = {}; o = o[key]; }
+    o[keys[keys.length - 1]] = clone(v);
+  }
+  return out;
+}
+// A document as this tab sees it: the store, and while offline its own queued writes on top.
+function viewOf(full){
+  let d = clone(store.docs[full]);
+  if (offline) for (const q of queue) if (q.full === full) d = applyQueued(d, q);
+  return d === undefined ? null : d;
+}
+async function network(on){
+  if (!on){ read(); offline = true; return; }
+  if (!offline) return;
+  offline = false;
+  read();
+  const held = queue; queue = [];
+  for (const q of held){
+    try { await (q.kind === "save" ? saveTo(q.full, q.data) : patchTo(q.full, q.data)); q.res(); }
+    catch (e){ q.rej(e); }
+  }
+  notify();
+}
 function saveTo(full, data){
   noUndefined(data, full);
+  if (offline) return enqueue("save", full, data);
   read();
   return write(full, deepMerge(store.docs[full], { ...data, _updatedAt: Date.now() }));
 }
 function patchTo(full, fields){
   noUndefined(fields, full);
+  if (offline) return enqueue("patch", full, fields);
   read();
   // The rules see the patched document (write() checks it); a missing one is refused to anyone
   // who couldn't read it, as Firestore does, and is not-found to anyone who could.
@@ -548,7 +603,7 @@ export const memory = {
     userListeners.forEach(cb => cb(null));
   },
 
-  async load(path){ const full = docPath(path, appBase()); check("read", full); return clone(store.docs[full]) || null; },
+  async load(path){ const full = docPath(path, appBase()); check("read", full); return viewOf(full); },
   save(path, data){ return saveTo(docPath(path, appBase()), data); },
   patch(path, fields){ return patchTo(docPath(path, appBase()), fields); },
   deleteFields(path, fields){
@@ -607,12 +662,13 @@ export const memory = {
     const full = docPath(path, appBase());
     let last;
     return subscribe(() => {
-      const doc = store.docs[full] || null, sig = JSON.stringify(doc);
+      const doc = viewOf(full), sig = JSON.stringify(doc);
       if (sig === last) return;
       last = sig;
-      cb(clone(doc));
+      cb(doc);
     }, full, onError);
   },
+  network,
   async list(collectionPath, opts = {}){ const col = colPath(collectionPath, appBase()); logQuery(col, opts); check("read", col, { where: opts.where }); return rowsOf(col, opts); },
   watchList(collectionPath, cb, opts, onError){
     const col = colPath(collectionPath, appBase());

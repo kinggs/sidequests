@@ -170,21 +170,21 @@ above. Each step is rules and app in one push.
 
 ### Step 3 — Two phones score one match
 
-- [ ] ⚠ **Probe first**, on the emulator and in `?mock`: a `rev` field that every score write
+- [x] ⚠ **Probe first**, on the emulator and in `?mock`: a `rev` field that every score write
   must raise by exactly one (rule: `now.rev == was.get('rev', 0) + 1` on a live match's score
   fields). A phone that was offline, or lost a race, gets its write refused, re-reads, and
   re-applies its tap if it still makes sense; otherwise it says what it missed ("3 changes
   while you were away"). Why not plain last-write-wins: Rack It saves match state, so a stale
   phone's late write would rewind the game. If the probe shows a queued offline write can't be
   refused cleanly, stop and write it up for the owner.
-- [ ] Score writes become patches of what changed, carrying `by` and `at`; the log records
+- [x] Score writes become patches of what changed, carrying `by` and `at`; the log records
   `by` for every change. A phone scoring alone and offline still queues and lands in order.
-- [ ] **The echo strip** (`.echo`): another phone changed the match in the last five seconds →
+- [x] **The echo strip** (`.echo`): another phone changed the match in the last five seconds →
   "Melanie · 7 to Gareth · Undo". Undo undoes their change, as a normal write.
-- [ ] **Light presence** (`.presence`): `phones.<uid>.at`, patched on open, on hide and with a
+- [x] **Light presence** (`.presence`): `phones.<uid>.at`, patched on open, on hide and with a
   score. Avatars under the panels; the sheet says "last seen 3 min ago". A presence write
   touches only your own `phones` entry and not `rev`.
-- [ ] Words as CONNECT §6. Never "sync", "session", "lock", "host" or "client" on screen.
+- [x] Words as CONNECT §6. Never "sync", "session", "lock", "host" or "client" on screen.
 
 **Done when:** two tabs score one 11-Point-Nine match alternately and the result equals the
 same taps on one phone; a tab held offline for five changes comes back without rewinding

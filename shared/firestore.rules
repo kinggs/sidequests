@@ -149,7 +149,7 @@ service cloud.firestore {
       allow create: if (signedIn() && outsiderStarts()) || isOwner();
       allow update: if (signedIn() && request.auth.uid in resource.data.get('uids', []) && playerScores())
         || (signedIn() && (rackClaim() || takesSeat()))
-        || isOwner();
+        || (isOwner() && ownerKeepsChain());
       allow delete: if isOwner();
     }
     match /sidequests/rack-it/starters/{id} {
@@ -236,7 +236,8 @@ service cloud.firestore {
       return !keys.hasAny(['uids', 'by', 'playerA', 'playerB', 'names'])
         && ratedOnlyTurnsOff()
         && (was.status == 'live'
-          ? now.status in ['live', 'pending', 'done', 'discarded']
+          ? (myPhone(keys) || nextLink())
+            && now.status in ['live', 'pending', 'done', 'discarded']
             && (now.status == 'pending'
               ? now.get('endedBy', null) == request.auth.uid
               : now.get('endedBy', null) == was.get('endedBy', null))
@@ -246,6 +247,29 @@ service cloud.firestore {
                              'declinedBy', 'withdrawnBy', '_updatedAt'])
             // Someone else ended it; a match with no endedBy can't be confirmed.
             && (!rated(now) || request.auth.uid != was.get('endedBy', request.auth.uid)));
+    }
+    // Two phones, one match (Session 8 step 3). A write to a live match's score is the next link
+    // of a chain, rev: { n, key, was }: one more than the stored n, built on the stored key, with
+    // a key of its own. A phone that was offline, or lost a race, built on a link that's gone, so
+    // its queued writes are refused rather than rewinding the match (a counter alone isn't enough:
+    // shared/proofs/rev-probe.mjs). A presence write touches only your own phones entry.
+    function nextLink() {
+      let was = resource.data.get('rev', {});
+      let now = request.resource.data.get('rev', {});
+      return now.get('n', -1) == was.get('n', 0) + 1 && now.get('was', null) == was.get('key', '')
+        && now.get('key', '') is string && now.get('key', '') != '' && now.get('key', '') != was.get('key', '');
+    }
+    function myPhone(keys) {
+      return keys.hasOnly(['phones', '_updatedAt'])
+        && request.resource.data.phones.diff(resource.data.get('phones', {})).affectedKeys().hasOnly([request.auth.uid]);
+    }
+    // The owner rewrites anything, but a live match's score still goes link by link, so the
+    // owner's own stale phone can't rewind it. A match from before 2.8.0 (no uids) is exempt, for
+    // the backfill, and so is a seat changing hands.
+    function ownerKeepsChain() {
+      let keys = request.resource.data.diff(resource.data).affectedKeys();
+      return resource.data.get('status', '') != 'live' || !('uids' in resource.data)
+        || myPhone(keys) || nextLink() || rackSwap();
     }
     // seatSwap() in Rack It: one side, a guest, becomes x, and nothing else in the match changes.
     function rackSwap() {

@@ -331,7 +331,7 @@ describe("Players: guests and a match's names and uids", () => {
     const m = doc(db, "sidequests/rack-it/matches/m4");
     await assertSucceeds(setDoc(m, { status: "live", playerA: "owner", playerB: "ann",
       names: { a: "Owner", b: "Ann" }, uids: ["owner", "ann"], by: "owner" }));
-    await assertSucceeds(updateDoc(m, { status: "done", zargoAfter: { a: 510, b: 490 } }));
+    await assertSucceeds(updateDoc(m, { status: "done", zargoAfter: { a: 510, b: 490 }, rev: link(1, "k1", "") }));
     await assertSucceeds(setDoc(doc(db, "sidequests/rack-it/matches/m5"), { status: "live", playerA: "owner", playerB: "g_1",
       names: { a: "Owner", b: "Dan" }, uids: ["owner"], by: "owner" }));
     await assertSucceeds(setDoc(doc(db, "sidequests/rack-it/ratings/ann"), { zargo: 490, robustness: 1, sessions: 1 }));
@@ -362,7 +362,7 @@ describe("Rated matches: pending, confirm, Not right, Withdraw", () => {
     const m = "sidequests/rack-it/matches/r5";
     await assertSucceeds(setDoc(doc(as(OWNER), m), { status: "live", rated: true, playerA: "owner", playerB: "member",
       uids: ["owner", "member"], by: "owner" }));
-    await assertSucceeds(updateDoc(doc(as(OWNER), m), { status: "pending", endedBy: "owner", rated: true }));
+    await assertSucceeds(updateDoc(doc(as(OWNER), m), { status: "pending", endedBy: "owner", rated: true, rev: link(1, "k1", "") }));
     const db = as(MEMBER), b = writeBatch(db);
     b.set(doc(db, "sidequests/rack-it/ratings/owner"), { zargo: 501, robustness: 1, sessions: 1, match: "r5" }, { merge: true });
     b.set(doc(db, "sidequests/rack-it/ratings/member"), { zargo: 499, robustness: 1, sessions: 1, match: "r5" }, { merge: true });
@@ -445,15 +445,16 @@ describe("Outsiders in Rack It: what a player may do", () => {
   });
   test("scores a live match rack by rack, and discards one", async () => {
     const db = user("ben");
-    await assertSucceeds(updateDoc(doc(db, M + "live"), { "racks.1": { balls: { 1: "a" } }, turn: "b", totals: { a: 1, b: 0 } }));
-    await assertSucceeds(updateDoc(doc(db, M + "friendly"), { status: "discarded", endedAt: 3 }));
+    await assertSucceeds(updateDoc(doc(db, M + "live"), { "racks.1": { balls: { 1: "a" } }, turn: "b", totals: { a: 1, b: 0 }, rev: link(1, "k1", "") }));
+    await assertSucceeds(updateDoc(doc(db, M + "live"), { "racks.1": { balls: { 1: "a", 2: "b" } }, rev: link(2, "k2", "k1") }));
+    await assertSucceeds(updateDoc(doc(db, M + "friendly"), { status: "discarded", endedAt: 3, rev: link(1, "k1", "") }));
   });
   test("saves a friendly as done, and a rated match as pending with themselves as endedBy", async () => {
-    await assertSucceeds(updateDoc(doc(user("ann"), M + "friendly"), { status: "done", rated: false, endedAt: 3, totals: { a: 5, b: 3 } }));
-    await assertSucceeds(updateDoc(doc(user("ann"), M + "live"), { status: "pending", rated: true, endedBy: "ann", endedAt: 3 }));
+    await assertSucceeds(updateDoc(doc(user("ann"), M + "friendly"), { status: "done", rated: false, endedAt: 3, totals: { a: 5, b: 3 }, rev: link(1, "k1", "") }));
+    await assertSucceeds(updateDoc(doc(user("ann"), M + "live"), { status: "pending", rated: true, endedBy: "ann", endedAt: 3, rev: link(1, "k1", "") }));
   });
   test("a rated match saved as a friendly instead", async () => {
-    await assertSucceeds(updateDoc(doc(user("ann"), M + "live"), { status: "done", rated: false, endedAt: 3 }));
+    await assertSucceeds(updateDoc(doc(user("ann"), M + "live"), { status: "done", rated: false, endedAt: 3, rev: link(1, "k1", "") }));
   });
   test("Confirm: the other player writes both ratings and the match in one batch", async () => {
     await assertSucceeds(confirmBatch("ben", "pendA"));
@@ -511,12 +512,12 @@ describe("Outsiders in Rack It: must refuse", () => {
   });
   test("changing uids or the players", async () => {
     const db = user("ann");
-    await assertFails(updateDoc(doc(db, M + "live"), { uids: ["ann", "cat"] }));
-    await assertFails(updateDoc(doc(db, M + "live"), { playerB: "cat" }));
-    await assertFails(updateDoc(doc(db, M + "live"), { playerA: "cat" }));
-    await assertFails(updateDoc(doc(db, M + "live"), { by: "ben" }));
-    await assertFails(updateDoc(doc(db, M + "live"), { names: { a: "Ann", b: "Cat" } }));
-    await assertFails(updateDoc(doc(db, M + "live"), { uids: deleteField() }));
+    await assertFails(updateDoc(doc(db, M + "live"), { ...{ uids: ["ann", "cat"] }, rev: link(1, "k1", "") }));
+    await assertFails(updateDoc(doc(db, M + "live"), { ...{ playerB: "cat" }, rev: link(1, "k1", "") }));
+    await assertFails(updateDoc(doc(db, M + "live"), { ...{ playerA: "cat" }, rev: link(1, "k1", "") }));
+    await assertFails(updateDoc(doc(db, M + "live"), { ...{ by: "ben" }, rev: link(1, "k1", "") }));
+    await assertFails(updateDoc(doc(db, M + "live"), { ...{ names: { a: "Ann", b: "Cat" } }, rev: link(1, "k1", "") }));
+    await assertFails(updateDoc(doc(db, M + "live"), { ...{ uids: deleteField() }, rev: link(1, "k1", "") }));
   });
   test("confirming your own result: finishing it yourself", async () => {
     await assertFails(confirmBatch("ann", "pendA"));
@@ -545,13 +546,13 @@ describe("Outsiders in Rack It: must refuse", () => {
     await assertFails(updateDoc(doc(user("ben"), M + "pendA"), { status: "done", rated: false, "racks.1": { balls: {} } }));
   });
   test("turning a friendly into a rated match", async () => {
-    await assertFails(updateDoc(doc(user("ann"), M + "friendly"), { rated: true }));
-    await assertFails(updateDoc(doc(user("ann"), M + "friendly"), { status: "pending", rated: true, endedBy: "ann" }));
+    await assertFails(updateDoc(doc(user("ann"), M + "friendly"), { rated: true , rev: link(1, "k1", "") }));
+    await assertFails(updateDoc(doc(user("ann"), M + "friendly"), { status: "pending", rated: true, endedBy: "ann" , rev: link(1, "k1", "") }));
     await assertFails(updateDoc(doc(user("ann"), M + "doneAB"), { rated: true }));
   });
   test("…and a household member can't either; only the owner rewrites a match", async () => {
-    await assertFails(updateDoc(doc(as(MEMBER), M + "friendly"), { rated: true }));
-    await assertFails(updateDoc(doc(as(MEMBER), M + "friendly"), { status: "pending", rated: true, endedBy: "member" }));
+    await assertFails(updateDoc(doc(as(MEMBER), M + "friendly"), { rated: true , rev: link(1, "k1", "") }));
+    await assertFails(updateDoc(doc(as(MEMBER), M + "friendly"), { status: "pending", rated: true, endedBy: "member" , rev: link(1, "k1", "") }));
     await assertSucceeds(updateDoc(doc(as(OWNER), M + "doneAB"), { rated: true }));
   });
   test("changing or deleting a finished match", async () => {
@@ -704,8 +705,8 @@ describe("One admin: what the owner and a member may do", () => {
     const db = as(MEMBER);
     await assertSucceeds(setDoc(doc(db, M + "m1"), om({ by: "member", playerA: "member", playerB: "owner", uids: ["member", "owner"] })));
     await assertSucceeds(setDoc(doc(db, M + "m2"), om({ by: "member", playerA: "member", playerB: "g_1", uids: ["member"], rated: false })));
-    await assertSucceeds(updateDoc(doc(db, M + "om"), { "racks.1": { balls: { 1: "a" } }, totals: { a: 1, b: 0 } }));
-    await assertSucceeds(updateDoc(doc(db, M + "om"), { status: "pending", endedBy: "member", endedAt: 3 }));
+    await assertSucceeds(updateDoc(doc(db, M + "om"), { "racks.1": { balls: { 1: "a" } }, totals: { a: 1, b: 0 }, rev: link(1, "k1", "") }));
+    await assertSucceeds(updateDoc(doc(db, M + "om"), { status: "pending", endedBy: "member", endedAt: 3, rev: link(2, "k2", "k1") }));
   });
   test("a member confirms the owner's rated match, both ratings in the batch", async () => {
     const db = as(MEMBER), b = writeBatch(db);
@@ -1172,5 +1173,69 @@ describe("Seats: must refuse", () => {
     await assertFails(updateDoc(doc(db, M + "danLive"), { playerB: "fay", uids: ["ann", "fay"] }));
     await assertFails(updateDoc(doc(db, M + "danLive"), { playerB: "cat", uids: ["ann", "cat"], rated: true }));
     await assertFails(updateDoc(doc(db, M + "danLive"), { playerB: "cat", uids: ["ann", "cat"], "totals.a": 5 }));
+  });
+});
+
+// ---- Session 8 step 3: two phones score one match (KIT-PLAN.md) ----
+// Every write to a live match's score carries the next link of a chain, rev: { n, key, was }:
+// n one more than the stored one, `was` the stored key, and a new key. A phone that was offline,
+// or lost a race, built on a link that's gone, so its write is refused instead of rewinding the
+// match (shared/proofs/rev-probe.mjs: a plain counter let 3 of 5 stale writes land). A presence
+// write touches only your own phones entry and not the chain. The owner keeps to it too.
+
+const link = (n, key, was) => ({ n, key, was, by: "x", at: 1 });
+describe("Two phones: what may be done", () => {
+  beforeEach(async () => {
+    await seed("friendships/ann_ben", { uids: ["ann", "ben"], since: 1, via: "x", app: "rack-it" });
+    await seed(M + "fresh", abMatch());
+    await seed(M + "chained", abMatch({ rev: link(4, "k4", "k3") }));
+    await seed(M + "om", om({ rev: link(2, "o2", "o1") }));
+  });
+  test("a player scores the next link: the first on a match with no chain, then on from the stored key", async () => {
+    await assertSucceeds(updateDoc(doc(user("ann"), M + "fresh"), { "racks.1": { balls: { 1: "a" } }, rev: link(1, "a1", ""), "log.1": { by: "ann" } }));
+    await assertSucceeds(updateDoc(doc(user("ben"), M + "fresh"), { "racks.1": { balls: { 1: "b" } }, rev: link(2, "b2", "a1") }));
+    await assertSucceeds(updateDoc(doc(user("ben"), M + "chained"), { turn: "b", rev: link(5, "b5", "k4") }));
+  });
+  test("saving or discarding is a link too", async () => {
+    await assertSucceeds(updateDoc(doc(user("ann"), M + "chained"), { status: "pending", endedBy: "ann", endedAt: 3, rev: link(5, "a5", "k4") }));
+  });
+  test("a player stamps their own phone, with no link", async () => {
+    await assertSucceeds(updateDoc(doc(user("ben"), M + "chained"), { "phones.ben": { at: 5 } }));
+  });
+  test("the owner scores the next link, stamps their phone, and still rewrites a saved match", async () => {
+    const db = as(OWNER);
+    await assertSucceeds(updateDoc(doc(db, M + "om"), { turn: "b", rev: link(3, "o3", "o2") }));
+    await assertSucceeds(updateDoc(doc(db, M + "om"), { "phones.owner": { at: 5 } }));
+    await assertSucceeds(updateDoc(doc(db, "sidequests/rack-it/matches/done1"), { zargoAfter: 2 }));
+  });
+});
+
+describe("Two phones: must refuse", () => {
+  beforeEach(async () => {
+    await seed("friendships/ann_ben", { uids: ["ann", "ben"], since: 1, via: "x", app: "rack-it" });
+    await seed(M + "chained", abMatch({ rev: link(4, "k4", "k3"), phones: { ann: { at: 1 } } }));
+    await seed(M + "om", om({ rev: link(2, "o2", "o1") }));
+  });
+  test("a score write with no link", async () => {
+    await assertFails(updateDoc(doc(user("ben"), M + "chained"), { "racks.1": { balls: { 1: "b" } }, turn: "b" }));
+    await assertFails(updateDoc(doc(user("ben"), M + "chained"), { status: "discarded", endedAt: 3 }));
+  });
+  test("a stale link: built on a key that's gone, or not one more", async () => {
+    const db = user("ben");
+    await assertFails(updateDoc(doc(db, M + "chained"), { turn: "b", rev: link(5, "b5", "k3") }));
+    await assertFails(updateDoc(doc(db, M + "chained"), { turn: "b", rev: link(6, "b6", "k4") }));
+    await assertFails(updateDoc(doc(db, M + "chained"), { turn: "b", rev: link(4, "b4", "k4") }));
+  });
+  test("a link that keeps the stored key", async () => {
+    await assertFails(updateDoc(doc(user("ben"), M + "chained"), { turn: "b", rev: link(5, "k4", "k4") }));
+  });
+  test("a presence write that touches someone else's phone, or the score", async () => {
+    const db = user("ben");
+    await assertFails(updateDoc(doc(db, M + "chained"), { "phones.ann": { at: 9 } }));
+    await assertFails(updateDoc(doc(db, M + "chained"), { "phones.ben": { at: 9 }, turn: "b" }));
+  });
+  test("the owner's stale write", async () => {
+    await assertFails(updateDoc(doc(as(OWNER), M + "om"), { turn: "b", rev: link(3, "o3", "o1") }));
+    await assertFails(updateDoc(doc(as(OWNER), M + "om"), { turn: "b" }));
   });
 });

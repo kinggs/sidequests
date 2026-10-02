@@ -367,8 +367,34 @@ match** or **Discard**. Saving opens the match's summary; discarding goes to Rat
   both players have an account, otherwise as a friendly.
 
 **Sync, Resume, Watch.** The match document is the record: every tap patches the current rack
-(`cloud.patch("matches/<id>", { "racks.N": … })`) with `turn` and running totals, so two phones
-never overwrite each other and offline scoring syncs later. **Resume** rebuilds the match from
+(`cloud.patch("matches/<id>", { "racks.N": … })`) with `turn` and running totals, and offline
+scoring lands later, in order.
+
+**Two phones, one match** (2.15.0, KIT-PLAN Session 8 step 3). Every player may score, each on
+their own phone: Open on the Home card (§7) resumes the match there. Every write is the next link
+of a chain, `rev: { n, key, was, by, at }`: one more than the last `n` the phone knows, built on
+that `key`. Another phone's write moves the chain on, so a write built on an old link (a phone
+that was offline, or lost a race by a second) is refused by the rules instead of rewinding the
+match. A plain counter isn't enough: a stale phone's third queued write would match it
+(`shared/proofs/rev-probe.mjs`). Each phone watches the match while it scores:
+- In step: nothing changes on screen.
+- Another phone's change: this phone rebuilds the match from the document, and undo history
+  starts again. The **echo strip** says what happened for five seconds, "Melanie · 7 to
+  Gareth", with **Undo** (their change undone, as an ordinary write) while it's still the same
+  rack. A run of changes reads "3 changes while you were away", with no Undo.
+- This phone's tap was refused: one tap against one change of theirs is put back if the ball
+  or turn it touched is as it was; otherwise "Your tap didn't count: the other phone got there
+  first" (or "Your last 3 taps didn't count").
+- The other phone moving to the next rack closes this phone's rack-end card. The other phone
+  saving or discarding ends this phone's scoring with "Melanie saved it." A Save refused
+  because the other phone changed the match first stays on the live screen: look, then End
+  again.
+- `log.<n>: { by, at, say, key }` records who made every change. **Light presence**:
+  `phones.<uid>.at`, stamped on open, on hide and with every score (no heartbeat). With another
+  phone in the match, a 44px row under the match bar shows its avatar and "Melanie last seen
+  3 min ago" ("just now" under a minute); tap an avatar for the same in a sheet. The rack's
+  ball size gives up those 44px.
+- Words as CONNECT §6. Never "sync", "session", "lock", "host" or "client" on screen. **Resume** rebuilds the match from
 the document on any phone: racks below the highest are banked, the highest is in progress, undo
 history doesn't survive. A match whose player has been deleted or merged into the other can't
 be resumed. **Watch** is the same screen read-only, updating live, with **Stop watching**; it
@@ -616,6 +642,9 @@ matches/<id>
            breaker, at }                                                                   // 8-ball
   }
   totals: { a, b, racksA, racksB, dead, lead, winner }
+  rev: { n, key, was, by, at }     // the chain (2.15.0): every write to a live match is the next link
+  log: { "<n>": { by, at, say, key } }   // who made each change, and the echo strip's words
+  phones: { "<uid>": { at } }      // when each phone was last seen (light presence)
 ```
 
 - In Trad-Nine and Trad-Eight `a` and `b` are racks. An 11-Point-Nine rack counts to whoever took
@@ -761,6 +790,7 @@ account, so a static app can't upload results.
 | 2.9.0 | Rated matches and confirming (KIT-PLAN Session 5). Setup gains a **Rated** tick, off by default, offered when both players have an account. A friendly moves no rating; a rated match moves both only once the opponent confirms on their own phone, worked out from the ratings at that moment, in one batch. Not right or Withdraw leaves it a friendly. Rebuild replays rated matches by `ratedAt`, else `endedAt`; a match with no `rated` field is rated. For the social leagues, where a rating has to be agreed by both players. |
 | 2.10.0 | Outsiders play in Rack It (KIT-PLAN Session 6): friend mode instead of the outsider screen. The rules open the matches an account plays in, starting one against a connection or a guest, and a rating only in the batch that confirms a rated match the other player ended. Ratings are read by id, matches with one `uids` query. A household member can no longer turn a friendly into a rated match. For pool friends who aren't family. |
 | 2.11.0 | One admin, everyone else a player (KIT-PLAN Session 6b). The owner sees and rewrites every match; everyone else, a household member included, runs friend mode and reads only the matches they play in. The owner's phone backfills `uids` and `names` on matches from before 2.8.0, so the players keep them. The "Before you play" note goes: there's nothing left to warn about. Owner's call, 2026-10-02: "a family member is just another member". Other apps keep the household. |
+| 2.15.0 | Two phones score one match (KIT-PLAN Session 8 step 3): every write is a link in a chain the rules check, so a stale phone is refused rather than rewinding the game; the probe showed a plain counter lets late queued writes land. The echo strip, Undo of the other phone's change, a lost tap put back when it still makes sense, and light presence (no heartbeat: six tables of three phones for three hours would be most of the free write quota). |
 | 2.14.0 | Seats and the Game QR (KIT-PLAN Session 8 step 2): Who's playing is chips with Show QR and Add a guest; the live screen's ⋯ shows a Game QR; a scan connects you to the starter, then you take the guest seat that was you. A friend picked at setup finds the match as a card on Home. A live match is readable by the starter's friends, by id only, so the QR link is enough to join without opening anyone's match list. |
 | 2.13.0 | That was them (KIT-PLAN Session 8 step 1): a guest who has since joined is claimed from their page, and the matches you started with them become theirs, through one rule shape (`seatSwap`) that Game QR seats will use too. A claimed guest's starter becomes the friend's only when the friend has no rating, so nothing earned is overwritten. |
 | 2.12.0 | Rack It on the shared v3 look (KIT-PLAN Session 7 step 3): warm greys, the teal and lilac from the ramp, the Zargo figure 30px, bottom sheets for the player form, picker, Import and Rebuild, and your avatar's account sheet for Profile, My QR, Friends, Export, Import, Install and Sign out. Every two-tap "Sure?" and `confirm()` became a hold. The live screen changes only its greys and, through the ramp, a shade lighter teal (#2FD4B3) and lilac (#C0A5FF); it keeps its 40px tap slop, and its Undo, Next rack and Break stay on `click`. |
