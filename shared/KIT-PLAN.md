@@ -353,41 +353,43 @@ the owner's first open of 2.7.0.
 
 ### `shared/people.js`
 
-- [ ] Sources, merged and de-duplicated by resolved id:
+- [x] Sources, merged and de-duplicated by resolved id:
   - **household**: `/sidequests/_shared/people`, watched only when `cloud.role()` isn't
     null;
   - **friends**: `account.watchFriends`, named and pictured by `account.profile(uid)`;
   - **guests**: `/profiles/<me>/guests/<g_id>` `{ name, createdAt }`.
-- [ ] `get(id)` returns `{ id, name, photo, colour, kind }`, `kind` being `"account"`,
+- [x] `get(id)` returns `{ id, name, photo, colour, kind }`, `kind` being `"account"`,
   `"guest"` or `"household"`. A household person's own name and colour win over their
   profile's. Anyone with no colour gets the hashed one `colourOf` already gives.
-- [ ] `people.pick({ title, exclude, recent })` → an id, or null. A sheet: recent first
+- [x] `people.pick({ title, exclude, recent })` → an id, or null. A sheet: recent first
   (the app passes the ids), then everyone by name, a search box once there are more than
   eight, and two buttons at the bottom:
   - **Scan a new player** opens `connect.showQR`; the pair that arrives is picked.
   - **Add a guest** asks for a name and makes a guest.
-- [ ] `people.names(ids)` and `people.uidsOf(ids)`: what an app stores beside player ids.
-- [ ] `people.edit(null)` no longer asks for a Gmail and no longer calls `cloud.addMember`.
+- [x] `people.names(ids)` and `people.uidsOf(ids)`: what an app stores beside player ids.
+- [x] `people.edit(null)` no longer asks for a Gmail and no longer calls `cloud.addMember`.
   It adds a household person (household members only). Invites is the only way onto
   `/members`.
-- [ ] `cloud-memory.js` mirrors guests. `KIT.md` and `CLAUDE.md` rule 3 describe Players.
+- [x] `cloud-memory.js` mirrors guests. `KIT.md` and `CLAUDE.md` rule 3 describe Players.
 
 ### Rack It
 
-- [ ] Setup's two columns become two slots filled from `people.pick`. You're on teal by
+- [x] Setup's two columns become two slots filled from `people.pick`. You're on teal by
   default, the last opponent is offered first, and the swap and break behaviour stay.
-- [ ] A new match stores `playerA`, `playerB` (resolved ids), `names: { a, b }`, `uids`
+- [x] A new match stores `playerA`, `playerB` (resolved ids), `names: { a, b }`, `uids`
   (the accounts in it, zero to two), and `by` (the scorer's uid). Summaries and lists fall
   back to `names` when `people.get` finds nobody.
-- [ ] **Add player** on Ratings becomes the same Scan or Guest choice, with the starter
+- [x] **Add player** on Ratings becomes the same Scan or Guest choice, with the starter
   estimate after it. Rack It's own Gmail field and its `addMember` call go.
-- [ ] Ratings lists the household's people, your friends who have a rating, and your guests.
-- [ ] SPEC §5, §7, §8, §9, §13.
+- [x] Ratings lists the household's people, your friends who have a rating, and your guests.
+- [x] SPEC §5, §7, §8, §9, §13.
 
 ### Done when
 
 The owner starts a match against a friend made by QR and against a typed guest, and both
 save, with `names` and `uids` on the documents. Nobody new appears on Invites.
+
+✓ in `?mock` with two tabs (Handover, Session 4). Real phones pending.
 
 ---
 
@@ -798,3 +800,62 @@ What the plan got wrong, or didn't say:
    unread, as `state/main` did.
 7. A person with no colour is still hashed from the document id, so claiming doesn't change it.
 8. Owner data: Amelie's Gmail is `@gkail.com`, so she can't claim herself until it's fixed.
+
+### Session 4, 2026-10-02 (Opus)
+
+Shipped (Rack It 2.8.0, live): Players in `people.js`, with three sources (household, friends and
+guests), `get(id).kind`, `players()`, `pick()`, `addPlayer()`, `names()` and `uidsOf()`.
+`cloud.account.watchGuests`/`addGuest` in `cloud.js` and the mock. `connect.showQR` takes
+`onFriend` and `onClose`. Adding a person no longer asks for a Gmail or calls `addMember`. In Rack
+It, setup's columns become two slots filled from the picker; a new match stores `names`, `uids`
+and `by`; Add player is Scan or Guest, then the starter; lists and summaries fall back to
+`names`. SPEC, `KIT.md` and CLAUDE.md rule 3 are updated.
+
+Proved:
+
+- Rules: no rule changed. Four cases record that guests and the new match fields fit the
+  rules as they stand, and that outsiders stay shut out of matches until Session 6. Each
+  refusal goes red when flipped. Run 36984030285 ran 46 tests (46 pass) at 08:27:10, then
+  released the rules at 08:27:16.
+- Two tabs in `?mock`, at 390×844 and 360×640, with no console errors. Lilac slot → Scan a
+  new player; `?mock&as=ann` opens the link and Ann fills the slot. That match saved
+  `names {Kenny, Ann}`, `uids [mock-uid, mock-ann]` and `by`. Against a typed guest "Dan":
+  `uids [mock-uid]`. `/members` and Invites are unchanged. Ann lands on the outsider screen.
+- The same 11-Point-Nine match scored on 2.7.0 and 2.8.0 gives an identical result card, match
+  document and ratings, apart from the three new fields.
+- Bloc 11, Around the Clock and Zombie Dice, old build against new, on a seed with claimed,
+  unclaimed, merged and deleted people: identical page text (23–36k characters each) and
+  avatar colours.
+- The last opponent, stored under a merged id, is offered first. Picking the other side's
+  player swaps and the break stays with Kenny. A guest added from Ratings gets the 9–5
+  estimate (420) in `starters/` and `ratings/`. Bloc 11's add sheet is name and colour only,
+  and adds nobody to `/members`.
+- `make verify`: 25 tests pass, and the smoke test is green for all six apps.
+
+Not done: the real-phone check (a second Google account scanning from setup's lilac slot).
+
+What the plan got wrong, or didn't say:
+
+1. **No rule was needed.** Guests already sit under the Session 1 `guests` rule, and the
+   household writes any match field. The cases record that behaviour rather than drive a rule.
+2. **`active()` stays the household only; `players()` is new.** Merging friends and guests
+   into `active()` would have put them in Bloc 11's and the others' pickers before those apps
+   store `names` and `uids` (Session 8).
+3. **`people.js` loads `connect.js` only when Scan is tapped.** A static import would make
+   every app's offline start depend on a file its `sw.js` may not have cached.
+4. **Scan only picks a new friend.** Someone already connected who scans again makes no new
+   pair, so the QR waits; pick them from the list. Worth a line on the QR screen if it confuses.
+5. **Guests are private to their maker**, as KIT.md says. Melanie's picker and Ratings don't
+   show the owner's guests or friends; her Matches read their `names`, and she can resume or
+   watch those matches (`P()` falls back to the match's names).
+6. **A friend picked straight in setup gets no starter document.** They play from 500, and
+   Rebuild takes their first match's `zargoBefore`. Add player writes one.
+7. **`people.start` reads `cloud.role()`**: one extra read per app start. In return, an outsider
+   no longer triggers a refused listener on the household list.
+8. Editing a household person keeps an optional Gmail, so claiming by email still works.
+   Rack It's "no Gmail" labels went with the requirement.
+9. A friend's name and photo are read once per session (`account.profile` caches them), so a
+   rename shows after a reload.
+10. The owner sets a friend's or guest's starter through Edit on their page; nobody else sees
+    Edit there.
+
