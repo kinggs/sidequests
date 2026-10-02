@@ -371,7 +371,7 @@ drops it out cleanly.
 ## 7. The four tabs
 
 **Play · Ratings · Matches · More**, 60px tall, along the bottom of every page but sign-in and
-the live screen: labels in caps, the selected tab in teal with a bar above it. The app always
+the live screen (and the same four in friend mode, §8.2): labels in caps, the selected tab in teal with a bar above it. The app always
 opens on **Play** (owner's call, 2.0.1). While a match is live and this phone isn't scoring or
 watching it, a **live strip** above the tabs shows "Live · Kenny 14–9 Melanie" with **Resume**
 and **Watch**. A rated match waiting for confirmation has its own strip (§6.1). The newest 300 matches are watched as one live list, so the strip, Matches, a
@@ -410,7 +410,7 @@ counted, **Copy for Cuescore** (§10), and for the owner **Hold to delete match*
 sees why it isn't there).
 
 **More.** My QR, Friends and Profile (§8.1), Invites, Export and Import, Rebuild ratings (owner), Install on this phone, About
-Zargo, Sign out, the version; the account shows in the header. A member sees one line naming
+Zargo, Sign out, the version (friend mode drops Invites, Import and Rebuild, §8.2); the account shows in the header. A member sees one line naming
 the owner's actions instead of Rebuild. **Invites** is the members allowlist: add a Gmail,
 remove one (owner only, two taps, never yourself), **Share this app**; rows show whose Gmail it
 is. Import's **Replace everything** is the owner's too.
@@ -486,16 +486,44 @@ account, not to Rack It, so they show in every app with Connect.
   Google photo**. Friends see this name and photo. **Hold to delete my account**, then type
   DELETE: your pairs, cards, guests, live code and profile go, one by one, and you're signed
   out. Matches you played keep your name. A friend's own card about you stays theirs, unseen.
-- **Outsiders.** Signed in but not on `/members` (`cloud.role()` is null): Rack It starts none of
-  its watchers and shows their avatar and name, **My QR**, **Friends**, **Install on this
-  phone**, **Sign out**, and "Rack It opens up to friends soon." Players, matches and ratings
-  are the household's only, as before.
+- **Outsiders** play in friend mode (§8.2).
+
+### 8.2 Friend mode
+
+Signed in but not on `/members` (`cloud.role()` is null): a pool friend uses Rack It without
+joining the household (KIT-PLAN Session 6, 2.10.0). The same four tabs, with only what the rules
+let an account reach:
+
+- **Play**: the same setup. The picker holds you, your friends and your guests. You play in
+  every match you start: Start reads "You need to be one of the players" otherwise. **Rated** is
+  offered against a friend, never a guest. Confirm, Not right and Withdraw work as in §6.1; the
+  rules stop a player confirming their own result by any route.
+- **Ratings**: you, your friends who have a rating, and your guests. Each rating is read on its
+  own, by id (only the household lists them), along with everyone in your matches.
+- **Matches**: the matches with your uid in `uids`, newest first, read with one query
+  (`where: ["uids", "array-contains", <uid>]`, no `orderBy`, sorted on the phone).
+- **More**: My QR, Friends, Profile, Export (your matches and the ratings this phone reads),
+  Install, About Zargo, Sign out. No Invites, Import or Rebuild.
+- **Add player** (Ratings): Scan or Guest. A guest's starter estimate goes to `ratings/<g_id>`
+  once, by the account that made the guest; nobody else writes it, and there's no `starters/`
+  document. A friend plays from their own rating, or from 500.
+- The first open, once per account on this phone: "Kenny's household can see the matches you
+  score here." The household sees every match, including two friends'.
+- Your own Cuescore link lives on the household's list, so friend mode doesn't offer it.
 
 ## 9. Data
 
-All under `sidequests/rack-it/` in Firestore, via `shared/cloud.js`. Members-only by
+All under `sidequests/rack-it/` in Firestore, via `shared/cloud.js`. The household's by
 `shared/firestore.rules`, with the owner's writes in §7.1. `cloud.role()` reads your own
-`members` document.
+`members` document. **An account outside the household** (2.10.0, §8.2) reads and scores only
+the matches with its uid in `uids`, and lists them only with that filter. It starts a match only
+as `by`, live, alone with a guest or against someone it's connected to. A player never changes
+who's in a match; a pending match only finishes; a rated match is finished only by a player who
+didn't end it, and its two ratings move only in that same batch (each naming the match). Anyone
+signed in gets one rating, or `state/main`, by id. A household member never turns a friendly
+into a rated match either; only the owner rewrites a saved one. ⚠ The rules can't check the
+arithmetic: the confirming phone works the ratings out, and the owner's Rebuild ratings remakes
+them from the matches.
 
 ```
 ratings/<id>                                                  // id: people.resolve(), a uid once claimed
@@ -517,7 +545,7 @@ matches/<id>
   handicap: "off" | "scoring" | "racks"                         // missing = scoring
   playerA, playerB                 // resolved ids when started: a uid, g_<id>, or a person id
   names: { a, b }                  // the names then, so it reads without this phone's lists (2.8.0)
-  uids: [uid, …]                   // the accounts in it, zero to two: what Session 6's rules check
+  uids: [uid, …]                   // the accounts in it, zero to two: who outside the household may read it
   by: uid                          // who started it
   mode: "race" | "fixed" | "open"
   targets: { a, b } | null         // points, or racks in a race in racks
@@ -630,7 +658,7 @@ account, so a static app can't upload results.
   a shortcut that opens in a tab. More carries **Install on this phone**. Chrome can't move an
   installed app to a new id, so everyone reinstalled once at 2.0.0.
 - **Sign-in** shows its button only once the auth state is known, so it never flashes. An
-  account that isn't on `/members` gets the outsider screen (§8.1), with Sign out.
+  account that isn't on `/members` gets friend mode (§8.2).
 
 ## 12. Out of scope
 
@@ -679,4 +707,5 @@ account, so a static app can't upload results.
 | 2.6.0 | Connect's friend card (note, met, tags, tag filters), Profile with your own photo, and Delete my account. The photo lives in the profile document, since Storage needs the paid plan. Delete is a hold and a typed DELETE. |
 | 2.7.0 | Ratings move from `state/main.players` to one `ratings/<id>` document a player, keyed by the resolved id, a uid once claimed: the ground Players and confirmed rated matches stand on. The owner's phone moves them once. Unclaim goes, since it would orphan records stored under a uid. Nothing changes on screen. |
 | 2.9.0 | Rated matches and confirming (KIT-PLAN Session 5). Setup gains a **Rated** tick, off by default, offered when both players have an account. A friendly moves no rating; a rated match moves both only once the opponent confirms on their own phone, worked out from the ratings at that moment, in one batch. Not right or Withdraw leaves it a friendly. Rebuild replays rated matches by `ratedAt`, else `endedAt`; a match with no `rated` field is rated. For the social leagues, where a rating has to be agreed by both players. |
+| 2.10.0 | Outsiders play in Rack It (KIT-PLAN Session 6): friend mode instead of the outsider screen. The rules open the matches an account plays in, starting one against a connection or a guest, and a rating only in the batch that confirms a rated match the other player ended. Ratings are read by id, matches with one `uids` query. A household member can no longer turn a friendly into a rated match. For pool friends who aren't family. |
 | 2.8.0 | Players (KIT-PLAN Session 4): setup's columns become two slots filled from a picker of household, friends and guests, with **Scan a new player** and **Add a guest** there and then. A match stores `names`, `uids` and `by`. Add player is Scan or Guest, then the starter. The Gmail is optional and nothing in Rack It invites anyone any more: adding a player was quietly putting them on `/members`, which is the household's list. |

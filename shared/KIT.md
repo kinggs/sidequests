@@ -73,7 +73,9 @@ is:
   **claimed** later: once they're on Connect, you tap "that was them" and their guest games
   become theirs;
 - for household members, **a household person**: the list every app shares today. It stays
-  as it is, and nothing is migrated.
+  as it is, and nothing is migrated;
+- for anyone outside the household, **you**: your own account, so you can pick yourself
+  (the household list isn't theirs to read).
 
 **Ids.** An account is its `uid`. A guest is `g_<id>`. A household person with no account
 keeps their person id. `people.resolve(id)` leads any id an app ever stored to the current
@@ -100,7 +102,7 @@ puts anyone on `/members`: Invites does that.
 | The name on your QR | Anyone holding the QR within its 24 hours, so the welcome screen can say who it's from |
 | That two people are friends | Those two only |
 | Your notes, tags, met, guests | You only. Your friends can't see your friends. |
-| An app's records | The household sees all of them. An outsider sees only the records with their uid in `uids`, in apps that have opened up (Rack It, Session 6). |
+| An app's records | The household sees all of them. An outsider sees only the records with their uid in `uids`, in apps that have opened up (so far Rack It, from 2.10.0). |
 | A Rack It rating | Anyone signed in who has that player's id, one at a time. Only the household can list them. |
 
 Email addresses are never in a profile, a friendship or a record's `names`.

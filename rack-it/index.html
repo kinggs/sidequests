@@ -118,10 +118,6 @@
   .swatches{display:flex;flex-wrap:wrap;gap:10px}
   .swatches button{width:56px;height:56px;min-height:56px;border-radius:50%;padding:0;background:var(--sw)}
   .swatches button.sel{outline:4px solid var(--text);outline-offset:2px}
-  .outsider{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:16px;text-align:center}
-  .outsider .who{font-family:var(--grot);font-size:1.4444rem;font-weight:600;letter-spacing:-.02em}
-  .outsider>button,#outInstall{width:100%;max-width:22rem}
-  #outInstall .installkit{margin-top:0 !important}
   .row2{display:flex;gap:14px}
   .row2 button{flex:1}
   .danger-note{font-size:.8333rem;color:var(--warn);line-height:1.4}
@@ -364,22 +360,6 @@
   </div>
   <p class="gate-err hidden" id="gateErr"></p>
   <footer class="foot">Rack It <span id="version"></span></footer>
-</section>
-
-<!-- ============ OUTSIDER (signed in, not on /members; Session 6 replaces it) ============ -->
-<section class="screen hidden" id="scrOutsider">
-  <header class="apphead"><h1>Rack It</h1></header>
-  <div class="outsider">
-    <div id="outAvatar"></div>
-    <div class="who" id="outName"></div>
-    <p class="dim">Rack It opens up to friends soon.</p>
-    <button class="primary" id="outQR">My QR</button>
-    <button class="quiet" id="outFriends">Friends</button>
-    <button class="quiet" id="outProfile">Profile</button>
-    <div id="outInstall"></div>
-    <button class="quiet" id="outSignOut">Sign out</button>
-  </div>
-  <footer class="foot">Rack It <span id="versionOut"></span></footer>
 </section>
 
 <!-- ============ RATINGS ============ -->
@@ -637,6 +617,15 @@
 </div>
 
 <!-- ============ REBUILD RATINGS ============ -->
+<!-- Friend mode's first open: once per account on this phone (SPEC §8.2). -->
+<div class="overlay hidden" id="hhNote">
+  <div class="card">
+    <h2>Before you play</h2>
+    <p>Kenny's household can see the matches you score here.</p>
+    <button class="primary" id="hhOk">OK</button>
+  </div>
+</div>
+
 <div class="overlay hidden" id="rebuild">
   <div class="card">
     <h2>Rebuild ratings</h2>
@@ -742,11 +731,10 @@ import { people } from "../shared/people.js";
 import { connect } from "../shared/connect.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "2.9.0";
+const APP_VERSION = "2.10.0";
 const APP_ID = "rack-it";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 document.getElementById("versionMore").textContent = "v" + APP_VERSION;
-document.getElementById("versionOut").textContent = "v" + APP_VERSION;
 
 const $ = id => document.getElementById(id);
 const el = {};
@@ -766,7 +754,7 @@ const el = {};
  "histList",
  "impChoice","impInfo","impMerge","impReplace","impCancel",
  "familyBtn","scrFamily","famBack","famList","famEmail","famAdd","famShare",
- "scrOutsider","outAvatar","outName","outQR","outFriends","outSignOut","qrBtn","friendsBtn","outProfile","profileBtn",
+ "qrBtn","friendsBtn","profileBtn","hhNote","hhOk",
  "pfEst","estRef","estRefName","estRefScore","estNewScore","estOut","pfDelete","pfShared",
  "games","foldGame","gameHead","gameName","gameBlurb","raceLen","raceNRow","raceN","winArea","drop","goldChip","doneExtra",
  "rebuild","rbInfo","rbList","rbNote","rbApply","rbCancel","rebuildBtn",
@@ -898,10 +886,13 @@ async function loadState(){
   const s = await cloud.load("state/main");
   legacyPlayers = (s && s.players) || {};
   db = { config: withGames(s && s.config) };
-  // Merge-save adds config.games beside the old config.points, which stays readable.
-  if(!s) await cloud.save("state/main", { config: db.config });
-  else if(!(s.config && s.config.games))
-    cloud.save("state/main", { config: { games: db.config.games } }).catch(e => console.warn("[config]", e));
+  // Merge-save adds config.games beside the old config.points, which stays readable. Only the
+  // household writes it; friend mode reads it as it is.
+  if(!friendMode){
+    if(!s) await cloud.save("state/main", { config: db.config });
+    else if(!(s.config && s.config.games))
+      cloud.save("state/main", { config: { games: db.config.games } }).catch(e => console.warn("[config]", e));
+  }
   stateLoaded = true;
   people.poke();
   relegacy();
@@ -909,6 +900,7 @@ async function loadState(){
 }
 function watchRatings(){
   if(unsubRatings) unsubRatings();
+  if(friendMode){ ratingsLoaded = true; return watchRatingIds(); }
   unsubRatings = cloud.watchList("ratings", rows => {
     const next = {};
     for(const { id, _updatedAt, ...st } of rows) next[id] = st;
@@ -1000,7 +992,7 @@ const hasRating = id => !!statsOf(id);
 // numbers follow them to the id that survives. If both ids have numbers, the
 // better-established rating wins. The old document stays, unread.
 function rekeyStats(){
-  if(!stateLoaded) return;
+  if(!stateLoaded || friendMode) return;
   relegacy();
   if(!ratingsLoaded) return;
   for(const [old, st] of Object.entries(ratings)){
@@ -1020,7 +1012,7 @@ const keepAwake = on => phone.keepAwake(on);
 
 // Four tabs (SPEC §13.1). Each page belongs to one; the live screen and the sign-in gate
 // belong to none, so they hide the tab bar and the live strip.
-const SCREENS = { gate: "scrGate", outsider: "scrOutsider", ratings: "scrRatings", person: "scrPerson", setup: "scrSetup",
+const SCREENS = { gate: "scrGate", ratings: "scrRatings", person: "scrPerson", setup: "scrSetup",
   matches: "scrMatches", summary: "scrSummary", more: "scrMore", family: "scrFamily", about: "scrAbout",
   live: "scrLive" };
 const TAB_OF = { ratings: "ratings", person: "ratings", setup: "play", matches: "matches", summary: "matches",
@@ -1078,12 +1070,14 @@ function sideName(m, side){
 const activePlayers = () => people.active().map(p => p.id)
   .sort((x, y) => nameOf(x).localeCompare(nameOf(y)));
 // Who Ratings lists: the household's people, your guests, and your friends once they have a
-// rating. Players who aren't on this phone's lists still have numbers; they just aren't listed.
-const ratingIds = () => people.players().filter(p => p.kind !== "account" || hasRating(p.id)).map(p => p.id);
+// rating; in friend mode, you too. Players who aren't on this phone's lists still have numbers;
+// they just aren't listed.
+const ratingIds = () => people.players().filter(p => p.kind !== "account" || hasRating(p.id) || people.isMe(p.id)).map(p => p.id);
 
 // A rename, merge or new face from another phone or another app shows up here.
 people.onChange(() => {
   if(!started || !stateLoaded) return;
+  watchRatingIds();
   rekeyStats();
   migrateRatings();   // waits for the people list from the server
   rerender();
@@ -1097,8 +1091,11 @@ let matches = [], unsubMatches = null, liveDoc = null, landed = false;
 const LIVE_WINDOW = 24 * 3600 * 1000;
 function watchMatches(){
   if(unsubMatches) unsubMatches();
+  // Friend mode lists only the matches it plays in, which is the query its rule checks.
+  const opts = friendMode ? { where: ["uids", "array-contains", cloud.user.uid] } : { orderBy: "startedAt", desc: true, limit: 300 };
   unsubMatches = cloud.watchList("matches", rows => {
-    matches = rows;
+    matches = friendMode ? rows.sort((x, y) => (y.startedAt || 0) - (x.startedAt || 0)) : rows;
+    watchRatingIds();
     liveDoc = rows.find(x => x.status === "live" && x.startedAt > Date.now() - LIVE_WINDOW) || null;
     // Always opens on Play; a live match shows in the strip above the tabs.
     if(!landed){ landed = true; if(current === "gate") openSetupTab(); }
@@ -1106,7 +1103,7 @@ function watchMatches(){
     if(current === "matches") renderMatches();
     if(current === "person") renderPerson();
     if(current === "summary") renderSummary();
-  }, { orderBy: "startedAt", desc: true, limit: 300 });
+  }, opts, friendMode ? e => console.warn("[matches]", e) : undefined);
 }
 function openSetupTab(){ setupFresh = false; openSetup(); }
 
@@ -1136,8 +1133,8 @@ async function loadRole(){
   migrateRatings();
 }
 function paintOwner(){
-  el.rebuildBtn.classList.toggle("hidden", !owner);
-  el.ownerNote.classList.toggle("hidden", owner);
+  el.rebuildBtn.classList.toggle("hidden", !owner || friendMode);
+  el.ownerNote.classList.toggle("hidden", owner || friendMode);
   el.impReplace.classList.toggle("hidden", !owner);
   rerender();
   if(current === "family") openFamily();
@@ -1156,12 +1153,11 @@ async function handleUser(user){
     el.gate.classList.add("hidden");
     if(started) return;
     started = true;
-    // Not on /members: an account, not the household. Nothing of Rack It's is readable to
-    // them yet, so start no watchers; show My QR and Friends (Session 6 opens Rack It up).
+    // Not on /members: an account, not the household, so friend mode (startFriendMode).
     // A role we can't read (offline on first run) tries the household path as before.
     let role;
     try { role = await cloud.role(); } catch(e){ console.warn("[role]", e); }
-    if(role === null && cloud.user === user){ showOutsider(user); return; }
+    if(role === null && cloud.user === user){ startFriendMode(); return; }
     try {
       people.start({ legacy: () => stateLoaded ? legacyPlayers : null, onError: e => console.warn("[people]", e) });
       await loadState();
@@ -1183,6 +1179,9 @@ async function handleUser(user){
     ratings = {}; legacyPlayers = {}; legacyView = {};
     if(unsubRatings){ unsubRatings(); unsubRatings = null; }
     owner = false;
+    friendMode = false;
+    unwatchRatingIds();
+    paintFriendMode();
     people.stop();
     if(unsubMatches){ unsubMatches(); unsubMatches = null; }
     matches = []; liveDoc = null;
@@ -1202,25 +1201,63 @@ el.signInBig.addEventListener("click", () => cloud.signIn().catch(e => {
 }));
 el.signOutBtn.addEventListener("click", () => cloud.signOut());
 
-// ---------- connect: My QR and Friends (shared/connect.js) ----------
-// Your profile's name and photo (Profile edits them), Google's until it has loaded.
-function showOutsider(user){
-  const paint = p => {
-    el.outName.textContent = (p && p.name) || user.displayName || user.email || "";
-    el.outAvatar.replaceChildren(connect.avatar(user.uid, 96, p || { name: user.displayName || "", photo: user.photoURL || "" }));
-  };
-  paint(null);
-  cloud.account.me().then(p => { if(p && cloud.user === user) paint(p); }).catch(() => {});
-  show("outsider");
+// ---------- friend mode (KIT-PLAN.md Session 6) ----------
+// Signed in but not on /members: an account plays here as a friend of the household. The same
+// four tabs, but only what the rules let an account reach: the matches with their uid in
+// `uids` (one query with that filter and no orderBy; sorted here), ratings one at a time by id
+// (theirs, their friends' and guests', and everyone in their matches), and the config. No
+// Invites, Import or Rebuild. The household still sees every match, so the first open says so.
+let friendMode = false;
+async function startFriendMode(){
+  friendMode = true;
+  paintFriendMode();
+  people.start({ onError: e => console.warn("[people]", e) });
+  try { await loadState(); } catch(e){ console.warn("[config]", e); stateLoaded = true; }
+  landed = false;
+  watchRatings();
+  watchMatches();
+  explainHousehold();
 }
-tapBind(el.outQR, () => connect.showQR({ app: APP_ID }));
-tapBind(el.outFriends, () => connect.showFriends());
-tapBind(el.outSignOut, () => cloud.signOut());
+function paintFriendMode(){
+  el.familyBtn.classList.toggle("hidden", friendMode);
+  el.importBtn.classList.toggle("hidden", friendMode);
+  el.rebuildBtn.classList.toggle("hidden", friendMode || !owner);
+  el.ownerNote.classList.toggle("hidden", friendMode || owner);
+}
+const HH_KEY = "rack-it.household-note.";
+function explainHousehold(){
+  const key = HH_KEY + ((cloud.user && cloud.user.uid) || "");
+  try { if(localStorage.getItem(key)) return; } catch(e){}
+  el.hhNote.classList.remove("hidden");
+}
+tapBind(el.hhOk, () => {
+  el.hhNote.classList.add("hidden");
+  try { localStorage.setItem(HH_KEY + ((cloud.user && cloud.user.uid) || ""), "1"); } catch(e){}
+});
+// One listener a rating, since only the household lists them. Kept in step with who this phone
+// can name and who is in its matches; a rating nobody needs any more stops being watched.
+const ratingWatches = new Map();
+function watchRatingIds(){
+  if(!friendMode || !cloud.user) return;
+  const want = new Set([cloud.user.uid, ...people.players().map(p => p.id)]);
+  for(const m of matches) for(const id of [m.playerA, m.playerB]) if(id) want.add(people.resolve(id));
+  for(const [id, off] of ratingWatches) if(!want.has(id)){ off(); ratingWatches.delete(id); }
+  for(const id of want) if(!ratingWatches.has(id)) ratingWatches.set(id, cloud.watch("ratings/" + id, doc => {
+    const next = Object.assign({}, ratings);
+    if(doc){ const { _updatedAt, ...st } = doc; next[id] = st; } else delete next[id];
+    ratings = next;
+    if(started) rerender();
+  }, e => console.warn("[ratings]", id, e)));
+}
+function unwatchRatingIds(){
+  for(const off of ratingWatches.values()) off();
+  ratingWatches.clear();
+}
+
+// ---------- connect: My QR and Friends (shared/connect.js) ----------
 tapBind(el.qrBtn, () => connect.showQR({ app: APP_ID }));
 tapBind(el.friendsBtn, () => connect.showFriends());
 tapBind(el.profileBtn, () => connect.showProfile());
-tapBind(el.outProfile, () => connect.showProfile({ onClose: () => { if(cloud.user && current === "outsider") showOutsider(cloud.user); } }));
-phone.mountInstall(document.getElementById("outInstall"), { label: "Install on this phone" });
 
 // ---------- ratings ----------
 // Everyone, ranked by Zargo. People who haven't played yet go last, by name, unranked.
@@ -1266,6 +1303,9 @@ el.addPlayerBtn.addEventListener("click", async () => {
   rerender();
   // A friend may already have numbers here, from a match another member scored.
   if(hasRating(id)) return openPerson(id);
+  // In friend mode only a guest's starter is yours to write; a friend plays from the start.
+  const kind = (people.get(id) || {}).kind;
+  if(friendMode && kind !== "guest") return;
   openPlayerForm(id, { starter: true });
 });
 
@@ -1343,7 +1383,7 @@ el.pfSave.addEventListener("click", async () => {
     const est = estUsed ? estimateZargo() : null;
     const zargo = est === null ? cfg().startZargo : est;
     if(!hasRating(p.id)){
-      saveStarter(p.id, zargo);
+      if(!friendMode) saveStarter(p.id, zargo);   // starters/ are the household's
       savePlayer(p.id, { zargo, robustness: 0, sessions: 0 }).catch(e => console.warn(e));
     }
   } else {
@@ -1456,6 +1496,8 @@ function applyGameDefaults(){
 // Recent matches, newest first, so the lilac side lists who the teal player last played.
 let recentMatches = [];
 async function loadRecent(){
+  // Friend mode already watches every match it may read.
+  if(friendMode){ recentMatches = matches.filter(x => x.status !== "discarded"); return; }
   try {
     const ss = await cloud.list("matches", { orderBy: "startedAt", desc: true, limit: 60 });
     recentMatches = ss.filter(x => x.status !== "discarded");
@@ -1474,10 +1516,12 @@ function recentFor(of){
   return out;
 }
 
+// You, as a player: on the household list, or in friend mode your own account.
+const selfPlayable = me => !!me && (friendMode ? people.players().some(p => p.id === me) : activePlayers().includes(me));
 function openSetup(){
   setup.game = storedGame();
   const me = people.meId();
-  setup.a = me && activePlayers().includes(me) ? me : null;   // you, on the teal side
+  setup.a = selfPlayable(me) ? me : null;   // you, on the teal side
   setup.b = null;
   setup.rated = false;
   applyGameDefaults();
@@ -1636,7 +1680,7 @@ function renderSetup(){
   // ---- players: two slots, each filled from the picker (people.pick); you on teal ----
   const me = people.meId();
   // The people list can arrive after setup opens: pre-select you once it does.
-  if(!setup.a && !setup.b && me && activePlayers().includes(me)) setup.a = me;
+  if(!setup.a && !setup.b && selfPlayable(me)) setup.a = me;
   [["pickA","a"],["pickB","b"]].forEach(([box, side]) => {
     const id = setup[side], slot = el[box], n = document.createElement("span");
     slot.innerHTML = "";
@@ -1752,8 +1796,11 @@ function renderSetup(){
   el.ratedBtn.classList.toggle("on", setup.rated);
   el.ratedBtn.setAttribute("aria-checked", String(setup.rated));
   el.ratedWho.textContent = setup.rated ? `On · moves ratings once ${namesOr(confirmersOf([a, b]))} confirms` : "Off · a friendly";
-  el.startBtn.disabled = !(a && b && plan);
-  el.startBtn.textContent = !(a && b) ? "Pick two players" : plan ? "Start" : "Set the length first";
+  // Friend mode scores only matches you play in (the rules refuse the rest).
+  const outOfIt = friendMode && a && b && !people.isMe(a.id) && !people.isMe(b.id);
+  el.startBtn.disabled = !(a && b && plan) || outOfIt;
+  el.startBtn.textContent = !(a && b) ? "Pick two players" : outOfIt ? "You need to be one of the players"
+    : plan ? "Start" : "Set the length first";
 }
 // A slot opens the picker: on teal, you first then whoever played lately; on lilac, the teal
 // player's recent opponents, the last one first. Scanning or adding a guest there fills it.
@@ -1812,7 +1859,7 @@ let live = null;
 async function startMatch(){
   const a = P(setup.a), b = P(setup.b);
   const plan = a && b ? plannedMatch() : null;
-  if(!plan) return;
+  if(!plan || (friendMode && !people.isMe(a.id) && !people.isMe(b.id))) return;
   const game = setup.game, handicap = setup.handicap;
   const { mode, targets, racks } = plan;
   setupFresh = true;
@@ -2949,7 +2996,7 @@ function enterWatch(id){
     if(!doc){ stopWatch(); return; }
     renderWatch(doc);
     if(doc.status !== "live") watchOver(doc);
-  });
+  }, friendMode ? e => { console.warn("[watch]", e); if(watching) stopWatch(); } : undefined);
 }
 function stopWatchSub(){ if(watching && watching.unsub) watching.unsub(); }
 function stopWatch(){
@@ -3133,6 +3180,13 @@ async function confirmMatch(id){
   if(!m || pendBusy || !confirmers(m).includes(myUid())) return;
   pendBusy = true;
   try {
+    // Friend mode reads both ratings as they stand now, rather than trust a listener to have
+    // caught up: the confirm writes them, and the rules can't check the arithmetic.
+    if(friendMode) for(const pid of new Set([people.resolve(m.playerA), people.resolve(m.playerB)])){
+      const doc = await cloud.load("ratings/" + pid), next = Object.assign({}, ratings);
+      if(doc){ const { _updatedAt, ...st } = doc; next[pid] = st; } else delete next[pid];
+      ratings = next;
+    }
     const a = P(people.resolve(m.playerA), m.names && m.names.a), b = P(people.resolve(m.playerB), m.names && m.names.b);
     const results = rackResults(gameOf(m), Z.matchPoints(m, cfg()).points);
     const z = Z.zargoOutcome({ za: a.zargo, zb: b.zargo, sessionsA: a.sessions, sessionsB: b.sessions,
@@ -3367,7 +3421,7 @@ function renderPerson(){
   // A friend's or guest's name isn't the household's to edit; the owner still sets their starter.
   el.perEdit.classList.toggle("hidden", person.kind !== "household" && !owner);
   el.perCue.textContent = person.cuescoreId ? `Player ${person.cuescoreId}` : "Not added";
-  el.perCueEdit.classList.toggle("hidden", !me);
+  el.perCueEdit.classList.toggle("hidden", !me || friendMode);
   el.perCueEdit.textContent = person.cuescoreId ? "Change your Cuescore link" : "Add your Cuescore link";
 
   const theirs = shownMatches().filter(s => people.resolve(s.playerA) === id || people.resolve(s.playerB) === id);
@@ -3586,8 +3640,11 @@ el.rbCancel.addEventListener("click", () => el.rebuild.classList.add("hidden"));
 phone.mountInstall(document.getElementById("installHere"), { label: "Install on this phone" });
 
 el.exportBtn.addEventListener("click", async () => {
-  const [all, starters] = await Promise.all([
-    cloud.list("matches", { orderBy: "startedAt", desc: true }), loadStarters()]);
+  // Friend mode exports your matches and the ratings it can read; starters are the household's.
+  const [all, starters] = friendMode
+    ? [(await cloud.list("matches", { where: ["uids", "array-contains", cloud.user.uid] }))
+        .sort((x, y) => (y.startedAt || 0) - (x.startedAt || 0)), {}]
+    : await Promise.all([cloud.list("matches", { orderBy: "startedAt", desc: true }), loadStarters()]);
   const data = {
     app: APP_ID, appVersion: APP_VERSION, exportedAt: new Date().toISOString(),
     state: { config: cfg() },
