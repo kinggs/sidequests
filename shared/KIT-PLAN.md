@@ -310,37 +310,40 @@ exports Rack It.**
 
 ### `shared/people.js`
 
-- [ ] `resolve(id)` follows `mergedInto`, then returns the person's `uid` when they've
+- [x] `resolve(id)` follows `mergedInto`, then returns the person's `uid` when they've
   claimed. An account's id is its uid from here on.
-- [ ] `get(uid)`, `nameOf`, `colourOf`, `avatar`, `isMe` accept a uid and find the claimed
+- [x] `get(uid)`, `nameOf`, `colourOf`, `avatar`, `isMe` accept a uid and find the claimed
   person. `active()` and `meId()` return uids for claimed people.
-- [ ] **Unclaim goes.** A record stored under a uid would be orphaned by it. (A wrong claim
+- [x] **Unclaim goes.** A record stored under a uid would be orphaned by it. (A wrong claim
   is fixed by the owner editing the person document in the console; see Parked.)
-- [ ] Smoke test with a seed holding claimed, unclaimed and merged people: every app shows
+- [x] Smoke test with a seed holding claimed, unclaimed and merged people: every app shows
   the same names and tallies as before. Bloc 11, Around the Clock and Zombie Dice already
   read ids through `resolve`, so they need no edits. ⚠ Grep each for an id compared without
   `resolve` before trusting that.
 
 ### Rack It
 
-- [ ] Ratings move from `state/main.players` to `ratings/<id>`
+- [x] Ratings move from `state/main.players` to `ratings/<id>`
   `{ zargo, robustness, sessions }`, keyed by the resolved id. Watched as a list (household).
-- [ ] Migration, on the owner's phone, once: when `ratings` is empty and
+- [x] Migration, on the owner's phone, once: when `ratings` is empty and
   `state/main.players` isn't, write each player to `ratings/<resolve(id)>`, then delete
   `state/main.players`. `starters/<id>` are read through `resolve` and left where they are.
-- [ ] Saving a match writes the two rating documents. Rebuild writes `ratings/*`.
-- [ ] Rules: `ratings/{id}` writable by the household (the generic read already covers it).
+- [x] Saving a match writes the two rating documents. Rebuild writes `ratings/*`.
+- [x] Rules: `ratings/{id}` writable by the household (the generic read already covers it).
   A case in `rules-check.mjs`.
-- [ ] Export writes `ratings`; Import reads both the old `state.players` and `ratings`.
-- [ ] `node --test`. Then, against a seed of the owner's export if it's on hand (never
+- [x] Export writes `ratings`; Import reads both the old `state.players` and `ratings`.
+- [x] `node --test`. Then, against a seed of the owner's export if it's on hand (never
   commit it: it holds emails), Ratings shows the same numbers before and after, and
   **Rebuild ratings** proposes no change.
-- [ ] SPEC §8, §9 and §13.
+- [x] SPEC §8, §9 and §13.
 
 ### Done when
 
 Every rating matches the export taken before the deploy, and a new match moves two
 `ratings/` documents.
+
+✓ in `?mock` on a seed of the owner's export (Handover, Session 3). The live move happens on
+the owner's first open of 2.7.0.
 
 ---
 
@@ -741,3 +744,55 @@ What the plan got wrong, or didn't say:
 5. The mock's seed skips an export's `account` key; before, it became a collection.
 6. These rules cases were green on first run, since the Session 1 rules already allowed it;
    they record the behaviour rather than drive a new rule.
+
+### Session 3, 2026-10-02 (Opus)
+
+Shipped (Rack It 2.7.0, live): in `people.js` a claimed person's id is their uid (`resolve`,
+`get`, `active`, `meId` return it; every call accepts it or the document id), and Unclaim is
+gone. `cloud.deleteFields` in `cloud.js` and the mock. Rack It keeps ratings in
+`ratings/<resolved id>`, watched as a list; the owner's phone moves `state/main.players` there
+once, then deletes it. Rules: `ratings/{id}` writable by the household.
+
+Proved:
+
+- Rules: three cases, written first (two red on the old rules). Run 36979614158 ran them (42
+  pass) at 07:39:04, then released the rules at 07:39:10.
+- On a seed of the owner's export (13 people: 2 claimed, 2 merged, 6 deleted; 8 ratings; 39
+  matches), old build against new: Ratings, all five person pages and the Rebuild card are
+  identical. All 8 rows land in `ratings/` with the same Zargo, robustness and matches,
+  Kenny's and Melanie's under their uids, and `state/main` keeps only `config`.
+- The same 11-Point-Nine match scored on both builds gives the same match document (bar ids
+  and times) and the same new ratings, and moves exactly two `ratings/` documents.
+- Bloc 11, Around the Clock and Zombie Dice on a seed with claimed, unclaimed, merged and a
+  deleted claimed person: the same page text and avatar colours, and no record rewritten. A
+  grep of each found no id compared without `resolve` (ids in `localStorage` are game ids).
+- Claiming: an unclaimed person's rating follows them to their uid. Export carries `ratings`;
+  Replace with the 2.6.0 file and Merge of a 2.7.0 export both leave the ratings identical.
+- `node --test` 25 pass; smoke green for all six apps.
+
+Not proved: the live move itself, which runs on the owner's first open of 2.7.0.
+
+What the plan got wrong, or didn't say:
+
+1. **Rebuild ratings doesn't propose "no change", before or after.** The live data already
+   proposes Kenny 507 → 505, Melanie 331 → 332 and one match record. Match `rfmz5…` was
+   started on 29 Sept and saved on 1 Oct, 26 seconds after another Kenny–Melanie match; saving
+   rated it from the start-time ratings, but `replay` puts it after the other one. The
+   migration proposes exactly the same change it did before. Not applied; the owner decides.
+   Session 5's `ratedAt || endedAt` order has the same gap for any match left open across
+   another.
+2. **"When ratings is empty" was too narrow.** A member on 2.7.0 who saves a match before the
+   owner opens would make `ratings/` non-empty and skip the migration. It runs while
+   `state/main.players` exists instead, and never overwrites a field already in `ratings/`.
+   Until it runs, every phone reads the old map through `resolve`.
+3. **It must wait for the people list from the server** (`people.ready`), or `resolve` would
+   key everyone by their old person id.
+4. **A tab still running 2.6.0** saves into `state/main.players` and moves no `ratings/`
+   document; Rebuild fixes it, and the next migration pass clears the field. Phones were told
+   to reopen.
+5. **Merge now hands a claimed spare's uid to an unclaimed survivor**, so records under the
+   uid keep their person without a rekey.
+6. A rekey (a claim or a merge) copies the rating to the new id and leaves the old document,
+   unread, as `state/main` did.
+7. A person with no colour is still hashed from the document id, so claiming doesn't change it.
+8. Owner data: Amelie's Gmail is `@gkail.com`, so she can't claim herself until it's fixed.
