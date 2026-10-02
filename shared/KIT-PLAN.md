@@ -273,6 +273,42 @@ with `/sidequest` comes out on v3 with friends, with no hand edits.
 
 ---
 
+## Sessions Loyalty meets Rack It (proposed, not scheduled)
+
+Sessions Loyalty (`sessions-loyalty/`, 2026-10-02) is the club's loyalty app: members show a
+QR, staff scan it, log spend and award points (`sessions-loyalty/SPEC.md`). It shipped on its
+own so the design could settle first; this is what joining it to Rack It would take. Nothing
+here is built, and the three sessions above come first. The owner picks which steps become a
+Session 10.
+
+What is already true, with no Rack It change: the member's QR **is** My QR, so a Rack It QR
+scanned by the club app reads the same code; a scan by staff makes a real friendship with
+`app: "sessions-loyalty"` on the pair (owner, 2026-10-02: "staff being real connections on
+some level"); the club's staff list is `staff/<uid>`, gettable by any account.
+
+- [ ] **Club connections as their own group.** Rack It's Friends and `people.pick` group a
+  friend by the pair's `app`: "Sessions" connections folded under their own heading, below the
+  people you play with, so a staff member who plays isn't buried in the whole club. Decide with
+  the owner whether a club connection made in Rack It (a staff member's Rack It QR) should also
+  count: today it carries `app: "rack-it"`.
+- [ ] **A staff badge.** Whether a friend who is Sessions staff shows as such in Rack It. The
+  loyalty app's `staff/<uid>` is gettable by any account, but reading it from Rack It crosses
+  an app's namespace (CLAUDE.md rule 3). The cleaner way is a `tags` convention on the friend
+  card (`staff`), stamped by the member's phone when the pair's `app` is `sessions-loyalty`.
+  Owner's call.
+- [ ] **`connect.scan()`.** The in-app QR scanner (`BarcodeDetector`, with the paste fallback)
+  moves from `sessions-loyalty/index.html` into `connect.js`, and `people.pick`'s **Scan a new
+  player** offers "or scan theirs". Unparks the scanner item below.
+- [ ] **A table session.** From a member's page, staff start a Rack It match for two members
+  at the club (Session 8 step 4's scorer flow: staff is the scorer, the members confirm), with
+  `venue: "sessions"` on the match; the spend logged in the same sitting carries
+  `match: <id>`, and Rack It's summary shows "Logged at Sessions". Needs Session 8 first.
+- [ ] **Rack It on the loyalty card.** The member page shows their Zargo. `ratings/<uid>` is
+  gettable by anyone signed in, but it is Rack It's data (rule 3): either the owner blesses that
+  one read, or the page links to Rack It's person page instead.
+- [ ] **Points for playing.** A rated match at the club earns XP, logged by the scorer's phone
+  as an `earn` entry with `item: "rack-it"`. Only once a table session exists.
+
 ## Parked
 
 - **Blaze.** Reopen when one of these happens: a rating is tampered with and Rebuild isn't
@@ -291,7 +327,8 @@ with `/sidequest` comes out on v3 with friends, with no hand edits.
 - Other sign-in methods: email link, Apple, phone. The uid keying makes them additive.
 - Firebase anonymous sign-in, for someone with a phone but no Google account.
 - An in-app scanner (`BarcodeDetector` on Android Chrome), to add a player without the
-  camera app.
+  camera app. Built inside Sessions Loyalty (2026-10-02); moving it to `connect.scan()` is in
+  "Sessions Loyalty meets Rack It" above.
 - Groups: "connect me to everyone at the club", a group QR. The 24-hour code rules out a
   printed QR until this exists.
 - Blocking. Remove now holds, because the old code has expired by the next day.
