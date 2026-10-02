@@ -302,9 +302,10 @@ describe("Rack It ratings", () => {
     await assertSucceeds(updateDoc(doc(as(OWNER), "sidequests/rack-it/state/main"), { players: deleteField() }));
     await assertSucceeds(deleteDoc(doc(as(MEMBER), "sidequests/rack-it/ratings/r1")));
   });
-  test("refused: reading or writing a rating when not on /members, or signed out", async () => {
+  test("refused: listing or writing a rating when not on /members, or anything signed out", async () => {
+    // Since Session 6 anyone signed in gets one rating by its id (below); listing stays the household's.
+    await assertFails(getDoc(doc(signedOut(), "sidequests/rack-it/ratings/r1")));
     for (const db of [as(STRANGER), user("ann"), signedOut()]){
-      await assertFails(getDoc(doc(db, "sidequests/rack-it/ratings/r1")));
       await assertFails(getDocs(collection(db, "sidequests/rack-it/ratings")));
       await assertFails(setDoc(doc(db, "sidequests/rack-it/ratings/r1"), { zargo: 900 }));
       await assertFails(deleteDoc(doc(db, "sidequests/rack-it/ratings/r1")));
@@ -338,10 +339,11 @@ describe("Players: guests and a match's names and uids", () => {
     await assertFails(getDoc(doc(as(OWNER), "profiles/ann/guests/g_1")));
     await assertFails(setDoc(doc(as(MEMBER), "profiles/ann/guests/g_9"), { name: "x" }));
   });
-  test("refused, until Session 6: an outsider reading or starting a match, even one they're in", async () => {
+  test("refused: an outsider reading a match they aren't in, or starting one as someone else", async () => {
+    // Session 6 lets an outsider read and start matches they're in (below); these stay shut.
     await env.withSecurityRulesDisabled(ctx => setDoc(doc(ctx.firestore(), "sidequests/rack-it/matches/m6"),
       { status: "done", uids: ["ann"], names: { a: "Ann", b: "Dan" } }));
-    const db = user("ann");
+    const db = user("ben");
     await assertFails(getDoc(doc(db, "sidequests/rack-it/matches/m6")));
     await assertFails(getDocs(query(collection(db, "sidequests/rack-it/matches"), where("uids", "array-contains", "ann"))));
     await assertFails(setDoc(doc(db, "sidequests/rack-it/matches/m7"), { status: "live", uids: ["ann"], by: "ann" }));
@@ -382,5 +384,219 @@ describe("Rated matches: pending, confirm, Not right, Withdraw", () => {
     let zargo;
     await env.withSecurityRulesDisabled(async ctx => { zargo = (await getDoc(doc(ctx.firestore(), "sidequests/rack-it/ratings/r1"))).data().zargo; });
     if (zargo !== 500) throw new Error("a refused batch moved a rating");
+  });
+});
+
+// ---- Session 6: outsiders play in Rack It (KIT-PLAN.md) ----
+// Ann, Ben and Cat are accounts, none of them household. Ann and Ben are connected; Ann and Cat
+// too (above); Ben and Cat aren't. A player reads, starts and scores matches they're in, and a
+// rated match moves ratings only in the batch where the other player confirms it.
+
+const M = "sidequests/rack-it/matches/", R = "sidequests/rack-it/ratings/";
+const abMatch = (extra = {}) => ({ game: "league", playerA: "ann", playerB: "ben", names: { a: "Ann", b: "Ben" },
+  uids: ["ann", "ben"], by: "ann", rated: true, status: "live", startedAt: 1, endedAt: null,
+  zargoBefore: { a: 500, b: 500 }, zargoAfter: null, racks: {}, totals: { a: 0, b: 0 }, ...extra });
+// Ben confirms (or `who` tries to): both ratings and the match, in one batch.
+function confirmBatch(who, id, { ratings = ["ann", "ben"], match = true } = {}){
+  const db = user(who), b = writeBatch(db);
+  for (const pid of ratings) b.set(doc(db, R + pid), { zargo: 510, robustness: 5, sessions: 1, match: id }, { merge: true });
+  if (match) b.update(doc(db, M + id), { status: "done", zargoBefore: { a: 500, b: 500 }, zargoAfter: { a: 510, b: 490 },
+    ratedAt: 2, confirmedBy: who, _updatedAt: serverTimestamp() });
+  return b.commit();
+}
+const seed = (path, data) => env.withSecurityRulesDisabled(ctx => setDoc(doc(ctx.firestore(), path), data));
+async function ratingOf(pid){
+  let z;
+  await env.withSecurityRulesDisabled(async ctx => { const d = await getDoc(doc(ctx.firestore(), R + pid)); z = d.exists() ? d.data().zargo : null; });
+  return z;
+}
+
+describe("Outsiders in Rack It: what a player may do", () => {
+  beforeEach(async () => {
+    await seed("friendships/ann_ben", { uids: ["ann", "ben"], since: 1, via: "x", app: "rack-it" });
+    await seed(M + "live", abMatch());
+    await seed(M + "friendly", abMatch({ rated: false }));
+    await seed(M + "pendA", abMatch({ status: "pending", endedBy: "ann", endedAt: 2 }));
+    await seed(M + "pendB", abMatch({ status: "pending", endedBy: "ben", endedAt: 2 }));
+    await seed(M + "doneAB", abMatch({ status: "done", rated: false, endedAt: 2 }));
+    await seed(M + "household", abMatch({ playerA: "owner", playerB: "ben", uids: ["owner", "ben"], by: "owner",
+      status: "pending", endedBy: "owner" }));
+    await seed(R + "ann", { zargo: 500, robustness: 4, sessions: 3 });
+    await seed(R + "ben", { zargo: 500, robustness: 4, sessions: 3 });
+  });
+
+  test("gets a match they're in, and lists theirs with the uids filter and no orderBy", async () => {
+    const db = user("ben");
+    await assertSucceeds(getDoc(doc(db, M + "live")));
+    await assertSucceeds(getDocs(query(collection(db, "sidequests/rack-it/matches"), where("uids", "array-contains", "ben"))));
+  });
+  test("gets anyone's rating by id, and state/main", async () => {
+    await assertSucceeds(getDoc(doc(user("cat"), R + "ann")));
+    await assertSucceeds(getDoc(doc(user("cat"), R + "nobody-yet")));
+    await assertSucceeds(getDoc(doc(user("ben"), "sidequests/rack-it/state/main")));
+  });
+  test("starts a match alone with a guest, or against a friend", async () => {
+    const db = user("ann");
+    await assertSucceeds(setDoc(doc(db, M + "g1"), abMatch({ playerB: "g_1", names: { a: "Ann", b: "Dan" }, uids: ["ann"], rated: false })));
+    await assertSucceeds(setDoc(doc(db, M + "f1"), abMatch()));
+    await assertSucceeds(setDoc(doc(user("ben"), M + "f2"), abMatch({ by: "ben", playerA: "ben", playerB: "ann", uids: ["ben", "ann"] })));
+  });
+  test("scores a live match rack by rack, and discards one", async () => {
+    const db = user("ben");
+    await assertSucceeds(updateDoc(doc(db, M + "live"), { "racks.1": { balls: { 1: "a" } }, turn: "b", totals: { a: 1, b: 0 } }));
+    await assertSucceeds(updateDoc(doc(db, M + "friendly"), { status: "discarded", endedAt: 3 }));
+  });
+  test("saves a friendly as done, and a rated match as pending with themselves as endedBy", async () => {
+    await assertSucceeds(updateDoc(doc(user("ann"), M + "friendly"), { status: "done", rated: false, endedAt: 3, totals: { a: 5, b: 3 } }));
+    await assertSucceeds(updateDoc(doc(user("ann"), M + "live"), { status: "pending", rated: true, endedBy: "ann", endedAt: 3 }));
+  });
+  test("a rated match saved as a friendly instead", async () => {
+    await assertSucceeds(updateDoc(doc(user("ann"), M + "live"), { status: "done", rated: false, endedAt: 3 }));
+  });
+  test("Confirm: the other player writes both ratings and the match in one batch", async () => {
+    await assertSucceeds(confirmBatch("ben", "pendA"));
+    if (await ratingOf("ann") !== 510) throw new Error("the confirm batch didn't land");
+  });
+  test("Confirm a match a household member scored", async () => {
+    await seed(R + "owner", { zargo: 500, robustness: 4, sessions: 3 });
+    await assertSucceeds(confirmBatch("ben", "household", { ratings: ["owner", "ben"] }));
+  });
+  test("Not right (the other player) and Withdraw (the scorer): it stands as a friendly", async () => {
+    await assertSucceeds(updateDoc(doc(user("ben"), M + "pendA"), { status: "done", rated: false, declinedBy: "ben" }));
+    await assertSucceeds(updateDoc(doc(user("ben"), M + "pendB"), { status: "done", rated: false, withdrawnBy: "ben" }));
+  });
+  test("writes their own guest's starter rating, once", async () => {
+    await assertSucceeds(setDoc(doc(user("ann"), R + "g_1"), { zargo: 420, robustness: 0, sessions: 0 }));
+  });
+});
+
+describe("Outsiders in Rack It: must refuse", () => {
+  beforeEach(async () => {
+    await seed("friendships/ann_ben", { uids: ["ann", "ben"], since: 1, via: "x", app: "rack-it" });
+    await seed(M + "live", abMatch());
+    await seed(M + "friendly", abMatch({ rated: false }));
+    await seed(M + "pendA", abMatch({ status: "pending", endedBy: "ann", endedAt: 2 }));
+    await seed(M + "pendNone", abMatch({ status: "pending", endedAt: 2 }));
+    await seed(M + "doneAB", abMatch({ status: "done", rated: false, endedAt: 2 }));
+    await seed(M + "ratedDone", abMatch({ status: "done", endedBy: "ann", ratedAt: 2, confirmedBy: "ben" }));
+    await seed(R + "ann", { zargo: 500, robustness: 4, sessions: 3 });
+    await seed(R + "ben", { zargo: 500, robustness: 4, sessions: 3 });
+    await seed(R + "g_1", { zargo: 420, robustness: 0, sessions: 0 });
+  });
+
+  test("a match against someone you aren't connected to", async () => {
+    await assertFails(setDoc(doc(user("ben"), M + "x"), abMatch({ by: "ben", playerA: "ben", playerB: "cat", uids: ["ben", "cat"] })));
+    await assertFails(setDoc(doc(user("ben"), M + "x"), abMatch({ by: "ben", playerA: "ben", playerB: "ben", uids: ["ben", "ben"] })));
+  });
+  test("a match you aren't in: starting one, reading one, or listing someone else's", async () => {
+    await assertFails(setDoc(doc(user("cat"), M + "x"), abMatch({ by: "cat" })));
+    await assertFails(setDoc(doc(user("ann"), M + "x"), abMatch({ by: "ann", uids: ["ben"] })));
+    await assertFails(setDoc(doc(user("ann"), M + "x"), abMatch({ by: "ben" })));
+    await assertFails(getDoc(doc(user("cat"), M + "live")));
+    await assertFails(getDoc(doc(user("cat"), M + "nothing-here")));
+    await assertFails(getDocs(query(collection(user("cat"), "sidequests/rack-it/matches"), where("uids", "array-contains", "ann"))));
+    await assertFails(updateDoc(doc(user("cat"), M + "live"), { turn: "b" }));
+  });
+  test("starting a match as anything but live, or already ended or confirmed", async () => {
+    const db = user("ann");
+    await assertFails(setDoc(doc(db, M + "x"), abMatch({ status: "pending", endedBy: "ann" })));
+    await assertFails(setDoc(doc(db, M + "x"), abMatch({ status: "done" })));
+    await assertFails(setDoc(doc(db, M + "x"), abMatch({ endedBy: "ben" })));
+    await assertFails(setDoc(doc(db, M + "x"), abMatch({ confirmedBy: "ben", ratedAt: 2 })));
+    await assertFails(updateDoc(doc(db, M + "live"), { status: "void" }));
+  });
+  test("changing uids or the players", async () => {
+    const db = user("ann");
+    await assertFails(updateDoc(doc(db, M + "live"), { uids: ["ann", "cat"] }));
+    await assertFails(updateDoc(doc(db, M + "live"), { playerB: "cat" }));
+    await assertFails(updateDoc(doc(db, M + "live"), { playerA: "cat" }));
+    await assertFails(updateDoc(doc(db, M + "live"), { by: "ben" }));
+    await assertFails(updateDoc(doc(db, M + "live"), { names: { a: "Ann", b: "Cat" } }));
+    await assertFails(updateDoc(doc(db, M + "live"), { uids: deleteField() }));
+  });
+  test("confirming your own result: finishing it yourself", async () => {
+    await assertFails(confirmBatch("ann", "pendA"));
+    await assertFails(updateDoc(doc(user("ann"), M + "pendA"), { status: "done", ratedAt: 3, confirmedBy: "ann" }));
+    await assertFails(updateDoc(doc(user("ann"), M + "live"), { status: "done", rated: true, endedBy: "ann", ratedAt: 3 }));
+    await assertFails(updateDoc(doc(user("ann"), M + "live"), { status: "done", ratedAt: 3 }));
+    if (await ratingOf("ann") !== 500) throw new Error("a refused confirm moved a rating");
+  });
+  test("confirming your own result: rewriting endedBy", async () => {
+    const db = user("ann");
+    await assertFails(updateDoc(doc(db, M + "pendA"), { endedBy: "ben" }));
+    await assertFails(updateDoc(doc(db, M + "pendA"), { endedBy: deleteField() }));
+    await assertFails(updateDoc(doc(db, M + "live"), { status: "pending", endedBy: "ben" }));
+    await assertFails(updateDoc(doc(db, M + "live"), { endedBy: "ben" }));
+    await assertFails(updateDoc(doc(db, M + "live"), { status: "pending" }));
+  });
+  test("confirming your own result: reopening a pending match, or one nobody ended", async () => {
+    await assertFails(updateDoc(doc(user("ann"), M + "pendA"), { status: "live" }));
+    await assertFails(updateDoc(doc(user("ben"), M + "pendA"), { status: "live" }));
+    await assertFails(updateDoc(doc(user("ann"), M + "pendA"), { status: "live", rated: false }));
+    await assertFails(confirmBatch("ann", "pendNone"));
+    await assertFails(confirmBatch("ben", "pendNone"));
+  });
+  test("rewriting the score of a pending match", async () => {
+    await assertFails(updateDoc(doc(user("ben"), M + "pendA"), { totals: { a: 0, b: 9 } }));
+    await assertFails(updateDoc(doc(user("ben"), M + "pendA"), { status: "done", rated: false, "racks.1": { balls: {} } }));
+  });
+  test("turning a friendly into a rated match", async () => {
+    await assertFails(updateDoc(doc(user("ann"), M + "friendly"), { rated: true }));
+    await assertFails(updateDoc(doc(user("ann"), M + "friendly"), { status: "pending", rated: true, endedBy: "ann" }));
+    await assertFails(updateDoc(doc(user("ann"), M + "doneAB"), { rated: true }));
+  });
+  test("…and a household member can't either; only the owner rewrites a match", async () => {
+    await assertFails(updateDoc(doc(as(MEMBER), M + "friendly"), { rated: true }));
+    await assertFails(updateDoc(doc(as(MEMBER), M + "friendly"), { status: "pending", rated: true, endedBy: "member" }));
+    await assertSucceeds(updateDoc(doc(as(OWNER), M + "doneAB"), { rated: true }));
+  });
+  test("changing or deleting a finished match", async () => {
+    await assertFails(updateDoc(doc(user("ann"), M + "doneAB"), { totals: { a: 9, b: 0 } }));
+    await assertFails(updateDoc(doc(user("ben"), M + "ratedDone"), { zargoAfter: { a: 1, b: 999 } }));
+    await assertFails(deleteDoc(doc(user("ann"), M + "doneAB")));
+    await assertFails(deleteDoc(doc(user("ann"), M + "live")));
+  });
+  test("a rating written outside a confirmation", async () => {
+    await assertFails(setDoc(doc(user("ann"), R + "ann"), { zargo: 900 }, { merge: true }));
+    await assertFails(setDoc(doc(user("ann"), R + "ben"), { zargo: 100 }, { merge: true }));
+    await assertFails(setDoc(doc(user("ben"), R + "ben"), { zargo: 900, match: "pendA" }, { merge: true }));
+    await assertFails(confirmBatch("ben", "pendA", { match: false }));
+    await assertFails(setDoc(doc(user("ben"), R + "ben"), { zargo: 900, match: "ratedDone" }, { merge: true }));
+    await assertFails(deleteDoc(doc(user("ann"), R + "ann")));
+  });
+  test("a rating written in a Withdraw or Not right batch", async () => {
+    for (const [who, field] of [["ann", "withdrawnBy"], ["ben", "declinedBy"]]){
+      const db = user(who), b = writeBatch(db);
+      b.set(doc(db, R + who), { zargo: 900, match: "pendA" }, { merge: true });
+      b.update(doc(db, M + "pendA"), { status: "done", rated: false, [field]: who });
+      await assertFails(b.commit());
+    }
+  });
+  test("a rating for a player who isn't in that match", async () => {
+    await assertFails(confirmBatch("ben", "pendA", { ratings: ["ann", "ben", "cat"] }));
+    if (await ratingOf("ann") !== 500) throw new Error("a refused batch moved a rating");
+  });
+  test("a guest starter over one that exists, or for someone else's guest", async () => {
+    await assertFails(setDoc(doc(user("ann"), R + "g_1"), { zargo: 900 }));
+    await assertFails(setDoc(doc(user("ben"), R + "g_2"), { zargo: 900 }));
+  });
+  test("listing ratings or matches without the uids filter", async () => {
+    const db = user("ann");
+    await assertFails(getDocs(collection(db, "sidequests/rack-it/ratings")));
+    await assertFails(getDocs(collection(db, "sidequests/rack-it/matches")));
+    await assertFails(getDocs(query(collection(db, "sidequests/rack-it/matches"), where("status", "==", "live"))));
+  });
+  test("anything else under /sidequests/", async () => {
+    const db = user("ann");
+    await assertFails(getDoc(doc(db, "sidequests/bloc-11/state/main")));
+    await assertFails(getDocs(collection(db, "sidequests/_shared/people")));
+    await assertFails(setDoc(doc(db, "sidequests/_shared/people/p9"), { name: "Ann" }));
+    await assertFails(getDoc(doc(db, "sidequests/rack-it/starters/s1")));
+    await assertFails(setDoc(doc(db, "sidequests/rack-it/starters/g_1"), { zargo: 420 }));
+    await assertFails(setDoc(doc(db, "sidequests/rack-it/state/main"), { config: {} }));
+    await assertFails(getDoc(doc(db, "sidequests/rack-it/state/other")));
+    await assertFails(getDocs(collection(db, "sidequests/rack-it/state")));
+    await assertFails(getDoc(doc(db, "sidequests/rack-it/elsewhere/x")));
+    await assertFails(getDoc(doc(db, "members/ann@gmail.com")));
   });
 });
