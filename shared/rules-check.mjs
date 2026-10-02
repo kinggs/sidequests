@@ -311,3 +311,39 @@ describe("Rack It ratings", () => {
     }
   });
 });
+
+// ---- Session 4: Players (KIT-PLAN.md) ----
+// Neither needs a new rule: a guest is a document under profiles/<you>/guests (Session 1), and
+// the household already writes any match field. These record that, and what stays shut until
+// Session 6 opens Rack It to outsiders.
+
+describe("Players: guests and a match's names and uids", () => {
+  test("you add a guest and list your own", async () => {
+    const db = user("ann");
+    await assertSucceeds(setDoc(doc(db, "profiles/ann/guests/g_new"), { name: "Dan's brother", createdAt: serverTimestamp() }));
+    await assertSucceeds(getDocs(collection(db, "profiles/ann/guests")));
+  });
+  test("a member starts and saves a match against a friend or a guest, with names, uids and by", async () => {
+    const db = as(MEMBER);
+    const m = doc(db, "sidequests/rack-it/matches/m4");
+    await assertSucceeds(setDoc(m, { status: "live", playerA: "member", playerB: "ann",
+      names: { a: "Member", b: "Ann" }, uids: ["member", "ann"], by: "member" }));
+    await assertSucceeds(updateDoc(m, { status: "done", zargoAfter: { a: 510, b: 490 } }));
+    await assertSucceeds(setDoc(doc(db, "sidequests/rack-it/matches/m5"), { status: "live", playerA: "member", playerB: "g_1",
+      names: { a: "Member", b: "Dan" }, uids: ["member"], by: "member" }));
+    await assertSucceeds(setDoc(doc(db, "sidequests/rack-it/ratings/ann"), { zargo: 490, robustness: 1, sessions: 1 }));
+    await assertSucceeds(setDoc(doc(db, "sidequests/rack-it/ratings/g_1"), { zargo: 450, robustness: 0, sessions: 0 }));
+  });
+  test("refused: anyone else's guests, the household included", async () => {
+    await assertFails(getDoc(doc(as(OWNER), "profiles/ann/guests/g_1")));
+    await assertFails(setDoc(doc(as(MEMBER), "profiles/ann/guests/g_9"), { name: "x" }));
+  });
+  test("refused, until Session 6: an outsider reading or starting a match, even one they're in", async () => {
+    await env.withSecurityRulesDisabled(ctx => setDoc(doc(ctx.firestore(), "sidequests/rack-it/matches/m6"),
+      { status: "done", uids: ["ann"], names: { a: "Ann", b: "Dan" } }));
+    const db = user("ann");
+    await assertFails(getDoc(doc(db, "sidequests/rack-it/matches/m6")));
+    await assertFails(getDocs(query(collection(db, "sidequests/rack-it/matches"), where("uids", "array-contains", "ann"))));
+    await assertFails(setDoc(doc(db, "sidequests/rack-it/matches/m7"), { status: "live", uids: ["ann"], by: "ann" }));
+  });
+});
