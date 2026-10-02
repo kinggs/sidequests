@@ -22,8 +22,8 @@
 // Permissions model the tiers, not the field rules (ACCESS below): a signed-in user on
 // /members reaches what the household reaches, anyone else gets permission-denied, as in
 // production. Owner-only and field-level rules aren't modelled, except on Rack It's matches
-// (below); elsewhere role only changes what an app shows, so check those against
-// shared/firestore.rules (and shared/rules-check.mjs).
+// (below) and Sessions Loyalty (staff and members); elsewhere role only changes what an app
+// shows, so check those against shared/firestore.rules (and shared/rules-check.mjs).
 // The account paths are modelled more closely, since outsiders live there: your own
 // private/friends/guests only, a pair only by one of its two, and a friendship only with
 // the other side's live code. So is Rack It's outsider block (Session 6): a match read,
@@ -79,6 +79,21 @@ const ACCESS = [
       : d ? inUids(was, u) && !["uids", "players", "by"].some(k => !same(was[k], d[k]))
       : was.by === u.uid) },
   { path: /^sidequests\/([^/]+)(\/|$)/, when: m => m[1] in OPEN_APPS, read: "owner", write: "owner" },
+  // Sessions Loyalty: staff (the staff/ list, and the owner) and members (sessions-loyalty/SPEC.md §6).
+  { path: /^sidequests\/sessions-loyalty\/settings\/[^/]+$/, read: "account", write: (m, u) => isStaff(u) },
+  { path: /^sidequests\/sessions-loyalty\/staff$/, read: (m, u) => isStaff(u) },
+  { path: /^sidequests\/sessions-loyalty\/staff\/[^/]+$/, read: "account", write: (m, u) => isOwner(u) },
+  { path: /^sidequests\/sessions-loyalty\/(rewards|earns)(\/[^/]+)?$/, read: "account", write: (m, u) => isStaff(u) },
+  { path: /^sidequests\/sessions-loyalty\/cards$/, read: (m, u) => isStaff(u) },
+  { path: /^sidequests\/sessions-loyalty\/cards\/([^/]+)$/, read: (m, u) => m[1] === u.uid || isStaff(u), write: (m, u) => isStaff(u) },
+  { path: /^sidequests\/sessions-loyalty\/notes(\/[^/]+)?$/, read: (m, u) => isStaff(u), write: (m, u) => isStaff(u) },
+  { path: /^sidequests\/sessions-loyalty\/entries$/, read: (m, u, d, was, ctx) => isStaff(u) || uidIs(ctx, u) },
+  { path: /^sidequests\/sessions-loyalty\/entries\/([^/]+)$/,
+    read: (m, u, d, was) => isStaff(u) || (!!was && was.uid === u.uid),
+    write: (m, u, d, was) => !was ? !!d && ((isStaff(u) && d.by === u.uid) || isOwner(u))
+      : !d ? isOwner(u)
+      : isStaff(u) && changed(was, d).every(k => ["voided", "voidedBy", "voidedAt", "_updatedAt"].includes(k)) },
+  { path: /^sidequests\/sessions-loyalty(\/|$)/, read: "owner", write: "owner" },
   { path: /^sidequests(\/|$)/, read: "household", write: "household" },
   // Accounts (Session 1). Yours alone: private, friends, guests, as documents or as a list.
   { path: /^profiles\/([^/]+)\/(private|friends|guests)(\/[^/]+)?$/, read: (m, u) => m[1] === u.uid, write: (m, u) => m[1] === u.uid },
@@ -105,6 +120,10 @@ function opens(u, d){
 // field is rated.
 const isOwner = u => tierOf(u) === "household" && (store.docs["members/" + String(u.email || "").toLowerCase()] || {}).role === "owner";
 const inUids = (doc, u) => !!doc && Array.isArray(doc.uids) && doc.uids.includes(u.uid);
+// Sessions Loyalty's staff: listed under staff/, or the owner. A member's entries list must carry
+// its own uid filter, as a Rack It player's matches list carries uids.
+const isStaff = u => isOwner(u) || !!store.docs["sidequests/sessions-loyalty/staff/" + u.uid];
+const uidIs = (ctx, u) => !!ctx.where && ctx.where[0] === "uid" && ctx.where[1] === "==" && ctx.where[2] === u.uid;
 const rated = doc => (doc.rated === undefined ? true : doc.rated) === true;
 const uidsFilter = (ctx, u) => !!ctx.where && ctx.where[0] === "uids" && ctx.where[1] === "array-contains" && ctx.where[2] === u.uid;
 function same(a, b){

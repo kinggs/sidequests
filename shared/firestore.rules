@@ -11,7 +11,9 @@ rules_version = '2';
 //   it plays in, one rating at a time, and Rack It's config (Session 6).
 //
 // Rack It has no household tier (Session 6b): the owner is its one admin and sees everything;
-// every other account, a household member included, is a player as above.
+// every other account, a household member included, is a player as above. Sessions Loyalty
+// has none either: its staff list (and the owner) sees everything, and every other account,
+// a household member included, is a member who reads only its own card and entries.
 //
 // The open apps (Session 7, openApps() below) work the same way for every app on the list: open
 // to anyone signed in, each record reached only by the accounts in it, and the owner reaches all.
@@ -48,10 +50,11 @@ service cloud.firestore {
     }
 
     // Every app keeps its data under /sidequests/<appId>/... (people under _shared).
-    // Rack It's reads and writes are spelled out below instead, and so are the open apps'.
+    // Rack It's and Sessions Loyalty's reads and writes are spelled out below instead, and so
+    // are the open apps'.
     match /sidequests/{appId}/{document=**} {
-      allow read: if isFamily() && appId != 'rack-it' && !isOpen(appId);
-      allow write: if isFamily() && appId != 'rack-it' && !isOpen(appId);
+      allow read: if isFamily() && !(appId in ['rack-it', 'sessions-loyalty']) && !isOpen(appId);
+      allow write: if isFamily() && !(appId in ['rack-it', 'sessions-loyalty']) && !isOpen(appId);
     }
 
     // ---- The open rule (KIT-PLAN Session 7 step 4) ----
@@ -122,6 +125,52 @@ service cloud.firestore {
       allow get: if signedIn();
       allow list: if isOwner();
       allow write: if (signedIn() && (confirming(pid) || guestStarter(pid))) || isOwner();
+    }
+
+    // Sessions Loyalty (sessions-loyalty/SPEC.md §6): a club's staff and its members. Staff are
+    // the uids under staff/ (the owner alone writes that list) and the owner. Staff read and
+    // write all of it: settings, rewards, ways to earn, every member's card, note and entries.
+    // A member is any account: it reads the club's settings and items, its own card and its own
+    // entries (listed with its uid filter), and writes nothing. The rules can't check the
+    // points arithmetic; staff's Rebuild remakes every card from the entries. A household
+    // member is a plain member here, as in Rack It.
+    function isStaff() {
+      return signedIn()
+        && (exists(/databases/$(database)/documents/sidequests/sessions-loyalty/staff/$(request.auth.uid)) || isOwner());
+    }
+    match /sidequests/sessions-loyalty/settings/{doc} {
+      allow read: if signedIn();
+      allow write: if isStaff();
+    }
+    match /sidequests/sessions-loyalty/staff/{uid} {
+      allow get: if signedIn();      // "am I staff?": your own document, present or not
+      allow list: if isStaff();
+      allow write: if isOwner();
+    }
+    match /sidequests/sessions-loyalty/rewards/{id} {
+      allow read: if signedIn();
+      allow write: if isStaff();
+    }
+    match /sidequests/sessions-loyalty/earns/{id} {
+      allow read: if signedIn();
+      allow write: if isStaff();
+    }
+    match /sidequests/sessions-loyalty/cards/{uid} {
+      allow get: if me(uid) || isStaff();
+      allow list: if isStaff();
+      allow write: if isStaff();
+    }
+    match /sidequests/sessions-loyalty/notes/{uid} {
+      allow read, write: if isStaff();
+    }
+    // An entry is written once, by the staff member logging it, and only ever voided after
+    // that. Deleting one is the owner's; so is creating one in someone else's name (Import).
+    match /sidequests/sessions-loyalty/entries/{id} {
+      allow read: if (signedIn() && resource.data.uid == request.auth.uid) || isStaff();
+      allow create: if (isStaff() && request.resource.data.by == request.auth.uid) || isOwner();
+      allow update: if isStaff()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['voided', 'voidedBy', 'voidedAt', '_updatedAt']);
+      allow delete: if isOwner();
     }
 
     // A match with no `rated` field is rated: every match before 2.9.0 moved ratings.
