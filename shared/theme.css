@@ -261,6 +261,3 @@ label{display:block;font-size:.8889rem;font-weight:600;color:var(--dim);margin:1
 .rows button{flex:none;min-width:64px;padding:0 14px;font-size:.8889rem}
 /* A two-tap delete, armed: Bloc 11, Around the Clock, Zombie Dice, Photo Coach, connect.js. */
 .arm,button.arm{background:var(--warn);color:var(--ink-0);box-shadow:none}
-/* Zombie Dice: its scoreboard chips are .pl. */
-.board>.pl{flex:0 1 auto;flex-direction:row;line-height:inherit;text-align:start}
-.board>.pl .nm{display:block;line-height:inherit}

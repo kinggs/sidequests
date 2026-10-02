@@ -31,6 +31,8 @@
 // got by id and moved only in the batch that confirms, as in shared/firestore.rules. Rack It
 // has no household tier (Session 6b): the owner reaches all of it, and everyone else, a
 // household member (&role=member) included, is a player.
+// The open apps (Session 7, OPEN_APPS) work the same way: a record reached by the accounts in
+// its uids, listed only with that filter, and the owner reaches all.
 //
 // Two tabs test a whole QR scan: rack-it/?mock on My QR, then
 // rack-it/?mock&as=waiter&i=<code> in another tab. Times are milliseconds here.
@@ -67,6 +69,16 @@ const ACCESS = [
   { path: /^sidequests\/rack-it\/ratings\/([^/]+)$/, read: "account",
     write: (m, u, d, was, ctx) => isOwner(u) || (!!d && (confirming(m[1], d, ctx.after) || (!was && !!store.docs[`profiles/${u.uid}/guests/${m[1]}`]))) },
   { path: /^sidequests\/rack-it(\/|$)/, read: "owner", write: "owner" },   // starters, listing ratings
+  // The open apps (Session 7): each record reached by the accounts in its uids, a list only with
+  // the uids filter, and the rest of the app the owner's. Not the household.
+  { path: /^sidequests\/([^/]+)\/([^/]+)$/, when: m => OPEN_APPS[m[1]] === m[2],
+    read: (m, u, d, was, ctx) => isOwner(u) || uidsFilter(ctx, u) },
+  { path: /^sidequests\/([^/]+)\/([^/]+)\/([^/]+)$/, when: m => OPEN_APPS[m[1]] === m[2],
+    read: (m, u, d, was) => isOwner(u) || inUids(was, u),
+    write: (m, u, d, was) => isOwner(u) || (!was ? !!d && opens(u, d)
+      : d ? inUids(was, u) && !["uids", "players", "by"].some(k => !same(was[k], d[k]))
+      : was.by === u.uid) },
+  { path: /^sidequests\/([^/]+)(\/|$)/, when: m => m[1] in OPEN_APPS, read: "owner", write: "owner" },
   { path: /^sidequests(\/|$)/, read: "household", write: "household" },
   // Accounts (Session 1). Yours alone: private, friends, guests, as documents or as a list.
   { path: /^profiles\/([^/]+)\/(private|friends|guests)(\/[^/]+)?$/, read: (m, u) => m[1] === u.uid, write: (m, u) => m[1] === u.uid },
@@ -80,6 +92,15 @@ const ACCESS = [
     read: (m, u, d, was) => was ? was.uids.includes(u.uid) : m[1].split("_").includes(u.uid),
     write: (m, u, d, was) => d ? !was && pairOk(m[1], u, d) : !!was && was.uids.includes(u.uid) },
 ];
+// The open rule's apps and the collection their records live in (openApps() in the rules).
+const OPEN_APPS = { "zombie-dice": "games" };
+// A new record in an open app: yours, with you in it, at most 8 players, every account in it a
+// player and each other one someone you're connected to.
+function opens(u, d){
+  const uids = Array.isArray(d.uids) ? d.uids : null, players = Array.isArray(d.players) ? d.players : null;
+  return !!uids && !!players && "names" in d && d.by === u.uid && uids.includes(u.uid) && players.length <= 8 && uids.length <= 8
+    && uids.every(x => players.includes(x) && (x === u.uid || !!store.docs["friendships/" + [u.uid, x].sort().join("_")]));
+}
 // Rack It's player rules, as in shared/firestore.rules (Session 6). A match with no `rated`
 // field is rated.
 const isOwner = u => tierOf(u) === "household" && (store.docs["members/" + String(u.email || "").toLowerCase()] || {}).role === "owner";
@@ -199,7 +220,7 @@ function tierOf(user){
 // ctx: { where } for a list, { after } for a write: the store as the write (or the whole batch)
 // leaves it, which is what the rules' getAfter() reads.
 function allowed(op, full, data = null, ctx = {}){
-  const row = ACCESS.find(r => r.path.test(full));
+  const row = ACCESS.find(r => r.path.test(full) && (!r.when || r.when(full.match(r.path))));
   const need = row && row[op];
   if (need === "anyone") return true;
   const tier = tierOf(currentUser);

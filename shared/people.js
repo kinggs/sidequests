@@ -16,6 +16,7 @@
 //   people.avatar(id, 36)      // <span>: their photo in a ring of their colour, or their initial
 //   await people.pick({ title, recent, exclude, app })  // the picker sheet → an id, or null
 //   await people.addPlayer({ app })                     // just Scan a new player or Add a guest → an id, or null
+//   await people.addGuest(), await people.scan(app)     // straight to a guest's name, or to My QR → an id, or null
 //   people.names(ids), people.uidsOf(ids)  // what a record stores beside its player ids: names, and the accounts
 //   await people.edit(null, { noun: "player" })     // add a household person (household only) → new id, or null
 //   people.edit(id)            // edit, merge into someone else, or remove
@@ -720,7 +721,7 @@ function edit(id = null, { noun = "person", cuescore = false } = {}){
 // first), then everyone by name, a search box once there are more than eight, then two ways to
 // add someone there and then. Resolves to the id picked, or null.
 const appOfPage = () => location.pathname.split("/").filter(Boolean).filter(x => !/\.html$/.test(x)).pop() || "";
-function pick({ title = "Pick a player", recent = [], exclude = [], app = "", fresh = false } = {}){
+function pick({ title = "Pick a player", recent = [], exclude = [], app = "", fresh = false, guest = false } = {}){
   injectCss();
   let unwatch = () => {};
   return ui.sheet({ title: fresh ? (title === "Pick a player" ? "Add a player" : title) : title, cancel: false,
@@ -800,7 +801,8 @@ function pick({ title = "Pick a player", recent = [], exclude = [], app = "", fr
     const say = msg => { warn.hidden = !msg; warn.textContent = msg || ""; };
     let sameOk = false;
     tap(q("guest"), () => { q("choose").hidden = true; q("guestform").hidden = false; nameIn.value = ""; say(""); nameIn.focus(); });
-    tap(q("back"), () => { q("guestform").hidden = true; q("choose").hidden = false; });
+    tap(q("back"), () => { if (guest) return close(null); q("guestform").hidden = true; q("choose").hidden = false; });
+    if (guest){ q("choose").hidden = true; q("guestform").hidden = false; setTimeout(() => nameIn.focus(), 0); }
     nameIn.addEventListener("input", () => { sameOk = false; say(""); q("addguest").disabled = !nameIn.value.trim(); });
     async function addGuest(){
       const name = nameIn.value.trim().replace(/\s+/g, " ");
@@ -823,6 +825,8 @@ function pick({ title = "Pick a player", recent = [], exclude = [], app = "", fr
   } }).then(id => { unwatch(); return id || null; });
 }
 const addPlayer = (o = {}) => pick({ ...o, fresh: true });
+// Straight to the guest's name (setup's Add a guest), and straight to My QR (its Show QR).
+const addGuest = (o = {}) => pick({ title: "Add a guest", ...o, guest: true });
 
 // My QR, there and then: whoever scans it is a friend, and is the one picked. The Connect part
 // loads only now, so an app that never scans never fetches it.
@@ -846,7 +850,7 @@ export const people = {
   PALETTE,
   start, stop, poke, onChange,
   active, players, get, resolve, nameOf, colourOf, nextColour, meId, isMe, avatar,
-  names, uidsOf, pick, addPlayer,
+  names, uidsOf, pick, addPlayer, addGuest, scan: (app = "") => scan(app || appOfPage()),
   add, update, remove, merge, adopt, edit,
   all: () => ({ ...all }),
   get ready(){ return confirmed; }

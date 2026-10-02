@@ -723,3 +723,107 @@ describe("One admin: what the owner and a member may do", () => {
     await assertSucceeds(setDoc(doc(db, "members", "new@example.com"), { addedBy: MEMBER }));
   });
 });
+
+// ---- The open rule (KIT-PLAN Session 7 step 4): Zombie Dice, then every app named in OPEN ----
+// Anyone signed in uses the app; each record names its players, and only they (and the owner)
+// reach it. A record carries players (ids, at most 8), names, uids (the accounts in it) and by.
+const ZD = "sidequests/zombie-dice/games/";
+const zd = (extra = {}) => ({ game: "zombie-dice", players: ["ann", "cat"], names: ["Ann", "Cat"], uids: ["ann", "cat"],
+  by: "ann", scores: { ann: 0, cat: 0 }, status: "live", seats: ["ann", "cat"], turn: 0, ...extra });
+
+describe("The open rule: what anyone signed in may do (Zombie Dice)", () => {
+  beforeEach(async () => {
+    await seed(ZD + "ac", zd());                                        // Ann and Cat are connected (ann_cat)
+    await seed(ZD + "old", { players: ["p1"], scores: { p1: 3 } });     // from before the open rule: no uids
+  });
+
+  test("starts a game alone with a guest, or with a friend", async () => {
+    const db = user("ann");
+    await assertSucceeds(setDoc(doc(db, ZD + "g1"), zd({ players: ["ann", "g_1"], names: ["Ann", "Dan"], uids: ["ann"] })));
+    await assertSucceeds(setDoc(doc(db, ZD + "f1"), zd()));
+  });
+  test("starts an eight-player game with seven friends", async () => {
+    const seven = ["f1", "f2", "f3", "f4", "f5", "f6", "f7"];
+    for (const f of seven) await seed(`friendships/${["ann", f].sort().join("_")}`, { uids: ["ann", f].sort(), since: 1, via: "x", app: "zombie-dice" });
+    const all = ["ann", ...seven];
+    await assertSucceeds(setDoc(doc(user("ann"), ZD + "eight"), zd({ players: all, names: all, uids: all, seats: all })));
+  });
+  test("gets a game they're in, and lists theirs with the uids filter", async () => {
+    const db = user("cat");
+    await assertSucceeds(getDoc(doc(db, ZD + "ac")));
+    await assertSucceeds(getDocs(query(collection(db, "sidequests/zombie-dice/games"), where("uids", "array-contains", "cat"))));
+  });
+  test("any player in it plays on: scores, turns, the finish", async () => {
+    await assertSucceeds(updateDoc(doc(user("ann"), ZD + "ac"), { "scores.ann": 5, turn: 1 }));
+    await assertSucceeds(updateDoc(doc(user("cat"), ZD + "ac"), { "scores.cat": 13, status: "done", winner: "cat" }));
+  });
+  test("whoever started it deletes it", async () => {
+    await assertSucceeds(deleteDoc(doc(user("ann"), ZD + "ac")));
+  });
+  test("the owner reads, lists bare, backfills and deletes every game", async () => {
+    const db = as(OWNER);
+    await assertSucceeds(getDoc(doc(db, ZD + "ac")));
+    await assertSucceeds(getDocs(collection(db, "sidequests/zombie-dice/games")));
+    await assertSucceeds(updateDoc(doc(db, ZD + "old"), { players: ["owner"], names: ["Owner"], uids: ["owner"], by: "owner" }));
+    await assertSucceeds(setDoc(doc(db, ZD + "om"), zd({ players: ["owner", "member"], names: ["O", "M"], uids: ["owner", "member"], by: "owner" })));
+    await assertSucceeds(deleteDoc(doc(db, ZD + "ac")));
+  });
+  test("a household member who isn't the owner plays like anyone: her own games only", async () => {
+    await seed(ZD + "om", zd({ players: ["owner", "member"], names: ["O", "M"], uids: ["owner", "member"], by: "owner" }));
+    const db = as(MEMBER);
+    await assertSucceeds(getDoc(doc(db, ZD + "om")));
+    await assertSucceeds(setDoc(doc(db, ZD + "m1"), zd({ players: ["member", "g_2"], names: ["M", "G"], uids: ["member"], by: "member" })));
+  });
+});
+
+describe("The open rule: must refuse", () => {
+  beforeEach(async () => {
+    await seed(ZD + "ac", zd());
+    await seed(ZD + "old", { players: ["p1"], scores: { p1: 3 } });
+  });
+
+  test("a stranger reading, listing or changing a game they aren't in", async () => {
+    const db = user("ben"), col = collection(db, "sidequests/zombie-dice/games");
+    await assertFails(getDoc(doc(db, ZD + "ac")));
+    await assertFails(getDoc(doc(db, ZD + "old")));
+    await assertFails(getDocs(col));
+    await assertFails(getDocs(query(col, where("uids", "array-contains", "ann"))));
+    await assertFails(updateDoc(doc(db, ZD + "ac"), { "scores.ben": 1 }));
+    await assertFails(deleteDoc(doc(db, ZD + "ac")));
+  });
+  test("starting a game that names an account you aren't connected to", async () => {
+    await assertFails(setDoc(doc(user("ann"), ZD + "x"), zd({ players: ["ann", "ben"], names: ["Ann", "Ben"], uids: ["ann", "ben"] })));
+  });
+  test("starting a game as someone else, without yourself, or with an account that isn't playing", async () => {
+    const db = user("ann");
+    await assertFails(setDoc(doc(db, ZD + "x1"), zd({ by: "cat" })));
+    await assertFails(setDoc(doc(db, ZD + "x2"), zd({ players: ["cat", "g_1"], uids: ["cat"] })));
+    await assertFails(setDoc(doc(db, ZD + "x3"), zd({ players: ["ann", "g_1"], uids: ["ann", "cat"] })));
+  });
+  test("starting a game with no names, or with more than eight players", async () => {
+    const db = user("ann"), nine = ["ann", "g_1", "g_2", "g_3", "g_4", "g_5", "g_6", "g_7", "g_8"];
+    const { names, ...noNames } = zd();
+    await assertFails(setDoc(doc(db, ZD + "x4"), noNames));
+    await assertFails(setDoc(doc(db, ZD + "x5"), zd({ players: nine, names: nine, uids: ["ann"] })));
+  });
+  test("a player changing who's in it: uids, players or by", async () => {
+    const db = user("cat");
+    await assertFails(updateDoc(doc(db, ZD + "ac"), { uids: ["ann", "cat", "ben"] }));
+    await assertFails(updateDoc(doc(db, ZD + "ac"), { players: ["ann", "cat", "g_9"] }));
+    await assertFails(updateDoc(doc(db, ZD + "ac"), { by: "cat" }));
+  });
+  test("a player who didn't start it deleting it", async () => {
+    await assertFails(deleteDoc(doc(user("cat"), ZD + "ac")));
+  });
+  test("a household member who isn't the owner listing bare, or reading a game she isn't in", async () => {
+    const db = as(MEMBER);
+    await assertFails(getDocs(collection(db, "sidequests/zombie-dice/games")));
+    await assertFails(getDoc(doc(db, ZD + "ac")));
+    await assertFails(getDoc(doc(db, ZD + "old")));
+    await assertFails(setDoc(doc(db, ZD + "old"), { players: ["member"] }, { merge: true }));
+  });
+  test("anything under an open app but its records", async () => {
+    await assertFails(setDoc(doc(user("ann"), "sidequests/zombie-dice/state/main"), { players: ["ann"], names: ["Ann"], uids: ["ann"], by: "ann" }));
+    await assertFails(getDoc(doc(as(MEMBER), "sidequests/zombie-dice/state/main")));
+  });
+});

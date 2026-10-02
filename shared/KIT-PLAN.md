@@ -178,7 +178,7 @@ phone. Stop and fix before step 2 if any app looks broken.
 
 ### Step 4 — The open rule, and Zombie Dice (rules + minor bump, one push)
 
-- [ ] **Rules, cases first.** One block for every app named in an `open` list; Rack It keeps
+- [x] **Rules, cases first.** One block for every app named in an `open` list; Rack It keeps
   its own block. A record in an open app carries `players` (ids, at most 8), `names`, `uids`
   and `by`:
   - read: `uid in uids`, or the owner. Lists carry the `uids` filter, as in Rack It;
@@ -191,14 +191,14 @@ phone. Stop and fix before step 2 if any app looks broken.
   **Must refuse:** a stranger reading, listing or changing a record they aren't in; creating
   one that names an account they aren't connected to; a member who isn't the owner listing
   bare. The mock gets the same tier.
-- [ ] `people.start({ household: false })` for everyone but the owner, as Rack It does.
-- [ ] **Zombie Dice**: `people.pick` in setup (frame 8a's chips: friends, Show QR, Add a
+- [x] `people.start({ household: false })` for everyone but the owner, as Rack It does.
+- [x] **Zombie Dice**: `people.pick` in setup (frame 8a's chips: friends, Show QR, Add a
   guest), records store `players`, `names`, `uids`, `by`; My QR and Friends in the account
   sheet; the look as `CHANGES.md` § zombie-dice (frame 5a). The dice and their motion don't
   change.
-- [ ] **Backfill, once, on the owner's phone**, as Rack It 2.11.0 did (History, 6b note 6):
+- [x] **Backfill, once, on the owner's phone**, as Rack It 2.11.0 did (History, 6b note 6):
   every old game gets `names`, `by`, and `uids` for the players who have an account.
-- [ ] SPEC: who uses it, people, data.
+- [x] SPEC: who uses it, people, data.
 
 **Done when:** in `?mock`, the owner sees every game, `&as=mel&role=member` sees only hers,
 `&as=ann` starts a game with a friend and a guest and sees only that, and the old games on a

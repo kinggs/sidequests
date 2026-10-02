@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0A0D11">
+<meta name="theme-color" content="#0E0D0B">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -12,18 +12,12 @@
 <title>Zombie Dice</title>
 <link rel="stylesheet" href="../shared/theme.css">
 <style>
-  /* Zombie Dice on shared/theme.css. Zombie green is the accent and only marks data: whose
-     turn it is, the brains count. The dice keep their own colours, as on the real set. */
-  :root{ --accent:#A6E36B; --accent-ink:#14240A;
+  /* Zombie Dice on shared/theme.css (dark system v3, shared/DESIGN.md). Lime marks the data:
+     whose turn it is, the brains. Coral is the second state: a shot, a bust. The dice keep
+     their own colours, as on the real set. */
+  :root{ --accent:var(--lime);  --accent-ink:var(--lime-ink);  --accent-soft:var(--lime-soft);
+         --accent-2:var(--coral); --accent-2-ink:var(--coral-ink); --accent-2-soft:var(--coral-soft);
     --d-g:#3FAE4A; --d-y:#EDBE2C; --d-r:#D8413A; --plate:#F4EFE6; }
-  main{flex:1;min-height:0;padding:4px 16px 16px;overflow-y:auto;max-width:40rem;width:100%;margin:0 auto}
-  .userbtn{flex:none;min-height:var(--tap);padding:0 16px;font-size:.8333rem;white-space:nowrap}
-  .gate p{color:var(--dim)}
-  .sect{color:var(--dim);margin:28px 0 10px}
-  .sect:first-child{margin-top:4px}
-  .row{display:flex;gap:12px;margin-top:14px}
-  .row button{flex:1}
-  .big{min-height:var(--tap-lg);font-size:1.0556rem}
   .order{margin-top:10px;color:var(--dim);font-size:.8889rem;min-height:1.4em}
   .order b{color:var(--text)}
   .chips button .n{flex:none;width:28px;height:28px;border-radius:50%;background:var(--ink-0);color:var(--text);
@@ -36,9 +30,7 @@
   details.rules ol{padding:0 0 14px 1.2em;color:var(--text-2);font-size:.9444rem;line-height:1.5}
   details.rules li{margin:6px 0}
   .dicekey{display:grid;grid-template-columns:auto 1fr;gap:8px 12px;align-items:center;margin:4px 0 12px;font-size:.8889rem;color:var(--text-2)}
-  .rows .fig{flex:none;min-width:2.6rem;text-align:center;font-size:1.4444rem;color:var(--accent)}
-  .rows .x{background:transparent;color:var(--dim);font-size:1.2222rem}
-  .rows .x.arm{font-size:.8889rem;background:var(--warn);color:var(--ink-0)}
+  .rows .go{flex:none;min-width:6rem}
 
   /* ---- the dice ---- */
   .die{position:relative;flex:none;width:var(--ds,96px);height:var(--ds,96px);border-radius:22%;
@@ -84,7 +76,7 @@
   .tray{position:relative}
   .event{position:fixed;left:50%;width:min(24rem,calc(100vw - 32px));margin-left:calc(min(24rem,calc(100vw - 32px)) / -2);top:42%;transform:translateY(-50%);z-index:15;border-radius:var(--r-card);padding:16px 14px;
     text-align:center;background:#241826;box-shadow:0 0 0 2px #FF6FAE,0 10px 30px rgba(0,0,0,.6);animation:evin .35s cubic-bezier(.3,1.5,.5,1)}
-  .event.refill{background:#1B232E;box-shadow:0 0 0 2px var(--warn),0 10px 30px rgba(0,0,0,.6)}
+  .event.refill{background:var(--ink-2);box-shadow:0 0 0 2px var(--warn),0 10px 30px rgba(0,0,0,.6)}
   .event .ev-big{font-family:var(--grot);font-size:26px;font-weight:700;line-height:1.15;color:#FF9CC6}
   .event.refill .ev-big{color:var(--warn)}
   .event .ev-small{margin-top:6px;font-size:16px;color:var(--text-2);line-height:1.35}
@@ -107,14 +99,20 @@
   body.playing .apphead, body.playing main, body.playing .foot{display:none}
   #game{flex:1;min-height:0;display:flex;flex-direction:column;gap:10px;padding:12px 14px 12px;max-width:40rem;width:100%;margin:0 auto}
   .board{display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:6px;flex:none}
-  .pl{display:flex;align-items:center;gap:8px;background:var(--ink-1);border-radius:var(--r-ctl);padding:6px 8px;min-width:0}
-  .pl .nm{flex:1;min-width:0;font-size:15px;font-weight:600;color:var(--text-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .pl b{font-family:var(--grot);font-size:22px;font-weight:700}
-  .pl.now{box-shadow:inset 0 0 0 2px var(--accent)}
-  .pl.now .nm{color:var(--text)}
-  .pl.now b{color:var(--accent)}
-  .pl.out{opacity:1;color:var(--faint)}
-  .pl.out b,.pl.out .nm{color:var(--faint)}
+  /* The scoreboard: the theme's player panels, smaller, up to eight of them. */
+  .board .pl{padding:6px 8px}
+  .board .pl .nm .who{min-width:0;overflow:hidden;text-overflow:ellipsis}
+  .board .pl .sc{font-size:28px}
+  /* Five to eight players, or a short phone: one line each, so the tray keeps its room. */
+  .board.many .pl{flex-direction:row;align-items:center;gap:6px}
+  .board.many .pl .nm{flex:1;min-width:0}
+  .board.many .pl .sc{font-size:22px}
+  @media (max-height: 700px){
+    .board .pl{flex-direction:row;align-items:center;gap:6px}
+    .board .pl .nm{flex:1;min-width:0}
+    .board .pl .sc{font-size:22px}
+  }
+  .board .pl.out .nm,.board .pl.out .sc{color:var(--faint)}
   .whose{display:flex;align-items:center;gap:12px;flex:none}
   .whose h2{font-family:var(--grot);font-size:30px;font-weight:700;color:var(--accent);letter-spacing:-.02em;line-height:1.1;
     min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -127,7 +125,7 @@
   .stat .lbl{color:var(--dim);display:block;margin-top:2px}
   .shots{display:flex;justify-content:center;gap:6px;height:36px;align-items:center}
   .shots i{width:22px;height:22px;border-radius:50%;box-shadow:inset 0 0 0 2px var(--faint)}
-  .shots i.hit{background:#FF7A2F;box-shadow:none}
+  .shots i.hit{background:var(--accent-2);box-shadow:none}
   .shots.danger i.hit{background:#FF4A2F}
   .cupdots{display:flex;justify-content:center;gap:3px;flex-wrap:wrap;margin-top:4px}
   .cupdots i{width:9px;height:9px;border-radius:3px}
@@ -148,27 +146,25 @@
   .acts button small{display:block;font-size:16px;font-weight:600;margin-top:2px}
   .acts #rollBtn{font-size:24px;font-family:var(--grot)}
   .abandon{flex:none;display:flex;justify-content:center}
-  .abandon button{min-height:56px;font-size:15px;padding:0 18px}
+  .abandon button{min-height:var(--tap);min-width:7rem;font-size:15px;padding:0 18px;letter-spacing:.1em}
 
-  /* ---- hand-over and finish cards ---- */
-  .ov{position:fixed;inset:0;z-index:20;background:rgba(5,7,9,.88);display:flex;align-items:center;justify-content:center;
-    padding:max(16px,env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom))}
-  .card{width:100%;max-width:26rem;background:var(--ink-1);border-radius:22px;padding:22px 18px 18px;display:flex;flex-direction:column;
-    gap:14px;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.6);max-height:100%;overflow-y:auto}
-  .card .head{font-family:var(--grot);font-size:34px;font-weight:700;letter-spacing:-.02em;line-height:1.1}
-  .card .head.shot{color:#FF7A2F}
-  .card .head.good{color:var(--accent)}
-  .card .sub{color:var(--text-2);font-size:1rem}
-  .card .next{display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:4px}
-  .card .next .lbl{color:var(--dim)}
-  .card .next b{font-family:var(--grot);font-size:26px}
-  .card button{min-height:var(--tap-lg);font-size:1.1111rem}
-  .card .rank{list-style:none;display:flex;flex-direction:column;gap:6px;text-align:left}
-  .card .rank li{display:flex;align-items:center;gap:10px;background:var(--ink-2);border-radius:var(--r-ctl);padding:8px 12px}
-  .card .rank li .nm{flex:1;font-weight:600}
-  .card .rank li b{font-family:var(--grot);font-size:24px}
-  .card .rank li.win b{color:var(--accent)}
-  .card .btns{display:flex;flex-direction:column;gap:10px}
+  /* ---- hand-over and finish: the theme's full-screen moment (.done), rising ---- */
+  .moment{width:100%;max-width:26rem;display:flex;flex-direction:column;gap:14px;text-align:center;max-height:100%;overflow-y:auto;
+    animation:rise var(--snap)}
+  .moment .head{font-family:var(--grot);font-size:34px;font-weight:700;letter-spacing:-.02em;line-height:1.1}
+  .moment .head.shot{color:var(--accent-2)}
+  .moment .head.good{color:var(--accent)}
+  .moment .sub{color:var(--text-2);font-size:1rem}
+  .moment .next{display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:4px}
+  .moment .next .lbl{color:var(--dim)}
+  .moment .next b{font-family:var(--grot);font-size:26px}
+  .moment button{max-width:none}
+  .moment .rank{list-style:none;display:flex;flex-direction:column;gap:6px;text-align:left}
+  .moment .rank li{display:flex;align-items:center;gap:10px;background:var(--ink-2);border-radius:var(--r-ctl);padding:8px 12px}
+  .moment .rank li .nm{flex:1;font-weight:600}
+  .moment .rank li b{font-family:var(--grot);font-size:24px}
+  .moment .rank li.win b{color:var(--accent)}
+  .moment .btns{display:flex;flex-direction:column;gap:10px}
   .crown{display:flex;justify-content:center}
 </style>
 </head>
@@ -196,10 +192,10 @@
 
 <header class="apphead">
   <h1>Zombie Dice</h1>
-  <div class="user" id="userBox"></div>
+  <div class="me-host" id="meHost"></div>
 </header>
 
-<main id="main">
+<main class="page" id="main">
   <section class="gate hidden" id="gate">
     <p id="gateMsg">Sign in to play.</p>
     <button class="primary" id="signInBig">Sign in with Google</button>
@@ -210,6 +206,7 @@
 
     <h2 class="lbl sect">New game</h2>
     <div class="chips" id="pickChips"></div>
+    <div class="row"><button class="quiet" id="qrBtn">Show QR</button><button class="quiet" id="guestBtn">Add a guest</button></div>
     <p class="order" id="order"></p>
     <div class="seg" id="modeSeg" style="margin-top:12px">
       <button type="button" data-hh="0">Classic dice</button>
@@ -244,20 +241,14 @@
     <h2 class="lbl sect">Recent</h2>
     <ul class="rows" id="recent"></ul>
 
-    <h2 class="lbl sect">Players</h2>
-    <ul class="rows" id="people"></ul>
-    <div class="row">
-      <button class="quiet" id="shareBtn">Share link</button>
-      <button class="primary" id="addBtn">Add player</button>
-    </div>
-    <p class="note" style="margin-top:8px">Players are shared by every sidequests app — add someone once and they're in all of them.</p>
-
-    <div class="row">
-      <button class="quiet" id="exportBtn">Export</button>
-      <button class="quiet" id="importBtn">Import</button>
+    <div class="hidden" id="household">
+      <h2 class="lbl sect">The household</h2>
+      <ul class="rows" id="people"></ul>
+      <div class="row"><button class="quiet" id="addBtn">Add to the household</button></div>
+      <p class="note" style="margin-top:8px">The household list is yours, shared by every sidequests app. Everyone else
+        plays with their friends and guests.</p>
     </div>
     <input type="file" id="importFile" accept="application/json,.json" class="hidden">
-    <div id="installHere"></div>
   </section>
 </main>
 
@@ -281,8 +272,7 @@
     <button class="primary" id="rollBtn">Roll</button>
   </div>
   <div class="abandon">
-    <button class="quiet" id="leaveBtn">Home</button>
-    <button class="quiet" id="abandonBtn" style="margin-left:10px">Abandon game</button>
+    <button class="quiet" id="menuBtn" aria-label="Home, or abandon the game">• • •</button>
   </div>
 </section>
 
@@ -292,9 +282,11 @@
   import { cloud } from "../shared/cloud.js";
   import { phone } from "../shared/phone.js";
   import { people } from "../shared/people.js";
+  import { connect } from "../shared/connect.js";
+  import { ui } from "../shared/ui.js";
 
   // Bump on every change. The deploy skill checks this against the live site.
-  const APP_VERSION = "0.2.1";
+  const APP_VERSION = "0.3.0";
   const APP_ID = "zombie-dice";
   document.getElementById("version").textContent = "v" + APP_VERSION;
 
@@ -341,8 +333,15 @@
   let g = null;            // the game on screen
   let busy = false;        // dice still tumbling
   let rolledAt = 0;        // the roll to animate, by seq
+  let resumed = false, run = 0;   // this phone's game reopened once; which sign-in start() is on
+  let accountSig = "";    // what the header's avatar last showed (mountAccount)
+  let owner = false;       // the one admin: sees every game, keeps the household list (KIT-PLAN Session 7)
 
-  const nameOf = id => people.nameOf(id);
+  // A game names its players (names, beside players), so one this phone can't name still reads:
+  // an old household game seen by a player, or someone else's guest.
+  let knownNames = {};
+  const known = id => !!people.get(id) || id in knownNames;
+  const nameOf = id => people.get(id) ? people.nameOf(id) : knownNames[id] || "Someone";
   const resolveGame = x => {
     const r = id => people.resolve(id);
     const scores = {};
@@ -350,45 +349,19 @@
     return { ...x, players: (x.players || []).map(r), seats: (x.seats || []).map(r), scores,
       winner: x.winner ? r(x.winner) : null, turns: (x.turns || []).map(t => ({ ...t, p: r(t.p) })) };
   };
-  const refreshGames = () => { games = rawGames.map(resolveGame); };
+  const refreshGames = () => {
+    games = rawGames.map(resolveGame);
+    knownNames = {};
+    for (const x of games) (x.players || []).forEach((p, i) => { if (x.names && x.names[i]) knownNames[p] = x.names[i]; });
+  };
 
-  // ---- taps: pointerup, not click ----
-  function tap(node, fn){
-    if (!node) return;
-    let down = false, sx = 0, sy = 0;
-    node.addEventListener("pointerdown", e => { down = true; sx = e.clientX; sy = e.clientY; });
-    node.addEventListener("pointercancel", () => { down = false; });
-    node.addEventListener("pointerup", e => {
-      if (!down) return;
-      down = false;
-      if (Math.abs(e.clientX - sx) > 14 || Math.abs(e.clientY - sy) > 14) return;
-      e.preventDefault();
-      fn(e);
-    });
-    node.addEventListener("click", e => e.preventDefault());
-  }
-  function buzz(p){ if (navigator.vibrate) navigator.vibrate(p); }
-  function armed(btn, label, fn){
-    let timer = null;
-    tap(btn, async () => {
-      if (!timer){
-        timer = setTimeout(() => { timer = null; btn.classList.remove("arm"); btn.textContent = label; }, 5000);
-        btn.classList.add("arm");
-        btn.textContent = "Sure?";
-        buzz(12);
-        return;
-      }
-      clearTimeout(timer); timer = null;
-      btn.classList.remove("arm"); btn.textContent = label;
-      try { await fn(); } catch (e){ toast("Couldn't do that: " + (e.message || e)); }
-    });
-  }
-  function toast(msg){
-    const t = document.createElement("div");
-    t.className = "toast";
-    t.textContent = msg;
-    document.body.appendChild(t);
-    setTimeout(() => t.remove(), 2600);
+  // Taps, holds, toasts and sheets: shared/ui.js.
+  const tap = ui.tap, toast = ui.toast, buzz = ui.buzz;
+  // A row's ⋯: delete behind a hold, for whoever started the game, or the owner.
+  const mayDelete = x => owner || !x.by || x.by === (cloud.user && cloud.user.uid);
+  function rowMenu(btn, x, title){
+    ui.menu(btn, { title, items: [{ label: "Delete", value: "del", hold: true,
+      run: () => store.remove(x.id).catch(e => toast("Couldn't delete: " + (e.message || e))) }] });
   }
   const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
   const listNames = ids => ids.length < 2 ? ids.map(nameOf).join("") : ids.slice(0, -1).map(nameOf).join(", ") + " and " + nameOf(ids[ids.length - 1]);
@@ -498,13 +471,13 @@
   }
 
   function renderPick(){
-    const list = people.active();
+    const list = people.players().filter(p => !p.deleted);
     picked = picked.filter(id => list.some(p => p.id === id));
     if (!picked.length && !pickedTouched && people.meId()) picked = [people.meId()];
     const wrap = $("pickChips");
     wrap.innerHTML = "";
     if (!list.length){
-      wrap.innerHTML = `<p class="empty">Add players below to get started.</p>`;
+      wrap.innerHTML = `<p class="empty">Show your QR to a friend, or add a guest.</p>`;
     }
     for (const p of list){
       const b = document.createElement("button");
@@ -547,11 +520,11 @@
     for (const x of live){
       const li = document.createElement("li");
       li.innerHTML = `<span class="who"><div class="l1"></div><div class="l2"></div></span>
-        <button type="button" class="x" aria-label="Delete">✕</button><button type="button" class="primary">Resume</button>`;
+        <button type="button" class="primary go">Resume</button><button type="button" class="more" aria-label="More">⋯</button>`;
       li.querySelector(".l1").textContent = x.players.map(p => `${nameOf(p)} ${x.scores[p] || 0}`).join(" · ");
       li.querySelector(".l2").textContent = `Round ${x.round || 1} · ${nameOf(x.seats[x.turn])} to play`;
       tap(li.querySelector(".primary"), () => { phone.fullscreen(); openGame(x.id); });
-      armed(li.querySelector(".x"), "✕", () => store.remove(x.id));
+      if (mayDelete(x)) rowMenu(li.querySelector(".more"), x, "Unfinished game"); else li.querySelector(".more").remove();
       ul.appendChild(li);
     }
     box.append(h, ul);
@@ -571,7 +544,7 @@
         tally.set(p, r);
       }
     }
-    const rows = [...tally.values()].filter(r => people.get(r.p)).sort((a, b) => b.wins - a.wins || (b.wins / b.played) - (a.wins / a.played) || b.best - a.best);
+    const rows = [...tally.values()].filter(r => known(r.p)).sort((a, b) => b.wins - a.wins || (b.wins / b.played) - (a.wins / a.played) || b.best - a.best);
     if (!rows.length){ ul.innerHTML = `<li class="empty">No finished games yet.</li>`; return; }
     for (const r of rows){
       const li = document.createElement("li");
@@ -599,17 +572,20 @@
     if (!rows.length){ ul.innerHTML = `<li class="empty">Nothing played yet.</li>`; return; }
     for (const x of rows){
       const li = document.createElement("li");
-      li.innerHTML = `<span class="who"><div class="l1"></div><div class="l2"></div></span><button type="button" class="x" aria-label="Delete">✕</button>`;
+      li.innerHTML = `<span class="who"><div class="l1"></div><div class="l2"></div></span><button type="button" class="more" aria-label="More">⋯</button>`;
       if (x.winner) li.prepend(people.avatar(x.winner, 40));
       const order = [...x.players].sort((a, b) => (x.scores[b] || 0) - (x.scores[a] || 0));
       li.querySelector(".l1").textContent = order.map(p => `${nameOf(p)} ${x.scores[p] || 0}`).join(" · ");
       li.querySelector(".l2").textContent = `${whenLabel(x.endedAt || x.at)} · ${x.winner ? nameOf(x.winner) + " won" : "done"} · ${plural(Math.max(1, (x.round || 2) - 1), "round")}${x.hh ? " · Hunk & Hottie" : ""}`;
-      armed(li.querySelector("button"), "✕", () => store.remove(x.id));
+      if (mayDelete(x)) rowMenu(li.querySelector(".more"), x, li.querySelector(".l1").textContent); else li.querySelector(".more").remove();
       ul.appendChild(li);
     }
   }
 
+  // The household list, the owner's: everyone else plays with friends and guests.
   function renderPeople(){
+    $("household").classList.toggle("hidden", !owner);
+    if (!owner) return;
     const ul = $("people");
     ul.innerHTML = "";
     const list = people.active();
@@ -665,7 +641,9 @@
     for (const p of players) scores[p] = 0;
     return { id: store.newId(), game: APP_ID, hh: !!hh, players: [...players], seats: [...players], scores, turn: 0, round: 1,
       phase: "play", t: freshTurn(hh), turns: [], lastTurn: null, winner: null, status: "live", seq: 0,
-      at: Date.now(), endedAt: null, by: cloud.user ? cloud.user.email : null };
+      at: Date.now(), endedAt: null, by: cloud.user ? cloud.user.uid : null,
+      // Who's in it, for the rules and for phones that can't name everyone (KIT-PLAN Session 7).
+      names: people.names(players), uids: people.uidsOf(players) };
   }
 
   function startGame(players, hh = useHH){
@@ -700,7 +678,7 @@
   function leaveGame(forget){
     if (forget){ try { localStorage.removeItem(HERE); } catch {} }
     g = null;
-    document.querySelectorAll(".ov,.event").forEach(n => n.remove());
+    document.querySelectorAll(".done,.event").forEach(n => n.remove());
     document.body.classList.remove("playing");
     $("game").classList.add("hidden");
     phone.keepAwake(false);
@@ -722,13 +700,14 @@
 
     const board = $("board");
     board.innerHTML = "";
+    board.classList.toggle("many", g.players.length > 4);
     for (const p of g.players){
       const d = document.createElement("div");
-      d.className = "pl" + (p === now && live ? " now" : "") + (g.seats.includes(p) || p === now ? "" : " out");
-      d.innerHTML = `<span class="nm"></span><b></b>`;
-      d.prepend(people.avatar(p, 28));
-      d.querySelector(".nm").textContent = nameOf(p);
-      d.querySelector("b").textContent = g.scores[p] || 0;
+      d.className = "pl" + (p === now && live ? " on" : "") + (g.seats.includes(p) || p === now ? "" : " out");
+      d.innerHTML = `<span class="nm"><span class="who"></span></span><span class="sc"></span>`;
+      d.querySelector(".nm").prepend(people.avatar(p, 24));
+      d.querySelector(".nm .who").textContent = nameOf(p);
+      d.querySelector(".sc").textContent = g.scores[p] || 0;
       board.appendChild(d);
     }
 
@@ -910,12 +889,13 @@
 
   // The pass-the-phone card. res is the turn that just ended (null at the start of a game).
   function handover(res){
-    document.querySelectorAll(".ov").forEach(n => n.remove());
+    document.querySelectorAll(".done").forEach(n => n.remove());
     if (g.status === "done") return finish(res);
     const next = g.seats[g.turn];
     const ov = document.createElement("div");
-    ov.className = "ov";
-    ov.innerHTML = `<div class="card" role="dialog" aria-modal="true">
+    ov.className = "done";
+    ov.setAttribute("role", "dialog"); ov.setAttribute("aria-modal", "true");
+    ov.innerHTML = `<div class="moment">
       <div class="head"></div><div class="sub"></div>
       <div class="banner hidden"></div>
       <div class="next"><span class="lbl"></span><b></b></div>
@@ -957,11 +937,12 @@
   }
 
   function finish(){
-    document.querySelectorAll(".ov").forEach(n => n.remove());
+    document.querySelectorAll(".done").forEach(n => n.remove());
     renderGame();
     const ov = document.createElement("div");
-    ov.className = "ov";
-    ov.innerHTML = `<div class="card" role="dialog" aria-modal="true">
+    ov.className = "done";
+    ov.setAttribute("role", "dialog"); ov.setAttribute("aria-modal", "true");
+    ov.innerHTML = `<div class="moment">
       <div class="crown"></div><div class="head good"></div><div class="sub"></div>
       <ul class="rank"></ul>
       <div class="btns"><button type="button" class="primary" data-k="again">Play again</button>
@@ -1001,7 +982,7 @@
       g = structuredClone(rest);
       normTurn(g.t);
       renderGame();
-      if (g.status === "done" && !document.querySelector(".ov")) finish();
+      if (g.status === "done" && !document.querySelector(".done")) finish();
     }
   }
 
@@ -1032,12 +1013,8 @@
       added++;
     }
     toast(added ? `Imported ${plural(added, "game")}` : "Nothing new to import");
-  }
-
-  function share(){
-    const url = location.origin + location.pathname;
-    if (navigator.share) navigator.share({ title: "Zombie Dice", text: "Zombie Dice — sign in with the Gmail that's been added.", url }).catch(() => {});
-    else if (navigator.clipboard) navigator.clipboard.writeText(url).then(() => toast("Link copied")).catch(() => {});
+    try { localStorage.removeItem(BACKFILL_KEY + cloud.user.uid); } catch {}
+    backfill();
   }
 
   // ---- storage ----
@@ -1067,8 +1044,23 @@
   renderMode();
   tap($("rollBtn"), doRoll);
   tap($("stopBtn"), doStop);
-  tap($("leaveBtn"), () => leaveGame(false));
-  armed($("abandonBtn"), "Abandon game", async () => { const id = g.id; leaveGame(true); await store.remove(id); });
+  // One ⋯ in the game: Home, or Abandon behind a hold.
+  ui.menu($("menuBtn"), { title: "This game", items: [
+    { label: "Home", value: "home", run: () => leaveGame(false) },
+    { label: "Abandon the game", value: "abandon", hold: true, run: async () => {
+      const id = g.id; leaveGame(true);
+      await store.remove(id).catch(e => toast("Couldn't abandon: " + (e.message || e)));
+    } }
+  ] });
+  // Setup's other two ways in (design frame 8a): whoever scans your QR, or a guest, joins the lineup.
+  const addToLineup = id => {
+    if (!id) return;
+    pickedTouched = true;
+    if (!picked.includes(id) && picked.length < MAX_PLAYERS) picked = [...picked, id];
+    render();
+  };
+  tap($("qrBtn"), async () => addToLineup(await people.scan(APP_ID)));
+  tap($("guestBtn"), async () => addToLineup(await people.addGuest()));
   tap($("addBtn"), async () => {
     const id = await people.edit(null, { noun: "player" });
     if (!id) return;
@@ -1077,15 +1069,11 @@
     toast(`${nameOf(id)} added`);
     render();
   });
-  tap($("shareBtn"), share);
-  tap($("exportBtn"), exportAll);
-  tap($("importBtn"), () => $("importFile").click());
   $("importFile").addEventListener("change", e => {
     const f = e.target.files && e.target.files[0];
     e.target.value = "";
     if (f) importFile(f);
   });
-  phone.mountInstall($("installHere"), { label: "Install on this phone" });
   renderDiceKey();
   addEventListener("resize", () => { if (g && !busy) renderGame(); });
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && g) phone.keepAwake(true); });
@@ -1093,38 +1081,67 @@
   people.onChange(() => { refreshGames(); if (g) renderGame(); else render(); });
 
   // ---- cloud ----
-  const userBox = $("userBox");
   await cloud.init(APP_ID);
+  connect.handleInvite({ app: APP_ID, appName: "Zombie Dice" });   // a scanned QR: connect first
 
-  function applyUser(user){
-    if (user){
-      userBox.innerHTML = `${user.photoURL ? `<img src="${user.photoURL}" alt="">` : ""}<button class="quiet userbtn" id="signOut">Sign out</button>`;
-      tap($("signOut"), () => cloud.signOut());
-    } else userBox.innerHTML = "";
-    start(user);
+  // Your avatar in the header, and its sheet: Profile, My QR, Friends, Export, Import (the
+  // owner's), Install on this phone, Sign out.
+  function mountAccount(){
+    const user = cloud.user, me = user ? people.meId() : null, p = me ? people.get(me) : null;
+    const installed = phone.installed();
+    const sig = JSON.stringify([user && user.uid, me, p && [p.name, p.photo, people.colourOf(me)], owner, installed]);
+    if (sig === accountSig) return;
+    accountSig = sig;
+    const extra = !user ? [] : [
+      { label: "Profile", value: "profile", run: () => connect.showProfile() },
+      { label: "My QR", value: "qr", run: () => connect.showQR({ app: APP_ID }) },
+      { label: "Friends", value: "friends", run: () => connect.showFriends() },
+      { label: "Export", value: "export", run: exportAll },
+      ...(owner ? [{ label: "Import", value: "import", run: () => $("importFile").click() }] : []),
+      ...(installed ? [] : [{ label: "Install on this phone", value: "install", run: async () => {
+        const how = await phone.install();
+        if (how) ui.sheet({ title: "Install", text: how });
+      } }]),
+    ];
+    ui.account($("meHost"), user, { onSignIn: () => cloud.signIn().catch(e => toast("Sign-in failed: " + (e.code || e.message || e))),
+      onSignOut: () => cloud.signOut(), extra, name: p ? p.name : "", avatar: me ? people.avatar(me, 48) : null });
   }
-  cloud.onUser(applyUser);
-  if (!cloud.user) applyUser(null);
+  people.onChange(mountAccount);
+
+  cloud.onUser(start);
+  if (!cloud.user) start(null);
 
   tap($("signInBig"), () => cloud.signIn().catch(err => {
     $("gateMsg").textContent = "Sign-in failed: " + (err && err.code ? err.code : err);
   }));
 
   // ---- app ----
-  let resumed = false;
-  function start(user){
+  // The owner sees every game and keeps the household list. Everyone else, a household member
+  // included, plays with their friends and guests and sees only the games they're in (the open
+  // rule, shared/firestore.rules). A role that can't be read means a player: what the rules allow anyone.
+  async function start(user){
     unsubs.forEach(u => { try { u(); } catch {} });
     unsubs = [];
+    const mine = ++run;
+    owner = false;
+    mountAccount();
     const gated = cloud.configured() && !user;
     $("gate").classList.toggle("hidden", !gated);
     $("app").classList.toggle("hidden", gated);
     if (gated){ if (g) leaveGame(false); return; }
 
     if (cloud.configured()){
-      unsubs.push(people.start({ onError: e => toast("Couldn't save to the cloud: " + (e.message || e)) }));
+      let role = null;
+      try { role = await cloud.role(); } catch (e){ console.warn("[role]", e); }
+      if (mine !== run) return;
+      owner = role === "owner";
+      mountAccount();
+      unsubs.push(people.start({ household: owner, onError: e => toast("Couldn't save to the cloud: " + (e.message || e)) }));
+      const opts = owner ? { orderBy: "at", desc: true, limit: 500 } : { where: ["uids", "array-contains", user.uid] };
       unsubs.push(cloud.watchList("games", rows => {
         rawGames = rows.filter(r => Array.isArray(r.players));
         refreshGames();
+        backfill();
         // Reopening the app drops straight back into this phone's game.
         if (!resumed){
           resumed = true;
@@ -1134,10 +1151,39 @@
           if (x && !g) openGame(x.id);
         }
         if (g) syncOpenGame(); else render();
-      }, { orderBy: "at", desc: true, limit: 500 }));
+      }, opts, e => toast("Couldn't load your games: " + (e.code || e.message || e))));
     }
     render();
   }
+
+  // ---- the backfill, once, on the owner's phone (KIT-PLAN Session 7 step 4) ----
+  // Games from before the open rule name players by the household's ids and say who started them
+  // by email. Each gets its ids resolved (a claimed person's becomes their uid), names, uids for
+  // the players with an account, and by as a uid (the owner's when the starter can't be named).
+  // Again after an Import, which can bring old games back.
+  const BACKFILL_KEY = "zombie-dice.uids-backfill.";
+  let backfilling = false;
+  async function backfill(){
+    if (!owner || backfilling || !people.ready || !cloud.user) return;
+    try { if (localStorage.getItem(BACKFILL_KEY + cloud.user.uid)) return; } catch {}
+    const old = rawGames.filter(x => !Array.isArray(x.uids));
+    backfilling = true;
+    try {
+      const byEmail = email => { const p = people.active().find(q => q.email && q.email === String(email || "").toLowerCase()); return p && p.uid; };
+      const ops = old.map(raw => {
+        const x = resolveGame(raw);
+        return { patch: `games/${raw.id}`, data: {
+          players: x.players, seats: x.seats, scores: x.scores, winner: x.winner, turns: x.turns,
+          names: people.names(x.players), uids: people.uidsOf(x.players),
+          by: (raw.by && !String(raw.by).includes("@") ? raw.by : byEmail(raw.by)) || cloud.user.uid } };
+      });
+      for (let i = 0; i < ops.length; i += 400) await cloud.batch(ops.slice(i, i + 400));
+      try { localStorage.setItem(BACKFILL_KEY + cloud.user.uid, "1"); } catch {}
+      if (ops.length) console.info(`[backfill] gave ${ops.length} games their names and uids`);
+    } catch (e){ console.warn("[backfill]", e); }
+    finally { backfilling = false; }
+  }
+  people.onChange(backfill);
 
   // ---- offline shell ----
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
