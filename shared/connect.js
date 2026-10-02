@@ -2,7 +2,7 @@
 //
 //   import { connect } from "../shared/connect.js";   // reads ?i=<code> the moment it loads
 //   await cloud.init("rack-it");
-//   connect.handleInvite({ app: "rack-it", onDone }); // first, before the app's own start
+//   connect.handleInvite({ app: "rack-it", appName: "Rack It", onDone }); // first, before the app's own start
 //   connect.showQR({ app: "rack-it" });               // My QR
 //   connect.showQR({ app, onFriend: uid => …, onClose }) // …and who scanned it (people.pick's Scan)
 //   connect.showFriends();                            // Friends: each one's card (note, met, tags), Remove
@@ -147,7 +147,8 @@ function avatar(uid, size = 36, known = null){
 
 // ---- arriving through a QR ----
 let inviteDone = false;
-function handleInvite({ app = "", onDone } = {}){
+// appName is what the signed-out card calls the app the QR was opened in.
+function handleInvite({ app = "", appName = "", onDone } = {}){
   const code = savedCode();
   if (!code || inviteDone) return false;
   inviteDone = true;
@@ -188,7 +189,8 @@ function handleInvite({ app = "", onDone } = {}){
         const inv = await cloud.account.lookupInvite(code);
         if (!inv) return dead();
         card(`<h2>Connect with ${esc(inv.name)}</h2>
-          <p class="cn-dim">Sign in, and you'll be in each other's Friends in every sidequests app that has them.</p>`,
+          <p class="cn-dim">${appName ? `Sign in to ${esc(appName)}, and you'll be in each other's Friends.`
+            : "Sign in, and you'll be in each other's Friends."}</p>`,
           [["Sign in with Google", "primary cn-big", () => cloud.signIn().catch(e => trouble(e))],
            ["Not now", "quiet", () => finish(null)]]);
         mid.prepend(avatar(null, 96, { name: inv.name }));

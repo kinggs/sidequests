@@ -53,6 +53,11 @@ same day; where it changes an earlier row, the earlier row says so.
 | Rules are tested | `shared/rules-check.mjs` runs in the `deploy-rules` Action before the deploy. A failing check blocks the rules deploy, never an app. Each rule's cases are written before the rule (owner, 2026-10-01). |
 | QR library | Vendored at `shared/vendor/`, not a CDN. Why: each `sw.js` only caches same-origin files, so a CDN copy fails offline. |
 | Family | Stays, keyed by email, as "the household": owner role, and the apps that haven't adopted Players. Not moved to uid. |
+| **2026-10-02 (owner)** | |
+| An admin, not a family | **In Rack It there is no family tier.** The owner is the one admin and sees every match; everyone else, Melanie included, is a player who sees only matches they're in. Other apps keep `/members` until Session 8. Session 6b. |
+| The "Before you play" note | Goes in 6b: once only the players and the admin can read a match, there's nothing to warn about. |
+| Household data worth keeping | Only the owner's and Melanie's matches and ratings. The other household people may be dropped and re-invited. |
+| The invite card | Names the app it was opened in ("Sign in to Rack It, …"), not "every sidequests app". 2.10.1. |
 
 ## The two tiers
 
@@ -75,6 +80,7 @@ A household member is also an account.
 | 4 | Players: pick a friend, scan, or add a guest | Rack It's setup picks from friends |
 | 5 | Rated matches and confirming | A **Rated** tick; friendlies stop moving ratings |
 | 6 | Outsiders play in Rack It | A pool friend uses Rack It |
+| 6b | One admin, everyone else a player (Rack It) | Melanie sees her own matches; the note goes |
 | 7 | Claiming a guest | "That was them" |
 | 8 | The kit menu in `/sidequest`; other apps adopt Players | Bloc 11 and the rest get friends |
 
@@ -540,6 +546,67 @@ Session 6). Real phones pending.
 
 ---
 
+## Session 6b — One admin, everyone else a player (Rack It)
+
+Owner, 2026-10-02: "A family member is just another member. We remove the notion of a family
+member for now; rather the idea of an admin, and Kenny is the only admin." Rack It only; the
+other apps keep `/members` until Session 8. Prerequisite done: real phones checked on 2.10.0.
+
+### Rules (`shared/firestore.rules`), cases first
+
+- [ ] Rack It drops `isFamily()` everywhere; `isOwner()` takes its place:
+  - the generic `/sidequests/{appId}/**` read becomes `isFamily() && appId != 'rack-it'`, so
+    the household no longer reads Rack It through it;
+  - `matches`: read `uid in uids || isOwner()`; create `outsiderStarts() || isOwner()`; update
+    `playerScores() || isOwner()`; delete `isOwner()`. The household branch (and its
+    `ratedOnlyTurnsOff` guard) goes;
+  - `ratings`: get `signedIn()`, list only through `isOwner()`; write `confirming() ||
+    guestStarter() || isOwner()`;
+  - `starters`: owner only, create included. `state/main`: get `signedIn()`, write `isOwner()`.
+- [ ] **Must refuse**, for a member who isn't the owner (Melanie, `MEMBER` in the check):
+  - reading or listing a match she isn't in;
+  - listing ratings or starters;
+  - writing `state/main`, a starter, or any rating outside a confirmation;
+  - changing a saved match.
+
+  Each guard turns its own case red when removed (Session 6's mutation script, in Handover).
+- [ ] **Must pass**:
+  - the owner reads, lists and rewrites every match, and lists ratings;
+  - Melanie reads and lists her own matches with the `uids` filter, and plays, saves, confirms,
+    declines and withdraws exactly as an outsider does.
+- [ ] `/members`, Invites and the other apps don't change.
+
+### Rack It (minor bump)
+
+- [ ] `role === "owner"` runs today's household path; anything else, `"member"` included,
+  runs friend mode. `people.start` gets the household list for the owner only (an option, so
+  the other apps keep reading it as members).
+- [ ] **Backfill, once, on the owner's phone** (like the 2.7.0 ratings move): every match with
+  no `uids` gets `uids` from `people.uidsOf` of its resolved players, plus `names` if missing.
+  Nothing else in the match changes. Without it Melanie loses every match before 2.8.0.
+  Wait for `people.ready`, as the ratings move does.
+- [ ] Remove the "Before you play" note and its `localStorage` key.
+- [ ] Owner, before deploying: you and Melanie connect with My QR once. The create rule needs a
+  friendship to start a match between two accounts.
+- [ ] ⚠ The order matters. A phone still on 2.10.x is refused its unfiltered matches list once
+  the rules land, and shows no matches until reopened. Ship the app and the rules in one push,
+  and tell Melanie to reopen.
+- [ ] SPEC §7, §7.1, §8.2, §9; `KIT.md` privacy table ("An app's records: the players in them
+  and the admin"); the CLAUDE.md Firebase section, where it says the household reads everything.
+
+### Done when
+
+In `?mock`, with tabs for the owner, `&as=mel&role=member` and `&as=ann`:
+- Melanie sees her matches with the owner, including the backfilled pre-2.8.0 ones on a seed of
+  the owner's export, and not Ann's matches with the owner;
+- the owner sees all of them;
+- Rebuild on that seed gives the same numbers before and after;
+- the Session 6 outsider test still passes.
+
+Then on the two real phones.
+
+---
+
 ## Session 7 — Claiming a guest
 
 - [ ] On a guest: **That was them** → pick a friend. It rewrites that guest's matches (the
@@ -585,6 +652,10 @@ Session 6). Real phones pending.
 - Household membership as a custom claim, to save the `/members` lookup on every request.
   Needs server code.
 - A standalone Connect app at `connect/`, for people who only want the QR.
+- Bloc 11: the owner is considering retiring or rethinking it (2026-10-02). Decide before Session 8
+  moves it to Players.
+- The smoke test never opens an app signed out, which is how 2.10.0's blank sign-in screen got
+  through (Session 6 Handover, 2.10.1). A signed-out pass, once `?mock` can start signed out.
 - iPhone: the home-screen app and Safari keep separate sign-ins, so an iPhone scan always
   lands in Safari. Note it and leave it.
 
@@ -1013,4 +1084,18 @@ What the plan got wrong, or didn't say:
 11. A friend added from Ratings in friend mode gets no starter form: only a guest's starter is
     the outsider's to write. The friend plays from their own rating, or from 500.
 12. "Kenny's household" is written into the page; an outsider can't read who the owner is.
+
+After the deploy, the same day:
+
+- **Real phones, 2026-10-02 (owner):** a full invite and a game played through on 2.10.0; "looks
+  good".
+- **2.10.1 fixes a 2.10.0 bug:** a signed-out visitor got a blank screen instead of Sign in.
+  `handleUser(null)` runs before the rest of the script, and it read `friendMode` before its
+  `let`. The declarations now sit above `handleUser`. The smoke test missed it because it never
+  opens an app signed out (Parked). The invite card scanned while signed out still showed,
+  since it runs first.
+- **2.10.1 also names the app on the invite card:** "Sign in to Rack It, and you'll be in each
+  other's Friends." `connect.handleInvite` takes `appName`.
+- **The owner ruled on the family tier.** Rack It will have one admin and players, and the
+  "Before you play" note goes with it. That's Session 6b, planned above.
 

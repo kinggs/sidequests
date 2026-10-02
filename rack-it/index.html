@@ -731,7 +731,7 @@ import { people } from "../shared/people.js";
 import { connect } from "../shared/connect.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "2.10.0";
+const APP_VERSION = "2.10.1";
 const APP_ID = "rack-it";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 document.getElementById("versionMore").textContent = "v" + APP_VERSION;
@@ -1144,6 +1144,9 @@ function paintOwner(){
 // The gate stays hidden until auth state is actually known, so a signed-in
 // user never sees a flash of the Sign in button while Firebase wakes up.
 let started = false;
+// Declared before handleUser, which runs signed out before the rest of this script (2.10.1).
+let friendMode = false;              // signed in but not on /members (friend mode, below)
+const ratingWatches = new Map();     // friend mode's one listener a rating
 async function handleUser(user){
   if(user){
     el.userBox.innerHTML = `<img alt="" referrerpolicy="no-referrer"><span></span>`;
@@ -1192,7 +1195,7 @@ async function handleUser(user){
   }
 }
 await cloud.init(APP_ID);
-connect.handleInvite({ app: APP_ID });   // a scanned QR: connect first, over whatever's behind
+connect.handleInvite({ app: APP_ID, appName: "Rack It" });   // a scanned QR: connect first, over whatever's behind
 handleUser(cloud.user);
 cloud.onUser(handleUser);
 el.signInBig.addEventListener("click", () => cloud.signIn().catch(e => {
@@ -1207,7 +1210,6 @@ el.signOutBtn.addEventListener("click", () => cloud.signOut());
 // `uids` (one query with that filter and no orderBy; sorted here), ratings one at a time by id
 // (theirs, their friends' and guests', and everyone in their matches), and the config. No
 // Invites, Import or Rebuild. The household still sees every match, so the first open says so.
-let friendMode = false;
 async function startFriendMode(){
   friendMode = true;
   paintFriendMode();
@@ -1236,7 +1238,6 @@ tapBind(el.hhOk, () => {
 });
 // One listener a rating, since only the household lists them. Kept in step with who this phone
 // can name and who is in its matches; a rating nobody needs any more stops being watched.
-const ratingWatches = new Map();
 function watchRatingIds(){
   if(!friendMode || !cloud.user) return;
   const want = new Set([cloud.user.uid, ...people.players().map(p => p.id)]);
