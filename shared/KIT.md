@@ -2,10 +2,10 @@
 
 Every sidequest is one `index.html`. What they have in common lives in `shared/`, as parts
 an app picks when it's made: the shopping cart. `/sidequest` asks which parts a new app
-wants (from `KIT-PLAN.md` Session 8). Adding a part to an existing app later is one import
+wants (from `KIT-PLAN.md` Session 9). Adding a part to an existing app later is one import
 and one mount call.
 
-Status and build order: `shared/KIT-PLAN.md`.
+Status and build order: `shared/KIT-PLAN.md`. Finished sessions: `shared/KIT-HISTORY.md`.
 
 ## The parts
 
@@ -16,7 +16,9 @@ Status and build order: `shared/KIT-PLAN.md`.
 | **Theme** | `theme.css` | The shared look | — | ✓ |
 | **Sign-in** | `cloud.js` | Google sign-in, an account (uid) with a name and photo | Storage | ✓ |
 | **Connect** | `connect.js` | My QR, scan to connect, friends list with note, met and tags | Sign-in | ✓ |
-| **Players** | `people.js` | Pick who's playing: a friend, a QR scan, or a guest | Connect | ✓ in Rack It; other apps Session 8 |
+| **Players** | `people.js` | Pick who's playing: a friend, a QR scan, or a guest | Connect | ✓ in Rack It; other apps Sessions 7 and 9 |
+| **UI** | `ui.js` | Tap, hold-to-confirm, toast, bottom sheet, row menu, the account sheet (`DESIGN.md`) | Theme | Session 7 |
+| **Shared games** | `connect.js` | A Game QR, seats, one game on several phones, a scorer (`KIT-PLAN.md` Session 8) | Players | Session 8 |
 | **Household** | `cloud.js` | The `/members` allowlist and owner role | Sign-in | ✓ |
 
 ## Sign-in and accounts
@@ -104,7 +106,7 @@ puts anyone on `/members`: Invites does that.
 | The name on your QR | Anyone holding the QR within its 24 hours, so the welcome screen can say who it's from |
 | That two people are friends | Those two only |
 | Your notes, tags, met, guests | You only. Your friends can't see your friends. |
-| An app's records | The players in them and the admin. In Rack It (from 2.11.0) that's all: the owner sees every match, and everyone else, household members included, only the records with their uid in `uids`. Apps that haven't adopted Players: the household sees all of them, until Session 8. |
+| An app's records | The players in them and the admin. In Rack It (from 2.11.0) that's all: the owner sees every match, and everyone else, household members included, only the records with their uid in `uids`. Apps that haven't adopted Players: the household sees all of them, until the app is visited (`KIT-PLAN.md` Sessions 7 and 9). |
 | A Rack It rating | Anyone signed in who has that player's id, one at a time. Only the owner can list them. |
 
 Email addresses are never in a profile, a friendship or a record's `names`.

@@ -17,9 +17,11 @@ sidequests/
     rules-check.mjs       ← cases the rules must pass; the deploy-rules Action runs them first
     smoke.mjs             ← opens every app as the owner and as a stranger; fails on any error
     KIT.md  KIT-PLAN.md   ← the shared parts an app opts into, and the plan building them
+    KIT-HISTORY.md        ← the plan's finished sessions and their Handover notes
     people.js             ← the household's people, shared by every app (list, "you", add/edit sheet, avatars)
     theme.css             ← the shared look (dark system v2): tokens, fonts, buttons, chips, rows, tiles
     fonts/                ← Space Grotesk 600 and 700, self-hosted so the apps work with no signal
+  design_handoff/         ← the v3 design pack (2026-10-02); KIT-PLAN.md says where the plan overrides it
   _template/              ← what /sidequest copies
   index.html              ← landing page listing every app
   <app-id>/
@@ -51,7 +53,7 @@ GitHub Pages serves `main` from the repo root. Nothing to configure per app.
 - **Adding a person:** in-app — Rack It (the `rack-it` app) → More → Invites — or via `cloud.addMember(email)` from any app. Instant; no rules deploy needed. Rules deploys are only for changing the rules *logic*.
 - **The owner:** one member's `/members` document carries `role: "owner"`, set by hand in the Firebase console. Only the owner removes a member, and the rules keep an app's can't-be-undone writes (Rack It: deleting or rewriting saved matches, changing starter ratings) to the owner. Apps read it with `cloud.role()` and hide those buttons from everyone else. A new Rack It collection needs its own rule. `?mock` is an owner; `?mock&role=member` isn't.
 - **Deploying rules:** push to `main`. The `deploy-rules` GitHub Action deploys `shared/firestore.rules` automatically whenever it changes, from any session on any device. (Fallbacks if the Action ever breaks: desktop CLI `firebase deploy --only firestore:rules`, or paste the file into Firebase console → Firestore Database → Rules → Publish.)
-- **Beyond the family (in progress).** Sidequests is opening to people outside the household: pool friends, staff at the venues, guests without a phone. Shared features become a kit of parts each app opts into (`shared/KIT.md`); the build order is `shared/KIT-PLAN.md`, piloted in Rack It. Accounts are keyed by `uid`, with data in top-level `/profiles`, `/invites` and `/friendships`, never under `/sidequests/` (household members can read everything there, bar Rack It). **Rack It has one admin** (Session 6b): the owner sees every match, and everyone else, Melanie included, is a player who sees only the matches they're in. `/members` is the household only: playing in an app is never a reason to add someone to it. No paid plan and no server code (decided 2026-10-01). Read the plan before touching sign-in, `people.js` or the rules.
+- **Beyond the family (in progress).** Sidequests is opening to people outside the household: pool friends, staff at the venues, guests without a phone. Shared features become a kit of parts each app opts into (`shared/KIT.md`); the build order is `shared/KIT-PLAN.md`, piloted in Rack It, with the new look (`design_handoff/`) merged into it. Accounts are keyed by `uid`, with data in top-level `/profiles`, `/invites` and `/friendships`, never under `/sidequests/` (household members can read everything there, bar Rack It). **Rack It has one admin** (Session 6b): the owner sees every match, and everyone else, Melanie included, is a player who sees only the matches they're in. `/members` is the household only: playing in an app is never a reason to add someone to it. No paid plan and no server code (decided 2026-10-01). Read the plan before touching sign-in, `people.js` or the rules.
 - Offline works out of the box: `cloud.js` turns on Firestore's persistent local cache, and each app's `sw.js` caches the shell.
 
 ## Working style
