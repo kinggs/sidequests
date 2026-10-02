@@ -67,7 +67,7 @@
   <div class="me-host" id="meHost"></div>
 </header>
 
-<main class="page" id="main"></main>
+<main class="page" id="main"><p class="empty">Opening…</p></main>
 
 <footer class="foot" id="foot">Sessions Loyalty <span id="version"></span></footer>
 <nav class="tabbar hidden" id="tabs" aria-label="Staff"></nav>
@@ -80,17 +80,20 @@
   import * as L from "./loyalty.js";
 
   // Bump on every change. The deploy skill checks this against the live site.
-  const APP_VERSION = "0.1.0";
+  const APP_VERSION = "0.1.1";
   const APP_ID = "sessions-loyalty";
   const APP_NAME = "Sessions Loyalty";
   document.getElementById("version").textContent = "v" + APP_VERSION;
 
   // ---- state ----
   let user = null, staff = false, owner = false;
-  let settings = L.withDefaults(null);
-  let rewards = [], earns = [];
-  let card = null, myEntries = null;            // the member side
-  let cards = [], recent = [], staffList = [];  // the staff side
+  let settings = L.withDefaults(null), settingsIn = false;
+  // Lists are null until their first snapshot, so a screen says "Loading…" and never "Nothing
+  // yet" before the data is in. The card is undefined until read, then null when there is none.
+  let rewards = null, earns = null;
+  let card, myEntries = null;                   // the member side
+  let cards = null, recent = null, staffList = null;   // the staff side
+  let checked = false, slow = false, slowTimer = 0;    // staff or member known; waited long enough
   let member = null, memberEntries = null;      // the member page open on the staff side
   let tab = "scan", viewAsMember = false, find = "", itemsSeg = "rewards";
   let unsubs = [], pageUnsubs = [];
@@ -230,12 +233,15 @@
   function stopAll(){
     for (const off of [...unsubs, ...pageUnsubs]) { try { off(); } catch {} }
     unsubs = []; pageUnsubs = [];
-    staff = false; owner = false; card = null; myEntries = null; cards = []; recent = []; staffList = []; member = null; memberEntries = null;
+    staff = false; owner = false; card = undefined; myEntries = null; cards = null; recent = null; staffList = null; member = null; memberEntries = null;
+    rewards = null; earns = null; settingsIn = false; checked = false; slow = false; clearTimeout(slowTimer);
     viewAsMember = false; tab = "scan";
   }
 
   async function start(u){
     render();
+    // Offline on a first open, nothing may ever arrive: after a while show what there is.
+    slowTimer = setTimeout(() => { slow = true; render(); }, 6000);
     let role = null;
     try { role = await cloud.role(); } catch (e) { console.warn("[" + APP_ID + "] role", e); }
     owner = role === "owner";
@@ -243,9 +249,10 @@
     try { mine = await cloud.load("staff/" + u.uid); } catch (e) { console.warn("[" + APP_ID + "] staff", e); }
     if (cloud.user !== u) return;   // signed out meanwhile
     staff = owner || !!mine;
+    checked = true;
     mountAccount(u);
     const onErr = what => e => report(what, e);
-    unsubs.push(cloud.watch("settings/main", d => { settings = L.withDefaults(d); render(); }, onErr("Couldn't read the settings")));
+    unsubs.push(cloud.watch("settings/main", d => { settings = L.withDefaults(d); settingsIn = true; render(); }, onErr("Couldn't read the settings")));
     unsubs.push(cloud.watchList("rewards", rows => { rewards = sortItems(rows); render(); }, {}, onErr("Couldn't read the rewards")));
     unsubs.push(cloud.watchList("earns", rows => { earns = sortItems(rows); render(); }, {}, onErr("Couldn't read the ways to earn")));
     // Your own card and entries: what every account reads.
@@ -272,7 +279,19 @@
         btn("Sign in with Google", "primary big", () => cloud.signIn().catch(e => report("Couldn't sign in", e)))));
       return;
     }
+    if (!checked || (!slow && !firstDataIn())){
+      tabsEl.classList.add("hidden");
+      $("sideLbl").textContent = "";
+      main.replaceChildren(h("p", { class: "empty", text: "Loading…" }));
+      return;
+    }
     if (staff && !viewAsMember) renderStaff(); else renderMember();
+  }
+  // The side's first data: enough to draw the whole screen once, with no "Nothing yet" lies.
+  function firstDataIn(){
+    const items = settingsIn && rewards && earns;
+    if (staff && !viewAsMember) return items && cards && recent && staffList;
+    return items && card !== undefined && myEntries;
   }
 
   // ---- the member side ----
@@ -281,13 +300,14 @@
     $("sideLbl").textContent = "";
     const t = L.tierFor(card ? card.xp : 0, settings);
     const points = card ? Number(card.points) || 0 : 0;
+    const liveR = (rewards || []).filter(r => r.active !== false), liveE = (earns || []).filter(r => r.active !== false);
     const name = (profiles.get(user.uid) || {}).name || (card && card.name) || user.displayName || "";
     const page = [];
     const lc = h("div", { class: "lcard" },
       h("div", { class: "top" }, h("span", { class: "lbl club", text: settings.name }), card ? h("span", { class: "tier", text: t.name }) : null),
       h("div", { class: "name", text: name }));
     if (card){
-      const away = L.nextReward(points, rewards.filter(r => r.active !== false));
+      const away = L.nextReward(points, liveR);
       lc.append(
         h("div", { class: "fig-xl pts" }, fmt(points), h("small", { text: `points · ${fmt(card.xp)} XP${t.next ? ` · ${t.next.name} at ${fmt(t.next.xp)}` : ""}` })),
         h("div", { class: "meta" }, h("span", { text: "Member since " + dateOf(card.since) }), h("span", { text: card.memberNo ? "#" + card.memberNo : (card.status === "member" ? "Member" : card.status === "lapsed" ? "Lapsed" : "") })));
@@ -299,7 +319,7 @@
           h("div", { text: `Your next reward is ${fmt(away.away)} points away` }),
           h("div", { class: "brow" }, h("div", { class: "track" }, h("i", { style: `width:${pct}%` })), h("span", { class: "n", text: fmt(away.reward.cost) })),
           h("p", { class: "note", text: away.reward.title })));
-      } else if (rewards.some(r => r.active !== false && (Number(r.cost) || 0) > 0)){
+      } else if (liveR.some(r => (Number(r.cost) || 0) > 0)){
         page.push(h("p", { class: "note", style: "margin-top:12px", text: "You can afford every reward. Show your QR at the bar." }));
       }
     } else {
@@ -310,8 +330,9 @@
 
     page.push(lbl("Rewards"));
     const rl = h("ul", { class: "rows" });
-    const shownR = rewards.filter(r => r.active !== false);
-    if (!shownR.length) rl.append(empty("No rewards yet."));
+    const shownR = liveR;
+    if (!rewards) rl.append(empty("Loading…"));
+    else if (!shownR.length) rl.append(empty("No rewards yet."));
     for (const r of shownR){
       const cost = Number(r.cost) || 0, can = L.canAfford(points, r);
       rl.append(h("li", { tap: () => ui.sheet({ title: r.title, text: [r.blurb, r.condition].filter(Boolean).join(" · ") || (cost ? `${fmt(cost)} points` : "Free"),
@@ -323,8 +344,9 @@
 
     page.push(lbl("Earn"));
     const el = h("ul", { class: "rows" });
-    const shownE = earns.filter(r => r.active !== false);
-    if (!shownE.length) el.append(empty("No tasks yet."));
+    const shownE = liveE;
+    if (!earns) el.append(empty("Loading…"));
+    else if (!shownE.length) el.append(empty("No tasks yet."));
     for (const e of shownE){
       el.append(h("li", { tap: () => ui.sheet({ title: e.title, text: (e.blurb ? e.blurb + " " : "") + `Do it, then show your QR at the bar and staff add the ${fmt(e.points)} points.`,
           items: [{ label: "Show my QR", value: "qr", primary: true }] }).then(v => { if (v === "qr") connect.showQR({ app: APP_ID }); }) },
@@ -372,16 +394,17 @@
   }
 
   function renderScan(){
-    const today = recent.filter(e => !e.voided && L.sameDay(e.at, Date.now()));
+    const today = (recent || []).filter(e => !e.voided && L.sameDay(e.at, Date.now()));
     const t = L.totals(today);
+    const fig = v => recent ? v : "–";
     main.replaceChildren(
       btn("Scan a member's QR", "primary big wide", scanMember, { style: "margin-top:8px" }),
       btn("Sign up a new member", "quiet wide", signUp, { style: "margin-top:12px" }),
       lbl("Today"),
       h("div", { class: "tiles" },
-        h("div", { class: "tile" }, h("b", { text: fmt(t.visits) }), h("span", { text: "visits" })),
-        h("div", { class: "tile" }, h("b", { text: L.rand(t.rands) }), h("span", { text: "at the bar" })),
-        h("div", { class: "tile on" }, h("b", { text: fmt(t.earned) }), h("span", { text: "points" }))),
+        h("div", { class: "tile" }, h("b", { text: fig(fmt(t.visits)) }), h("span", { text: "visits" })),
+        h("div", { class: "tile" }, h("b", { text: fig(L.rand(t.rands)) }), h("span", { text: "at the bar" })),
+        h("div", { class: "tile on" }, h("b", { text: fig(fmt(t.earned)) }), h("span", { text: "points" }))),
       lbl("Recent"),
       entriesList(recent, { who: true, limit: 30, tapRow: e => openMember(e.uid, e.name) }));
   }
@@ -393,10 +416,11 @@
     const ul = h("ul", { class: "rows" });
     const paint = () => {
       const term = find.trim().toLowerCase();
-      const list = cards.filter(c => !term || String(c.name || "").toLowerCase().includes(term) || String(c.memberNo || "").toLowerCase() === term)
+      const list = (cards || []).filter(c => !term || String(c.name || "").toLowerCase().includes(term) || String(c.memberNo || "").toLowerCase() === term)
         .sort((a, b) => (b.lastAt || b.since || 0) - (a.lastAt || a.since || 0));
       ul.replaceChildren();
-      if (!cards.length) ul.append(empty("Nobody yet. Scan a member's QR to make their card."));
+      if (!cards) ul.append(empty("Loading…"));
+      else if (!cards.length) ul.append(empty("Nobody yet. Scan a member's QR to make their card."));
       else if (!list.length) ul.append(empty("Nobody matches."));
       for (const c of list){
         const t = L.tierFor(c.xp, settings);
@@ -416,7 +440,7 @@
     try {
       friends = await new Promise((res, rej) => { const off = cloud.account.watchFriends(list => { off(); res(list); }, rej); });
     } catch (e){ return report("Couldn't read your friends", e); }
-    const have = new Set(cards.map(c => c.uid || c.id));
+    const have = new Set((cards || []).map(c => c.uid || c.id));
     const rows = friends.filter(f => !have.has(f.uid));
     if (!rows.length) return ui.toast(friends.length ? "Every friend of yours already has a card." : "No friends yet. Scan someone's QR.");
     await Promise.all(rows.map(f => profileOf(f.uid)));
@@ -511,7 +535,7 @@
     if (!uid) return;
     closePage();
     tab = "members"; member = uid; find = "";
-    const have = cards.find(c => (c.uid || c.id) === uid);
+    const have = (cards || []).find(c => (c.uid || c.id) === uid);
     const p = await profileOf(uid);
     const nm = (p && p.name) || name || (have && have.name) || "Someone";
     try {
@@ -527,7 +551,7 @@
     render();
   }
   function closePage(){ for (const off of pageUnsubs) { try { off(); } catch {} } pageUnsubs = []; member = null; memberEntries = null; }
-  const cardOf = uid => cards.find(c => (c.uid || c.id) === uid) || null;
+  const cardOf = uid => (cards || []).find(c => (c.uid || c.id) === uid) || null;
 
   function renderMemberPage(){
     const uid = member, c = cardOf(uid);
@@ -535,7 +559,7 @@
     const t = L.tierFor(c.xp, settings);
     const page = [];
     const more = h("button", { type: "button", class: "more", text: "⋯", "aria-label": "More" });
-    const isStaff = staffList.some(s => s.id === uid);
+    const isStaff = (staffList || []).some(s => s.id === uid);
     ui.menu(more, { title: c.name, items: [
       ...(owner ? [isStaff ? { label: "Remove from staff", value: "unstaff", hold: true, run: () => cloud.delete("staff/" + uid).then(() => ui.toast("No longer staff"), e => report("Couldn't remove", e)) }
                            : { label: "Make staff", value: "staff", run: () => cloud.save("staff/" + uid, { name: c.name, addedAt: Date.now(), addedBy: user.uid }).then(() => ui.toast(c.name + " is staff"), e => report("Couldn't add staff", e)) }] : []),
@@ -615,7 +639,7 @@
     catch (e){ report("Couldn't log it", e); }
   }
   async function award(c){
-    const list = earns.filter(e => e.active !== false);
+    const list = (earns || []).filter(e => e.active !== false);
     if (!list.length) return ui.toast("No ways to earn yet. Add them under Items.");
     const v = await ui.sheet({ title: "Award", text: c.name, items: list.map(e => ({ label: `+${fmt(e.points)} · ${e.title}`, value: e.id })) });
     if (!v) return;
@@ -624,7 +648,7 @@
     catch (err){ report("Couldn't award it", err); }
   }
   async function redeem(c){
-    const live = rewards.filter(r => r.active !== false);
+    const live = (rewards || []).filter(r => r.active !== false);
     const can = live.filter(r => L.canAfford(c.points, r)), cant = live.length - can.length;
     if (!can.length) return ui.toast(live.length ? `${c.name} can't afford any reward yet.` : "No rewards yet. Add them under Items.");
     const v = await ui.sheet({ title: "Redeem", text: `${c.name} · ${fmt(c.points)} points` + (cant ? ` · ${cant} more need more points` : ""),
@@ -668,7 +692,7 @@
     const byUid = new Map();
     for (const e of all){ if (!byUid.has(e.uid)) byUid.set(e.uid, []); byUid.get(e.uid).push(e); }
     const ops = [];
-    for (const c of cards){
+    for (const c of (cards || [])){
       const uid = c.uid || c.id;
       if (only && !only.includes(uid)) continue;
       const after = L.cardAfter(c, byUid.get(uid) || []);
@@ -683,9 +707,10 @@
   function renderItems(){
     const seg = h("div", { class: "seg" }, ...[["rewards", "Rewards"], ["earns", "Earn"]].map(([v, label]) =>
       btn(label, "", () => { itemsSeg = v; render(); }, { "aria-pressed": String(itemsSeg === v) })));
-    const isR = itemsSeg === "rewards", list = isR ? rewards : earns, col = itemsSeg;
+    const isR = itemsSeg === "rewards", list = (isR ? rewards : earns) || [], col = itemsSeg;
     const ul = h("ul", { class: "rows" });
-    if (!list.length) ul.append(empty(isR ? "No rewards yet." : "No ways to earn yet."));
+    if (!(isR ? rewards : earns)) ul.append(empty("Loading…"));
+    else if (!list.length) ul.append(empty(isR ? "No rewards yet." : "No ways to earn yet."));
     for (const it of list){
       const m = h("button", { type: "button", class: "more", text: "⋯", "aria-label": "More" });
       ui.menu(m, { title: it.title, items: [
@@ -698,7 +723,7 @@
         h("span", { class: "fig" + (it.active === false ? " off" : ""), text: isR ? (Number(it.cost) ? String(Math.trunc(it.cost)) : "Free") : String(Math.trunc(it.points)) }), m));
     }
     const page = [seg, ul, btn(isR ? "Add a reward" : "Add a way to earn", "wide", () => editItem(col, null))];
-    if (!rewards.length && !earns.length) page.push(btn("Start from the Sessions list", "quiet wide", seedList, { style: "margin-top:12px" }),
+    if (rewards && earns && !rewards.length && !earns.length) page.push(btn("Start from the Sessions list", "quiet wide", seedList, { style: "margin-top:12px" }),
       h("p", { class: "note", style: "margin-top:10px", text: "The club's eight rewards and eight ways to earn as they were in the old app. Edit them after." }));
     main.replaceChildren(...page);
   }
@@ -750,7 +775,7 @@
     if (!data.title) return;
     try {
       if (it) await cloud.patch(`${col}/${it.id}`, data);
-      else await cloud.save(`${col}/${cloud.newId()}`, { ...data, order: (isR ? rewards : earns).length, createdAt: Date.now() });
+      else await cloud.save(`${col}/${cloud.newId()}`, { ...data, order: ((isR ? rewards : earns) || []).length, createdAt: Date.now() });
       ui.toast("Saved");
     } catch (e){ report("Couldn't save", e); }
   }
@@ -764,8 +789,9 @@
     if (owner){
       page.push(lbl("Staff"));
       const ul = h("ul", { class: "rows" });
-      if (!staffList.length) ul.append(empty("Only you. Add staff by scanning their QR."));
-      for (const s of staffList){
+      if (!staffList) ul.append(empty("Loading…"));
+      else if (!staffList.length) ul.append(empty("Only you. Add staff by scanning their QR."));
+      for (const s of (staffList || [])){
         const m = h("button", { type: "button", class: "more", text: "⋯", "aria-label": "More" });
         ui.menu(m, { title: s.name || s.id, items: [{ label: "Remove from staff", value: "rm", hold: true, run: () => cloud.delete("staff/" + s.id).then(() => ui.toast("Removed"), e => report("Couldn't remove", e)) }] });
         ul.append(h("li", {}, avatar(s.id, 44, s.name), h("div", { class: "who" }, h("div", { class: "l1", text: s.name || "…" }), h("div", { class: "l2", text: "since " + dateOf(s.addedAt) })), m));
@@ -825,7 +851,7 @@
     try {
       if (staff && !viewAsMember){
         const [sts, rs, es, cs, ns, en] = await Promise.all([cloud.load("settings/main"), cloud.list("rewards"), cloud.list("earns"), cloud.list("cards"), cloud.list("notes"), cloud.list("entries")]);
-        download(`sessions-loyalty-${stamp}.json`, { app: APP_ID, version: APP_VERSION, exportedAt: new Date().toISOString(), settings: sts || {}, staff: staffList, rewards: rs, earns: es, cards: cs, notes: ns, entries: en });
+        download(`sessions-loyalty-${stamp}.json`, { app: APP_ID, version: APP_VERSION, exportedAt: new Date().toISOString(), settings: sts || {}, staff: staffList || [], rewards: rs, earns: es, cards: cs, notes: ns, entries: en });
       } else {
         download(`sessions-loyalty-${stamp}-mine.json`, { app: APP_ID, version: APP_VERSION, exportedAt: new Date().toISOString(), uid: user.uid, card: card || null, entries: myEntries || [] });
       }

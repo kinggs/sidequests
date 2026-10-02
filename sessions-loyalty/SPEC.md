@@ -40,6 +40,11 @@ after sign-in: staff (your `staff/<uid>` document exists, or `cloud.role()` is `
 staff side with its four tabs; everyone else gets the member side, which scrolls. Staff can
 **View as a member** (More, and the account sheet) to see their own card.
 
+**Loading.** Opening says "Opening…", then "Loading…" until the app knows which side you are
+on and that side's first data is in, so it never shows the wrong side or "Nothing yet" before
+the data arrives. A list that hasn't arrived says "Loading…". Offline on a first open, after
+six seconds it shows what it has.
+
 ## 3. The QR
 
 A member's QR is their Connect QR (`connect.showQR`, `shared/KIT.md`): the same 24-hour code as
