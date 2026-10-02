@@ -38,7 +38,8 @@ It is one app, not two, because the club side and the member side are one set of
 CLAUDE.md rule 3 keeps every app inside its own namespace. Which side you see is decided once
 after sign-in: staff (your `staff/<uid>` document exists, or `cloud.role()` is `"owner"`) get the
 staff side with its four tabs; everyone else gets the member side, which scrolls. Staff can
-**View as a member** (More, and the account sheet) to see their own card.
+**View as a member** (More, and the account sheet) to see their own card; **View as staff**, at the
+top of that view and in the account sheet, brings them back.
 
 **Loading.** Opening says "Opening…", then "Loading…" until the app knows which side you are
 on and that side's first data is in, so it never shows the wrong side or "Nothing yet" before
@@ -85,7 +86,7 @@ to that staff account, nothing lands: find them under **Members → From your fr
 - **Recent**: your entries, newest first: "R90 at the bar", "Refer a friend", "Free cue rental
   (redeemed)", "Adjustment", with the date and the signed points. Voided ones are struck through.
 - **The account sheet** (your avatar): My QR, Profile, Export, Install on this phone, Sign out;
-  and **Staff side** when you're staff.
+  and **View as a member** or **View as staff** when you're staff.
 - Signed out: Sign in with Google.
 
 ## 5. The staff side (four tabs: Scan · Members · Items · More)

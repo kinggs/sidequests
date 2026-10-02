@@ -80,7 +80,7 @@
   import * as L from "./loyalty.js";
 
   // Bump on every change. The deploy skill checks this against the live site.
-  const APP_VERSION = "0.1.1";
+  const APP_VERSION = "0.1.2";
   const APP_ID = "sessions-loyalty";
   const APP_NAME = "Sessions Loyalty";
   document.getElementById("version").textContent = "v" + APP_VERSION;
@@ -206,13 +206,16 @@
     const extra = u ? [
       { label: "My QR", value: "qr", run: () => connect.showQR({ app: APP_ID }) },
       { label: "Profile", value: "profile", run: () => connect.showProfile({ onClose: render }) },
-      ...(staff ? [viewAsMember ? { label: "Staff side", value: "staffside", run: () => { viewAsMember = false; render(); } }
-                               : { label: "View as a member", value: "memberside", run: () => { viewAsMember = true; render(); } }] : []),
+      ...(staff ? [viewAsMember ? { label: "View as staff", value: "staffside", run: () => setSide(false) }
+                               : { label: "View as a member", value: "memberside", run: () => setSide(true) }] : []),
       { label: "Export", value: "export", run: exportData },
       ...(phone.installed() ? [] : [install])
     ] : [];
     ui.account($("meHost"), u, { onSignIn: () => cloud.signIn().catch(e => report("Couldn't sign in", e)), onSignOut: () => cloud.signOut(), extra });
   }
+
+  // Staff switching sides: the account sheet is rebuilt, so it always offers the other side.
+  function setSide(asMember){ viewAsMember = asMember; mountAccount(user); render(); }
 
   // ---- cloud ----
   await cloud.init(APP_ID);
@@ -303,6 +306,7 @@
     const liveR = (rewards || []).filter(r => r.active !== false), liveE = (earns || []).filter(r => r.active !== false);
     const name = (profiles.get(user.uid) || {}).name || (card && card.name) || user.displayName || "";
     const page = [];
+    if (staff) page.push(btn("View as staff", "quiet wide", () => setSide(false), { style: "margin-top:8px" }));
     const lc = h("div", { class: "lcard" },
       h("div", { class: "top" }, h("span", { class: "lbl club", text: settings.name }), card ? h("span", { class: "tier", text: t.name }) : null),
       h("div", { class: "name", text: name }));
@@ -357,7 +361,6 @@
 
     page.push(lbl("Recent"));
     page.push(entriesList(myEntries, { who: false }));
-    if (staff) page.push(btn("Back to the staff side", "quiet wide", () => { viewAsMember = false; render(); }, { style: "margin-top:16px" }));
     main.replaceChildren(...page);
   }
   const pic = item => h("div", { class: "pic" }, item.photo ? h("img", { src: item.photo, alt: "" }) : (item.emoji || "⭐"));
@@ -803,7 +806,7 @@
       btn("Export everything", "wide", exportData),
       ...(owner ? [btn("Import", "wide", importData)] : []),
       btn("Rebuild points", "quiet wide hold", null, { hold: () => rebuildCards() }),
-      btn("View as a member", "quiet wide", () => { viewAsMember = true; render(); })));
+      btn("View as a member", "quiet wide", () => setSide(true))));
     page.push(h("p", { class: "note", style: "margin-top:10px", text: "Rebuild remakes every card's points and XP from its entries. Hold it." }));
     page.push(h("p", { class: "note", style: "margin-top:16px", text: `Sessions Loyalty v${APP_VERSION} · staff side` }));
     main.replaceChildren(...page);
