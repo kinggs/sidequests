@@ -866,3 +866,148 @@ describe("The open rule: Around the Clock", () => {
     await assertFails(updateDoc(doc(user("cat"), AC + "ac"), { players: ["ann", "cat", "g_2"] }));
   });
 });
+
+// ---- Sessions Loyalty: a club's staff, and its members (sessions-loyalty/SPEC.md §6) ----
+// Staff are the uids listed under staff/ (the owner writes that list) plus the owner. A member is
+// any account: it reads the club's settings, rewards and ways to earn, its own card and its own
+// entries (with the uid filter), and writes nothing. A household member is a plain member here:
+// the generic household rule skips this app, as it skips Rack It.
+
+const SL = "sidequests/sessions-loyalty/";
+const entry = (extra = {}) => ({ kind: "spend", uid: "ann", name: "Ann", by: "bar", byName: "Bar", at: 1, rands: 90, points: 90, xp: 90, item: "", title: "", note: "", ...extra });
+
+describe("Sessions Loyalty: staff", () => {
+  beforeEach(async () => {
+    await seed(SL + "staff/bar", { name: "Bar", addedAt: 1, addedBy: "owner" });
+    await seed(SL + "settings/main", { name: "Sessions", pointsPerRand: 1 });
+    await seed(SL + "rewards/r1", { title: "Free lager", cost: 0, active: true });
+    await seed(SL + "earns/e1", { title: "Refer a friend", points: 1250, active: true });
+    await seed(SL + "cards/ann", { uid: "ann", name: "Ann", points: 90, xp: 90, since: 1 });
+    await seed(SL + "notes/ann", { text: "Tuesdays", by: "bar" });
+    await seed(SL + "entries/x1", entry());
+    await seed(SL + "entries/x2", entry({ uid: "cat", name: "Cat" }));
+  });
+
+  test("reads everything: settings, items, every card and note, and every entry", async () => {
+    const db = user("bar");
+    await assertSucceeds(getDoc(doc(db, SL + "settings/main")));
+    await assertSucceeds(getDocs(collection(db, SL + "rewards")));
+    await assertSucceeds(getDocs(collection(db, SL + "earns")));
+    await assertSucceeds(getDocs(collection(db, SL + "cards")));
+    await assertSucceeds(getDoc(doc(db, SL + "notes/ann")));
+    await assertSucceeds(getDocs(collection(db, SL + "staff")));
+    await assertSucceeds(getDocs(collection(db, SL + "entries")));
+    await assertSucceeds(getDocs(query(collection(db, SL + "entries"), where("uid", "==", "ann"))));
+    await assertSucceeds(getDocs(query(collection(db, SL + "entries"), orderBy("at", "desc"), limit(50))));
+  });
+  test("writes settings, items, a card and a note", async () => {
+    const db = user("bar");
+    await assertSucceeds(setDoc(doc(db, SL + "settings/main"), { pointsPerRand: 2 }, { merge: true }));
+    await assertSucceeds(setDoc(doc(db, SL + "rewards/r2"), { title: "Cap", cost: 1550, active: true }));
+    await assertSucceeds(deleteDoc(doc(db, SL + "earns/e1")));
+    await assertSucceeds(setDoc(doc(db, SL + "cards/ben"), { uid: "ben", name: "Ben", points: 0, xp: 0, since: 2 }));
+    await assertSucceeds(updateDoc(doc(db, SL + "cards/ann"), { memberNo: "7", status: "member" }));
+    await assertSucceeds(setDoc(doc(db, SL + "notes/ben"), { text: "x", by: "bar" }));
+  });
+  test("logs an entry and the card's new figures in one batch, and voids one", async () => {
+    const db = user("bar"), b = writeBatch(db);
+    b.set(doc(db, SL + "entries/new1"), entry({ by: "bar" }));
+    b.update(doc(db, SL + "cards/ann"), { points: 180, xp: 180, lastAt: 2 });
+    await assertSucceeds(b.commit());
+    await assertSucceeds(updateDoc(doc(db, SL + "entries/x1"), { voided: true, voidedBy: "bar", voidedAt: 3 }));
+  });
+  test("refused: an entry by someone else, rewriting an entry, deleting one, or touching the staff list", async () => {
+    const db = user("bar");
+    await assertFails(setDoc(doc(db, SL + "entries/new2"), entry({ by: "owner" })));
+    await assertFails(setDoc(doc(db, SL + "entries/new3"), entry({ by: "" })));
+    await assertFails(updateDoc(doc(db, SL + "entries/x1"), { points: 900 }));
+    await assertFails(updateDoc(doc(db, SL + "entries/x1"), { voided: true, points: 900 }));
+    await assertFails(deleteDoc(doc(db, SL + "entries/x1")));
+    await assertFails(setDoc(doc(db, SL + "staff/ben"), { name: "Ben" }));
+    await assertFails(deleteDoc(doc(db, SL + "staff/bar")));
+  });
+  test("the owner is staff too, appoints staff, and deletes an entry", async () => {
+    const db = as(OWNER);
+    await assertSucceeds(getDocs(collection(db, SL + "cards")));
+    await assertSucceeds(setDoc(doc(db, SL + "entries/new4"), entry({ by: "owner" })));
+    await assertSucceeds(setDoc(doc(db, SL + "entries/imported"), entry({ by: "bar" })));   // Import
+    await assertSucceeds(setDoc(doc(db, SL + "staff/ben"), { name: "Ben", addedAt: 2, addedBy: "owner" }));
+    await assertSucceeds(deleteDoc(doc(db, SL + "staff/bar")));
+    await assertSucceeds(deleteDoc(doc(db, SL + "entries/x1")));
+  });
+});
+
+describe("Sessions Loyalty: a member", () => {
+  beforeEach(async () => {
+    await seed(SL + "staff/bar", { name: "Bar", addedAt: 1, addedBy: "owner" });
+    await seed(SL + "settings/main", { name: "Sessions", pointsPerRand: 1 });
+    await seed(SL + "rewards/r1", { title: "Free lager", cost: 0, active: true });
+    await seed(SL + "earns/e1", { title: "Refer a friend", points: 1250, active: true });
+    await seed(SL + "cards/ann", { uid: "ann", name: "Ann", points: 90, xp: 90, since: 1 });
+    await seed(SL + "cards/member", { uid: "member", name: "Mel", points: 5, xp: 5, since: 1 });
+    await seed(SL + "notes/ann", { text: "Tuesdays", by: "bar" });
+    await seed(SL + "entries/x1", entry());
+    await seed(SL + "entries/x2", entry({ uid: "cat", name: "Cat" }));
+    await seed(SL + "entries/x3", entry({ uid: "member", name: "Mel" }));
+  });
+
+  test("reads the settings and the items, their own card and their own entries with the uid filter", async () => {
+    const db = user("ann");
+    await assertSucceeds(getDoc(doc(db, SL + "settings/main")));
+    await assertSucceeds(getDocs(collection(db, SL + "rewards")));
+    await assertSucceeds(getDocs(collection(db, SL + "earns")));
+    await assertSucceeds(getDoc(doc(db, SL + "cards/ann")));
+    await assertSucceeds(getDoc(doc(db, SL + "entries/x1")));
+    await assertSucceeds(getDocs(query(collection(db, SL + "entries"), where("uid", "==", "ann"))));
+  });
+  test("asks whether they are staff: their own (missing) staff document, and nobody else's list", async () => {
+    const db = user("ann");
+    await assertSucceeds(getDoc(doc(db, SL + "staff/ann")));
+    await assertSucceeds(getDoc(doc(db, SL + "staff/bar")));
+    await assertFails(getDocs(collection(db, SL + "staff")));
+  });
+  test("someone with no card yet reads the items and their own missing card", async () => {
+    const db = user("ben");
+    await assertSucceeds(getDocs(collection(db, SL + "rewards")));
+    await assertSucceeds(getDoc(doc(db, SL + "cards/ben")));
+    await assertSucceeds(getDocs(query(collection(db, SL + "entries"), where("uid", "==", "ben"))));
+  });
+  test("refused: anyone else's card or entries, the cards list, a bare entries list, and every note", async () => {
+    const db = user("ann");
+    await assertFails(getDoc(doc(db, SL + "cards/member")));
+    await assertFails(getDocs(collection(db, SL + "cards")));
+    await assertFails(getDoc(doc(db, SL + "entries/x2")));
+    await assertFails(getDocs(collection(db, SL + "entries")));
+    await assertFails(getDocs(query(collection(db, SL + "entries"), where("uid", "==", "cat"))));
+    await assertFails(getDoc(doc(db, SL + "notes/ann")));
+  });
+  test("refused: writing anything, their own card and entries included", async () => {
+    const db = user("ann");
+    await assertFails(updateDoc(doc(db, SL + "cards/ann"), { points: 9000 }));
+    await assertFails(setDoc(doc(db, SL + "cards/ben"), { uid: "ben", name: "Ben" }));
+    await assertFails(setDoc(doc(db, SL + "entries/mine"), entry({ by: "ann" })));
+    await assertFails(updateDoc(doc(db, SL + "entries/x1"), { voided: true }));
+    await assertFails(setDoc(doc(db, SL + "rewards/r9"), { title: "Free everything", cost: 0 }));
+    await assertFails(setDoc(doc(db, SL + "settings/main"), { pointsPerRand: 100 }, { merge: true }));
+    await assertFails(setDoc(doc(db, SL + "staff/ann"), { name: "Ann" }));
+    await assertFails(setDoc(doc(db, SL + "notes/ann"), { text: "hi" }));
+  });
+  test("a household member is a plain member here: their own card, nobody else's, and no writes", async () => {
+    const db = as(MEMBER);
+    await assertSucceeds(getDoc(doc(db, SL + "cards/member")));
+    await assertSucceeds(getDocs(query(collection(db, SL + "entries"), where("uid", "==", "member"))));
+    await assertFails(getDoc(doc(db, SL + "cards/ann")));
+    await assertFails(getDocs(collection(db, SL + "cards")));
+    await assertFails(getDoc(doc(db, SL + "notes/ann")));
+    await assertFails(getDocs(collection(db, SL + "entries")));
+    await assertFails(setDoc(doc(db, SL + "entries/m1"), entry({ by: "member" })));
+    await assertFails(updateDoc(doc(db, SL + "cards/member"), { points: 9000 }));
+    await assertFails(setDoc(doc(db, SL + "rewards/r9"), { title: "x", cost: 0 }));
+  });
+  test("refused: everything signed out", async () => {
+    const db = signedOut();
+    await assertFails(getDoc(doc(db, SL + "settings/main")));
+    await assertFails(getDocs(collection(db, SL + "rewards")));
+    await assertFails(getDoc(doc(db, SL + "cards/ann")));
+  });
+});
