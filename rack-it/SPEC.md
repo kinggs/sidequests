@@ -589,3 +589,4 @@ account, so a static app can't upload results.
 | 2.3.0 | Game is a dropdown with the two sentences that say what it is and how it scores, not five buttons: with five games the names alone stopped being enough. |
 | 2.4.0 | The 8-ball drop is gone. Nobody taps fourteen balls mid-rack, and a half-tapped drop scored Ten-Point-Eight wrong; the rack-end card asks for the loser's balls *left on the table* instead, one tap, and the rack stores that count. |
 | 2.5.0 | Connect, piloted here: My QR and Friends under More, and an outsider screen for accounts that aren't on `/members`, instead of a dead end. Friendships live outside `/sidequests/`, so the household can't read them. |
+| 2.5.1 | The page is pinned to the screen (`position: fixed`), not sized by `100dvh`: on a real phone the tab bar could sit below the bottom edge on Play, leaving no way to More. The live screen still hides it. Friends says "Tap someone to remove them." |

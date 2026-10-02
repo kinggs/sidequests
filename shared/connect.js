@@ -309,6 +309,9 @@ function showFriends(){
     list.innerHTML = "";
     if (!friends.length){ list.innerHTML = `<li class="empty">No friends yet. Open My QR and let them scan it.</li>`; return; }
     if (!shown.length){ list.innerHTML = `<li class="empty">Nobody called that.</li>`; return; }
+    const hint = document.createElement("li");
+    hint.className = "empty";
+    hint.textContent = "Tap someone to remove them.";
     for (const f of shown){
       const p = names[f.uid];
       const li = document.createElement("li");
@@ -334,6 +337,7 @@ function showFriends(){
       }
       list.append(li);
     }
+    list.append(hint);
   }
   return close;
 }

@@ -27,6 +27,10 @@
        and four gaps, about 60. dvh tracks the visible area with or without Chrome's URL bar. */
     --bs:clamp(52px, min(23vw, (100dvh - 349px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) / 5), 96px);
   }
+  /* The page is pinned to the visible screen, not sized by 100dvh: Android Chrome can keep a
+     stale dvh after leaving fullscreen (My QR goes fullscreen), which pushed the tab bar off
+     the bottom (2.5.1). */
+  body{position:fixed;inset:0;height:auto}
   body.scoring[data-turn="a"]{background:var(--ground-a)}
   body.scoring[data-turn="b"]{background:var(--ground-b)}
 
@@ -719,7 +723,7 @@ import { people } from "../shared/people.js";
 import { connect } from "../shared/connect.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "2.5.0";
+const APP_VERSION = "2.5.1";
 const APP_ID = "rack-it";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 document.getElementById("versionMore").textContent = "v" + APP_VERSION;
