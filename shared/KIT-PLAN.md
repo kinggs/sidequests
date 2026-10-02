@@ -554,7 +554,7 @@ other apps keep `/members` until Session 8. Prerequisite done: real phones check
 
 ### Rules (`shared/firestore.rules`), cases first
 
-- [ ] Rack It drops `isFamily()` everywhere; `isOwner()` takes its place:
+- [x] Rack It drops `isFamily()` everywhere; `isOwner()` takes its place:
   - the generic `/sidequests/{appId}/**` read becomes `isFamily() && appId != 'rack-it'`, so
     the household no longer reads Rack It through it;
   - `matches`: read `uid in uids || isOwner()`; create `outsiderStarts() || isOwner()`; update
@@ -563,35 +563,36 @@ other apps keep `/members` until Session 8. Prerequisite done: real phones check
   - `ratings`: get `signedIn()`, list only through `isOwner()`; write `confirming() ||
     guestStarter() || isOwner()`;
   - `starters`: owner only, create included. `state/main`: get `signedIn()`, write `isOwner()`.
-- [ ] **Must refuse**, for a member who isn't the owner (Melanie, `MEMBER` in the check):
+- [x] **Must refuse**, for a member who isn't the owner (Melanie, `MEMBER` in the check):
   - reading or listing a match she isn't in;
   - listing ratings or starters;
   - writing `state/main`, a starter, or any rating outside a confirmation;
   - changing a saved match.
 
   Each guard turns its own case red when removed (Session 6's mutation script, in Handover).
-- [ ] **Must pass**:
+- [x] **Must pass**:
   - the owner reads, lists and rewrites every match, and lists ratings;
   - Melanie reads and lists her own matches with the `uids` filter, and plays, saves, confirms,
     declines and withdraws exactly as an outsider does.
-- [ ] `/members`, Invites and the other apps don't change.
+- [x] `/members`, Invites and the other apps don't change.
 
 ### Rack It (minor bump)
 
-- [ ] `role === "owner"` runs today's household path; anything else, `"member"` included,
+- [x] `role === "owner"` runs today's household path; anything else, `"member"` included,
   runs friend mode. `people.start` gets the household list for the owner only (an option, so
   the other apps keep reading it as members).
-- [ ] **Backfill, once, on the owner's phone** (like the 2.7.0 ratings move): every match with
+- [x] **Backfill, once, on the owner's phone** (like the 2.7.0 ratings move): every match with
   no `uids` gets `uids` from `people.uidsOf` of its resolved players, plus `names` if missing.
   Nothing else in the match changes. Without it Melanie loses every match before 2.8.0.
   Wait for `people.ready`, as the ratings move does.
-- [ ] Remove the "Before you play" note and its `localStorage` key.
+- [x] Remove the "Before you play" note and its `localStorage` key.
 - [ ] Owner, before deploying: you and Melanie connect with My QR once. The create rule needs a
-  friendship to start a match between two accounts.
-- [ ] ⚠ The order matters. A phone still on 2.10.x is refused its unfiltered matches list once
+  friendship to start a match between two accounts. (Not done at deploy: only Melanie starting a
+  match against the owner needs it. Handover, Session 6b.)
+- [x] ⚠ The order matters. A phone still on 2.10.x is refused its unfiltered matches list once
   the rules land, and shows no matches until reopened. Ship the app and the rules in one push,
   and tell Melanie to reopen.
-- [ ] SPEC §7, §7.1, §8.2, §9; `KIT.md` privacy table ("An app's records: the players in them
+- [x] SPEC §7, §7.1, §8.2, §9; `KIT.md` privacy table ("An app's records: the players in them
   and the admin"); the CLAUDE.md Firebase section, where it says the household reads everything.
 
 ### Done when
@@ -604,6 +605,9 @@ In `?mock`, with tabs for the owner, `&as=mel&role=member` and `&as=ann`:
 - the Session 6 outsider test still passes.
 
 Then on the two real phones.
+
+✓ in `?mock`, and the rules on the emulator and in the Action (Handover, Session 6b). Real
+phones pending.
 
 ---
 
@@ -1104,3 +1108,82 @@ After the deploy, the same day:
 - **The owner ruled on the family tier.** Rack It will have one admin and players, and the
   "Before you play" note goes with it. That's Session 6b, planned above.
 
+### Session 6b, 2026-10-02 (Opus)
+
+Shipped (Rack It 2.11.0, live): one admin. The owner runs the household path and sees every
+match; everyone else, a household member included, runs friend mode. The rules drop `isFamily()`
+from Rack It: the generic read skips `rack-it`, and the owner alone lists matches, ratings and
+starters and writes `state/main`, starters and ratings outside a confirmation. `people.start`
+takes `household: false`, which Rack It passes for everyone but the owner. The owner's phone
+backfills old matches once. The "Before you play" note and its flags are gone. The mock has an
+`owner` tier for Rack It. SPEC §6.1, §7, §7.1, §8.2, §9, §13, `KIT.md` and CLAUDE.md are updated.
+
+Proved:
+
+- Rules: 12 new cases, written first. On the old rules 4 of the 5 "Must refuse" cases for a
+  member were red; the fifth (changing a saved match) was already refused there. Six old cases
+  that had the member writing Rack It as household moved to the owner, or to a match she's in.
+  All 88 pass. Each of the 12 guards was loosened in turn on a local emulator (back to
+  `isFamily()`, the household update branch restored, or the owner's grant dropped), and its own
+  case went red. Run 37002090013 ran 88 tests (88 pass) at 11:39:39, then released the rules at
+  11:39:46.
+- The owner's 2026-10-02 export as a seed, with the two claimed uids mapped to mock users,
+  2.10.1 against 2.11.0:
+  - The backfill touched all 39 matches. They gained `uids`, `names`, `playerA` and `playerB`,
+    and nothing else changed.
+  - The 38 Kenny–Melanie matches got both uids and their players' uids, each side kept. Kenny v
+    Squirge got Kenny's uid, and Squirge kept his person id.
+  - Melanie, as a member, lists her 17 finished matches with Kenny, not the Squirge one. Her
+    own page shows the same record and matches as on 2.10.1 (11-Point-Nine won 8, lost 6).
+  - Ratings and Rebuild are identical: the same proposal (Kenny 507 → 505, Melanie 331 → 332,
+    the Session 3 drift already applied live), the same `ratings/` after Apply to full
+    precision, then "Nothing to change".
+- Three tabs in `?mock` (owner, `&as=mel&role=member`, `&as=ann`), 51 checks with the seed run
+  and the other apps, no page errors, console errors or refusal warnings:
+  - No note for either player.
+  - Melanie's picker holds herself and her friends, and Rack It never adds her to the
+    household list. Her More has no Invites, Import or Rebuild; the owner's keeps them.
+  - The owner rates a match against her, and she confirms it from her strip.
+  - Melanie sees her two matches with the owner and not Ann's. The owner sees all three, and
+    Ann sees hers.
+  - Melanie is refused 11 routes: listing ratings, starters or bare matches, listing newest
+    first, reading Ann's match, writing `state/main`, a starter or a rating, and changing or
+    deleting a saved match, hers or Ann's. Every matches query her phone ran carried her uid
+    filter.
+  - Signed out, Sign in shows.
+- Bloc 11, Around the Clock, Zombie Dice and Photo Coach, as `&as=mel&role=member`, 2.10.1
+  against 2.11.0: role `member`, their own data readable, the same household list, and
+  identical page text.
+- The Session 6 outsider proof re-run on 2.11.0: 56 checks pass (its note checks now say the
+  note is absent).
+- `make verify`: 31 tests pass with `zargo.js` untouched; smoke is green for all six apps.
+
+Not done: the owner and Melanie connecting with My QR, and the real-phone check. Melanie must
+close and reopen Rack It: a phone on 2.10.x is refused its unfiltered match list now.
+
+What the plan got wrong, or didn't say:
+
+1. **"Nothing else in the match changes" left Melanie's own page empty of old matches.** They
+   named her by her person id, which friend mode can't resolve without the household list. Her
+   Matches tab listed them (by `names`), but her page and win record didn't. The owner ruled to
+   rewrite `playerA`/`playerB` to the resolved ids too. Rebuild reads ids through `resolve`, so
+   it's unchanged.
+2. **The friendship isn't a prerequisite for the deploy.** The owner starts matches through
+   `isOwner()`, and confirming needs no friendship. Only Melanie starting a match against the
+   owner (and the owner showing on her Ratings) waits for it.
+3. **Melanie loses more than the note.** In Rack It she no longer has Amelie, Rolf and Isla in
+   her picker (they're guests to her now), Invites, Import, or her own Cuescore link. Other apps
+   are unchanged.
+4. **The owner's reads had to be spelled out.** With the generic read gone from Rack It, the
+   owner needs `starters` read and `ratings` list rules of their own; the plan named only writes
+   for those.
+5. **A role that can't be read now means friend mode**, not the household path. It's what the
+   rules allow anyone, so it can't show an error; an offline owner sees only their own matches
+   until the next open.
+6. **The backfill runs once per owner per phone** (`localStorage` `rack-it.uids-backfill.<uid>`),
+   and again after an Import, which can bring old matches back. One listing of every match,
+   then batches of up to 400.
+7. **The scratch harness doesn't survive a reboot.** `/tmp` was cleared mid-session, taking this
+   session's runner and Session 6's test scripts with it; both were rewritten. Worth
+   committing the Playwright harness and the mutation script somewhere outside the apps (e.g.
+   `shared/test/`) if sessions keep reaching for them. The owner decides.
