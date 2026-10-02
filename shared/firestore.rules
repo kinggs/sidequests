@@ -63,6 +63,11 @@ service cloud.firestore {
       allow create: if isFamily();
       allow update, delete: if isOwner();
     }
+    // Each player's rating, keyed by their resolved id (KIT-PLAN.md Session 3). A cache that
+    // Rebuild ratings remakes from the matches, so any member writes it, as state/main was.
+    match /sidequests/rack-it/ratings/{id} {
+      allow write: if isFamily();
+    }
 
     // ---- Accounts: anyone signed in, keyed by uid (Session 1, KIT-PLAN.md) ----
 

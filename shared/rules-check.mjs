@@ -14,7 +14,7 @@
 import fs from "node:fs";
 import { after, before, beforeEach, describe, test } from "node:test";
 import { assertFails, assertSucceeds, initializeTestEnvironment } from "@firebase/rules-unit-testing";
-import { deleteDoc, doc, getDoc, getDocs, collection, query, where, setDoc, setLogLevel, updateDoc, serverTimestamp, Timestamp } from "firebase/firestore";
+import { deleteDoc, deleteField, doc, getDoc, getDocs, collection, query, where, setDoc, setLogLevel, updateDoc, serverTimestamp, Timestamp } from "firebase/firestore";
 
 // Every refused write would otherwise log a PERMISSION_DENIED stack; the test names say it.
 setLogLevel("silent");
@@ -42,6 +42,8 @@ beforeEach(async () => {
     await setDoc(doc(db, "sidequests/rack-it/matches/done1"), { status: "done" });
     await setDoc(doc(db, "sidequests/rack-it/matches/live1"), { status: "live" });
     await setDoc(doc(db, "sidequests/rack-it/starters/s1"), { zargo: 400 });
+    await setDoc(doc(db, "sidequests/rack-it/ratings/r1"), { zargo: 500, robustness: 2, sessions: 1 });
+    await setDoc(doc(db, "sidequests/rack-it/state/main"), { players: { r1: { zargo: 500 } }, config: {} });
     // Accounts: Ann, Ben and Cat, none of them household. Ann's code is live; Cat's too.
     await setDoc(doc(db, "profiles/ann"), { name: "Ann" });
     await setDoc(doc(db, "profiles/ann/private/main"), { invite: "ANNLIVE", expires: inHours(24) });
@@ -284,5 +286,28 @@ describe("your profile and leaving", () => {
     await assertFails(deleteDoc(doc(db, "profiles/ann/friends/cat")));
     await assertFails(deleteDoc(doc(db, "profiles/ann/guests/g_1")));
     await assertFails(deleteDoc(doc(db, "invites/ANNLIVE")));
+  });
+});
+
+// ---- Session 3: Rack It's ratings in their own documents (KIT-PLAN.md) ----
+
+describe("Rack It ratings", () => {
+  test("a member lists them, and saving a match writes two", async () => {
+    const db = as(MEMBER);
+    await assertSucceeds(getDocs(collection(db, "sidequests/rack-it/ratings")));
+    await assertSucceeds(setDoc(doc(db, "sidequests/rack-it/ratings/r1"), { zargo: 510, robustness: 3, sessions: 2 }, { merge: true }));
+    await assertSucceeds(setDoc(doc(db, "sidequests/rack-it/ratings/r2"), { zargo: 490, robustness: 1, sessions: 1 }));
+  });
+  test("the migration moves state/main.players out, and Replace deletes a rating", async () => {
+    await assertSucceeds(updateDoc(doc(as(OWNER), "sidequests/rack-it/state/main"), { players: deleteField() }));
+    await assertSucceeds(deleteDoc(doc(as(MEMBER), "sidequests/rack-it/ratings/r1")));
+  });
+  test("refused: reading or writing a rating when not on /members, or signed out", async () => {
+    for (const db of [as(STRANGER), user("ann"), signedOut()]){
+      await assertFails(getDoc(doc(db, "sidequests/rack-it/ratings/r1")));
+      await assertFails(getDocs(collection(db, "sidequests/rack-it/ratings")));
+      await assertFails(setDoc(doc(db, "sidequests/rack-it/ratings/r1"), { zargo: 900 }));
+      await assertFails(deleteDoc(doc(db, "sidequests/rack-it/ratings/r1")));
+    }
   });
 });
