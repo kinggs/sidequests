@@ -133,6 +133,10 @@ The full definition, the per-game weights and the known challenges are in
     `2 × robustnessB / (robustnessA + robustnessB)`, and B's the other way round, so the
     better-established player moves less.
 - `robustness += Σ w`. Under **30** the rating is provisional: still used, but it moves quickly.
+- **Only a rated match moves ratings, once the opponent confirms it** (2.9.0, §6.1). A friendly
+  uses the ratings for the handicap and moves nothing: not the Zargo, not robustness, not matches
+  played. A stored match with no `rated` field is rated, since every match before 2.9.0 moved
+  ratings. The update is worked out at confirmation, from the two ratings as they stand then.
 - **Handicap never enters the update.** The racks are what happened.
 - A discarded match never touches ratings; one with no complete rack is discarded silently.
 - It isn't Fargo, and it isn't Cuescore's rating: About Zargo (More) says so in plain words.
@@ -148,9 +152,10 @@ The full definition, the per-game weights and the known challenges are in
 
 ### 3.2 Rebuild ratings
 
-More → **Rebuild ratings** replays every saved match in the order it ended (`zargo.js`
-`replay`), from each player's starter rating, with the running matches played and robustness,
-exactly as saving did. It shows the change per player first ("Kenny 505 → 507") and the number
+More → **Rebuild ratings** replays every rated match in the order it was rated (`zargo.js`
+`replay`: `ratedAt`, else `endedAt`, which is all a match from before 2.9.0 has), from each
+player's starter rating, with the running matches played and robustness, exactly as confirming
+did. Friendlies, pending matches and declined or withdrawn ones are skipped. It shows the change per player first ("Kenny 505 → 507") and the number
 of match records that change; **Apply** writes each player's `ratings/<id>` and each match's
 `zargoBefore` and `zargoAfter`.
 
@@ -159,7 +164,11 @@ of match records that change; **Apply** writes each player's `ratings/<id>` and 
   (`setBy: "rebuild"`).
 - Old matches' player ids are read through `people.resolve`, so merges carry history.
 - **Deleting a saved match rebuilds ratings straight away**, so it leaves no movement behind.
-- Saving a match still updates the two players directly, so a rebuild normally changes nothing.
+- Confirming a rated match updates the two players directly, so a rebuild normally changes nothing.
+  ⚠ A match from before 2.9.0 that was left open across another was rated from the ratings it
+  started on, but replays after the other one; Rebuild moves it slightly (KIT-PLAN Session 3, note 1).
+  A confirmed match can't drift that way: it's rated from the ratings at confirmation and replayed
+  at `ratedAt`.
 
 ## 4. Handicap and the lead bar
 
@@ -247,7 +256,10 @@ room, and opening a fold scrolls it into view.
    player who's on the other side swaps the two, and the break stays with whoever had it.
 3. **Length**, **Handicap** and **Break**: one settings card, a row each showing the current
    choice. Length and Handicap open on tap; Break flips on tap (teal breaks first by default).
-4. The handicap row shows the proposal and, open, the targets, both editable. The odds sentence
+4. **Rated**, a tick under Break, off by default and offered only when both players have an
+   account (a household person who has claimed, or a friend; never a guest). Off reads "Off · a
+   friendly"; on, "On · moves ratings once Melanie confirms". It resets with each new setup.
+5. The handicap row shows the proposal and, open, the targets, both editable. The odds sentence
    sits above **Start** at all times: how many racks (or points, in 11-Point-Nine) the favourite
    expects for each one of the other's, "Near-level ratings, so an even match" when close, and
    with Racks the chance the higher-rated player wins the race as set. Ten-Point-Eight reads as
@@ -325,9 +337,27 @@ up, and Undo covers it. Trad-Eight asks nothing: one rack is one rack.
 
 **End.** A complete rack still counts. 11-Point-Nine: an untouched rack is dropped silently; a
 part-played or odd rack asks, dropped by default with **Count rack N, then end** offered.
-Every other game: a rack without a winner is dropped, and End says so if fouls had given points. Then the result card: winner, racks, score line, Zargo movement ("calibrating"
-when it applies), **Save match** or **Discard**. Saving opens the match's summary; discarding
-goes to Ratings.
+Every other game: a rack without a winner is dropped, and End says so if fouls had given points. Then the result card: winner, racks, score line, then
+"Friendly · ratings unchanged", or for a rated match "Rated · ratings move once Melanie confirms.
+As things stand: Kenny 505 → 507 · Melanie 332 → 330" ("calibrating" when it applies), **Save
+match** or **Discard**. Saving opens the match's summary; discarding goes to Ratings.
+
+### 6.1 Rated matches and confirming
+
+- **Save** on a friendly sets `status: "done"` and writes no rating. On a rated match it sets
+  `status: "pending"` and `endedBy` (the scorer's uid) and moves nothing.
+- **The opponent's phone** shows a strip above the tabs, in amber: "Kenny 5–3 You · rated" with
+  **Confirm** and **Not right**. Tapping the words opens the summary. **The scorer's** reads
+  "Waiting for Melanie to confirm" with **Withdraw**. Whoever may confirm is any player in `uids`
+  who didn't end it; a household member who scored someone else's match waits for either of them.
+- **Confirm** works the result out from the stored racks and the two ratings as they stand now,
+  and writes in one batch: both `ratings/` documents (each with `match: <id>`) and the match
+  `{ status: "done", zargoBefore, zargoAfter, ratedAt, confirmedBy }`.
+- **Not right** or **Withdraw** writes `{ status: "done", rated: false }` with `declinedBy` or
+  `withdrawnBy`. It stands as a friendly.
+- A pending match can't be resumed. ⚠ It never expires (KIT-PLAN Parked).
+- A match started before 2.9.0 and resumed on 2.9.0 has no `rated` field: it saves as rated when
+  both players have an account, otherwise as a friendly.
 
 **Sync, Resume, Watch.** The match document is the record: every tap patches the current rack
 (`cloud.patch("matches/<id>", { "racks.N": … })`) with `turn` and running totals, so two phones
@@ -344,14 +374,15 @@ drops it out cleanly.
 the live screen: labels in caps, the selected tab in teal with a bar above it. The app always
 opens on **Play** (owner's call, 2.0.1). While a match is live and this phone isn't scoring or
 watching it, a **live strip** above the tabs shows "Live · Kenny 14–9 Melanie" with **Resume**
-and **Watch**. The newest 300 matches are watched as one live list, so the strip, Matches, a
+and **Watch**. A rated match waiting for confirmation has its own strip (§6.1). The newest 300 matches are watched as one live list, so the strip, Matches, a
 person's page and a summary update without a reload.
 
 **Ratings.** The household's people, your guests, and your friends who have a rating, ranked by
 Zargo, one card each: rank, avatar, name ("you"), and the Zargo right-aligned in large figures.
 Under the name, robustness in words: "41 racks behind it", or in amber "provisional · 22 racks";
 a guest adds "· guest". People who haven't played go last, by name, unranked, "not played yet",
-their number dimmed. **Add player** under the list: **Scan a new player** or **Add a guest**, then
+their number dimmed. Matches played counts rated matches only, so someone who has only played
+friendlies (every guest, for one) is "not played yet". **Add player** under the list: **Scan a new player** or **Add a guest**, then
 their starter rating (§3.1). It never puts anyone on Invites. Tap a row for their page.
 
 **A person's page.** 72px avatar, Zargo with robustness, one line on what the number means
@@ -360,15 +391,21 @@ colour, the shared sheet, and for the owner the starter rating override and **Ho
 delete player**; anyone else sees one line saying those are the owner's; a friend's or guest's
 page offers Edit to the owner only, for the override), Cuescore (read-only;
 Add or Change on your own page), the win record per game (finished matches, in picker order) and their matches.
+⚠ The win record counts friendlies and declined or withdrawn matches too, as it did before 2.9.0;
+pending ones aren't finished. Whether it should count rated matches only is the owner's call
+(KIT-PLAN Session 5 Handover).
 
 **Matches.** Live (last 24 hours) first, then newest. Each row: names and score (racks in a race
 in racks, head start included) with the winner's name in bold, then a caps line with game,
 length and handicap, and when (a time today, else a date), or "tied". A live row is tinted teal
-and reads "Live · 11-Point-Nine · rack 3". Discarded matches don't show. No Delete in the list:
+and reads "Live · 11-Point-Nine · rack 3". The caps line ends "· friendly" for a friendly and
+"· waiting to confirm" for a pending rated match; a rated match says nothing extra. Discarded matches don't show. No Delete in the list:
 a live row resumes; a finished one opens its summary. A player this phone doesn't know (another
 member's friend or guest) reads by the match's own `names`, in every list and summary.
 
-**Summary.** Winner, game, length, when, the score line, the Zargo movement, the racks that
+**Summary.** Winner, game, length, when, the score line, the Zargo movement (or "Friendly · ratings
+unchanged", with who said it wasn't right or withdrew it, or "Rated · waiting for Melanie to
+confirm"), the racks that
 counted, **Copy for Cuescore** (§10), and for the owner **Hold to delete match** (anyone else
 sees why it isn't there).
 
@@ -462,7 +499,8 @@ All under `sidequests/rack-it/` in Firestore, via `shared/cloud.js`. Members-onl
 
 ```
 ratings/<id>                                                  // id: people.resolve(), a uid once claimed
-  zargo, robustness, sessions                                   // sessions = matches played
+  zargo, robustness, sessions                                   // sessions = rated matches played
+  match                                                         // the match whose confirmation last wrote it (2.9.0)
 
 state/main
   config:  { games: { league: { points: { low, nine }, w }, golden: { points: { big, small,
@@ -485,8 +523,13 @@ matches/<id>
   targets: { a, b } | null         // points, or racks in a race in racks
   start: { a, b }                  // Racks lever only: the head start
   racksPlanned: n | null           // fixed racks
-  startedAt, endedAt, status: "live" | "done" | "discarded", turn: "a" | "b"
-  zargoBefore: { a, b }, zargoAfter: { a, b } | null
+  rated: true | false              // the setup tick (2.9.0); missing = rated, as before 2.9.0
+  startedAt, endedAt, status: "live" | "pending" | "done" | "discarded", turn: "a" | "b"
+  endedBy: uid                     // a rated match: who saved it, so the other player confirms
+  ratedAt, confirmedBy: uid        // a confirmed rated match: when, and who
+  declinedBy | withdrawnBy: uid    // a rated match that stands as a friendly instead
+  zargoBefore: { a, b }, zargoAfter: { a, b } | null   // a rated match: the ratings at confirmation
+                                   // (before 2.9.0, at the start); a friendly: the start's, after null
   racks: {
     "1": { balls: { "1": "a", …, "9": "dead" }, breaker, at }                     // 11-Point-Nine
     "1": { winner, kind: "big" | "small" | "win" | "fouls" | "intentional",
@@ -511,7 +554,8 @@ matches/<id>
   group's balls in `balls`, the group from `groups` or guessed from who potted what, capped at 7.
   Both paths are tested; nothing needs rebuilding.
 - Writes: racks with `cloud.patch` per rack; `ratings`, `starters` and `state/main` with
-  `cloud.save`. Saving a match writes its two players' `ratings/` documents.
+  `cloud.save`. Confirming a rated match writes its two players' `ratings/` documents and the match
+  in one `cloud.batch`; saving writes no rating.
 - **The move to `ratings/` (2.7.0).** Ratings used to sit in `state/main.players`, keyed by the
   person id of the day. The owner's phone moves them once: each entry goes to
   `ratings/<resolve(id)>` (the better-established one when two old ids are one person, and
@@ -634,4 +678,5 @@ account, so a static app can't upload results.
 | 2.5.1 | The page is pinned to the screen (`position: fixed`), not sized by `100dvh`: on a real phone the tab bar could sit below the bottom edge on Play, leaving no way to More. The live screen still hides it. Friends says "Tap someone to remove them." |
 | 2.6.0 | Connect's friend card (note, met, tags, tag filters), Profile with your own photo, and Delete my account. The photo lives in the profile document, since Storage needs the paid plan. Delete is a hold and a typed DELETE. |
 | 2.7.0 | Ratings move from `state/main.players` to one `ratings/<id>` document a player, keyed by the resolved id, a uid once claimed: the ground Players and confirmed rated matches stand on. The owner's phone moves them once. Unclaim goes, since it would orphan records stored under a uid. Nothing changes on screen. |
+| 2.9.0 | Rated matches and confirming (KIT-PLAN Session 5). Setup gains a **Rated** tick, off by default, offered when both players have an account. A friendly moves no rating; a rated match moves both only once the opponent confirms on their own phone, worked out from the ratings at that moment, in one batch. Not right or Withdraw leaves it a friendly. Rebuild replays rated matches by `ratedAt`, else `endedAt`; a match with no `rated` field is rated. For the social leagues, where a rating has to be agreed by both players. |
 | 2.8.0 | Players (KIT-PLAN Session 4): setup's columns become two slots filled from a picker of household, friends and guests, with **Scan a new player** and **Add a guest** there and then. A match stores `names`, `uids` and `by`. Add player is Scan or Guest, then the starter. The Gmail is optional and nothing in Rack It invites anyone any more: adding a player was quietly putting them on `/members`, which is the household's list. |

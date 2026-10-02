@@ -2,7 +2,8 @@
 
 **Status:** built. The definition and the per-rack update (Rack It 1.0.0), Golden-Nine and
 Trad-Nine (1.1.0), the handicap levers (1.3.0), replayable ratings (2.0.0), and the two 8-ball
-games (2.2.0), which is the point at which one rating really does span two disciplines. The code is
+games (2.2.0), which is the point at which one rating really does span two disciplines, and rated
+matches confirmed by both players (2.9.0). The code is
 [`zargo.js`](zargo.js), a pure module proven by `zargo.test.mjs`. This doc took Zargo from
 "point share in the household's 11-point nine-ball" to one rating that every cue game in Rack
 It feeds, in the way FargoRate pools 8-ball, 9-ball and 10-ball into one number. Open questions
@@ -68,6 +69,13 @@ the live points each carried (`w_i = w × live_i / mean`), so the weights still 
 and an 11-Point-Nine-only match produces exactly the number §3.3 does (SPEC §12.9). History and ratings
 stay continuous. The settling rules in §11 stay, with "observed point share" replaced by
 "observed mean `r`".
+
+**What moves a rating** (Rack It 2.9.0): only a **rated** match, and only once the opponent has
+confirmed it on their own phone. The update above is then worked out from the two ratings as they
+stand at confirmation. A **friendly** uses the ratings for the handicap and moves nothing, not
+even robustness or matches played. A match stored before 2.9.0 has no `rated` field and counts as
+rated, since every match then moved ratings. `replay` rebuilds in the order matches were rated
+(`ratedAt`, else `endedAt`).
 
 Handicap never enters the update. Whether a session was played with a spot or level, the racks
 are what happened, and that is what the rating learns from.

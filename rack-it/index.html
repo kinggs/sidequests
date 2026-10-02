@@ -71,6 +71,12 @@
   .livestrip button{flex:0 0 auto;min-height:var(--tap);padding:0 14px;font-size:.9444rem}
   .livestrip .resume{background:var(--a);color:var(--a-ink)}
   .livestrip .watch{background:transparent;color:var(--a);box-shadow:inset 0 0 0 1px rgba(35,211,176,.45)}
+  /* A rated match waiting for the other player: amber, since it's not finished yet. */
+  .pendstrip{background:rgba(255,193,77,.12);box-shadow:inset 0 1px 0 rgba(255,193,77,.35)}
+  .pendstrip>span{color:var(--warn)}
+  .pendstrip>span::before{background:var(--warn)}
+  .pendstrip .resume{background:var(--warn);color:var(--ink-0)}
+  .pendstrip .watch{color:var(--warn);box-shadow:inset 0 0 0 1px rgba(255,193,77,.55)}
   .tabbar{flex:0 0 auto;display:flex;background:var(--ink-0);box-shadow:inset 0 1px 0 var(--line)}
   .tabbar button{flex:1;min-height:60px;border-radius:0;background:none;color:var(--dim);padding:0 2px;position:relative}
   .tabbar button.sel{color:var(--a)}
@@ -158,6 +164,10 @@
   .foldhead::after{content:"▾";flex:0 0 auto;color:var(--dim);font-size:.8889rem}
   .fold.open .foldhead::after{content:"▴"}
   #breakBtn::after{content:"⇄";font-size:1rem}
+  #ratedBtn{box-shadow:0 -1px 0 var(--line)}
+  #ratedBtn::after{content:"";flex:0 0 26px;height:26px;border-radius:6px;box-shadow:inset 0 0 0 2px var(--dim)}
+  #ratedBtn.on::after{content:"✓";display:flex;align-items:center;justify-content:center;background:var(--text);color:var(--ink-0);
+    box-shadow:none;font-size:1rem;font-weight:800}
   .foldbody{display:none;flex-direction:column;gap:12px;padding:0 12px 14px}
   .fold.open .foldbody{display:flex}
   .modes{display:flex;gap:8px}
@@ -505,6 +515,7 @@
       </div>
 
       <button class="foldhead" id="breakBtn"><span class="foldk lbl">Break</span><span class="foldv" id="breakWho">—</span></button>
+      <button class="foldhead hidden" id="ratedBtn" role="switch" aria-checked="false"><span class="foldk lbl">Rated</span><span class="foldv" id="ratedWho"></span></button>
     </div>
   </div>
   <div class="setupfoot">
@@ -580,7 +591,10 @@
     <p><b>Zargo is Rack It's own rating.</b> Everyone starts at 500.</p>
     <p>It's odds on a rack. When two players are 100 apart, the higher one is expected to win two racks for
       every one the other wins. 200 apart, four for every one. Level ratings, one for one.</p>
-    <p>Every saved match moves both ratings by how the racks went against those odds. Winning when you were
+    <p>A <b>rated</b> match moves both ratings once the other player confirms it on their own phone. A
+      <b>friendly</b> uses the ratings for the handicap and moves nothing. Rated is a tick at setup, offered
+      when both players have an account.</p>
+    <p>Every rated match moves both ratings by how the racks went against those odds. Winning when you were
       expected to moves you a little; an upset moves you more. In 11-Point-Nine a rack counts by the share of
       its points you took. In every other game, 8-ball and 9-ball alike, it counts by who won the rack, at
       half the weight — points, fouls and balls left on the table never enter it. One match moves a settled
@@ -693,6 +707,11 @@
   </div>
 </section>
 
+<div class="livestrip pendstrip hidden" id="pendBar">
+  <span><span id="pendWho"></span></span>
+  <button class="resume" id="pendGo">Confirm</button>
+  <button class="watch" id="pendNo">Not right</button>
+</div>
 <div class="livestrip hidden" id="liveBar">
   <span><span id="liveWho"></span></span>
   <button class="resume" id="resumeBtn">Resume</button>
@@ -723,7 +742,7 @@ import { people } from "../shared/people.js";
 import { connect } from "../shared/connect.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "2.8.0";
+const APP_VERSION = "2.9.0";
 const APP_ID = "rack-it";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 document.getElementById("versionMore").textContent = "v" + APP_VERSION;
@@ -750,7 +769,8 @@ const el = {};
  "scrOutsider","outAvatar","outName","outQR","outFriends","outSignOut","qrBtn","friendsBtn","outProfile","profileBtn",
  "pfEst","estRef","estRefName","estRefScore","estNewScore","estOut","pfDelete","pfShared",
  "games","foldGame","gameHead","gameName","gameBlurb","raceLen","raceNRow","raceN","winArea","drop","goldChip","doneExtra",
- "rebuild","rbInfo","rbList","rbNote","rbApply","rbCancel","rebuildBtn"
+ "rebuild","rbInfo","rbList","rbNote","rbApply","rbCancel","rebuildBtn",
+ "ratedBtn","ratedWho","pendBar","pendWho","pendGo","pendNo"
 ].forEach(id => el[id] = $(id));
 
 function buzz(ms){ if(navigator.vibrate) navigator.vibrate(ms); }
@@ -1094,6 +1114,7 @@ function openSetupTab(){ setupFresh = false; openSetup(); }
 function paintLiveBar(){
   const on = !!liveDoc && !live && !watching && !!TAB_OF[current];
   el.liveBar.classList.toggle("hidden", !on);
+  paintPendBar();
   if(!on) return;
   const l = liveDoc, sc = boardScore(l);
   el.liveWho.textContent = `Live · ${sideName(l, "a")} ${sc.a}–${sc.b} ${sideName(l, "b")}`;
@@ -1391,8 +1412,9 @@ const GAME_KEY = "rack-it.game";   // the last game picked, per phone
 //   raceTo    the race length: racks for a race in racks, points for a Golden-Nine points race.
 //   raceOther the race length is typed in rather than a chip.
 //   handicap  off | scoring | racks.  form: a Racks handicap as unequal targets, or a head start.
+//   rated     the Rated tick: off (a friendly) unless both players have an account and it's ticked.
 const setup = { game:"league", a:null, b:null, mode:"race", breaker:"a", raceTo:5, raceOther:false,
-  handicap:"scoring", form:"targets" };
+  handicap:"scoring", form:"targets", rated:false };
 const HCP_LABEL = { off: "Off", scoring: "Scoring", racks: "Racks" };
 const RACK_RACE_MAX = 15;     // the race chart's range
 const GOLD_RACE = 35;         // the Golden-Nine points race chip
@@ -1457,6 +1479,7 @@ function openSetup(){
   const me = people.meId();
   setup.a = me && activePlayers().includes(me) ? me : null;   // you, on the teal side
   setup.b = null;
+  setup.rated = false;
   applyGameDefaults();
   el.foldGame.classList.remove("open");
   el.foldLen.classList.remove("open");
@@ -1702,7 +1725,7 @@ function renderSetup(){
       const pct = Math.round(raceWin(eA, typed.a, typed.b) * 100);
       more = ` Racing ${typed.a} against ${typed.b}, ${a.name} wins the match ${pct}% of the time.`;
     } else if(setup.handicap === "off"){
-      more = " Handicap off: plain scores decide it. Ratings still learn from the result.";
+      more = " Handicap off: plain scores decide it." + (setup.rated ? " Ratings still learn from the result." : "");
     } else if(tenQ){
       more = ` Over ${racksWord(racks)} that's quotas of ${tenQ.a} and ${tenQ.b}, and whoever finishes further past their own wins.`;
     } else if(ten && setup.mode === "race" && plan && plan.targets){
@@ -1722,6 +1745,13 @@ function renderSetup(){
     el.setupWarn.classList.add("hidden");
     el.breakWho.textContent = "—";
   }
+  // ---- rated: offered only when both players have an account (KIT-PLAN.md Session 5) ----
+  const offered = ratedOffered(a, b);
+  if(!offered) setup.rated = false;
+  el.ratedBtn.classList.toggle("hidden", !offered);
+  el.ratedBtn.classList.toggle("on", setup.rated);
+  el.ratedBtn.setAttribute("aria-checked", String(setup.rated));
+  el.ratedWho.textContent = setup.rated ? `On · moves ratings once ${namesOr(confirmersOf([a, b]))} confirms` : "Off · a friendly";
   el.startBtn.disabled = !(a && b && plan);
   el.startBtn.textContent = !(a && b) ? "Pick two players" : plan ? "Start" : "Set the length first";
 }
@@ -1774,6 +1804,7 @@ el.breakBtn.addEventListener("click", () => {
   renderSetup();
 });
 el.startBtn.addEventListener("click", startMatch);
+tapBind(el.ratedBtn, () => { setup.rated = !setup.rated; renderSetup(); });
 
 // ---------- live session ----------
 let live = null;
@@ -1807,6 +1838,7 @@ async function startMatch(){
     rackNo: 1, rackAt: Date.now(),
     balls: {}, rack: newRack(), history: [],
     banked: newBanked(),
+    rated: !!(setup.rated && ratedOffered(a, b)), uids: people.uidsOf(ids),
     autoShown: false
   };
   const s0 = startOf(live);
@@ -1816,6 +1848,7 @@ async function startMatch(){
     names: { a: nameA || a.name, b: nameB || b.name },
     uids: people.uidsOf(ids),
     by: (cloud.user && cloud.user.uid) || null,
+    rated: live.rated,
     mode,
     targets,
     racksPlanned: live.racksPlanned,
@@ -2720,10 +2753,17 @@ function declare(resume){
     `${live.banked.racks} rack${live.banked.racks === 1 ? "" : "s"}. ` +
     scoreLine(live, live.nameA, live.nameB,
       { a: t.a, b: t.b, dead: live.banked.dead, racksA: r.a, racksB: r.b });
-  el.doneZargo.textContent =
-    `${live.nameA} ${Math.round(z.a.from)} → ${Math.round(z.a.to)} · ` +
-    `${live.nameB} ${Math.round(z.b.from)} → ${Math.round(z.b.to)}` +
-    (z.cal ? ` · calibrating ${z.cal === "a" ? live.nameA : live.nameB}` : "");
+  // A friendly moves nothing. A rated match moves the ratings as they stand when the other player
+  // confirms, so the preview is worked out from today's numbers, not the ones the match started on.
+  if(live.rated){
+    const pa = P(live.playerA, live.nameA), pb = P(live.playerB, live.nameB);
+    const zNow = Z.zargoOutcome({ za: pa.zargo, zb: pb.zargo, sessionsA: pa.sessions, sessionsB: pb.sessions,
+      robustnessA: pa.robustness, robustnessB: pb.robustness }, results, cfg());
+    el.doneZargo.textContent = `Rated · ratings move once ${namesOr(confirmersOf([pa, pb]))} confirms. As things stand: ` +
+      `${live.nameA} ${Math.round(zNow.a.from)} → ${Math.round(zNow.a.to)} · ` +
+      `${live.nameB} ${Math.round(zNow.b.from)} → ${Math.round(zNow.b.to)}` +
+      (zNow.cal ? ` · calibrating ${zNow.cal === "a" ? live.nameA : live.nameB}` : "");
+  } else el.doneZargo.textContent = "Friendly · ratings unchanged";
   el.doneZargo.classList.remove("hidden");
   if(resume){
     // Not a warnbtn: going back to the table is the safe choice here, not the careful one.
@@ -2747,20 +2787,12 @@ async function finish(status, t, lead, winner, z, weight){
     status, endedAt: Date.now(),
     totals: { a: t.a, b: t.b, racksA: r.a, racksB: r.b, dead: live.banked.dead, lead, winner }
   };
-  if(status === "done" && z){
-    // Discarding never touches ratings; saving moves both and feeds robustness.
-    const pa = P(live.playerA, live.nameA), pb = P(live.playerB, live.nameB);
-    patch.zargoAfter = { a: z.a.to, b: z.b.to };
-    await savePlayer(live.playerA, {
-      zargo: z.a.to,
-      robustness: (pa.robustness || 0) + weight,
-      sessions: (pa.sessions || 0) + 1
-    });
-    await savePlayer(live.playerB, {
-      zargo: z.b.to,
-      robustness: (pb.robustness || 0) + weight,
-      sessions: (pb.sessions || 0) + 1
-    });
+  // Saving moves no rating (KIT-PLAN.md Session 5). A friendly is done. A rated match waits
+  // for the other player to confirm on their phone (confirmMatch), which moves both ratings.
+  // Discarding never touches them either.
+  if(status === "done"){
+    patch.rated = !!live.rated;
+    if(live.rated){ patch.status = "pending"; patch.endedBy = (cloud.user && cloud.user.uid) || null; }
   }
   await cloud.patch("matches/" + live.id, patch).catch(e => console.warn(e));
   const id = live.id;
@@ -3040,6 +3072,10 @@ async function resumeMatch(id){
     rack: rackOf(now),
     history: [],            // undo doesn't survive a reload; the racks below are already banked
     banked,
+    // A match started before 2.9.0 has no rated field: it's rated, as every match was then, when
+    // both players have an account to confirm it with; otherwise it saves as a friendly.
+    rated: doc.rated === undefined ? ratedOffered(a, b) : !!doc.rated,
+    uids: doc.uids || people.uidsOf([ida, idb]),
     autoShown: false
   };
   state.turn = doc.turn || live.breaker;
@@ -3049,6 +3085,78 @@ async function resumeMatch(id){
 }
 
 function refreshHome(){ openPage(lastPage); }
+
+// ---------- rated matches: confirming (KIT-PLAN.md Session 5) ----------
+// A rated match is saved as pending, with endedBy, and moves nothing. The other player confirms it
+// on their own phone: the strip above the tabs reads "Kenny 5–3 You · rated" with Confirm and Not
+// right, while the scorer's says "Waiting for Melanie to confirm" with Withdraw. Confirm works the
+// result out from the two ratings as they stand now and writes both ratings/ documents and the
+// match in one batch. Not right and Withdraw leave it standing as a friendly.
+const myUid = () => (cloud.user && cloud.user.uid) || "";
+const ratedOffered = (a, b) => !!(a && b && a.uid && b.uid && a.uid !== b.uid);
+const namesOr = list => list.length ? list.join(" or ") : "the other player";
+// Setup's and the result card's players ({ uid, name }) who could confirm: everyone but you.
+const confirmersOf = ps => ps.filter(p => p && p.uid && p.uid !== myUid()).map(p => p.name);
+const sideOfUid = (m, uid) => people.resolve(m.playerA) === uid ? "a" : people.resolve(m.playerB) === uid ? "b" : null;
+const uidName = (m, uid) => { const side = sideOfUid(m, uid); return side ? sideName(m, side) : people.nameOf(uid, "someone"); };
+// A stored match's players with an account who didn't end it: the ones who may confirm.
+const confirmers = m => (m.uids || []).filter(u => u !== m.endedBy && sideOfUid(m, u));
+let pendBusy = false;
+function paintPendBar(){
+  // TAB_OF first: the gate can paint before the rest of this script has run (top-level await).
+  const ok = !!TAB_OF[current] && !live && !watching && !!myUid();
+  const pending = ok ? matches.filter(m => m.status === "pending") : [];
+  const ask = pending.find(m => confirmers(m).includes(myUid()));
+  const wait = ask ? null : pending.find(m => m.endedBy === myUid());
+  const m = ask || wait;
+  el.pendBar.classList.toggle("hidden", !m);
+  if(!m) return;
+  if(ask){
+    const sc = boardScore(m), mine = sideOfUid(m, myUid());
+    const who = side => side === mine ? "You" : sideName(m, side);
+    el.pendWho.textContent = `${who("a")} ${sc.a}–${sc.b} ${who("b")} · rated`;
+    el.pendGo.classList.remove("hidden");
+    el.pendGo.onclick = () => confirmMatch(m.id);
+    el.pendNo.textContent = "Not right";
+    el.pendNo.onclick = () => standAsFriendly(m.id, "declinedBy");
+  } else {
+    el.pendWho.textContent = `Waiting for ${namesOr(confirmers(m).map(u => uidName(m, u)))} to confirm`;
+    el.pendGo.classList.add("hidden");
+    el.pendNo.textContent = "Withdraw";
+    el.pendNo.onclick = () => standAsFriendly(m.id, "withdrawnBy");
+  }
+  el.pendWho.onclick = () => openSummary(m.id, "matches");
+}
+const stillPending = id => matches.find(x => x.id === id && x.status === "pending");
+async function confirmMatch(id){
+  const m = stillPending(id);
+  if(!m || pendBusy || !confirmers(m).includes(myUid())) return;
+  pendBusy = true;
+  try {
+    const a = P(people.resolve(m.playerA), m.names && m.names.a), b = P(people.resolve(m.playerB), m.names && m.names.b);
+    const results = rackResults(gameOf(m), Z.matchPoints(m, cfg()).points);
+    const z = Z.zargoOutcome({ za: a.zargo, zb: b.zargo, sessionsA: a.sessions, sessionsB: b.sessions,
+      robustnessA: a.robustness, robustnessB: b.robustness }, results, cfg());
+    const w = weightOf(results);
+    await cloud.batch([
+      { save: "ratings/" + a.id, data: { zargo: z.a.to, robustness: a.robustness + w, sessions: a.sessions + 1, match: id } },
+      { save: "ratings/" + b.id, data: { zargo: z.b.to, robustness: b.robustness + w, sessions: b.sessions + 1, match: id } },
+      { patch: "matches/" + id, data: { status: "done", zargoBefore: { a: z.a.from, b: z.b.from },
+        zargoAfter: { a: z.a.to, b: z.b.to }, ratedAt: Date.now(), confirmedBy: myUid() } }
+    ]);
+  } catch(e){ console.warn("[confirm]", e); alert("Couldn't confirm that match: " + (e.message || e)); }
+  pendBusy = false;
+  paintLiveBar();
+}
+// Not right (the opponent) or Withdraw (the scorer): it stands as a friendly, and nothing moves.
+async function standAsFriendly(id, field){
+  if(!stillPending(id) || pendBusy) return;
+  pendBusy = true;
+  try { await cloud.patch("matches/" + id, { status: "done", rated: false, [field]: myUid() }); }
+  catch(e){ console.warn("[friendly]", e); alert("Couldn't change that match: " + (e.message || e)); }
+  pendBusy = false;
+  paintLiveBar();
+}
 
 // ---------- matches ----------
 // Live first, then newest (SPEC §13.5). Discarded matches don't show.
@@ -3095,7 +3203,8 @@ function matchRow(s, { from = "matches" } = {}){
   if(!on && t.winner) (t.winner === "a" ? nA : nB).classList.add("won");
   b.querySelector(".hmeta").textContent = on
     ? `Live · ${GAME_LABEL[gameOf(s)]} · rack ${Math.max(1, ...Object.keys(s.racks || {}).map(Number).filter(n => n > 0))}`
-    : `${GAME_LABEL[gameOf(s)]} · ${lengthText(s)} · ${whenText(s.startedAt)}` + (t.winner ? "" : " · tied");
+    : `${GAME_LABEL[gameOf(s)]} · ${lengthText(s)} · ${whenText(s.startedAt)}` + (t.winner ? "" : " · tied") +
+      (s.status === "pending" ? " · waiting to confirm" : s.rated === false ? " · friendly" : "");
   b.setAttribute("aria-label", `${nA.textContent} ${sc.a}, ${nB.textContent} ${sc.b}. ` +
     (on ? "Live, tap to resume." : t.winner ? `${(t.winner === "a" ? nA : nB).textContent} won.` : "Tied."));
   b.addEventListener("click", () => on ? resumeMatch(s.id) : openSummary(s.id, from));
@@ -3115,7 +3224,7 @@ function renderMatches(){
 async function deleteMatch(s){
   try { await cloud.delete("matches/" + s.id); }
   catch(e){ console.warn("[delete]", e); alert("Couldn't delete that match."); return false; }
-  if(s.status === "done") rebuildRatings(null).catch(e => console.warn("[rebuild]", e));
+  if(Z.isRated(s)) rebuildRatings(null).catch(e => console.warn("[rebuild]", e));
   if(live && live.id === s.id){ live = null; el.done.classList.add("hidden"); }
   if(watching && watching.id === s.id) stopWatch();
   matches = matches.filter(x => x.id !== s.id);
@@ -3153,7 +3262,12 @@ function renderSummary(){
   el.sumMeta.textContent = `${GAME_LABEL[game]} · ${lengthText(s)} · ${whenText(s.startedAt)}`;
   el.sumScore.textContent = scoreLine(s, nA, nB, t);
   const zb = s.zargoBefore, za = s.zargoAfter;
-  el.sumZargo.textContent = zb && za
+  el.sumZargo.textContent = s.status === "pending"
+    ? `Rated · waiting for ${namesOr(confirmers(s).map(u => uidName(s, u)))} to confirm. Ratings move once they do.`
+    : s.rated === false
+    ? "Friendly · ratings unchanged" + (s.declinedBy ? ` · ${uidName(s, s.declinedBy)} said it wasn't right`
+        : s.withdrawnBy ? ` · withdrawn by ${uidName(s, s.withdrawnBy)}` : "")
+    : zb && za
     ? `Zargo: ${nA} ${Math.round(zb.a)} → ${Math.round(za.a)} · ${nB} ${Math.round(zb.b)} → ${Math.round(za.b)}`
     : "Zargo didn't move.";
   el.sumRacks.innerHTML = "";
@@ -3245,9 +3359,9 @@ function renderPerson(){
     (p.sessions ? `robustness ${fmtRob(p.robustness)}${prov ? ' · <span class="prov">provisional</span>' : ""}` : "not played yet");
   const z = Math.round(p.zargo);
   el.perAbout.textContent = `Against someone on ${z - 100}, ${p.name} would expect to win two racks for every one. ` +
-    (!p.sessions ? "It starts moving with their first saved match."
+    (!p.sessions ? "It starts moving with their first rated match."
       : prov ? `Only ${fmtRob(p.robustness)} racks so far, so it still moves quickly.`
-      : "It moves a little after every saved match.");
+      : "It moves a little after every rated match.");
 
   // Cuescore: your own link is yours to set; anyone else's reads only (SPEC §13.8).
   // A friend's or guest's name isn't the household's to edit; the owner still sets their starter.
@@ -3386,14 +3500,14 @@ function saveStarter(id, zargo, setBy){
     setBy: setBy || (cloud.user && cloud.user.email) || null }).catch(e => console.warn("[starter]", e));
 }
 
-// Every rating replayed from the saved matches, in the order they ended (zargo.js replay).
+// Every rating replayed from the rated matches, in the order they were rated (zargo.js replay).
 // Old matches' player ids are read as who they are today. Someone with no starter document
 // starts where their first match found them (a starter set before starters had documents),
 // or, if they've never played, at the rating they hold; Apply writes those down, and every
 // player's numbers to ratings/<id>.
 async function planRebuild(){
   const [all, docs] = await Promise.all([cloud.list("matches"), loadStarters()]);
-  const done = all.filter(m => m.status === "done").map(m => Object.assign({}, m,
+  const done = all.filter(Z.isRated).map(m => Object.assign({}, m,
     { playerA: people.resolve(m.playerA), playerB: people.resolve(m.playerB) }));
   const starters = {};
   for(const [id, st] of Object.entries(docs)){
@@ -3401,7 +3515,8 @@ async function planRebuild(){
     if(Number.isFinite(st.zargo) && (!cur || (st.setAt || 0) >= (cur.setAt || 0))) starters[r] = st;
   }
   const derived = {};
-  const byStart = done.slice().sort((x, y) => (x.startedAt || 0) - (y.startedAt || 0));
+  // A match from before 2.9.0 holds the ratings it started on; a confirmed one, those it was rated on.
+  const byStart = done.slice().sort((x, y) => (x.ratedAt || x.startedAt || 0) - (y.ratedAt || y.startedAt || 0));
   for(const m of byStart) for(const side of ["a", "b"]){
     const id = side === "a" ? m.playerA : m.playerB, z = m.zargoBefore && m.zargoBefore[side];
     if(!starters[id] && !derived[id] && Number.isFinite(z)) derived[id] = { zargo: z };
@@ -3426,8 +3541,8 @@ async function applyRebuild(plan){
 async function rebuildRatings(card){
   const plan = await planRebuild();
   if(!card) return applyRebuild(plan);
-  el.rbInfo.textContent = `Replays ${plan.count} saved ${plan.count === 1 ? "match" : "matches"} in the order they ended, ` +
-    "from each player's starter rating. Handicaps never enter it.";
+  el.rbInfo.textContent = `Replays ${plan.count} rated ${plan.count === 1 ? "match" : "matches"} in the order they were rated, ` +
+    "from each player's starter rating. Friendlies and handicaps never enter it.";
   el.rbList.innerHTML = "";
   const ids = Object.keys(plan.result.players).filter(id => people.get(id) && !people.get(id).deleted)
     .sort((x, y) => plan.result.players[y].zargo - plan.result.players[x].zargo);
@@ -3442,7 +3557,7 @@ async function rebuildRatings(card){
     li.children[1].textContent = same ? `${Math.round(now)}, no change` : `${Math.round(was)} → ${Math.round(now)}`;
     el.rbList.appendChild(li);
   }
-  if(!ids.length) el.rbList.innerHTML = "<li><span>No saved matches yet</span></li>";
+  if(!ids.length) el.rbList.innerHTML = "<li><span>No rated matches yet</span></li>";
   const d = Object.entries(plan.derived).filter(([id]) => people.get(id));
   el.rbNote.textContent = (d.length ? "Starter ratings taken from their first match or their current rating: " +
       d.map(([id, st]) => `${nameOf(id)} ${Math.round(st.zargo)}`).join(", ") + ". " : "") +
