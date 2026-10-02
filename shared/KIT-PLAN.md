@@ -397,12 +397,12 @@ save, with `names` and `uids` on the documents. Nobody new appears on Invites.
 
 Household only; Session 6 puts rules behind it. Ratings stop moving on every match.
 
-- [ ] Setup gains a **Rated** tick, off by default. It's offered only when both players are
+- [x] Setup gains a **Rated** tick, off by default. It's offered only when both players are
   accounts. The match stores `rated: true | false`. **A stored match with no `rated` field
   is rated**: every match before this session moved ratings.
-- [ ] **Friendly:** Save sets `status: "done"` and writes no rating. The handicap still
+- [x] **Friendly:** Save sets `status: "done"` and writes no rating. The handicap still
   comes from the ratings. The result card and summary say "Friendly · ratings unchanged".
-- [ ] **Rated:** Save sets `status: "pending"` and `endedBy: <uid>`, and moves nothing. The
+- [x] **Rated:** Save sets `status: "pending"` and `endedBy: <uid>`, and moves nothing. The
   opponent's phone shows a strip above the tabs: "Kenny 5–3 You · rated" with **Confirm**
   and **Not right**. The scorer sees "Waiting for Melanie to confirm" and **Withdraw**.
   - **Confirm** works the result out from the two ratings as they stand now and writes, in
@@ -410,19 +410,21 @@ Household only; Session 6 puts rules behind it. Ratings stop moving on every mat
     `{ status: "done", zargoBefore, zargoAfter, ratedAt, confirmedBy }`.
   - **Not right** or **Withdraw** writes `{ status: "done", rated: false }` with
     `declinedBy` or `withdrawnBy`. It stands as a friendly.
-- [ ] `cloud.batch([{ save | patch | delete: path, data }])`, atomic, in `cloud.js` and
+- [x] `cloud.batch([{ save | patch | delete: path, data }])`, atomic, in `cloud.js` and
   `cloud-memory.js`.
-- [ ] `zargo.js` `replay` takes only rated, finished matches, ordered by
+- [x] `zargo.js` `replay` takes only rated, finished matches, ordered by
   `ratedAt || endedAt`; friendlies add nothing to robustness or matches played. A test for
   each. Existing tests pass untouched.
-- [ ] Matches and summaries show pending and friendly plainly. ⚠ The win record on a
+- [x] Matches and summaries show pending and friendly plainly. ⚠ The win record on a
   person's page counts friendlies too; say so in Handover so the owner can rule on it.
-- [ ] SPEC §3, §5, §6, §7, §9, §13; `ZARGO.md` where it says what moves a rating.
+- [x] SPEC §3, §5, §6, §7, §9, §13; `ZARGO.md` where it says what moves a rating.
 
 ### Done when
 
 A friendly leaves both ratings alone. A rated match moves them only after the second phone
 confirms, and **Rebuild ratings** then proposes no change.
+
+✓ in `?mock` with two household tabs (Handover, Session 5). Real phones pending.
 
 ---
 
@@ -606,7 +608,8 @@ Still open, for the owner:
 
 1. After **Delete my account**, the matches that person played keep their name and uid.
    Decide before Session 6 whether the owner should have a "forget this player" action.
-2. Whether a person's win record counts friendlies (Session 5).
+2. Whether a person's win record counts friendlies (Session 5): both readings are in the
+   Session 5 Handover.
 
 ### Session 0, 2026-10-01 (Opus)
 
@@ -859,3 +862,68 @@ What the plan got wrong, or didn't say:
 10. The owner sets a friend's or guest's starter through Edit on their page; nobody else sees
     Edit there.
 
+### Session 5, 2026-10-02 (Opus)
+
+Shipped (Rack It 2.9.0, live): a **Rated** tick in setup, off by default, offered only when both
+players have an account. A friendly saves as `done` and moves nothing. A rated match saves as
+`pending` with `endedBy`; the other player's phone shows an amber strip ("Kenny 6–5 You · rated",
+**Confirm**, **Not right**) and the scorer's shows "Waiting for Melanie to confirm" with **Withdraw**.
+Confirm writes both `ratings/` documents (each with `match`) and the match (`done`, `zargoBefore`,
+`zargoAfter`, `ratedAt`, `confirmedBy`) in one `cloud.batch`, which is new in `cloud.js` and the
+mock. `zargo.js` gains `isRated` and `ratedOrder`; `replay` takes only rated, finished matches,
+ordered by `ratedAt || endedAt`. SPEC §3, §3.2, §5, §6.1 (new), §7, §9, §13 and `ZARGO.md` updated.
+
+Proved:
+
+- Rules: no rule changed. Three cases record the household confirm path: pending, then a confirm
+  batch holding two ratings; Not right and Withdraw; and a member turning a saved friendly into a
+  rated match refused, with nothing from that batch landing. That refusal goes red when the update
+  rule is loosened. Run 36986470207 ran 49 tests (49 pass) at 08:52:39, then released the rules at
+  08:52:44.
+- Two tabs in `?mock` (owner, and `&as=mel&role=member`), at 390×844 and 360×640, with no console
+  errors bar the scratch server's favicon 404:
+  - A rated match: `ratings/` untouched while pending. Mel's Confirm reached the owner's tab as
+    **one** write, changing exactly `ratings/mock-uid`, `ratings/mock-mel` and the match.
+  - A friendly: `done`, `rated: false`, `zargoAfter` null, and `ratings/` byte-identical.
+  - Not right and Withdraw: each `done`, `rated: false`, with `declinedBy` or `withdrawnBy`, and
+    ratings untouched. Withdraw clears Mel's strip.
+  - Rebuild: no change for anyone and 0 match records. After it had written the starters once, a
+    second confirmed match left it at "Nothing to change".
+- The same 11-Point-Nine match on 2.8.0 and on 2.9.0, rated and confirmed: the same match document
+  apart from `rated`, `endedBy`, `ratedAt` and `confirmedBy`, and the same ratings to full precision.
+- The owner's 2026-10-02 export as a seed, 2.8.0 against 2.9.0: the same Ratings page, the same
+  Rebuild proposal (Kenny 507 → 505, Melanie 331 → 332: the Session 3 drift, already fixed live),
+  the same 8 ratings after Apply, then "Nothing to change" on both. Only Rebuild's sentence differs.
+- `node --test` 31 pass: the 25 existing tests untouched, plus 6 for replay. Smoke green for all six
+  apps (`make verify`, with `PLAYWRIGHT=` pointed at a copy elsewhere).
+
+Not done: the real-phone check (the owner rates a match and Melanie confirms it on her phone).
+
+For the owner to rule on: **does a person's win record count friendlies?** Today it counts every
+finished match (friendlies, declined and withdrawn included), as before; pending ones aren't
+counted. In the test, Mel's 11-Point-Nine record read "won 0, lost 4" that way, against "won 0,
+lost 1" for rated matches only. One line in `renderPerson` either way.
+
+What the plan got wrong, or didn't say:
+
+1. **No rule was needed for the household.** A member already writes any match that isn't `done`
+   and any rating. Session 6's rules are what stop a player confirming their own result.
+2. **`ratedAt || endedAt` leaves the old gap where it was.** No stored match has `ratedAt`, so every
+   one replays exactly as before. A match from before 2.9.0 left open across another still replays
+   after it (Session 3, note 1; a test pins it down). A confirmed match can't drift: it's rated
+   from the ratings at confirmation and replayed at `ratedAt`.
+3. **"Both players are accounts" means both have a uid.** A claimed household person's `kind` is
+   `"household"`, not `"account"`, so the check is the uid, not `people.get(id).kind`.
+4. **Who confirms when a third member scored?** Not said. Either player with an account who didn't
+   end it may confirm; the scorer sees "Waiting for Kenny or Melanie".
+5. **A live match at deploy has no `rated` field.** Resumed on 2.9.0, it saves as rated (pending)
+   when both have accounts, else as a friendly. A phone still on 2.8.0 saves the old way and moves
+   ratings at once, with no field; replay counts it as rated, so Rebuild agrees.
+6. **Rebuild's derived starters now follow the ratings a match was rated on**: `ratedAt`, else
+   `startedAt`, as before 2.9.0. Only rated matches feed them.
+7. **Matches played now counts rated matches only**, so a guest who plays only friendlies stays
+   "not played yet" on Ratings. That's the plan's rule, but it shows on screen.
+8. The result card of a rated match previews the movement from the ratings as they stand, since
+   that's what Confirm will use, rather than the ratings the match started on.
+9. Rebuild still offers **Apply** after a first rated match when players have no starter document:
+   it writes the derived 500s, as before. The numbers and match records show no change.
