@@ -278,22 +278,22 @@ connected. Both Friends lists show each other. Yesterday's QR is refused.
 
 ## Session 2 — The friend card, your profile, leaving
 
-- [ ] **Friend card** in `connect.showFriends()`, all private to you: **Note**; **Met**
+- [x] **Friend card** in `connect.showFriends()`, all private to you: **Note**; **Met**
   (date and time stamped at connect; a typed place that defaults to the last one used, kept
   in `localStorage`); **Tags** as chips offered from the tags you've used, and tag chips
   that filter the list.
-- [ ] `connect.showProfile()`: edit your name. **Take or pick a photo**
+- [x] `connect.showProfile()`: edit your name. **Take or pick a photo**
   (`<input type=file accept=image/* capture=user>`) shrinks to a 192 px JPEG in a canvas.
   ⚠ Check the base64 stays under the rule's 60,000 characters; lower the quality if not.
   **Use my Google photo** goes back.
-- [ ] `account.exportMe()` and `account.importMe(json)`: profile, friends' cards, guests.
+- [x] `account.exportMe()` and `account.importMe(json)`: profile, friends' cards, guests.
   Import restores your cards only; it can't remake a friendship. Rack It's Export carries
   it.
-- [ ] **Delete my account**, at the bottom of the profile sheet, a hold then a typed
+- [x] **Delete my account**, at the bottom of the profile sheet, a hold then a typed
   confirm: deletes your pairs, cards, guests, live invite, `private/main` and profile, then
   signs out. Each document is deleted one by one (Firestore doesn't cascade). ⚠ Matches you
   played keep your name and uid (Session 6); only the owner can remove those.
-- [ ] Rack It: **Profile** under More and on the outsider screen. SPEC and version bump.
+- [x] Rack It: **Profile** under More and on the outsider screen. SPEC and version bump.
 
 ### Done when
 
@@ -699,3 +699,45 @@ What the plan got wrong, or didn't say:
    rather than a "not invited" screen. The owner decides whether each gets one.
 8. The rules check runs locally with `mise exec java@temurin-21 -- npx firebase-tools
    emulators:exec …` from a scratch folder holding the npm packages, so nothing lands in the repo.
+
+### Session 2, 2026-10-02 (Opus)
+
+Shipped (Rack It 2.6.0, live): the friend card (note, met, tags) and tag filters in
+`connect.showFriends`, `connect.showProfile` (name, photo, Use my Google photo, Delete my
+account), `account.exportMe`, `importMe` and `deleteMe` in `cloud.js` and the mock, and
+**Profile** in Rack It's More and on the outsider screen. Rack It's Export carries `account`.
+
+Proved in `?mock`, at 390×844 and 360×640, no console errors:
+
+- A card's note, place and two tags survive a reload; a tag chip narrows two friends to one
+  and clears again. The owner's card for a new friend is stamped with the time and the last
+  place typed.
+- A 2400×1800 noise photo (JPEG's worst case) shrinks to about 6,200 characters, far under
+  60,000. Friends see the new name.
+- Export, then a wiped card, then Import: the card is back. Someone else's export is refused
+  (`wrong-account`).
+- A 300ms press doesn't arm Delete; a full hold and "delete" (any case) does. Afterwards no
+  document of that user is left under `/profiles/<uid>`, `/friendships` or `/invites`
+  (including a live code), the other side's Friends empties, and the app is back at sign-in.
+- Rules: three cases pin down the delete path and the photo limit; no rule changed. Run
+  36978336900: 39 pass, then deployed. `node --test` 25 pass; smoke green.
+
+Not done: **"survive a reload on another phone"** and a real delete need the owner's phones.
+The test account from Session 1 is the one to delete: Profile → hold → DELETE.
+
+What the plan got wrong, or didn't say:
+
+1. **Only the scanner got a card.** Session 1 makes `friends/<them>` for the one who scanned.
+   The owner's card is now stamped when "Connected with …" shows on an open My QR; a friend
+   who arrives while it's closed has no card until the first Save, and Met falls back to the
+   pair's `since`.
+2. **Your friend's card about you outlives your account.** It's theirs, under their profile,
+   so `deleteMe` can't touch it. It no longer shows (no pair), but it's there. The plan's
+   promise "removes … notes" holds for your own notes only.
+3. **Delete leaves the Firebase Auth user.** Signing in again makes a fresh profile under the
+   same uid. Deleting the Auth user needs a recent sign-in (`user.delete()`); not done.
+4. Import restores the account part only from your own export, gated on `uid`, so a
+   household member importing someone else's Rack It file doesn't overwrite their name.
+5. The mock's seed skips an export's `account` key; before, it became a collection.
+6. These rules cases were green on first run, since the Session 1 rules already allowed it;
+   they record the behaviour rather than drive a new rule.
