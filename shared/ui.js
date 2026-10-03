@@ -12,6 +12,9 @@
 //                                       and calls close(value) when it's done
 //   ui.menu(rowButton, items)           the ⋯ on a card row: same sheet, wired to the row
 //   ui.account(hostEl, user, opts)      your avatar in the header; tapping it opens your sheet
+//   ui.echo(host, { who, say, count, undo })  another phone changed the game (.echo), for 5s
+//   ui.echo(host, null)                 …hidden again
+//   ui.presence(host, phones, { me, name, avatar })  one avatar per other phone (.presence)
 //
 // Destructive actions are never a plain tap: { label, value, hold: true } puts the item behind a
 // hold inside the sheet. There are no "Sure?" buttons and no confirm() dialogs anywhere.
@@ -167,4 +170,53 @@ function account(host, user, { onSignIn, onSignOut, extra = [], name = "", text 
   host.appendChild(b);
 }
 
-export const ui = { tap, hold, toast, sheet, menu, account, buzz };
+// ---- shared games (shared/CONNECT.md §4): built in Rack It, here since Zombie Dice needs them too ----
+const firstName = n => String(n || "").trim().split(/\s+/)[0] || "Someone";
+
+// The echo strip: another phone changed the game in the last five seconds. "Melanie · 7 to Gareth",
+// with Undo when the app passes one; a run of changes reads "3 changes while you were away", with no
+// Undo. `host` is the app's .echo element (it places it); null as the options hides it.
+function echo(host, opts){
+  if (!host) return;
+  clearTimeout(host._echo);
+  if (!opts){ host.classList.add("hidden"); return; }
+  const { who = "", say = "", count = 1, undo = null } = opts;
+  const s = document.createElement("span");
+  if (count > 1) s.textContent = `${count} changes while you were away`;
+  else { const b = document.createElement("b"); b.textContent = firstName(who); s.append(b, ` · ${say || "a change"}`); }
+  host.replaceChildren(s);
+  if (undo && count <= 1){
+    const u = document.createElement("button");
+    u.type = "button"; u.textContent = "Undo";
+    tap(u, () => { echo(host, null); undo(); });
+    host.append(u);
+  }
+  host.classList.remove("hidden");
+  host._echo = setTimeout(() => echo(host, null), 5000);
+}
+
+// Light presence: phones.<uid>.at, when each phone in the game was last seen (no heartbeat). One
+// avatar per other phone, tap for "last seen 3 min ago". name(uid) and avatar(uid, size) come from
+// people.js. Returns how many other phones it showed.
+const ago = at => { const m = Math.round((Date.now() - at) / 60000); return m < 1 ? "just now" : m < 60 ? `last seen ${m} min ago` : "last seen a while ago"; };
+function presence(host, phones, { me = "", name = () => "Someone", avatar = null } = {}){
+  if (!host) return 0;
+  const others = Object.entries(phones || {}).filter(([uid, p]) => uid !== me && p && p.at).sort((x, y) => y[1].at - x[1].at);
+  host.classList.toggle("hidden", !others.length);
+  if (!others.length){ host.replaceChildren(); return 0; }
+  const nodes = others.map(([uid, p]) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "ph";
+    b.setAttribute("aria-label", name(uid));
+    if (avatar) b.append(avatar(uid, 36));
+    tap(b, () => sheet({ title: name(uid), text: ago(p.at).replace(/^l/, "L").replace(/^j/, "J") }));
+    return b;
+  });
+  const say = document.createElement("span");
+  say.className = "say";
+  say.textContent = others.map(([uid, p]) => `${firstName(name(uid))} ${ago(p.at)}`).join(" · ");
+  host.replaceChildren(...nodes, say);
+  return others.length;
+}
+
+export const ui = { tap, hold, toast, sheet, menu, account, buzz, echo, presence };

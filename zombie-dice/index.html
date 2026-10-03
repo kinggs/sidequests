@@ -145,6 +145,12 @@
   .acts button{min-height:84px;font-size:20px;line-height:1.15}
   .acts button small{display:block;font-size:16px;font-weight:600;margin-top:2px}
   .acts #rollBtn{font-size:24px;font-family:var(--grot)}
+  /* Several phones (CONNECT.md §4): the other phones in the game, and what one of them just did,
+     over the top of the tray. A phone whose turn it isn't keeps every control, dimmed (.mirror). */
+  #presence{flex:none;min-height:36px;padding:0 2px}
+  #presence .say{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  #echo{position:fixed;left:14px;right:14px;z-index:6;max-width:38rem;margin:0 auto}
+  .tray.mirror .tapword{color:var(--dim)}
   .abandon{flex:none;display:flex;justify-content:center}
   .abandon button{min-height:var(--tap);min-width:7rem;font-size:15px;padding:0 18px;letter-spacing:.1em}
 
@@ -254,6 +260,8 @@
 
 <section id="game" class="hidden">
   <div class="board" id="board"></div>
+  <div class="presence hidden" id="presence"></div>
+  <div class="echo hidden" id="echo" role="status"></div>
   <div class="whose" id="whose"></div>
   <div class="banner hidden" id="banner"></div>
   <div class="stats">
@@ -272,7 +280,7 @@
     <button class="primary" id="rollBtn">Roll</button>
   </div>
   <div class="abandon">
-    <button class="quiet" id="menuBtn" aria-label="Home, or abandon the game">• • •</button>
+    <button class="quiet" id="menuBtn" aria-label="Home, invite, or abandon the game">• • •</button>
   </div>
 </section>
 
@@ -286,7 +294,7 @@
   import { ui } from "../shared/ui.js";
 
   // Bump on every change. The deploy skill checks this against the live site.
-  const APP_VERSION = "0.4.0";
+  const APP_VERSION = "0.5.0";
   const APP_ID = "zombie-dice";
   document.getElementById("version").textContent = "v" + APP_VERSION;
 
@@ -336,6 +344,9 @@
   let resumed = false, run = 0;   // this phone's game reopened once; which sign-in start() is on
   let accountSig = "";    // what the header's avatar last showed (mountAccount)
   let owner = false;       // the one admin: sees every game, keeps the household list (KIT-PLAN Session 7)
+  let sent = [];           // the rev keys this phone wrote, newest last (syncOpenGame)
+  let pendingJoin = null;  // a Game QR scanned before sign-in had finished
+  let seatOffers = [], offering = false;   // a guest's seat taken by Game QR, to ask That was them about
 
   // A game names its players (names, beside players), so one this phone can't name still reads:
   // an old household game seen by a player, or someone else's guest.
@@ -357,6 +368,19 @@
 
   // Taps, holds, toasts and sheets: shared/ui.js.
   const tap = ui.tap, toast = ui.toast, buzz = ui.buzz;
+  const myUid = () => (cloud.user && cloud.user.uid) || "";
+  const firstName = n => String(n || "").trim().split(/\s+/)[0] || "Someone";
+  const newKey = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+
+  // ---- one game, several phones (KIT-PLAN Session 9 step 3, shared/CONNECT.md §4) ----
+  // Every phone in a game watches the same document. A seat is played on its player's own phone
+  // when they have one in this game (they've opened it: phones.<uid>), else on the starter's. This
+  // phone is live when the turn is its account's, or it started the game, so a guest, or a player
+  // whose phone isn't here, still gets played. Every other phone shows the same screen, dimmed.
+  const hasPhone = (x, p) => (x.uids || []).includes(p) && !!(x.phones && x.phones[p]);
+  const phoneOf = (x, p) => (p === x.by || hasPhone(x, p) ? p : x.by);
+  const liveHere = () => !!g && (!g.by || g.by === myUid() || g.seats[g.turn] === myUid());
+  const otherPhones = x => Object.keys(x.phones || {}).some(u => u !== myUid());
   // A row's ⋯: delete behind a hold, for whoever started the game, or the owner.
   const mayDelete = x => owner || !x.by || x.by === (cloud.user && cloud.user.uid);
   function rowMenu(btn, x, title){
@@ -518,6 +542,19 @@
     const ul = document.createElement("ul");
     ul.className = "rows";
     for (const x of live){
+      // Someone else's game you're in (they picked you, or you took a seat): the Home card is the
+      // invite; there are no notifications (CONNECT.md §2).
+      if (x.by && x.by !== myUid()){
+        const card = document.createElement("div");
+        card.className = "resume";
+        card.innerHTML = `<span class="t"><span class="who"></span><small></small></span><button type="button">Open</button>`;
+        const starter = x.players.includes(x.by) ? nameOf(x.by) : (people.get(x.by) ? people.nameOf(x.by) : "Someone");
+        card.querySelector(".who").textContent = `${firstName(starter)}'s game · you're in`;
+        card.querySelector("small").textContent = `Round ${x.round || 1} · ${x.seats[x.turn] === myUid() ? "your turn" : nameOf(x.seats[x.turn]) + " to play"}`;
+        tap(card.querySelector("button"), () => { phone.fullscreen(); openGame(x.id); });
+        box.appendChild(card);
+        continue;
+      }
       const li = document.createElement("li");
       li.innerHTML = `<span class="who"><div class="l1"></div><div class="l2"></div></span>
         <button type="button" class="primary go">Resume</button><button type="button" class="more" aria-label="More">⋯</button>`;
@@ -527,7 +564,11 @@
       if (mayDelete(x)) rowMenu(li.querySelector(".more"), x, "Unfinished game"); else li.querySelector(".more").remove();
       ul.appendChild(li);
     }
-    box.append(h, ul);
+    box.prepend(h);
+    if (ul.children.length) box.append(ul);
+    box.querySelectorAll(".resume").forEach((c, i) => { c.style.marginTop = i ? "8px" : "0"; });
+    if (ul.children.length && box.querySelector(".resume")) ul.style.marginTop = "8px";
+    offerSeats();
   }
 
   function renderLeaders(){
@@ -651,7 +692,7 @@
     phone.fullscreen();
     g = newGame(players, hh);
     rolledAt = -1;
-    save();
+    save("started");
     showGame();
     handover(null);
   }
@@ -664,7 +705,10 @@
     normTurn(g.t);
     rolledAt = -1;
     showGame();
+    seen("open");
     if (g.status === "done") finish();
+    // Someone else's game, and the turn is yours: say so.
+    else if (g.by !== myUid() && g.seats[g.turn] === myUid() && !g.t.rolls) handover(g.lastTurn);
   }
 
   function showGame(){
@@ -685,10 +729,24 @@
     render();
   }
 
-  function save(){
+  // Every write says what it did (rev.say, the other phones' echo strip) and stamps this phone's
+  // presence. phones is never written whole: each phone touches only its own entry.
+  function save(say = ""){
     g.seq = (g.seq || 0) + 1;
-    const { id, ...doc } = g;
-    store.save(id, structuredClone(doc)).catch(e => toast("Couldn't save: " + (e.message || e)));
+    const me = myUid(), at = Date.now();
+    g.rev = { n: g.seq, key: newKey(), by: me, at, say };
+    sent = [...sent.slice(-39), g.rev.key];
+    if (me) g.phones = { ...(g.phones || {}), [me]: { at } };
+    const { id, phones, _updatedAt, ...doc } = g;
+    store.save(id, { ...structuredClone(doc), ...(me ? { phones: { [me]: { at } } } : {}) }).catch(e => toast("Couldn't save: " + (e.message || e)));
+  }
+  // Light presence: phones.<uid>.at, on open and on hide, and with every write above. No heartbeat.
+  function seen(why){
+    const me = myUid();
+    if (!g || !me || !store.live) return;
+    const at = Date.now();
+    g.phones = { ...(g.phones || {}), [me]: { at } };
+    cloud.patch("games/" + g.id, { ["phones." + me]: { at } }).catch(e => console.warn("[presence]", why, e));
   }
 
   // show: { t, p } to keep the fatal roll on screen after the saved game has moved on.
@@ -697,6 +755,10 @@
     const t = show ? show.t : g.t;
     const now = show ? show.p : g.seats[g.turn];
     const live = g.status === "live" || !!show;
+    const mirror = !show && g.status === "live" && !liveHere();
+    $("tray").classList.toggle("mirror", mirror);
+    $("rollBtn").parentElement.classList.toggle("mirror", mirror);
+    ui.presence($("presence"), g.phones, { me: myUid(), name: nameOf, avatar: people.avatar });
 
     const board = $("board");
     board.innerHTML = "";
@@ -753,11 +815,11 @@
           d = die(x.c, x.f, size, i === justRevealed ? "flip " + (isShot(x.f) ? "kick" : isBrain(x.f) ? "chomp" : "hop") : "counted");
           s.textContent = (HERO[x.c] ? DICE[x.c].name + ": " : "") + FACE[x.f];
         } else {
-          d = die(x.c, null, size, "down" + (animate ? " tumble" : "") + (show ? "" : " tapme"));
+          d = die(x.c, null, size, "down" + (animate ? " tumble" : "") + (show || mirror ? "" : " tapme"));
           if (animate) d.style.animationDelay = (i * 80) + "ms";
-          s.textContent = show ? "" : "Tap me";
+          s.textContent = show ? "" : mirror ? `${firstName(nameOf(now))}'s` : "Tap me";
           s.className = "tapword";
-          if (!show) tap(d, () => doReveal(i));
+          if (!show && !mirror) tap(d, () => doReveal(i));
         }
         one.append(d, s);
         three.appendChild(one);
@@ -766,6 +828,8 @@
       const h = document.createElement("p");
       h.className = "hint";
       if (show) h.textContent = "";
+      else if (mirror) h.textContent = pending ? `${firstName(nameOf(now))} has ${plural(pending, "die")} to look at.`.replace("dies", "dice")
+        : `${firstName(nameOf(now))} rolls again or stops.`;
       else if (pending) h.textContent = pending === 3 ? "Tap each die to see what you got." : `${plural(pending, "die")} still to look at.`.replace("dies", "dice");
       else if (t.hand.length) h.textContent = `${plural(t.hand.length, "runner")} to chase if you roll again, plus ${3 - t.hand.length} from the cup.`;
       else h.textContent = "Nobody got away. Roll again for three fresh dice?";
@@ -775,7 +839,7 @@
       tray.appendChild(three);
       const h = document.createElement("p");
       h.className = "hint";
-      h.textContent = "Tap Roll to grab three dice from the cup.";
+      h.textContent = mirror ? `${firstName(nameOf(now))} to roll.` : "Tap Roll to grab three dice from the cup.";
       tray.appendChild(h);
     }
     const cup = document.createElement("div");
@@ -804,7 +868,7 @@
       ? `Last turn: ${nameOf(lt.p)} ${lt.bust ? `got shot, lost ${plural(lt.brains, "brain")}` : `banked ${lt.brains}`} → ${lt.total}`
       : "";
 
-    const ready = !busy && !show && g.status === "live" && !pending;
+    const ready = !busy && !show && !mirror && g.status === "live" && !pending;
     $("rollBtn").disabled = !ready;
     $("rollBtn").textContent = t.rolls ? "Roll again" : "Roll";
     $("stopBtn").disabled = !ready || !t.rolls;
@@ -822,10 +886,10 @@
     justRevealed = -1;
     busy = true;
     buzz(15);
-    save();
+    save(refilled ? "rolled · the cup was refilled" : "rolled");
     renderGame();
     if (refilled) event({ kind: "refill", n: refilled, brains: g.t.brains });
-    setTimeout(() => { busy = false; rolledAt = -1; renderGame(); }, calm() ? 100 : 650);
+    setTimeout(() => { busy = false; rolledAt = -1; renderGame(); syncOpenGame(); }, calm() ? 100 : 650);
   }
 
   function doReveal(i){
@@ -842,14 +906,14 @@
       g.t.last.forEach((y, k) => { if (!y.done) events.push(...reveal(k)); });
       const shown = { t: structuredClone(g.t), p: g.seats[g.turn] };
       const res = endTurn(true);
-      save();
+      save(res.brains ? `got shot, lost ${plural(res.brains, "brain")}` : "got shot");
       busy = true;
       renderGame(shown);
       events.forEach(e => event({ kind: "rescue", ...e }));
-      setTimeout(() => { busy = false; justRevealed = -1; buzz([60, 40, 160]); handover(res); renderGame(shown); }, calm() ? 300 : (events.length ? 2000 : 1100));
+      setTimeout(() => { busy = false; justRevealed = -1; buzz([60, 40, 160]); handover(res); renderGame(shown); syncOpenGame(); }, calm() ? 300 : (events.length ? 2000 : 1100));
       return;
     }
-    save();
+    save(HERO[x.c] ? `${DICE[x.c].name}: ${FACE[x.f]}` : FACE[x.f]);
     renderGame();
     events.forEach(e => event({ kind: "rescue", ...e }));
   }
@@ -882,7 +946,7 @@
     if (!g || busy || !g.t.rolls || g.status !== "live" || !allRevealed(g.t)) return;
     const res = endTurn(false);
     buzz([20, 40, 20]);
-    save();
+    save(`banked ${res.brains}`);
     renderGame();
     handover(res);
   }
@@ -925,10 +989,15 @@
     }
     const nx = q(".next");
     nx.prepend(people.avatar(next, 64));
-    q(".next .lbl").textContent = solo ? "Next" : "Pass the phone to";
-    q(".next b").textContent = solo ? `Turn ${g.turns.length + 1}` : nameOf(next);
+    // One phone: pass it round, as ever. Several: the next turn is yours, this phone's to hand over
+    // (a guest, or a player whose phone isn't here), or on someone else's phone.
+    const several = !solo && otherPhones(g), here = phoneOf(g, next) === myUid();
+    const yours = several && next === myUid(), elsewhere = several && !here;
+    q(".next .lbl").textContent = solo ? "Next" : yours ? "Your turn" : elsewhere ? "On their own phone" : "Pass the phone to";
+    q(".next b").textContent = solo ? `Turn ${g.turns.length + 1}` : elsewhere ? `${nameOf(next)}'s turn` : nameOf(next);
     const btn = q("button");
-    btn.textContent = solo ? "Go" : `I'm ${nameOf(next)} — go`;
+    btn.textContent = solo || yours ? "Go" : elsewhere ? "OK" : `I'm ${nameOf(next)} — go`;
+    if (yours) buzz(16);
     // A short pause so a tap meant for Roll doesn't dismiss the card by accident.
     btn.disabled = true;
     setTimeout(() => { btn.disabled = false; }, 500);
@@ -972,18 +1041,130 @@
     document.body.appendChild(ov);
   }
 
-  // Another phone (or this one's echo) changed the game on screen.
+  // Another phone changed the game on screen. Only a live phone writes the game, so the newest
+  // write is the truth: this phone takes it, unless it's a snapshot of one of this phone's own
+  // writes. Presence and a seat changing hands carry no rev and are taken as they come.
   function syncOpenGame(){
     if (!g || busy) return;
     const x = games.find(y => y.id === g.id);
     if (!x){ toast("That game was deleted."); leaveGame(true); return; }
-    if ((x.seq || 0) > (g.seq || 0)){
-      const { _updatedAt, ...rest } = x;
-      g = structuredClone(rest);
-      normTurn(g.t);
-      renderGame();
-      if (g.status === "done" && !document.querySelector(".done")) finish();
+    const r = x.rev || {}, mineNow = (g.rev && g.rev.key) || "";
+    const seatMoved = JSON.stringify(x.players) !== JSON.stringify(g.players);
+    const theirs = (r.key || "") !== mineNow && !sent.includes(r.key) && (x.seq || 0) >= (g.seq || 0);
+    if (!theirs && !seatMoved){
+      g.phones = x.phones || {};
+      ui.presence($("presence"), g.phones, { me: myUid(), name: nameOf, avatar: people.avatar });
+      return;
     }
+    const before = g;
+    const { _updatedAt, ...rest } = x;
+    g = structuredClone(rest);
+    normTurn(g.t);
+    if (!theirs){ g.seq = before.seq; g.rev = before.rev; g.t = before.t; }   // a seat moved: keep this phone's game
+    // A fresh roll from another phone tumbles in; a die it turned over flips.
+    const t0 = before.t, t1 = g.t;
+    if (theirs && t1.last.length && t1.rolls !== t0.rolls) rolledAt = g.seq;
+    else if (theirs && t1.rolls === t0.rolls){
+      const i = t1.last.findIndex((d, k) => d.done && !(t0.last[k] && t0.last[k].done));
+      justRevealed = i;
+      setTimeout(() => { if (justRevealed === i) justRevealed = -1; }, 800);
+    }
+    renderGame();
+    if (theirs && r.by && r.by !== myUid()){
+      const echoEl = $("echo");
+      // Over the presence row (there whenever another phone is in the game), never over the dice.
+      const pr = $("presence");
+      echoEl.style.top = (pr.classList.contains("hidden") ? $("whose") : pr).getBoundingClientRect().top + "px";
+      ui.echo(echoEl, { who: nameOf(r.by), say: r.say, count: Math.max(1, (g.seq || 0) - (before.seq || 0)) });
+    }
+    if (rolledAt === g.seq) setTimeout(() => { if (rolledAt === g.seq){ rolledAt = -1; renderGame(); } }, calm() ? 100 : 650);
+    if (g.status === "done"){ if (!document.querySelector(".done .rank, .done .crown")) finish(); return; }
+    // The turn moved on, and it's this phone's to play now: its moment ("Your turn, Melanie").
+    const turned = (g.turns || []).length !== (before.turns || []).length || g.round !== before.round;
+    if (theirs && turned && g.status === "live" && phoneOf(g, g.seats[g.turn]) === myUid()) handover(g.lastTurn);
+  }
+
+  // ---- the Game QR and seats (CONNECT.md §1, §3) ----
+  // The starter's ⋯ shows a Game QR: the scan connects the scanner to the starter, then offers the
+  // game's guest seats ("I'm Dan"). Taking one is the rules' openSwap(): the guest's id becomes the
+  // joiner's everywhere in the game (seats, scores), uids gains them, names keeps the name.
+  function inviteToGame(id){
+    const qr = connect.showQR({ app: APP_ID, game: { id, title: `Join ${firstName(nameOf(myUid()))}'s game` } });
+    let was = null;
+    const off = cloud.watch("games/" + id, x => {
+      if (!x) return;
+      if (was) x.players.forEach((p, i) => { if (p !== was[i] && !String(p).startsWith("g_")) qr.say(`${firstName(people.nameOf(p, (x.names || [])[i] || "Someone"))} joined`); });
+      was = x.players;
+    }, e => console.warn("[invite]", e));
+    const t = setInterval(() => { if (!document.querySelector(".cn-ov")){ clearInterval(t); off(); } }, 500);
+  }
+  let joining = false;
+  function tryJoin(){
+    if (!pendingJoin || joining || !cloud.user || !people.ready) return;
+    const id = pendingJoin;
+    pendingJoin = null;
+    joining = true;
+    joinGame(id).finally(() => { joining = false; });
+  }
+  async function joinGame(id){
+    let x = null;
+    try { x = await cloud.load("games/" + id); } catch (e){ x = null; }
+    if (!x || x.status !== "live"){
+      await ui.sheet({ title: "That game has finished", text: "Ask them to show the QR again if there's another one on.", cancel: false,
+        items: [{ label: "OK", value: true, primary: true }] });
+      return;
+    }
+    const me = myUid(), who = firstName((x.names || [])[x.players.indexOf(x.by)] || people.nameOf(x.by, "Someone"));
+    const open = () => { if (games.some(y => y.id === id)) openGame(id); else pendingOpen = id; };
+    if ((x.uids || []).includes(me)) return open();
+    const seats = x.players.map((p, i) => ({ p, i })).filter(s => String(s.p).startsWith("g_"));
+    if (!seats.length){
+      await ui.sheet({ title: `${who}'s game is full`, text: "Every seat already has a player with a phone.", cancel: false,
+        items: [{ label: "OK", value: true, primary: true }] });
+      return;
+    }
+    const gid = await ui.sheet({ title: `${who}'s game`, text: `Zombie Dice · round ${x.round || 1}. Which one are you? You'd be in ${who}'s Friends too.`,
+      items: [...seats.map(s => ({ label: `I'm ${(x.names || [])[s.i] || "the guest"}`, value: s.p, primary: true })), { label: "Not now", value: null }], cancel: false });
+    if (!gid) return;
+    const { id: _id, _updatedAt, names, uids, by, ...rest } = x;
+    const swapped = people.swapId(rest, gid, me), data = {};
+    for (const [k, v] of Object.entries(swapped)) if (JSON.stringify(v) !== JSON.stringify(rest[k])) data[k] = v;
+    data.uids = [...(uids || []), me];
+    try {
+      await cloud.patch("games/" + id, data);
+      toast("You're in");
+      open();
+    } catch (e){
+      console.warn("[seat]", e);
+      toast(e && e.code === "permission-denied" ? "Someone else just took that seat." : "Couldn't take the seat: " + (e.message || e));
+    }
+  }
+  let pendingOpen = null;
+  // The starter's phone notices a guest's seat taken in one of its live games: it says who, and
+  // once the game's over (or from Home) asks whether the guest's other games were theirs too.
+  let seatsSeen = {};
+  function noticeSeats(){
+    if (pendingOpen && games.some(y => y.id === pendingOpen)){ const id = pendingOpen; pendingOpen = null; if (!g) openGame(id); }
+    const me = myUid(), next = {};
+    for (const x of games.filter(y => y.status === "live" && y.by === me)){
+      next[x.id] = x.players;
+      const was = seatsSeen[x.id];
+      if (was) x.players.forEach((p, i) => {
+        const gid = was[i];
+        if (p === gid || !String(gid).startsWith("g_") || String(p).startsWith("g_")) return;
+        toast(`${firstName(nameOf(p))} joined`);
+        if (people.guests().some(q => q.id === gid)) seatOffers.push({ gid, uid: p, who: nameOf(p), guest: (x.names || [])[i] || "the guest" });
+      });
+    }
+    seatsSeen = next;
+  }
+  async function offerSeats(){
+    if (offering || g || !seatOffers.length) return;
+    offering = true;
+    const o = seatOffers.shift();
+    await people.claim(o.gid, { app: APP_ID, uid: o.uid, rewrite: claimRewrite, lead: `${firstName(o.who)} took ${o.guest}'s seat. ` }).catch(e => console.warn("[seat]", e));
+    offering = false;
+    if (seatOffers.length) offerSeats();
   }
 
   // ---- export / import ----
@@ -1044,14 +1225,23 @@
   renderMode();
   tap($("rollBtn"), doRoll);
   tap($("stopBtn"), doStop);
-  // One ⋯ in the game: Home, or Abandon behind a hold.
-  ui.menu($("menuBtn"), { title: "This game", items: [
-    { label: "Home", value: "home", run: () => leaveGame(false) },
-    { label: "Abandon the game", value: "abandon", hold: true, run: async () => {
+  // One ⋯ in the game: Home; for whoever started it, Invite to this game (the Game QR) and Abandon
+  // behind a hold.
+  tap($("menuBtn"), async () => {
+    if (!g) return;
+    const mine = !g.by || g.by === myUid();
+    const v = await ui.sheet({ title: "This game", items: [
+      { label: "Home", value: "home" },
+      ...(mine && g.status === "live" && store.live ? [{ label: "Invite to this game", value: "invite" }] : []),
+      ...(mine || owner ? [{ label: "Abandon the game", value: "abandon", hold: true }] : []),
+    ] });
+    if (v === "home") leaveGame(false);
+    if (v === "invite") inviteToGame(g.id);
+    if (v === "abandon"){
       const id = g.id; leaveGame(true);
       await store.remove(id).catch(e => toast("Couldn't abandon: " + (e.message || e)));
-    } }
-  ] });
+    }
+  });
   // Setup's other two ways in (design frame 8a): whoever scans your QR, or a guest, joins the lineup.
   const addToLineup = id => {
     if (!id) return;
@@ -1076,13 +1266,17 @@
   });
   renderDiceKey();
   addEventListener("resize", () => { if (g && !busy) renderGame(); });
-  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && g) phone.keepAwake(true); });
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && g) phone.keepAwake(true);
+    if (document.visibilityState === "hidden") seen("hide");
+  });
 
   people.onChange(() => { refreshGames(); if (g) renderGame(); else render(); });
 
   // ---- cloud ----
   await cloud.init(APP_ID);
-  connect.handleInvite({ app: APP_ID, appName: "Zombie Dice" });   // a scanned QR: connect first
+  // A scanned QR: connect first. A Game QR (?g=) then joins that game once you're signed in.
+  connect.handleInvite({ app: APP_ID, appName: "Zombie Dice", onDone: r => { if (r && r.game){ pendingJoin = r.game; tryJoin(); } } });
 
   // Your avatar in the header, and its sheet: Profile, My QR, Friends, Export, Import (the
   // owner's), Install on this phone, Sign out.
@@ -1188,7 +1382,9 @@
           const x = here && games.find(y => y.id === here && y.status === "live");
           if (x && !g) openGame(x.id);
         }
+        noticeSeats();
         if (g) syncOpenGame(); else render();
+        tryJoin();
       }, opts, e => toast("Couldn't load your games: " + (e.code || e.message || e))));
     }
     render();

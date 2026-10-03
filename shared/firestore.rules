@@ -72,9 +72,12 @@ service cloud.firestore {
     match /sidequests/{appId}/{coll}/{id} {
       allow read: if isOpen(appId) && coll in openApps()[appId]
         && signedIn() && request.auth.uid in resource.data.get('uids', []);
+      // A Game QR (Session 9): someone connected to whoever started a live game gets it, never a list.
+      allow get: if isOpen(appId) && coll in openApps()[appId] && signedIn()
+        && resource.data.get('status', '') == 'live' && connected(request.auth.uid, resource.data.get('by', ''));
       allow create: if isOpen(appId) && coll in openApps()[appId] && signedIn() && opens();
       allow update: if isOpen(appId) && coll in openApps()[appId] && signedIn()
-        && request.auth.uid in resource.data.get('uids', []) && (keepsWho() || openClaim());
+        && ((request.auth.uid in resource.data.get('uids', []) && (keepsWho() || openClaim())) || openTakesSeat());
       allow delete: if isOpen(appId) && coll in openApps()[appId] && signedIn()
         && resource.data.get('by', '') == request.auth.uid;
     }
@@ -130,6 +133,12 @@ service cloud.firestore {
     // That was them (step 1): whoever started it gives a guest's seat to someone they're connected to.
     function openClaim() {
       return resource.data.get('by', '') == request.auth.uid && openSwap() && connected(request.auth.uid, newcomer());
+    }
+    // A Game QR seat (Session 9 step 3): you take a guest's seat in a live game whose starter you're
+    // connected to, as takesSeat() does in Rack It.
+    function openTakesSeat() {
+      return newcomer() == request.auth.uid && resource.data.get('status', '') == 'live' && openSwap()
+        && connected(request.auth.uid, resource.data.get('by', ''));
     }
 
     // Rack It: one admin, everyone else a player (Session 6b). The owner reads and writes all of

@@ -81,9 +81,10 @@ const ACCESS = [
   { path: /^sidequests\/([^/]+)\/([^/]+)$/, when: m => (OPEN_APPS[m[1]] || []).includes(m[2]),
     read: (m, u, d, was, ctx) => isOwner(u) || uidsFilter(ctx, u) },
   { path: /^sidequests\/([^/]+)\/([^/]+)\/([^/]+)$/, when: m => (OPEN_APPS[m[1]] || []).includes(m[2]),
-    read: (m, u, d, was) => isOwner(u) || inUids(was, u),
+    // A Game QR (Session 9): a live game is got by anyone connected to its starter, and a guest's seat taken.
+    read: (m, u, d, was) => isOwner(u) || inUids(was, u) || (!!was && was.status === "live" && connectedTo(u.uid, was.by)),
     write: (m, u, d, was) => isOwner(u) || (!was ? !!d && opens(u, d)
-      : d ? inUids(was, u) && (!["uids", "players", "by"].some(k => !same(was[k], d[k])) || openClaim(u, d, was))
+      : d ? (inUids(was, u) && (!["uids", "players", "by"].some(k => !same(was[k], d[k])) || openClaim(u, d, was))) || openTakesSeat(u, d, was)
       : was.by === u.uid) },
   { path: /^sidequests\/([^/]+)(\/|$)/, when: m => m[1] in OPEN_APPS, read: "owner", write: "owner" },
   // Sessions Loyalty: staff (the staff/ list, and the owner) and members (sessions-loyalty/SPEC.md §6).
@@ -231,6 +232,7 @@ function openSwap(d, was){
     && wp.every((p, i) => np[i] === p || (np[i] === x && isGuestId(p)));
 }
 const openClaim = (u, d, was) => was.by === u.uid && openSwap(d, was) && connectedTo(u.uid, newcomerOf(d));
+const openTakesSeat = (u, d, was) => newcomerOf(d) === u.uid && was.status === "live" && openSwap(d, was) && connectedTo(u.uid, was.by);
 // That was them: the claimed guest's starter becomes the friend's, numbers unchanged.
 function claimedStarter(pid, u, d, was){
   const from = d.from, g = store.docs["sidequests/rack-it/ratings/" + from], guest = store.docs[`profiles/${u.uid}/guests/${from}`];

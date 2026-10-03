@@ -156,13 +156,13 @@ reopens Rack It.
 Read CONNECT §3 "turn games" and frame 8e. No rules change beyond the open rule and
 `seatSwap()`: nothing rated rides on a turn, so the rules don't police whose turn it is.
 
-- [ ] The game document carries `turn` and every roll and reveal, so each phone shows the same
+- [x] The game document carries `turn` and every roll and reveal, so each phone shows the same
   dice. Controls are live when `turn` is you, or you started the game (`by`), so a player with
   no phone is still scored. Everyone else gets the same screen with `.mirror`.
-- [ ] When your phone becomes live: a `.done` moment, "Your turn, Melanie".
-- [ ] Game QR, guest seats, the Home card, the echo strip and light presence: the parts from
+- [x] When your phone becomes live: a `.done` moment, "Your turn, Melanie".
+- [x] Game QR, guest seats, the Home card, the echo strip and light presence: the parts from
   Session 8, moved into `connect.js` or `ui.js` if they were built inside Rack It.
-- [ ] SPEC: "one phone" becomes "one phone or several".
+- [x] SPEC: "one phone" becomes "one phone or several".
 
 **Done when:** three tabs play a whole game, each taking its own turns, with the starter
 scoring for a guest; one phone alone plays exactly as before.

@@ -76,7 +76,10 @@ It) **anyone in the game may tap anything**.
 
 **Turn games** (Zombie Dice, Session 9): only the current player's phone and the starter's are
 live; everyone else gets the same screen dimmed (`.mirror`), and a `.done` moment says "Your
-turn, Melanie" when it becomes theirs.
+turn, Melanie" when it becomes theirs. A turn is played on its player's phone once they've
+opened the game there (`phones.<uid>`), otherwise on the starter's. No chain: only a live phone
+writes, nothing rated rides on a turn, and the newest write wins; each write's `rev.say` feeds the
+echo strip, which has no Undo there (a roll is a roll). The Game QR's seat is `openTakesSeat()`.
 
 ## 5. Scoring for someone else
 
@@ -115,5 +118,6 @@ min ago", "Scoring for Kenny and Rolf", "scored by Melanie", "Your turn". Never 
 - A live game's writes: `rev`, `log.<n>`, `phones.<uid>`, as Rack It's `send()` and `linkFields()`.
   The rules' `nextLink()` and `myPhone()` check them. Test with two `?mock` tabs and
   `cloud.network(false)` for the one that goes offline (`shared/proofs/rack-it-two-phones.mjs`).
-- Parts: `.presence`, `.echo`, `.mirror`, `.livestrip`, `.livestrip.pend`, `.resume`. Session 9
-  moves the echo strip and presence out of Rack It into `connect.js` or `ui.js` for Zombie Dice.
+- Parts: `.presence`, `.echo`, `.mirror`, `.livestrip`, `.livestrip.pend`, `.resume`. The echo
+  strip and presence are `ui.echo(host, { who, say, count, undo })` and `ui.presence(host, phones,
+  { me, name, avatar })` (Session 9); the app places the strip.

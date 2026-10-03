@@ -1,14 +1,15 @@
 # Zombie Dice — Spec
 
-A pass-the-phone version of **Zombie Dice** (Steve Jackson Games) for the family to play
-round the table on one phone. You're a zombie; each turn you roll for brains and push your
+A version of **Zombie Dice** (Steve Jackson Games) to play round the table on one phone or
+several. You're a zombie; each turn you roll for brains and push your
 luck until you stop or get shot. First to 13 brains ends it.
 
 ## Who uses it
 
-Anyone with a Google account, around the table, on one phone (since 0.3.0, the open rule:
-`shared/KIT-PLAN.md` Session 7). One signed-in phone is enough to play. Each player using
-their own phone is a later idea (see Out of scope).
+Anyone with a Google account, around the table, on one phone or several (since 0.3.0, the open
+rule: `shared/KIT-PLAN.md` Session 7; several phones since 0.5.0, Session 9). One signed-in phone
+is enough to play: pass it round. A friend picked at setup can play their turns on their own
+phone instead (see **Several phones** below).
 
 - **Players** (`shared/people.js`, Players in `shared/KIT.md`): you, your Connect friends and
   your guests. The owner's picker also holds the household list, which only the owner keeps
@@ -24,6 +25,34 @@ their own phone is a later idea (see Out of scope).
 - **Old games.** The owner's phone backfills them once: ids resolved (a claimed person's
   becomes their uid), `names`, `uids` for the players with an account, and `by` as a uid.
   A person with no account keeps their person id and is read by `names`.
+
+## Several phones (0.5.0, `shared/CONNECT.md` §4)
+
+Every phone in a game watches the one game document, so each shows the same dice as they're
+rolled and turned over.
+
+- **Joining.** A friend picked at setup finds the game on Home: a card, "Kenny's game · you're
+  in", with **Open**. Someone at the table who isn't in it yet scans the starter's **Game QR**
+  (the game's `⋯` → **Invite to this game**, the starter's phone only): the scan connects them to
+  the starter, then asks "Which one are you?" over the game's guest seats. "I'm Dan" puts them in
+  Dan's seat, his score with it (the rules' `openSwap()`), and the starter's phone says "Rolf
+  joined", then, from Home, offers **That was them** for Dan's other games.
+- **Whose phone plays a turn.** A player's own phone, once they've opened the game on it;
+  otherwise the starter's, so a guest, or a friend whose phone isn't out, still gets played. The
+  starter's phone is always live. Every other phone shows the same screen with its controls dimmed
+  (`.mirror`); the dice say whose they are ("Kenny's"), and nothing on it can be tapped but `⋯`.
+- **Your turn.** When the turn comes round to a phone, it gets the full-screen moment: the last
+  turn's result and **Your turn · Melanie**, **Go**. The phone that ended a turn says where the next
+  one is: **Your turn**, **Pass the phone to Dan**, or **Melanie's turn · on their own phone**.
+  With one phone alone, the cards read exactly as before.
+- **The echo strip** (`ui.echo`): another phone's last move, "Kenny · Brain", "Mel · banked 3", for
+  five seconds, over the presence row; "3 changes while you were away" after a gap. No Undo: a
+  roll is a roll.
+- **Presence** (`ui.presence`): an avatar for each other phone in the game and when it was last
+  seen, stamped on open, on hide and with every write. No heartbeat.
+- **Who wins a race.** Only a live phone writes the game, so two writers are rare (the starter's
+  and the current player's). The newest write is the truth and every phone takes it. Nothing is
+  rated, so the rules don't police whose turn it is (KIT-PLAN Session 9).
 
 ## The game
 
@@ -101,11 +130,14 @@ to learn the icons. Players show as `people.avatar`.
    rolled, big, tumbling in face down and nudging to be tapped; each flips over on its tap
    with a little chomp, kick or hop (all still for reduced motion). Under it the brains and shotguns set aside this
    turn as small dice. Bottom: **Stop · bank N** and a big **Roll**, and one quiet `⋯`
-   that opens **Home** and **Hold to abandon the game**. The scoreboard is the theme's player
+   that opens **Home**, and for whoever started the game **Invite to this game** and **Hold to
+   abandon the game**. With other phones in the game: their avatars under the scoreboard, the
+   echo strip, and the controls dimmed while it isn't this phone's turn. The scoreboard is the theme's player
    panels (`.pl`), one line each with five or more players or on a short phone.
 3. **Hand-over** — when a turn ends, a full-screen moment (`.done`) says what happened ("Banked 5 — Kenny's on 9",
    or "Shot! Lost 4 brains") and **Pass to Melanie**, whose tap starts their turn. That's
-   the pass-the-phone moment.
+   the pass-the-phone moment. With several phones it says where the next turn is (above), and a
+   phone whose turn it becomes gets its own **Your turn** moment.
 4. **Finish** — the winner, everyone ranked with their score, **Play again** (same players,
    same order) and **Done**.
 
@@ -123,12 +155,14 @@ Under `sidequests/zombie-dice/` via `shared/cloud.js`; people at `sidequests/_sh
   shotDice: [{ c, n }], brains, shots, rolls, refills, rescues,
   last: [{ c, f: "B"|"D"|"F"|"S"|"X", done }] }, turns: [{ p, brains, bust, rolls, rescues,
   total }], winner, status: "live"|"done", seq, at, endedAt, by: <uid>, names: [name…] (beside
-  players), uids: [the accounts among players] }`
+  players), uids: [the accounts among players], rev: { n, key, by, at, say } (the last write:
+  whose phone, and what it did, for the echo strip), phones: { <uid>: { at } } (presence) }`
 
   The rules (`openApps()` in `shared/firestore.rules`): you start a game only as yourself, in
   it, with at most 8 players, and only naming accounts you're connected to; a player in it plays
-  on but never changes `uids`, `players` or `by`; whoever started it deletes it. The owner
-  reaches everything.
+  on but never changes `uids`, `players` or `by`; whoever started it deletes it. Someone connected
+  to whoever started a live game may get it by id (never list it) and take one guest's seat. The
+  owner reaches everything.
 
   A roll is decided when Roll is tapped and saved with every die `done: false`; each tap
   flips one to `done` and applies it, so a reload mid-roll keeps the unrevealed dice.
@@ -137,8 +171,7 @@ Stored ids are read back through `people.resolve`.
 
 ## Out of scope (for now)
 
-- Everyone on their own phone. The whole game is one cloud document, so a second phone can
-  already watch it; taking turns from separate phones is the next step.
+- Watching a game you aren't in, removing a phone, a heartbeat or a Nudge (KIT-PLAN Parked).
 - Santa and the other expansions.
 
 ## Decisions (assumed, not specified)

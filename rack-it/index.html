@@ -729,7 +729,7 @@ import { connect } from "../shared/connect.js";
 import { ui } from "../shared/ui.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "2.16.0";
+const APP_VERSION = "2.16.1";
 const APP_ID = "rack-it";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 document.getElementById("versionMore").textContent = "v" + APP_VERSION;
@@ -2157,40 +2157,25 @@ function reapply(op){
   return false;
 }
 
-// ---- the echo strip: another phone changed the match in the last five seconds ----
+// ---- the echo strip: another phone changed the match in the last five seconds (ui.echo) ----
 // "Melanie · 7 to Gareth" with Undo, which puts back the rack as it was before their change, as a
 // normal write. A run of changes (this phone was away) is counted instead, with no Undo.
-let echoTimer = null;
 function echo(theirs, before){
   if(!theirs.length || !live) return;
   const [, e] = theirs[theirs.length - 1];
-  const who = firstName(people.nameOf(e.by, "Someone"));
-  const text = theirs.length > 1 ? `${theirs.length} changes while you were away` : `${who} · ${e.say || "a change"}`;
-  const undo = theirs.length === 1 && before && before.rackNo === live.rackNo;
-  el.echo.innerHTML = "<span></span>";
-  el.echo.firstChild.textContent = text;
-  if(theirs.length === 1){ const b = document.createElement("b"); b.textContent = who; el.echo.firstChild.textContent = ` · ${e.say || "a change"}`; el.echo.firstChild.prepend(b); }
-  if(undo){
-    const u = document.createElement("button");
-    u.type = "button"; u.textContent = "Undo";
-    ui.tap(u, () => {
-      hideEcho();
-      if(!live || live.rackNo !== before.rackNo) return;
-      push();
-      live.balls = before.balls; live.rack = before.rack; live.breaker = before.breaker; state.turn = before.turn;
-      render(); sync();
-    });
-    el.echo.append(u);
-  }
+  const undo = theirs.length === 1 && before && before.rackNo === live.rackNo ? () => {
+    if(!live || live.rackNo !== before.rackNo) return;
+    push();
+    live.balls = before.balls; live.rack = before.rack; live.breaker = before.breaker; state.turn = before.turn;
+    render(); sync();
+  } : null;
   // Over the presence row (there whenever another phone has written), never over a ball.
   paintPresence();
   const over = el.presence.classList.contains("hidden") ? null : el.presence.getBoundingClientRect();
   el.echo.style.top = (over ? over.top : el.matchbar.getBoundingClientRect().bottom) + "px";
-  el.echo.classList.remove("hidden");
-  clearTimeout(echoTimer);
-  echoTimer = setTimeout(hideEcho, 5000);
+  ui.echo(el.echo, { who: people.nameOf(e.by, "Someone"), say: e.say, count: theirs.length, undo });
 }
-function hideEcho(){ clearTimeout(echoTimer); el.echo.classList.add("hidden"); }
+function hideEcho(){ ui.echo(el.echo, null); }
 
 // ---- light presence: when each phone in the match was last seen ----
 // phones.<uid>.at, stamped on open, on hide and with every score. No heartbeat (KIT-PLAN.md).
@@ -2201,25 +2186,10 @@ function seen(why){
   cloud.patch("matches/" + live.id, { ["phones." + me]: { at } }).catch(e => console.warn("[presence]", why, e));
 }
 document.addEventListener("visibilitychange", () => { if(document.visibilityState === "hidden") seen("hide"); });
-const ago = at => { const m = Math.round((Date.now() - at) / 60000); return m < 1 ? "just now" : m < 60 ? `last seen ${m} min ago` : "last seen a while ago"; };
+// The avatars and "last seen" are ui.presence.
 function paintPresence(){
-  const others = live ? Object.entries(live.phones || {}).filter(([uid, p]) => uid !== myUid() && p && p.at) : [];
-  document.documentElement.classList.toggle("multi", others.length > 0);
-  el.presence.classList.toggle("hidden", !others.length);
-  if(!others.length) return;
-  others.sort((x, y) => y[1].at - x[1].at);
-  const nodes = others.map(([uid, p]) => {
-    const b = document.createElement("button");
-    b.type = "button"; b.className = "ph";
-    b.setAttribute("aria-label", people.nameOf(uid, "Someone"));
-    b.append(people.avatar(uid, 36));
-    ui.tap(b, () => ui.sheet({ title: people.nameOf(uid, "Someone"), text: ago(p.at).replace(/^l/, "L").replace(/^j/, "J") }));
-    return b;
-  });
-  const say = document.createElement("span");
-  say.className = "say";
-  say.textContent = others.map(([uid, p]) => `${firstName(people.nameOf(uid, "Someone"))} ${ago(p.at)}`).join(" · ");
-  el.presence.replaceChildren(...nodes, say);
+  const n = ui.presence(el.presence, live ? live.phones : {}, { me: myUid(), name: uid => people.nameOf(uid, "Someone"), avatar: people.avatar });
+  document.documentElement.classList.toggle("multi", n > 0);
 }
 
 // ---- the prototype scoring engine, wired to the session ----

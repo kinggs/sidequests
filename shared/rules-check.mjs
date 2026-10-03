@@ -973,6 +973,54 @@ describe("The open rule: Photo Coach", () => {
   });
 });
 
+// ---- Zombie Dice on several phones: the Game QR in an open app (Session 9 step 3) ----
+// As Rack It's seats (Session 8 step 2): someone connected to whoever started a live game gets it
+// by id (never a list) and takes one guest's seat through openSwap(). Nothing polices whose turn it
+// is: nothing rated rides on a turn.
+describe("Game QR in an open app: what may be done", () => {
+  beforeEach(async () => {
+    await seed(ZD + "seat", zd({ players: ["ann", "g_1"], names: ["Ann", "Dan"], uids: ["ann"], seats: ["ann", "g_1"], scores: { ann: 4, g_1: 2 } }));
+  });
+  test("a friend of the starter gets a live game by id and takes a guest's seat, scores and all", async () => {
+    const db = user("cat");
+    await assertSucceeds(getDoc(doc(db, ZD + "seat")));
+    await assertSucceeds(updateDoc(doc(db, ZD + "seat"), { players: ["ann", "cat"], seats: ["ann", "cat"], scores: { ann: 4, cat: 2 }, uids: ["ann", "cat"] }));
+    await assertSucceeds(updateDoc(doc(db, ZD + "seat"), { "phones.cat": { at: 1 }, turn: 1 }));
+  });
+});
+
+describe("Game QR in an open app: must refuse", () => {
+  beforeEach(async () => {
+    await seed(ZD + "seat", zd({ players: ["ann", "g_1", "g_2"], names: ["Ann", "Dan", "Eve"], uids: ["ann"], seats: ["ann", "g_1", "g_2"] }));
+    await seed(ZD + "over", zd({ players: ["ann", "g_1"], names: ["Ann", "Dan"], uids: ["ann"], seats: ["ann", "g_1"], status: "done" }));
+    await seed(BC + "annc", climb());
+    await seed("friendships/ben_cat", { uids: ["ben", "cat"], since: 1, via: "x", app: "zombie-dice" });
+  });
+  test("someone not connected to the starter getting the game or taking a seat", async () => {
+    const db = user("ben");
+    await assertFails(getDoc(doc(db, ZD + "seat")));
+    await assertFails(updateDoc(doc(db, ZD + "seat"), { players: ["ann", "ben", "g_2"], uids: ["ann", "ben"] }));
+  });
+  test("a friend listing games, getting a finished one, or a climb", async () => {
+    const db = user("cat");
+    await assertFails(getDocs(collection(db, "sidequests/zombie-dice/games")));
+    await assertFails(getDoc(doc(db, ZD + "over")));
+    await assertFails(getDoc(doc(db, BC + "annc")));
+  });
+  test("taking a seat in a finished game, two seats, an account's seat, or someone else's", async () => {
+    const db = user("cat");
+    await assertFails(updateDoc(doc(db, ZD + "over"), { players: ["ann", "cat"], uids: ["ann", "cat"] }));
+    await assertFails(updateDoc(doc(db, ZD + "seat"), { players: ["ann", "cat", "cat"], uids: ["ann", "cat"] }));
+    await assertFails(updateDoc(doc(db, ZD + "seat"), { players: ["cat", "g_1", "g_2"], uids: ["ann", "cat"] }));
+    await assertFails(updateDoc(doc(db, ZD + "seat"), { players: ["ann", "ben", "g_2"], uids: ["ann", "ben"] }));
+  });
+  test("a seat taken with by or names changed", async () => {
+    const db = user("cat");
+    await assertFails(updateDoc(doc(db, ZD + "seat"), { players: ["ann", "cat", "g_2"], uids: ["ann", "cat"], by: "cat" }));
+    await assertFails(updateDoc(doc(db, ZD + "seat"), { players: ["ann", "cat", "g_2"], uids: ["ann", "cat"], names: ["Ann", "Cat", "Eve"] }));
+  });
+});
+
 // ---- Sessions Loyalty: a club's staff, and its members (sessions-loyalty/SPEC.md §6) ----
 // Staff are the uids listed under staff/ (the owner writes that list) plus the owner. A member is
 // any account: it reads the club's settings, rewards and ways to earn, its own card and its own
