@@ -17,17 +17,17 @@ Kenny, mostly on his own as a practice drill, and with Melanie or friends as a m
 0.8.0 anyone with a Google account (the open rule, `shared/KIT-PLAN.md` Session 7). One phone
 at the board logs for everyone in the game.
 
-- **Players** (`shared/people.js`): you, your Connect friends and your guests. The owner's
-  picker also holds the household list, which only the owner keeps (**The household** at the
-  bottom of Home).
+- **Players** (`shared/people.js`): you, your Connect friends and your guests, for everyone. Since 0.10.0 (KIT-PLAN Session 9) the household list is
+  gone from this app, the owner's too: the owner's phone reads it once more, only until its
+  one-time backfill has run.
 - **That was them** (0.9.0, KIT-PLAN Session 8): your account sheet's **Your guests** lists the
   guests you've made; tap one who has since joined, pick the friend, hold. Each game you started
   with that guest becomes the friend's: their id replaces the guest's everywhere in it (seats,
   scores), `uids` gains them, and `names` keeps the name as it was. A guest claimed in another
   app is followed here the next time this app opens.
 - **Who sees what.** A game is reached by the accounts in it (`uids`) and by the owner, who
-  sees every game. A stranger signs in to an empty app of their own; anyone else, a household
-  member included, sees only the games they're in.
+  sees every game. A stranger signs in to an empty app of their own; anyone else sees only the
+  games they're in.
 - **Old games.** The owner's phone backfills them once, in today's shape: ids resolved,
   `names`, `uids` and `by` as a uid. A person with no account keeps their person id, read by
   `names`.
@@ -49,7 +49,7 @@ at the board logs for everyone in the game.
 ## Look
 
 `shared/theme.css` (dark system v3, `shared/DESIGN.md`). Players show as avatars (their photo
-in a ring of their colour, or their initial) on chips, in the household list, on the game
+in a ring of their colour, or their initial) on chips, on the game
 panels (the theme's `.pl`; avatar hidden when three or four are playing) and in match results.
 Sky is the app's accent
 and only marks data: the thrower's panel and name, the next dart's slot, the score line, the
@@ -67,8 +67,7 @@ One page, three states.
    Below: **Progress** for a chosen player (best, last, average of the last ten; a line of
    scores over time) counting their solo games and matches alike, **Recent** games with an
    a `⋯` that holds **Hold to delete** for whoever started it, or the owner (a match reads
-   "Melanie 87 · Kenny 84"), and for the owner **The household** (the shared sheet: name,
-   colour, optional Gmail, merge, remove from every app). Setup offers **Show QR** (whoever
+   "Melanie 87 · Kenny 84"). Setup offers **Show QR** (whoever
    scans joins the lineup and your Friends) and **Add a guest**. Your avatar top right opens
    Profile, My QR, Friends, Export, Import (the owner's), Install on this phone, Sign out.
 2. **Game** — fixed to the screen, never scrolls; the app header is hidden to give it room.

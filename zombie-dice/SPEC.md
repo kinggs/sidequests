@@ -12,8 +12,9 @@ is enough to play: pass it round. A friend picked at setup can play their turns 
 phone instead (see **Several phones** below).
 
 - **Players** (`shared/people.js`, Players in `shared/KIT.md`): you, your Connect friends and
-  your guests. The owner's picker also holds the household list, which only the owner keeps
-  (the household section at the bottom of Home).
+  your guests, for everyone. Since 0.6.0 (KIT-PLAN Session 9) the household list is
+  gone from this app, the owner's too: the owner's phone reads it once more, only until its
+  one-time backfill has run.
 - **That was them** (0.4.0, KIT-PLAN Session 8): your account sheet's **Your guests** lists the
   guests you've made; tap one who has since joined, pick the friend, hold. Each game you started
   with that guest becomes the friend's: their id replaces the guest's everywhere in it (seats,
@@ -21,7 +22,7 @@ phone instead (see **Several phones** below).
   app is followed here the next time this app opens.
 - **Who sees what.** A game is reached by the accounts in it (`uids`) and by the owner, who
   is the one admin and sees every game. A stranger signs in to an empty app of their own.
-  Anyone else, a household member included, sees only the games they're in.
+  Anyone else sees only the games they're in.
 - **Old games.** The owner's phone backfills them once: ids resolved (a claimed person's
   becomes their uid), `names`, `uids` for the players with an account, and `by` as a uid.
   A person with no account keeps their person id and is read by `names`.
@@ -122,7 +123,7 @@ to learn the icons. Players show as `people.avatar`.
    lineup and your Friends) and **Add a guest**. A line spells out the order. **Start**. A
    **Resume** row for any unfinished game. **How to play** (collapsed). **Leaderboard** (wins
    and games per person). **Recent** games; a row's `⋯` holds **Hold to delete** for whoever
-   started it, or the owner. **The household** (the owner only): the shared add/edit sheet.
+   started it, or the owner.
 2. **Game** — fixed to the screen, header hidden, screen held awake. Top: a scoreboard of
    every player with avatar, name and score, the thrower lit. Then whose turn it is, a
    banner in the final round or a play-off, and three figures: brains this turn, shotguns

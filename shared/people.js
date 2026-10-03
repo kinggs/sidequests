@@ -6,10 +6,10 @@
 //     legacy: () => oldPlayerMapOrNull,             // the app's pre-sharing list, null until loaded
 //     onMe: ({ name, added }) => toast(...),        // the signed-in person was linked or added
 //     onError: e => toast(...),
-//     household: false                              // optional: skip the household list (Rack It, bar the owner)
+//     household: true                               // the household list: Rack It's admin only (below)
 //   }));
 //   people.active()            // the household: [{ id, name, email, colour, createdAt, uid, photoURL }], you first
-//   people.players()           // the household, your friends and your guests: [{ id, name, kind, … }]
+//   people.players()           // you, your friends and your guests (and the household, for the admin): [{ id, name, kind, … }]
 //   people.resolve(id)         // any id an app ever stored → who that is today
 //   people.get(id)             // { id, name, photo, colour, kind, … } | null; kind "household" | "account" | "guest"
 //   people.nameOf(id), people.colourOf(id), people.meId(), people.isMe(id)
@@ -27,10 +27,10 @@
 //   people.edit(id, { cuescore: true })             // …plus the Cuescore profile link (cue apps; yours only)
 //
 // The sources, merged by resolved id:
-// - household: /sidequests/_shared/people, the list every app shares. Watched only when
-//   cloud.role() isn't null: nobody outside the household can read it. An app that has no
-//   household tier passes household: false, and a member is then a player like anyone else
-//   (Rack It for everyone but the owner, KIT-PLAN.md Session 6b).
+// - household: /sidequests/_shared/people, the owner's list since Session 9 (only the owner can
+//   read it). Watched only when the app passes household: true, which Rack It does on its admin
+//   path, and the other apps only on the owner's phone until their one-time backfill has run.
+//   Everyone else, a member included, is an account like anyone (KIT-PLAN.md Session 9).
 // - friends: your Connect friends (cloud.account.watchFriends), named and pictured by their
 //   profile. An account's id is its uid.
 // - guests: someone with no phone, a typed name private to you (profiles/<you>/guests/g_<id>).
@@ -400,9 +400,9 @@ function start(o = {}){
   if (!cloud.shared) return healStale();
   if (!cloud.configured() || !cloud.user) return stop;
   const run = runs;
-  // The household list only for the household, and only when the app wants it. A role that
-  // can't be read (offline on a first run) tries the list anyway, as before.
-  const role = o.household === false ? Promise.resolve(null)
+  // The household list only when the app asks for it (the owner's). A role that can't be read
+  // (offline on a first run) tries the list anyway, as before.
+  const role = o.household !== true ? Promise.resolve(null)
     : cloud.role().catch(e => { console.warn("[people] role", e); return "unknown"; });
   role.then(role => {
     if (run !== runs) return;
@@ -907,10 +907,10 @@ function swapId(x, from, to){
 export const people = {
   PALETTE,
   start, stop, poke, onChange,
-  active, players, get, resolve, nameOf, colourOf, nextColour, meId, isMe, avatar,
+  active, players, get, resolve, nameOf, colourOf, meId, isMe, avatar,
   names, uidsOf, pick, addPlayer, addGuest, scan: (app = "") => scan(app || appOfPage()),
   guests: myGuests, claimedGuests, claim, showGuests, swapId,
-  add, update, remove, merge, adopt, edit,
+  update, remove, adopt, edit,
   all: () => ({ ...all }),
   get ready(){ return confirmed; }
 };

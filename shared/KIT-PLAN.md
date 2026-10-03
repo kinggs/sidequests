@@ -1,32 +1,17 @@
-# The kit — working doc for the build sessions
+# The kit — what's next
 
-Sidequests is opening beyond the family: pool friends, staff at the venues, people without
-a phone. Sessions 0 to 6b built accounts, Connect, Players and rated matches, piloted in Rack
-It, and Session 7 put every app's look on v3 and opened Zombie Dice and Around the Clock to
-friends (`shared/KIT-HISTORY.md`). On 2026-10-02 the owner's design pass (`design_handoff/`) was
-merged in. Session 8 put one Rack It match on several phones (`KIT-HISTORY.md`). **One session is
-left**: the rest of the apps, and closing out.
+Sidequests opened beyond the family in Sessions 0 to 9 (2026-10-01 to 2026-10-03): accounts,
+Connect, Players, rated matches, the v3 look, one game on several phones, and one admin with
+everyone else an account. That plan is finished; how it went, step by step, is
+`shared/KIT-HISTORY.md`. What every part does now is `shared/KIT.md`.
 
-**Start a session with:** "Read `shared/KIT-PLAN.md` and do Session N."
+This file keeps the decisions behind it, **Session 10** (the last loose ends, then Sessions Loyalty
+meets Rack It), and **Parked**.
 
-Each session is a run of **steps**. Every step ends deployed and working (`/deployquest`), with
-its boxes ticked. A session that runs out of room stops at a step boundary, writes its Handover
-note, and the next session starts at the first unticked step.
-
-## Read first
-
-1. `CLAUDE.md` — repo rules: direct to `main`, bump `APP_VERSION` and `CACHE` together,
-   deploy with `/deployquest`, test with `?mock`.
-2. `shared/KIT.md` — the parts, what Connect and Players do, privacy, data.
-3. `design_handoff/README.md`, then `design_handoff/shared/DESIGN.md` and `CHANGES.md`.
-   Session 9 also reads `shared/CONNECT.md` (the shared-game design as built in Session 8). **Where the pack and this plan
-   disagree, this plan wins**: see "Where the plan overrides the pack" below.
-4. `shared/firestore.rules`, `shared/cloud.js`, `shared/cloud-memory.js`, `shared/people.js`,
-   `shared/connect.js`, in full.
-5. For Rack It work, `rack-it/SPEC.md` (§3 Zargo, §6.1, §7, §8, §9), and **Ground rules** in
-   `rack-it/V3-PLAN.md`: 11-Point-Nine must behave identically, and `node --test` must pass.
-6. **Handover**, at the bottom. For how the rules got their shape, `shared/KIT-HISTORY.md`
-   Sessions 6 and 6b ("What the plan got wrong").
+**Every step**, as before: `make verify` passes (`node --test` and the smoke test), one scored
+11-Point-Nine match is unchanged, the app and any rules it needs ship in **one push**, and it ends
+with `/deployquest`. **Every rules change:** its cases are written first, and each guard turns its
+own case red when removed (`shared/proofs/`, and `shared/proofs/README.md` for running them).
 
 ## Decisions
 
@@ -80,6 +65,9 @@ same day; where it changes an earlier row, the earlier row says so.
 | Shared-game scope | Rack It (co-scoring, a scorer, both sign) and Zombie Dice (turns across phones). Leagues and Around the Clock on several phones are Parked. |
 | The plan doc | Finished sessions live in `KIT-HISTORY.md`. Three sessions remain (owner: no time for more). |
 | Test harness | Committed in `shared/proofs/`: the multi-tab `?mock` runner and the rules guard-mutation script. |
+| **2026-10-03 (owner, end of Session 9)** | |
+| One more session | The outstanding work is structured into **Session 10**, run from the phone. |
+| Session 10's four calls | *Asked at its start; the answers go here.* |
 
 ## Where this ends
 
@@ -112,87 +100,110 @@ taken with these changes.
 
 ## The road
 
-| Session | Steps | Visible change |
-| --- | --- | --- |
-| 0–6b | Done (`KIT-HISTORY.md`) | Accounts, Connect, Players, rated matches, one admin in Rack It |
-| 7 | Done (`KIT-HISTORY.md`) | The v3 look, the launcher, Rack It on v3, the open rule in Zombie Dice and Around the Clock |
-| 8 | Done (`KIT-HISTORY.md`) | That was them, the Game QR and seats, two phones scoring one match, a scorer and both sign |
-| **9** The rest, and closing out | 1 Bloc 11 · 2 Photo Coach · 3 Zombie Dice on several phones · 4 close-out | The household tier is gone; nothing is left on v2 |
+| Session | Visible change |
+| --- | --- |
+| 0–6b | Accounts, Connect, Players, rated matches, one admin in Rack It |
+| 7 | The v3 look, the launcher, Rack It on v3, the open rule in Zombie Dice and Around the Clock |
+| 8 | That was them, the Game QR and seats, two phones scoring one match, a scorer and both sign |
+| 9 | Bloc 11 and Photo Coach on the open rule, Zombie Dice on several phones, the household tier gone |
 
-Don't build ahead. Ideas go in **Parked**.
+| **10** Loose ends, then the club | 1 loose ends · 2 `connect.scan()` · 3 club connections and the staff badge · 4 a table session | Fair Nine gone; scan in-app; staff log a match at the club |
 
-**Every step:** `make verify` passes (`node --test` and the smoke test), one scored
-11-Point-Nine match is unchanged, the app and any rules it needs ship in **one push** (a phone
-on the old build is refused the moment rules land: Session 6b), and it ends with `/deployquest`.
-**Every rules change:** its cases are written first, and each guard turns its own case red when
-removed (`shared/proofs/`).
+Sessions 0 to 9 are done (`KIT-HISTORY.md`). Don't build ahead of the owner: ideas go in **Parked**.
 
-**Owner, still open from 6b:** you and Melanie connect with My QR once; Melanie closes and
-reopens Rack It.
-
----
-
-## Session 9 — The rest, and closing out
-
-### Step 1 — Bloc 11 (minor bump, rules in the same push)
-
-- [x] On the `open` list. A climb's `players` is its one climber; you log for yourself and
-  your guests. Backfill, account sheet, SPEC as Session 7 step 4. The look as `CHANGES.md`
-  § bloc-11 (frame 3a): amber and sky, `⋯` → sheet → hold on Recent rows.
-- [x] ⚠ Before the push, tell the owner how many climbs belong to people with no account.
-  They stay visible to the admin by name, and nobody can log for them until they're added as
-  a guest.
-
-### Step 2 — Photo Coach (minor bump, rules in the same push)
-
-- [x] On the `open` list; a photo's `players` is its owner. The look as `CHANGES.md`
-  § photo-coach (frame 6a): the More tab's contents move into the account sheet.
-- [x] ⚠ Photos are the biggest documents in the project and the door is now open to any
-  account. Note the stored size per photo in Handover, so the App Check trigger in Parked has
-  a number.
-
-### Step 3 — Zombie Dice on several phones
-
-Read CONNECT §3 "turn games" and frame 8e. No rules change beyond the open rule and
-`seatSwap()`: nothing rated rides on a turn, so the rules don't police whose turn it is.
-
-- [x] The game document carries `turn` and every roll and reveal, so each phone shows the same
-  dice. Controls are live when `turn` is you, or you started the game (`by`), so a player with
-  no phone is still scored. Everyone else gets the same screen with `.mirror`.
-- [x] When your phone becomes live: a `.done` moment, "Your turn, Melanie".
-- [x] Game QR, guest seats, the Home card, the echo strip and light presence: the parts from
-  Session 8, moved into `connect.js` or `ui.js` if they were built inside Rack It.
-- [x] SPEC: "one phone" becomes "one phone or several".
-
-**Done when:** three tabs play a whole game, each taking its own turns, with the starter
-scoring for a guest; one phone alone plays exactly as before.
-
-### Step 4 — Close-out
-
-- [ ] The generic household rule goes: every app is in its own block or on the open rule.
-  `sidequests/_shared/people/` becomes owner-only. `/members` keeps only the owner's role;
-  Rack It's Invites screen and `cloud.addMember` go. Cases first.
-- [ ] `people.js`: the household path runs for the admin in Rack It and nowhere else. Remove
-  what nothing calls.
-- [ ] `/sidequest` works out which kit parts a new app wants and wires them; a new app starts
-  on the open rule with one line added to the list.
-- [ ] `CLAUDE.md`: rule 3, the Firebase section and "Beyond the family" describe one admin and
-  players. `KIT.md`: statuses, privacy table, the two new parts (UI, Shared games).
-- [ ] Delete `design_handoff/` (the reference page moves to `shared/design/`), and
-  `fair-nine/` with `/deletequest` if its month is up (owner confirms).
-- [ ] Every app passes `DESIGN.md` §7's checklist. Parked is re-read with the owner.
-
-**Done when:** `grep -r isFamily shared/firestore.rules` finds nothing, and a new app made
-with `/sidequest` comes out on v3 with friends, with no hand edits.
+**Owner, outside any session:** you and Melanie connect with My QR once (from 6b); the real-phone
+checks in the Handover notes (Session 8: three phones on one Rack It match; Session 9: Zombie
+Dice on several phones); and open Around the Clock, Zombie Dice and Bloc 11 once each on your phone,
+so their one-time backfills run (Bloc 11 then tells you how many climbs are for people with no
+account).
 
 ---
 
-## Sessions Loyalty meets Rack It (proposed, not scheduled)
+## Session 10 — Loose ends, then Sessions Loyalty meets Rack It
+
+**Start with:** "Read `shared/KIT-PLAN.md` and do Session 10." Built to run from the phone (a
+cloud session): read `CLAUDE.md`, `shared/KIT.md`, `shared/CONNECT.md`, and Session 9's Handover
+in `shared/KIT-HISTORY.md` first.
+
+⚠ A cloud session may have no Java (the rules emulator) or Playwright (smoke and the proofs). Then
+the `deploy-rules` Action is the rules check (it blocks a failing push from deploying the rules,
+never the app), `make verify` runs `node --test` and reports "Smoke test skipped", and the step's
+proofs are written and committed for the next desktop session to run. Say so in each step's report.
+
+**First, one question to the owner** (one `AskUserQuestion`, four questions, recommended option
+first), then record the answers in **Decisions** below before building:
+
+1. Parked, re-read (Session 9 step 4's last box): anything to move into this session? Default: no.
+2. A club connection: only a pair made by the loyalty app (`app: "sessions-loyalty"`), or also a
+   staff member's Rack It QR? Default: only the loyalty app's.
+3. The staff badge in Rack It: a `staff` tag on the friend card, stamped by the member's phone?
+   Default: yes.
+4. Rack It on the loyalty card: a link to the player's Rack It page (default), or the loyalty app
+   reads `ratings/<uid>` (crosses rule 3; the owner blesses that one read)?
+
+Each step ends deployed (`/deployquest`) with its boxes ticked, as ever. Stop at a step boundary if
+the session runs out of room, and write the Handover note in `KIT-HISTORY.md`.
+
+### Step 1 — Loose ends (patch bumps; no rules)
+
+- [ ] **Fair Nine**: on or after 2026-10-16, `/deletequest fair-nine` (it confirms by name with the
+  owner; the launcher tile, if any, goes too). Before that date, leave this box and say so.
+- [ ] **Bloc 11, frame 3a's date line**: the When field becomes one `.note` line, "Today. Tap the
+  date to change it.", which opens the date picker (`input.showPicker()`, the input kept hidden)
+  and then reads "Wed 1 Oct. Tap to change it." Stored `at` unchanged (20:00 local).
+- [ ] **The household list's last visits**: if the owner says they've opened Around the Clock,
+  Zombie Dice and Bloc 11 since Session 9, remove each app's `backfillDue()` path (the household
+  watch, `legacy`, the `state/main` watch and the backfill itself), so `people.start` there is
+  never `household: true`. Otherwise leave it, and say so.
+- [ ] `KIT.md` and the SPECs where they mention any of the above.
+
+### Step 2 — `connect.scan()` (minor bumps; no rules)
+
+- [ ] Move the in-app QR scanner (`BarcodeDetector`, with the paste fallback) out of
+  `sessions-loyalty/index.html` into `connect.js` as `connect.scan({ app })` → a scanned code, or
+  null. Sessions Loyalty uses it unchanged on screen.
+- [ ] `people.pick`'s **Scan a new player** and setup's **Show QR** gain "or scan theirs": the
+  other person shows My QR, this phone scans it and the friendship is made from their code, as a
+  link would (`cloud.account.accept`). Unparks "An in-app scanner".
+- [ ] Proof: two `?mock` tabs, Ann shows My QR, Ben's `connect.scan` is fed the code (the paste
+  fallback), they're connected and Ben's pick has Ann.
+
+### Step 3 — Club connections and the staff badge (minor bumps; no rules)
+
+- [ ] Rack It's Friends and `people.pick` group friends by the pair's `app`: the club's
+  (per the owner's answer 2) folded under their own heading, "Sessions", below the people you play
+  with.
+- [ ] Per answer 3: the member's phone stamps `tags: ["staff", …]` on the friend card of a friend
+  who is on `sessions-loyalty/staff/` (one `get` each, at most once a day per friend); Rack It shows
+  the tag as "staff" on the row. No rule change: the card is yours, and the staff list is gettable.
+- [ ] SPECs (Rack It §8, Sessions Loyalty), `KIT.md` (Connect).
+
+### Step 4 — A table session (rules + minor bumps, one push)
+
+Read "Sessions Loyalty meets Rack It" below first, and Rack It's scorer flow (`CONNECT.md` §5).
+
+- [ ] **Cases first**, then the rules: a Rack It match may carry `venue: "sessions"`, set only at
+  create by a scorer who is staff; a loyalty entry may carry `match: <id>`, written by staff.
+- [ ] From a member's page, staff start a Rack It match for two members (the staff member is the
+  scorer, the players confirm, as in Session 8 step 4). The spend logged in the same sitting
+  carries `match`, and Rack It's summary shows "Logged at Sessions".
+- [ ] **Points for playing**: a rated match at the club earns XP, logged by the scorer's phone as an
+  `earn` entry with `item: "rack-it"`, once, when the last player confirms.
+- [ ] Per answer 4, Rack It on the loyalty card.
+- [ ] Proof: `?mock`, staff (the owner) scores a rated club match for Ann and Ben; both confirm;
+  ratings move once; one earn entry each; Rebuild points and Rebuild ratings change nothing.
+
+**Done when:** Fair Nine is gone (or dated), a friend is made by scanning in-app, a staff member
+shows as staff in Rack It, and a club match scored by staff moves ratings and points once each.
+
+---
+
+## Sessions Loyalty meets Rack It (the background to Session 10)
 
 Sessions Loyalty (`sessions-loyalty/`, 2026-10-02) is the club's loyalty app: members show a
 QR, staff scan it, log spend and award points (`sessions-loyalty/SPEC.md`). It shipped on its
 own so the design could settle first; this is what joining it to Rack It would take. Nothing
-here is built, and the three sessions above come first. The owner picks which steps become a
+here is built. The owner picks which steps become a
 Session 10.
 
 What is already true, with no Rack It change: the member's QR **is** My QR, so a Rack It QR
@@ -236,6 +247,12 @@ some level"); the club's staff list is `staff/<uid>`, gettable by any account.
 - **Full presence**: a heartbeat, "looking", Nudge. Move it to a document per phone first, and
   see the quota sum in "Where the plan overrides the pack".
 - **Around the Clock on several phones**: the turn-game parts from Session 9 step 3.
+- **A chain for turn games.** Zombie Dice on several phones has no `rev` chain in the rules: only a
+  live phone writes, and the newest write wins. A player's phone that went offline mid-turn, while
+  the starter played the turn on for them, would rewind it when its queued writes land. Add the
+  open twin of `nextLink()` (scoped to records that carry `rev`) if that ever bites.
+- **Leftover `/members` documents.** Melanie's and the other household entries mean nothing since
+  Session 9. The owner may delete them in the Firebase console; nothing needs them.
 - A scorer who joins a match already under way, by Game QR.
 - A pending rated match never expires. An expiry, or a reminder.
 - Other sign-in methods: email link, Apple, phone. The uid keying makes them additive.
@@ -259,30 +276,5 @@ some level"); the club's staff list is `staff/<uid>`, gettable by any account.
 
 ## Handover
 
-Sessions 0 to 8: `shared/KIT-HISTORY.md`. Session 9 reads Session 8's note there first: step 3
-of Session 9 (Zombie Dice on several phones) starts by moving Rack It's echo strip, presence and
-link-by-link writes into `connect.js` or `ui.js`, and the rules' `nextLink()` wants an open-rule
-twin. `shared/CONNECT.md` is the design as built.
-
-### The design merge, 2026-10-02 (Fable)
-
-No code. The design pack landed in `design_handoff/` untouched, bar a note at the top of its
-README and CONNECT.md pointing here. The old Sessions 7 (claiming a guest) and 8 (the kit menu,
-other apps adopt Players) are now Session 8 step 1, and Session 7 steps 4 and 5 with Session 9
-steps 1, 2 and 4.
-
-What the next session should know:
-
-1. **The three sessions are large**, at the owner's request. The step boundaries are the
-   safety: finish a step, deploy, tick, then start the next. Don't start a step you can't
-   finish.
-2. **The pack's Connect design was drawn without the rules.** Today's rules freeze `uids`,
-   cap a match at two accounts, need the starter to be a player, and let one player confirm.
-   Seats, the scorer and both-sign each open one of those, which is why each has a "Must
-   refuse" list.
-3. ⚠ **`rev` is this plan's idea, not the pack's, and it's unproven.** Session 8 step 3 probes
-   it before building on it.
-4. ⚠ **The open rule's create check costs up to 7 `exists()` calls** (the limit is 10 a
-   request). Check it on the emulator with an 8-player game before Zombie Dice relies on it.
-5. The old records ruling ("keep the owner's and Melanie's") is met without deleting anything:
-   records for people with no account stay admin-visible by name.
+Every session's note, the design merge's and Session 9's included, is in `shared/KIT-HISTORY.md`
+under Handover. Start there before a new session.

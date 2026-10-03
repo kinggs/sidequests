@@ -118,7 +118,7 @@ const melItems = await accountItems(mel);
 ok(!(await mel.locator("#familyBtn").isVisible()) && !melItems.includes("Import") && !(await mel.locator("#rebuildBtn").isVisible())
   && melItems.includes("My QR") && melItems.includes("Export"), "mel: My QR and Export in her sheet, no Invites, Import or Rebuild: " + melItems.join(", "));
 await tabTo(owner, "more");
-ok(await owner.locator("#familyBtn").isVisible() && await owner.locator("#rebuildBtn").isVisible() && (await accountItems(owner)).includes("Import"), "the owner's More keeps Invites, Import and Rebuild");
+ok(!(await owner.locator("#familyBtn").count()) && await owner.locator("#rebuildBtn").isVisible() && (await accountItems(owner)).includes("Import"), "the owner's More keeps Import and Rebuild; Invites went in Session 9");
 ok(await startMatch(owner, { b: "Mel", rated: true }), "owner: Rated offered against Melanie");
 await scoreLeague(owner, RACKS);
 let pend = (await matchesOf(owner)).find(m => m.status === "pending");

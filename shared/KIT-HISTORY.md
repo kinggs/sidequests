@@ -699,6 +699,63 @@ phones pending.
 
 ---
 
+## Session 9 — The rest, and closing out
+
+### Step 1 — Bloc 11 (minor bump, rules in the same push)
+
+- [x] On the `open` list. A climb's `players` is its one climber; you log for yourself and
+  your guests. Backfill, account sheet, SPEC as Session 7 step 4. The look as `CHANGES.md`
+  § bloc-11 (frame 3a): amber and sky, `⋯` → sheet → hold on Recent rows.
+- [x] ⚠ Before the push, tell the owner how many climbs belong to people with no account.
+  They stay visible to the admin by name, and nobody can log for them until they're added as
+  a guest.
+
+### Step 2 — Photo Coach (minor bump, rules in the same push)
+
+- [x] On the `open` list; a photo's `players` is its owner. The look as `CHANGES.md`
+  § photo-coach (frame 6a): the More tab's contents move into the account sheet.
+- [x] ⚠ Photos are the biggest documents in the project and the door is now open to any
+  account. Note the stored size per photo in Handover, so the App Check trigger in Parked has
+  a number.
+
+### Step 3 — Zombie Dice on several phones
+
+Read CONNECT §3 "turn games" and frame 8e. No rules change beyond the open rule and
+`seatSwap()`: nothing rated rides on a turn, so the rules don't police whose turn it is.
+
+- [x] The game document carries `turn` and every roll and reveal, so each phone shows the same
+  dice. Controls are live when `turn` is you, or you started the game (`by`), so a player with
+  no phone is still scored. Everyone else gets the same screen with `.mirror`.
+- [x] When your phone becomes live: a `.done` moment, "Your turn, Melanie".
+- [x] Game QR, guest seats, the Home card, the echo strip and light presence: the parts from
+  Session 8, moved into `connect.js` or `ui.js` if they were built inside Rack It.
+- [x] SPEC: "one phone" becomes "one phone or several".
+
+**Done when:** three tabs play a whole game, each taking its own turns, with the starter
+scoring for a guest; one phone alone plays exactly as before.
+
+### Step 4 — Close-out
+
+- [x] The generic household rule goes: every app is in its own block or on the open rule.
+  `sidequests/_shared/people/` becomes owner-only. `/members` keeps only the owner's role;
+  Rack It's Invites screen and `cloud.addMember` go. Cases first.
+- [x] `people.js`: the household path runs for the admin in Rack It and nowhere else. Remove
+  what nothing calls.
+- [x] `/sidequest` works out which kit parts a new app wants and wires them; a new app starts
+  on the open rule with one line added to the list.
+- [x] `CLAUDE.md`: rule 3, the Firebase section and "Beyond the family" describe one admin and
+  players. `KIT.md`: statuses, privacy table, the two new parts (UI, Shared games).
+- [x] Delete `design_handoff/` (the reference page moves to `shared/design/`), and
+  `fair-nine/` with `/deletequest` if its month is up (owner confirms). Its month isn't up:
+  Fair Nine moved on 2026-09-16, so it goes after 2026-10-16.
+- [x] Every app passes `DESIGN.md` §7's checklist (two exceptions, Handover). Parked is re-read
+  with the owner: ⚠ handed to the owner at the end of the session, not yet done.
+
+**Done when:** `grep -r isFamily shared/firestore.rules` finds nothing, and a new app made
+with `/sidequest` comes out on v3 with friends, with no hand edits.
+
+---
+
 ## Handover
 
 ### Architecture review, 2026-10-01 (Fable)
@@ -1381,3 +1438,103 @@ What the plan got wrong, or didn't say:
 For Session 9 step 3: the echo strip, presence, `send()`/`linkFields()` and `followLive()` live
 in Rack It's page. Zombie Dice needs them moved to `connect.js` or `ui.js` first; the rules'
 `nextLink()` and `myPhone()` are written for Rack It's match block and want an open-rule twin.
+
+### The design merge, 2026-10-02 (Fable)
+
+No code. The design pack landed in `design_handoff/` untouched, bar a note at the top of its
+README and CONNECT.md pointing here. The old Sessions 7 (claiming a guest) and 8 (the kit menu,
+other apps adopt Players) are now Session 8 step 1, and Session 7 steps 4 and 5 with Session 9
+steps 1, 2 and 4.
+
+What the next session should know:
+
+1. **The three sessions are large**, at the owner's request. The step boundaries are the
+   safety: finish a step, deploy, tick, then start the next. Don't start a step you can't
+   finish.
+2. **The pack's Connect design was drawn without the rules.** Today's rules freeze `uids`,
+   cap a match at two accounts, need the starter to be a player, and let one player confirm.
+   Seats, the scorer and both-sign each open one of those, which is why each has a "Must
+   refuse" list.
+3. ⚠ **`rev` is this plan's idea, not the pack's, and it's unproven.** Session 8 step 3 probes
+   it before building on it.
+4. ⚠ **The open rule's create check costs up to 7 `exists()` calls** (the limit is 10 a
+   request). Check it on the emulator with an 8-player game before Zombie Dice relies on it.
+5. The old records ruling ("keep the owner's and Melanie's") is met without deleting anything:
+   records for people with no account stay admin-visible by name.
+
+### Session 9, 2026-10-03 (Opus)
+
+Shipped, all live, one push a step, each with its rules: Bloc 11 0.8.0 on the open rule (rules run
+37116393009); Photo Coach 0.3.0 (37116934603); Zombie Dice 0.5.0 on several phones, with Rack It
+2.16.1 on the shared echo strip and presence (37118732361); the close-out (step 4, its rules run in
+commit after this note): no household tier, Rack It 2.17.0 without Invites, Around the Clock
+0.10.0, Zombie Dice 0.6.0, Bloc 11 0.9.0 and Photo Coach 0.3.1 without the household list,
+Sessions Loyalty 0.1.3 (theme), a new `_template/` and `/sidequest`, `design_handoff/` gone (its
+reference page is `shared/design/index.html`).
+
+Proved:
+
+- Rules: 162 cases before, 191 after (29 new, each written first and red on the rules before it),
+  plus two generic cases for every app on the open rule. The full guard mutation check ran after
+  step 4: all 79 guards each turn their own case red when loosened (`node shared/proofs/mutate.mjs`).
+- `?mock` proofs, all with no page errors, console errors or refusal warnings:
+  `bloc-11-open.mjs` (26 with `OLD=`: old climbs read the same, the backfill, a guest's climb,
+  ⋯ Edit note and hold to delete, That was them hands Dan's climb to Ben), `photo-coach-open.mjs`
+  (16: the owner's old log backfilled, images by id; a stranger's empty log),
+  `zombie-dice-phones.mjs` (26: one phone reads as before; three tabs play a whole game, each its
+  own turns, the owner's tab playing the guest's; mirrors, "Your turn", the echo strip, presence,
+  the same finish on every tab; a Game QR seat). Re-run after every step: every proof in
+  `shared/proofs/` (the Session 6, 6b and 8 ones included) and `rack-it-same-match.mjs`.
+- A new app by `/sidequest`, mechanically, in a scratch copy: template copied, names `sed`-ed, one
+  `openApps()` line. Smoke passed as owner, stranger and signed out; the rules check found its
+  two cases (193); Ann saved a record with Ben, Ben saw it, Cat didn't.
+- `make verify` green throughout: 41 node tests, smoke on seven apps.
+
+**Photo size (for the App Check trigger in Parked):** a 3000×2000 photo of noise, the worst case
+for JPEG, stores 649 KiB: the 1400px image 618k characters, the thumb 46k. Each reimagined image
+is the same again. The free 1 GiB holds about 1,600 such photos across every account.
+
+**Climbs for people with no account:** not counted before the push. This session has no access to
+production data (and shouldn't). The owner's phone counts them in its one-time backfill and shows
+a sheet, "N climbs for people with no account", naming them. Only the owner sees those climbs.
+
+Not done: real phones for Zombie Dice on several phones; the owner looking at Bloc 11 and Photo
+Coach on v3; re-reading Parked with the owner (step 4, handed over at the end of the session).
+
+What the plan got wrong, or didn't say:
+
+1. **A guest's climb has no account to put in `uids`**, so the logger couldn't read it. `seat()`
+   now lets the writer be in `uids` without playing; every other account in it must still be a
+   player and connected. Harmless elsewhere: you could already name yourself.
+2. **Photo Coach keeps four collections**, and `openApps()` named one per app. It now maps an app
+   to a list. The images are the big documents, so the owner's backfill patches them by the ids
+   their photos name instead of listing them.
+3. **Turn games got no chain.** The plan allowed no rules beyond the open rule and `seatSwap()`.
+   Only a live phone writes the game, so the newest write wins and every phone takes it; `rev`
+   carries who wrote and what (`say`) for the echo strip. The risk is in Parked. The Game QR did
+   need two open-rule twins of Rack It's: `get` a live game when connected to its starter, and
+   `openTakesSeat()`.
+4. **"Whose phone plays a turn"** wasn't specified: the player's own once they've opened the game
+   (`phones.<uid>`), else the starter's. One phone alone keeps today's cards word for word.
+5. **The echo strip and presence went to `ui.js`**, not `connect.js`: they're screen parts. Rack It
+   uses them too (2.16.1). Zombie Dice's echo has no Undo: a roll is a roll.
+6. **The owner's reach skips Rack It and Sessions Loyalty.** A blanket "owner writes all of
+   `sidequests/`" would have let the owner's stale phone rewind a live match (Session 8 note 8) and
+   rewrite a loyalty entry. A new case proves the second.
+7. **`/members`: anyone may now read their own document**, so `cloud.role()` asks without a
+   refusal. Two old cases ("refused: reading their own entry") changed to someone else's entry.
+8. **The other apps' backfills need the household list.** Around the Clock's, Zombie Dice's and
+   Bloc 11's run once on the owner's phone and may not have run yet, so those apps load the list
+   on the owner's phone until their backfill flag is set, and never again. The household path is
+   otherwise Rack It's admin alone (`household: true`; the default is now false).
+9. **"One line added to the list" needed the line to be the only source.** The rules check and
+   the mock read `openApps()` from `firestore.rules`, and a generic block of cases covers every
+   app on it. Adding an app to the list is a rules change with its cases already written.
+10. **Two rules runs at once corrupt each other**: they share `~/.cache/sidequests-rules`. Run one
+    at a time, or give the second its own `RULES_DIR`.
+11. **DESIGN.md §7 exceptions**: Rack It's live-screen caption `.wincap` is 14px (the live screen
+    is frozen by its ground rules), and Zombie Dice's HUNK/HOTTIE tags on the dice are 11px (the
+    game object; the die's label carries the name). Photo Coach's 14px badges went to 15px.
+12. **Bloc 11 keeps its date field**: frame 3a swaps it for a "Today. Tap the date to change it."
+    line. Left for Session 10.
+13. **Fair Nine stays** until 2026-10-16, a month after it moved.

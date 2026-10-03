@@ -26,7 +26,7 @@ sed -i "s/__APP_ID__/$APP_ID/g; s/__APP_NAME__/$APP_NAME/g; s/__APP_INITIAL__/${
 ## 2b. Draw the icon, then make the PNGs
 
 Edit `icon.svg` into something that reads at thumbnail size: a filled rounded rect in the
-card colour (`#121821`), then one simple shape in the app's accent. No text, no fine lines.
+card colour (`#1A1816`), then one simple shape in the app's accent. No text, no fine lines.
 
 Then make the PNGs the manifest points at — **this step is not optional**:
 
@@ -40,13 +40,43 @@ browser tab, and once that shortcut is on the home screen it stops offering the 
 install. If the script says Playwright isn't available, don't skip it quietly: say so in
 the report so the owner knows the app will install as a shortcut until someone runs it.
 
+## 2c. Open it to anyone signed in: one line in the rules
+
+Every app is on the open rule (`shared/KIT.md`): anyone signed in uses it, each record is reached
+by the accounts in it, and the owner reaches everything. Add the app's line to `openApps()` in
+`shared/firestore.rules`, naming the collection(s) its records live in (the template's is
+`records`; rename `RECORDS` in `index.html` to match, e.g. `games`):
+
+```
+      return { 'zombie-dice': ['games'], …, 'APP_ID': ['records'] };
+```
+
+That line is the whole rules change. `shared/rules-check.mjs` and the `?mock` cloud read the list
+from that file, so the app's cases ("anyone keeps a record of their own; nobody else reaches it")
+and its mock access come with it. The push deploys the rules (the `deploy-rules` Action), in the
+same push as the app. Nothing else in the app may sit outside those collections, bar the owner's.
+
 ## 3. Write `SPEC.md`
 
 Capture the brief before building. Short is fine, but it must cover: purpose, who uses it, screens, data model (what gets stored and where under `sidequests/<APP_ID>/`), and anything explicitly out of scope. If the owner gave a detailed spec, save it verbatim and add a "Decisions" section for anything you had to assume.
 
 ## 4. Build
 
-Replace the `<main>` and the `start()` function in `index.html` with the actual app. Follow every rule in `CLAUDE.md` — especially: one file, `cloud.js` for all storage, big touch targets, `pointerup` not `click`, version stamp in the footer.
+The template is a working app with every kit part wired: sign-in, your avatar's account sheet
+(Profile, My QR, Friends, Your guests, Export, Import, Install, Sign out), Who's playing chips
+(you, your friends, your guests, **Show QR**, **Add a guest**), records saved in the open rule's
+shape, and a Recent list with `⋯` → hold to delete. Work out which parts the app wants, keep
+those, and replace the rest of `#app` and `render()` with the actual app:
+
+| The app… | Keep |
+| --- | --- |
+| records who played, climbed or scored | Who's playing (`people.players()`, or `people.pick` for one seat), `recordOf(ids, …)` |
+| is one person's log (a diary, a coach) | `recordOf([people.meId()], …)` and no chips; My QR and Friends can go from the sheet |
+| is played on several phones at once | the Shared games parts too (`shared/CONNECT.md` §8): Game QR, `ui.echo`, `ui.presence`, `.mirror` |
+| stores anything | Export and Import in the account sheet (always, CLAUDE.md rule 9) |
+
+Every record keeps `players`, `names`, `uids` and `by` (`recordOf`), and every list keeps the
+`where: ["uids", "array-contains", uid]` filter: the rules refuse anything else. Follow every rule in `CLAUDE.md` — especially: one file, `cloud.js` for all storage, big touch targets, `pointerup` not `click`, version stamp in the footer.
 
 Read `shared/DESIGN.md`. Set two accents from the ramp (a free one: the launcher lines the
 apps up, and two never share a first accent). Build from the parts in `shared/theme.css` and
@@ -65,7 +95,9 @@ Keep the phone kit the template gives you:
   the installed app; this is the fallback for a browser tab or an old shortcut.
 
 Sanity-check the file: balanced tags, the module script has no top-level errors you can spot,
-and storage goes through `cloud.js`. `localStorage` is fine for per-device scraps that would
+and storage goes through `cloud.js`. A `let` that `start()` reads goes in the state block at the
+top: `start()` can run before the code below it (the top-level-await trap). Then run
+`node shared/smoke.mjs APP_ID`: it opens the app as the owner, a stranger and signed out. `localStorage` is fine for per-device scraps that would
 be wrong to share — which game this phone was playing, a collapsed section — never for data.
 
 ## 5. Add it to the landing page
@@ -81,7 +113,7 @@ accent (ACCENT is its ramp name, e.g. `green`) and with one line of what it's fo
 
 ## 6. Deploy
 
-Run the `/deployquest` skill. It bumps nothing on a first build (version is already `0.1.0`), commits, pushes, and verifies the live URL.
+Run the `/deployquest` skill. It bumps nothing on a first build (version is already `0.1.0`), commits, pushes, waits for the rules Action (the `openApps()` line), and verifies the live URL.
 
 ## 7. Report
 

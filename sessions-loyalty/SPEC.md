@@ -154,8 +154,9 @@ entries/<id>    { kind, uid, name, by, byName, at, rands, points, xp, item, titl
 | entries/ | their own: get, and list with `where uid == me` | all; create with `by` = me; void (only `voided*`) | also create in anyone's name (Import) and delete |
 
 The rules can't check the arithmetic: a card's `points` and `xp` are a cache the staff's
-**Rebuild points** remakes from the entries, as Rack It's ratings are. The generic household
-rule skips this app, so a household member is a plain member. `?mock` models all of it
+**Rebuild points** remakes from the entries, as Rack It's ratings are. There is no household
+tier (Session 9): an old `/members` document makes nobody more than a member, and the owner's reach
+over the rest of `sidequests/` skips this app, so even the owner only voids an entry. `?mock` models all of it
 (`shared/cloud-memory.js`): `?mock` is the owner (staff), `?mock&as=ann` a member;
 Ann becomes staff when the owner adds her under More → Staff with her QR link.
 

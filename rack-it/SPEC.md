@@ -30,7 +30,7 @@ is reference only.
 | **Rack** | One game on the table. What it records depends on the game (§2). |
 | **Handicap** | **Off**, **Scoring** (point quotas) or **Racks** (a race chart). Never enters the rating. |
 
-Words: **match**, never session; **Tied**, never "dead level"; **Invites** for the members list.
+Words: **match**, never session; **Tied**, never "dead level".
 
 ## 2. The games
 
@@ -473,11 +473,10 @@ Ratings, Matches and More (`ui.account`). Tapping it opens a bottom sheet with y
 **Profile**, **My QR** and **Friends** (§8.1), **Export**, **Import** (the owner's), **Install on
 this phone** (until it's installed) and **Sign out**.
 
-**More.** Invites, Rebuild ratings (owner), About Zargo, the version (friend mode drops Invites
-and Rebuild, §8.2), and a line saying what moved under your picture.
-**Invites** is the members allowlist, for the household's other apps: add a Gmail,
-remove one (owner only, **Hold to remove**, never yourself), **Share this app**; rows show whose
-Gmail it is. Import's **Hold to replace everything** is the owner's too.
+**More.** Rebuild ratings (owner), About Zargo, the version (friend mode drops Rebuild, §8.2), and
+a line saying what moved under your picture. Import's **Hold to replace everything** is the
+owner's too. (Invites, the members allowlist, went in 2.17.0: every app is open to anyone signed
+in, and `/members` holds only the owner's role. KIT-PLAN Session 9.)
 
 ### 7.1 The owner
 
@@ -520,8 +519,7 @@ Stored ids are read through `people.resolve`, so a merge in any app carries hist
   time each opens. Only the match's starter may, and only for someone they're connected to.
 - **A Gmail is optional** (2.8.0). The shared sheet offers it when editing a household person, so
   they claim themselves on sign-in; adding a household person asks only for a name. Nothing here
-  invites anyone: **Invites** (More) is the only way onto `/members`. A Gmail already on someone
-  else is refused. Adding a name that's already on the list asks first.
+  puts anyone on `/members`. A Gmail already on someone else is refused. Adding a name that's already on the list asks first.
 - **Claiming.** On sign-in the account links to the person with its `uid`, else its email, and
   stamps `uid`, `claimedAt` and the Google `photoURL` (refreshed every sign-in). With no match,
   **Which player are you?** lists the unclaimed people (no Gmail first); picking one writes your
@@ -590,7 +588,7 @@ too (Session 6b). The same four tabs, with only what the rules let a player reac
 - **Matches**: the matches with your uid in `uids`, newest first, read with one query
   (`where: ["uids", "array-contains", <uid>]`, no `orderBy`, sorted on the phone).
 - **Your account sheet**: Profile, My QR, Friends, Export (your matches and the ratings this
-  phone reads), Install, Sign out. **More**: About Zargo. No Invites, Import or Rebuild.
+  phone reads), Install, Sign out. **More**: About Zargo. No Import or Rebuild.
 - **Add player** (Ratings): Scan or Guest. A guest's starter estimate goes to `ratings/<g_id>`
   once, by the account that made the guest; nobody else writes it, and there's no `starters/`
   document. A friend plays from their own rating, or from 500.
@@ -606,8 +604,8 @@ too (Session 6b). The same four tabs, with only what the rules let a player reac
 
 All under `sidequests/rack-it/` in Firestore, via `shared/cloud.js`, guarded by
 `shared/firestore.rules`. `cloud.role()` reads your own `members` document. **The owner** reads
-and writes all of it (§7.1); the household rule that covers the other apps doesn't reach Rack It
-(2.11.0). **Every other account**, a household member included (2.10.0, 2.11.0, §8.2), reads and
+and writes all of it (§7.1); there is no household tier (2.11.0 here, every app since Session 9).
+**Every other account** (2.10.0, 2.11.0, §8.2) reads and
 scores only the matches with its uid in `uids`, and lists them only with that filter. It starts a match only
 as `by`, live, alone with a guest or against someone it's connected to. A player never changes
 who's in a match; a pending match only finishes; a rated match is finished only by a player who
@@ -813,6 +811,8 @@ account, so a static app can't upload results.
 | 2.9.0 | Rated matches and confirming (KIT-PLAN Session 5). Setup gains a **Rated** tick, off by default, offered when both players have an account. A friendly moves no rating; a rated match moves both only once the opponent confirms on their own phone, worked out from the ratings at that moment, in one batch. Not right or Withdraw leaves it a friendly. Rebuild replays rated matches by `ratedAt`, else `endedAt`; a match with no `rated` field is rated. For the social leagues, where a rating has to be agreed by both players. |
 | 2.10.0 | Outsiders play in Rack It (KIT-PLAN Session 6): friend mode instead of the outsider screen. The rules open the matches an account plays in, starting one against a connection or a guest, and a rating only in the batch that confirms a rated match the other player ended. Ratings are read by id, matches with one `uids` query. A household member can no longer turn a friendly into a rated match. For pool friends who aren't family. |
 | 2.11.0 | One admin, everyone else a player (KIT-PLAN Session 6b). The owner sees and rewrites every match; everyone else, a household member included, runs friend mode and reads only the matches they play in. The owner's phone backfills `uids` and `names` on matches from before 2.8.0, so the players keep them. The "Before you play" note goes: there's nothing left to warn about. Owner's call, 2026-10-02: "a family member is just another member". Other apps keep the household. |
+| 2.17.0 | One admin everywhere (KIT-PLAN Session 9 step 4): Invites goes, and the owner's admin path is the only one that reads the household list (`household: true`). |
+| 2.16.1 | The echo strip and presence come from `shared/ui.js` (`ui.echo`, `ui.presence`), shared with Zombie Dice. No change on screen. |
 | 2.16.0 | A scorer, and both sign (KIT-PLAN Session 8 step 4): whoever starts a match they don't play in scores it, and a rated match then needs both players' Confirm; the first adds only their own key, the last is the batch. `uids` stays the players, so the ratings rule is untouched. The owner scoring someone else's match now waits for both, not either. |
 | 2.15.0 | Two phones score one match (KIT-PLAN Session 8 step 3): every write is a link in a chain the rules check, so a stale phone is refused rather than rewinding the game; the probe showed a plain counter lets late queued writes land. The echo strip, Undo of the other phone's change, a lost tap put back when it still makes sense, and light presence (no heartbeat: six tables of three phones for three hours would be most of the free write quota). |
 | 2.14.0 | Seats and the Game QR (KIT-PLAN Session 8 step 2): Who's playing is chips with Show QR and Add a guest; the live screen's ⋯ shows a Game QR; a scan connects you to the starter, then you take the guest seat that was you. A friend picked at setup finds the match as a card on Home. A live match is readable by the starter's friends, by id only, so the QR link is enough to join without opening anyone's match list. |

@@ -1,11 +1,12 @@
 # The kit — shared features a sidequest opts into
 
 Every sidequest is one `index.html`. What they have in common lives in `shared/`, as parts
-an app picks when it's made: the shopping cart. `/sidequest` asks which parts a new app
-wants (from `KIT-PLAN.md` Session 9). Adding a part to an existing app later is one import
-and one mount call.
+an app picks when it's made: the shopping cart. `/sidequest` works out which parts a new app
+wants and wires them from `_template/`, which has them all (its SKILL.md §4). Adding a part to an
+existing app later is one import and one mount call.
 
-Status and build order: `shared/KIT-PLAN.md`. Finished sessions: `shared/KIT-HISTORY.md`.
+How it was built: `shared/KIT-HISTORY.md` (Sessions 0 to 9). What's proposed next, and Parked:
+`shared/KIT-PLAN.md`.
 
 ## The parts
 
@@ -16,10 +17,11 @@ Status and build order: `shared/KIT-PLAN.md`. Finished sessions: `shared/KIT-HIS
 | **Theme** | `theme.css` | The shared look | — | ✓ |
 | **Sign-in** | `cloud.js` | Google sign-in, an account (uid) with a name and photo | Storage | ✓ |
 | **Connect** | `connect.js` | My QR, scan to connect, friends list with note, met and tags | Sign-in | ✓ |
-| **Players** | `people.js` | Pick who's playing: a friend, a QR scan, or a guest | Connect | ✓ in Rack It; other apps Sessions 7 and 9 |
-| **UI** | `ui.js` | Tap, hold-to-confirm, toast, bottom sheet, row menu, the account sheet (`DESIGN.md`) | Theme | Session 7 |
-| **Shared games** | `connect.js`, the rules; the rest in Rack It | A Game QR, guest seats, one game on several phones, a scorer and both sign (`CONNECT.md`) | Players | ✓ in Rack It (2.16.0); Zombie Dice Session 9 |
-| **Household** | `cloud.js` | The `/members` allowlist and owner role | Sign-in | ✓ |
+| **Players** | `people.js` | Pick who's playing: you, a friend, a QR scan, or a guest; That was them | Connect | ✓ every app that names players |
+| **UI** | `ui.js` | Tap, hold-to-confirm, toast, bottom sheet, row menu, the account sheet, the echo strip, presence (`DESIGN.md`) | Theme | ✓ every app |
+| **Open rule** | the rules (`openApps()`) | Anyone signed in uses the app; each record reached by the accounts in it, the owner by all | Sign-in | ✓ every app bar Rack It and Sessions Loyalty, which have their own blocks |
+| **Shared games** | `connect.js`, `ui.js`, the rules | A Game QR, guest seats, one game on several phones (`CONNECT.md`); in Rack It also a scorer and both sign | Players | ✓ Rack It (table game), Zombie Dice (turn game) |
+| **Owner** | `cloud.js` | `cloud.role()`: the one admin | Sign-in | ✓ |
 
 ## Sign-in and accounts
 
@@ -28,10 +30,10 @@ Status and build order: `shared/KIT-PLAN.md`. Finished sessions: `shared/KIT-HIS
 - An account has a **profile**: full name (from Google, editable) and a photo (Google's, or
   one taken in the app, shrunk to a 192 px JPEG and stored in the profile document).
   ⚠ Firebase Storage would need the paid Blaze plan, so the photo stays in Firestore.
-- **The household** is the allowlist: an account whose email is in `/members`. A household
-  member reads everything under `/sidequests/` except in an app that has dropped the household
-  tier (Rack It, from 2.11.0), so only people who live here go on it.
-  Playing in an app is never a reason to add someone; that's what Connect is for.
+- **One admin.** The owner (the `/members` document with `role: "owner"`, set in the Firebase
+  console) sees every record in every app and keeps the household people list. There is no
+  household tier and no allowlist (Session 9): everyone else, Melanie included, is an account that
+  reaches the records it's in. A leftover `/members` document without the role means nothing.
 
 ## Connect
 
@@ -77,28 +79,26 @@ is:
   guest's page or the account sheet's **Your guests**) and the games you started with them become
   theirs, in every app, through one rule shape (`seatSwap()` in the rules). The guest keeps a
   pointer (`claimedBy`), so `people.resolve` leads there;
-- for household members, **a household person**: the list every app shares today. It stays
-  as it is, and nothing is migrated. An app with no household tier starts Players with
-  `household: false`, and a member then sees no household list (Rack It, bar the owner);
-- for anyone outside the household, or with `household: false`, **you**: your own account, so
-  you can pick yourself (the household list isn't theirs to read).
+- **you**: your own account, named and pictured by your profile;
+- for the owner in Rack It only, **a household person**: the owner's old list
+  (`sidequests/_shared/people/`), started with `household: true`. Nothing in it migrates; old
+  records naming a household person with no account read by their `names`.
 
 **Ids.** An account is its `uid`. A guest is `g_<id>`. A household person with no account
 keeps their person id. `people.resolve(id)` leads any id an app ever stored to the current
 one, so a household person who signs in becomes their uid without a record being rewritten.
 
-**What an app stores.** Beside the player ids, every record keeps `names` (a snapshot, so
-it reads without the household list) and `uids` (the accounts in it, which is what the
-rules check). Get them from `people.names(ids)` and `people.uidsOf(ids)`.
+**What an app stores.** Beside the player ids (`players`), every record keeps `names` (a
+snapshot, so it reads on any phone), `uids` (the accounts in it, which is what the rules check)
+and `by` (whoever made it). Get them from `people.names(ids)` and `people.uidsOf(ids)`. Every list
+carries `where: ["uids", "array-contains", uid]`.
 
 **The calls.** `people.pick({ title, recent, app })` is the sheet for one player slot: the
 `recent` ids first, then everyone by name, a search past eight, then **Scan a new player**
 (My QR; whoever scans is picked) and **Add a guest**. `people.addPlayer()` is those two
-buttons alone. `people.players()` lists all three sources; `people.active()` stays the
-household only, so an app that hasn't adopted Players sees no change. `people.get(id)` gives
-`{ id, name, photo, colour, kind }`, `kind` being `"household"`, `"account"` or `"guest"`.
-Adding a household person (`people.edit(null)`) asks only for a name, and nothing in Players
-puts anyone on `/members`: Invites does that.
+buttons alone. `people.players()` lists every source; `people.active()` is the household only
+(Rack It's admin). `people.get(id)` gives `{ id, name, photo, colour, kind }`, `kind` being
+`"household"`, `"account"` or `"guest"`.
 
 ## Shared games
 
@@ -110,9 +110,13 @@ One game on several phones. The design and what was built: `shared/CONNECT.md`. 
   it: a seat is taken only by someone connected to the starter.
 - **Seats**: a guest's seat becomes the joiner's uid (`seatSwap()` in the rules); `names` keeps
   the name. **That was them** gives a guest's other games to the account (`people.claim`).
-- **Several phones scoring**: every write is the next link of a chain (`rev`), so a stale
-  phone's write is refused, never rewinds the game. The echo strip says what another phone just
-  did, with Undo; light presence (`phones.<uid>.at`) says when each was last seen.
+- **Several phones scoring** (Rack It, a table game): every write is the next link of a chain
+  (`rev`), so a stale phone's write is refused, never rewinds the game. The echo strip
+  (`ui.echo`) says what another phone just did, with Undo; light presence (`ui.presence`,
+  `phones.<uid>.at`) says when each was last seen.
+- **Taking turns** (Zombie Dice, a turn game): a turn is played on its player's phone, or the
+  starter's; every other phone is a mirror (`.mirror`) and gets "Your turn" when it comes round.
+  No chain: only a live phone writes, and nothing rated rides on a turn.
 - **A scorer**: whoever starts a game they don't play in; never in `uids`, never confirms. A
   rated result then needs every player who didn't end it to confirm (`confirms`).
 
@@ -124,8 +128,9 @@ One game on several phones. The design and what was built: `shared/CONNECT.md`. 
 | The name on your QR | Anyone holding the QR within its 24 hours, so the welcome screen can say who it's from |
 | That two people are friends | Those two only |
 | Your notes, tags, met, guests | You only. Your friends can't see your friends. |
-| A live Rack It match | Also anyone connected to its starter, one match by id (the Game QR), never a list. A match's scorer reads it too. |
-| An app's records | The players in them and the admin. In Rack It (from 2.11.0) that's all: the owner sees every match, and everyone else, household members included, only the records with their uid in `uids`. Apps that haven't adopted Players: the household sees all of them, until the app is visited (`KIT-PLAN.md` Sessions 7 and 9). |
+| A live game (a Rack It match, a Zombie Dice game) | Also anyone connected to its starter, one game by id (the Game QR), never a list. A Rack It match's scorer reads it too. |
+| An app's records | The accounts in them (`uids`) and the admin, in every app. Nobody else, whoever they are. |
+| The household people list | The owner only. |
 | A Rack It rating | Anyone signed in who has that player's id, one at a time. Only the owner can list them. |
 | A Sessions Loyalty card and its entries | That member, and the club's staff. The staff note on a member: staff only. The club's rewards and ways to earn: anyone signed in. (`sessions-loyalty/SPEC.md` §6) |
 
@@ -133,9 +138,9 @@ Email addresses are never in a profile, a friendship or a record's `names`.
 
 ## Data
 
-Accounts are top-level collections, outside `/sidequests/`, on purpose. The rule on
-`/sidequests/{appId}/**` lets every household member read everything under it (bar Rack It), so
-a friends list stored there wouldn't be private.
+Accounts are top-level collections, outside `/sidequests/`, on purpose: an app's records and
+someone's friends never share a rule, and the owner's reach over `/sidequests/` doesn't extend to
+anyone's friends.
 
 ```
 /profiles/{uid}                  { name, photo, googlePhoto, createdAt }      — get by uid

@@ -2,17 +2,17 @@
 // fake data. Open any app with ?mock in the URL and cloud.init() swaps this in; no app code
 // changes.
 //
-//   /sidequests/rack-it/?mock                      signed in as a fake member, data kept
+//   /sidequests/rack-it/?mock                      signed in as the owner, data kept
 //   /sidequests/rack-it/?mock=reset                wipe the fake data first
 //   /sidequests/rack-it/?mock&seed=../x.json       start from an app's JSON export (when empty)
-//   /sidequests/rack-it/?mock&role=member          the fake user as a plain member (default: owner)
+//   /sidequests/rack-it/?mock&role=member          the fake user on /members without the owner's role
 //   /sidequests/rack-it/?mock&as=ann               this tab is another fake user, not on /members
-//   /sidequests/rack-it/?mock&as=ann&role=member   …who is a household member after all
+//   /sidequests/rack-it/?mock&as=ann&role=member   …who has an old /members document (no different)
 //   /sidequests/rack-it/?mock&as=                  this tab goes back to the default owner
 //   /sidequests/rack-it/?mock&signedout            this tab's user starts signed out
 //   cloud.network(false) / cloud.network(true)     a test hook: hold this tab offline, then send its queue
 //
-// Same surface as cloud.js, including `shared`, the members calls and `account` (guests too). The data lives in this
+// Same surface as cloud.js, including `shared`, role() and `account` (guests too). The data lives in this
 // browser's localStorage, so it survives a reload (resume) and another tab sees every write
 // (watch). Watchers fire on every write, from this tab or another.
 //
@@ -20,18 +20,16 @@
 // tab uid mock-<name>, <name>@example.com, held in sessionStorage so a reload keeps it while
 // other tabs stay who they are. Each user signs out on their own; the data is shared.
 //
-// Permissions model the tiers, not the field rules (ACCESS below): a signed-in user on
-// /members reaches what the household reaches, anyone else gets permission-denied, as in
-// production. Owner-only and field-level rules aren't modelled, except on Rack It's matches
-// (below) and Sessions Loyalty (staff and members); elsewhere role only changes what an app
-// shows, so check those against shared/firestore.rules (and shared/rules-check.mjs).
+// Permissions model the tiers, not every field rule (ACCESS below): the owner, the one admin, and
+// anyone signed in, as in production; there is no household tier (Session 9). Field-level rules
+// are modelled on Rack It's matches, Sessions Loyalty and the open apps; check the rest against
+// shared/firestore.rules (and shared/rules-check.mjs).
 // The account paths are modelled more closely, since outsiders live there: your own
 // private/friends/guests only, a pair only by one of its two, and a friendship only with
 // the other side's live code. So is Rack It's outsider block (Session 6): a match read,
 // started and scored by the players in its `uids`, a list only with the uids filter, a rating
-// got by id and moved only in the batch that confirms, as in shared/firestore.rules. Rack It
-// has no household tier (Session 6b): the owner reaches all of it, and everyone else, a
-// household member (&role=member) included, is a player.
+// got by id and moved only in the batch that confirms, as in shared/firestore.rules. The owner
+// reaches all of it, and everyone else, a member (&role=member) included, is a player.
 // The open apps (Session 7, OPEN_APPS) work the same way: a record reached by the accounts in
 // its uids, listed only with that filter, and the owner reaches all.
 //
@@ -60,8 +58,10 @@ function userCalled(name){
 // A row's read or write is a tier, "anyone" (signed out too), or a check (match, user, data)
 // for the account paths. `data` is the document being written, or null for a delete.
 const ACCESS = [
-  { path: /^members(\/|$)/,    read: "household", write: "household" },
-  // Rack It: the owner, and players (Sessions 6 and 6b). Not the household.
+  // The owner's role: anyone asks for their own document (cloud.role()); the owner lists and writes.
+  { path: /^members\/([^/]+)$/, read: (m, u) => m[1] === String(u.email || "").toLowerCase() || isOwner(u), write: "owner" },
+  { path: /^members$/, read: "owner" },
+  // Rack It: the owner, and players (Sessions 6 and 6b).
   { path: /^sidequests\/rack-it\/state\/main$/, read: "account", write: "owner" },
   { path: /^sidequests\/rack-it\/matches$/, read: (m, u, d, was, ctx) => isOwner(u) || uidsFilter(ctx, u) || scorerFilter(ctx, u) },
   { path: /^sidequests\/rack-it\/matches\/([^/]+)$/,
@@ -77,7 +77,7 @@ const ACCESS = [
       || claimedStarter(m[1], u, d, was))) },
   { path: /^sidequests\/rack-it(\/|$)/, read: "owner", write: "owner" },   // starters, listing ratings
   // The open apps (Session 7): each record reached by the accounts in its uids, a list only with
-  // the uids filter, and the rest of the app the owner's. Not the household.
+  // the uids filter, and the rest of the app the owner's.
   { path: /^sidequests\/([^/]+)\/([^/]+)$/, when: m => (OPEN_APPS[m[1]] || []).includes(m[2]),
     read: (m, u, d, was, ctx) => isOwner(u) || uidsFilter(ctx, u) },
   { path: /^sidequests\/([^/]+)\/([^/]+)\/([^/]+)$/, when: m => (OPEN_APPS[m[1]] || []).includes(m[2]),
@@ -102,7 +102,8 @@ const ACCESS = [
       : !d ? isOwner(u)
       : isStaff(u) && changed(was, d).every(k => ["voided", "voidedBy", "voidedAt", "_updatedAt"].includes(k)) },
   { path: /^sidequests\/sessions-loyalty(\/|$)/, read: "owner", write: "owner" },
-  { path: /^sidequests(\/|$)/, read: "household", write: "household" },
+  // The owner reaches the rest of sidequests/, the household people under _shared included.
+  { path: /^sidequests(\/|$)/, read: "owner", write: "owner" },
   // Accounts (Session 1). Yours alone: private, friends, guests, as documents or as a list.
   { path: /^profiles\/([^/]+)\/(private|friends|guests)(\/[^/]+)?$/, read: (m, u) => m[1] === u.uid, write: (m, u) => m[1] === u.uid },
   // A profile is read one at a time (the bare "profiles" list matches no row, so it's refused).
@@ -115,9 +116,25 @@ const ACCESS = [
     read: (m, u, d, was) => was ? was.uids.includes(u.uid) : m[1].split("_").includes(u.uid),
     write: (m, u, d, was) => d ? !was && pairOk(m[1], u, d) : !!was && was.uids.includes(u.uid) },
 ];
-// The open rule's apps and the collections their records live in (openApps() in the rules).
-const OPEN_APPS = { "zombie-dice": ["games"], "around-the-clock": ["games"], "bloc-11": ["climbs"],
+// The open rule's apps and the collections their records live in: read from openApps() in
+// shared/firestore.rules when the fake cloud starts (loadOpenApps), so a new app on the rule is one
+// line there and nowhere else. This is the list as of Session 9, in case the file can't be read.
+let OPEN_APPS = { "zombie-dice": ["games"], "around-the-clock": ["games"], "bloc-11": ["climbs"],
   "photo-coach": ["photos", "images", "batches", "reviews"] };
+export function parseOpenApps(rules){
+  const m = String(rules).match(/function openApps\(\)\s*\{\s*return\s*\{([\s\S]*?)\};/);
+  if (!m) return null;
+  const out = {};
+  for (const [, app, list] of m[1].matchAll(/'([\w-]+)'\s*:\s*\[([^\]]*)\]/g)) out[app] = [...list.matchAll(/'([\w-]+)'/g)].map(x => x[1]);
+  return Object.keys(out).length ? out : null;
+}
+async function loadOpenApps(){
+  try {
+    const res = await fetch(new URL("./firestore.rules", import.meta.url), { cache: "no-cache" });
+    const list = res.ok ? parseOpenApps(await res.text()) : null;
+    if (list) OPEN_APPS = list;
+  } catch (e){ console.warn("[cloud-memory] couldn't read the open apps from firestore.rules", e); }
+}
 // A new record in an open app: yours, with you in it, at most 8 players, every other account in
 // it a player and someone you're connected to. You may be in it without playing (a guest's climb).
 function opens(u, d){
@@ -588,6 +605,7 @@ export const memory = {
 
   async init(id){
     appId = id;
+    await loadOpenApps();
     const q = new URLSearchParams(location.search);
     const url = new URL(location.href);
     if (q.get("mock") === "reset") { localStorage.removeItem(KEY); store = { docs: {}, signedOut: {} }; url.searchParams.set("mock", ""); }
@@ -613,7 +631,7 @@ export const memory = {
     if (q.has("signedout")) { store.signedOut[USER.uid] = true; persist(); }
     currentUser = store.signedOut[USER.uid] ? null : { ...USER };
     if (currentUser) ensureProfile(currentUser);
-    console.info("[cloud-memory] fake cloud for", id, "as", USER.email, tierOf(USER) === "household" ? "(household)" : "(not on /members)");
+    console.info("[cloud-memory] fake cloud for", id, "as", USER.email, isOwner(USER) ? "(the owner)" : "(an account)");
     await new Promise(r => setTimeout(r, 0));
     userListeners.forEach(cb => cb(currentUser));
     return currentUser;
@@ -722,9 +740,7 @@ export const memory = {
     }
   },
 
-  async listMembers(){ check("read", "members"); return rowsOf("members").map(r => r.id).sort(); },
-  // Like cloud.js: null when signed out, and null when the read itself is refused (the rules
-  // let only the household read /members, so that's anyone not on it).
+  // Like cloud.js: null when signed out or with no /members document.
   async role(){
     read();
     if (!currentUser) return null;
@@ -732,12 +748,6 @@ export const memory = {
     const m = store.docs["members/" + currentUser.email];
     return m ? (m.role === "owner" ? "owner" : "member") : null;
   },
-  addMember(email){
-    const e = String(email).trim().toLowerCase();
-    read();
-    return write("members/" + e, { ...store.docs["members/" + e], addedBy: currentUser ? currentUser.email : null, addedAt: Date.now() });
-  },
-  removeMember(email){ return write("members/" + String(email).trim().toLowerCase(), null); },
 
   account
 };

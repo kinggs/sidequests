@@ -32,7 +32,6 @@
   .session li{padding:2px 0}
   .bars{margin-top:12px}
   .tile em{font-style:normal}
-  #household .sect:first-child{margin-top:30px}
 </style>
 </head>
 <body>
@@ -69,13 +68,6 @@
     <h2 class="lbl sect">Recent</h2>
     <ul class="rows" id="recent"></ul>
 
-    <div class="hidden" id="household">
-      <h2 class="lbl sect">The household</h2>
-      <ul class="rows" id="people"></ul>
-      <div class="row"><button class="quiet" id="addBtn">Add to the household</button></div>
-      <p class="note hint">The household list is yours, shared by every sidequests app. Everyone else logs for
-        themselves and their guests.</p>
-    </div>
     <input type="file" id="importFile" accept="application/json,.json" class="hidden">
   </section>
 </main>
@@ -90,7 +82,7 @@
   import { ui } from "../shared/ui.js";
 
   // Bump on every change. The deploy skill checks this against the live site.
-  const APP_VERSION = "0.8.0";
+  const APP_VERSION = "0.9.0";
   const APP_ID = "bloc-11";
   document.getElementById("version").textContent = "v" + APP_VERSION;
 
@@ -108,13 +100,13 @@
 
   // ---- state ----
   // Anyone signed in logs climbs (the open rule, KIT-PLAN Session 9): for themselves and for their
-  // guests, people with no phone. Each sees the climbs they're in, and the owner sees every climb and
-  // keeps the household list (shared/people.js). A climb's players is its one climber.
+  // guests, people with no phone (shared/people.js). Each sees the climbs they're in, and the owner
+  // sees every climb. A climb's players is its one climber.
   let legacyClimbers = null;  // this app's own climber list from before people were shared; null until loaded
   let rawClimbs = [];         // as stored
   let climbs = [];            // { id, climber, grade, result, note, at, by, uids }, climber resolved to a person
   let unsubs = [];
-  let owner = false;          // the one admin: every climb, and the household list
+  let owner = false;          // the one admin: every climb
   let run = 0;                // which sign-in start() is on
   let accountSig = "";        // what the header's avatar last showed (mountAccount)
   let knownNames = {};        // id → the name a climb stored, for climbers this phone can't name
@@ -124,8 +116,8 @@
   let openSession = null;     // day (epoch ms) expanded under the chart
 
   const myUid = () => (cloud.user && cloud.user.uid) || "";
-  // Who you log for: you and your guests; the owner also logs for the household.
-  const loggable = () => people.players().filter(p => !p.deleted && (owner || p.id === people.meId() || p.kind === "guest"));
+  // Who you log for: you and your guests.
+  const loggable = () => people.players().filter(p => !p.deleted && (p.id === people.meId() || p.kind === "guest"));
   const isMe = id => people.isMe(id);
   const nameOf = id => people.get(id) ? people.nameOf(id) : knownNames[id] || "Someone";
   // Old climbs may name an id that has since been merged, adopted or claimed; read them as the person.
@@ -173,7 +165,6 @@
     renderGrades();
     renderProgress();
     renderRecent();
-    renderPeople();
   }
 
   function chipRow(wrap, ids, selectedId, onPick, empty){
@@ -431,41 +422,6 @@
     catch (e){ toast("Couldn't save: " + (e.message || e)); }
   }
 
-  // ---- the household: the owner's list, shared by every sidequests app ----
-  function renderPeople(){
-    $("household").classList.toggle("hidden", !owner);
-    if (!owner) return;
-    const ul = $("people");
-    ul.innerHTML = "";
-    const list = people.active();
-    if (!list.length){
-      const li = document.createElement("li");
-      li.className = "empty";
-      li.textContent = "No climbers yet. Add yourself first.";
-      ul.appendChild(li);
-      return;
-    }
-    // Edit opens the shared sheet: rename, colour, Gmail, merge a double entry, or remove.
-    for (const c of list){
-      const li = document.createElement("li");
-      li.innerHTML = `<span class="who"><div class="l1"></div><div class="l2"></div></span><button type="button" class="quiet">Edit</button>`;
-      li.prepend(people.avatar(c.id, 40));
-      li.querySelector(".l1").textContent = isMe(c.id) ? `${c.name} (you)` : c.name;
-      const n = climbs.filter(x => x.climber === c.id && x.result === "sent").length;
-      li.querySelector(".l2").textContent = `${n} send${n === 1 ? "" : "s"} · ${c.uid ? (c.email || "Signed in") : "No account"}`;
-      tap(li.querySelector("button"), () => people.edit(c.id, { noun: "climber" }));
-      ul.appendChild(li);
-    }
-  }
-
-  async function addClimber(){
-    const id = await people.edit(null, { noun: "climber" });
-    if (!id) return;
-    who = id;
-    toast(`${nameOf(id)} added`);
-    render();
-  }
-
   // ---- logging ----
   // A climb names its one climber: players, names, and uids (their account, or else yours, since a
   // guest has none and the climb must stay yours to see), and by, whoever logged it.
@@ -558,7 +514,6 @@
   // ---- wiring ----
   tap($("sentBtn"), () => logClimb("sent"));
   tap($("projBtn"), () => logClimb("project"));
-  tap($("addBtn"), addClimber);
   // A guest: someone with no phone, a name only you see. You log for them; they can claim it later.
   tap($("guestBtn"), async () => {
     const id = await people.addGuest();
@@ -651,10 +606,9 @@
   }));
 
   // ---- app ----
-  // The owner sees every climb and keeps the household list (and this app's old state/main, for its
-  // pre-sharing climber list). Everyone else, a household member included, logs for themselves and
-  // their guests and sees only the climbs they're in. A role that can't be read means a player:
-  // what the rules allow anyone.
+  // The owner sees every climb. Everyone logs for themselves and their guests and, the owner aside,
+  // sees only the climbs they're in. A role that can't be read means a player: what the rules allow
+  // anyone.
   async function start(user){
     unsubs.forEach(u => { try { u(); } catch {} });
     unsubs = [];
@@ -674,9 +628,10 @@
       if (mine !== run) return;
       owner = role === "owner";
       mountAccount();
+      const household = owner && backfillDue();
       unsubs.push(people.start({
-        household: owner,
-        legacy: owner ? () => legacyClimbers : undefined,
+        household,
+        legacy: household ? () => legacyClimbers : undefined,
         onMe: ({ name, added }) => {
           toast(added ? `Added you as ${name}` : `You're ${name}`);
           who = people.meId();
@@ -684,7 +639,7 @@
         },
         onError: e => toast("Couldn't save to the cloud: " + (e.message || e))
       }));
-      if (owner) unsubs.push(cloud.watch("state/main", doc => {
+      if (household) unsubs.push(cloud.watch("state/main", doc => {
         legacyClimbers = (doc && doc.climbers) || {};
         people.poke();
         render();
@@ -701,6 +656,10 @@
     render();
   }
 
+  // The household list is the owner's, and only Rack It's admin path keeps it (KIT-PLAN Session 9).
+  // Here the owner's phone loads it once more, until the one-time backfill below has named every old
+  // record from it.
+  const backfillDue = () => { try { return !localStorage.getItem("bloc-11.uids-backfill." + myUid()); } catch { return true; } };
   // ---- the backfill, once, on the owner's phone (KIT-PLAN Session 9 step 1) ----
   // Climbs from before the open rule name their climber by a household id and say by with an email.
   // Each gets players (the climber, resolved: a claimed person's is their uid), names, uids for a
@@ -729,7 +688,7 @@
         console.info(`[backfill] gave ${ops.length} climbs their names and uids; ${noAccount.length} are for people with no account`);
         if (noAccount.length) ui.sheet({ title: `${noAccount.length} climb${noAccount.length === 1 ? "" : "s"} for people with no account`,
           text: `${who.join(", ")} ${who.length === 1 ? "has" : "have"} no account, so only you see ${noAccount.length === 1 ? "that climb" : "those climbs"}, by name. ` +
-            "You can still log for them here. Anyone else logs for them as a guest of their own." });
+            "To log for them again, add them as a guest." });
       }
     } catch (e){ console.warn("[backfill]", e); }
     finally { backfilling = false; }

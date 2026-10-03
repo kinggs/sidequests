@@ -46,7 +46,8 @@ ok(JSON.stringify(cs.b4.players) === '["pR"]' && JSON.stringify(cs.b4.uids) === 
 const told = await text(owner, ".scrim .sheet");
 ok(/^2 climbs for people with no account/.test(told) && /Rolf/.test(told), "the owner is told: " + told.split("\n")[0]);
 await owner.keyboard.press("Escape");
-ok(await owner.locator("#household").isVisible(), "the owner keeps the household list");
+ok(!(await owner.locator("#household").count()) && (await text(owner, "#whoChips")).split("\n").pop() === "Mock (you)",
+  "no household list, even for the owner (Session 9 step 4): the owner logs for themselves and their guests");
 
 const mel = await tab(ctx, B + "?mock&as=mel&role=member", "mel");
 const ann = await tab(ctx, B + "?mock&as=ann", "ann");

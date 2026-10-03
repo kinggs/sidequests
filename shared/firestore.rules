@@ -1,67 +1,47 @@
 rules_version = '2';
 
-// One rule set for every app in this repo. Two tiers (shared/KIT-PLAN.md):
+// One rule set for every app in this repo (shared/KIT-PLAN.md). One admin, and everyone else an
+// account; there is no household tier (Session 9).
 //
-// - The household: signed in with Google AND your email has a document in /members. It
-//   reaches /members and all of /sidequests/** except Rack It. The members list lives in Firestore, not in
-//   this file, so the apps can manage it: adding a person (Rack It → More → Invites) takes
-//   effect instantly, with no rules deploy and no email addresses in the public repo.
-// - An account: anyone signed in, keyed by uid. It reaches /profiles, /invites and
-//   /friendships, each as narrowly as below, and under /sidequests/ only Rack It's matches
-//   it plays in, one rating at a time, and Rack It's config (Session 6).
-//
-// Rack It has no household tier (Session 6b): the owner is its one admin and sees everything;
-// every other account, a household member included, is a player as above. Sessions Loyalty
-// has none either: its staff list (and the owner) sees everything, and every other account,
-// a household member included, is a member who reads only its own card and entries.
-//
-// The open apps (Session 7, openApps() below) work the same way for every app on the list: open
-// to anyone signed in, each record reached only by the accounts in it, and the owner reaches all.
+// - The owner: the one /members document with role: "owner", set by hand in the Firebase console.
+//   The one admin: reaches every record in every app, and alone does the things that can't be
+//   undone. /members holds nothing else that matters; the owner alone lists or writes it.
+// - An account: anyone signed in, keyed by uid. It reaches /profiles, /invites and /friendships,
+//   each as narrowly as below, and under /sidequests/ only what an app's own rules open to it:
+//   Rack It's matches it plays in (Sessions 6 and 6b), Sessions Loyalty's card (staff see all),
+//   and in every open app (openApps() below) the records it's in.
 //
 // Cost: making a friendship reads the invite with one get(). Every rule here has cases in
 // shared/rules-check.mjs, written before the rule; a failing case stops the deploy.
-//
-// One member is the owner: their /members document carries role: "owner", set by hand in
-// the Firebase console. Only the owner removes a member or changes a member's role, and
-// only the owner does the things in Rack It that can't be undone (below).
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function isFamily() {
-      return request.auth != null
-        && request.auth.token.email_verified == true
-        && exists(/databases/$(database)/documents/members/$(request.auth.token.email));
-    }
-
     function isOwner() {
-      return isFamily()
+      return request.auth != null && request.auth.token.email_verified == true
+        && exists(/databases/$(database)/documents/members/$(request.auth.token.email))
         && get(/databases/$(database)/documents/members/$(request.auth.token.email)).data.get('role', '') == 'owner';
     }
 
-    // The allowlist. Any member invites (and re-invites, which only touches addedBy and
-    // addedAt); nobody but the owner removes anyone or sets a role.
+    // The owner's role. Anyone signed in may ask for their own document (cloud.role()); only the
+    // owner lists or writes it. Nobody is invited any more: an app is open to anyone signed in.
     match /members/{email} {
-      allow read: if isFamily();
-      allow create: if isFamily() && !request.resource.data.keys().hasAny(['role']);
-      allow update: if isOwner()
-        || (isFamily() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['addedBy', 'addedAt']));
-      allow delete: if isOwner();
+      allow get: if signedIn() && request.auth.token.email == email;
+      allow read, write: if isOwner();
     }
 
-    // Every app keeps its data under /sidequests/<appId>/... (people under _shared).
-    // Rack It's and Sessions Loyalty's reads and writes are spelled out below instead, and so
-    // are the open apps'.
+    // The owner reaches every app's data under /sidequests/<appId>/..., the household people under
+    // _shared included (only Rack It's admin path reads them). Rack It and Sessions Loyalty spell
+    // out the owner's writes below instead: a live match keeps its chain, an entry is only voided.
     match /sidequests/{appId}/{document=**} {
-      allow read: if isFamily() && !(appId in ['rack-it', 'sessions-loyalty']) && !isOpen(appId);
-      allow write: if isFamily() && !(appId in ['rack-it', 'sessions-loyalty']) && !isOpen(appId);
+      allow read, write: if isOwner() && !(appId in ['rack-it', 'sessions-loyalty']);
     }
 
     // ---- The open rule (KIT-PLAN Session 7 step 4) ----
     // An app on this list, with the collections its records live in, is open to anyone signed in:
     // a stranger gets an empty app of their own. Each record names its players: `players` (ids,
     // at most 8), `names`, `uids` (the accounts among them) and `by`. Only the accounts in `uids`
-    // reach it, and the owner reaches everything. Starting one names only accounts you're
+    // reach it, and the owner reaches everything (above). Starting one names only accounts you're
     // connected to; playing on never changes who's in it. A new app on the rule is one entry here,
     // naming the collections its records live in (Photo Coach has four, each record its owner's).
     function openApps() {
@@ -80,9 +60,6 @@ service cloud.firestore {
         && ((request.auth.uid in resource.data.get('uids', []) && (keepsWho() || openClaim())) || openTakesSeat());
       allow delete: if isOpen(appId) && coll in openApps()[appId] && signedIn()
         && resource.data.get('by', '') == request.auth.uid;
-    }
-    match /sidequests/{appId}/{document=**} {
-      allow read, write: if isOpen(appId) && isOwner();
     }
     // A new record: yours, with you in it, at most eight players, every other account in it one of
     // the players and someone you're connected to (unrolled: at most 7 exists()). You may be in it
@@ -145,7 +122,7 @@ service cloud.firestore {
     // it: lists every match, deletes or rewrites a saved one (which is what Rebuild ratings
     // does), sets starters and the config. A new collection here needs its own rule.
     //
-    // Everyone else, household members included, is a player (Session 6): an account reads and
+    // Everyone else is a player (Session 6): an account reads and
     // scores only the matches with its uid in `uids`, starts one only alone with a guest or
     // against someone it's connected to, and moves a rating only in the batch where it confirms
     // a rated match the other player ended. The rules can't check the arithmetic; the owner's
@@ -185,8 +162,7 @@ service cloud.firestore {
     // write all of it: settings, rewards, ways to earn, every member's card, note and entries.
     // A member is any account: it reads the club's settings and items, its own card and its own
     // entries (listed with its uid filter), and writes nothing. The rules can't check the
-    // points arithmetic; staff's Rebuild remakes every card from the entries. A household
-    // member is a plain member here, as in Rack It.
+    // points arithmetic; staff's Rebuild remakes every card from the entries.
     function isStaff() {
       return signedIn()
         && (exists(/databases/$(database)/documents/sidequests/sessions-loyalty/staff/$(request.auth.uid)) || isOwner());

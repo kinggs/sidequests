@@ -24,8 +24,8 @@
 // a fake signed-in member, data kept in this browser. That's how sessions test an app.
 //   cloud.role()                          // "owner" | "member" | null
 //
-// Accounts (anyone signed in, keyed by uid; KIT.md). Outside /sidequests/ on purpose, so a
-// household member can't read someone's friends. shared/connect.js is built on these.
+// Accounts (anyone signed in, keyed by uid; KIT.md). Outside /sidequests/ on purpose, so an
+// app's data and someone's friends never share a rule. shared/connect.js is built on these.
 //   await cloud.account.me()              // your profile { uid, name, photo, googlePhoto }, or null
 //   cloud.account.watchMe(cb)             // the same, live
 //   await cloud.account.saveMe({ name, photo })
@@ -47,8 +47,9 @@
 //
 // All data for an app lives under /sidequests/<appId>/ in Firestore. Apps never read or
 // write outside their own namespace, so one Firebase project serves the whole repo.
-// The one exception is the household's list of people, at /sidequests/_shared/people/,
-// which every app reaches through shared/people.js (built on cloud.shared below).
+// The one exception is the household's list of people, at /sidequests/_shared/people/, the
+// owner's alone since Session 9: Rack It's admin path reaches it through shared/people.js
+// (built on cloud.shared below).
 
 import { firebaseConfig, FIREBASE_VERSION } from "./firebase-config.js";
 
@@ -281,18 +282,11 @@ export const cloud = {
     }
   },
 
-  // ---- family allowlist ----
-  // Lives in /members (one doc per email, doc id = the address, lowercased).
-  // Firestore rules check membership there, so changes take effect instantly.
-  // One member carries role: "owner", set by hand in the Firebase console. The rules keep
-  // removing a member, and each app's undo-proof actions, to the owner (firestore.rules).
-  async listMembers() {
-    const snap = await fs.getDocs(fs.collection(db, "members"));
-    return snap.docs.map(d => d.id).sort();
-  },
-  // "owner", "member", or null when signed out or not invited. Apps hide owner-only
-  // actions from everyone else; the rules refuse them anyway. Only the household may read
-  // /members, so for anyone else the read is refused: that's null too, not an error.
+  // ---- the owner's role ----
+  // /members holds the owner's role (role: "owner", set by hand in the Firebase console): the one
+  // admin (KIT-PLAN.md). There's no household tier any more and nobody is invited. Anyone signed
+  // in may read their own document; "member" is an old document without the role, and means
+  // nothing more than null. Apps hide owner-only actions; the rules refuse them anyway.
   async role() {
     if (!currentUser || !currentUser.email) return null;
     try {
@@ -302,17 +296,6 @@ export const cloud = {
       if (e && e.code === "permission-denied") return null;
       throw e;
     }
-  },
-  // Merged, so inviting someone again never wipes their role.
-  addMember(email) {
-    const e = String(email).trim().toLowerCase();
-    return fs.setDoc(fs.doc(db, "members", e), {
-      addedBy: currentUser ? currentUser.email : null,
-      addedAt: fs.serverTimestamp()
-    }, { merge: true });
-  },
-  removeMember(email) {
-    return fs.deleteDoc(fs.doc(db, "members", String(email).trim().toLowerCase()));
   },
 
   // ---- accounts: anyone signed in, keyed by uid (header; rules in firestore.rules) ----

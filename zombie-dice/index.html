@@ -30,7 +30,7 @@
   details.rules ol{padding:0 0 14px 1.2em;color:var(--text-2);font-size:.9444rem;line-height:1.5}
   details.rules li{margin:6px 0}
   .dicekey{display:grid;grid-template-columns:auto 1fr;gap:8px 12px;align-items:center;margin:4px 0 12px;font-size:.8889rem;color:var(--text-2)}
-  .rows .go{flex:none;min-width:6rem}
+  .rows .go{flex:none;min-width:6rem;padding:0 14px;font-size:.8889rem}
 
   /* ---- the dice ---- */
   .die{position:relative;flex:none;width:var(--ds,96px);height:var(--ds,96px);border-radius:22%;
@@ -247,13 +247,6 @@
     <h2 class="lbl sect">Recent</h2>
     <ul class="rows" id="recent"></ul>
 
-    <div class="hidden" id="household">
-      <h2 class="lbl sect">The household</h2>
-      <ul class="rows" id="people"></ul>
-      <div class="row"><button class="quiet" id="addBtn">Add to the household</button></div>
-      <p class="note" style="margin-top:8px">The household list is yours, shared by every sidequests app. Everyone else
-        plays with their friends and guests.</p>
-    </div>
     <input type="file" id="importFile" accept="application/json,.json" class="hidden">
   </section>
 </main>
@@ -294,7 +287,7 @@
   import { ui } from "../shared/ui.js";
 
   // Bump on every change. The deploy skill checks this against the live site.
-  const APP_VERSION = "0.5.0";
+  const APP_VERSION = "0.6.0";
   const APP_ID = "zombie-dice";
   document.getElementById("version").textContent = "v" + APP_VERSION;
 
@@ -343,7 +336,7 @@
   let rolledAt = 0;        // the roll to animate, by seq
   let resumed = false, run = 0;   // this phone's game reopened once; which sign-in start() is on
   let accountSig = "";    // what the header's avatar last showed (mountAccount)
-  let owner = false;       // the one admin: sees every game, keeps the household list (KIT-PLAN Session 7)
+  let owner = false;       // the one admin: sees every game (KIT-PLAN Session 7)
   let sent = [];           // the rev keys this phone wrote, newest last (syncOpenGame)
   let pendingJoin = null;  // a Game QR scanned before sign-in had finished
   let seatOffers = [], offering = false;   // a guest's seat taken by Game QR, to ask That was them about
@@ -491,7 +484,6 @@
     renderResume();
     renderLeaders();
     renderRecent();
-    renderPeople();
   }
 
   function renderPick(){
@@ -619,25 +611,6 @@
       li.querySelector(".l1").textContent = order.map(p => `${nameOf(p)} ${x.scores[p] || 0}`).join(" · ");
       li.querySelector(".l2").textContent = `${whenLabel(x.endedAt || x.at)} · ${x.winner ? nameOf(x.winner) + " won" : "done"} · ${plural(Math.max(1, (x.round || 2) - 1), "round")}${x.hh ? " · Hunk & Hottie" : ""}`;
       if (mayDelete(x)) rowMenu(li.querySelector(".more"), x, li.querySelector(".l1").textContent); else li.querySelector(".more").remove();
-      ul.appendChild(li);
-    }
-  }
-
-  // The household list, the owner's: everyone else plays with friends and guests.
-  function renderPeople(){
-    $("household").classList.toggle("hidden", !owner);
-    if (!owner) return;
-    const ul = $("people");
-    ul.innerHTML = "";
-    const list = people.active();
-    if (!list.length){ ul.innerHTML = `<li class="empty">No players yet. Add yourself first.</li>`; return; }
-    for (const p of list){
-      const li = document.createElement("li");
-      li.innerHTML = `<span class="who"><div class="l1"></div><div class="l2"></div></span><button type="button" class="quiet">Edit</button>`;
-      li.prepend(people.avatar(p.id, 40));
-      li.querySelector(".l1").textContent = people.isMe(p.id) ? `${p.name} (you)` : p.name;
-      li.querySelector(".l2").textContent = p.email || "No Gmail";
-      tap(li.querySelector("button"), () => people.edit(p.id, { noun: "player" }));
       ul.appendChild(li);
     }
   }
@@ -1251,14 +1224,6 @@
   };
   tap($("qrBtn"), async () => addToLineup(await people.scan(APP_ID)));
   tap($("guestBtn"), async () => addToLineup(await people.addGuest()));
-  tap($("addBtn"), async () => {
-    const id = await people.edit(null, { noun: "player" });
-    if (!id) return;
-    pickedTouched = true;
-    if (!picked.includes(id) && picked.length < MAX_PLAYERS) picked = [...picked, id];
-    toast(`${nameOf(id)} added`);
-    render();
-  });
   $("importFile").addEventListener("change", e => {
     const f = e.target.files && e.target.files[0];
     e.target.value = "";
@@ -1347,9 +1312,9 @@
   }));
 
   // ---- app ----
-  // The owner sees every game and keeps the household list. Everyone else, a household member
-  // included, plays with their friends and guests and sees only the games they're in (the open
-  // rule, shared/firestore.rules). A role that can't be read means a player: what the rules allow anyone.
+  // The owner sees every game. Everyone plays with their friends and guests and, the owner aside, sees
+  // only the games they're in (the open rule, shared/firestore.rules). A role that can't be read
+  // means a player: what the rules allow anyone.
   async function start(user){
     unsubs.forEach(u => { try { u(); } catch {} });
     unsubs = [];
@@ -1367,7 +1332,7 @@
       if (mine !== run) return;
       owner = role === "owner";
       mountAccount();
-      unsubs.push(people.start({ household: owner, onError: e => toast("Couldn't save to the cloud: " + (e.message || e)) }));
+      unsubs.push(people.start({ household: owner && backfillDue(), onError: e => toast("Couldn't save to the cloud: " + (e.message || e)) }));
       const opts = owner ? { orderBy: "at", desc: true, limit: 500 } : { where: ["uids", "array-contains", user.uid] };
       unsubs.push(cloud.watchList("games", rows => {
         rawGames = rows.filter(r => Array.isArray(r.players));
@@ -1390,6 +1355,10 @@
     render();
   }
 
+  // The household list is the owner's, and only Rack It's admin path keeps it (KIT-PLAN Session 9).
+  // Here the owner's phone loads it once more, until the one-time backfill below has named every old
+  // record from it.
+  const backfillDue = () => { try { return !localStorage.getItem("zombie-dice.uids-backfill." + myUid()); } catch { return true; } };
   // ---- the backfill, once, on the owner's phone (KIT-PLAN Session 7 step 4) ----
   // Games from before the open rule name players by the household's ids and say who started them
   // by email. Each gets its ids resolved (a claimed person's becomes their uid), names, uids for

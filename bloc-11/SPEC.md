@@ -17,8 +17,10 @@ typed name only you see (**Add a guest**). One phone at the wall still works: lo
 and when they're on Connect later, **That was them** hands their climbs over.
 
 Each person sees only the climbs they're in. **The owner** (`/members` role `owner`) is the one
-admin: sees every climb, keeps the household list, and can log for anyone on it. Everyone else,
-Melanie included, is a climber like anyone.
+admin: sees every climb. Everyone else, Melanie included, is a climber like anyone, and so is the
+owner when logging: you and your guests (0.9.0, KIT-PLAN Session 9: the household list is the
+owner's in Rack It alone; the owner's phone reads it here once more, only until its backfill has
+run).
 
 ## The grading system
 
@@ -37,8 +39,8 @@ Labels live in one `GRADES` table so renaming or adding a tier is one edit.
 
 One page, top to bottom:
 
-1. **Log a climb** — climber chips (single select: you, first and chosen, and your guests; the
-   owner also sees the household), **Add a guest**, an 8-tile grade grid, an optional note ("the 5 in the cave"), a date that
+1. **Log a climb** — climber chips (single select: you, first and chosen, and your guests),
+   **Add a guest**, an 8-tile grade grid, an optional note ("the 5 in the cave"), a date that
    defaults to today, and two big buttons: **Sent it** and **Projecting**. Either one saves.
 2. **Progress** — pick a climber (anyone you log for, or whose climbs you can see). Three tiles (hardest send, hardest grade being projected
    above that, total sends with this month's count), then a timeline: one bubble per
@@ -51,14 +53,11 @@ One page, top to bottom:
 3. **Recent** — the latest climbs you can see, newest first. Each row's `⋯` opens a sheet: **Add
    a note** / **Edit note** (anyone in the climb), and **Hold to delete** (whoever logged it, or
    the owner).
-4. **The household** (the owner only) — the household's shared people list, each with their
-   avatar, sends and whether they have an account. **Add to the household** and **Edit** open the
-   shared sheet from `shared/people.js`.
-5. **Your avatar** (top right) opens the account sheet: Profile, My QR, Friends, Your guests (with
+4. **Your avatar** (top right) opens the account sheet: Profile, My QR, Friends, Your guests (with
    That was them), Export, Import (the owner's), Install on this phone, Sign out.
 
 **Look.** `shared/theme.css` (dark system v3, `shared/DESIGN.md`). Climbers show as avatars on
-chips and in the household list. Amber is the app's accent and only marks data: sends in Recent,
+chips. Amber is the app's accent and only marks data: sends in Recent,
 on the chart, the hardest-send tile and line, the grade bars. Sky, the second, marks projecting:
 the grade in Recent and the hollow rings on the chart. Picking a climber or a grade is a neutral
 light fill.
@@ -115,12 +114,6 @@ same way. An older home-screen shortcut has to be removed and re-added to pick t
   "sent" entry, not an edit of the old one — the timeline shows both.
 - A climber needn't sign in: they're your guest. Logging for a friend's account isn't offered;
   they log their own.
-- **You are a climber by default**: your account, named by your profile. For the owner, who keeps
-  the household list, sign-in looks for a climber with your email;
-  failing that, a climber with your first name and no email gets your email attached (so a
-  "Rolf" added from Kenny's phone becomes Rolf's own row the first time he signs in); failing
-  that, you're added under your Google first name. The log form then points at you until you
-  tap someone else. It waits until the server has answered with the people list before adding
-  anyone, so a fresh phone doesn't create a duplicate. (This now lives in `shared/people.js`,
-  so it's the same in every app.)
+- **You are a climber by default**: your account, named and pictured by your profile. The log
+  form points at you until you tap a guest.
 - Deleting a climb is a hold in the row's sheet, not an undo.

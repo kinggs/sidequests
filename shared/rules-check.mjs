@@ -64,21 +64,25 @@ const user = uid => env.authenticatedContext(uid, { email: uid + "@gmail.com", e
 function inHours(h){ return Timestamp.fromMillis(Date.now() + h * 3600 * 1000); }
 const pairDoc = (via, extra = {}) => ({ uids: ["ann", "ben"], since: serverTimestamp(), via, app: "rack-it", ...extra });
 
-describe("household member", () => {
-  test("reads an app's data and the shared people", async () => {
-    const db = as(MEMBER);
-    await assertSucceeds(getDoc(doc(db, "sidequests/any-app/state/main")));
-    await assertSucceeds(getDocs(collection(db, "sidequests/_shared/people")));
+// There is no household tier (Session 9 step 4): a member who isn't the owner is an account like any
+// other. /members holds the owner's role; each account may ask for its own document (cloud.role()).
+describe("a member who isn't the owner", () => {
+  test("gets her own /members document, and anyone signed in asks for theirs", async () => {
+    await assertSucceeds(getDoc(doc(as(MEMBER), "members", MEMBER)));
+    await assertSucceeds(getDoc(doc(as(STRANGER), "members", STRANGER)));
   });
-  test("writes an app's data", async () => {
-    await assertSucceeds(setDoc(doc(as(MEMBER), "sidequests/any-app/climbs/c1"), { grade: 5 }));
-  });
-  // Since Session 6b a member who isn't the owner plays Rack It as a player (below), not through
-  // the household rule.
-  test("reads the members list and invites someone", async () => {
+  test("refused: listing /members, reading someone else's, inviting anyone", async () => {
     const db = as(MEMBER);
-    await assertSucceeds(getDocs(collection(db, "members")));
-    await assertSucceeds(setDoc(doc(db, "members", "new@example.com"), { addedBy: MEMBER }));
+    await assertFails(getDocs(collection(db, "members")));
+    await assertFails(getDoc(doc(db, "members", OWNER)));
+    await assertFails(setDoc(doc(db, "members", "new@example.com"), { addedBy: MEMBER }));
+  });
+  test("refused: reading or writing sidequests/ the household way, the shared people included", async () => {
+    const db = as(MEMBER);
+    await assertFails(getDoc(doc(db, "sidequests/any-app/state/main")));
+    await assertFails(getDocs(collection(db, "sidequests/_shared/people")));
+    await assertFails(setDoc(doc(db, "sidequests/any-app/climbs/c1"), { grade: 5 }));
+    await assertFails(setDoc(doc(db, "sidequests/_shared/people/p9"), { name: "Eve" }));
   });
   test("refused: deleting or changing a saved match", async () => {
     const db = as(MEMBER);
@@ -108,6 +112,13 @@ describe("owner", () => {
   test("removes a member", async () => {
     await assertSucceeds(deleteDoc(doc(as(OWNER), "members", MEMBER)));
   });
+  test("reaches all of sidequests/: an old app's data and the household people", async () => {
+    const db = as(OWNER);
+    await assertSucceeds(getDoc(doc(db, "sidequests/any-app/state/main")));
+    await assertSucceeds(getDocs(collection(db, "sidequests/_shared/people")));
+    await assertSucceeds(setDoc(doc(db, "sidequests/_shared/people/p2"), { name: "Eve" }));
+    await assertSucceeds(getDocs(collection(db, "members")));
+  });
 });
 
 describe("signed in, not on /members", () => {
@@ -122,10 +133,10 @@ describe("signed in, not on /members", () => {
     await assertFails(setDoc(doc(db, "sidequests/any-app/climbs/c1"), { grade: 5 }));
     await assertFails(setDoc(doc(db, "sidequests/rack-it/matches/new1"), { status: "live" }));
   });
-  test("refused: reading /members, even their own entry, and adding themselves", async () => {
+  test("refused: listing /members, reading someone else's entry, and adding themselves", async () => {
     const db = as(STRANGER);
     await assertFails(getDocs(collection(db, "members")));
-    await assertFails(getDoc(doc(db, "members", STRANGER)));
+    await assertFails(getDoc(doc(db, "members", MEMBER)));
     await assertFails(setDoc(doc(db, "members", STRANGER), {}));
   });
   test("refused: a member's email with email_verified false", async () => {
@@ -606,7 +617,7 @@ describe("Outsiders in Rack It: must refuse", () => {
     await assertFails(getDoc(doc(db, "sidequests/rack-it/state/other")));
     await assertFails(getDocs(collection(db, "sidequests/rack-it/state")));
     await assertFails(getDoc(doc(db, "sidequests/rack-it/elsewhere/x")));
-    await assertFails(getDoc(doc(db, "members/ann@gmail.com")));
+    await assertFails(getDoc(doc(db, "members/" + OWNER)));   // her own she may ask for (cloud.role())
   });
 });
 
@@ -722,12 +733,12 @@ describe("One admin: what the owner and a member may do", () => {
     await assertSucceeds(updateDoc(doc(as(MEMBER), M + "omPendO"), { status: "done", rated: false, declinedBy: "member" }));
     await assertSucceeds(updateDoc(doc(as(MEMBER), M + "omPendM"), { status: "done", rated: false, withdrawnBy: "member" }));
   });
-  test("a member still reads and writes the other apps, and invites", async () => {
+  test("refused: a member reaching the other apps or the household people, or inviting", async () => {
     const db = as(MEMBER);
-    await assertSucceeds(getDoc(doc(db, "sidequests/any-app/state/main")));
-    await assertSucceeds(getDocs(collection(db, "sidequests/_shared/people")));
-    await assertSucceeds(setDoc(doc(db, "sidequests/_shared/people/p2"), { name: "Eve" }));
-    await assertSucceeds(setDoc(doc(db, "members", "new@example.com"), { addedBy: MEMBER }));
+    await assertFails(getDoc(doc(db, "sidequests/any-app/state/main")));
+    await assertFails(getDocs(collection(db, "sidequests/_shared/people")));
+    await assertFails(setDoc(doc(db, "sidequests/_shared/people/p2"), { name: "Eve" }));
+    await assertFails(setDoc(doc(db, "members", "new@example.com"), { addedBy: MEMBER }));
   });
 });
 
@@ -833,6 +844,35 @@ describe("The open rule: must refuse", () => {
     await assertFails(setDoc(doc(user("ann"), "sidequests/zombie-dice/state/main"), { players: ["ann"], names: ["Ann"], uids: ["ann"], by: "ann" }));
     await assertFails(getDoc(doc(as(MEMBER), "sidequests/zombie-dice/state/main")));
   });
+});
+
+// ---- Every app on the open rule (Session 9 step 4) ----
+// Read from openApps() in the rules, so an app /sidequest adds to the list has these cases with no
+// other edit: anyone keeps a record of their own in each of its collections, and nobody else reaches it.
+const OPEN_LIST = (() => {
+  const m = fs.readFileSync(new URL("./firestore.rules", import.meta.url), "utf8").match(/function openApps\(\)\s*\{\s*return\s*\{([\s\S]*?)\};/);
+  const out = {};
+  if (m) for (const [, app, list] of m[1].matchAll(/'([\w-]+)'\s*:\s*\[([^\]]*)\]/g)) out[app] = [...list.matchAll(/'([\w-]+)'/g)].map(x => x[1]);
+  return out;
+})();
+for (const [app, colls] of Object.entries(OPEN_LIST)) describe(`Every open app: ${app}`, () => {
+  const own = { players: ["ann"], names: ["Ann"], uids: ["ann"], by: "ann", at: 1 };
+  for (const coll of colls){
+    const path = `sidequests/${app}/${coll}/`;
+    test(`${coll}: anyone signed in saves a record with themselves in it, gets it and lists theirs`, async () => {
+      const db = user("ann");
+      await assertSucceeds(setDoc(doc(db, path + "r1"), own));
+      await assertSucceeds(getDoc(doc(db, path + "r1")));
+      await assertSucceeds(getDocs(query(collection(db, `sidequests/${app}/${coll}`), where("uids", "array-contains", "ann"))));
+    });
+    test(`${coll}: refused: someone else getting it, anyone listing bare, a record as someone else`, async () => {
+      await seed(path + "r1", own);
+      await assertFails(getDoc(doc(user("ben"), path + "r1")));
+      await assertFails(getDocs(collection(user("ann"), `sidequests/${app}/${coll}`)));
+      await assertFails(getDocs(collection(as(MEMBER), `sidequests/${app}/${coll}`)));
+      await assertFails(setDoc(doc(user("ben"), path + "r2"), own));
+    });
+  }
 });
 
 // ---- Around the Clock on the open rule (Session 7 step 5) ----
@@ -1079,6 +1119,9 @@ describe("Sessions Loyalty: staff", () => {
     await assertFails(deleteDoc(doc(db, SL + "entries/x1")));
     await assertFails(setDoc(doc(db, SL + "staff/ben"), { name: "Ben" }));
     await assertFails(deleteDoc(doc(db, SL + "staff/bar")));
+  });
+  test("refused: the owner rewriting an entry, too: an entry is only ever voided", async () => {
+    await assertFails(updateDoc(doc(as(OWNER), SL + "entries/x1"), { points: 900 }));
   });
   test("the owner is staff too, appoints staff, and deletes an entry", async () => {
     const db = as(OWNER);

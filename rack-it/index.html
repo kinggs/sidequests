@@ -86,15 +86,9 @@
   .linkbtn{display:flex;align-items:center;justify-content:center;min-height:var(--tap);border-radius:var(--r-ctl);
     box-shadow:inset 0 0 0 1px rgba(240,236,228,.18);color:var(--text-2);font-weight:700;text-decoration:none}
   .linkbtn:focus-visible{outline:3px solid var(--text);outline-offset:2px}
-  .fitem{display:flex;align-items:center;gap:10px;background:var(--ink-1);border-radius:var(--r-card);padding:8px 8px 8px 14px;min-height:72px}
-  .fitem>span{flex:1;min-width:0;font-size:.9444rem;font-weight:600;word-break:break-all}
-  .fitem>.pk-av{flex:0 0 auto}
-  .fitem>span small{display:block;font-size:.8333rem;color:var(--dim);font-weight:600;word-break:break-all}
-  .fitem .you{flex:0 0 auto;color:var(--dim);padding-right:10px}
-  .fitem button{flex:0 0 auto;padding:0 16px;font-size:.8333rem}
-  .famin,.sheet input,.sheet select,.field input{font:inherit;color:var(--text);background:var(--ink-2);
+  .sheet input,.sheet select,.field input{font:inherit;color:var(--text);background:var(--ink-2);
     border:1px solid var(--line);border-radius:var(--r-chip);padding:13px 14px;width:100%;min-height:var(--tap)}
-  .famin:focus,.sheet input:focus,.field input:focus{outline:2px solid var(--a);outline-offset:0}
+  .sheet input:focus,.field input:focus{outline:2px solid var(--a);outline-offset:0}
 
 
   /* ---- sheets (player form, import, rebuild): theme.css's .scrim and .sheet ---- */
@@ -551,11 +545,10 @@
   </header>
   <div class="homebody">
     <p class="note">My QR, Friends, Profile, Export and Sign out are under your picture, top right.</p>
-    <button class="quiet" id="familyBtn">Invites</button>
     <input type="file" id="importFile" accept="application/json,.json" class="hidden">
     <button class="quiet" id="rebuildBtn">Rebuild ratings</button>
-    <p class="note hidden" id="ownerNote">Rebuilding ratings, deleting matches and players, changing a starter rating and
-      removing an invite are for the owner, so nothing is undone by accident.</p>
+    <p class="note hidden" id="ownerNote">Rebuilding ratings, deleting matches and players, and changing a starter rating
+      are for the owner, so nothing is undone by accident.</p>
     <button class="quiet" id="aboutBtn">About Zargo</button>
     <footer class="foot">Rack It <span id="versionMore"></span></footer>
   </div>
@@ -586,22 +579,6 @@
       them most of the way to where their results put them.</p>
     <p><b>It isn't Fargo.</b> Zargo borrows FargoRate's scale and its idea of robustness, but a Zargo of 500
       and a FargoRate of 500 are unrelated numbers, and Cuescore's rating is different again.</p>
-  </div>
-</section>
-
-<!-- ============ INVITES (the members allowlist) ============ -->
-<section class="screen hidden" id="scrFamily">
-  <header class="apphead">
-    <h1>Invites</h1>
-    <button class="quiet back" id="famBack">Back</button>
-  </header>
-  <div class="setupbody">
-    <p class="thint">Invite someone by their Gmail. Anyone listed here can sign in with that Google account and use every
-      sidequests app. Removing someone locks them out immediately but keeps their data.</p>
-    <ul class="plist" id="famList"></ul>
-    <input class="famin" id="famEmail" type="email" inputmode="email" autocomplete="off" placeholder="name@gmail.com">
-    <button class="primary" id="famAdd">Invite</button>
-    <button class="quiet" id="famShare">Share this app</button>
   </div>
 </section>
 
@@ -729,7 +706,7 @@ import { connect } from "../shared/connect.js";
 import { ui } from "../shared/ui.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "2.16.1";
+const APP_VERSION = "2.17.0";
 const APP_ID = "rack-it";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 document.getElementById("versionMore").textContent = "v" + APP_VERSION;
@@ -751,7 +728,6 @@ const el = {};
  "watchBanner","liveBar","liveWho","resumeBtn","importFile",
  "histList",
  "impChoice","impInfo","impMerge","impReplace","impCancel",
- "familyBtn","scrFamily","famBack","famList","famEmail","famAdd","famShare",
  "pfEst","estRef","estRefName","estRefScore","estNewScore","estOut","pfDelete","pfShared",
  "games","foldGame","gameHead","gameName","gameBlurb","raceLen","raceNRow","raceN","winArea","drop","goldChip","doneExtra",
  "rebuild","rbInfo","rbList","rbNote","rbApply","rbCancel","rebuildBtn",
@@ -1002,10 +978,10 @@ const keepAwake = on => phone.keepAwake(on);
 // Four tabs (SPEC §13.1). Each page belongs to one; the live screen and the sign-in gate
 // belong to none, so they hide the tab bar and the live strip.
 const SCREENS = { gate: "scrGate", ratings: "scrRatings", person: "scrPerson", setup: "scrSetup",
-  matches: "scrMatches", summary: "scrSummary", more: "scrMore", family: "scrFamily", about: "scrAbout",
+  matches: "scrMatches", summary: "scrSummary", more: "scrMore", about: "scrAbout",
   live: "scrLive" };
 const TAB_OF = { ratings: "ratings", person: "ratings", setup: "play", matches: "matches", summary: "matches",
-  more: "more", family: "more", about: "more" };
+  more: "more", about: "more" };
 let current = "gate", lastPage = "ratings";
 function show(scr){
   current = scr;
@@ -1025,7 +1001,6 @@ function openPage(scr){
   if(scr === "setup") renderSetup();
   if(scr === "matches") renderMatches();
   if(scr === "summary") return renderSummary() && show("summary");
-  if(scr === "family") return openFamily();
   show(scr);
 }
 // Whatever page is showing, drawn again: after a save, a rename, an import.
@@ -1141,7 +1116,6 @@ function paintOwner(){
   el.impReplace.classList.toggle("hidden", !owner);
   mountAccount();
   rerender();
-  if(current === "family") openFamily();
 }
 
 // ---------- auth gate ----------
@@ -1173,7 +1147,7 @@ async function handleUser(user){
     if(role !== "owner"){ if(cloud.user === user) startFriendMode(); return; }
     try {
       owner = true;
-      people.start({ legacy: () => stateLoaded ? legacyPlayers : null, onError: e => console.warn("[people]", e) });
+      people.start({ household: true, legacy: () => stateLoaded ? legacyPlayers : null, onError: e => console.warn("[people]", e) });
       await loadState();
       paintOwner();
       backfillUids();
@@ -1182,7 +1156,7 @@ async function handleUser(user){
       watchMatches();
     } catch(e){
       el.gateErr.textContent = (e && e.code === "permission-denied")
-        ? "You're signed in, but this account hasn't been invited yet. Ask Kenny to add your Gmail under Invites."
+        ? "This account couldn't reach the matches. Sign out and in again, and tell Kenny if it keeps happening."
         : "Couldn't load the cloud data: " + (e.message || e);
       el.gateErr.classList.remove("hidden");
       show("gate");
@@ -1245,10 +1219,10 @@ function mountAccount(){
 people.onChange(mountAccount);
 
 // ---------- friend mode (KIT-PLAN.md Sessions 6 and 6b) ----------
-// Everyone but the owner, household members included: a player. The same four tabs, but only
+// Everyone but the owner: a player. The same four tabs, but only
 // what the rules let a player reach: the matches with their uid in `uids` (one query with that
 // filter and no orderBy; sorted here), ratings one at a time by id (theirs, their friends' and
-// guests', and everyone in their matches), and the config. No Invites, Import or Rebuild. The
+// guests', and everyone in their matches), and the config. No Import or Rebuild. The
 // picker holds you, your friends and your guests, never the household list (household: false).
 async function startFriendMode(){
   friendMode = true;
@@ -1260,7 +1234,6 @@ async function startFriendMode(){
   watchMatches();
 }
 function paintFriendMode(){
-  el.familyBtn.classList.toggle("hidden", friendMode);
   mountAccount();
   el.rebuildBtn.classList.toggle("hidden", friendMode || !owner);
   el.ownerNote.classList.toggle("hidden", friendMode || owner);
@@ -1268,7 +1241,7 @@ function paintFriendMode(){
 // 2.10.x's "Before you play" note went in 2.11.0: only the players and the owner read a match
 // now. Its "seen" flags go with it.
 try { for(const k of Object.keys(localStorage)) if(k.startsWith("rack-it.household-note.")) localStorage.removeItem(k); } catch(e){}
-// One listener a rating, since only the household lists them. Kept in step with who this phone
+// One listener a rating, since only the owner lists them. Kept in step with who this phone
 // can name and who is in its matches; a rating nobody needs any more stops being watched.
 function watchRatingIds(){
   if(!friendMode || !cloud.user) return;
@@ -1325,7 +1298,7 @@ function renderRatings(){
   });
 }
 // Add player: someone scans your QR there and then, or a guest with no phone (people.addPlayer),
-// then their starter rating. Nobody is put on Invites: that's the household's list.
+// then their starter rating.
 ui.tap(el.addPlayerBtn, async () => {
   const id = await people.addPlayer({ title: "Add player", app: APP_ID });
   if(!id) return;
@@ -3911,89 +3884,8 @@ function renderPerson(){
   return true;
 }
 
-// ---------- invites (the members allowlist) ----------
-ui.tap(el.familyBtn, openFamily);
-ui.tap(el.famBack, () => openPage("more"));
 ui.tap(el.aboutBtn, () => show("about"));
 ui.tap(el.aboutBack, () => openPage("more"));
-
-async function openFamily(){
-  show("family");
-  el.famShare.textContent = "Share this app";
-  el.famList.innerHTML = '<li class="empty">Loading…</li>';
-  let emails;
-  try { emails = await cloud.listMembers(); }
-  catch(e){
-    el.famList.innerHTML = '<li class="empty">Couldn\'t load the invite list.</li>';
-    return;
-  }
-  el.famList.innerHTML = "";
-  const me = ((cloud.user && cloud.user.email) || "").toLowerCase();
-  emails.forEach(em => {
-    const li = document.createElement("li");
-    li.className = "fitem";
-    const s = document.createElement("span");
-    // The player this Gmail belongs to, if any, with their avatar.
-    const who = people.active().find(x => (x.email || "").toLowerCase() === em);
-    if(who){
-      li.appendChild(people.avatar(who.id, 36));
-      s.textContent = who.name;
-      const small = document.createElement("small");
-      small.textContent = em;
-      s.appendChild(small);
-    } else s.textContent = em;
-    li.appendChild(s);
-    if(em === me){
-      // You can't lock yourself out.
-      const y = document.createElement("span");
-      y.className = "you";
-      y.textContent = "you";
-      li.appendChild(y);
-    } else if(owner){
-      li.appendChild(removeMemberButton(em));
-    }
-    el.famList.appendChild(li);
-  });
-  if(!owner) el.famList.insertAdjacentHTML("beforeend", '<li class="note">Only the owner can remove someone, so nobody is locked out by mistake.</li>');
-}
-
-function removeMemberButton(em){
-  const d = document.createElement("button");
-  d.className = "quiet warnbtn";
-  d.textContent = "Hold to remove";
-  ui.hold(d, async () => {
-    d.disabled = true; d.textContent = "…";
-    try { await cloud.removeMember(em); openFamily(); }
-    catch(e){
-      d.disabled = false; d.textContent = "Hold to remove";
-      ui.toast("Couldn't remove: " + (e.message || e));
-    }
-  });
-  return d;
-}
-
-ui.tap(el.famAdd, async () => {
-  const em = el.famEmail.value.trim().toLowerCase();
-  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){ el.famEmail.focus(); return; }
-  el.famAdd.disabled = true;
-  try {
-    await cloud.addMember(em);
-    el.famEmail.value = "";
-    await openFamily();
-  } catch(e){ ui.toast("Couldn't add: " + (e.message || e)); }
-  el.famAdd.disabled = false;
-});
-
-ui.tap(el.famShare, () => {
-  const url = location.origin + location.pathname;
-  if(navigator.share){
-    navigator.share({ title: "Rack It", text: "Pool scorer — sign in with the Gmail you were invited with.", url }).catch(() => {});
-  } else if(navigator.clipboard){
-    navigator.clipboard.writeText(url)
-      .then(() => { el.famShare.textContent = "Link copied"; })
-      .catch(() => {});
-  }
-});
 
 // ---------- starter ratings and Rebuild ----------
 // A starter rating has its own document, starters/<personId>: { zargo, setAt, setBy }, so

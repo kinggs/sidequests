@@ -159,13 +159,6 @@
     <h2 class="lbl sect">Recent</h2>
     <ul class="rows" id="recent"></ul>
 
-    <div class="hidden" id="household">
-      <h2 class="lbl sect">The household</h2>
-      <ul class="rows" id="people"></ul>
-      <div class="row"><button class="quiet" id="addBtn">Add to the household</button></div>
-      <p class="note hint">The household list is yours, shared by every sidequests app. Everyone else plays with
-        their friends and guests.</p>
-    </div>
     <input type="file" id="importFile" accept="application/json,.json" class="hidden">
   </section>
 
@@ -222,7 +215,7 @@
   import { ui } from "../shared/ui.js";
 
   // Bump on every change. The deploy skill checks this against the live site.
-  const APP_VERSION = "0.9.0";
+  const APP_VERSION = "0.10.0";
   const APP_ID = "around-the-clock";
   document.getElementById("version").textContent = "v" + APP_VERSION;
 
@@ -241,7 +234,7 @@
   const points = darts => darts.reduce((a, v) => a + POINTS[v], 0);
 
   // ---- state ----
-  // Players are you, your friends and guests, and for the owner the household (shared/people.js);
+  // Players are you, your friends and guests (shared/people.js);
   // this app only stores games. Anyone signed in plays; each sees the games they're in, and the
   // owner sees every game (the open rule, KIT-PLAN Session 7).
   let rawGames = [];          // game documents as stored
@@ -250,7 +243,7 @@
   // The direction is this phone's (it lived in state/main, now the owner's alone).
   const DIR_KEY = "around-the-clock.direction";
   let direction = (() => { try { return localStorage.getItem(DIR_KEY) === "down" ? "down" : "up"; } catch { return "up"; } })();
-  let owner = false;          // the one admin: every game, and the household list
+  let owner = false;          // the one admin: every game
   let run = 0;                // which sign-in start() is on
   let accountSig = "";        // what the header's avatar last showed (mountAccount)
   let knownNames = {};        // id → the name a game stored, for players this phone can't name
@@ -352,7 +345,6 @@
     renderResume();
     renderProgress();
     renderRecent();
-    renderPeople();
   }
 
   function chipRow(wrap, isOn, onPick, badge){
@@ -583,42 +575,6 @@
       else li.querySelector(".more").remove();
       ul.appendChild(li);
     }
-  }
-
-  // ---- players ----
-  // The household list, the owner's: everyone else plays with friends and guests.
-  function renderPeople(){
-    $("household").classList.toggle("hidden", !owner);
-    if (!owner) return;
-    const ul = $("people");
-    ul.innerHTML = "";
-    const list = people.active();
-    if (!list.length){
-      const li = document.createElement("li");
-      li.className = "empty";
-      li.textContent = "No players yet. Add yourself first.";
-      ul.appendChild(li);
-      return;
-    }
-    for (const p of list){
-      const li = document.createElement("li");
-      li.innerHTML = `<span class="who"><div class="l1"></div><div class="l2"></div></span><button type="button" class="quiet">Edit</button>`;
-      li.prepend(people.avatar(p.id, 40));
-      li.querySelector(".l1").textContent = people.isMe(p.id) ? `${p.name} (you)` : p.name;
-      const n = doneFor(p.id).length;
-      li.querySelector(".l2").textContent = `${n} game${n === 1 ? "" : "s"} · ${p.email || "No Gmail"}`;
-      tap(li.querySelector("button"), () => people.edit(p.id, { noun: "player" }));
-      ul.appendChild(li);
-    }
-  }
-
-  async function addPlayer(){
-    const id = await people.edit(null, { noun: "player" });
-    if (!id) return;
-    toast(`${nameOf(id)} added`);
-    // Someone new is usually about to throw: put them in the lineup.
-    if (!picked.includes(id) && picked.length < MAX_PLAYERS){ pickTouched = true; picked = [...picked, id]; }
-    renderHome();
   }
 
   // ---- the game ----
@@ -957,7 +913,6 @@
   ui.hold($("quitBtn"), abandonGame);
   tap($("doneBtn"), leaveToHome);
   tap($("againBtn"), playAgain);
-  tap($("addBtn"), addPlayer);
   // Setup's other two ways in (design frame 8a): whoever scans your QR, or a guest, joins the lineup.
   const addToLineup = id => {
     if (!id) return;
@@ -1058,10 +1013,9 @@
   }));
 
   // ---- app ----
-  // The owner sees every game and keeps the household list (and this app's old state/main, for
-  // its pre-sharing player list). Everyone else, a household member included, plays with their
-  // friends and guests and sees only the games they're in. A role that can't be read means a
-  // player: what the rules allow anyone.
+  // The owner sees every game. Everyone plays with their friends and guests and, the owner aside,
+  // sees only the games they're in. A role that can't be read means a player: what the rules allow
+  // anyone.
   async function start(user){
     unsubs.forEach(u => { try { u(); } catch {} });
     unsubs = [];
@@ -1083,13 +1037,14 @@
       if (mine !== run) return;
       owner = role === "owner";
       mountAccount();
+      const household = owner && backfillDue();
       unsubs.push(people.start({
-        household: owner,
-        legacy: owner ? () => legacyPlayers : undefined,
+        household,
+        legacy: household ? () => legacyPlayers : undefined,
         onMe: ({ name, added }) => { toast(added ? `Added you as ${name}` : `You're ${name}`); if (!live) renderHome(); },
         onError: e => toast("Couldn't save to the cloud: " + (e.message || e))
       }));
-      if (owner) unsubs.push(cloud.watch("state/main", doc => {
+      if (household) unsubs.push(cloud.watch("state/main", doc => {
         legacyPlayers = (doc && doc.players) || {};
         people.poke();
         if (!live) renderHome();
@@ -1110,6 +1065,10 @@
     renderHome();
   }
 
+  // The household list is the owner's, and only Rack It's admin path keeps it (KIT-PLAN Session 9).
+  // Here the owner's phone loads it once more, until the one-time backfill below has named every old
+  // record from it.
+  const backfillDue = () => { try { return !localStorage.getItem("around-the-clock.uids-backfill." + ((cloud.user && cloud.user.uid) || "")); } catch { return true; } };
   // ---- the backfill, once, on the owner's phone (KIT-PLAN Session 7 step 5) ----
   // Games from before the open rule name players by the household's ids, by email, and some by
   // the one-player shape. Each is rewritten in today's shape with its ids resolved (a claimed

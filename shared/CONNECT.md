@@ -2,7 +2,7 @@
 
 How inviting, joining and playing one game on several phones work in the sidequests, as built in
 Session 8 (`KIT-PLAN.md`, `KIT-HISTORY.md`). It started as the design pack's
-`design_handoff/shared/CONNECT.md`; where they differ, this file says what was built and why.
+the design pack's CONNECT.md (frames 8a–8f in `shared/design/index.html`); where they differ, this file says what was built and why.
 The look is `DESIGN.md`; the parts are `KIT.md`.
 
 ## 1. One gesture, two QRs
