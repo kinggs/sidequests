@@ -1466,8 +1466,8 @@ What the next session should know:
 
 Shipped, all live, one push a step, each with its rules: Bloc 11 0.8.0 on the open rule (rules run
 37116393009); Photo Coach 0.3.0 (37116934603); Zombie Dice 0.5.0 on several phones, with Rack It
-2.16.1 on the shared echo strip and presence (37118732361); the close-out (step 4, its rules run in
-commit after this note): no household tier, Rack It 2.17.0 without Invites, Around the Clock
+2.16.1 on the shared echo strip and presence (37118732361); the close-out (step 4, rules run
+37121202048): no household tier, Rack It 2.17.0 without Invites, Around the Clock
 0.10.0, Zombie Dice 0.6.0, Bloc 11 0.9.0 and Photo Coach 0.3.1 without the household list,
 Sessions Loyalty 0.1.3 (theme), a new `_template/` and `/sidequest`, `design_handoff/` gone (its
 reference page is `shared/design/index.html`).
