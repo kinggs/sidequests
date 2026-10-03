@@ -17,6 +17,7 @@ shares `pw.mjs` with them.
 | `rev-probe.mjs` | Session 8 step 3's probe: queued offline writes against a counter and against the chain, on the emulator | Java 21, npx |
 | `zombie-dice-open.mjs` | Session 7 step 4: the open rule in Zombie Dice, on a seed of old games (`seeds/`); with `OLD=<git rev>`, old build against new | Playwright |
 | `bloc-11-open.mjs` | Session 9 step 1: Bloc 11 on the open rule, on a seed of old climbs; a guest's climb; That was them; with `OLD=<git rev>`, old build against new | Playwright |
+| `photo-coach-open.mjs` | Session 9 step 2: Photo Coach on the open rule, on a seed of the owner's old log; a stranger's empty log; the stored size of a full photo | Playwright |
 | `rules.mjs` | `shared/rules-check.mjs` against the rules on a local emulator | Java 21, npx |
 | `mutate.mjs`, `guards.mjs` | Loosens each guard in turn; its own case must go red | Java 21, npx |
 

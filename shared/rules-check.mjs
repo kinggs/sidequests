@@ -921,6 +921,58 @@ describe("The open rule: Bloc 11", () => {
   });
 });
 
+// ---- Photo Coach on the open rule (Session 9 step 2) ----
+// One person's practice log, open to anyone signed in. Its four collections are all open, and each
+// document names its owner as its one player: a photo, its full-size image, a batch, a review.
+const PC = "sidequests/photo-coach/";
+const mineAs = (uid, extra = {}) => ({ players: [uid], names: [uid], uids: [uid], by: uid, ...extra });
+
+describe("The open rule: Photo Coach", () => {
+  beforeEach(async () => {
+    await seed(PC + "photos/mine", mineAs("ann", { walk: "Sea Point", addedAt: 1, thumb: "t", critiques: [] }));
+    await seed(PC + "images/mine", mineAs("ann", { data: "d" }));
+    await seed(PC + "reviews/mine", mineAs("ann", { at: 1, ai: "Claude", reply: "r" }));
+    await seed(PC + "photos/old", { walk: "Bo-Kaap", addedAt: 1, thumb: "t", critiques: [] });
+    await seed(PC + "images/old", { data: "d" });
+  });
+
+  test("anyone signed in adds a photo and its image, saves feedback, a batch and a review, lists theirs, deletes their own", async () => {
+    const db = user("ann"), mine = where("uids", "array-contains", "ann");
+    await assertSucceeds(setDoc(doc(db, PC + "images/p1"), mineAs("ann", { data: "d" })));
+    await assertSucceeds(setDoc(doc(db, PC + "photos/p1"), mineAs("ann", { walk: "Sea Point", addedAt: 2, thumb: "t", critiques: [] })));
+    await assertSucceeds(updateDoc(doc(db, PC + "photos/mine"), { critiques: [{ id: "c1", kind: "critique", reply: "r" }] }));
+    await assertSucceeds(setDoc(doc(db, PC + "batches/b1"), mineAs("ann", { at: 2, ai: "Claude", photoIds: ["mine"], reply: "r" })));
+    await assertSucceeds(setDoc(doc(db, PC + "reviews/r1"), mineAs("ann", { at: 2, ai: "Claude", reply: "r" })));
+    await assertSucceeds(getDoc(doc(db, PC + "images/mine")));
+    for (const c of ["photos", "batches", "reviews"]) await assertSucceeds(getDocs(query(collection(db, PC + c), mine)));
+    await assertSucceeds(deleteDoc(doc(db, PC + "images/mine")));
+    await assertSucceeds(deleteDoc(doc(db, PC + "photos/mine")));
+  });
+  test("the owner reads and lists everything, and backfills an old photo and its image", async () => {
+    const db = as(OWNER);
+    await assertSucceeds(getDocs(collection(db, PC + "photos")));
+    await assertSucceeds(getDoc(doc(db, PC + "images/mine")));
+    await assertSucceeds(updateDoc(doc(db, PC + "photos/old"), mineAs("owner")));
+    await assertSucceeds(updateDoc(doc(db, PC + "images/old"), mineAs("owner")));
+  });
+  test("refused: a stranger reading or changing a photo, its image or a review; a member listing bare or reading an old one", async () => {
+    const db = user("ben");
+    await assertFails(getDoc(doc(db, PC + "photos/mine")));
+    await assertFails(getDoc(doc(db, PC + "images/mine")));
+    await assertFails(getDoc(doc(db, PC + "reviews/mine")));
+    await assertFails(updateDoc(doc(db, PC + "photos/mine"), { note: "x" }));
+    await assertFails(deleteDoc(doc(db, PC + "images/mine")));
+    await assertFails(getDocs(collection(db, PC + "photos")));
+    await assertFails(getDocs(collection(as(MEMBER), PC + "photos")));
+    await assertFails(getDoc(doc(as(MEMBER), PC + "images/old")));
+  });
+  test("refused: a photo naming another account, or anything outside the four collections", async () => {
+    const db = user("ann");
+    await assertFails(setDoc(doc(db, PC + "photos/x1"), { ...mineAs("ann"), uids: ["ann", "cat"] }));
+    await assertFails(setDoc(doc(db, PC + "other/x2"), mineAs("ann")));
+  });
+});
+
 // ---- Sessions Loyalty: a club's staff, and its members (sessions-loyalty/SPEC.md §6) ----
 // Staff are the uids listed under staff/ (the owner writes that list) plus the owner. A member is
 // any account: it reads the club's settings, rewards and ways to earn, its own card and its own

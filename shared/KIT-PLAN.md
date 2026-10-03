@@ -145,9 +145,9 @@ reopens Rack It.
 
 ### Step 2 — Photo Coach (minor bump, rules in the same push)
 
-- [ ] On the `open` list; a photo's `players` is its owner. The look as `CHANGES.md`
+- [x] On the `open` list; a photo's `players` is its owner. The look as `CHANGES.md`
   § photo-coach (frame 6a): the More tab's contents move into the account sheet.
-- [ ] ⚠ Photos are the biggest documents in the project and the door is now open to any
+- [x] ⚠ Photos are the biggest documents in the project and the door is now open to any
   account. Note the stored size per photo in Handover, so the App Check trigger in Parked has
   a number.
 

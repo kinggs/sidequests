@@ -58,20 +58,24 @@ service cloud.firestore {
     }
 
     // ---- The open rule (KIT-PLAN Session 7 step 4) ----
-    // An app on this list, with the collection its records live in, is open to anyone signed in:
+    // An app on this list, with the collections its records live in, is open to anyone signed in:
     // a stranger gets an empty app of their own. Each record names its players: `players` (ids,
     // at most 8), `names`, `uids` (the accounts among them) and `by`. Only the accounts in `uids`
     // reach it, and the owner reaches everything. Starting one names only accounts you're
-    // connected to; playing on never changes who's in it. A new app on the rule is one entry here.
-    function openApps() { return { 'zombie-dice': 'games', 'around-the-clock': 'games', 'bloc-11': 'climbs' }; }
+    // connected to; playing on never changes who's in it. A new app on the rule is one entry here,
+    // naming the collections its records live in (Photo Coach has four, each record its owner's).
+    function openApps() {
+      return { 'zombie-dice': ['games'], 'around-the-clock': ['games'], 'bloc-11': ['climbs'],
+               'photo-coach': ['photos', 'images', 'batches', 'reviews'] };
+    }
     function isOpen(appId) { return appId in openApps(); }
     match /sidequests/{appId}/{coll}/{id} {
-      allow read: if isOpen(appId) && openApps()[appId] == coll
+      allow read: if isOpen(appId) && coll in openApps()[appId]
         && signedIn() && request.auth.uid in resource.data.get('uids', []);
-      allow create: if isOpen(appId) && openApps()[appId] == coll && signedIn() && opens();
-      allow update: if isOpen(appId) && openApps()[appId] == coll && signedIn()
+      allow create: if isOpen(appId) && coll in openApps()[appId] && signedIn() && opens();
+      allow update: if isOpen(appId) && coll in openApps()[appId] && signedIn()
         && request.auth.uid in resource.data.get('uids', []) && (keepsWho() || openClaim());
-      allow delete: if isOpen(appId) && openApps()[appId] == coll && signedIn()
+      allow delete: if isOpen(appId) && coll in openApps()[appId] && signedIn()
         && resource.data.get('by', '') == request.auth.uid;
     }
     match /sidequests/{appId}/{document=**} {

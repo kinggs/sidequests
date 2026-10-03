@@ -21,8 +21,10 @@ I practise on the next walk?*
 
 ## Who uses it
 
-Kenny, on his phone, signed in with Google. The data is behind the family allowlist like every
-sidequest, but this app has no notion of "who" — it's one person's practice log.
+Kenny, on his phone, signed in with Google. It's one person's practice log, and since 0.3.0 anyone
+signed in keeps their own (the open rule, `shared/KIT-PLAN.md` Session 9): a stranger gets an empty
+log, and each person sees only theirs. The owner, the one admin, could reach everyone's under the
+rules, but the app shows the owner their own log too.
 
 ## The loop
 
@@ -48,7 +50,7 @@ sidequest, but this app has no notion of "who" — it's one person's practice lo
    (numbered in order), *Send N to an AI*. The share sheet sends all the photos with one
    prompt asking for a loose grade per photo and a pick of the batch — mainly *what am I
    getting right*. Paste the reply; each photo gets a "Quick grade" note with its scores, the
-   pick gets a ★, and the whole reply is kept on the Coach tab.
+   pick is ringed in sky, and the whole reply is kept on the Coach tab.
 5. **Review.** Every few walks, the Coach tab builds one prompt from all the feedback since the
    last review. The reply — patterns, weak spots, a brief for the next walk — is saved as a
    markdown coaching review, and its challenges sit at the top of the app until the next one.
@@ -88,20 +90,26 @@ coaching brief, so the feedback is about Kenny's journey, not a stranger's photo
 
 - **Library** — the current brief (from the latest review), *Add photos*, then photos grouped
   by walk as a thumbnail grid. A badge on a thumbnail = it has feedback (latest overall score,
-  ★ if it was a batch's pick). *Quick-grade a batch* turns taps on the grid into picking.
+  a sky ring if it was a batch's pick). *Quick-grade a batch* turns taps on the grid into picking.
 - **Photo** — the photo large (with Yours / Idea switch when there are reimagined images), walk
   and note, *Send to an AI* (kind of feedback + share), *Bring it back* (wrap-up prompt, paste,
   chat link; the save button says what the reply is saved as — the last prompt copied),
   *Reimagined* images, and every saved reply rendered as markdown, newest first, with its scores.
-  Delete a reply or the photo (tap twice).
+  Delete a reply, an image or the photo with a hold (the photo's at the bottom of its page).
 - **Coach** — tiles (photos, with feedback, average overall), a bar per skill (average score,
   weakest first), *Build a review prompt*, past reviews as markdown, quick-grade batches, and
   **The ideas**: a
   plain-English glossary of the principles the prompts name.
-- **More** — Export everything as JSON (photos included), export all feedback as one markdown
-  file, import JSON, install.
+- **Your avatar** (top right) opens the account sheet, which holds what the More tab did: Profile,
+  Export everything as JSON (photos included), Export all feedback as one markdown file, Import a
+  JSON export (it comes in as yours), Install on this phone, Sign out.
 
 ## Data (Firestore, under `sidequests/photo-coach/`)
+
+Every document below also carries the open rule's `players: [uid]`, `names`, `uids: [uid]` and
+`by: uid`, all naming its owner, and every list carries the `uids` filter (sorted on the phone).
+Before 0.3.0 nothing carried them: the owner's phone backfills its old records once, the images by
+the ids their photos name (patched, never listed, since they're the big ones).
 
 | Path | What |
 |---|---|
@@ -121,10 +129,13 @@ Skills scored: composition, light, subject, moment, creativity, and overall — 
 
 ## Decisions
 
-- One person's log; no `shared/people.js`.
+- One person's log. `shared/people.js` only names you (the header's avatar); there are no players.
 - Photos live in Firestore as shrunk JPEGs (well under the 1 MB document limit) rather than
-  adding Firebase Storage to `cloud.js`. Fine for hundreds of photos; revisit if it grows.
-- Accent is a Cape Town sky blue (`#6CC4FF`) and marks only data: scores, the feedback dot. (Not gold: amber already means "careful" in the shared theme.)
+  adding Firebase Storage to `cloud.js`. Fine for hundreds of photos; revisit if it grows. A
+  3000×2000 photo of noise, the worst case, stores 649 KiB (image and thumb); each reimagined image
+  is the same again.
+- Accent is pink (`--pink`, the v3 ramp) and marks only data: scores, the skill bars, the feedback
+  badge. Sky (`--accent-2`) rings the pick of a batch, in place of a ★.
 - Reply kinds are `critique`, `wild`, `reimagine`, `grade` (first prompts), `wrap` (wrap-up of a
   chat) and `quick` (one line from a batch). Every scored kind counts toward the skill averages,
   quick grades included.

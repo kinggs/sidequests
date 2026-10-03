@@ -1,0 +1,18 @@
+{
+  "app": "photo-coach", "version": "0.2.2", "exportedAt": "2026-10-01T20:00:00.000Z",
+  "photos": [
+    { "id": "p1", "walk": "Sea Point", "takenAt": 1759000000000, "addedAt": 1759000000000, "note": "the light on the pier",
+      "thumb": "data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==",
+      "critiques": [{ "id": "c1", "kind": "critique", "ai": "Claude", "reply": "Good.\nSCORES: composition=6, light=7, subject=6, moment=5, creativity=5, overall=6\nFOCUS: leading lines — use the rail", "scores": { "composition": 6, "light": 7, "subject": 6, "moment": 5, "creativity": 5, "overall": 6 }, "focus": "leading lines — use the rail", "at": 1759000100000 }],
+      "alts": [{ "id": "a1", "at": 1759000200000, "ai": "ChatGPT", "thumb": "data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==" }] },
+    { "id": "p2", "walk": "Sea Point", "takenAt": 1759000000000, "addedAt": 1759000000001, "note": "",
+      "thumb": "data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==", "critiques": [] }
+  ],
+  "images": [
+    { "id": "p1", "data": "data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==" },
+    { "id": "p2", "data": "data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==" },
+    { "id": "a1", "data": "data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==" }
+  ],
+  "reviews": [{ "id": "r1", "at": 1759000300000, "ai": "Claude", "reply": "## Next walk\nFind a leading line.", "photoCount": 1, "since": 0 }],
+  "batches": [{ "id": "b1", "at": 1759000050000, "ai": "Claude", "photoIds": ["p1", "p2"], "reply": "PHOTO 1: overall=6 — ok\nPICK: 1 — the rail", "pick": { "n": 1, "why": "the rail" } }]
+}

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0A0D11">
+<meta name="theme-color" content="#0E0D0B">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -12,37 +12,25 @@
 <title>Photo Coach</title>
 <link rel="stylesheet" href="../shared/theme.css">
 <style>
-  /* Photo Coach on shared/theme.css. Sky blue is this app's accent and only marks its data:
-     scores, score bars, the "has feedback" dot. Choosing things stays neutral. */
-  :root{ --accent:#6CC4FF; --accent-ink:#04202F; }
-  main{flex:1;min-height:0;padding:4px 16px 24px;overflow-y:auto;max-width:40rem;width:100%;margin:0 auto}
-  .userbtn{flex:none;min-height:var(--tap);padding:0 16px;font-size:.8333rem;white-space:nowrap}
-  .gate p{color:var(--dim)}
-  .sect{color:var(--dim);margin:28px 0 10px}
-  .sect:first-child{margin-top:4px}
-  label{display:block;font-size:.8333rem;font-weight:600;color:var(--dim);margin:14px 0 6px}
-  textarea{font:inherit;font-size:.9444rem;color:var(--text);background:var(--ink-2);border:1px solid var(--line);
-    border-radius:var(--r-chip);padding:13px 14px;width:100%;min-height:8rem;resize:vertical;line-height:1.45;
-    -webkit-user-select:text;user-select:text}
-  textarea:focus{outline:2px solid var(--accent);outline-offset:0}
-  .row{display:flex;gap:10px;margin-top:12px}
-  .row>button{flex:1}
-  .wide{width:100%;margin-top:12px}
-  .big{min-height:var(--tap-lg);font-size:1.0556rem}
+  /* Photo Coach on shared/theme.css (dark system v3, shared/DESIGN.md). Pink is this app's accent
+     and only marks its data: scores, score bars, the "has feedback" badge. Sky, the second, marks
+     the pick of a batch. Choosing things stays neutral. */
+  :root{ --accent:var(--pink); --accent-ink:var(--pink-ink); --accent-soft:var(--pink-soft);
+         --accent-2:var(--sky); --accent-2-ink:var(--sky-ink); --accent-2-soft:var(--sky-soft) }
+  button.wide{margin-top:12px}
   .seg{margin-bottom:6px}
-  .card{background:var(--ink-1);border-radius:var(--r-card);padding:16px}
-  .card+.card{margin-top:10px}
 
   /* ---- library ---- */
   .brief{margin-top:4px}
-  .brief .lbl{color:var(--dim);margin-bottom:8px}
   .walk{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:26px 0 10px}
   .walk h3{font-family:var(--grot);font-size:1.1111rem;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .walk span{flex:none;color:var(--dim);font-size:.8333rem;font-weight:600}
-  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
-  .grid button{position:relative;padding:0;min-height:0;aspect-ratio:1;border-radius:12px;overflow:hidden;background:var(--ink-2)}
-  .grid img{width:100%;height:100%;object-fit:cover;display:block}
-  .grid i{position:absolute;right:6px;bottom:6px;min-width:26px;height:26px;padding:0 6px;border-radius:13px;background:var(--accent);
+  /* The photos of a walk, three across. A badge = it has feedback; the pick of a batch is ringed in sky. */
+  .thumbs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  .thumbs button{position:relative;padding:0;min-height:0;aspect-ratio:1;border-radius:12px;overflow:hidden;background:var(--ink-2)}
+  .thumbs button.pick{box-shadow:inset 0 0 0 3px var(--accent-2)}
+  .thumbs img{width:100%;height:100%;object-fit:cover;display:block}
+  .thumbs i{position:absolute;right:6px;bottom:6px;min-width:26px;height:26px;padding:0 6px;border-radius:13px;background:var(--accent);
     color:var(--accent-ink);font-style:normal;font-family:var(--grot);font-weight:700;font-size:.7778rem;line-height:26px;text-align:center}
 
   /* ---- one photo ---- */
@@ -51,12 +39,13 @@
   .reply{margin-top:10px}
   .reply .head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}
   .reply .head .lbl{color:var(--dim)}
-  .reply .x{min-height:48px;min-width:48px;padding:0 12px;font-size:.8333rem;background:transparent;color:var(--dim)}
-  .reply .x.arm{background:var(--warn);color:var(--ink-0)}
+  .reply .x{flex:none;white-space:nowrap;min-height:48px;padding:0 12px;font-size:.8333rem;background:transparent}
   .scores{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 10px}
   .scores span{background:var(--ink-2);border-radius:10px;padding:4px 10px;font-size:.8333rem;font-weight:600;color:var(--dim)}
   .scores b{color:var(--accent);font-family:var(--grot)}
-  .focus{border-left:3px solid var(--accent);padding:2px 0 2px 12px;margin-bottom:10px;font-weight:600}
+  /* What to practise next, from a reply: its own block inside the reply's card. */
+  .focus{background:var(--ink-2);border-radius:var(--r-ctl);padding:10px 12px;margin-bottom:10px;font-weight:600}
+  .focus .lbl{display:block;color:var(--dim);margin-bottom:4px}
 
   /* rendered markdown */
   .md{font-size:.9444rem;line-height:1.55;-webkit-user-select:text;user-select:text}
@@ -75,11 +64,8 @@
   /* ---- coach ---- */
   .tiles{margin-top:4px}
   .bars{margin-top:4px}
-  .brow{display:flex;align-items:center;gap:10px;min-height:40px}
-  .brow .g{width:6.6rem;font-weight:600;font-size:.8889rem;color:var(--text-2)}
-  .brow .track{flex:1;height:14px;background:var(--ink-2);border-radius:7px;overflow:hidden}
-  .brow .track i{display:block;height:100%;background:var(--accent);border-radius:7px 4px 4px 7px}
-  .brow .n{width:2.6rem;text-align:right;font-family:var(--grot);font-weight:600;font-size:.9444rem}
+  .brow .g{width:6.6rem;text-align:left;font-family:inherit;font-size:.8889rem;color:var(--text-2)}   /* skill names, not grades */
+  .brow .n{text-align:right;font-family:var(--grot);font-weight:600;font-size:.9444rem;color:var(--text)}
   details.idea{background:var(--ink-1);border-radius:var(--r-card);margin-top:8px}
   details.idea summary{list-style:none;min-height:var(--tap);display:flex;align-items:center;padding:0 16px;font-weight:600;cursor:pointer}
   details.idea summary::-webkit-details-marker{display:none}
@@ -94,13 +80,12 @@
   .alts{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
   .alts .alt{position:relative}
   .alts img{width:100%;aspect-ratio:1;object-fit:cover;display:block;border-radius:12px;background:var(--ink-2)}
-  .alts .x{width:100%;min-height:48px;margin-top:4px;padding:0 8px;font-size:.8333rem;background:transparent;color:var(--dim)}
-  .alts .x.arm{background:var(--warn);color:var(--ink-0)}
+  .alts .x{width:100%;min-height:48px;margin-top:4px;padding:0 8px;font-size:.8333rem;background:transparent}
   .link{display:inline-flex;align-items:center;min-height:48px;color:var(--text-2);font-weight:600;font-size:.8889rem}
 
   /* ---- quick grade a batch ---- */
-  .grid button.sel{outline:3px solid var(--text);outline-offset:-3px}
-  .grid b.n{position:absolute;left:6px;top:6px;min-width:28px;height:28px;border-radius:14px;background:var(--text);color:var(--ink-0);
+  .thumbs button.sel{outline:3px solid var(--text);outline-offset:-3px}
+  .thumbs b.n{position:absolute;left:6px;top:6px;min-width:28px;height:28px;border-radius:14px;background:var(--text);color:var(--ink-0);
     font-family:var(--grot);font-size:.8333rem;line-height:28px;text-align:center}
   .batch{margin-top:14px}
   .batch .lbl{color:var(--dim);margin-bottom:6px}
@@ -111,17 +96,17 @@
   .strip img{width:56px;height:56px;object-fit:cover;border-radius:10px;display:block}
   .strip b{position:absolute;left:3px;top:3px;min-width:22px;height:22px;border-radius:11px;background:var(--text);color:var(--ink-0);
     font-family:var(--grot);font-size:.7778rem;line-height:22px;text-align:center}
-  .strip span.pick img{outline:3px solid var(--accent);outline-offset:-3px}
+  .strip span.pick img{outline:3px solid var(--accent-2);outline-offset:-3px}
 </style>
 </head>
 <body>
 
 <header class="apphead">
   <h1>Photo Coach</h1>
-  <div class="user" id="userBox"></div>
+  <div class="me-host" id="meHost"></div>
 </header>
 
-<main id="main">
+<main class="page" id="main">
   <section class="gate hidden" id="gate">
     <p id="gateMsg">Sign in to see your photos and coaching.</p>
     <button class="primary" id="signInBig">Sign in with Google</button>
@@ -131,7 +116,6 @@
     <nav class="seg" id="tabs">
       <button data-tab="library" aria-pressed="true">Library</button>
       <button data-tab="coach">Coach</button>
-      <button data-tab="more">More</button>
     </nav>
 
     <!-- ---- library ---- -->
@@ -160,16 +144,7 @@
       <div id="coachBox"></div>
     </div>
 
-    <!-- ---- more ---- -->
-    <div id="v-more" class="hidden">
-      <h2 class="lbl sect">Keep your data</h2>
-      <button class="quiet wide" id="exportJson">Export everything (JSON, with photos)</button>
-      <button class="quiet wide" id="exportMd">Export all feedback (markdown)</button>
-      <button class="quiet wide" id="importBtn">Import a JSON export</button>
-      <input type="file" id="importFile" accept="application/json,.json" class="hidden">
-      <h2 class="lbl sect">This phone</h2>
-      <div id="installHere"></div>
-    </div>
+    <input type="file" id="importFile" accept="application/json,.json" class="hidden">
   </section>
 </main>
 
@@ -178,9 +153,12 @@
 <script type="module">
   import { cloud } from "../shared/cloud.js";
   import { phone } from "../shared/phone.js";
+  import { people } from "../shared/people.js";
+  import { connect } from "../shared/connect.js";
+  import { ui } from "../shared/ui.js";
 
   // Bump on every change. The deploy skill checks this against the live site.
-  const APP_VERSION = "0.2.2";
+  const APP_VERSION = "0.3.0";
   const APP_ID = "photo-coach";
   document.getElementById("version").textContent = "v" + APP_VERSION;
 
@@ -263,6 +241,8 @@ FOCUS: <the one principle I should practise next> — <one sentence on how>`;
   let batches = [];   // [{ id, at, ai, photoIds, reply, pick }]
   let ai = localGet("pc-ai") || "ChatGPT";
   let unsubs = [];
+  let run = 0;          // which sign-in start() is on (declared up here: start() runs before the code below it)
+  let accountSig = "";  // what the header's avatar last showed (mountAccount)
   // Half-typed text survives the live re-renders a save on another field causes.
   const drafts = { reply: {}, note: {}, review: "", link: {} };
 
@@ -270,42 +250,8 @@ FOCUS: <the one principle I should practise next> — <one sentence on how>`;
   function localSet(k, v){ try { localStorage.setItem(k, v); } catch {} }
 
   // ---- helpers ----
-  function tap(node, fn){
-    if (!node) return;
-    let down = false, sx = 0, sy = 0;
-    node.addEventListener("pointerdown", e => { down = true; sx = e.clientX; sy = e.clientY; });
-    node.addEventListener("pointercancel", () => { down = false; });
-    node.addEventListener("pointerup", e => {
-      if (!down) return;
-      down = false;
-      if (Math.abs(e.clientX - sx) > 14 || Math.abs(e.clientY - sy) > 14) return; // a scroll, not a tap
-      e.preventDefault();
-      fn(e);
-    });
-    node.addEventListener("click", e => e.preventDefault());
-  }
-
-  // Tap once to arm, again within 3s to do it.
-  function armed(btn, label, doIt){
-    let t = null;
-    tap(btn, () => {
-      if (!btn.classList.contains("arm")){
-        btn.classList.add("arm"); btn.textContent = "Tap again";
-        t = setTimeout(() => { btn.classList.remove("arm"); btn.textContent = label; }, 3000);
-        return;
-      }
-      clearTimeout(t);
-      doIt();
-    });
-  }
-
-  function toast(msg){
-    const t = document.createElement("div");
-    t.className = "toast";
-    t.textContent = msg;
-    document.body.appendChild(t);
-    setTimeout(() => t.remove(), 2600);
-  }
+  // Taps, holds, toasts and sheets: shared/ui.js. Nothing destructive is a plain tap.
+  const tap = ui.tap, toast = ui.toast;
 
   function download(name, text, type){
     const url = URL.createObjectURL(new Blob([text], { type: type + ";charset=utf-8" }));
@@ -393,17 +339,27 @@ FOCUS: <the one principle I should practise next> — <one sentence on how>`;
   }
 
   // ---- storage ----
+  // Anyone signed in keeps their own log (the open rule, KIT-PLAN Session 9): every photo, image,
+  // batch and review names its owner as its one player, and only they (and the admin) reach it.
+  function own(){
+    const u = cloud.user;
+    if (!u) return {};
+    const me = people.meId(), name = (me && people.nameOf(me, "")) || (u.displayName || "").split(" ")[0] || "";
+    return { players: [u.uid], names: [name], uids: [u.uid], by: u.uid };
+  }
+  // A record someone else made (only the admin could have it) keeps its own owner.
+  const ownerOf = r => Array.isArray(r && r.uids) ? { players: r.players, names: r.names, uids: r.uids, by: r.by } : own();
   // Cloud when set up and signed in; an in-memory copy otherwise, so the app still runs.
   const local = { images: {} };
   const store = {
     get live(){ return cloud.configured() && !!cloud.user; },
     async savePhoto(p){
       const { id, ...rest } = p;
-      if (this.live) return cloud.save(`photos/${id}`, rest);
+      if (this.live) return cloud.save(`photos/${id}`, { ...rest, ...ownerOf(p) });
       photos = [p, ...photos.filter(x => x.id !== id)]; render();
     },
     async saveImage(id, data){
-      if (this.live) return cloud.save(`images/${id}`, { data });
+      if (this.live) return cloud.save(`images/${id}`, { data, ...own() });
       local.images[id] = data;
     },
     async loadImage(id){
@@ -421,7 +377,7 @@ FOCUS: <the one principle I should practise next> — <one sentence on how>`;
     },
     async saveBatch(b){
       const { id, ...rest } = b;
-      if (this.live) return cloud.save(`batches/${id}`, rest);
+      if (this.live) return cloud.save(`batches/${id}`, { ...rest, ...ownerOf(b) });
       batches = [b, ...batches.filter(x => x.id !== id)]; render();
     },
     async removeBatch(id){
@@ -430,7 +386,7 @@ FOCUS: <the one principle I should practise next> — <one sentence on how>`;
     },
     async saveReview(r){
       const { id, ...rest } = r;
-      if (this.live) return cloud.save(`reviews/${id}`, rest);
+      if (this.live) return cloud.save(`reviews/${id}`, { ...rest, ...ownerOf(r) });
       reviews = [r, ...reviews.filter(x => x.id !== id)]; render();
     },
     async removeReview(id){
@@ -576,7 +532,7 @@ ${body || "(No feedback saved yet.)"}`;
 
   // ---- rendering ----
   function render(){
-    for (const t of ["library", "photo", "coach", "more"]) $("v-" + t).classList.toggle("hidden", t !== (openId ? "photo" : tab));
+    for (const t of ["library", "photo", "coach"]) $("v-" + t).classList.toggle("hidden", t !== (openId ? "photo" : tab));
     $("tabs").classList.toggle("hidden", !!openId);
     document.querySelectorAll("#tabs button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.tab === tab)));
     if (openId) return renderPhoto();
@@ -605,13 +561,13 @@ ${body || "(No feedback saved yet.)"}`;
     }
     box.innerHTML = [...walks].map(([name, list]) => `
       <div class="walk"><h3>${esc(name)}</h3><span>${dayLabel(list[0].takenAt || list[0].addedAt)} · ${list.length}</span></div>
-      <div class="grid">${list.map(p => {
+      <div class="thumbs">${list.map(p => {
         const n = (p.critiques || []).length;
         const last = (p.critiques || []).filter(c => c.scores && typeof c.scores.overall === "number").slice(-1)[0];
         const at = batch ? batch.ids.indexOf(p.id) : -1;
-        return `<button data-id="${esc(p.id)}" class="${at >= 0 ? "sel" : ""}" aria-label="${batch ? "Pick for the batch" : "Open photo"}">${p.thumb ? `<img src="${p.thumb}" alt="" loading="lazy">` : ""}${at >= 0 ? `<b class="n">${at + 1}</b>` : ""}${n ? `<i>${p.pick ? "★ " : ""}${last ? last.scores.overall : "✓"}</i>` : ""}</button>`;
+        return `<button data-id="${esc(p.id)}" class="${[at >= 0 ? "sel" : "", p.pick ? "pick" : ""].join(" ").trim()}" aria-label="${batch ? "Pick for the batch" : p.pick ? "Open photo, the pick of its batch" : "Open photo"}">${p.thumb ? `<img src="${p.thumb}" alt="" loading="lazy">` : ""}${at >= 0 ? `<b class="n">${at + 1}</b>` : ""}${n ? `<i>${last ? last.scores.overall : "✓"}</i>` : ""}</button>`;
       }).join("")}</div>`).join("");
-    box.querySelectorAll(".grid button").forEach(b => tap(b, () => batch && !batch.sent ? toggleBatch(b.dataset.id) : openPhoto(b.dataset.id)));
+    box.querySelectorAll(".thumbs button").forEach(b => tap(b, () => batch && !batch.sent ? toggleBatch(b.dataset.id) : openPhoto(b.dataset.id)));
   }
 
   const MAX_BATCH = 10;
@@ -709,14 +665,14 @@ ${body || "(No feedback saved yet.)"}`;
 
       <h2 class="lbl sect">${alts.length ? `Reimagined · ${alts.length}` : "Reimagined"}</h2>
       <p class="note">When an AI makes an improved version, save it to your phone, then add it here to compare with yours.</p>
-      ${alts.length ? `<div class="alts" style="margin-top:10px">${alts.map(a => `<div class="alt"><img src="${a.thumb}" alt=""><button class="x" data-adel="${esc(a.id)}">Delete</button></div>`).join("")}</div>` : ""}
+      ${alts.length ? `<div class="alts" style="margin-top:10px">${alts.map(a => `<div class="alt"><img src="${a.thumb}" alt=""><button class="x warnbtn" data-adel="${esc(a.id)}">Hold to delete</button></div>`).join("")}</div>` : ""}
       <button class="quiet wide" id="altBtn">Add the AI's image</button>
 
       <h2 class="lbl sect">${crits.length ? `Feedback · ${crits.length}` : "Feedback"}</h2>
       ${crits.length ? crits.map(c => critHtml(c)).join("") : `<p class="note">Nothing saved yet.</p>`}
 
       <h2 class="lbl sect">This photo</h2>
-      <button class="quiet warnbtn wide" id="delPhoto">Delete photo</button>`;
+      <button class="quiet warnbtn wide" id="delPhoto">Hold to delete photo</button>`;
 
     const noteIn = $("noteIn");
     noteIn.addEventListener("input", () => { drafts.note[p.id] = noteIn.value; });
@@ -731,7 +687,7 @@ ${body || "(No feedback saved yet.)"}`;
     const setKind = k => { replyKind = k; $("keepBtn").textContent = "Save as " + kindName(k); };
     tap($("wrapBtn"), () => { copy(wrapPrompt(), "Wrap-up prompt copied — paste it into the same chat"); setKind("wrap"); });
     tap($("altBtn"), () => { altFor = p.id; $("altFile").click(); });
-    box.querySelectorAll("[data-adel]").forEach(b => armed(b, "Delete", async () => {
+    box.querySelectorAll("[data-adel]").forEach(b => ui.hold(b, async () => {
       try {
         await store.savePhoto({ ...p, alts: alts.filter(a => a.id !== b.dataset.adel) });
         await store.removeImage(b.dataset.adel);
@@ -755,14 +711,14 @@ ${body || "(No feedback saved yet.)"}`;
       catch { toast("Long-press the box and choose Paste"); }
     });
     tap($("keepBtn"), () => keepReply(p));
-    box.querySelectorAll(".reply [data-del]").forEach(b => armed(b, "Delete", () => {
+    box.querySelectorAll(".reply [data-del]").forEach(b => ui.hold(b, () => {
       const rest = (p.critiques || []).filter(c => c.id !== b.dataset.del);
       store.savePhoto({ ...p, critiques: rest }).then(() => toast("Feedback deleted")).catch(err);
     }));
     box.querySelectorAll("[data-expand]").forEach(b => tap(b, () => {
       const el = b.previousElementSibling; el.classList.remove("clip"); b.remove();
     }));
-    armed($("delPhoto"), "Delete photo", async () => {
+    ui.hold($("delPhoto"), async () => {
       try { await store.removePhoto(p); delete fullCache[p.id]; if (history.state && history.state.photo) history.back(); else { openId = null; render(); } toast("Photo deleted"); }
       catch (e){ err(e); }
     });
@@ -773,10 +729,10 @@ ${body || "(No feedback saved yet.)"}`;
     const body = md(stripMachine(c.reply));
     const long = c.reply.length > 900;
     return `<div class="card reply">
-      <div class="head"><span class="lbl">${esc(kindName(c.kind))} · ${esc(c.ai)} · ${dayLabel(c.at)}</span><button class="x" data-del="${esc(c.id)}">Delete</button></div>
+      <div class="head"><span class="lbl">${esc(kindName(c.kind))} · ${esc(c.ai)} · ${dayLabel(c.at)}</span><button class="x warnbtn" data-del="${esc(c.id)}">Hold to delete</button></div>
       ${sc.length ? `<div class="scores">${sc.map(s => `<span>${s.name} <b>${c.scores[s.key]}</b></span>`).join("")}</div>` : ""}
-      ${c.focus ? `<div class="focus">${esc(c.focus)}</div>` : ""}
-      ${c.pick ? `<div class="focus">★ Pick of the batch${c.pick === true ? "" : ` — ${esc(c.pick)}`}</div>` : ""}
+      ${c.focus ? `<div class="focus"><span class="lbl">Practise next</span>${esc(c.focus)}</div>` : ""}
+      ${c.pick ? `<div class="focus"><span class="lbl">Pick of the batch</span>${c.pick === true ? "The strongest of the batch" : esc(c.pick)}</div>` : ""}
       <div class="md${long ? " clip" : ""}">${body}</div>${long ? `<button class="quiet more" data-expand>Show all</button>` : ""}
       ${/^https:\/\//.test(c.link || "") ? `<a class="link" href="${esc(c.link)}" target="_blank" rel="noopener">Open the chat ↗</a>` : ""}
     </div>`;
@@ -794,7 +750,7 @@ ${body || "(No feedback saved yet.)"}`;
       <div class="tiles">
         <div class="tile"><b>${photos.length}</b><span class="lbl">Photos</span></div>
         <div class="tile"><b>${withFb}</b><span class="lbl">Coached</span></div>
-        <div class="tile"><b style="color:var(--accent)">${a.overall ? a.overall.avg.toFixed(1) : "–"}</b><span class="lbl">Overall</span></div>
+        <div class="tile on"><b>${a.overall ? a.overall.avg.toFixed(1) : "–"}</b><span class="lbl">Overall</span></div>
       </div>
 
       <h2 class="lbl sect">Skills · weakest first</h2>
@@ -810,15 +766,15 @@ ${body || "(No feedback saved yet.)"}`;
       <div class="row"><button class="quiet" id="revPaste">Paste</button><button class="primary" id="revKeep">Save review</button></div>
 
       ${reviews.length ? `<h2 class="lbl sect">Past reviews</h2>${reviews.map(r => `<div class="card reply">
-        <div class="head"><span class="lbl">${dayLabel(r.at)} · ${esc(r.ai)} · ${r.photoCount || 0} repl${r.photoCount === 1 ? "y" : "ies"}</span><button class="x" data-rdel="${esc(r.id)}">Delete</button></div>
+        <div class="head"><span class="lbl">${dayLabel(r.at)} · ${esc(r.ai)} · ${r.photoCount || 0} repl${r.photoCount === 1 ? "y" : "ies"}</span><button class="x warnbtn" data-rdel="${esc(r.id)}">Hold to delete</button></div>
         <div class="md clip">${md(r.reply)}</div><button class="quiet more" data-expand>Show all</button></div>`).join("")}` : ""}
 
       ${batches.length ? `<h2 class="lbl sect">Quick grades</h2>${batches.map(b => {
         const list = (b.photoIds || []).map(id => photos.find(p => p.id === id));
         return `<div class="card reply">
-        <div class="head"><span class="lbl">${dayLabel(b.at)} · ${esc(b.ai)} · ${list.length} photos</span><button class="x" data-bdel="${esc(b.id)}">Delete</button></div>
+        <div class="head"><span class="lbl">${dayLabel(b.at)} · ${esc(b.ai)} · ${list.length} photos</span><button class="x warnbtn" data-bdel="${esc(b.id)}">Hold to delete</button></div>
         <div class="strip">${list.map((p, i) => p ? `<span class="${b.pick && b.pick.n === i + 1 ? "pick" : ""}" data-open="${esc(p.id)}"><img src="${p.thumb}" alt=""><b>${i + 1}</b></span>` : "").join("")}</div>
-        ${b.pick ? `<div class="focus">★ Pick: ${b.pick.n}${b.pick.why ? ` — ${esc(b.pick.why)}` : ""}</div>` : ""}
+        ${b.pick ? `<div class="focus"><span class="lbl">Pick · ${b.pick.n}</span>${b.pick.why ? esc(b.pick.why) : "The strongest of the batch"}</div>` : ""}
         <div class="md clip">${md(stripBatch(b.reply))}</div><button class="quiet more" data-expand>Show all</button></div>`;
       }).join("")}` : ""}
 
@@ -842,8 +798,8 @@ ${body || "(No feedback saved yet.)"}`;
       try { await store.saveReview({ id: newId(), at: Date.now(), ai, reply, photoCount: fresh, since }); toast("Review saved — your brief is on the Library tab"); }
       catch (e){ drafts.review = reply; err(e); }
     });
-    box.querySelectorAll("[data-rdel]").forEach(b => armed(b, "Delete", () => store.removeReview(b.dataset.rdel).then(() => toast("Review deleted")).catch(err)));
-    box.querySelectorAll("[data-bdel]").forEach(b => armed(b, "Delete", () => store.removeBatch(b.dataset.bdel).then(() => toast("Batch deleted — the grades stay on each photo")).catch(err)));
+    box.querySelectorAll("[data-rdel]").forEach(b => ui.hold(b, () => store.removeReview(b.dataset.rdel).then(() => toast("Review deleted")).catch(err)));
+    box.querySelectorAll("[data-bdel]").forEach(b => ui.hold(b, () => store.removeBatch(b.dataset.bdel).then(() => toast("Batch deleted — the grades stay on each photo")).catch(err)));
     box.querySelectorAll("[data-open]").forEach(b => tap(b, () => openPhoto(b.dataset.open)));
     box.querySelectorAll("[data-expand]").forEach(b => tap(b, () => { b.previousElementSibling.classList.remove("clip"); b.remove(); }));
   }
@@ -1031,11 +987,14 @@ ${body || "(No feedback saved yet.)"}`;
           const img = data.images && data.images[id];
           if (img) await store.saveImage(id, img);
         }
-        await store.savePhoto(p);
+        // An import is yours: whoever's export it was, the records come in under your account.
+        const { players, names, uids, by, ...rest } = p;
+        await store.savePhoto(rest);
         added++;
       }
-      for (const r of data.reviews || []) if (r && r.id) await store.saveReview(r);
-      for (const b of data.batches || []) if (b && b.id) await store.saveBatch(b);
+      const mine = ({ players, names, uids, by, ...rest }) => rest;
+      for (const r of data.reviews || []) if (r && r.id) await store.saveReview(mine(r));
+      for (const b of data.batches || []) if (b && b.id) await store.saveBatch(mine(b));
       toast(`Imported ${added} photo${added === 1 ? "" : "s"}, ${(data.reviews || []).length} review${(data.reviews || []).length === 1 ? "" : "s"}`);
     } catch (e){ err(e); }
   }
@@ -1058,9 +1017,6 @@ ${body || "(No feedback saved yet.)"}`;
     e.target.value = "";
     if (f) addAlt(f);
   });
-  tap($("exportJson"), exportJson);
-  tap($("exportMd"), exportMd);
-  tap($("importBtn"), () => $("importFile").click());
   $("importFile").addEventListener("change", e => {
     const f = e.target.files && e.target.files[0];
     e.target.value = "";
@@ -1073,44 +1029,93 @@ ${body || "(No feedback saved yet.)"}`;
     else { openId = null; render(); }
   });
 
-  // ---- on a phone ----
-  phone.mountInstall($("installHere"), { label: "Install on this phone" });
-
   // ---- cloud ----
-  const userBox = $("userBox");
   await cloud.init(APP_ID);
 
-  function applyUser(user){
-    if (user){
-      userBox.innerHTML = `${user.photoURL ? `<img src="${user.photoURL}" alt="">` : ""}<button class="quiet userbtn" id="signOut">Sign out</button>`;
-      tap($("signOut"), () => cloud.signOut());
-    } else {
-      userBox.innerHTML = "";
-    }
-    start(user);
+  // Your avatar in the header, and its sheet: what the More tab held (Session 9). Profile, both
+  // exports, Import, Install on this phone, Sign out.
+  function mountAccount(){
+    const user = cloud.user, me = user ? people.meId() : null, pp = me ? people.get(me) : null;
+    const installed = phone.installed();
+    const sig = JSON.stringify([user && user.uid, me, pp && [pp.name, pp.photo, people.colourOf(me)], installed]);
+    if (sig === accountSig) return;
+    accountSig = sig;
+    const extra = !user ? [] : [
+      { label: "Profile", value: "profile", run: () => connect.showProfile() },
+      { label: "Export everything (JSON, with photos)", value: "json", run: exportJson },
+      { label: "Export all feedback (markdown)", value: "md", run: exportMd },
+      { label: "Import a JSON export", value: "import", run: () => $("importFile").click() },
+      ...(installed ? [] : [{ label: "Install on this phone", value: "install", run: async () => {
+        const how = await phone.install();
+        if (how) ui.sheet({ title: "Install", text: how });
+      } }]),
+    ];
+    ui.account($("meHost"), user, { onSignIn: () => cloud.signIn().catch(e => toast("Sign-in failed: " + (e.code || e.message || e))),
+      onSignOut: () => cloud.signOut(), extra, name: pp ? pp.name : "", avatar: me ? people.avatar(me, 48) : null });
   }
-  cloud.onUser(applyUser);
-  if (!cloud.user) applyUser(null);
+  people.onChange(mountAccount);
+
+  cloud.onUser(start);
+  if (!cloud.user) start(null);
 
   tap($("signInBig"), () => cloud.signIn().catch(e => {
     $("gateMsg").textContent = "Sign-in failed: " + (e && e.code ? e.code : e);
   }));
 
   // ---- app ----
-  function start(user){
+  // Everyone, the owner included, sees their own log: each list carries the uids filter the rules
+  // ask for, and is sorted here (a filter with an order would need an index this repo doesn't deploy).
+  async function start(user){
     unsubs.forEach(u => { try { u(); } catch {} });
     unsubs = [];
+    const mine = ++run;
+    photos = []; reviews = []; batches = [];
+    mountAccount();
     const gated = cloud.configured() && !user;
     $("gate").classList.toggle("hidden", !gated);
     $("app").classList.toggle("hidden", gated);
     if (gated) return;
     if (cloud.configured()){
-      unsubs.push(cloud.watchList("photos", rows => { photos = rows.filter(r => r.addedAt); render(); }, { orderBy: "addedAt", desc: true, limit: 2000 }));
-      unsubs.push(cloud.watchList("reviews", rows => { reviews = rows.filter(r => r.at && r.reply); render(); }, { orderBy: "at", desc: true, limit: 200 }));
-      unsubs.push(cloud.watchList("batches", rows => { batches = rows.filter(r => r.at && r.reply); render(); }, { orderBy: "at", desc: true, limit: 200 }));
+      unsubs.push(people.start({ household: false, onError: e => console.warn("[people]", e) }));
+      let role = null;
+      try { role = await cloud.role(); } catch (e){ console.warn("[role]", e); }
+      if (mine !== run) return;
+      if (role === "owner") await backfill();
+      if (mine !== run) return;
+      const where = ["uids", "array-contains", user.uid];
+      const fail = e => toast("Couldn't load your log: " + (e.code || e.message || e));
+      unsubs.push(cloud.watchList("photos", rows => { photos = rows.filter(r => r.addedAt).sort((a, b) => b.addedAt - a.addedAt); render(); }, { where }, fail));
+      unsubs.push(cloud.watchList("reviews", rows => { reviews = rows.filter(r => r.at && r.reply).sort((a, b) => b.at - a.at); render(); }, { where }, fail));
+      unsubs.push(cloud.watchList("batches", rows => { batches = rows.filter(r => r.at && r.reply).sort((a, b) => b.at - a.at); render(); }, { where }, fail));
     }
     if (batch) batch.ids.forEach(id => prefetch(id));
     render();
+  }
+
+  // ---- the backfill, once, on the owner's phone (KIT-PLAN Session 9 step 2) ----
+  // Before 0.3.0 this was the owner's log alone, under the household rule. Every old record becomes
+  // the owner's: players, names, uids and by. The images aren't listed (they're the big ones): each
+  // is patched by the id its photo names, which needs no read.
+  const BACKFILL_KEY = "photo-coach.uids-backfill.";
+  async function backfill(){
+    const u = cloud.user;
+    try { if (localStorage.getItem(BACKFILL_KEY + u.uid)) return; } catch {}
+    try {
+      const mineNow = own();
+      const ops = [], imageIds = [];
+      for (const coll of ["photos", "batches", "reviews"]){
+        for (const r of await cloud.list(coll)){
+          if (coll === "photos") imageIds.push(r.id, ...(r.alts || []).map(a => a.id));
+          if (!Array.isArray(r.uids)) ops.push({ patch: `${coll}/${r.id}`, data: mineNow });
+        }
+      }
+      for (let i = 0; i < ops.length; i += 400) await cloud.batch(ops.slice(i, i + 400));
+      // An image may be missing (a failed upload): patch each on its own, so one gap stops nothing.
+      let images = 0;
+      for (const id of imageIds) await cloud.patch(`images/${id}`, mineNow).then(() => images++, () => {});
+      try { localStorage.setItem(BACKFILL_KEY + u.uid, "1"); } catch {}
+      if (ops.length || images) console.info(`[backfill] made ${ops.length} records and ${images} images the owner's`);
+    } catch (e){ console.warn("[backfill]", e); }
   }
 
   // ---- offline shell ----

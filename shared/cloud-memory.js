@@ -78,9 +78,9 @@ const ACCESS = [
   { path: /^sidequests\/rack-it(\/|$)/, read: "owner", write: "owner" },   // starters, listing ratings
   // The open apps (Session 7): each record reached by the accounts in its uids, a list only with
   // the uids filter, and the rest of the app the owner's. Not the household.
-  { path: /^sidequests\/([^/]+)\/([^/]+)$/, when: m => OPEN_APPS[m[1]] === m[2],
+  { path: /^sidequests\/([^/]+)\/([^/]+)$/, when: m => (OPEN_APPS[m[1]] || []).includes(m[2]),
     read: (m, u, d, was, ctx) => isOwner(u) || uidsFilter(ctx, u) },
-  { path: /^sidequests\/([^/]+)\/([^/]+)\/([^/]+)$/, when: m => OPEN_APPS[m[1]] === m[2],
+  { path: /^sidequests\/([^/]+)\/([^/]+)\/([^/]+)$/, when: m => (OPEN_APPS[m[1]] || []).includes(m[2]),
     read: (m, u, d, was) => isOwner(u) || inUids(was, u),
     write: (m, u, d, was) => isOwner(u) || (!was ? !!d && opens(u, d)
       : d ? inUids(was, u) && (!["uids", "players", "by"].some(k => !same(was[k], d[k])) || openClaim(u, d, was))
@@ -114,8 +114,9 @@ const ACCESS = [
     read: (m, u, d, was) => was ? was.uids.includes(u.uid) : m[1].split("_").includes(u.uid),
     write: (m, u, d, was) => d ? !was && pairOk(m[1], u, d) : !!was && was.uids.includes(u.uid) },
 ];
-// The open rule's apps and the collection their records live in (openApps() in the rules).
-const OPEN_APPS = { "zombie-dice": "games", "around-the-clock": "games", "bloc-11": "climbs" };
+// The open rule's apps and the collections their records live in (openApps() in the rules).
+const OPEN_APPS = { "zombie-dice": ["games"], "around-the-clock": ["games"], "bloc-11": ["climbs"],
+  "photo-coach": ["photos", "images", "batches", "reviews"] };
 // A new record in an open app: yours, with you in it, at most 8 players, every other account in
 // it a player and someone you're connected to. You may be in it without playing (a guest's climb).
 function opens(u, d){
