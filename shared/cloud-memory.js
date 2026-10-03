@@ -115,13 +115,13 @@ const ACCESS = [
     write: (m, u, d, was) => d ? !was && pairOk(m[1], u, d) : !!was && was.uids.includes(u.uid) },
 ];
 // The open rule's apps and the collection their records live in (openApps() in the rules).
-const OPEN_APPS = { "zombie-dice": "games", "around-the-clock": "games" };
-// A new record in an open app: yours, with you in it, at most 8 players, every account in it a
-// player and each other one someone you're connected to.
+const OPEN_APPS = { "zombie-dice": "games", "around-the-clock": "games", "bloc-11": "climbs" };
+// A new record in an open app: yours, with you in it, at most 8 players, every other account in
+// it a player and someone you're connected to. You may be in it without playing (a guest's climb).
 function opens(u, d){
   const uids = Array.isArray(d.uids) ? d.uids : null, players = Array.isArray(d.players) ? d.players : null;
   return !!uids && !!players && "names" in d && d.by === u.uid && uids.includes(u.uid) && players.length <= 8 && uids.length <= 8
-    && uids.every(x => players.includes(x) && (x === u.uid || !!store.docs["friendships/" + [u.uid, x].sort().join("_")]));
+    && uids.every(x => x === u.uid || (players.includes(x) && !!store.docs["friendships/" + [u.uid, x].sort().join("_")]));
 }
 // Rack It's player rules, as in shared/firestore.rules (Session 6). A match with no `rated`
 // field is rated.

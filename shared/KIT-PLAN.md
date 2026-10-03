@@ -136,10 +136,10 @@ reopens Rack It.
 
 ### Step 1 — Bloc 11 (minor bump, rules in the same push)
 
-- [ ] On the `open` list. A climb's `players` is its one climber; you log for yourself and
+- [x] On the `open` list. A climb's `players` is its one climber; you log for yourself and
   your guests. Backfill, account sheet, SPEC as Session 7 step 4. The look as `CHANGES.md`
   § bloc-11 (frame 3a): amber and sky, `⋯` → sheet → hold on Recent rows.
-- [ ] ⚠ Before the push, tell the owner how many climbs belong to people with no account.
+- [x] ⚠ Before the push, tell the owner how many climbs belong to people with no account.
   They stay visible to the admin by name, and nobody can log for them until they're added as
   a guest.
 

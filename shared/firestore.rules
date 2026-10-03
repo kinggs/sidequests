@@ -63,7 +63,7 @@ service cloud.firestore {
     // at most 8), `names`, `uids` (the accounts among them) and `by`. Only the accounts in `uids`
     // reach it, and the owner reaches everything. Starting one names only accounts you're
     // connected to; playing on never changes who's in it. A new app on the rule is one entry here.
-    function openApps() { return { 'zombie-dice': 'games', 'around-the-clock': 'games' }; }
+    function openApps() { return { 'zombie-dice': 'games', 'around-the-clock': 'games', 'bloc-11': 'climbs' }; }
     function isOpen(appId) { return appId in openApps(); }
     match /sidequests/{appId}/{coll}/{id} {
       allow read: if isOpen(appId) && openApps()[appId] == coll
@@ -77,8 +77,9 @@ service cloud.firestore {
     match /sidequests/{appId}/{document=**} {
       allow read, write: if isOpen(appId) && isOwner();
     }
-    // A new record: yours, with you in it, at most eight players, every account in it one of the
-    // players, and each other account someone you're connected to (unrolled: at most 7 exists()).
+    // A new record: yours, with you in it, at most eight players, every other account in it one of
+    // the players and someone you're connected to (unrolled: at most 7 exists()). You may be in it
+    // without playing: a climb you log for your guest (Bloc 11) is still yours to read.
     function opens() {
       let r = request.resource.data;
       return r.keys().hasAll(['players', 'names', 'uids', 'by']) && r.by == request.auth.uid
@@ -87,8 +88,8 @@ service cloud.firestore {
         && seat(r, 0) && seat(r, 1) && seat(r, 2) && seat(r, 3) && seat(r, 4) && seat(r, 5) && seat(r, 6) && seat(r, 7);
     }
     function seat(r, i) {
-      return r.uids.size() <= i
-        || (r.uids[i] in r.players && (r.uids[i] == request.auth.uid || connected(request.auth.uid, r.uids[i])));
+      return r.uids.size() <= i || r.uids[i] == request.auth.uid
+        || (r.uids[i] in r.players && connected(request.auth.uid, r.uids[i]));
     }
     function keepsWho() {
       return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['uids', 'players', 'by']);

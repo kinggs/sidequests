@@ -37,7 +37,7 @@ beforeEach(async () => {
     const db = ctx.firestore();
     await setDoc(doc(db, "members", OWNER), { role: "owner" });
     await setDoc(doc(db, "members", MEMBER), {});
-    await setDoc(doc(db, "sidequests/bloc-11/state/main"), { n: 1 });
+    await setDoc(doc(db, "sidequests/any-app/state/main"), { n: 1 });
     await setDoc(doc(db, "sidequests/_shared/people/p1"), { name: "Ann" });
     await setDoc(doc(db, "sidequests/rack-it/matches/done1"), { status: "done" });
     await setDoc(doc(db, "sidequests/rack-it/matches/live1"), { status: "live" });
@@ -67,11 +67,11 @@ const pairDoc = (via, extra = {}) => ({ uids: ["ann", "ben"], since: serverTimes
 describe("household member", () => {
   test("reads an app's data and the shared people", async () => {
     const db = as(MEMBER);
-    await assertSucceeds(getDoc(doc(db, "sidequests/bloc-11/state/main")));
+    await assertSucceeds(getDoc(doc(db, "sidequests/any-app/state/main")));
     await assertSucceeds(getDocs(collection(db, "sidequests/_shared/people")));
   });
   test("writes an app's data", async () => {
-    await assertSucceeds(setDoc(doc(as(MEMBER), "sidequests/bloc-11/climbs/c1"), { grade: 5 }));
+    await assertSucceeds(setDoc(doc(as(MEMBER), "sidequests/any-app/climbs/c1"), { grade: 5 }));
   });
   // Since Session 6b a member who isn't the owner plays Rack It as a player (below), not through
   // the household rule.
@@ -113,13 +113,13 @@ describe("owner", () => {
 describe("signed in, not on /members", () => {
   test("refused: reading anything under sidequests/", async () => {
     const db = as(STRANGER);
-    await assertFails(getDoc(doc(db, "sidequests/bloc-11/state/main")));
+    await assertFails(getDoc(doc(db, "sidequests/any-app/state/main")));
     await assertFails(getDocs(collection(db, "sidequests/_shared/people")));
     await assertFails(getDocs(collection(db, "sidequests/rack-it/matches")));
   });
   test("refused: writing anything under sidequests/", async () => {
     const db = as(STRANGER);
-    await assertFails(setDoc(doc(db, "sidequests/bloc-11/climbs/c1"), { grade: 5 }));
+    await assertFails(setDoc(doc(db, "sidequests/any-app/climbs/c1"), { grade: 5 }));
     await assertFails(setDoc(doc(db, "sidequests/rack-it/matches/new1"), { status: "live" }));
   });
   test("refused: reading /members, even their own entry, and adding themselves", async () => {
@@ -130,16 +130,16 @@ describe("signed in, not on /members", () => {
   });
   test("refused: a member's email with email_verified false", async () => {
     const db = env.authenticatedContext("fake", { email: MEMBER, email_verified: false }).firestore();
-    await assertFails(getDoc(doc(db, "sidequests/bloc-11/state/main")));
+    await assertFails(getDoc(doc(db, "sidequests/any-app/state/main")));
   });
 });
 
 describe("signed out", () => {
   test("refused: everything", async () => {
     const db = signedOut();
-    await assertFails(getDoc(doc(db, "sidequests/bloc-11/state/main")));
+    await assertFails(getDoc(doc(db, "sidequests/any-app/state/main")));
     await assertFails(getDocs(collection(db, "members")));
-    await assertFails(setDoc(doc(db, "sidequests/bloc-11/climbs/c1"), { grade: 5 }));
+    await assertFails(setDoc(doc(db, "sidequests/any-app/climbs/c1"), { grade: 5 }));
   });
 });
 
@@ -597,7 +597,7 @@ describe("Outsiders in Rack It: must refuse", () => {
   });
   test("anything else under /sidequests/", async () => {
     const db = user("ann");
-    await assertFails(getDoc(doc(db, "sidequests/bloc-11/state/main")));
+    await assertFails(getDoc(doc(db, "sidequests/any-app/state/main")));
     await assertFails(getDocs(collection(db, "sidequests/_shared/people")));
     await assertFails(setDoc(doc(db, "sidequests/_shared/people/p9"), { name: "Ann" }));
     await assertFails(getDoc(doc(db, "sidequests/rack-it/starters/s1")));
@@ -724,7 +724,7 @@ describe("One admin: what the owner and a member may do", () => {
   });
   test("a member still reads and writes the other apps, and invites", async () => {
     const db = as(MEMBER);
-    await assertSucceeds(getDoc(doc(db, "sidequests/bloc-11/state/main")));
+    await assertSucceeds(getDoc(doc(db, "sidequests/any-app/state/main")));
     await assertSucceeds(getDocs(collection(db, "sidequests/_shared/people")));
     await assertSucceeds(setDoc(doc(db, "sidequests/_shared/people/p2"), { name: "Eve" }));
     await assertSucceeds(setDoc(doc(db, "members", "new@example.com"), { addedBy: MEMBER }));
@@ -871,6 +871,53 @@ describe("The open rule: Around the Clock", () => {
   test("refused: a game naming someone you aren't connected to, or a player changing who's in it", async () => {
     await assertFails(setDoc(doc(user("ann"), AC + "x"), atc({ players: ["ann", "ben"], names: ["Ann", "Ben"], uids: ["ann", "ben"] })));
     await assertFails(updateDoc(doc(user("cat"), AC + "ac"), { players: ["ann", "cat", "g_2"] }));
+  });
+});
+
+// ---- Bloc 11 on the open rule (Session 9 step 1) ----
+// A climb's players is its one climber. You log for yourself and for your guests: a guest's climb
+// has you in uids, since a guest has no account and the climb must still be yours to read.
+const BC = "sidequests/bloc-11/climbs/";
+const climb = (extra = {}) => ({ climber: "ann", players: ["ann"], names: ["Ann"], uids: ["ann"], by: "ann",
+  grade: 5, result: "sent", note: "", at: 1, ...extra });
+
+describe("The open rule: Bloc 11", () => {
+  beforeEach(async () => {
+    await seed(BC + "mine", climb());
+    await seed(BC + "old", { climber: "p1", grade: 3, result: "sent", note: "", at: 1, by: OWNER });
+    await seed("sidequests/bloc-11/state/main", { climbers: { p1: { name: "Ann" } } });
+  });
+
+  test("anyone signed in logs a climb for themselves or their guest, edits its note, lists theirs, deletes their own", async () => {
+    const db = user("ann");
+    await assertSucceeds(setDoc(doc(db, BC + "c1"), climb()));
+    await assertSucceeds(setDoc(doc(db, BC + "c2"), climb({ climber: "g_1", players: ["g_1"], names: ["Dan"], uids: ["ann"] })));
+    await assertSucceeds(updateDoc(doc(db, BC + "mine"), { note: "the cave one" }));
+    await assertSucceeds(getDocs(query(collection(db, "sidequests/bloc-11/climbs"), where("uids", "array-contains", "ann"))));
+    await assertSucceeds(deleteDoc(doc(db, BC + "mine")));
+  });
+  test("the owner reads every climb, backfills an old one, logs for someone with no account, and keeps state/main", async () => {
+    const db = as(OWNER);
+    await assertSucceeds(getDocs(collection(db, "sidequests/bloc-11/climbs")));
+    await assertSucceeds(updateDoc(doc(db, BC + "old"), { players: ["p1"], names: ["Ann"], uids: [], by: "owner" }));
+    await assertSucceeds(setDoc(doc(db, BC + "o1"), climb({ climber: "p1", players: ["p1"], names: ["Ann"], uids: ["owner"], by: "owner" })));
+    await assertSucceeds(getDoc(doc(db, "sidequests/bloc-11/state/main")));
+  });
+  test("refused: a stranger reading, changing or deleting a climb, a member listing bare, anyone but the owner on state/main", async () => {
+    await assertFails(getDoc(doc(user("ben"), BC + "mine")));
+    await assertFails(updateDoc(doc(user("ben"), BC + "mine"), { note: "x" }));
+    await assertFails(deleteDoc(doc(user("ben"), BC + "mine")));
+    await assertFails(getDocs(collection(as(MEMBER), "sidequests/bloc-11/climbs")));
+    await assertFails(getDoc(doc(as(MEMBER), BC + "old")));
+    await assertFails(getDoc(doc(as(MEMBER), "sidequests/bloc-11/state/main")));
+    await assertFails(setDoc(doc(user("ann"), "sidequests/bloc-11/state/main"), { climbers: {} }));
+  });
+  test("refused: a climb naming someone you aren't connected to, a guest's climb without you, or changing whose it is", async () => {
+    const db = user("ann");
+    await assertFails(setDoc(doc(db, BC + "x1"), climb({ climber: "ben", players: ["ben"], names: ["Ben"], uids: ["ann", "ben"] })));
+    await assertFails(setDoc(doc(db, BC + "x2"), climb({ climber: "g_1", players: ["g_1"], names: ["Dan"], uids: [] })));
+    await assertFails(setDoc(doc(db, BC + "x3"), climb({ by: "cat" })));
+    await assertFails(updateDoc(doc(db, BC + "mine"), { players: ["cat"] }));
   });
 });
 

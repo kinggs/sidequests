@@ -1,6 +1,6 @@
 # Bloc 11 — Spec
 
-A phone-first bouldering log for Kenny and the friends he climbs with at Bloc 11. It answers
+A phone-first bouldering log for Kenny, and anyone he climbs with at Bloc 11. It answers
 two questions: *what did we climb tonight?* and *are we getting better?*
 
 ## Purpose
@@ -11,9 +11,14 @@ tap a name, tap a grade, tap **Sent it**.
 
 ## Who uses it
 
-Kenny and two or three regular climbing partners, with room for more. Everyone signs in with
-Google and sees the same live data. Anyone can log for anyone (one phone at the wall is
-normal), and anyone can add a climber.
+Anyone signed in with Google (the open rule, `shared/KIT-PLAN.md` Session 9). A stranger gets an
+empty log of their own. You log for yourself and for your **guests**: someone with no phone, a
+typed name only you see (**Add a guest**). One phone at the wall still works: log for your guest,
+and when they're on Connect later, **That was them** hands their climbs over.
+
+Each person sees only the climbs they're in. **The owner** (`/members` role `owner`) is the one
+admin: sees every climb, keeps the household list, and can log for anyone on it. Everyone else,
+Melanie included, is a climber like anyone.
 
 ## The grading system
 
@@ -32,10 +37,10 @@ Labels live in one `GRADES` table so renaming or adding a tier is one edit.
 
 One page, top to bottom:
 
-1. **Log a climb** — climber chips (single select; the signed-in person is first and selected
-   by default, tap anyone else to log for them), an 8-tile grade grid, an optional note ("the 5 in the cave"), a date that
+1. **Log a climb** — climber chips (single select: you, first and chosen, and your guests; the
+   owner also sees the household), **Add a guest**, an 8-tile grade grid, an optional note ("the 5 in the cave"), a date that
    defaults to today, and two big buttons: **Sent it** and **Projecting**. Either one saves.
-2. **Progress** — pick a climber. Three tiles (hardest send, hardest grade being projected
+2. **Progress** — pick a climber (anyone you log for, or whose climbs you can see). Three tiles (hardest send, hardest grade being projected
    above that, total sends with this month's count), then a timeline: one bubble per
    grade per session (filled = sent, hollow = projecting), grade on the y-axis, date on the
    x-axis. A bubble grows with the number of climbs it stands for and maxes out at six, so
@@ -43,18 +48,20 @@ One page, top to bottom:
    that was both sent and projected reads as overlapping circles. A line runs through the
    hardest send of each session. Tap a session to see its climbs grouped and counted under
    the chart ("3× Sent a 3 · the cave one"). Below that, sends per grade as horizontal bars.
-3. **Recent** — the latest climbs, newest first, each with an armed two-tap delete.
-4. **Climbers** — the household's shared people list (the same one Fair Nine and Around the
-   Clock use), each with their avatar. **Add climber** and **Edit** open the shared sheet from
-   `shared/people.js`: name, colour, optional Gmail, merge a double entry into the right
-   person, or remove from every app. Plus a Share button for the app link. Giving a Gmail
-   also adds it to the family allowlist so that person can sign in straight away.
-5. **Export / Import** — everything as one JSON file.
+3. **Recent** — the latest climbs you can see, newest first. Each row's `⋯` opens a sheet: **Add
+   a note** / **Edit note** (anyone in the climb), and **Hold to delete** (whoever logged it, or
+   the owner).
+4. **The household** (the owner only) — the household's shared people list, each with their
+   avatar, sends and whether they have an account. **Add to the household** and **Edit** open the
+   shared sheet from `shared/people.js`.
+5. **Your avatar** (top right) opens the account sheet: Profile, My QR, Friends, Your guests (with
+   That was them), Export, Import (the owner's), Install on this phone, Sign out.
 
-**Look.** `shared/theme.css` (dark system v2, as Rack It). Climbers show as avatars (their
-Google photo in a ring of their colour, or their initial) on chips and in the Climbers list.
-Orange is the app's accent and only marks data: sent grades in Recent, sends on the chart, the
-hardest-send line and the grade bars. Picking a climber or a grade is a neutral light fill.
+**Look.** `shared/theme.css` (dark system v3, `shared/DESIGN.md`). Climbers show as avatars on
+chips and in the household list. Amber is the app's accent and only marks data: sends in Recent,
+on the chart, the hardest-send tile and line, the grade bars. Sky, the second, marks projecting:
+the grade in Recent and the hollow rings on the chart. Picking a climber or a grade is a neutral
+light fill.
 
 ## Data model
 
@@ -66,14 +73,21 @@ Climbers live in the shared people list, `sidequests/_shared/people/<id>`, via
   the shared list under the same ids (Kenny matched by email to the Kenny another app already
   had). Removal is a soft delete so old climbs keep their name.
 - `climbs/<id>` — one document per route climbed:
-  `{ climber: <personId>, grade: 1–8, result: "sent"|"project", note: "", at: <epoch ms>, by: <email> }`
-  Climber ids are always read through `people.resolve`, so a climber who was adopted or
-  merged keeps every climb without the documents being rewritten.
+  `{ climber, players: [climber], names: [name], uids, by: <uid>, grade: 1–8, result: "sent"|"project", note: "", at: <epoch ms> }`
+  `climber` is a uid, a guest's `g_<id>` or a household person's id, always read through
+  `people.resolve`. `players`, `names`, `uids` and `by` are the open rule's: `uids` is the
+  climber's account, or, for a guest or a household person with no account, whoever logged it,
+  so the climb stays theirs to see.
+- **The backfill.** Climbs from before 0.8.0 named the climber by a household id and `by` by email.
+  The owner's phone rewrites them once with `players`, `names`, `uids` (the climber's account, or
+  none) and `by` as a uid, and says how many are for people with no account: those stay visible to
+  the owner alone, by name.
 
 `at` is stored at 20:00 local on the chosen day (same convention as Beer O'Clock) so a
 day's climbs sort sensibly and sessions group by calendar day.
 
-Both are watched live, so a climb logged on one phone appears on the others immediately.
+Climbs are watched live (the owner's whole list; everyone else's with their uid in `uids`), so a
+climb logged on one phone appears on the others immediately. `state/main` is the owner's alone.
 Offline logging works through Firestore's persistent cache and syncs later.
 
 ## On the phone
@@ -82,7 +96,7 @@ Installs as a real app, not a browser shortcut: the manifest ships PNG icons (19
 maskable 512 drawn from `icon.svg`), an id, portrait orientation, and asks for `fullscreen`
 with `standalone` behind it. Without the PNGs Chrome quietly makes a plain shortcut that
 opens in a tab with the URL bar showing — and then never offers the real install again, which
-is why there's an **Install on this phone** button on the home screen. It comes from
+is why the account sheet has **Install on this phone**. It comes from
 `shared/phone.js`, along with fullscreen and the wake lock, so every app here behaves the
 same way. An older home-screen shortcut has to be removed and re-added to pick this up.
 
@@ -99,12 +113,14 @@ same way. An older home-screen shortcut has to be removed and re-added to pick t
 - The gym is named "Bloc 11" (the Cape Town bouldering gym); the app id is `bloc-11`.
 - Two outcomes only: sent, or projecting. Sending a route you were projecting is a new
   "sent" entry, not an edit of the old one — the timeline shows both.
-- Climbers are people, not accounts: a climber can be logged for without ever signing in.
-- **You are a climber by default.** On sign-in the app looks for a climber with your email;
+- A climber needn't sign in: they're your guest. Logging for a friend's account isn't offered;
+  they log their own.
+- **You are a climber by default**: your account, named by your profile. For the owner, who keeps
+  the household list, sign-in looks for a climber with your email;
   failing that, a climber with your first name and no email gets your email attached (so a
   "Rolf" added from Kenny's phone becomes Rolf's own row the first time he signs in); failing
   that, you're added under your Google first name. The log form then points at you until you
   tap someone else. It waits until the server has answered with the people list before adding
   anyone, so a fresh phone doesn't create a duplicate. (This now lives in `shared/people.js`,
   so it's the same in every app.)
-- Deleting a climb is a two-tap arm-and-confirm, not an undo.
+- Deleting a climb is a hold in the row's sheet, not an undo.

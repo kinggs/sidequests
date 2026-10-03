@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0A0D11">
+<meta name="theme-color" content="#0E0D0B">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -12,63 +12,37 @@
 <title>Bloc 11</title>
 <link rel="stylesheet" href="../shared/theme.css">
 <style>
-  /* Bloc 11 on shared/theme.css. Orange is this app's accent and only marks its data: a send,
-     the hardest-send line, the grade bars. Choosing a climber or a grade is neutral. */
-  :root{ --accent:#F0983A; --accent-ink:#1A1006; }
-  main{flex:1;min-height:0;padding:4px 16px 16px;overflow-y:auto;max-width:40rem;width:100%;margin:0 auto}
-  .sect{color:var(--dim);margin:28px 0 10px}
-  .sect:first-child{margin-top:4px}
+  /* Bloc 11 on shared/theme.css (dark system v3, shared/DESIGN.md). Amber is this app's accent and
+     only marks its data: a send, the hardest-send line, the grade bars. Sky, the second, marks
+     projecting. Choosing a climber or a grade is neutral. */
+  :root{ --accent:var(--amber); --accent-ink:var(--amber-ink); --accent-soft:var(--amber-soft);
+         --accent-2:var(--sky); --accent-2-ink:var(--sky-ink); --accent-2-soft:var(--sky-soft) }
   .hint{margin-top:8px}
-  label{display:block;font-size:.8333rem;font-weight:600;color:var(--dim);margin:14px 0 6px}
-  .userbtn{min-height:var(--tap);padding:0 16px;font-size:.8333rem}
-  .gate p{color:var(--dim)}
+  .grid{margin-top:12px}
 
-  /* ---- grade grid ---- */
-  .grades{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
-  .grades button{min-height:72px;padding:0;background:var(--ink-1);color:var(--text);border-radius:var(--r-card);
-    display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1}
-  .grades button>span{font-family:var(--grot);font-size:1.6667rem;font-weight:600}
-  .grades button small{font-size:.8333rem;font-weight:600;margin-top:2px;color:inherit}
-  .grades button[aria-pressed="true"]{background:var(--text);color:var(--ink-0)}
-
-  .row{display:flex;gap:14px;margin-top:16px}
-  .row button{flex:1}
-  .row button.big{min-height:var(--tap-lg);font-size:1.0556rem}
-
-  /* ---- progress ---- */
-  .tiles{margin:12px 0}
-  .tile em{font-style:normal}
+  /* ---- progress: the chart's own bits ---- */
   .chart .legend{display:flex;flex-wrap:wrap;gap:10px 18px;justify-content:center;font-size:.8333rem;color:var(--dim);padding:4px 0 6px}
   .legend i{display:inline-block;width:12px;height:12px;border-radius:50%;vertical-align:-1px;margin-right:6px}
   .legend i.sent{background:var(--accent)}
-  .legend i.proj{border:2px solid var(--dim)}
-  .legend i.big{width:18px;height:18px;vertical-align:-4px}
+  .legend i.proj{border:2px solid var(--accent-2)}
+  .legend i.lg{width:18px;height:18px;vertical-align:-4px}
   .session{margin:10px 8px 6px;font-size:.8889rem;color:var(--dim);min-height:1.4em}
   .session b{color:var(--text)}
   .session ul{list-style:none;margin-top:4px}
   .session li{padding:2px 0}
   .bars{margin-top:12px}
-  .brow{display:flex;align-items:center;gap:10px;min-height:32px}
-  .brow .g{width:3.2rem;text-align:right;font-family:var(--grot);font-weight:600;font-size:.9444rem}
-  .brow .track{flex:1;height:14px;background:var(--ink-2);border-radius:7px;overflow:hidden}
-  .brow .track i{display:block;height:100%;background:var(--accent);border-radius:7px 4px 4px 7px;transition:width .25s ease}
-  .brow .n{width:2.6rem;font-size:.8889rem;color:var(--dim)}
-
-  /* ---- recent: the grade, in orange when it was sent ---- */
-  .rows .grade{flex:none;min-width:2.6rem;text-align:center;font-family:var(--grot);font-size:1.4444rem;font-weight:600;color:var(--accent)}
-  .rows .grade.proj{color:var(--dim)}
-  .rows .x{background:transparent;color:var(--dim);font-size:1.2222rem}
-  .rows .x.arm{font-size:.8889rem;background:var(--warn);color:var(--ink-0)}
+  .tile em{font-style:normal}
+  #household .sect:first-child{margin-top:30px}
 </style>
 </head>
 <body>
 
 <header class="apphead">
   <h1>Bloc 11</h1>
-  <div class="user" id="userBox"></div>
+  <div class="me-host" id="meHost"></div>
 </header>
 
-<main id="main">
+<main class="page" id="main">
   <section class="gate hidden" id="gate">
     <p id="gateMsg">Sign in to log your climbs.</p>
     <button class="primary" id="signInBig">Sign in with Google</button>
@@ -77,7 +51,8 @@
   <section class="hidden" id="app">
     <h2 class="lbl sect">Log a climb</h2>
     <div class="chips" id="whoChips"></div>
-    <div class="grades" id="grades"></div>
+    <div class="row"><button class="quiet" id="guestBtn">Add a guest</button></div>
+    <div class="grid" id="grades"></div>
     <label for="note">Which route? (optional)</label>
     <input type="text" id="note" placeholder="the 5 in the cave" autocomplete="off">
     <label for="when">When</label>
@@ -94,20 +69,14 @@
     <h2 class="lbl sect">Recent</h2>
     <ul class="rows" id="recent"></ul>
 
-    <h2 class="lbl sect">Climbers</h2>
-    <ul class="rows" id="people"></ul>
-    <div class="row">
-      <button class="quiet" id="shareBtn">Share link</button>
-      <button class="primary" id="addBtn">Add climber</button>
-    </div>
-    <p class="note hint">Climbers are shared by every sidequests app — add someone once and they're in all of them.</p>
-
-    <div class="row">
-      <button class="quiet" id="exportBtn">Export</button>
-      <button class="quiet" id="importBtn">Import</button>
+    <div class="hidden" id="household">
+      <h2 class="lbl sect">The household</h2>
+      <ul class="rows" id="people"></ul>
+      <div class="row"><button class="quiet" id="addBtn">Add to the household</button></div>
+      <p class="note hint">The household list is yours, shared by every sidequests app. Everyone else logs for
+        themselves and their guests.</p>
     </div>
     <input type="file" id="importFile" accept="application/json,.json" class="hidden">
-    <div id="installHere"></div>
   </section>
 </main>
 
@@ -117,9 +86,11 @@
   import { cloud } from "../shared/cloud.js";
   import { phone } from "../shared/phone.js";
   import { people } from "../shared/people.js";
+  import { connect } from "../shared/connect.js";
+  import { ui } from "../shared/ui.js";
 
   // Bump on every change. The deploy skill checks this against the live site.
-  const APP_VERSION = "0.7.1";
+  const APP_VERSION = "0.8.0";
   const APP_ID = "bloc-11";
   document.getElementById("version").textContent = "v" + APP_VERSION;
 
@@ -136,42 +107,45 @@
   const gradeWord = v => { const g = gradeOf(v); return `a ${g.name ? g.name.toLowerCase() : g.label}`; };
 
   // ---- state ----
-  // Climbers are the household's shared people (shared/people.js): the same list, names and
-  // colours in every app. This app only stores climbs, keyed by the person's id. You're a
-  // climber by default — people.js links you by email, or asks which climber you are.
+  // Anyone signed in logs climbs (the open rule, KIT-PLAN Session 9): for themselves and for their
+  // guests, people with no phone. Each sees the climbs they're in, and the owner sees every climb and
+  // keeps the household list (shared/people.js). A climb's players is its one climber.
   let legacyClimbers = null;  // this app's own climber list from before people were shared; null until loaded
   let rawClimbs = [];         // as stored
-  let climbs = [];            // { id, climber, grade, result, note, at, by }, climber resolved to a person
+  let climbs = [];            // { id, climber, grade, result, note, at, by, uids }, climber resolved to a person
   let unsubs = [];
+  let owner = false;          // the one admin: every climb, and the household list
+  let run = 0;                // which sign-in start() is on
+  let accountSig = "";        // what the header's avatar last showed (mountAccount)
+  let knownNames = {};        // id → the name a climb stored, for climbers this phone can't name
   let who = null;             // climber id selected in the log form
   let grade = null;           // grade selected in the log form
   let progWho = null;         // climber shown in Progress
   let openSession = null;     // day (epoch ms) expanded under the chart
 
-  // The signed-in person comes first, then everyone else in the order they were added.
-  const activeClimbers = () => people.active();
-  const isMe = c => people.isMe(c.id);
-  const nameOf = id => people.nameOf(id);
-  const myClimberId = () => people.meId();
-  // Old climbs may name an id that has since been merged or adopted; read them as the person.
-  const refreshClimbs = () => { climbs = rawClimbs.map(c => ({ ...c, climber: people.resolve(c.climber) })); };
-
-  // ---- taps: pointerup, not click ----
-  function tap(node, fn){
-    if (!node) return;
-    let down = false, sx = 0, sy = 0;
-    node.addEventListener("pointerdown", e => { down = true; sx = e.clientX; sy = e.clientY; });
-    node.addEventListener("pointercancel", () => { down = false; });
-    node.addEventListener("pointerup", e => {
-      if (!down) return;
-      down = false;
-      if (Math.abs(e.clientX - sx) > 14 || Math.abs(e.clientY - sy) > 14) return; // a scroll, not a tap
-      e.preventDefault();
-      fn(e);
-    });
-    node.addEventListener("click", e => e.preventDefault());
+  const myUid = () => (cloud.user && cloud.user.uid) || "";
+  // Who you log for: you and your guests; the owner also logs for the household.
+  const loggable = () => people.players().filter(p => !p.deleted && (owner || p.id === people.meId() || p.kind === "guest"));
+  const isMe = id => people.isMe(id);
+  const nameOf = id => people.get(id) ? people.nameOf(id) : knownNames[id] || "Someone";
+  // Old climbs may name an id that has since been merged, adopted or claimed; read them as the person.
+  function refreshClimbs(){
+    climbs = rawClimbs.map(c => ({ ...c, climber: people.resolve(c.climber) }));
+    knownNames = {};
+    for (const c of rawClimbs) if (Array.isArray(c.names) && c.names[0]) knownNames[people.resolve(c.climber)] = c.names[0];
   }
-  function buzz(ms){ if (navigator.vibrate) navigator.vibrate(ms); }
+  // Progress shows whoever you can log for, and anyone else whose climbs you can see.
+  function progressIds(){
+    const ids = loggable().map(p => p.id);
+    for (const c of [...climbs].sort((a, b) => b.at - a.at)) if (!ids.includes(c.climber)) ids.push(c.climber);
+    return ids;
+  }
+
+  // Taps, holds, toasts and sheets: shared/ui.js.
+  const tap = ui.tap, buzz = ui.buzz, toast = ui.toast;
+  // A row's ⋯: the note for anyone in the climb, delete behind a hold for whoever logged it or the owner.
+  const mayEdit = c => owner || !Array.isArray(c.uids) || c.uids.includes(myUid());
+  const mayDelete = c => owner || !c.by || c.by === myUid();
 
   // ---- dates ----
   const DAY = 86400000;
@@ -202,34 +176,31 @@
     renderPeople();
   }
 
-  function chipRow(wrap, selectedId, onPick){
+  function chipRow(wrap, ids, selectedId, onPick, empty){
     wrap.innerHTML = "";
-    const list = activeClimbers();
-    if (!list.length){
+    if (!ids.length){
       const p = document.createElement("p");
       p.className = "empty";
-      p.textContent = "Add a climber below to get started.";
+      p.textContent = empty;
       wrap.appendChild(p);
       return;
     }
-    for (const c of list){
+    for (const id of ids){
       const b = document.createElement("button");
       b.type = "button";
       const nm = document.createElement("span");
-      nm.textContent = isMe(c) ? `${c.name} (you)` : c.name;
-      b.append(people.avatar(c.id, 40), nm);
-      b.setAttribute("aria-pressed", c.id === selectedId ? "true" : "false");
-      tap(b, () => onPick(c.id));
+      nm.textContent = isMe(id) ? `${nameOf(id)} (you)` : nameOf(id);
+      b.append(people.avatar(id, 40), nm);
+      b.setAttribute("aria-pressed", id === selectedId ? "true" : "false");
+      tap(b, () => onPick(id));
       wrap.appendChild(b);
     }
   }
 
-  const isActive = id => !!id && activeClimbers().some(c => c.id === id);
-
   function renderWho(){
-    const list = activeClimbers();
-    if (!isActive(who)) who = myClimberId() || (list[0] && list[0].id) || null;
-    chipRow($("whoChips"), who, id => { who = id; renderWho(); });
+    const ids = loggable().map(p => p.id);
+    if (!ids.includes(who)) who = people.meId() || ids[0] || null;
+    chipRow($("whoChips"), ids, who, id => { who = id; renderWho(); }, "Signing you in…");
   }
 
   function renderGrades(){
@@ -250,9 +221,9 @@
 
   // ---- progress ----
   function renderProgress(){
-    const list = activeClimbers();
-    if (!isActive(progWho)) progWho = who || (list[0] && list[0].id) || null;
-    chipRow($("progChips"), progWho, id => { progWho = id; openSession = null; renderProgress(); });
+    const ids = progressIds();
+    if (!ids.includes(progWho)) progWho = (ids.includes(who) && who) || ids[0] || null;
+    chipRow($("progChips"), ids, progWho, id => { progWho = id; openSession = null; renderProgress(); }, "");
     const box = $("progress");
     box.innerHTML = "";
     if (!progWho) return;
@@ -275,7 +246,7 @@
     const tiles = document.createElement("div");
     tiles.className = "tiles";
     tiles.innerHTML = `
-      <div class="tile"><b></b><span class="lbl">hardest<br>send</span></div>
+      <div class="tile on"><b></b><span class="lbl">hardest<br>send</span></div>
       <div class="tile"><b></b><span class="lbl">working<br>on</span></div>
       <div class="tile"><b></b><span class="lbl">sends<br><em></em></span></div>`;
     const bs = tiles.querySelectorAll("b");
@@ -316,7 +287,8 @@
     // x ticks: first and last session, plus month starts in between
     const ticks = new Map();
     ticks.set(days[0], shortDate(days[0]));
-    if (days.length > 1) ticks.set(days[days.length - 1], shortDate(days[days.length - 1]));
+    // The last session too, unless it would sit on top of the first.
+    if (days.length > 1 && X(days[days.length - 1]) - X(days[0]) >= 64) ticks.set(days[days.length - 1], shortDate(days[days.length - 1]));
     const m = new Date(x0); m.setDate(1); m.setHours(0,0,0,0); m.setMonth(m.getMonth() + 1);
     while (m.getTime() < x1){
       const t = m.getTime();
@@ -336,7 +308,7 @@
     if (best.length > 1){
       s += `<polyline fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" opacity=".7" points="${best.map(p => `${X(p.d)},${Y(p.g)}`).join(" ")}"/>`;
     }
-    // bubbles, one per (day, grade, result), sized by count; projects hollow, sends filled.
+    // bubbles, one per (day, grade, result), sized by count; projects hollow in sky, sends filled amber.
     // Hollow rings go down first so a filled send at the same spot sits on top of them.
     const groups = new Map();
     for (const c of mine){
@@ -348,7 +320,7 @@
     for (const b of bubbles){
       const r = bubbleR(b.n);
       s += b.proj
-        ? `<circle cx="${X(b.d)}" cy="${Y(b.g)}" r="${r}" fill="var(--ink-1)" fill-opacity=".6" stroke="var(--dim)" stroke-width="2"/>`
+        ? `<circle cx="${X(b.d)}" cy="${Y(b.g)}" r="${r}" fill="var(--ink-1)" fill-opacity=".6" stroke="var(--accent-2)" stroke-width="2"/>`
         : `<circle cx="${X(b.d)}" cy="${Y(b.g)}" r="${r}" fill="var(--accent)" fill-opacity=".85" stroke="var(--ink-1)" stroke-width="2"/>`;
     }
     // tap targets: one column per session
@@ -357,7 +329,7 @@
       s += `<rect class="hit" data-day="${d}" x="${x - 22}" y="${T - 6}" width="44" height="${ih + 12}" fill="transparent" ${openSession === d ? 'stroke="var(--line)" rx="8"' : ""}/>`;
     }
     s += `</svg>`;
-    wrap.innerHTML = s + `<div class="legend"><span><i class="sent"></i>Sent</span><span><i class="proj"></i>Projecting</span><span><i class="sent big"></i>Bigger = more climbs</span></div><div class="session"></div>`;
+    wrap.innerHTML = s + `<div class="legend"><span><i class="sent"></i>Sent</span><span><i class="proj"></i>Projecting</span><span><i class="sent lg"></i>Bigger = more climbs</span></div><div class="session"></div>`;
     wrap.querySelectorAll(".hit").forEach(r => tap(r, () => {
       const d = Number(r.dataset.day);
       openSession = openSession === d ? null : d;
@@ -423,42 +395,49 @@
     for (const c of rows){
       const proj = c.result !== "sent";
       const li = document.createElement("li");
-      li.innerHTML = `<span class="grade"></span>
+      li.innerHTML = `<span class="fig"></span>
         <span class="who"><div class="l1"></div><div class="l2"></div></span>
-        <button type="button" class="x" aria-label="Delete">✕</button>`;
-      const g = li.querySelector(".grade");
+        <button type="button" class="more" aria-label="More">⋯</button>`;
+      const g = li.querySelector(".fig");
       g.textContent = gradeShort(c.grade);
-      g.classList.toggle("proj", proj);
-      li.querySelector(".l1").textContent = `${nameOf(c.climber)} · ${proj ? "projecting" : "sent"} ${gradeWord(c.grade)}`;
+      g.classList.toggle("alt", proj);
+      const l1 = `${nameOf(c.climber)} · ${proj ? "projecting" : "sent"} ${gradeWord(c.grade)}`;
+      li.querySelector(".l1").textContent = l1;
       li.querySelector(".l2").textContent = c.note ? `${whenLabel(c.at)} · ${c.note}` : whenLabel(c.at);
-      armed(li.querySelector("button"), "✕", () => store.remove(c));
+      const items = [
+        ...(mayEdit(c) ? [{ label: c.note ? "Edit note" : "Add a note", value: "note", run: () => editNote(c) }] : []),
+        ...(mayDelete(c) ? [{ label: "Delete", value: "del", hold: true,
+          run: () => store.remove(c).then(() => toast("Deleted")).catch(e => toast("Couldn't delete: " + (e.message || e))) }] : []),
+      ];
+      if (items.length) ui.menu(li.querySelector(".more"), { title: l1, text: whenLabel(c.at), items });
+      else li.querySelector(".more").remove();
       ul.appendChild(li);
     }
   }
 
-  // Two-tap delete: first tap arms it for five seconds, second tap does it.
-  function armed(btn, label, fn){
-    let timer = null;
-    tap(btn, async () => {
-      if (!timer){
-        timer = setTimeout(() => { timer = null; btn.classList.remove("arm"); btn.textContent = label; }, 5000);
-        btn.classList.add("arm");
-        btn.textContent = "Sure?";
-        buzz(12);
-        return;
-      }
-      clearTimeout(timer); timer = null;
-      btn.disabled = true; btn.textContent = "…";
-      try { await fn(); }
-      catch (e){ btn.disabled = false; btn.classList.remove("arm"); btn.textContent = label; toast("Couldn't do that: " + (e.message || e)); }
-    });
+  // Which route it was, after the fact.
+  async function editNote(c){
+    let input;
+    const v = await ui.sheet({ title: "Which route?", items: [{ label: "Save", value: "save", primary: true }], body: () => {
+      input = document.createElement("input");
+      input.type = "text"; input.value = c.note || ""; input.placeholder = "the 5 in the cave"; input.autocomplete = "off";
+      setTimeout(() => input.focus(), 50);
+      return input;
+    } });
+    if (v !== "save") return;
+    const note = input.value.trim();
+    if (note === (c.note || "")) return;
+    try { await store.patch(c, { note }); }
+    catch (e){ toast("Couldn't save: " + (e.message || e)); }
   }
 
-  // ---- climbers ----
+  // ---- the household: the owner's list, shared by every sidequests app ----
   function renderPeople(){
+    $("household").classList.toggle("hidden", !owner);
+    if (!owner) return;
     const ul = $("people");
     ul.innerHTML = "";
-    const list = activeClimbers();
+    const list = people.active();
     if (!list.length){
       const li = document.createElement("li");
       li.className = "empty";
@@ -471,8 +450,9 @@
       const li = document.createElement("li");
       li.innerHTML = `<span class="who"><div class="l1"></div><div class="l2"></div></span><button type="button" class="quiet">Edit</button>`;
       li.prepend(people.avatar(c.id, 40));
-      li.querySelector(".l1").textContent = isMe(c) ? `${c.name} (you)` : c.name;
-      li.querySelector(".l2").textContent = c.email || "No Gmail";
+      li.querySelector(".l1").textContent = isMe(c.id) ? `${c.name} (you)` : c.name;
+      const n = climbs.filter(x => x.climber === c.id && x.result === "sent").length;
+      li.querySelector(".l2").textContent = `${n} send${n === 1 ? "" : "s"} · ${c.uid ? (c.email || "Signed in") : "No account"}`;
       tap(li.querySelector("button"), () => people.edit(c.id, { noun: "climber" }));
       ul.appendChild(li);
     }
@@ -481,32 +461,23 @@
   async function addClimber(){
     const id = await people.edit(null, { noun: "climber" });
     if (!id) return;
-    if (!who) who = id;
+    who = id;
     toast(`${nameOf(id)} added`);
     render();
   }
 
-  function share(){
-    const url = location.origin + location.pathname;
-    if (navigator.share){
-      navigator.share({ title:"Bloc 11", text:"Our climbing log — sign in with the Gmail that's been added.", url }).catch(() => {});
-    } else if (navigator.clipboard){
-      navigator.clipboard.writeText(url).then(() => toast("Link copied")).catch(() => {});
-    }
-  }
-
   // ---- logging ----
+  // A climb names its one climber: players, names, and uids (their account, or else yours, since a
+  // guest has none and the climb must stay yours to see), and by, whoever logged it.
+  function climbFor(id, fields){
+    const me = myUid();
+    const uids = people.uidsOf([id]);
+    return { climber: id, ...fields, players: [id], names: people.names([id]), uids: uids.length ? uids : me ? [me] : [], by: me || null };
+  }
   async function logClimb(result){
-    if (!who){ toast("Add a climber first."); return; }
+    if (!who){ toast("Signing you in…"); return; }
     if (!grade){ toast("Pick a grade first."); buzz(20); return; }
-    const entry = {
-      climber: who,
-      grade,
-      result,
-      note: $("note").value.trim(),
-      at: fromISO($("when").value || toISO(new Date())),
-      by: cloud.user ? cloud.user.email : null
-    };
+    const entry = climbFor(who, { grade, result, note: $("note").value.trim(), at: fromISO($("when").value || toISO(new Date())) });
     const said = `${nameOf(who)} ${result === "sent" ? "sent" : "is projecting"} ${gradeWord(grade)}`;
     grade = null;
     $("note").value = "";
@@ -514,14 +485,6 @@
     buzz(result === "sent" ? [20, 40, 20] : 20);
     try { await store.add(entry); toast(result === "sent" ? `${said} 🎉` : said); }
     catch (e){ toast("Couldn't save: " + (e.message || e)); }
-  }
-
-  function toast(msg){
-    const t = document.createElement("div");
-    t.className = "toast";
-    t.textContent = msg;
-    document.body.appendChild(t);
-    setTimeout(() => t.remove(), 2600);
   }
 
   function download(name, text, type){
@@ -534,8 +497,9 @@
   }
 
   // ---- export / import ----
+  // Export is everyone's: the climbs this phone can see. Import is the owner's.
   function exportAll(){
-    const data = { app: APP_ID, version: APP_VERSION, exportedAt: new Date().toISOString(), people: people.all(), climbs };
+    const data = { app: APP_ID, version: APP_VERSION, exportedAt: new Date().toISOString(), people: owner ? people.all() : {}, climbs };
     download(`bloc-11-${toISO(new Date())}.json`, JSON.stringify(data, null, 2), "application/json");
   }
 
@@ -546,18 +510,17 @@
     if (!data || !Array.isArray(data.climbs)) return toast("No climbs in that file.");
     // People first, so the climbs' ids resolve: `people` from this version's exports,
     // `climbers` from exports made before people were shared.
-    const before = activeClimbers().length;
+    const before = people.active().length;
     people.adopt(data.people);
     people.adopt(data.climbers);
-    const newPeople = Math.max(0, activeClimbers().length - before);
+    const newPeople = Math.max(0, people.active().length - before);
     const have = new Set(climbs.map(c => `${c.climber}|${c.grade}|${c.result}|${c.at}|${c.note || ""}`));
     let added = 0;
     for (const raw of data.climbs){
       if (!raw || !raw.climber || !raw.grade || !raw.at) continue;
-      const entry = {
-        climber: people.resolve(String(raw.climber)), grade: Number(raw.grade), result: raw.result === "sent" ? "sent" : "project",
-        note: String(raw.note || ""), at: Number(raw.at), by: raw.by || null
-      };
+      const id = people.resolve(String(raw.climber));
+      const entry = { ...climbFor(id, { grade: Number(raw.grade), result: raw.result === "sent" ? "sent" : "project",
+        note: String(raw.note || ""), at: Number(raw.at) }), ...(raw.by && !String(raw.by).includes("@") ? { by: String(raw.by) } : {}) };
       const key = `${entry.climber}|${entry.grade}|${entry.result}|${entry.at}|${entry.note}`;
       if (have.has(key)) continue;
       have.add(key);
@@ -578,6 +541,12 @@
       refreshClimbs();
       render();
     },
+    async patch(c, fields){
+      if (this.live) return cloud.patch(`climbs/${c.id}`, fields);
+      rawClimbs = rawClimbs.map(x => x.id === c.id ? { ...x, ...fields } : x);
+      refreshClimbs();
+      render();
+    },
     async remove(c){
       if (this.live) return cloud.delete(`climbs/${c.id}`);
       rawClimbs = rawClimbs.filter(x => x.id !== c.id);
@@ -590,10 +559,13 @@
   tap($("sentBtn"), () => logClimb("sent"));
   tap($("projBtn"), () => logClimb("project"));
   tap($("addBtn"), addClimber);
-  tap($("shareBtn"), share);
-  phone.mountInstall($("installHere"), { label: "Install on this phone" });
-  tap($("exportBtn"), exportAll);
-  tap($("importBtn"), () => $("importFile").click());
+  // A guest: someone with no phone, a name only you see. You log for them; they can claim it later.
+  tap($("guestBtn"), async () => {
+    const id = await people.addGuest();
+    if (!id) return;
+    who = id;
+    render();
+  });
   $("importFile").addEventListener("change", e => {
     const f = e.target.files && e.target.files[0];
     e.target.value = "";
@@ -605,33 +577,91 @@
   people.onChange(() => { refreshClimbs(); render(); });
 
   // ---- cloud ----
-  const userBox = $("userBox");
   await cloud.init(APP_ID);
+  connect.handleInvite({ app: APP_ID, appName: "Bloc 11" });   // a scanned QR: connect first
 
-  function applyUser(user){
-    if (user) {
-      userBox.innerHTML = `${user.photoURL ? `<img src="${user.photoURL}" alt="">` : ""}<button class="quiet userbtn" id="signOut">Sign out</button>`;
-      tap($("signOut"), () => cloud.signOut());
-    } else {
-      userBox.innerHTML = "";
-    }
-    start(user);
+  // Your avatar in the header, and its sheet: Profile, My QR, Friends, Your guests, Export, Import
+  // (the owner's), Install on this phone, Sign out.
+  function mountAccount(){
+    const user = cloud.user, me = user ? people.meId() : null, p = me ? people.get(me) : null;
+    const installed = phone.installed();
+    const sig = JSON.stringify([user && user.uid, me, p && [p.name, p.photo, people.colourOf(me)], owner, installed, people.guests().length]);
+    if (sig === accountSig) return;
+    accountSig = sig;
+    const extra = !user ? [] : [
+      { label: "Profile", value: "profile", run: () => connect.showProfile() },
+      { label: "My QR", value: "qr", run: () => connect.showQR({ app: APP_ID }) },
+      { label: "Friends", value: "friends", run: () => connect.showFriends() },
+      ...(people.guests().length ? [{ label: "Your guests", value: "guests", run: () => people.showGuests({ app: APP_ID, rewrite: claimRewrite }) }] : []),
+      { label: "Export", value: "export", run: exportAll },
+      ...(owner ? [{ label: "Import", value: "import", run: () => $("importFile").click() }] : []),
+      ...(installed ? [] : [{ label: "Install on this phone", value: "install", run: async () => {
+        const how = await phone.install();
+        if (how) ui.sheet({ title: "Install", text: how });
+      } }]),
+    ];
+    ui.account($("meHost"), user, { onSignIn: () => cloud.signIn().catch(e => toast("Sign-in failed: " + (e.code || e.message || e))),
+      onSignOut: () => cloud.signOut(), extra, name: p ? p.name : "", avatar: me ? people.avatar(me, 48) : null });
   }
+  people.onChange(mountAccount);
+
+  // That was them (KIT-PLAN.md Session 8): each climb you logged for that guest becomes the friend's.
+  // The guest's id is swapped for theirs (climber, players), uids gains them, and names stays: the
+  // rules' seatSwap. One rewrite a guest at a time: the claim and healClaims below can both start one.
+  const claiming = new Map();
+  function claimRewrite(gid, uid){
+    if (!claiming.has(gid)) claiming.set(gid, rewriteClaim(gid, uid).finally(() => claiming.delete(gid)));
+    return claiming.get(gid);
+  }
+  async function rewriteClaim(gid, uid){
+    const me = myUid();
+    const ops = rawClimbs.filter(x => x.by === me && Array.isArray(x.players) && x.players.includes(gid) && !(x.uids || []).includes(uid))
+      .map(({ id, _updatedAt, names, uids, by, ...rest }) => {
+        const swapped = people.swapId(rest, gid, uid), data = {};
+        for (const [k, v] of Object.entries(swapped)) if (JSON.stringify(v) !== JSON.stringify(rest[k])) data[k] = v;
+        data.uids = [...(uids || []), uid];
+        return { patch: `climbs/${id}`, data };
+      });
+    for (let i = 0; i < ops.length; i += 400) await cloud.batch(ops.slice(i, i + 400));
+    console.info("[claim]", gid, "→", uid, "in", ops.length, "climbs");
+  }
+  // A guest claimed in another app, or on another phone: your climbs with them follow, once.
+  let healing = false;
+  const healed = new Set();
+  async function healClaims(){
+    const me = myUid();
+    if (healing || !me) return;
+    const todo = people.claimedGuests().filter(g => !healed.has(g.id)
+      && rawClimbs.some(x => x.by === me && Array.isArray(x.players) && x.players.includes(g.id)));
+    if (!todo.length) return;
+    healing = true;
+    try { for (const g of todo){ healed.add(g.id); await claimRewrite(g.id, g.claimedBy); } }
+    catch (e){ console.warn("[claim]", e); }
+    finally { healing = false; }
+  }
+  people.onChange(healClaims);
 
   // onUser only fires straight away when someone is signed in, so paint the signed-out
   // state ourselves. Also what makes the app run before Firebase is set up.
-  cloud.onUser(applyUser);
-  if (!cloud.user) applyUser(null);
+  cloud.onUser(start);
+  if (!cloud.user) start(null);
 
   tap($("signInBig"), () => cloud.signIn().catch(err => {
     $("gateMsg").textContent = "Sign-in failed: " + (err && err.code ? err.code : err);
   }));
 
   // ---- app ----
-  function start(user){
+  // The owner sees every climb and keeps the household list (and this app's old state/main, for its
+  // pre-sharing climber list). Everyone else, a household member included, logs for themselves and
+  // their guests and sees only the climbs they're in. A role that can't be read means a player:
+  // what the rules allow anyone.
+  async function start(user){
     unsubs.forEach(u => { try { u(); } catch {} });
     unsubs = [];
-    who = null; progWho = null; legacyClimbers = null;
+    const mine = ++run;
+    owner = false;
+    mountAccount();
+    who = null; progWho = null; legacyClimbers = null; rawClimbs = []; climbs = [];
 
     const gated = cloud.configured() && !user;
     $("gate").classList.toggle("hidden", !gated);
@@ -639,28 +669,72 @@
     if (gated) return;
 
     if (cloud.configured()){
+      let role = null;
+      try { role = await cloud.role(); } catch (e){ console.warn("[role]", e); }
+      if (mine !== run) return;
+      owner = role === "owner";
+      mountAccount();
       unsubs.push(people.start({
-        legacy: () => legacyClimbers,
+        household: owner,
+        legacy: owner ? () => legacyClimbers : undefined,
         onMe: ({ name, added }) => {
-          toast(added ? `Added you as ${name} — tap a name to log for someone else` : `You're ${name} — logging for you unless you tap someone else`);
-          who = myClimberId();
+          toast(added ? `Added you as ${name}` : `You're ${name}`);
+          who = people.meId();
           render();
         },
         onError: e => toast("Couldn't save to the cloud: " + (e.message || e))
       }));
-      unsubs.push(cloud.watch("state/main", doc => {
+      if (owner) unsubs.push(cloud.watch("state/main", doc => {
         legacyClimbers = (doc && doc.climbers) || {};
         people.poke();
         render();
       }));
+      const opts = owner ? { orderBy: "at", desc: true, limit: 1000 } : { where: ["uids", "array-contains", user.uid] };
       unsubs.push(cloud.watchList("climbs", rows => {
         rawClimbs = rows.filter(r => typeof r.at === "number" && typeof r.grade === "number");
         refreshClimbs();
+        backfill();
+        healClaims();
         render();
-      }, { orderBy: "at", desc: true, limit: 1000 }));
+      }, opts, e => toast("Couldn't load your climbs: " + (e.code || e.message || e))));
     }
     render();
   }
+
+  // ---- the backfill, once, on the owner's phone (KIT-PLAN Session 9 step 1) ----
+  // Climbs from before the open rule name their climber by a household id and say by with an email.
+  // Each gets players (the climber, resolved: a claimed person's is their uid), names, uids for a
+  // climber with an account, and by as a uid (the owner's when the logger can't be named). A climb
+  // for someone with no account keeps empty uids: only the owner sees it, named from names.
+  // Again after an Import.
+  const BACKFILL_KEY = "bloc-11.uids-backfill.";
+  let backfilling = false;
+  async function backfill(){
+    if (!owner || backfilling || !people.ready || !cloud.user) return;
+    try { if (localStorage.getItem(BACKFILL_KEY + cloud.user.uid)) return; } catch {}
+    backfilling = true;
+    try {
+      const byEmail = email => { const p = people.active().find(q => q.email && q.email === String(email || "").toLowerCase()); return p && p.uid; };
+      const ops = rawClimbs.filter(r => !Array.isArray(r.uids)).map(r => {
+        const id = people.resolve(String(r.climber));
+        return { patch: `climbs/${r.id}`, data: { climber: id, players: [id], names: people.names([id]), uids: people.uidsOf([id]),
+          by: (r.by && !String(r.by).includes("@") ? r.by : byEmail(r.by)) || cloud.user.uid } };
+      });
+      for (let i = 0; i < ops.length; i += 400) await cloud.batch(ops.slice(i, i + 400));
+      try { localStorage.setItem(BACKFILL_KEY + cloud.user.uid, "1"); } catch {}
+      // The count the owner was promised (KIT-PLAN Session 9 step 1): climbs nobody but the owner sees.
+      const noAccount = ops.filter(o => !o.data.uids.length);
+      if (ops.length){
+        const who = [...new Set(noAccount.map(o => o.data.names[0] || "someone"))];
+        console.info(`[backfill] gave ${ops.length} climbs their names and uids; ${noAccount.length} are for people with no account`);
+        if (noAccount.length) ui.sheet({ title: `${noAccount.length} climb${noAccount.length === 1 ? "" : "s"} for people with no account`,
+          text: `${who.join(", ")} ${who.length === 1 ? "has" : "have"} no account, so only you see ${noAccount.length === 1 ? "that climb" : "those climbs"}, by name. ` +
+            "You can still log for them here. Anyone else logs for them as a guest of their own." });
+      }
+    } catch (e){ console.warn("[backfill]", e); }
+    finally { backfilling = false; }
+  }
+  people.onChange(backfill);
 
   // ---- offline shell ----
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
