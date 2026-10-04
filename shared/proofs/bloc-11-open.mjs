@@ -3,14 +3,15 @@
 //   node shared/proofs/bloc-11-open.mjs                B and C
 //   OLD=<git rev> node shared/proofs/bloc-11-open.mjs  and A, against that build
 //
-// A. A seed of old climbs (seeds/bloc-11-old.json: household ids, `by` as an email; Mock and Mel
+// A. A seed of old climbs (seeds/bloc-11-backfilled.json: the old seed `bloc-11-old.json` as the
+//    owner's one-time backfill left it, which went in Session 10; household ids, `by` as an email; Mock and Mel
 //    claimed, Rolf not), opened by the owner on the old build and on this one: Recent reads the same.
-// B. The backfill gives every climb players, names, uids and by, and tells the owner how many are
-//    for people with no account. Mel (a member) sees only hers; Ann logs for herself and a guest,
+// B. Every old climb carries players, names, uids and by, as the backfill left them (since Session
+//    10 the seed is the backfill's result: the code is gone). Mel (a member) sees only hers; Ann logs for herself and a guest,
 //    edits a note and deletes behind a hold; That was them hands the guest's climb to Ben.
 // C. The refusals, through each tab's own cloud.
 import { ok, summary, oldBuild, ROOT, serve, browser, tab, C, tryC, text, store, hold } from "./h.mjs";
-const SEED = ROOT + "/shared/proofs/seeds/bloc-11-old.json";
+const SEED = ROOT + "/shared/proofs/seeds/bloc-11-backfilled.json";
 const climbs = async p => Object.fromEntries(Object.entries(await store(p)).filter(([k]) => k.startsWith("sidequests/bloc-11/climbs/")).map(([k, v]) => [k.split("/").pop(), v]));
 // A row's one action was ✕ and is ⋯ (DESIGN §4): the rows are compared without it.
 const bare = t => t.split("\n").filter(l => !/^[✕⋯]$/.test(l.trim())).join("\n");
@@ -43,11 +44,9 @@ ok(JSON.stringify(cs.b1.players) === '["mock-uid"]' && JSON.stringify(cs.b1.uids
   "Mock's climb: the climber is now the owner's uid");
 ok(JSON.stringify(cs.b4.players) === '["pR"]' && JSON.stringify(cs.b4.uids) === "[]" && JSON.stringify(cs.b4.names) === '["Rolf"]' && cs.b4.by === "mock-mel",
   "Rolf's climb that Mel logged: no account, so no uids; named Rolf; by is Mel");
-const told = await text(owner, ".scrim .sheet");
-ok(/^2 climbs for people with no account/.test(told) && /Rolf/.test(told), "the owner is told: " + told.split("\n")[0]);
-await owner.keyboard.press("Escape");
-ok(!(await owner.locator("#household").count()) && (await text(owner, "#whoChips")).split("\n").pop() === "Mock (you)",
-  "no household list, even for the owner (Session 9 step 4): the owner logs for themselves and their guests");
+const ownerChips = await text(owner, "#whoChips");
+ok(!(await owner.locator("#household").count()) && ownerChips.split("\n").pop() === "Mock Player (you)",
+  JSON.stringify(ownerChips) + ": no household list, even for the owner (Session 9 step 4): the owner logs for themselves and their guests");
 
 const mel = await tab(ctx, B + "?mock&as=mel&role=member", "mel");
 const ann = await tab(ctx, B + "?mock&as=ann", "ann");

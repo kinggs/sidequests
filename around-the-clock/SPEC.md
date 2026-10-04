@@ -17,9 +17,8 @@ Kenny, mostly on his own as a practice drill, and with Melanie or friends as a m
 0.8.0 anyone with a Google account (the open rule, `shared/KIT-PLAN.md` Session 7). One phone
 at the board logs for everyone in the game.
 
-- **Players** (`shared/people.js`): you, your Connect friends and your guests, for everyone. Since 0.10.0 (KIT-PLAN Session 9) the household list is
-  gone from this app, the owner's too: the owner's phone reads it once more, only until its
-  one-time backfill has run.
+- **Players** (`shared/people.js`): you, your Connect friends and your guests, for everyone. Since 0.10.1 (KIT-PLAN Session 10) the household list is
+  gone from this app, the owner's too.
 - **That was them** (0.9.0, KIT-PLAN Session 8): your account sheet's **Your guests** lists the
   guests you've made; tap one who has since joined, pick the friend, hold. Each game you started
   with that guest becomes the friend's: their id replaces the guest's everywhere in it (seats,
@@ -28,9 +27,9 @@ at the board logs for everyone in the game.
 - **Who sees what.** A game is reached by the accounts in it (`uids`) and by the owner, who
   sees every game. A stranger signs in to an empty app of their own; anyone else sees only the
   games they're in.
-- **Old games.** The owner's phone backfills them once, in today's shape: ids resolved,
-  `names`, `uids` and `by` as a uid. A person with no account keeps their person id, read by
-  `names`.
+- **Old games.** The owner's phone backfilled them once, in today's shape (0.9.0 to 0.10.0; the
+  code went in 0.10.1): ids resolved, `names`, `uids` and `by` as a uid. A person with no account
+  keeps their person id, read by `names`. An Import names an old game the same way as it saves it.
 
 ## The game: 180 Around the Clock
 

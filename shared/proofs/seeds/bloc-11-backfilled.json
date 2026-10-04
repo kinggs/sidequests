@@ -1,0 +1,100 @@
+{
+ "app": "bloc-11",
+ "version": "0.7.1 as the backfill left it",
+ "exportedAt": "2026-10-01T20:00:00.000Z",
+ "people": {
+  "pK": {
+   "name": "Mock",
+   "email": "mock.player@gmail.com",
+   "uid": "mock-uid",
+   "colour": "#cf1b1b",
+   "createdAt": 1,
+   "deleted": false
+  },
+  "pM": {
+   "name": "Mel",
+   "email": "mel@example.com",
+   "uid": "mock-mel",
+   "colour": "#4a8fce",
+   "createdAt": 2,
+   "deleted": false
+  },
+  "pR": {
+   "name": "Rolf",
+   "email": "",
+   "colour": "#0f7a3d",
+   "createdAt": 3,
+   "deleted": false
+  }
+ },
+ "climbs": [
+  {
+   "id": "b1",
+   "climber": "mock-uid",
+   "grade": 5,
+   "result": "sent",
+   "note": "the cave one",
+   "at": 1759000000000,
+   "by": "mock-uid",
+   "players": [
+    "mock-uid"
+   ],
+   "names": [
+    "Mock"
+   ],
+   "uids": [
+    "mock-uid"
+   ]
+  },
+  {
+   "id": "b2",
+   "climber": "mock-mel",
+   "grade": 6,
+   "result": "project",
+   "note": "slab",
+   "at": 1759100000000,
+   "by": "mock-mel",
+   "players": [
+    "mock-mel"
+   ],
+   "names": [
+    "Mel"
+   ],
+   "uids": [
+    "mock-mel"
+   ]
+  },
+  {
+   "id": "b3",
+   "climber": "pR",
+   "grade": 3,
+   "result": "sent",
+   "note": "",
+   "at": 1759200000000,
+   "by": "mock-uid",
+   "players": [
+    "pR"
+   ],
+   "names": [
+    "Rolf"
+   ],
+   "uids": []
+  },
+  {
+   "id": "b4",
+   "climber": "pR",
+   "grade": 4,
+   "result": "project",
+   "note": "",
+   "at": 1759300000000,
+   "by": "mock-mel",
+   "players": [
+    "pR"
+   ],
+   "names": [
+    "Rolf"
+   ],
+   "uids": []
+  }
+ ]
+}

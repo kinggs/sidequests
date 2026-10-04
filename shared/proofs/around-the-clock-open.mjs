@@ -2,8 +2,11 @@
 //
 //   node shared/proofs/around-the-clock-open.mjs                B and C
 //   OLD=<git rev> node shared/proofs/around-the-clock-open.mjs  and A
+//
+// The seed is seeds/around-the-clock-old.json as the owner's one-time backfill left it
+// (around-the-clock-backfilled.json): the backfill's code went in Session 10.
 import { ok, summary, oldBuild, ROOT, serve, browser, tab, C, tryC, text, store } from "./h.mjs";
-const SEED = ROOT + "/shared/proofs/seeds/around-the-clock-old.json";
+const SEED = ROOT + "/shared/proofs/seeds/around-the-clock-backfilled.json";
 const games = async p => Object.fromEntries(Object.entries(await store(p)).filter(([k]) => k.startsWith("sidequests/around-the-clock/games/")).map(([k, v]) => [k.split("/").pop(), v]));
 const bare = t => t.split("\n").filter(l => !/^[✕⋯]$/.test(l.trim())).join("\n");
 async function seeded(root, label){

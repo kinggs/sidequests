@@ -3,14 +3,15 @@
 //   node shared/proofs/zombie-dice-open.mjs                B and C
 //   OLD=<git rev> node shared/proofs/zombie-dice-open.mjs  and A, against that build
 //
-// A. A seed of old games (seeds/zombie-dice-old.json: household ids, `by` as an email; Mock and
+// A. A seed of old games (seeds/zombie-dice-backfilled.json: the old seed `zombie-dice-old.json` as the
+//    owner's one-time backfill left it, which went in Session 10; household ids, `by` as an email; Mock and
 //    Mel claimed, Rolf not), opened by the owner on the old build and on this one: the backfill
 //    gives every game names, uids and by, and Recent and the Leaderboard read the same.
 // B. Three tabs on that seed: the owner sees every game, Mel (a member) only hers, and Ann starts
 //    a game with a friend and a guest and sees only that.
 // C. The refusals, through each tab's own cloud.
 import { ok, summary, oldBuild, ROOT, serve, browser, tab, C, tryC, text, store } from "./h.mjs";
-const SEED = ROOT + "/shared/proofs/seeds/zombie-dice-old.json";
+const SEED = ROOT + "/shared/proofs/seeds/zombie-dice-backfilled.json";
 const games = async p => Object.fromEntries(Object.entries(await store(p)).filter(([k]) => k.startsWith("sidequests/zombie-dice/games/")).map(([k, v]) => [k.split("/").pop(), v]));
 // A row's one action was ✕ and is ⋯ (DESIGN §4): the rows are compared without it.
 const bare = t => t.split("\n").filter(l => !/^[✕⋯]$/.test(l.trim())).join("\n");

@@ -19,8 +19,7 @@ and when they're on Connect later, **That was them** hands their climbs over.
 Each person sees only the climbs they're in. **The owner** (`/members` role `owner`) is the one
 admin: sees every climb. Everyone else, Melanie included, is a climber like anyone, and so is the
 owner when logging: you and your guests (0.9.0, KIT-PLAN Session 9: the household list is the
-owner's in Rack It alone; the owner's phone reads it here once more, only until its backfill has
-run).
+owner's in Rack It alone; since 0.9.1 this app never reads it).
 
 ## The grading system
 
@@ -40,8 +39,9 @@ Labels live in one `GRADES` table so renaming or adding a tier is one edit.
 One page, top to bottom:
 
 1. **Log a climb** — climber chips (single select: you, first and chosen, and your guests),
-   **Add a guest**, an 8-tile grade grid, an optional note ("the 5 in the cave"), a date that
-   defaults to today, and two big buttons: **Sent it** and **Projecting**. Either one saves.
+   **Add a guest**, an 8-tile grade grid, an optional note ("the 5 in the cave"), one When line
+   (frame 3a, 0.9.1), "**Today**. Tap the date to change it.", which opens the date picker and
+   then reads "**Wed 1 Oct**. Tap to change it.", and two big buttons: **Sent it** and **Projecting**. Either one saves.
 2. **Progress** — pick a climber (anyone you log for, or whose climbs you can see). Three tiles (hardest send, hardest grade being projected
    above that, total sends with this month's count), then a timeline: one bubble per
    grade per session (filled = sent, hollow = projecting), grade on the y-axis, date on the
@@ -77,10 +77,11 @@ Climbers live in the shared people list, `sidequests/_shared/people/<id>`, via
   `people.resolve`. `players`, `names`, `uids` and `by` are the open rule's: `uids` is the
   climber's account, or, for a guest or a household person with no account, whoever logged it,
   so the climb stays theirs to see.
-- **The backfill.** Climbs from before 0.8.0 named the climber by a household id and `by` by email.
-  The owner's phone rewrites them once with `players`, `names`, `uids` (the climber's account, or
-  none) and `by` as a uid, and says how many are for people with no account: those stay visible to
-  the owner alone, by name.
+- **Old climbs.** Climbs from before 0.8.0 named the climber by a household id and `by` by email.
+  The owner's phone rewrote them once (0.8.0 to 0.9.0) with `players`, `names`, `uids` (the
+  climber's account, or none) and `by` as a uid; the code went in 0.9.1 (KIT-PLAN Session 10). A
+  climb for someone with no account stays visible to the owner alone, by name. An Import names
+  each climb as it saves it.
 
 `at` is stored at 20:00 local on the chosen day (same convention as Beer O'Clock) so a
 day's climbs sort sensibly and sessions group by calendar day.

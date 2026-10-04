@@ -215,7 +215,7 @@
   import { ui } from "../shared/ui.js";
 
   // Bump on every change. The deploy skill checks this against the live site.
-  const APP_VERSION = "0.10.0";
+  const APP_VERSION = "0.10.1";
   const APP_ID = "around-the-clock";
   document.getElementById("version").textContent = "v" + APP_VERSION;
 
@@ -239,7 +239,6 @@
   // owner sees every game (the open rule, KIT-PLAN Session 7).
   let rawGames = [];          // game documents as stored
   let games = [];             // the same, normalised — see normalise()
-  let legacyPlayers = null;   // this app's own player list from before people were shared; null until loaded
   // The direction is this phone's (it lived in state/main, now the owner's alone).
   const DIR_KEY = "around-the-clock.direction";
   let direction = (() => { try { return localStorage.getItem(DIR_KEY) === "down" ? "down" : "up"; } catch { return "up"; } })();
@@ -869,6 +868,9 @@
       const g = normalise({ ...raw, id: raw.id ? String(raw.id) : store.newId() });
       if (!g.players.length || !Number.isFinite(g.at)) continue;
       if (g.status === "live" && isOver(g)) g.status = "done";
+      // A game from before the open rule names no accounts: this phone names them now.
+      if (!Array.isArray(g.uids)){ g.names = people.names(g.players); g.uids = people.uidsOf(g.players); }
+      if (!g.by || String(g.by).includes("@")) g.by = cloud.user ? cloud.user.uid : g.by;
       have.add(g.id);
       await store.saveGame(g);
       added++;
@@ -876,8 +878,6 @@
     toast(added || newPeople
       ? `Imported ${added} game${added === 1 ? "" : "s"}, ${newPeople} new player${newPeople === 1 ? "" : "s"}`
       : "Nothing new to import");
-    try { localStorage.removeItem(BACKFILL_KEY + cloud.user.uid); } catch {}
-    backfill();
   }
 
   // ---- storage ----
@@ -1022,7 +1022,7 @@
     const mine = ++run;
     owner = false;
     mountAccount();
-    picked = []; pickTouched = false; progWho = null; live = null; finished = null; autoResumed = false; legacyPlayers = null;
+    picked = []; pickTouched = false; progWho = null; live = null; finished = null; autoResumed = false;
 
     const gated = cloud.configured() && !user;
     $("gate").classList.toggle("hidden", !gated);
@@ -1037,23 +1037,14 @@
       if (mine !== run) return;
       owner = role === "owner";
       mountAccount();
-      const household = owner && backfillDue();
       unsubs.push(people.start({
-        household,
-        legacy: household ? () => legacyPlayers : undefined,
         onMe: ({ name, added }) => { toast(added ? `Added you as ${name}` : `You're ${name}`); if (!live) renderHome(); },
         onError: e => toast("Couldn't save to the cloud: " + (e.message || e))
-      }));
-      if (household) unsubs.push(cloud.watch("state/main", doc => {
-        legacyPlayers = (doc && doc.players) || {};
-        people.poke();
-        if (!live) renderHome();
       }));
       const opts = owner ? { orderBy: "at", desc: true, limit: 500 } : { where: ["uids", "array-contains", user.uid] };
       unsubs.push(cloud.watchList("games", rows => {
         rawGames = rows.filter(isGameDoc);
         refreshGames();
-        backfill();
         healClaims();
         // The game on this phone is the truth while it's being played; the list only
         // matters for Home. If someone else deleted it out from under us, drop out cleanly.
@@ -1064,38 +1055,6 @@
     }
     renderHome();
   }
-
-  // The household list is the owner's, and only Rack It's admin path keeps it (KIT-PLAN Session 9).
-  // Here the owner's phone loads it once more, until the one-time backfill below has named every old
-  // record from it.
-  const backfillDue = () => { try { return !localStorage.getItem("around-the-clock.uids-backfill." + ((cloud.user && cloud.user.uid) || "")); } catch { return true; } };
-  // ---- the backfill, once, on the owner's phone (KIT-PLAN Session 7 step 5) ----
-  // Games from before the open rule name players by the household's ids, by email, and some by
-  // the one-player shape. Each is rewritten in today's shape with its ids resolved (a claimed
-  // person's becomes their uid), names, uids for the players with an account, and by as a uid
-  // (the owner's when the starter can't be named). Again after an Import.
-  const BACKFILL_KEY = "around-the-clock.uids-backfill.";
-  let backfilling = false;
-  async function backfill(){
-    if (!owner || backfilling || !people.ready || !cloud.user) return;
-    try { if (localStorage.getItem(BACKFILL_KEY + cloud.user.uid)) return; } catch {}
-    backfilling = true;
-    try {
-      const byEmail = email => { const p = people.active().find(q => q.email && q.email === String(email || "").toLowerCase()); return p && p.uid; };
-      const ops = rawGames.filter(r => isGameDoc(r) && !Array.isArray(r.uids)).map(r => {
-        const g = normalise(r);
-        const { players, throws, scores, turn, log } = toDoc(g);
-        return { patch: `games/${r.id}`, data: { players, throws, scores, turn, log,
-          names: people.names(players), uids: people.uidsOf(players),
-          by: (r.by && !String(r.by).includes("@") ? r.by : byEmail(r.by)) || cloud.user.uid } };
-      });
-      for (let i = 0; i < ops.length; i += 400) await cloud.batch(ops.slice(i, i + 400));
-      try { localStorage.setItem(BACKFILL_KEY + cloud.user.uid, "1"); } catch {}
-      if (ops.length) console.info(`[backfill] gave ${ops.length} games their names and uids`);
-    } catch (e){ console.warn("[backfill]", e); }
-    finally { backfilling = false; }
-  }
-  people.onChange(backfill);
 
   // ---- offline shell ----
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");

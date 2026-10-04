@@ -16,7 +16,7 @@ shares `pw.mjs` with them.
 | `rack-it-scorer.mjs` | Session 8 step 4: Mel scores a rated match for the owner and Ann; both sign; Rebuild agrees | Playwright |
 | `rev-probe.mjs` | Session 8 step 3's probe: queued offline writes against a counter and against the chain, on the emulator | Java 21, npx |
 | `zombie-dice-open.mjs` | Session 7 step 4: the open rule in Zombie Dice, on a seed of old games (`seeds/`); with `OLD=<git rev>`, old build against new | Playwright |
-| `bloc-11-open.mjs` | Session 9 step 1: Bloc 11 on the open rule, on a seed of old climbs; a guest's climb; That was them; with `OLD=<git rev>`, old build against new | Playwright |
+| `bloc-11-open.mjs` | Session 9 step 1: Bloc 11 on the open rule, on a seed of old climbs (as the backfill left them, since Session 10); a guest's climb; That was them; with `OLD=<git rev>`, old build against new | Playwright |
 | `photo-coach-open.mjs` | Session 9 step 2: Photo Coach on the open rule, on a seed of the owner's old log; a stranger's empty log; the stored size of a full photo | Playwright |
 | `zombie-dice-phones.mjs` | Session 9 step 3: one phone as before; three tabs play a whole game, the starter playing for a guest; a Game QR seat | Playwright |
 | `rules.mjs` | `shared/rules-check.mjs` against the rules on a local emulator | Java 21, npx |

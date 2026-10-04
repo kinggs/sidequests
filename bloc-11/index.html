@@ -32,6 +32,11 @@
   .session li{padding:2px 0}
   .bars{margin-top:12px}
   .tile em{font-style:normal}
+  /* The When line (frame 3a): one .note line, the whole of it a target; the date input stays
+     hidden behind it and only lends its picker. Not display:none, so showPicker() can open it. */
+  .when{min-height:60px;display:flex;align-items:center;margin-top:8px;cursor:pointer}
+  .when b{color:var(--text);font-weight:600;text-decoration:underline;text-underline-offset:3px}
+  .when-pick{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
 </style>
 </head>
 <body>
@@ -54,8 +59,8 @@
     <div class="grid" id="grades"></div>
     <label for="note">Which route? (optional)</label>
     <input type="text" id="note" placeholder="the 5 in the cave" autocomplete="off">
-    <label for="when">When</label>
-    <input type="date" id="when">
+    <p class="note when" id="whenLine" role="button" tabindex="0"><span><b>Today</b>. Tap the date to change it.</span></p>
+    <input type="date" id="when" class="when-pick" tabindex="-1" aria-label="When">
     <div class="row">
       <button class="quiet big" id="projBtn">Projecting</button>
       <button class="primary big" id="sentBtn">Sent it</button>
@@ -82,7 +87,7 @@
   import { ui } from "../shared/ui.js";
 
   // Bump on every change. The deploy skill checks this against the live site.
-  const APP_VERSION = "0.9.0";
+  const APP_VERSION = "0.9.1";
   const APP_ID = "bloc-11";
   document.getElementById("version").textContent = "v" + APP_VERSION;
 
@@ -102,7 +107,6 @@
   // Anyone signed in logs climbs (the open rule, KIT-PLAN Session 9): for themselves and for their
   // guests, people with no phone (shared/people.js). Each sees the climbs they're in, and the owner
   // sees every climb. A climb's players is its one climber.
-  let legacyClimbers = null;  // this app's own climber list from before people were shared; null until loaded
   let rawClimbs = [];         // as stored
   let climbs = [];            // { id, climber, grade, result, note, at, by, uids }, climber resolved to a person
   let unsubs = [];
@@ -526,7 +530,21 @@
     e.target.value = "";
     if (f) importFile(f);
   });
+  // The When line reads the date and opens the picker; what's stored is unchanged (20:00 local).
+  function paintWhen(){
+    const iso = $("when").value || toISO(new Date());
+    const today = iso === toISO(new Date());
+    const day = new Date(fromISO(iso)).toLocaleDateString(undefined, { weekday:"short", day:"numeric", month:"short" }).replace(/,/g, "");
+    $("whenLine").innerHTML = `<span>${today ? "<b>Today</b>. Tap the date to change it." : `<b>${day}</b>. Tap to change it.`}</span>`;
+  }
+  tap($("whenLine"), () => {
+    const el = $("when");
+    try { if (el.showPicker) return el.showPicker(); } catch {}
+    el.focus(); el.click();
+  });
+  $("when").addEventListener("change", paintWhen);
   $("when").value = toISO(new Date());
+  paintWhen();
 
   // A rename, a merge or someone new on another phone (or in another app) shows up here.
   people.onChange(() => { refreshClimbs(); render(); });
@@ -615,7 +633,7 @@
     const mine = ++run;
     owner = false;
     mountAccount();
-    who = null; progWho = null; legacyClimbers = null; rawClimbs = []; climbs = [];
+    who = null; progWho = null; rawClimbs = []; climbs = [];
 
     const gated = cloud.configured() && !user;
     $("gate").classList.toggle("hidden", !gated);
@@ -628,10 +646,7 @@
       if (mine !== run) return;
       owner = role === "owner";
       mountAccount();
-      const household = owner && backfillDue();
       unsubs.push(people.start({
-        household,
-        legacy: household ? () => legacyClimbers : undefined,
         onMe: ({ name, added }) => {
           toast(added ? `Added you as ${name}` : `You're ${name}`);
           who = people.meId();
@@ -639,61 +654,16 @@
         },
         onError: e => toast("Couldn't save to the cloud: " + (e.message || e))
       }));
-      if (household) unsubs.push(cloud.watch("state/main", doc => {
-        legacyClimbers = (doc && doc.climbers) || {};
-        people.poke();
-        render();
-      }));
       const opts = owner ? { orderBy: "at", desc: true, limit: 1000 } : { where: ["uids", "array-contains", user.uid] };
       unsubs.push(cloud.watchList("climbs", rows => {
         rawClimbs = rows.filter(r => typeof r.at === "number" && typeof r.grade === "number");
         refreshClimbs();
-        backfill();
         healClaims();
         render();
       }, opts, e => toast("Couldn't load your climbs: " + (e.code || e.message || e))));
     }
     render();
   }
-
-  // The household list is the owner's, and only Rack It's admin path keeps it (KIT-PLAN Session 9).
-  // Here the owner's phone loads it once more, until the one-time backfill below has named every old
-  // record from it.
-  const backfillDue = () => { try { return !localStorage.getItem("bloc-11.uids-backfill." + myUid()); } catch { return true; } };
-  // ---- the backfill, once, on the owner's phone (KIT-PLAN Session 9 step 1) ----
-  // Climbs from before the open rule name their climber by a household id and say by with an email.
-  // Each gets players (the climber, resolved: a claimed person's is their uid), names, uids for a
-  // climber with an account, and by as a uid (the owner's when the logger can't be named). A climb
-  // for someone with no account keeps empty uids: only the owner sees it, named from names.
-  // Again after an Import.
-  const BACKFILL_KEY = "bloc-11.uids-backfill.";
-  let backfilling = false;
-  async function backfill(){
-    if (!owner || backfilling || !people.ready || !cloud.user) return;
-    try { if (localStorage.getItem(BACKFILL_KEY + cloud.user.uid)) return; } catch {}
-    backfilling = true;
-    try {
-      const byEmail = email => { const p = people.active().find(q => q.email && q.email === String(email || "").toLowerCase()); return p && p.uid; };
-      const ops = rawClimbs.filter(r => !Array.isArray(r.uids)).map(r => {
-        const id = people.resolve(String(r.climber));
-        return { patch: `climbs/${r.id}`, data: { climber: id, players: [id], names: people.names([id]), uids: people.uidsOf([id]),
-          by: (r.by && !String(r.by).includes("@") ? r.by : byEmail(r.by)) || cloud.user.uid } };
-      });
-      for (let i = 0; i < ops.length; i += 400) await cloud.batch(ops.slice(i, i + 400));
-      try { localStorage.setItem(BACKFILL_KEY + cloud.user.uid, "1"); } catch {}
-      // The count the owner was promised (KIT-PLAN Session 9 step 1): climbs nobody but the owner sees.
-      const noAccount = ops.filter(o => !o.data.uids.length);
-      if (ops.length){
-        const who = [...new Set(noAccount.map(o => o.data.names[0] || "someone"))];
-        console.info(`[backfill] gave ${ops.length} climbs their names and uids; ${noAccount.length} are for people with no account`);
-        if (noAccount.length) ui.sheet({ title: `${noAccount.length} climb${noAccount.length === 1 ? "" : "s"} for people with no account`,
-          text: `${who.join(", ")} ${who.length === 1 ? "has" : "have"} no account, so only you see ${noAccount.length === 1 ? "that climb" : "those climbs"}, by name. ` +
-            "To log for them again, add them as a guest." });
-      }
-    } catch (e){ console.warn("[backfill]", e); }
-    finally { backfilling = false; }
-  }
-  people.onChange(backfill);
 
   // ---- offline shell ----
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");

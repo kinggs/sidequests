@@ -1,0 +1,140 @@
+{
+ "app": "zombie-dice",
+ "version": "0.2.1 as the backfill left it",
+ "exportedAt": "2026-10-01T20:00:00.000Z",
+ "people": {
+  "pK": {
+   "name": "Mock",
+   "email": "mock.player@gmail.com",
+   "uid": "mock-uid",
+   "colour": "#cf1b1b",
+   "createdAt": 1,
+   "deleted": false
+  },
+  "pM": {
+   "name": "Mel",
+   "email": "mel@example.com",
+   "uid": "mock-mel",
+   "colour": "#4a8fce",
+   "createdAt": 2,
+   "deleted": false
+  },
+  "pR": {
+   "name": "Rolf",
+   "email": "",
+   "colour": "#0f7a3d",
+   "createdAt": 3,
+   "deleted": false
+  }
+ },
+ "games": [
+  {
+   "id": "g1",
+   "game": "zombie-dice",
+   "hh": false,
+   "players": [
+    "mock-uid",
+    "mock-mel"
+   ],
+   "seats": [
+    "mock-uid",
+    "mock-mel"
+   ],
+   "scores": {
+    "mock-uid": 9,
+    "mock-mel": 14
+   },
+   "turn": 0,
+   "round": 4,
+   "phase": "play",
+   "turns": [
+    {
+     "p": "mock-mel",
+     "brains": 5,
+     "bust": false,
+     "rolls": 2,
+     "rescues": 0,
+     "total": 14
+    }
+   ],
+   "winner": "mock-mel",
+   "status": "done",
+   "seq": 30,
+   "at": 1759000000000,
+   "endedAt": 1759000600000,
+   "by": "mock-uid",
+   "names": [
+    "Mock",
+    "Mel"
+   ],
+   "uids": [
+    "mock-uid",
+    "mock-mel"
+   ]
+  },
+  {
+   "id": "g2",
+   "game": "zombie-dice",
+   "hh": true,
+   "players": [
+    "mock-uid",
+    "pR"
+   ],
+   "seats": [
+    "mock-uid",
+    "pR"
+   ],
+   "scores": {
+    "mock-uid": 13,
+    "pR": 7
+   },
+   "turn": 0,
+   "round": 5,
+   "phase": "play",
+   "turns": [],
+   "winner": "mock-uid",
+   "status": "done",
+   "seq": 40,
+   "at": 1759100000000,
+   "endedAt": 1759100600000,
+   "by": "mock-uid",
+   "names": [
+    "Mock",
+    "Rolf"
+   ],
+   "uids": [
+    "mock-uid"
+   ]
+  },
+  {
+   "id": "g3",
+   "game": "zombie-dice",
+   "hh": false,
+   "players": [
+    "mock-mel"
+   ],
+   "seats": [
+    "mock-mel"
+   ],
+   "scores": {
+    "mock-mel": 13
+   },
+   "turn": 0,
+   "round": 7,
+   "phase": "play",
+   "turns": [],
+   "winner": "mock-mel",
+   "status": "done",
+   "seq": 12,
+   "at": 1759200000000,
+   "endedAt": 1759200600000,
+   "by": "mock-mel",
+   "names": [
+    "Mel"
+   ],
+   "uids": [
+    "mock-mel"
+   ]
+  }
+ ]
+}

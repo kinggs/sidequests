@@ -287,7 +287,7 @@
   import { ui } from "../shared/ui.js";
 
   // Bump on every change. The deploy skill checks this against the live site.
-  const APP_VERSION = "0.6.0";
+  const APP_VERSION = "0.6.1";
   const APP_ID = "zombie-dice";
   document.getElementById("version").textContent = "v" + APP_VERSION;
 
@@ -1163,12 +1163,14 @@
     for (const raw of data.games){
       if (!raw || !raw.id || have.has(raw.id) || !Array.isArray(raw.players)) continue;
       const { id, _updatedAt, ...doc } = raw;
+      // A game from before the open rule names no accounts: this phone names them now.
+      if (!Array.isArray(doc.uids)){ const x = resolveGame(raw); Object.assign(doc, { players: x.players, seats: x.seats, scores: x.scores,
+        winner: x.winner, turns: x.turns, names: people.names(x.players), uids: people.uidsOf(x.players) }); }
+      if (!doc.by || String(doc.by).includes("@")) doc.by = myUid() || doc.by;
       await store.save(String(id), doc);
       added++;
     }
     toast(added ? `Imported ${plural(added, "game")}` : "Nothing new to import");
-    try { localStorage.removeItem(BACKFILL_KEY + cloud.user.uid); } catch {}
-    backfill();
   }
 
   // ---- storage ----
@@ -1332,12 +1334,11 @@
       if (mine !== run) return;
       owner = role === "owner";
       mountAccount();
-      unsubs.push(people.start({ household: owner && backfillDue(), onError: e => toast("Couldn't save to the cloud: " + (e.message || e)) }));
+      unsubs.push(people.start({ onError: e => toast("Couldn't save to the cloud: " + (e.message || e)) }));
       const opts = owner ? { orderBy: "at", desc: true, limit: 500 } : { where: ["uids", "array-contains", user.uid] };
       unsubs.push(cloud.watchList("games", rows => {
         rawGames = rows.filter(r => Array.isArray(r.players));
         refreshGames();
-        backfill();
         healClaims();
         // Reopening the app drops straight back into this phone's game.
         if (!resumed){
@@ -1354,39 +1355,6 @@
     }
     render();
   }
-
-  // The household list is the owner's, and only Rack It's admin path keeps it (KIT-PLAN Session 9).
-  // Here the owner's phone loads it once more, until the one-time backfill below has named every old
-  // record from it.
-  const backfillDue = () => { try { return !localStorage.getItem("zombie-dice.uids-backfill." + myUid()); } catch { return true; } };
-  // ---- the backfill, once, on the owner's phone (KIT-PLAN Session 7 step 4) ----
-  // Games from before the open rule name players by the household's ids and say who started them
-  // by email. Each gets its ids resolved (a claimed person's becomes their uid), names, uids for
-  // the players with an account, and by as a uid (the owner's when the starter can't be named).
-  // Again after an Import, which can bring old games back.
-  const BACKFILL_KEY = "zombie-dice.uids-backfill.";
-  let backfilling = false;
-  async function backfill(){
-    if (!owner || backfilling || !people.ready || !cloud.user) return;
-    try { if (localStorage.getItem(BACKFILL_KEY + cloud.user.uid)) return; } catch {}
-    const old = rawGames.filter(x => !Array.isArray(x.uids));
-    backfilling = true;
-    try {
-      const byEmail = email => { const p = people.active().find(q => q.email && q.email === String(email || "").toLowerCase()); return p && p.uid; };
-      const ops = old.map(raw => {
-        const x = resolveGame(raw);
-        return { patch: `games/${raw.id}`, data: {
-          players: x.players, seats: x.seats, scores: x.scores, winner: x.winner, turns: x.turns,
-          names: people.names(x.players), uids: people.uidsOf(x.players),
-          by: (raw.by && !String(raw.by).includes("@") ? raw.by : byEmail(raw.by)) || cloud.user.uid } };
-      });
-      for (let i = 0; i < ops.length; i += 400) await cloud.batch(ops.slice(i, i + 400));
-      try { localStorage.setItem(BACKFILL_KEY + cloud.user.uid, "1"); } catch {}
-      if (ops.length) console.info(`[backfill] gave ${ops.length} games their names and uids`);
-    } catch (e){ console.warn("[backfill]", e); }
-    finally { backfilling = false; }
-  }
-  people.onChange(backfill);
 
   // ---- offline shell ----
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");

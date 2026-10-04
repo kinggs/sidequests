@@ -1,0 +1,158 @@
+{
+ "app": "around-the-clock",
+ "version": "0.7.1 as the backfill left it",
+ "exportedAt": "2026-10-01T20:00:00.000Z",
+ "people": {
+  "pK": {
+   "name": "Mock",
+   "email": "mock.player@gmail.com",
+   "uid": "mock-uid",
+   "colour": "#cf1b1b",
+   "createdAt": 1,
+   "deleted": false
+  },
+  "pM": {
+   "name": "Mel",
+   "email": "mel@example.com",
+   "uid": "mock-mel",
+   "colour": "#4a8fce",
+   "createdAt": 2,
+   "deleted": false
+  },
+  "pR": {
+   "name": "Rolf",
+   "email": "",
+   "colour": "#0f7a3d",
+   "createdAt": 3,
+   "deleted": false
+  }
+ },
+ "games": [
+  {
+   "id": "a1",
+   "game": "atc180",
+   "player": "pK",
+   "darts": [
+    3,
+    3,
+    1,
+    0,
+    1,
+    3
+   ],
+   "at": 1759000000000,
+   "status": "done",
+   "direction": "up",
+   "players": [
+    "mock-uid"
+   ],
+   "throws": {
+    "mock-uid": [
+     3,
+     3,
+     1,
+     0,
+     1,
+     3
+    ]
+   },
+   "scores": {
+    "mock-uid": 11
+   },
+   "turn": 0,
+   "log": [],
+   "names": [
+    "Mock"
+   ],
+   "uids": [
+    "mock-uid"
+   ],
+   "by": "mock-uid"
+  },
+  {
+   "id": "a2",
+   "game": "atc180",
+   "players": [
+    "mock-uid",
+    "mock-mel"
+   ],
+   "throws": {
+    "mock-uid": [
+     1,
+     1,
+     1
+    ],
+    "mock-mel": [
+     3,
+     3,
+     3
+    ]
+   },
+   "turn": 0,
+   "log": [
+    0,
+    0,
+    0,
+    1,
+    1,
+    1
+   ],
+   "direction": "down",
+   "at": 1759100000000,
+   "endedAt": 1759100600000,
+   "status": "done",
+   "by": "mock-uid",
+   "scores": {
+    "mock-uid": 3,
+    "mock-mel": 9
+   },
+   "names": [
+    "Mock",
+    "Mel"
+   ],
+   "uids": [
+    "mock-uid",
+    "mock-mel"
+   ]
+  },
+  {
+   "id": "a3",
+   "game": "atc180",
+   "players": [
+    "mock-mel",
+    "pR"
+   ],
+   "throws": {
+    "mock-mel": [
+     0,
+     1
+    ],
+    "pR": [
+     3
+    ]
+   },
+   "turn": 1,
+   "log": [
+    0,
+    0,
+    1
+   ],
+   "direction": "up",
+   "at": 1759200000000,
+   "endedAt": 1759200600000,
+   "status": "done",
+   "by": "mock-mel",
+   "scores": {
+    "mock-mel": 1,
+    "pR": 3
+   },
+   "names": [
+    "Mel",
+    "Rolf"
+   ],
+   "uids": [
+    "mock-mel"
+   ]
+  }
+ ]
+}

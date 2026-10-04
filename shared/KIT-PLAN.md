@@ -67,7 +67,12 @@ same day; where it changes an earlier row, the earlier row says so.
 | Test harness | Committed in `shared/proofs/`: the multi-tab `?mock` runner and the rules guard-mutation script. |
 | **2026-10-03 (owner, end of Session 9)** | |
 | One more session | The outstanding work is structured into **Session 10**, run from the phone. |
-| Session 10's four calls | *Asked at its start; the answers go here.* |
+| **2026-10-04 (owner, start of Session 10)** | |
+| Parked, re-read | **Four items move in**, as Step 5: a pending rated match expires; a scorer who joins a match under way by Game QR; a chain for turn games; My QR wears the app's look. The rest stays Parked. |
+| A club connection | **Only a pair made by the loyalty app** (`app: "sessions-loyalty"`). A staff member's Rack It QR makes an ordinary friend. |
+| The staff badge | **Yes**: the member's phone stamps a `staff` tag on the friend card. |
+| Rack It on the loyalty card | **A link** to the player's Rack It page. The loyalty app never reads `ratings/`. |
+| The household backfills | The owner has opened Around the Clock, Zombie Dice and Bloc 11 since Session 9, so their backfill code goes (Step 1). |
 
 ## Where this ends
 
@@ -107,7 +112,7 @@ taken with these changes.
 | 8 | That was them, the Game QR and seats, two phones scoring one match, a scorer and both sign |
 | 9 | Bloc 11 and Photo Coach on the open rule, Zombie Dice on several phones, the household tier gone |
 
-| **10** Loose ends, then the club | 1 loose ends · 2 `connect.scan()` · 3 club connections and the staff badge · 4 a table session | Fair Nine gone; scan in-app; staff log a match at the club |
+| **10** Loose ends, then the club | 1 loose ends · 2 `connect.scan()` · 3 club connections and the staff badge · 4 a table session · 5 four from Parked | Fair Nine gone; scan in-app; staff log a match at the club; a pending match expires, a late scorer, a turn chain, My QR in the app's look |
 
 Sessions 0 to 9 are done (`KIT-HISTORY.md`). Don't build ahead of the owner: ideas go in **Parked**.
 
@@ -148,14 +153,16 @@ the session runs out of room, and write the Handover note in `KIT-HISTORY.md`.
 
 - [ ] **Fair Nine**: on or after 2026-10-16, `/deletequest fair-nine` (it confirms by name with the
   owner; the launcher tile, if any, goes too). Before that date, leave this box and say so.
-- [ ] **Bloc 11, frame 3a's date line**: the When field becomes one `.note` line, "Today. Tap the
+- [x] **Bloc 11, frame 3a's date line**: the When field becomes one `.note` line, "Today. Tap the
   date to change it.", which opens the date picker (`input.showPicker()`, the input kept hidden)
   and then reads "Wed 1 Oct. Tap to change it." Stored `at` unchanged (20:00 local).
-- [ ] **The household list's last visits**: if the owner says they've opened Around the Clock,
+- [x] **The household list's last visits**: if the owner says they've opened Around the Clock,
   Zombie Dice and Bloc 11 since Session 9, remove each app's `backfillDue()` path (the household
   watch, `legacy`, the `state/main` watch and the backfill itself), so `people.start` there is
   never `household: true`. Otherwise leave it, and say so.
-- [ ] `KIT.md` and the SPECs where they mention any of the above.
+- [x] `KIT.md` and the SPECs where they mention any of the above. (Bloc 11 0.9.1, Around the
+  Clock 0.10.1, Zombie Dice 0.6.1. Fair Nine waits for 2026-10-16. The open-rule proofs start
+  from `seeds/<app>-backfilled.json`, the old seeds as the backfill left them.)
 
 ### Step 2 — `connect.scan()` (minor bumps; no rules)
 
@@ -193,8 +200,30 @@ Read "Sessions Loyalty meets Rack It" below first, and Rack It's scorer flow (`C
 - [ ] Proof: `?mock`, staff (the owner) scores a rated club match for Ann and Ben; both confirm;
   ratings move once; one earn entry each; Rebuild points and Rebuild ratings change nothing.
 
+### Step 5 — Four from Parked (owner, 2026-10-04)
+
+Each its own push, cases first where the rules change.
+
+- [ ] **A pending rated match expires.** Seven days after it ended with nobody's Confirm missing
+  bar the other side's, whoever ended it (a player or the scorer) may make it a friendly:
+  "Nobody confirmed in a week, so it counts as a friendly." Rule: the ender may set `rated:
+  false` on their pending match once `endedAt` is a week old; nothing else changes. Until then the
+  ender's Home card says "Waiting for Ann to confirm" with the days left.
+- [ ] **A late scorer by Game QR.** A match under way with no guest seat left and no `scorer`:
+  someone who scans its Game QR and isn't playing may **Score this match**. Rule: `scorer` goes
+  from absent to the joiner, who is connected to `by`; nothing else changes. Both players then
+  confirm a rated result, as for any scorer.
+- [ ] **A chain for turn games.** The open twin of `nextLink()`, for open-rule records that carry
+  `rev`: Zombie Dice's writes become links, and a phone whose queued writes land after the game
+  moved on is refused and catches up. Proof: `zombie-dice-phones.mjs` gains the offline turn.
+- [ ] **My QR wears the app's look.** `connect.showQR` takes `icon` and `colour`: the app's icon in
+  the middle at error-correction level H, rounded dots, a frame. The code stays square, dark on
+  light, with its quiet zone. Proof: every app's code decodes in the browser; the owner checks it
+  scans first time on both real phones at the pool hall, and it comes out if it doesn't.
+
 **Done when:** Fair Nine is gone (or dated), a friend is made by scanning in-app, a staff member
-shows as staff in Rack It, and a club match scored by staff moves ratings and points once each.
+shows as staff in Rack It, a club match scored by staff moves ratings and points once each, and
+Step 5's four are live.
 
 ---
 
