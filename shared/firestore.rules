@@ -233,10 +233,19 @@ service cloud.firestore {
           : was.status == 'pending' && (now.status == 'pending' ? confirmsMine(keys)
             : now.status == 'done'
               && keys.hasOnly(['status', 'rated', 'zargoBefore', 'zargoAfter', 'ratedAt', 'confirmedBy',
-                               'declinedBy', 'withdrawnBy', '_updatedAt'])
+                               'declinedBy', 'withdrawnBy', 'expired', '_updatedAt'])
+              && expiresFairly(keys)
               // Someone else ended it (a match with no endedBy can't be confirmed), and every
               // other player who didn't end it has already confirmed (both sign, Session 8).
               && (!rated(now) || (request.auth.uid != was.get('endedBy', request.auth.uid) && othersConfirmed()))));
+    }
+    // A pending match nobody finished expires a week after it ended (Session 10 step 5): whoever
+    // finishes it then may say so, expired: true, and only on a friendly.
+    function expiresFairly(keys) {
+      return !keys.hasAny(['expired'])
+        || (request.resource.data.expired == true && !rated(request.resource.data)
+          && resource.data.get('endedAt', null) is number
+          && resource.data.endedAt <= request.time.toMillis() - 7 * 24 * 3600 * 1000);
     }
     // A live match is scored link by link; going to pending stamps endedBy as yourself, and a
     // rated match is never finished from live. Players and the scorer alike.
@@ -272,7 +281,8 @@ service cloud.firestore {
         && ratedOnlyTurnsOff()
         && (was.status == 'live' ? liveScore(keys)
           : was.status == 'pending' && now.status == 'done' && !rated(now)
-            && keys.hasOnly(['status', 'rated', 'withdrawnBy', '_updatedAt']) && now.get('withdrawnBy', '') == request.auth.uid);
+            && keys.hasOnly(['status', 'rated', 'withdrawnBy', 'expired', '_updatedAt']) && now.get('withdrawnBy', '') == request.auth.uid
+            && expiresFairly(keys));
     }
     // A new match its starter scores without playing: live, not ended, the starter not in uids,
     // and connected to each player with an account (a guest needs none). At the club (Session 10

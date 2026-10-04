@@ -213,11 +213,12 @@ Read "Sessions Loyalty meets Rack It" below first, and Rack It's scorer flow (`C
 
 Each its own push, cases first where the rules change.
 
-- [ ] **A pending rated match expires.** Seven days after it ended with nobody's Confirm missing
-  bar the other side's, whoever ended it (a player or the scorer) may make it a friendly:
-  "Nobody confirmed in a week, so it counts as a friendly." Rule: the ender may set `rated:
-  false` on their pending match once `endedAt` is a week old; nothing else changes. Until then the
-  ender's Home card says "Waiting for Ann to confirm" with the days left.
+- [x] **A pending rated match expires.** A week after it ended, the first phone in it (a player's
+  or the scorer's) makes it a friendly, `expired: true`: "Nobody confirmed in a week, so it counts
+  as a friendly." Until then the strips say the days left. (Built differently from the first
+  draft: anyone in it could already Withdraw or say Not right, so the rule only allows `expired`,
+  on a friendly, once `endedAt` is a week old. Rack It 2.21.0; 5 cases, 4 guards;
+  `shared/proofs/rack-it-expiry.mjs`, 9 checks.)
 - [ ] **A late scorer by Game QR.** A match under way with no guest seat left and no `scorer`:
   someone who scans its Game QR and isn't playing may **Score this match**. Rule: `scorer` goes
   from absent to the joiner, who is connected to `by`; nothing else changes. Both players then
@@ -292,7 +293,6 @@ some level"); the club's staff list is `staff/<uid>`, gettable by any account.
 - **Leftover `/members` documents.** Melanie's and the other household entries mean nothing since
   Session 9. The owner may delete them in the Firebase console; nothing needs them.
 - A scorer who joins a match already under way, by Game QR.
-- A pending rated match never expires. An expiry, or a reminder.
 - Other sign-in methods: email link, Apple, phone. The uid keying makes them additive.
 - Firebase anonymous sign-in, for someone with a phone but no Google account.
 - Groups: "connect me to everyone at the club", a group QR. The 24-hour code rules out a

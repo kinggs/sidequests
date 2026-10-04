@@ -707,7 +707,7 @@ import { connect } from "../shared/connect.js";
 import { ui } from "../shared/ui.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "2.20.0";
+const APP_VERSION = "2.21.0";
 const APP_ID = "rack-it";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 document.getElementById("versionMore").textContent = "v" + APP_VERSION;
@@ -1081,6 +1081,7 @@ function watchMatches(){
     // Always opens on Play; a live match shows in the strip above the tabs.
     if(!landed){ landed = true; if(current === "gate") openSetupTab(); }
     healClaims();
+    expireStale();
     paintLiveBar();
     if(current === "matches") renderMatches();
     if(current === "person") renderPerson();
@@ -3584,14 +3585,14 @@ function paintPendBar(){
   if(ask){
     const sc = boardScore(m), mine = sideOfUid(m, myUid());
     const who = side => side === mine ? "You" : sideName(m, side);
-    el.pendWho.textContent = `${who("a")} ${sc.a}–${sc.b} ${who("b")} · rated` + (m.scorer ? ` · scored by ${scorerOf(m)}` : "");
+    el.pendWho.textContent = `${who("a")} ${sc.a}–${sc.b} ${who("b")} · rated` + (m.scorer ? ` · scored by ${scorerOf(m)}` : "") + daysLeft(m);
     el.pendGo.classList.remove("hidden");
     el.pendGo.onclick = () => confirmMatch(m.id);
     el.pendNo.textContent = "Not right";
     el.pendNo.onclick = () => standAsFriendly(m.id, "declinedBy");
   } else {
     const waiting = stillToSign(m).map(u => uidName(m, u));
-    el.pendWho.textContent = `Waiting for ${m.scorer ? waiting.join(" and ") : namesOr(waiting)} to confirm`;
+    el.pendWho.textContent = `Waiting for ${m.scorer ? waiting.join(" and ") : namesOr(waiting)} to confirm` + daysLeft(m);
     el.pendGo.classList.add("hidden");
     // The scorer or whoever ended it may Withdraw; a player who has signed may still say Not right.
     const mine = m.endedBy === myUid();
@@ -3601,6 +3602,28 @@ function paintPendBar(){
   el.pendWho.onclick = () => openSummary(m.id, "matches");
 }
 const stillPending = id => matches.find(x => x.id === id && x.status === "pending");
+// A pending match nobody finished expires a week after it ended (KIT-PLAN Session 10 step 5):
+// the first phone in it to see it then makes it a friendly, expired: true, as anyone in it may
+// already Withdraw or say Not right. Until then the strip counts the days down.
+const WEEK = 7 * 24 * 3600 * 1000;
+const daysLeft = m => {
+  if(typeof m.endedAt !== "number") return "";
+  const d = Math.ceil((m.endedAt + WEEK - Date.now()) / (24 * 3600 * 1000));
+  return d > 0 ? ` · ${d} day${d === 1 ? "" : "s"} left` : "";
+};
+const expiring = new Set();
+function expireStale(){
+  const me = myUid();
+  if(!me) return;
+  for(const m of matches){
+    if(m.status !== "pending" || typeof m.endedAt !== "number" || m.endedAt > Date.now() - WEEK || expiring.has(m.id)) continue;
+    const scorer = m.scorer === me, player = (m.uids || []).includes(me);
+    if(!scorer && !player) continue;
+    expiring.add(m.id);
+    cloud.patch("matches/" + m.id, { status: "done", rated: false, expired: true, ...(scorer && !player ? { withdrawnBy: me } : {}) })
+      .catch(e => { console.warn("[expire]", m.id, e); expiring.delete(m.id); });
+  }
+}
 async function confirmMatch(id){
   const m = stillPending(id);
   if(!m || pendBusy || !stillToSign(m).includes(myUid())) return;
@@ -3756,7 +3779,8 @@ function renderSummary(){
   el.sumZargo.textContent = s.status === "pending"
     ? `Rated · waiting for ${namesOr(confirmers(s).map(u => uidName(s, u)))} to confirm. Ratings move once they do.`
     : s.rated === false
-    ? "Friendly · ratings unchanged" + (s.declinedBy ? ` · ${uidName(s, s.declinedBy)} said it wasn't right`
+    ? s.expired ? "Nobody confirmed in a week, so it counts as a friendly. Ratings unchanged."
+      : "Friendly · ratings unchanged" + (s.declinedBy ? ` · ${uidName(s, s.declinedBy)} said it wasn't right`
         : s.withdrawnBy ? ` · withdrawn by ${uidName(s, s.withdrawnBy)}` : "")
     : zb && za
     ? `Zargo: ${nA} ${Math.round(zb.a)} → ${Math.round(za.a)} · ${nB} ${Math.round(zb.b)} → ${Math.round(za.b)}`

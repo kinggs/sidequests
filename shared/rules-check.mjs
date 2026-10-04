@@ -1609,3 +1609,46 @@ describe("A table session: must refuse", () => {
     await assertFails(updateDoc(doc(user("bar"), SL + "entries/x1"), { match: "club1" }));
   });
 });
+
+// ---- Session 10 step 5: a pending rated match expires (KIT-PLAN.md) ----
+// A week after it ended, a rated match nobody finished counts as a friendly: the first phone in
+// it to open Rack It writes it so, with expired: true. Anyone in it may (a player, or the scorer
+// as themselves), as they may already Withdraw or say Not right; `expired` itself is allowed only
+// once endedAt is a week old, and only on a friendly.
+
+const DAYS = d => Date.now() - d * 86400000;
+
+describe("A pending match expires: what may be done", () => {
+  beforeEach(async () => {
+    await seed("friendships/ben_cat", { uids: ["ben", "cat"], since: 1, via: "x", app: "rack-it" });
+    await seed(M + "old", abMatch({ status: "pending", endedBy: "ann", endedAt: DAYS(8) }));
+    await seed(M + "oldScored", scored({ status: "pending", endedBy: "cat", endedAt: DAYS(8) }));
+  });
+  test("a week on, either player marks it expired: a friendly", async () => {
+    await assertSucceeds(updateDoc(doc(user("ben"), M + "old"), { status: "done", rated: false, expired: true }));
+  });
+  test("…the player who ended it too", async () => {
+    await assertSucceeds(updateDoc(doc(user("ann"), M + "old"), { status: "done", rated: false, expired: true }));
+  });
+  test("…and the scorer, as themselves", async () => {
+    await assertSucceeds(updateDoc(doc(user("cat"), M + "oldScored"), { status: "done", rated: false, withdrawnBy: "cat", expired: true }));
+  });
+});
+
+describe("A pending match expires: must refuse", () => {
+  beforeEach(async () => {
+    await seed("friendships/ben_cat", { uids: ["ben", "cat"], since: 1, via: "x", app: "rack-it" });
+    await seed(M + "young", abMatch({ status: "pending", endedBy: "ann", endedAt: DAYS(6) }));
+    await seed(M + "old", abMatch({ status: "pending", endedBy: "ann", endedAt: DAYS(8) }));
+    await seed(M + "youngScored", scored({ status: "pending", endedBy: "cat", endedAt: DAYS(6) }));
+  });
+  test("expired before the week is up, by a player or the scorer", async () => {
+    await assertSucceeds(updateDoc(doc(user("ben"), M + "young"), { status: "done", rated: false, declinedBy: "ben" }));   // Not right is fine
+    await assertFails(updateDoc(doc(user("ann"), M + "young"), { status: "done", rated: false, expired: true }));
+    await assertFails(updateDoc(doc(user("cat"), M + "youngScored"), { status: "done", rated: false, withdrawnBy: "cat", expired: true }));
+  });
+  test("expired on a match that stays rated, or by someone not in it", async () => {
+    await assertFails(updateDoc(doc(user("ben"), M + "old"), { status: "done", expired: true }));
+    await assertFails(updateDoc(doc(user("eve"), M + "old"), { status: "done", rated: false, expired: true }));
+  });
+});

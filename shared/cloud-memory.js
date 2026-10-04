@@ -176,7 +176,11 @@ function myPhone(u, keys, now, was){
 }
 const ownerKeepsChain = (u, d, was) => was.status !== "live" || !Array.isArray(was.uids)
   || myPhone(u, changed(was, d), d, was) || nextLink(d, was) || rackSwap(d, was);
-const CONFIRM_KEYS = ["status", "rated", "zargoBefore", "zargoAfter", "ratedAt", "confirmedBy", "declinedBy", "withdrawnBy", "_updatedAt"];
+const CONFIRM_KEYS = ["status", "rated", "zargoBefore", "zargoAfter", "ratedAt", "confirmedBy", "declinedBy", "withdrawnBy", "expired", "_updatedAt"];
+// A pending match nobody finished expires a week after it ended (Session 10 step 5).
+const WEEK = 7 * 24 * 3600 * 1000;
+const expiresFairly = (keys, now, was) => !keys.includes("expired")
+  || (now.expired === true && !rated(now) && typeof was.endedAt === "number" && was.endedAt <= Date.now() - WEEK);
 function liveScore(u, keys, now, was){
   const by = now.endedBy ?? null;
   return (myPhone(u, keys, now, was) || nextLink(now, was)) && ["live", "pending", "done", "discarded"].includes(now.status)
@@ -190,7 +194,7 @@ function playerScores(u, now, was){
   if (was.status === "live") return liveScore(u, keys, now, was);
   if (was.status !== "pending") return false;
   if (now.status === "pending") return confirmsMine(u, keys, now, was);
-  return now.status === "done" && keys.every(k => CONFIRM_KEYS.includes(k))
+  return now.status === "done" && keys.every(k => CONFIRM_KEYS.includes(k)) && expiresFairly(keys, now, was)
     && (!rated(now) || (u.uid !== (was.endedBy ?? u.uid) && othersConfirmed(u, was)));
 }
 // Both sign (Session 8 step 4): a player adds only their own key to confirms; a rated match is
@@ -217,7 +221,8 @@ function scorerScores(u, now, was){
   if (rated(now) && !rated(was)) return false;
   if (was.status === "live") return liveScore(u, keys, now, was);
   return was.status === "pending" && now.status === "done" && !rated(now)
-    && keys.every(k => ["status", "rated", "withdrawnBy", "_updatedAt"].includes(k)) && now.withdrawnBy === u.uid;
+    && keys.every(k => ["status", "rated", "withdrawnBy", "expired", "_updatedAt"].includes(k)) && now.withdrawnBy === u.uid
+    && expiresFairly(keys, now, was);
 }
 // A rating moves only in the batch that confirms a rated match: pending before, done and
 // rated after (`after` is the store as the whole batch leaves it), the rating a player in it.

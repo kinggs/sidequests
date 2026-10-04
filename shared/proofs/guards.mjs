@@ -212,6 +212,15 @@ export const GUARDS = [
     red: /the venue set, changed or dropped/ },
   { guard: "Table: an entry's match is an id", from: "|| request.resource.data.match is string);", to: "|| true);",
     red: /an entry's match that isn't an id/ },
+  // ---- A pending match expires (Session 10 step 5) ----
+  { guard: "Expiry: only once a week is up", from: "&& resource.data.endedAt <= request.time.toMillis() - 7 * 24 * 3600 * 1000);", to: ");",
+    red: /expired before the week is up/ },
+  { guard: "Expiry: only on a friendly", from: "request.resource.data.expired == true && !rated(request.resource.data)", to: "request.resource.data.expired == true",
+    red: /expired on a match that stays rated/ },
+  { guard: "Expiry: a player's finish checks it", from: "              && expiresFairly(keys)\n", to: "\n",
+    red: /expired before the week is up/ },
+  { guard: "Expiry: the scorer's finish checks it", from: "            && expiresFairly(keys));", to: "            );",
+    red: /expired before the week is up/ },
   // ---- Accounts (Session 1) ----
   { guard: "Accounts: profiles are got one at a time, never listed",
     from: "match /profiles/{uid} {\n      allow get: if signedIn();", to: "match /profiles/{uid} {\n      allow read: if signedIn();",

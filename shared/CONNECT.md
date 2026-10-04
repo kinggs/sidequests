@@ -91,7 +91,8 @@ a banner, "Scoring for Kenny and Rolf" (`.livestrip`). She scores and ends it, a
 
 **Both sign.** A rated match needs every player who didn't end it to confirm. The first Confirm
 adds only that player's key to `confirms`; the last is the one batch that moves both ratings and
-finishes the match. Either player's **Not right** makes it a friendly at once. The players'
+finishes the match. Either player's **Not right** makes it a friendly at once, and a week after it ended with a
+confirm still missing it becomes one anyway (`expired`, Session 10). The players'
 strip: "Kenny 5–3 You · rated · scored by Melanie". The scorer's: "Waiting for Kenny and Rolf to
 confirm", then "Waiting for Rolf".
 
