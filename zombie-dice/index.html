@@ -287,7 +287,7 @@
   import { ui } from "../shared/ui.js";
 
   // Bump on every change. The deploy skill checks this against the live site.
-  const APP_VERSION = "0.6.3";
+  const APP_VERSION = "0.7.0";
   const APP_ID = "zombie-dice";
   document.getElementById("version").textContent = "v" + APP_VERSION;
 
@@ -704,14 +704,33 @@
 
   // Every write says what it did (rev.say, the other phones' echo strip) and stamps this phone's
   // presence. phones is never written whole: each phone touches only its own entry.
+  // Each write is the next link of a chain (KIT-PLAN Session 10 step 5): one more than the n this
+  // phone knows, built on that key (rev.was). The rules refuse a write built on a link that's gone,
+  // a phone that played on offline while the game moved on, so it can't rewind the game.
   function save(say = ""){
     g.seq = (g.seq || 0) + 1;
     const me = myUid(), at = Date.now();
-    g.rev = { n: g.seq, key: newKey(), by: me, at, say };
+    g.rev = { n: g.seq, key: newKey(), was: (g.rev && g.rev.key) || "", by: me, at, say };
     sent = [...sent.slice(-39), g.rev.key];
     if (me) g.phones = { ...(g.phones || {}), [me]: { at } };
     const { id, phones, _updatedAt, ...doc } = g;
-    store.save(id, { ...structuredClone(doc), ...(me ? { phones: { [me]: { at } } } : {}) }).catch(e => toast("Couldn't save: " + (e.message || e)));
+    store.save(id, { ...structuredClone(doc), ...(me ? { phones: { [me]: { at } } } : {}) }).catch(e => {
+      if (e && e.code === "permission-denied" && store.live) return catchUp(id);
+      toast("Couldn't save: " + (e.message || e));
+    });
+  }
+  // A write the rules refused: the game moved on without this phone. Take the game as it stands.
+  let caughtUpAt = 0;
+  async function catchUp(id){
+    let x = null;
+    try { x = await cloud.load("games/" + id); } catch (e){ console.warn("[catch up]", e); }
+    if (!x || !g || g.id !== id) return;
+    const { _updatedAt, ...rest } = x;
+    g = structuredClone({ id, ...rest });
+    normTurn(g.t);
+    if (Date.now() - caughtUpAt > 3000) toast("That didn't count: the game moved on while this phone was away.");
+    caughtUpAt = Date.now();
+    renderGame();
   }
   // Light presence: phones.<uid>.at, on open and on hide, and with every write above. No heartbeat.
   function seen(why){

@@ -224,9 +224,11 @@ Each its own push, cases first where the rules change.
   from absent to the joiner, who is connected to `by`; nothing else changes. Both players then
   confirm a rated result, as for any scorer. (Rack It 2.22.0; 4 cases, 6 guards;
   `shared/proofs/rack-it-late-scorer.mjs`, 10 checks.)
-- [ ] **A chain for turn games.** The open twin of `nextLink()`, for open-rule records that carry
+- [x] **A chain for turn games.** The open twin of `nextLink()`, for open-rule records that carry
   `rev`: Zombie Dice's writes become links, and a phone whose queued writes land after the game
-  moved on is refused and catches up. Proof: `zombie-dice-phones.mjs` gains the offline turn.
+  moved on is refused and catches up. (Zombie Dice 0.7.0; `openLink()`, the owner's live records
+  included; 7 cases, 4 guards. The proof is its own file, `shared/proofs/zombie-dice-chain.mjs`, 7
+  checks.)
 - [ ] **My QR wears the app's look.** `connect.showQR` takes `icon` and `colour`: the app's icon in
   the middle at error-correction level H, rounded dots, a frame. The code stays square, dark on
   light, with its quiet zone. Proof: every app's code decodes in the browser; the owner checks it
@@ -287,10 +289,6 @@ some level"); the club's staff list is `staff/<uid>`, gettable by any account.
 - **Full presence**: a heartbeat, "looking", Nudge. Move it to a document per phone first, and
   see the quota sum in "Where the plan overrides the pack".
 - **Around the Clock on several phones**: the turn-game parts from Session 9 step 3.
-- **A chain for turn games.** Zombie Dice on several phones has no `rev` chain in the rules: only a
-  live phone writes, and the newest write wins. A player's phone that went offline mid-turn, while
-  the starter played the turn on for them, would rewind it when its queued writes land. Add the
-  open twin of `nextLink()` (scoped to records that carry `rev`) if that ever bites.
 - **Leftover `/members` documents.** Melanie's and the other household entries mean nothing since
   Session 9. The owner may delete them in the Firebase console; nothing needs them.
 - Other sign-in methods: email link, Apple, phone. The uid keying makes them additive.

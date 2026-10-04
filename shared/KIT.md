@@ -129,7 +129,8 @@ One game on several phones. The design and what was built: `shared/CONNECT.md`. 
   `phones.<uid>.at`) says when each was last seen.
 - **Taking turns** (Zombie Dice, a turn game): a turn is played on its player's phone, or the
   starter's; every other phone is a mirror (`.mirror`) and gets "Your turn" when it comes round.
-  No chain: only a live phone writes, and nothing rated rides on a turn.
+  Every write is the next link of a chain, as in Rack It (Session 10), so an offline phone's late
+  writes are refused rather than rewinding the game.
 - **A scorer**: whoever starts a game they don't play in; never in `uids`, never confirms. A
   rated result then needs every player who didn't end it to confirm (`confirms`).
 

@@ -83,8 +83,9 @@ const ACCESS = [
   { path: /^sidequests\/([^/]+)\/([^/]+)\/([^/]+)$/, when: m => (OPEN_APPS[m[1]] || []).includes(m[2]),
     // A Game QR (Session 9): a live game is got by anyone connected to its starter, and a guest's seat taken.
     read: (m, u, d, was) => isOwner(u) || inUids(was, u) || (!!was && was.status === "live" && connectedTo(u.uid, was.by)),
-    write: (m, u, d, was) => isOwner(u) || (!was ? !!d && opens(u, d)
-      : d ? (inUids(was, u) && (!["uids", "players", "by"].some(k => !same(was[k], d[k])) || openClaim(u, d, was))) || openTakesSeat(u, d, was)
+    // A record that carries rev moves link by link, the owner's live ones too (Session 10 step 5).
+    write: (m, u, d, was) => (isOwner(u) && (!was || !d || was.status !== "live" || openLink(u, d, was))) || (!was ? !!d && opens(u, d)
+      : d ? (inUids(was, u) && ((!["uids", "players", "by"].some(k => !same(was[k], d[k])) && openLink(u, d, was)) || openClaim(u, d, was))) || openTakesSeat(u, d, was)
       : was.by === u.uid) },
   { path: /^sidequests\/([^/]+)(\/|$)/, when: m => m[1] in OPEN_APPS, read: "owner", write: "owner" },
   // Sessions Loyalty: staff (the staff/ list, and the owner) and members (sessions-loyalty/SPEC.md §6).
@@ -170,6 +171,8 @@ function nextLink(now, was){
   const w = isMap(was.rev) ? was.rev : {}, r = isMap(now.rev) ? now.rev : {};
   return r.n === (w.n || 0) + 1 && r.was === (w.key || "") && typeof r.key === "string" && !!r.key && r.key !== (w.key || "");
 }
+// A chain for turn games (Session 10 step 5): only records that carry rev.
+const openLink = (u, now, was) => !("rev" in was) || myPhone(u, changed(was, now), now, was) || nextLink(now, was);
 function myPhone(u, keys, now, was){
   return keys.every(k => k === "phones" || k === "_updatedAt")
     && changed(isMap(was.phones) ? was.phones : {}, isMap(now.phones) ? now.phones : {}).every(k => k === u.uid);

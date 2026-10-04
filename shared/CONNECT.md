@@ -78,9 +78,11 @@ It) **anyone in the game may tap anything**.
 **Turn games** (Zombie Dice, Session 9): only the current player's phone and the starter's are
 live; everyone else gets the same screen dimmed (`.mirror`), and a `.done` moment says "Your
 turn, Melanie" when it becomes theirs. A turn is played on its player's phone once they've
-opened the game there (`phones.<uid>`), otherwise on the starter's. No chain: only a live phone
-writes, nothing rated rides on a turn, and the newest write wins; each write's `rev.say` feeds the
-echo strip, which has no Undo there (a roll is a roll). The Game QR's seat is `openTakesSeat()`.
+opened the game there (`phones.<uid>`), otherwise on the starter's. Since Session 10 a turn game
+keeps the chain too (`openLink()` in the rules, for any open-rule record that carries `rev`): a
+phone that played on offline is refused when it returns and takes the game as it stands. Each
+write's `rev.say` feeds the echo strip, which has no Undo there (a roll is a roll). The Game QR's
+seat is `openTakesSeat()`.
 
 ## 5. Scoring for someone else
 

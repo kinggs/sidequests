@@ -234,6 +234,15 @@ export const GUARDS = [
     to: "        && connected(request.auth.uid, resource.data.get('by', ''));", red: /changing anything else on the way in/ },
   { guard: "Late scorer: connected to the starter", from: "        && connected(request.auth.uid, resource.data.get('by', ''));\n    }\n    // A rating moves",
     to: "        && true;\n    }\n    // A rating moves", red: /not connected to the starter/ },
+  // ---- A chain for turn games (Session 10 step 5) ----
+  { guard: "Turn chain: a player's write is the next link", from: "((keepsWho() && openLink()) || openClaim())", to: "(keepsWho() || openClaim())",
+    red: /a stale phone's write|leaves rev as it was/ },
+  { guard: "Turn chain: the owner keeps it on a live record", from: "        && (resource.data.get('status', '') != 'live' || openLink());", to: ";",
+    red: /the owner's stale phone on a live game/ },
+  { guard: "Turn chain: presence needs no link", from: "|| myPhone(request.resource.data.diff(resource.data).affectedKeys()) || nextLink();", to: "|| nextLink();",
+    red: /presence needs no link/ },
+  { guard: "Turn chain: only records that carry rev", from: "return !('rev' in resource.data)\n        || myPhone", to: "return myPhone",
+    red: /a game with no rev is as it was/ },
   // ---- Accounts (Session 1) ----
   { guard: "Accounts: profiles are got one at a time, never listed",
     from: "match /profiles/{uid} {\n      allow get: if signedIn();", to: "match /profiles/{uid} {\n      allow read: if signedIn();",

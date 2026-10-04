@@ -51,9 +51,15 @@ rolled and turned over.
   roll is a roll.
 - **Presence** (`ui.presence`): an avatar for each other phone in the game and when it was last
   seen, stamped on open, on hide and with every write. No heartbeat.
-- **Who wins a race.** Only a live phone writes the game, so two writers are rare (the starter's
-  and the current player's). The newest write is the truth and every phone takes it. Nothing is
-  rated, so the rules don't police whose turn it is (KIT-PLAN Session 9).
+- **Who wins a race: the chain** (0.7.0, KIT-PLAN Session 10 step 5). Only a live phone writes
+  the game, so two writers are rare (the starter's and the current player's). Every write is the
+  next link, `rev: { n, key, was, by, at, say }`: one more than the `n` the phone knows, built on
+  that `key`. The rules refuse a write built on a link that's gone, so a phone that played on
+  offline while the starter's phone played its turn can't rewind the game: when it comes back its
+  queued writes are refused, it takes the game as it stands, and says "That didn't count: the game
+  moved on while this phone was away." Presence and a seat changing hands need no link. Nothing is
+  rated, so the rules still don't police whose turn it is. ⚠ A phone still on 0.6.x mid-game when
+  the rules land has its writes refused; reopening the app updates it.
 
 ## The game
 

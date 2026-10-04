@@ -19,6 +19,7 @@ shares `pw.mjs` with them.
 | `table-session.mjs` | Session 10 step 4: staff start a club match from the loyalty app, score it in Rack It; a spend beside it; both confirm; one earn entry each; Rebuilds change nothing | Playwright |
 | `rack-it-expiry.mjs` | Session 10 step 5: a pending rated match expires after a week, on a player's phone or the scorer's; the strips count down | Playwright |
 | `rack-it-late-scorer.mjs` | Session 10 step 5: a scorer who joins a rated match under way by its Game QR; both players confirm | Playwright |
+| `zombie-dice-chain.mjs` | Session 10 step 5: a turn game's chain; a phone offline on its turn comes back after the starter played it, and is refused rather than rewinding | Playwright |
 | `rev-probe.mjs` | Session 8 step 3's probe: queued offline writes against a counter and against the chain, on the emulator | Java 21, npx |
 | `zombie-dice-open.mjs` | Session 7 step 4: the open rule in Zombie Dice, on a seed of old games (`seeds/`); with `OLD=<git rev>`, old build against new | Playwright |
 | `bloc-11-open.mjs` | Session 9 step 1: Bloc 11 on the open rule, on a seed of old climbs (as the backfill left them, since Session 10); a guest's climb; That was them; with `OLD=<git rev>`, old build against new | Playwright |

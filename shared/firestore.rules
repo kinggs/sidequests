@@ -34,7 +34,10 @@ service cloud.firestore {
     // _shared included (only Rack It's admin path reads them). Rack It and Sessions Loyalty spell
     // out the owner's writes below instead: a live match keeps its chain, an entry is only voided.
     match /sidequests/{appId}/{document=**} {
-      allow read, write: if isOwner() && !(appId in ['rack-it', 'sessions-loyalty']);
+      allow read, create, delete: if isOwner() && !(appId in ['rack-it', 'sessions-loyalty']);
+      // A live record that carries rev keeps its chain, even for the owner (Session 10 step 5).
+      allow update: if isOwner() && !(appId in ['rack-it', 'sessions-loyalty'])
+        && (resource.data.get('status', '') != 'live' || openLink());
     }
 
     // ---- The open rule (KIT-PLAN Session 7 step 4) ----
@@ -57,7 +60,7 @@ service cloud.firestore {
         && resource.data.get('status', '') == 'live' && connected(request.auth.uid, resource.data.get('by', ''));
       allow create: if isOpen(appId) && coll in openApps()[appId] && signedIn() && opens();
       allow update: if isOpen(appId) && coll in openApps()[appId] && signedIn()
-        && ((request.auth.uid in resource.data.get('uids', []) && (keepsWho() || openClaim())) || openTakesSeat());
+        && ((request.auth.uid in resource.data.get('uids', []) && ((keepsWho() && openLink()) || openClaim())) || openTakesSeat());
       allow delete: if isOpen(appId) && coll in openApps()[appId] && signedIn()
         && resource.data.get('by', '') == request.auth.uid;
     }
@@ -77,6 +80,13 @@ service cloud.firestore {
     }
     function keepsWho() {
       return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['uids', 'players', 'by']);
+    }
+    // A chain for turn games (Session 10 step 5): a record that carries rev (Zombie Dice) moves
+    // link by link, as a Rack It match does (nextLink, below), so a phone whose queued writes land
+    // after the game moved on is refused rather than rewinding it. Presence needs no link.
+    function openLink() {
+      return !('rev' in resource.data)
+        || myPhone(request.resource.data.diff(resource.data).affectedKeys()) || nextLink();
     }
 
     // ---- A guest's seat becomes an account's: seatSwap() (KIT-PLAN Session 8) ----

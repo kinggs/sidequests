@@ -1694,3 +1694,54 @@ describe("A late scorer: must refuse", () => {
     await assertFails(updateDoc(doc(user("cat"), M + "late"), { scorer: "cat", "racks.1": { balls: { 1: "b" } } }));
   });
 });
+
+// ---- Session 10 step 5: a chain for turn games (KIT-PLAN.md) ----
+// A record on the open rule that carries rev (Zombie Dice, since Session 9) moves link by link, as
+// a Rack It match does: rev.n one more than the stored n, rev.was the stored key, a new key. A
+// phone whose queued writes land after the game moved on built on a link that's gone, and is
+// refused. Presence (only your phones entry), a seat changing hands and That was them need no
+// link. The owner keeps to the chain on a live record too. Records without rev are as they were.
+
+const zdLive = (extra = {}) => zd({ rev: { n: 4, key: "k4", by: "ann", at: 1, say: "rolled" }, seq: 4, ...extra });
+const zlink = (n, key, was, by = "x") => ({ n, key, was, by, at: 2, say: "rolled" });
+
+describe("A chain for turn games: what may be done", () => {
+  beforeEach(async () => {
+    await seed(ZD + "live", zdLive());
+    await seed(ZD + "seat", zdLive({ players: ["ann", "g_1"], seats: ["ann", "g_1"], names: ["Ann", "Dan"], uids: ["ann"], scores: { ann: 0, g_1: 0 } }));
+    await seed(ZD + "done", zdLive({ status: "done" }));
+    await seed(ZD + "norev", zd());
+  });
+  test("a player writes the next link", async () => {
+    await assertSucceeds(setDoc(doc(user("cat"), ZD + "live"), { scores: { ann: 0, cat: 3 }, seq: 5, rev: zlink(5, "c5", "k4", "cat") }, { merge: true }));
+    await assertSucceeds(setDoc(doc(user("ann"), ZD + "live"), { turn: 0, seq: 6, rev: zlink(6, "a6", "c5", "ann") }, { merge: true }));
+  });
+  test("presence needs no link; nor does a guest's seat taken by Game QR", async () => {
+    await assertSucceeds(updateDoc(doc(user("cat"), ZD + "live"), { "phones.cat": { at: 3 } }));
+    await assertSucceeds(updateDoc(doc(user("cat"), ZD + "seat"), { players: ["ann", "cat"], seats: ["ann", "cat"], uids: ["ann", "cat"], scores: { ann: 0, cat: 0 } }));
+  });
+  test("the owner writes the next link, and rewrites a finished game freely", async () => {
+    await assertSucceeds(setDoc(doc(as(OWNER), ZD + "live"), { seq: 5, rev: zlink(5, "o5", "k4", "owner") }, { merge: true }));
+    await assertSucceeds(updateDoc(doc(as(OWNER), ZD + "done"), { scores: { ann: 9, cat: 0 } }));
+  });
+  test("a game with no rev is as it was", async () => {
+    await assertSucceeds(updateDoc(doc(user("cat"), ZD + "norev"), { scores: { ann: 0, cat: 5 } }));
+  });
+});
+
+describe("A chain for turn games: must refuse", () => {
+  beforeEach(async () => {
+    await seed(ZD + "live", zdLive());
+  });
+  test("a stale phone's write: the same n again, or built on a key that's gone", async () => {
+    await assertFails(setDoc(doc(user("cat"), ZD + "live"), { scores: { ann: 0, cat: 9 }, seq: 4, rev: zlink(4, "c4", "k3", "cat") }, { merge: true }));
+    await assertFails(setDoc(doc(user("cat"), ZD + "live"), { scores: { ann: 0, cat: 9 }, seq: 5, rev: zlink(5, "c5", "k3", "cat") }, { merge: true }));
+  });
+  test("a write that leaves rev as it was, or reuses the key", async () => {
+    await assertFails(updateDoc(doc(user("cat"), ZD + "live"), { scores: { ann: 0, cat: 9 } }));
+    await assertFails(setDoc(doc(user("cat"), ZD + "live"), { seq: 5, rev: zlink(5, "k4", "k4", "cat") }, { merge: true }));
+  });
+  test("the owner's stale phone on a live game", async () => {
+    await assertFails(setDoc(doc(as(OWNER), ZD + "live"), { scores: { ann: 0, cat: 0 }, seq: 4, rev: zlink(4, "o4", "k3", "owner") }, { merge: true }));
+  });
+});

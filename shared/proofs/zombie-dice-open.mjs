@@ -104,6 +104,10 @@ const refused = [
   ["ben", ben, "add himself to uids", (c, id) => c.patch("games/" + id, { uids: ["mock-ann", "mock-ben", "mock-cat"] })],
 ];
 for (const [who, p, what, fn] of refused) ok(await tryC(p, fn, annId) === "permission-denied", `${who} refused: ${what}`);
-ok(await tryC(ben, (c, id) => c.patch("games/" + id, { "scores.mock-ben": 3 }), annId) === "allowed", "ben, a player in it, scores in ann's game");
+// Since Session 10 a game that carries rev moves link by link: ben's write names the link it builds on.
+ok(await tryC(ben, async (c, id) => { const g = await c.load("games/" + id); const r = g.rev || {};
+  await c.patch("games/" + id, { "scores.mock-ben": 3, rev: { n: (r.n || 0) + 1, key: "b" + Date.now(), was: r.key || "", by: "mock-ben", at: Date.now(), say: "" } }); }, annId) === "allowed",
+  "ben, a player in it, scores in ann's game (the next link)");
+ok(await tryC(ben, (c, id) => c.patch("games/" + id, { "scores.mock-ben": 9 }), annId) === "permission-denied", "…and a write with no link is refused");
 summary();
 await b.close(); srv.close();
