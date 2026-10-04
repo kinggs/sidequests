@@ -1652,3 +1652,45 @@ describe("A pending match expires: must refuse", () => {
     await assertFails(updateDoc(doc(user("eve"), M + "old"), { status: "done", rated: false, expired: true }));
   });
 });
+
+// ---- Session 10 step 5: a late scorer by Game QR (KIT-PLAN.md) ----
+// A live match with no scorer: someone connected to its starter, who isn't playing, scans its
+// Game QR and scores it. Only scorer changes, from absent to the writer. Both players then confirm
+// a rated result, as for any scorer. Ann starts against Ben; Cat (Ann's friend) comes to score.
+
+describe("A late scorer: what may be done", () => {
+  beforeEach(async () => {
+    await seed("friendships/ann_ben", { uids: ["ann", "ben"], since: 1, via: "x", app: "rack-it" });
+    await seed(M + "late", abMatch({ rev: { n: 3, key: "k3" } }));
+  });
+  test("cat, connected to the starter, becomes its scorer, then reads it and scores link by link", async () => {
+    const db = user("cat");
+    await assertSucceeds(getDoc(doc(db, M + "late")));   // the Game QR's get
+    await assertSucceeds(updateDoc(doc(db, M + "late"), { scorer: "cat" }));
+    await assertSucceeds(updateDoc(doc(db, M + "late"), { "racks.1": { balls: { 1: "a" } }, rev: link(4, "c4", "k3") }));
+  });
+});
+
+describe("A late scorer: must refuse", () => {
+  beforeEach(async () => {
+    await seed("friendships/ann_ben", { uids: ["ann", "ben"], since: 1, via: "x", app: "rack-it" });
+    await seed(M + "late", abMatch({ rev: { n: 3, key: "k3" } }));
+    await seed(M + "hasOne", abMatch({ scorer: "ben", uids: ["ann"], playerB: "g_1", names: { a: "Ann", b: "Dan" } }));
+    await seed(M + "over", abMatch({ status: "pending", endedBy: "ann", endedAt: 2 }));
+    await seed(M + "benStarted", abMatch({ by: "ben" }));
+  });
+  test("someone not connected to the starter, or naming someone else", async () => {
+    await assertFails(updateDoc(doc(user("eve"), M + "late"), { scorer: "eve" }));
+    await assertFails(updateDoc(doc(user("cat"), M + "benStarted"), { scorer: "cat" }));   // Ben started it, and Cat knows only Ann
+    await assertFails(updateDoc(doc(user("cat"), M + "late"), { scorer: "ben" }));
+  });
+  test("a match that has a scorer already, or isn't live", async () => {
+    await assertFails(updateDoc(doc(user("cat"), M + "hasOne"), { scorer: "cat" }));
+    await assertFails(updateDoc(doc(user("cat"), M + "over"), { scorer: "cat" }));
+  });
+  test("a player making themselves the scorer, or the scorer changing anything else on the way in", async () => {
+    await assertFails(updateDoc(doc(user("ben"), M + "late"), { scorer: "ben" }));
+    await assertFails(updateDoc(doc(user("cat"), M + "late"), { scorer: "cat", rated: false }));
+    await assertFails(updateDoc(doc(user("cat"), M + "late"), { scorer: "cat", "racks.1": { balls: { 1: "b" } } }));
+  });
+});

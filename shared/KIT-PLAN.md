@@ -219,10 +219,11 @@ Each its own push, cases first where the rules change.
   draft: anyone in it could already Withdraw or say Not right, so the rule only allows `expired`,
   on a friendly, once `endedAt` is a week old. Rack It 2.21.0; 5 cases, 4 guards;
   `shared/proofs/rack-it-expiry.mjs`, 9 checks.)
-- [ ] **A late scorer by Game QR.** A match under way with no guest seat left and no `scorer`:
-  someone who scans its Game QR and isn't playing may **Score this match**. Rule: `scorer` goes
+- [x] **A late scorer by Game QR.** A match under way with no `scorer`: someone who scans its Game
+  QR and isn't playing may **Score this match** (beside any guest seat left). Rule: `scorer` goes
   from absent to the joiner, who is connected to `by`; nothing else changes. Both players then
-  confirm a rated result, as for any scorer.
+  confirm a rated result, as for any scorer. (Rack It 2.22.0; 4 cases, 6 guards;
+  `shared/proofs/rack-it-late-scorer.mjs`, 10 checks.)
 - [ ] **A chain for turn games.** The open twin of `nextLink()`, for open-rule records that carry
   `rev`: Zombie Dice's writes become links, and a phone whose queued writes land after the game
   moved on is refused and catches up. Proof: `zombie-dice-phones.mjs` gains the offline turn.
@@ -292,7 +293,6 @@ some level"); the club's staff list is `staff/<uid>`, gettable by any account.
   open twin of `nextLink()` (scoped to records that carry `rev`) if that ever bites.
 - **Leftover `/members` documents.** Melanie's and the other household entries mean nothing since
   Session 9. The owner may delete them in the Firebase console; nothing needs them.
-- A scorer who joins a match already under way, by Game QR.
 - Other sign-in methods: email link, Apple, phone. The uid keying makes them additive.
 - Firebase anonymous sign-in, for someone with a phone but no Google account.
 - Groups: "connect me to everyone at the club", a group QR. The 24-hour code rules out a

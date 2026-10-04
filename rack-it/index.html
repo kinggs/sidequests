@@ -707,7 +707,7 @@ import { connect } from "../shared/connect.js";
 import { ui } from "../shared/ui.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "2.21.0";
+const APP_VERSION = "2.22.0";
 const APP_ID = "rack-it";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 document.getElementById("versionMore").textContent = "v" + APP_VERSION;
@@ -3471,17 +3471,32 @@ async function joinMatch(id){
   if((m.uids || []).includes(myUid())) return openShared(id);
   const seats = ["a", "b"].filter(side => String(side === "a" ? m.playerA : m.playerB).startsWith("g_"));
   const who = starterName(m);
-  if(!seats.length){
-    return ui.sheet({ title: `${who}'s match is full`, text: "Both sides already have a player with a phone.", cancel: false,
+  // A late scorer (KIT-PLAN Session 10 step 5): a match with no scorer may take one, who isn't playing.
+  const canScore = !m.scorer;
+  if(!seats.length && !canScore){
+    return ui.sheet({ title: `${who}'s match is full`, text: "Both sides already have a player with a phone, and someone is scoring.", cancel: false,
       items: [{ label: "OK", value: true, primary: true }] });
   }
   const sideWord = side => side === "a" ? "teal" : "lilac";
   const pickSeat = await ui.sheet({ title: `${who}'s match`,
-    text: `${GAME_LABEL[gameOf(m)]} · ${lengthText(m)}. Which one are you? You'd be in ${who}'s Friends too.`,
+    text: `${GAME_LABEL[gameOf(m)]} · ${lengthText(m)} · ${sideName(m, "a")} against ${sideName(m, "b")}. ` +
+      (seats.length ? "Which one are you?" : "Both players have a phone.") + ` You'd be in ${who}'s Friends too.`,
     items: [...seats.map(side => ({ label: `I'm ${sideName(m, side)} · ${sideWord(side)} side`, value: side, primary: true })),
+      ...(canScore ? [{ label: "Score this match", value: "score", primary: !seats.length }] : []),
       { label: "Not now", value: null }], cancel: false });
   if(!pickSeat) return;
   const me = myUid();
+  if(pickSeat === "score"){
+    try {
+      await cloud.patch("matches/" + id, { scorer: me });
+      ui.toast(`You're scoring ${who}'s match. Both players confirm a rated result.`);
+      openShared(id);
+    } catch(e){
+      console.warn("[scorer]", e);
+      ui.toast(e && e.code === "permission-denied" ? "Someone else is scoring it already." : "Couldn't start scoring: " + (e.message || e));
+    }
+    return;
+  }
   try {
     await cloud.patch("matches/" + id, { [pickSeat === "a" ? "playerA" : "playerB"]: me, uids: [...(m.uids || []), me] });
     ui.toast(`You're in, on the ${sideWord(pickSeat)} side`);
@@ -3542,14 +3557,15 @@ ui.tap(el.liveMore, async () => {
 function inviteToGame(id){
   const me = people.meId();
   const qr = connect.showQR({ app: APP_ID, game: { id, title: `Join ${firstName(people.nameOf(me, "my"))}'s match` } });
-  let seen = null;
+  let seen = null, scorerSeen = null;
   const off = cloud.watch("matches/" + id, m => {
     if(!m) return;
     const now = [m.playerA, m.playerB];
     if(seen) now.forEach((x, i) => {
       if(x !== seen[i] && !String(x).startsWith("g_")) qr.say(`${firstName(people.nameOf(x, i ? m.names && m.names.b : m.names && m.names.a))} joined · ${i ? "lilac" : "teal"} side`);
     });
-    seen = now;
+    if(seen && m.scorer && m.scorer !== scorerSeen) qr.say(`${firstName(people.nameOf(m.scorer, "Someone"))} is scoring`);
+    seen = now; scorerSeen = m.scorer || null;
   }, e => console.warn("[invite]", e));
   const t = setInterval(() => { if(!document.querySelector(".cn-ov")){ clearInterval(t); off(); } }, 500);
 }

@@ -70,7 +70,7 @@ const ACCESS = [
       || (!!was && was.status === "live" && connectedTo(u.uid, was.by)),
     write: (m, u, d, was) => !was ? !!d && (isOwner(u) || outsiderStarts(u, d) || scorerStarts(u, d))
       : (!!d && inUids(was, u) && playerScores(u, d, was)) || (!!d && was.scorer === u.uid && scorerScores(u, d, was))
-        || (!!d && (rackClaim(u, d, was) || takesSeat(u, d, was)))
+        || (!!d && (rackClaim(u, d, was) || takesSeat(u, d, was) || takesScorer(u, d, was)))
         || (isOwner(u) && (!d || ownerKeepsChain(u, d, was))) },
   { path: /^sidequests\/rack-it\/ratings\/([^/]+)$/, read: "account",
     write: (m, u, d, was, ctx) => isOwner(u) || (!!d && (confirming(m[1], d, ctx.after) || (!was && !!store.docs[`profiles/${u.uid}/guests/${m[1]}`])
@@ -247,6 +247,12 @@ function rackSwap(d, was){
       || (isGuestId(was.playerB) && d.playerB === x && d.playerA === was.playerA));
 }
 const rackClaim = (u, d, was) => was.by === u.uid && rackSwap(d, was) && connectedTo(u.uid, newcomerOf(d));
+// A late scorer (Session 10 step 5): connected to the starter, not playing, on a live match with
+// no scorer; only scorer changes, to themselves.
+function takesScorer(u, now, was){
+  return was.status === "live" && !("scorer" in was) && now.scorer === u.uid && !inUids(was, u)
+    && changed(was, now).every(k => k === "scorer" || k === "_updatedAt") && connectedTo(u.uid, was.by);
+}
 const takesSeat = (u, d, was) => newcomerOf(d) === u.uid && was.status === "live" && rackSwap(d, was) && connectedTo(u.uid, was.by);
 function openSwap(d, was){
   const x = newcomerOf(d), wp = was.players || [], np = d.players || [];

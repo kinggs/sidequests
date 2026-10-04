@@ -85,7 +85,8 @@ echo strip, which has no Undo there (a roll is a roll). The Game QR's seat is `o
 ## 5. Scoring for someone else
 
 Melanie scores Kenny against Rolf: she starts the match and isn't one of the players, so she's
-its `scorer` (never in `uids`, which the ratings rule trusts to be the players). Her phone shows
+its `scorer`. Or she arrives once it's under way (Session 10): she scans its Game QR, and a match
+with no scorer offers **Score this match** (`takesScorer()` in the rules). Either way she's never in `uids`, which the ratings rule trusts to be the players. Her phone shows
 a banner, "Scoring for Kenny and Rolf" (`.livestrip`). She scores and ends it, and may
 **Withdraw**; she never confirms.
 

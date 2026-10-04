@@ -141,7 +141,7 @@ service cloud.firestore {
       allow create: if (signedIn() && (outsiderStarts() || scorerStarts())) || isOwner();
       allow update: if (signedIn() && request.auth.uid in resource.data.get('uids', []) && playerScores())
         || (signedIn() && resource.data.get('scorer', '') == request.auth.uid && scorerScores())
-        || (signedIn() && (rackClaim() || takesSeat()))
+        || (signedIn() && (rackClaim() || takesSeat() || takesScorer()))
         || (isOwner() && ownerKeepsChain());
       allow delete: if isOwner();
     }
@@ -337,6 +337,15 @@ service cloud.firestore {
     // connected to. A guest's match is a friendly, and rackSwap() keeps it one.
     function takesSeat() {
       return newcomer() == request.auth.uid && resource.data.status == 'live' && rackSwap()
+        && connected(request.auth.uid, resource.data.get('by', ''));
+    }
+    // A late scorer (Session 10 step 5): someone connected to the starter, not playing, scans the
+    // Game QR of a live match with no scorer and scores it. Only `scorer` changes, to themselves.
+    function takesScorer() {
+      return resource.data.status == 'live' && !('scorer' in resource.data)
+        && request.resource.data.get('scorer', '') == request.auth.uid
+        && !(request.auth.uid in resource.data.get('uids', []))
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['scorer', '_updatedAt'])
         && connected(request.auth.uid, resource.data.get('by', ''));
     }
     // A rating moves only in the batch that confirms a rated match: pending before the batch,

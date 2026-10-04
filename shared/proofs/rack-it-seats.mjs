@@ -60,7 +60,9 @@ await ann.locator(".cn-ov button", { hasText: "Close" }).click(); await ann.wait
 
 // Ben scans it too: he joins Ann's Friends, but there's no seat left.
 await ben.goto(link.replace("?mock&", "?mock&as=ben&")); await ben.waitForTimeout(1500);
-ok(/full/.test(await text(ben, last + " h2")), "ben: " + (await text(ben, last + " h2")));
+// No guest seat left; since Session 10 a match with no scorer offers Score this match instead of "full".
+ok(!/I'm /.test(await text(ben, last)) && /Score this match/.test(await text(ben, last)), "ben: no seat, but Score this match: " + (await text(ben, last + " h2")));
+await ben.locator(last + " button", { hasText: "Not now" }).click(); await ben.waitForTimeout(200);
 ok(!!(await store(ben))["friendships/mock-ann_mock-ben"], "…and is in Ann's Friends");
 ok(await tryC(ben, (c, id) => c.patch("matches/" + id, { playerB: "mock-ben", uids: ["mock-ann", "mock-cat", "mock-ben"] }), m0.id) === "permission-denied",
   "ben can't take a seat held by an account");

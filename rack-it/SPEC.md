@@ -576,6 +576,12 @@ account, not to Rack It, so they show in every app with Connect.
   loyalty app). The loyalty app logs the points for playing once both players confirm; Rack It
   writes nothing of the loyalty app's. Someone who isn't staff following such a link is told
   "Only the club's staff start a match from Sessions."
+- **A late scorer** (2.22.0, KIT-PLAN Session 10 step 5). Someone who scans the Game QR of a live
+  match with no scorer, and isn't playing, is offered **Score this match** (beside any guest seat
+  that's left). They become its scorer and score it on their phone; the starter's QR says "Cat is
+  scoring"; both players then confirm a rated result, as for any scorer. With no seat and a scorer
+  already, the match is full. The rules let only `scorer` change, from absent to the writer, who
+  is connected to the starter and not playing.
 - **A pending match expires** (2.21.0, KIT-PLAN Session 10 step 5). A week after a rated match
   ended with a confirm still missing, the first phone in it (a player's or the scorer's) to open
   Rack It makes it a friendly, `expired: true`; the summary says "Nobody confirmed in a week, so
@@ -839,6 +845,7 @@ account, so a static app can't upload results.
 | 2.9.0 | Rated matches and confirming (KIT-PLAN Session 5). Setup gains a **Rated** tick, off by default, offered when both players have an account. A friendly moves no rating; a rated match moves both only once the opponent confirms on their own phone, worked out from the ratings at that moment, in one batch. Not right or Withdraw leaves it a friendly. Rebuild replays rated matches by `ratedAt`, else `endedAt`; a match with no `rated` field is rated. For the social leagues, where a rating has to be agreed by both players. |
 | 2.10.0 | Outsiders play in Rack It (KIT-PLAN Session 6): friend mode instead of the outsider screen. The rules open the matches an account plays in, starting one against a connection or a guest, and a rating only in the batch that confirms a rated match the other player ended. Ratings are read by id, matches with one `uids` query. A household member can no longer turn a friendly into a rated match. For pool friends who aren't family. |
 | 2.11.0 | One admin, everyone else a player (KIT-PLAN Session 6b). The owner sees and rewrites every match; everyone else, a household member included, runs friend mode and reads only the matches they play in. The owner's phone backfills `uids` and `names` on matches from before 2.8.0, so the players keep them. The "Before you play" note goes: there's nothing left to warn about. Owner's call, 2026-10-02: "a family member is just another member". Other apps keep the household. |
+| 2.22.0 | A late scorer: the Game QR offers Score this match on a live match with no scorer (KIT-PLAN Session 10 step 5). |
 | 2.21.0 | A pending rated match expires a week after it ended: the first phone in it makes it a friendly (`expired`), and the strips count the days down (KIT-PLAN Session 10 step 5). |
 | 2.20.0 | A table session (KIT-PLAN Session 10 step 4): staff start a match at Sessions from the loyalty app (`?club`), scored by them at `venue: "sessions"`; "Logged at Sessions" and Back to Sessions. `?p=<id>` opens a player's page. |
 | 2.19.0 | Club connections fold under **Sessions** in Friends and the picker, and the club's staff show **staff** (KIT-PLAN Session 10 step 3). |
