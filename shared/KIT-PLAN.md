@@ -126,6 +126,9 @@ account).
 
 ## Session 10 — Loose ends, then Sessions Loyalty meets Rack It
 
+**Status, 2026-10-04:** done and live. Fair Nine was deleted early, on the owner's word. The
+Handover note is in `shared/KIT-HISTORY.md`, Session 10.
+
 **Start with:** "Read `shared/KIT-PLAN.md` and do Session 10." Built to run from the phone (a
 cloud session): read `CLAUDE.md`, `shared/KIT.md`, `shared/CONNECT.md`, and Session 9's Handover
 in `shared/KIT-HISTORY.md` first.
@@ -151,8 +154,8 @@ the session runs out of room, and write the Handover note in `KIT-HISTORY.md`.
 
 ### Step 1 — Loose ends (patch bumps; no rules)
 
-- [ ] **Fair Nine**: on or after 2026-10-16, `/deletequest fair-nine` (it confirms by name with the
-  owner; the launcher tile, if any, goes too). Before that date, leave this box and say so.
+- [x] **Fair Nine**: on or after 2026-10-16, `/deletequest fair-nine` (it confirms by name with the
+  owner; the launcher tile, if any, goes too). Before that date, leave this box and say so. Deleted 2026-10-04, early, on the owner's word.
 - [x] **Bloc 11, frame 3a's date line**: the When field becomes one `.note` line, "Today. Tap the
   date to change it.", which opens the date picker (`input.showPicker()`, the input kept hidden)
   and then reads "Wed 1 Oct. Tap to change it." Stored `at` unchanged (20:00 local).

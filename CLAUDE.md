@@ -19,7 +19,7 @@ sidequests/
     proofs/               ← the multi-tab ?mock proofs and the rules guard check (proofs/README.md)
     KIT.md  KIT-PLAN.md   ← the shared parts an app opts into; what's proposed next, and Parked
     CONNECT.md            ← Connect and shared games: the Game QR, seats, several phones, a scorer
-    KIT-HISTORY.md        ← the kit's finished sessions (0–9) and their Handover notes
+    KIT-HISTORY.md        ← the kit's finished sessions (0–9) and every Handover note (10 too)
     people.js             ← Players: you, your friends and your guests (picker, avatars, That was them)
     DESIGN.md             ← the look (dark system v3): read it before building or touching a screen
     theme.css             ← every part DESIGN.md names, as CSS: tokens, ramp, buttons, rows, sheets
