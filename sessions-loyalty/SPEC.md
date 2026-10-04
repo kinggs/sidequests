@@ -77,6 +77,8 @@ to that staff account, nothing lands: find them under **Members → From your fr
   member number. With no card yet: "Not a member yet. Show your QR at the bar and they'll sign
   you up."
 - **Show my QR**, the one button you came for (76px).
+- **Your Rack It rating and matches** (0.3.0): a link to your page in Rack It (`../rack-it/?p=<uid>`).
+  This app never reads Rack It's ratings (owner, 2026-10-04).
 - **Next reward**: "Your next reward is 250 points away", with a bar. Free rewards are never
   "away"; with everything affordable the line says so.
 - **Rewards**: each with its picture (an emoji, or a photo staff added), title, blurb or
@@ -109,7 +111,25 @@ large, "1,240 XP · Silver in 3,760". Then the four things staff do:
   aren't offered, and a line says how many need more points.
 - **Adjust**: signed points and a reason (required).
 
-Each writes **one batch**: the entry, and the card's cached `points`, `xp` and `lastAt`. Then
+Each writes **one batch**: the entry, and the card's cached `points`, `xp` and `lastAt`.
+
+**A table session** (0.3.0, KIT-PLAN Session 10 step 4). **Start a match** picks who the member
+plays: another member with a card who, like them, is connected to you (a scan made them your
+friend). Rack It opens with both picked and you scoring (`../rack-it/?club=<a>.<b>&m=<id>`; the
+id is chosen here), at `venue: "sessions"`, which only staff may set. This phone remembers the
+match for the sitting (six hours): both members' pages say "At the table with …" with **Open Rack
+It**, and a spend logged for either carries `match: <id>`. Rack It's summary says "Logged at
+Sessions" and offers **Back to Sessions**, which opens the first player's page here. **Points for
+playing**: once both players have confirmed a rated match on their phones, this phone logs each
+one an earn entry, `item: "rack-it"`, worth the club's way to earn `earns/rack-it` ("A rated match
+at the table", made with 50 points the first time; staff change it under Items). Once: the entry's
+id is `rackit_<match>_<uid>`, and it's checked before it's written. It's logged when this phone
+next opens or comes back to the app, or within half a minute while it's open. A friendly, or a
+match a player said was Not right, earns nothing. Rack It is read one match at a time, by id
+(`cloud.clubMatch`, the one read of Rack It this app makes); nothing here writes Rack It's data.
+**Their Rack It page** links to the member's page in Rack It.
+
+Then
 **Details**: member number, status (Casual · Member · Lapsed), and the **staff note**, which the
 member never reads. **This month**: visits, rands, points. **History**: every entry, with a `⋯`
 that offers **Hold to void** (a voided entry stays, struck through, and the card is recomputed)
@@ -141,7 +161,7 @@ earns/<id>      { title, blurb, points, emoji, active, order, createdAt }
 cards/<uid>     { uid, name, since, memberNo, status, points, xp, lastAt, by }
 notes/<uid>     { text, updatedAt, by }
 entries/<id>    { kind, uid, name, by, byName, at, rands, points, xp, item, title, note,
-                  voided?, voidedBy?, voidedAt? }
+                  match?, voided?, voidedBy?, voidedAt? }   // match: a Rack It match id (0.3.0)
 ```
 
 **Who reads what** (`shared/firestore.rules`, cases in `shared/rules-check.mjs`):

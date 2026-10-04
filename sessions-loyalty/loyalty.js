@@ -81,7 +81,8 @@ export function nextReward(points, rewards){
 export const canAfford = (points, reward) => (Number(reward && reward.cost) || 0) <= (Number(points) || 0);
 
 // One entry, shaped the same whichever side writes it. `points` is signed.
-export function makeEntry({ kind, uid, name, by, byName, at, rands = 0, points = 0, xp = 0, item = "", title = "", note = "" }){
+// match: the Rack It match a line was logged beside, at a table session (KIT-PLAN Session 10).
+export function makeEntry({ kind, uid, name, by, byName, at, rands = 0, points = 0, xp = 0, item = "", title = "", note = "", match = "" }){
   if (!["spend", "earn", "redeem", "adjust"].includes(kind)) throw new Error("entry kind: " + kind);
   if (!uid) throw new Error("entry needs a member uid");
   return {
@@ -90,7 +91,8 @@ export function makeEntry({ kind, uid, name, by, byName, at, rands = 0, points =
     rands: round2(Math.max(0, Number(rands) || 0)),
     points: Math.trunc(Number(points) || 0),
     xp: Math.max(0, Math.trunc(Number(xp) || 0)),
-    item: String(item || ""), title: String(title || "").slice(0, 80), note: String(note || "").slice(0, 200)
+    item: String(item || ""), title: String(title || "").slice(0, 80), note: String(note || "").slice(0, 200),
+    ...(match ? { match: String(match) } : {})
   };
 }
 const round2 = n => Math.round(n * 100) / 100;

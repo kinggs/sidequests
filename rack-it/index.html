@@ -525,6 +525,7 @@
     <p class="sumwin" id="sumWinner"></p>
     <p class="lbl dim" id="sumMeta"></p>
     <p id="sumScore"></p>
+    <a class="linkbtn hidden" id="sumClub" href="../sessions-loyalty/">Back to Sessions</a>
     <p class="dim" id="sumZargo"></p>
     <h3 class="lbl sechead">Racks</h3>
     <ul class="reclist" id="sumRacks"></ul>
@@ -706,7 +707,7 @@ import { connect } from "../shared/connect.js";
 import { ui } from "../shared/ui.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "2.19.0";
+const APP_VERSION = "2.20.0";
 const APP_ID = "rack-it";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 document.getElementById("versionMore").textContent = "v" + APP_VERSION;
@@ -716,7 +717,7 @@ const el = {};
 ["gate","gateErr","playerList","noPlayers","addPlayerBtn",
  "scrGate","scrRatings","scrPerson","scrMatches","scrSummary","scrMore","scrAbout","tabbar",
  "perHead","perAbout","perEdit","perCue","perCueEdit","perRecord","perMatches","perBack",
- "sumBack","sumWinner","sumMeta","sumScore","sumZargo","sumRacks","sumCopyText","sumCopy",
+ "sumBack","sumWinner","sumMeta","sumClub","sumScore","sumZargo","sumRacks","sumCopyText","sumCopy",
  "aboutBtn","aboutBack","versionMore",
  "pform","pfTitle","pfFields","pfName","pfColours","pfZargoRow","pfZargo","pfNote","pfSave","pfCancel","pfOwnerNote",
  "scrSetup","scrLive","pickA","pickB","modes","lenRow","lenLabel","racksIn",
@@ -1180,11 +1181,46 @@ async function handleUser(user){
     show("gate");
   }
 }
+// Links from the loyalty app (KIT-PLAN Session 10 step 4): ?club=<a>.<b>&m=<id> starts a match at
+// the club for two members, the staff member scoring it; ?p=<id> opens that player's page (the
+// member's card links here). Both are taken out of the address bar at once.
+const askedFor = (() => {
+  try {
+    const url = new URL(location.href), q = url.searchParams;
+    const club = q.get("club"), m = q.get("m"), p = q.get("p");
+    if(club === null && p === null) return null;
+    ["club", "m", "p"].forEach(k => url.searchParams.delete(k));
+    history.replaceState(history.state, "", url.toString().replace("mock=&", "mock&").replace(/mock=$/, "mock"));
+    const [a, b] = String(club || "").split(".");
+    return { club: a && b ? { a, b, m: /^[A-Za-z0-9]{8,40}$/.test(m || "") ? m : null } : null, person: p || null };
+  } catch(e){ return null; }
+})();
+async function followAsk(){
+  if(!askedFor) return;
+  const { club, person } = askedFor;
+  // Players come from your friends, which load a moment after the app starts.
+  const known = ids => ids.every(id => P(people.resolve(id)));
+  for(let i = 0; i < 30 && !known(club ? [club.a, club.b] : [person]); i++) await new Promise(r => setTimeout(r, 200));
+  if(person){
+    if(known([person])) openPerson(people.resolve(person));
+    else ui.toast("That player isn't on this phone's lists yet.");
+  }
+  if(!club) return;
+  let staff = owner;
+  if(!staff) try { staff = await cloud.account.clubStaff(myUid()); } catch(e){ console.warn("[club]", e); }
+  if(!staff) return ui.toast("Only the club's staff start a match from Sessions.");
+  if(!known([club.a, club.b])) return ui.toast("Connect with both players first: scan their QR in Sessions.");
+  setup.a = people.resolve(club.a); setup.b = people.resolve(club.b); setup.touched = true;
+  setup.club = { m: club.m };
+  proposeTargets();
+  openPage("setup");
+}
 await cloud.init(APP_ID);
 // A scanned QR: connect first, over whatever's behind. A Game QR then shows its match.
 connect.handleInvite({ app: APP_ID, appName: "Rack It", onDone: r => { if(r && r.game) whenStarted(() => joinMatch(r.game)); } });
 handleUser(cloud.user);
 cloud.onUser(handleUser);
+whenStarted(followAsk);
 ui.tap(el.signInBig, () => cloud.signIn().catch(e => {
   el.gateErr.textContent = "Sign-in failed: " + (e.message || e);
   el.gateErr.classList.remove("hidden");
@@ -1789,7 +1825,7 @@ function renderSetup(){
     } else if(setup.mode === "race"){
       more = " Targets share the points out on that basis.";
     }
-    el.setupHint.textContent = odds + more;
+    el.setupHint.textContent = (setup.club ? "At Sessions: you score it for the club. " : "") + odds + more;
     el.breakWho.textContent = (setup.breaker === "a" ? a.name : b.name) + " breaks";
     showShortRaceWarning(a, b, eA);
   } else {
@@ -1927,7 +1963,11 @@ async function startMatch(){
   // The Racks lever's head start: racks the underdog has already won when the match begins.
   const start = handicap === "racks" ? plan.start : null;
   const eA = expectedShareA(a.zargo, b.zargo);
-  const id = cloud.newId();
+  // Started from the loyalty app (?club): its id, so the club's phone knows the match, and the
+  // venue, which the rules let only the club's staff set, and only as its scorer.
+  const club = setup.club && scorer ? setup.club : null;
+  setup.club = null;
+  const id = (club && club.m) || cloud.newId();
   live = {
     id,
     game, handicap, start,
@@ -1956,6 +1996,7 @@ async function startMatch(){
     by: (cloud.user && cloud.user.uid) || null,
     rated: live.rated,
     ...(scorer ? { scorer } : {}),
+    ...(club ? { venue: "sessions" } : {}),
     mode,
     targets,
     racksPlanned: live.racksPlanned,
@@ -3650,7 +3691,7 @@ function matchRow(s, { from = "matches" } = {}){
   b.querySelector(".hmeta").textContent = on
     ? `Live · ${GAME_LABEL[gameOf(s)]} · rack ${Math.max(1, ...Object.keys(s.racks || {}).map(Number).filter(n => n > 0))}`
     : `${GAME_LABEL[gameOf(s)]} · ${lengthText(s)} · ${whenText(s.startedAt)}` + (t.winner ? "" : " · tied") +
-      (s.status === "pending" ? " · waiting to confirm" : s.rated === false ? " · friendly" : "");
+      (s.status === "pending" ? " · waiting to confirm" : s.rated === false ? " · friendly" : "") + (s.venue === "sessions" ? " · at Sessions" : "");
   b.setAttribute("aria-label", `${nA.textContent} ${sc.a}, ${nB.textContent} ${sc.b}. ` +
     (on ? "Live, tap to resume." : t.winner ? `${(t.winner === "a" ? nA : nB).textContent} won.` : "Tied."));
   ui.tap(b, () => on ? resumeMatch(s.id) : openSummary(s.id, from));
@@ -3705,7 +3746,11 @@ function renderSummary(){
   const nA = sideName(s, "a"), nB = sideName(s, "b"), t = s.totals || {}, game = gameOf(s);
   el.sumWinner.textContent = s.status === "live" ? "Still being played"
     : t.winner ? `${t.winner === "a" ? nA : nB} won` : "Tied";
-  el.sumMeta.textContent = `${GAME_LABEL[game]} · ${lengthText(s)} · ${whenText(s.startedAt)}`;
+  el.sumMeta.textContent = `${GAME_LABEL[game]} · ${lengthText(s)} · ${whenText(s.startedAt)}` + (s.venue === "sessions" ? " · Logged at Sessions" : "");
+  // The club's scorer goes back to the member's page in the loyalty app (KIT-PLAN Session 10 step 4).
+  const clubBack = s.venue === "sessions" && s.scorer && s.scorer === myUid();
+  el.sumClub.classList.toggle("hidden", !clubBack);
+  if(clubBack) el.sumClub.href = `../sessions-loyalty/?member=${encodeURIComponent(people.resolve(s.playerA))}${cloud.mock ? "&mock" : ""}`;
   el.sumScore.textContent = scoreLine(s, nA, nB, t);
   const zb = s.zargoBefore, za = s.zargoAfter;
   el.sumZargo.textContent = s.status === "pending"

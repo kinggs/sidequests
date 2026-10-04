@@ -1544,3 +1544,68 @@ describe("A scorer: must refuse", () => {
     await assertFails(getDocs(query(collection(user("eve"), "sidequests/rack-it/matches"), where("scorer", "==", "cat"))));
   });
 });
+
+// ---- Session 10 step 4: a table session (KIT-PLAN.md) ----
+// Staff at the club start a Rack It match for two members from the loyalty app: the staff member
+// is its scorer, and the match carries venue: "sessions", set only at create, only by a scorer
+// who is on the club's staff list (or the owner). Nothing changes it later. A loyalty entry may
+// carry match: <id>, the match it was logged beside, written by staff like any entry.
+
+const clubMatch = (extra = {}) => abMatch({ by: "bar", scorer: "bar", venue: "sessions", ...extra });
+
+describe("A table session: what may be done", () => {
+  beforeEach(async () => {
+    await seed(SL + "staff/bar", { name: "Bar", addedAt: 1, addedBy: "owner" });
+    await seed("friendships/ann_bar", { uids: ["ann", "bar"], since: 1, via: "x", app: "sessions-loyalty" });
+    await seed("friendships/bar_ben", { uids: ["bar", "ben"], since: 1, via: "x", app: "sessions-loyalty" });
+    await seed(SL + "cards/ann", { uid: "ann", name: "Ann", points: 90, xp: 90, since: 1 });
+    await seed(M + "club1", clubMatch());
+  });
+  test("staff start a match for two members they're connected to, at the club, and score it", async () => {
+    await assertSucceeds(setDoc(doc(user("bar"), M + "t1"), clubMatch()));
+    await assertSucceeds(updateDoc(doc(user("bar"), M + "club1"), { "racks.1": { balls: { 1: "a" } }, rev: link(1, "b1", "") }));
+    await assertSucceeds(updateDoc(doc(user("ann"), M + "club1"), { "racks.1": { balls: { 1: "b" } }, rev: link(2, "a2", "b1") }));
+  });
+  test("the owner may start one too", async () => {
+    await assertSucceeds(setDoc(doc(as(OWNER), M + "t2"), clubMatch({ by: "owner", scorer: "owner" })));
+  });
+  test("staff log a spend beside the match: the entry carries match", async () => {
+    const db = user("bar"), b = writeBatch(db);
+    b.set(doc(db, SL + "entries/withMatch"), entry({ by: "bar", match: "club1" }));
+    b.update(doc(db, SL + "cards/ann"), { points: 180, xp: 180, lastAt: 2 });
+    await assertSucceeds(b.commit());
+    await assertSucceeds(setDoc(doc(db, SL + "entries/earn1"), entry({ by: "bar", kind: "earn", rands: 0, points: 50, xp: 50, item: "rack-it", title: "A rated match", match: "club1" })));
+  });
+});
+
+describe("A table session: must refuse", () => {
+  beforeEach(async () => {
+    await seed(SL + "staff/bar", { name: "Bar", addedAt: 1, addedBy: "owner" });
+    await seed("friendships/ann_bar", { uids: ["ann", "bar"], since: 1, via: "x", app: "sessions-loyalty" });
+    await seed("friendships/bar_ben", { uids: ["bar", "ben"], since: 1, via: "x", app: "sessions-loyalty" });
+    await seed("friendships/ben_cat", { uids: ["ben", "cat"], since: 1, via: "x", app: "rack-it" });
+    await seed("friendships/ann_ben", { uids: ["ann", "ben"], since: 1, via: "x", app: "rack-it" });
+    await seed(M + "club1", clubMatch());
+    await seed(M + "sLive", abMatch({ by: "cat", scorer: "cat" }));
+    await seed(SL + "entries/x1", entry({ by: "bar" }));
+  });
+  test("a scorer who isn't staff naming the club", async () => {
+    await assertFails(setDoc(doc(user("cat"), M + "n1"), abMatch({ by: "cat", scorer: "cat", venue: "sessions" })));
+  });
+  test("a player naming the club on their own match", async () => {
+    await assertSucceeds(setDoc(doc(user("ann"), M + "n2ok"), abMatch()));   // the same match, without it, is fine
+    await assertFails(setDoc(doc(user("ann"), M + "n2"), abMatch({ venue: "sessions" })));
+  });
+  test("staff naming any other venue", async () => {
+    await assertFails(setDoc(doc(user("bar"), M + "n3"), clubMatch({ venue: "elsewhere" })));
+  });
+  test("the venue set, changed or dropped after the start, by the scorer or a player", async () => {
+    await assertFails(updateDoc(doc(user("cat"), M + "sLive"), { venue: "sessions", rev: link(1, "c1", "") }));
+    await assertFails(updateDoc(doc(user("bar"), M + "club1"), { venue: "elsewhere", rev: link(1, "b1", "") }));
+    await assertFails(updateDoc(doc(user("ann"), M + "club1"), { venue: deleteField(), rev: link(1, "a1", "") }));
+  });
+  test("an entry's match that isn't an id, or added to an entry afterwards", async () => {
+    await assertFails(setDoc(doc(user("bar"), SL + "entries/bad"), entry({ by: "bar", match: 5 })));
+    await assertFails(updateDoc(doc(user("bar"), SL + "entries/x1"), { match: "club1" }));
+  });
+});

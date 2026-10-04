@@ -196,7 +196,9 @@ service cloud.firestore {
     // that. Deleting one is the owner's; so is creating one in someone else's name (Import).
     match /sidequests/sessions-loyalty/entries/{id} {
       allow read: if (signedIn() && resource.data.uid == request.auth.uid) || isStaff();
-      allow create: if (isStaff() && request.resource.data.by == request.auth.uid) || isOwner();
+      // An entry logged beside a Rack It match at the club names it: match, an id (Session 10).
+      allow create: if ((isStaff() && request.resource.data.by == request.auth.uid) || isOwner())
+        && (!('match' in request.resource.data) || request.resource.data.match is string);
       allow update: if isStaff()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['voided', 'voidedBy', 'voidedAt', '_updatedAt']);
       allow delete: if isOwner();
@@ -213,7 +215,7 @@ service cloud.firestore {
     function outsiderStarts() {
       let m = request.resource.data;
       return m.by == request.auth.uid && request.auth.uid in m.uids && m.status == 'live'
-        && !m.keys().hasAny(['endedBy', 'confirmedBy', 'ratedAt', 'declinedBy', 'withdrawnBy', 'scorer', 'confirms'])
+        && !m.keys().hasAny(['endedBy', 'confirmedBy', 'ratedAt', 'declinedBy', 'withdrawnBy', 'scorer', 'confirms', 'venue'])
         && (m.uids.size() == 1 || (m.uids.size() == 2 && connected(m.uids[0], m.uids[1])));
     }
     // A player's write to a match they're in. Never who's in it. A live match is scored, saved
@@ -225,7 +227,7 @@ service cloud.firestore {
       let was = resource.data;
       let now = request.resource.data;
       let keys = now.diff(was).affectedKeys();
-      return !keys.hasAny(['uids', 'by', 'playerA', 'playerB', 'names', 'scorer'])
+      return !keys.hasAny(['uids', 'by', 'playerA', 'playerB', 'names', 'scorer', 'venue'])
         && ratedOnlyTurnsOff()
         && (was.status == 'live' ? liveScore(keys)
           : was.status == 'pending' && (now.status == 'pending' ? confirmsMine(keys)
@@ -266,17 +268,20 @@ service cloud.firestore {
       let was = resource.data;
       let now = request.resource.data;
       let keys = now.diff(was).affectedKeys();
-      return !keys.hasAny(['uids', 'by', 'playerA', 'playerB', 'names', 'scorer', 'confirms'])
+      return !keys.hasAny(['uids', 'by', 'playerA', 'playerB', 'names', 'scorer', 'confirms', 'venue'])
         && ratedOnlyTurnsOff()
         && (was.status == 'live' ? liveScore(keys)
           : was.status == 'pending' && now.status == 'done' && !rated(now)
             && keys.hasOnly(['status', 'rated', 'withdrawnBy', '_updatedAt']) && now.get('withdrawnBy', '') == request.auth.uid);
     }
     // A new match its starter scores without playing: live, not ended, the starter not in uids,
-    // and connected to each player with an account (a guest needs none).
+    // and connected to each player with an account (a guest needs none). At the club (Session 10
+    // step 4) it carries venue: "sessions", which only a scorer on the club's staff list may set,
+    // and nobody changes after (playerScores, scorerScores).
     function scorerStarts() {
       let m = request.resource.data;
       return m.get('scorer', '') == request.auth.uid && m.by == request.auth.uid && m.status == 'live'
+        && (!('venue' in m) || (m.venue == 'sessions' && isStaff()))
         && m.uids is list && m.uids.size() <= 2 && !(request.auth.uid in m.uids)
         && !m.keys().hasAny(['endedBy', 'confirmedBy', 'ratedAt', 'declinedBy', 'withdrawnBy', 'confirms'])
         && (m.uids.size() < 1 || connected(request.auth.uid, m.uids[0]))

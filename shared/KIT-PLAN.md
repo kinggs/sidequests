@@ -194,16 +194,20 @@ the session runs out of room, and write the Handover note in `KIT-HISTORY.md`.
 
 Read "Sessions Loyalty meets Rack It" below first, and Rack It's scorer flow (`CONNECT.md` §5).
 
-- [ ] **Cases first**, then the rules: a Rack It match may carry `venue: "sessions"`, set only at
+- [x] **Cases first**, then the rules: a Rack It match may carry `venue: "sessions"`, set only at
   create by a scorer who is staff; a loyalty entry may carry `match: <id>`, written by staff.
-- [ ] From a member's page, staff start a Rack It match for two members (the staff member is the
+- [x] From a member's page, staff start a Rack It match for two members (the staff member is the
   scorer, the players confirm, as in Session 8 step 4). The spend logged in the same sitting
   carries `match`, and Rack It's summary shows "Logged at Sessions".
-- [ ] **Points for playing**: a rated match at the club earns XP, logged by the scorer's phone as an
+- [x] **Points for playing**: a rated match at the club earns XP, logged by the scorer's phone as an
   `earn` entry with `item: "rack-it"`, once, when the last player confirms.
-- [ ] Per answer 4, Rack It on the loyalty card.
-- [ ] Proof: `?mock`, staff (the owner) scores a rated club match for Ann and Ben; both confirm;
+- [x] Per answer 4, Rack It on the loyalty card.
+- [x] Proof: `?mock`, staff (the owner) scores a rated club match for Ann and Ben; both confirm;
   ratings move once; one earn entry each; Rebuild points and Rebuild ratings change nothing.
+  (`shared/proofs/table-session.mjs`, 25 checks. Rack It 2.20.0, Sessions Loyalty 0.3.0. 8 new
+  rules cases, 199 in all; 6 new guards. The loyalty app starts the match with its own id and
+  logs the points itself, reading the match by id (`cloud.clubMatch`), so neither app writes the
+  other's data. The way to earn is `earns/rack-it`, 50 points, made the first time.)
 
 ### Step 5 — Four from Parked (owner, 2026-10-04)
 

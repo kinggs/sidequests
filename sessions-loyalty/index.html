@@ -36,6 +36,10 @@
   .rows>li.void .l1{text-decoration:line-through;color:var(--dim)}
 
   /* Pages that stack: the member's page over the Members tab. */
+  /* Links into Rack It, shaped like a quiet button (Rack It's .linkbtn). */
+  .linkbtn{display:flex;align-items:center;justify-content:center;min-height:var(--tap);border-radius:var(--r-ctl);margin-top:12px;
+    box-shadow:inset 0 0 0 1px rgba(240,236,228,.18);color:var(--text-2);font-weight:700;text-decoration:none;flex:1;text-align:center;padding:0 12px}
+  .row>.linkbtn{margin-top:0}
   .pagehead{display:flex;align-items:center;gap:12px;margin:4px 0 14px}
   .pagehead h2{flex:1;min-width:0;font-family:var(--grot);font-size:1.3333rem;font-weight:600;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .pagehead .more{flex:none;width:56px;min-width:56px;padding:0;background:transparent;color:var(--dim);font-size:1.4444rem;letter-spacing:.1em}
@@ -73,7 +77,7 @@
   import * as L from "./loyalty.js";
 
   // Bump on every change. The deploy skill checks this against the live site.
-  const APP_VERSION = "0.2.1";
+  const APP_VERSION = "0.3.0";
   const APP_ID = "sessions-loyalty";
   const APP_NAME = "Sessions Loyalty";
   document.getElementById("version").textContent = "v" + APP_VERSION;
@@ -90,6 +94,16 @@
   let member = null, memberEntries = null;      // the member page open on the staff side
   let tab = "scan", viewAsMember = false, find = "", itemsSeg = "rewards";
   let unsubs = [], pageUnsubs = [];
+  // ?member=<uid>: open that member's page once the staff side is in (Rack It's Back to Sessions).
+  let askMember = (() => {
+    try {
+      const url = new URL(location.href), m = url.searchParams.get("member");
+      if (m === null) return null;
+      url.searchParams.delete("member");
+      history.replaceState(history.state, "", url.toString().replace("mock=&", "mock&").replace(/mock=$/, "mock"));
+      return m || null;
+    } catch { return null; }
+  })();
   const profiles = new Map();                   // uid -> { name, photo } once read
 
   const $ = id => document.getElementById(id);
@@ -256,7 +270,12 @@
     unsubs.push(cloud.watchList("entries", rows => { myEntries = rows.sort((a, b) => (b.at || 0) - (a.at || 0)); render(); },
       { where: ["uid", "==", u.uid] }, onErr("Couldn't read your history")));
     if (staff){
-      unsubs.push(cloud.watchList("cards", rows => { cards = rows; render(); }, {}, onErr("Couldn't read the members")));
+      unsubs.push(cloud.watchList("cards", rows => {
+        cards = rows; render();
+        // Back from Rack It's "Back to Sessions" (?member=): that member's page.
+        if (askMember){ const m = askMember; askMember = null; openMember(m, ""); }
+        checkTables();
+      }, {}, onErr("Couldn't read the members")));
       unsubs.push(cloud.watchList("entries", rows => { recent = rows; render(); }, { orderBy: "at", limit: 150 }, onErr("Couldn't read recent entries")));
       unsubs.push(cloud.watchList("staff", rows => { staffList = rows; render(); }, {}, onErr("Couldn't read the staff list")));
     }
@@ -310,6 +329,7 @@
         h("div", { class: "meta" }, h("span", { text: "Member since " + dateOf(card.since) }), h("span", { text: card.memberNo ? "#" + card.memberNo : (card.status === "member" ? "Member" : card.status === "lapsed" ? "Lapsed" : "") })));
       page.push(lc);
       page.push(btn("Show my QR", "primary big wide", () => { phone.fullscreen(); connect.showQR({ app: APP_ID }); }, { style: "margin-top:12px" }));
+      page.push(h("a", { class: "linkbtn", href: rackLink(user.uid), text: "Your Rack It rating and matches" }));
       if (away){
         const pct = Math.min(100, Math.round(points / (Number(away.reward.cost) || 1) * 100));
         page.push(h("div", { class: "card", style: "margin-top:12px" },
@@ -466,6 +486,81 @@
     connect.showQR({ app: APP_ID, onFriend: uid => openMember(uid, "") });
   }
 
+  // ---- a table session (KIT-PLAN Session 10 step 4) ----
+  // Staff start a Rack It match for two members from a member's page: Rack It opens with both
+  // picked and this staff member scoring (?club=<a>.<b>&m=<id>), the match at venue "sessions".
+  // This phone remembers it: a spend logged for either player during the sitting carries match,
+  // and once both players have confirmed a rated match, this phone logs each one's points for
+  // playing, an earn entry with item rack-it, once (its id is rackit_<match>_<uid>). Rack It is
+  // read one match at a time by id (cloud.clubMatch); nothing here writes Rack It's data.
+  const SITTING = 6 * 3600 * 1000, DAY = 86400000;
+  const PLAY = "rack-it";
+  const tablesKey = () => "sessions-loyalty.tables." + (user ? user.uid : "");
+  const tables = () => { try { return JSON.parse(localStorage.getItem(tablesKey()) || "[]"); } catch { return []; } };
+  const keepTables = list => { try { localStorage.setItem(tablesKey(), JSON.stringify(list)); } catch {} };
+  const tableFor = uid => tables().filter(t => (t.a === uid || t.b === uid) && Date.now() - t.at < SITTING).sort((x, y) => y.at - x.at)[0] || null;
+  const rackLink = (uid = "") => "../rack-it/" + (uid ? "?p=" + encodeURIComponent(uid) : "") + (cloud.mock ? (uid ? "&" : "?") + "mock" : "");
+  const friendsNow = () => new Promise((res, rej) => { const off = cloud.account.watchFriends(list => { res(list); setTimeout(() => off(), 0); }, rej); });
+
+  async function startTable(c){
+    const uid = c.uid || c.id;
+    let mine;
+    try { mine = new Set((await friendsNow()).map(f => f.uid)); } catch (e){ return report("Couldn't read your friends", e); }
+    if (!mine.has(uid)) return ui.sheet({ title: "Scan them first", text: `You and ${c.name} aren't connected yet. Scan their QR, then start the match.` });
+    const others = (cards || []).filter(x => (x.uid || x.id) !== uid && mine.has(x.uid || x.id))
+      .sort((x, y) => String(x.name).localeCompare(String(y.name)));
+    if (!others.length) return ui.toast("Nobody else you're connected to has a card yet.");
+    const v = await ui.sheet({ title: `${c.name} plays…`, text: "You score it in Rack It. They confirm a rated match on their phones.",
+      items: others.map(x => ({ label: x.name, value: x.uid || x.id })) });
+    if (!v) return;
+    const m = cloud.newId();
+    keepTables([...tables().filter(t => Date.now() - t.at < 7 * DAY), { m, a: uid, b: v, at: Date.now() }]);
+    location.href = `../rack-it/?club=${encodeURIComponent(uid)}.${encodeURIComponent(v)}&m=${m}` + (cloud.mock ? "&mock" : "");
+  }
+
+  // Points for playing: each remembered match, read by id until it's over. A rated match both
+  // players confirmed earns each of them the club's "A rated match" (earns/rack-it, made with
+  // 50 points the first time; staff change it under Items).
+  let tablesBusy = false, tablesAt = 0;
+  async function checkTables(){
+    if (!staff || tablesBusy || !cards || !earns || Date.now() - tablesAt < 5000) return;
+    tablesAt = Date.now();
+    const list = tables().filter(t => !t.done);
+    if (!list.length) return;
+    tablesBusy = true;
+    const settled = new Set(), dropped = new Set();
+    try {
+      for (const t of list){
+        let m = null;
+        try { m = await cloud.clubMatch(t.m); } catch (e){ console.warn("[" + APP_ID + "] table", e); continue; }
+        if (!m){ if (Date.now() - t.at > 2 * DAY) dropped.add(t.m); continue; }   // never started
+        if (m.status === "live" || m.status === "pending") continue;
+        if (m.status === "done" && m.rated !== false && m.venue === "sessions") await logPlay(t.m, m);
+        settled.add(t.m);
+      }
+    } catch (e){ report("Couldn't log the points for playing", e); }
+    finally {
+      keepTables(tables().filter(t => !dropped.has(t.m)).map(t => settled.has(t.m) ? { ...t, done: true } : t));
+      tablesBusy = false;
+    }
+  }
+  async function logPlay(id, m){
+    let way = (earns || []).find(e => e.id === PLAY);
+    if (!way){
+      way = { title: "A rated match at the table", points: 50, active: true, order: 99, createdAt: Date.now() };
+      await cloud.save("earns/" + PLAY, way);
+    }
+    const pts = Number(way.points) || 0;
+    for (const uid of m.uids || []){
+      const c = cardOf(uid), eid = `rackit_${id}_${uid}`;
+      if (!c || await cloud.load("entries/" + eid)) continue;
+      await logEntry(c, { kind: "earn", points: pts, xp: pts, item: PLAY, title: way.title, match: id }, eid);
+      ui.toast(`+${fmt(pts)} for ${c.name}: ${way.title}`);
+    }
+  }
+  setInterval(checkTables, 30000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) checkTables(); });
+
   // ---- a member's page ----
   async function openMember(uid, name){
     if (!uid) return;
@@ -509,6 +604,18 @@
     page.push(h("div", { class: "stack", style: "margin-top:14px" },
       btn("Log a spend", "primary big wide", () => logSpend(c)),
       h("div", { class: "row", style: "margin-top:0" }, btn("Award", "", () => award(c)), btn("Redeem", "", () => redeem(c)), btn("Adjust", "", () => adjust(c)))));
+    // A table session (KIT-PLAN Session 10 step 4): a Rack It match at the club, scored by you.
+    const table = tableFor(uid);
+    if (table){
+      const other = cardOf(table.a === uid ? table.b : table.a);
+      page.push(h("div", { class: "card", style: "margin-top:12px" },
+        h("div", { text: `At the table with ${other ? other.name : "someone"}` }),
+        h("p", { class: "note", text: table.done ? "The match is over. A spend you log now still goes with it." : "A spend you log now goes with the match. Points for playing land once both have confirmed a rated match." }),
+        h("a", { class: "linkbtn", href: rackLink(), text: "Open Rack It" })));
+    }
+    page.push(h("div", { class: "row", style: "margin-top:12px" },
+      btn("Start a match", "", () => startTable(c)),
+      h("a", { class: "linkbtn", href: rackLink(uid), text: "Their Rack It page" })));
 
     // Details: member number, status, the staff note.
     const noteBox = h("textarea", { id: "note", rows: 2, maxlength: 500, placeholder: "Only staff see this" });
@@ -552,14 +659,16 @@
     main.replaceChildren(...page);
   }
 
-  // One batch: the entry, and the card's figures after it.
-  async function logEntry(c, fields){
+  // One batch: the entry, and the card's figures after it. `id` names the entry where it must be
+  // written only once (points for playing). The open page's entries count only if they're theirs.
+  async function logEntry(c, fields, id = null){
     const uid = c.uid || c.id;
     const e = L.makeEntry({ ...fields, uid, name: c.name, by: user.uid, byName: staffName() });
-    const after = L.cardAfter(c, [...(memberEntries || []).filter(x => x.uid === uid), e]);
-    const figures = memberEntries ? { points: after.points, xp: after.xp, lastAt: after.lastAt }
+    const theirs = member === uid && memberEntries;
+    const after = theirs ? L.cardAfter(c, [...memberEntries.filter(x => x.uid === uid), e]) : null;
+    const figures = after ? { points: after.points, xp: after.xp, lastAt: after.lastAt }
       : { points: (Number(c.points) || 0) + e.points, xp: (Number(c.xp) || 0) + e.xp, lastAt: e.at };
-    await cloud.batch([{ save: "entries/" + cloud.newId(), data: e }, { patch: "cards/" + uid, data: figures }]);
+    await cloud.batch([{ save: "entries/" + (id || cloud.newId()), data: e }, { patch: "cards/" + uid, data: figures }]);
     ui.buzz(16);
   }
   async function logSpend(c){
@@ -571,7 +680,8 @@
     const rands = Number(v.rands) || 0;
     if (rands <= 0) return ui.toast("Enter what they spent.");
     const p = L.pointsFor(rands, settings);
-    try { await logEntry(c, { kind: "spend", rands, points: p.points, xp: p.xp, note: v.note }); ui.toast(`${L.rand(rands)} · +${fmt(p.points)} points`); }
+    const table = tableFor(c.uid || c.id);
+    try { await logEntry(c, { kind: "spend", rands, points: p.points, xp: p.xp, note: v.note, match: table ? table.m : "" }); ui.toast(`${L.rand(rands)} · +${fmt(p.points)} points`); }
     catch (e){ report("Couldn't log it", e); }
   }
   async function award(c){

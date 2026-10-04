@@ -96,3 +96,9 @@ test("the starting list is the club's old one: 8 rewards, 8 ways to earn, free o
   assert.equal(earns[0].points, 1250);
   assert.ok(rewards.every(r => r.active && r.title && r.emoji));
 });
+
+test("an entry logged beside a Rack It match names it, and one that isn't has no match at all", () => {
+  const base = { kind: "earn", uid: "ann", name: "Ann", by: "bar", byName: "Bar", at: 5, points: 50, xp: 50, item: "rack-it", title: "A rated match" };
+  assert.equal(L.makeEntry({ ...base, match: "m123" }).match, "m123");
+  assert.equal("match" in L.makeEntry(base), false);
+});

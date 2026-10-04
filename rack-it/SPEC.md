@@ -566,6 +566,17 @@ account, not to Rack It, so they show in every app with Connect.
   `sessions-loyalty/staff/<uid>` once a day a friend and stamps the `staff` tag on your card for
   them (taken off again, if it put it there, when they leave the list). A staff member's Rack It
   QR makes an ordinary friend (owner, 2026-10-04).
+- **A table session** (2.20.0, KIT-PLAN Session 10 step 4). Staff at Sessions start a match from a
+  member's page in the loyalty app, which opens Rack It at `?club=<a>.<b>&m=<id>`: setup with both
+  players picked, "At Sessions: you score it for the club.", and the staff member as the scorer
+  (§ the scorer, `shared/CONNECT.md` §5). The match is saved with the loyalty app's id and
+  `venue: "sessions"`, which the rules let only a scorer on the club's staff list (or the owner)
+  set, at create, and nobody change. Its summary says "Logged at Sessions", Matches says "at
+  Sessions", and the scorer's summary has **Back to Sessions** (the first player's page in the
+  loyalty app). The loyalty app logs the points for playing once both players confirm; Rack It
+  writes nothing of the loyalty app's. Someone who isn't staff following such a link is told
+  "Only the club's staff start a match from Sessions."
+- **`?p=<id>`** (2.20.0) opens that player's page: the loyalty card's link to your Rack It rating.
 - **Profile** (your account sheet): your name, and **Take or pick a photo**, shrunk
   to a 192px JPEG kept in the profile (under the rules' 60,000 characters), or **Use my
   Google photo**. Friends see this name and photo. **Hold to delete my account**, then type
@@ -823,6 +834,7 @@ account, so a static app can't upload results.
 | 2.9.0 | Rated matches and confirming (KIT-PLAN Session 5). Setup gains a **Rated** tick, off by default, offered when both players have an account. A friendly moves no rating; a rated match moves both only once the opponent confirms on their own phone, worked out from the ratings at that moment, in one batch. Not right or Withdraw leaves it a friendly. Rebuild replays rated matches by `ratedAt`, else `endedAt`; a match with no `rated` field is rated. For the social leagues, where a rating has to be agreed by both players. |
 | 2.10.0 | Outsiders play in Rack It (KIT-PLAN Session 6): friend mode instead of the outsider screen. The rules open the matches an account plays in, starting one against a connection or a guest, and a rating only in the batch that confirms a rated match the other player ended. Ratings are read by id, matches with one `uids` query. A household member can no longer turn a friendly into a rated match. For pool friends who aren't family. |
 | 2.11.0 | One admin, everyone else a player (KIT-PLAN Session 6b). The owner sees and rewrites every match; everyone else, a household member included, runs friend mode and reads only the matches they play in. The owner's phone backfills `uids` and `names` on matches from before 2.8.0, so the players keep them. The "Before you play" note goes: there's nothing left to warn about. Owner's call, 2026-10-02: "a family member is just another member". Other apps keep the household. |
+| 2.20.0 | A table session (KIT-PLAN Session 10 step 4): staff start a match at Sessions from the loyalty app (`?club`), scored by them at `venue: "sessions"`; "Logged at Sessions" and Back to Sessions. `?p=<id>` opens a player's page. |
 | 2.19.0 | Club connections fold under **Sessions** in Friends and the picker, and the club's staff show **staff** (KIT-PLAN Session 10 step 3). |
 | 2.18.0 | My QR's **Or scan theirs** (KIT-PLAN Session 10 step 2): this phone scans the other's My QR in the app (`connect.scan`), and whoever it was is connected and, at setup, picked. |
 | 2.17.0 | One admin everywhere (KIT-PLAN Session 9 step 4): Invites goes, and the owner's admin path is the only one that reads the household list (`household: true`). |

@@ -7,6 +7,7 @@
 //   cloud.signIn(); cloud.signOut();
 //   await cloud.save("state/main", {...}); // path is relative to sidequests/<appId>/
 //   await cloud.load("state/main");
+//   await cloud.clubMatch(id)             // Sessions Loyalty only: a Rack It match its staff scored at the club
 //   cloud.watch("sessions/abc", doc => ..., onError);  // onError optional
 //   await cloud.patch("sessions/abc", { "racks.3": {...} }); // dotted field paths
 //   await cloud.deleteFields("state/main", ["players"]);     // drop fields, keep the rest
@@ -206,6 +207,12 @@ export const cloud = {
 
   async load(path) {
     const snap = await fs.getDoc(ref(path));
+    return snap.exists() ? snap.data() : null;
+  },
+  // The loyalty app's one read of Rack It (KIT-PLAN Session 10 step 4): a match its staff member
+  // started at the club and scores, by id, to see when both players have confirmed it.
+  async clubMatch(id) {
+    const snap = await fs.getDoc(fs.doc(db, "sidequests", "rack-it", "matches", String(id)));
     return snap.exists() ? snap.data() : null;
   },
 

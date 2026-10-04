@@ -98,7 +98,7 @@ const ACCESS = [
   { path: /^sidequests\/sessions-loyalty\/entries$/, read: (m, u, d, was, ctx) => isStaff(u) || uidIs(ctx, u) },
   { path: /^sidequests\/sessions-loyalty\/entries\/([^/]+)$/,
     read: (m, u, d, was) => isStaff(u) || (!!was && was.uid === u.uid),
-    write: (m, u, d, was) => !was ? !!d && ((isStaff(u) && d.by === u.uid) || isOwner(u))
+    write: (m, u, d, was) => !was ? !!d && ((isStaff(u) && d.by === u.uid) || isOwner(u)) && (!("match" in d) || typeof d.match === "string")
       : !d ? isOwner(u)
       : isStaff(u) && changed(was, d).every(k => ["voided", "voidedBy", "voidedAt", "_updatedAt"].includes(k)) },
   { path: /^sidequests\/sessions-loyalty(\/|$)/, read: "owner", write: "owner" },
@@ -161,7 +161,7 @@ const changed = (was, now) => [...new Set([...Object.keys(was), ...Object.keys(n
 function outsiderStarts(u, d){
   const uids = Array.isArray(d.uids) ? d.uids : [];
   return d.by === u.uid && uids.includes(u.uid) && d.status === "live"
-    && !["endedBy", "confirmedBy", "ratedAt", "declinedBy", "withdrawnBy", "scorer", "confirms"].some(k => k in d)
+    && !["endedBy", "confirmedBy", "ratedAt", "declinedBy", "withdrawnBy", "scorer", "confirms", "venue"].some(k => k in d)
     && (uids.length === 1 || (uids.length === 2 && !!store.docs["friendships/" + [...uids].sort().join("_")]));
 }
 // Two phones, one match (Session 8 step 3): a live score write is the next link of the chain;
@@ -185,7 +185,7 @@ function liveScore(u, keys, now, was){
 }
 function playerScores(u, now, was){
   const keys = changed(was, now);
-  if (["uids", "by", "playerA", "playerB", "names", "scorer"].some(k => keys.includes(k))) return false;
+  if (["uids", "by", "playerA", "playerB", "names", "scorer", "venue"].some(k => keys.includes(k))) return false;
   if (rated(now) && !rated(was)) return false;
   if (was.status === "live") return liveScore(u, keys, now, was);
   if (was.status !== "pending") return false;
@@ -208,11 +208,12 @@ function scorerStarts(u, d){
   const uids = Array.isArray(d.uids) ? d.uids : null;
   return !!uids && d.scorer === u.uid && d.by === u.uid && d.status === "live" && uids.length <= 2 && !uids.includes(u.uid)
     && !["endedBy", "confirmedBy", "ratedAt", "declinedBy", "withdrawnBy", "confirms"].some(k => k in d)
+    && (!("venue" in d) || (d.venue === "sessions" && isStaff(u)))
     && uids.every(x => connectedTo(u.uid, x));
 }
 function scorerScores(u, now, was){
   const keys = changed(was, now);
-  if (["uids", "by", "playerA", "playerB", "names", "scorer", "confirms"].some(k => keys.includes(k))) return false;
+  if (["uids", "by", "playerA", "playerB", "names", "scorer", "confirms", "venue"].some(k => keys.includes(k))) return false;
   if (rated(now) && !rated(was)) return false;
   if (was.status === "live") return liveScore(u, keys, now, was);
   return was.status === "pending" && now.status === "done" && !rated(now)
@@ -660,6 +661,7 @@ export const memory = {
   },
 
   async load(path){ const full = docPath(path, appBase()); check("read", full); return viewOf(full); },
+  async clubMatch(id){ const full = "sidequests/rack-it/matches/" + id; check("read", full); return viewOf(full); },
   save(path, data){ return saveTo(docPath(path, appBase()), data); },
   patch(path, fields){ return patchTo(docPath(path, appBase()), fields); },
   deleteFields(path, fields){
