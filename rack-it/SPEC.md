@@ -558,6 +558,14 @@ account, not to Rack It, so they show in every app with Connect.
   **Met** (stamped at connect, with a place that defaults to the last one you typed, kept on
   this phone), **Tags** (the ones you've used, or a new one), **Save**, and **Hold to
   remove**.
+- **The club** (2.19.0, KIT-PLAN Session 10 step 3). A friend the club's app made (the pair's
+  `app` is `sessions-loyalty`: staff scanned you there) is a club connection. Friends and the
+  picker fold them under **Sessions**, below the people you play with, unless you're searching
+  or have played them lately; setup's chips leave them out until you have. A club connection
+  who is on the club's staff list shows **staff** on their row: your phone checks
+  `sessions-loyalty/staff/<uid>` once a day a friend and stamps the `staff` tag on your card for
+  them (taken off again, if it put it there, when they leave the list). A staff member's Rack It
+  QR makes an ordinary friend (owner, 2026-10-04).
 - **Profile** (your account sheet): your name, and **Take or pick a photo**, shrunk
   to a 192px JPEG kept in the profile (under the rules' 60,000 characters), or **Use my
   Google photo**. Friends see this name and photo. **Hold to delete my account**, then type
@@ -815,6 +823,7 @@ account, so a static app can't upload results.
 | 2.9.0 | Rated matches and confirming (KIT-PLAN Session 5). Setup gains a **Rated** tick, off by default, offered when both players have an account. A friendly moves no rating; a rated match moves both only once the opponent confirms on their own phone, worked out from the ratings at that moment, in one batch. Not right or Withdraw leaves it a friendly. Rebuild replays rated matches by `ratedAt`, else `endedAt`; a match with no `rated` field is rated. For the social leagues, where a rating has to be agreed by both players. |
 | 2.10.0 | Outsiders play in Rack It (KIT-PLAN Session 6): friend mode instead of the outsider screen. The rules open the matches an account plays in, starting one against a connection or a guest, and a rating only in the batch that confirms a rated match the other player ended. Ratings are read by id, matches with one `uids` query. A household member can no longer turn a friendly into a rated match. For pool friends who aren't family. |
 | 2.11.0 | One admin, everyone else a player (KIT-PLAN Session 6b). The owner sees and rewrites every match; everyone else, a household member included, runs friend mode and reads only the matches they play in. The owner's phone backfills `uids` and `names` on matches from before 2.8.0, so the players keep them. The "Before you play" note goes: there's nothing left to warn about. Owner's call, 2026-10-02: "a family member is just another member". Other apps keep the household. |
+| 2.19.0 | Club connections fold under **Sessions** in Friends and the picker, and the club's staff show **staff** (KIT-PLAN Session 10 step 3). |
 | 2.18.0 | My QR's **Or scan theirs** (KIT-PLAN Session 10 step 2): this phone scans the other's My QR in the app (`connect.scan`), and whoever it was is connected and, at setup, picked. |
 | 2.17.0 | One admin everywhere (KIT-PLAN Session 9 step 4): Invites goes, and the owner's admin path is the only one that reads the household list (`household: true`). |
 | 2.16.1 | The echo strip and presence come from `shared/ui.js` (`ui.echo`, `ui.presence`), shared with Zombie Dice. No change on screen. |

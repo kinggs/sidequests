@@ -29,10 +29,12 @@
 // The sources, merged by resolved id:
 // - household: /sidequests/_shared/people, the owner's list since Session 9 (only the owner can
 //   read it). Watched only when the app passes household: true, which Rack It does on its admin
-//   path, and the other apps only on the owner's phone until their one-time backfill has run.
+//   path (since Session 10, no other app).
 //   Everyone else, a member included, is an account like anyone (KIT-PLAN.md Session 9).
 // - friends: your Connect friends (cloud.account.watchFriends), named and pictured by their
-//   profile. An account's id is its uid.
+//   profile. An account's id is its uid. A friend made by the club's app (the pair's app is
+//   sessions-loyalty) is `club`: the picker folds them under "Sessions" (KIT-PLAN Session 10).
+//   One of the club's staff carries the `staff` tag on your card, stamped here (stampStaff).
 // - guests: someone with no phone, a typed name private to you (profiles/<you>/guests/g_<id>).
 // - you, when you aren't household: your own account, named and pictured by your profile, so
 //   an outsider can pick themselves (KIT-PLAN.md Session 6). meId() is then your uid.
@@ -70,7 +72,7 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const lower = x => String(x || "").trim().toLowerCase();
 
 let all = {};             // id -> person, pointers and removed people included
-let friends = {};         // uid -> { name, photo, since, named }: your Connect friends
+let friends = {};         // uid -> { name, photo, since, named, app, tags }: your Connect friends
 let guests = {};          // g_<id> -> { name, createdAt, claimedBy }: yours
 let self = null;          // { name, photo }: you, from your profile, when you aren't household
 let household = true;     // false once cloud.role() says this account isn't on /members
@@ -152,7 +154,8 @@ function get(id){
   if (!r) return null;
   if (self && r === myUid()) return { id: r, uid: r, name: self.name, photo: self.photo, photoURL: self.photo, colour: "", createdAt: 0, kind: "account" };
   const f = friends[r];
-  if (f) return { id: r, uid: r, name: f.name, photo: f.photo, photoURL: f.photo, colour: "", createdAt: f.since || 0, kind: "account" };
+  if (f) return { id: r, uid: r, name: f.name, photo: f.photo, photoURL: f.photo, colour: "", createdAt: f.since || 0, kind: "account",
+    club: f.app === CLUB, staff: (f.tags || []).includes("staff") };
   const g = guests[r];
   if (g) return { id: r, name: g.name, photo: "", colour: "", createdAt: g.createdAt || 0, claimedBy: g.claimedBy || "", kind: "guest" };
   // Not adopted yet (first run, or offline on a phone that has never seen the list):
@@ -448,11 +451,38 @@ function onFriends(list){
   const next = {};
   for (const f of list){
     const was = friends[f.uid];
-    next[f.uid] = was ? { ...was, since: f.since || 0 } : { name: "", photo: "", since: f.since || 0, named: false };
+    const keep = { since: f.since || 0, app: f.app || "", tags: f.tags || [] };
+    next[f.uid] = was ? { ...was, ...keep } : { name: "", photo: "", named: false, ...keep };
     if (!was) named(f.uid);
   }
   friends = next;
   notify();
+  stampStaff(list);
+}
+
+// The staff badge (KIT-PLAN Session 10 step 3, owner 2026-10-04). A friend the club's app made
+// (the pair's app is sessions-loyalty) who is on its staff list gets the `staff` tag on your card
+// for them; one read each, at most once a day a friend. The tag is yours like any other, so this
+// takes it off again only if it put it there (staffAt), when they've left the list.
+const CLUB = "sessions-loyalty";
+const DAY_MS = 86400000;
+const checking = new Set();
+function stampStaff(list){
+  const acc = cloud.account;
+  if (!acc || !acc.clubStaff || !cloud.user) return;
+  const me = myUid();
+  for (const f of list){
+    if (f.app !== CLUB || checking.has(f.uid)) continue;
+    const key = `people.staff.${me}.${f.uid}`;
+    try { if (Date.now() - Number(localStorage.getItem(key) || 0) < DAY_MS) continue; } catch {}
+    checking.add(f.uid);
+    acc.clubStaff(f.uid).then(on => {
+      try { localStorage.setItem(key, String(Date.now())); } catch {}
+      const tags = f.tags || [], has = tags.includes("staff");
+      if (on && !has) return acc.saveFriend(f.uid, { tags: [...tags, "staff"], staffAt: Date.now() });
+      if (!on && has && f.staffAt) return acc.saveFriend(f.uid, { tags: tags.filter(t => t !== "staff"), staffAt: null });
+    }).catch(e => console.warn("[people] staff", e)).finally(() => checking.delete(f.uid));
+  }
 }
 function named(uid){
   return cloud.account.profile(uid).then(p => {
@@ -516,6 +546,9 @@ const CSS = `
 .pk-av img{display:block;width:100%;height:100%;box-sizing:border-box;border-radius:50%;object-fit:cover;border:2px solid var(--ink-0);background:var(--ink-0)}
 .pk-av.pk-init{padding:0}
 .pk-pick>span:last-child{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
+.pk-sheet .pk-fold{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:var(--tap,60px);padding:0 12px;margin-top:8px;
+  background:none;border:none;border-top:1px solid var(--line);color:var(--dim);font-size:.8889rem;width:100%}
+.pk-fold .lbl{color:var(--faint)}
 .pk-pick small{font-size:.8333rem;font-weight:600;color:var(--dim);margin-left:8px}
 .pk-new{display:flex;flex-direction:column;gap:8px;margin-top:8px}
 `;
@@ -761,7 +794,7 @@ function pick({ title = "Pick a player", recent = [], exclude = [], app = "", fr
     if (onlyFriends){ q("guest").hidden = true; q("guest").nextElementSibling.hidden = true; q("none").textContent = "No friends yet. Scan their phone."; }
     const skip = new Set(exclude.filter(Boolean).map(resolve));
 
-    let painted = "";
+    let painted = "", clubOpen = false;
     function paint(){
       if (fresh) return;
       const list = players().filter(p => !skip.has(p.id) && (!onlyFriends || (p.uid && !mine(p))));
@@ -772,24 +805,39 @@ function pick({ title = "Pick a player", recent = [], exclude = [], app = "", fr
       find.hidden = list.length <= 8;
       const term = find.hidden ? "" : find.value.trim().toLowerCase();
       const shown = term ? list.filter(p => String(p.name).toLowerCase().includes(term)) : list;
-      const sig = JSON.stringify([term, shown.map(p => [p.id, p.name, p.photo, colourOf(p.id)])]);
+      // The club's connections fold under "Sessions", below the people you play with, unless
+      // you've played them lately or you're searching (KIT-PLAN Session 10 step 3).
+      const folded = term ? [] : shown.filter(p => p.club && rank(p.id) === Infinity);
+      const top = shown.filter(p => !folded.includes(p));
+      const sig = JSON.stringify([term, clubOpen, shown.map(p => [p.id, p.name, p.photo, colourOf(p.id), p.club, p.staff])]);
       if (sig === painted) return;
       painted = sig;
       const list_ = q("list");
       list_.innerHTML = "";
       q("none").hidden = list.length > 0;
-      for (const p of shown){
+      const row = p => {
         const b = document.createElement("button");
         b.type = "button";
         b.className = "pk-pick";
         b.append(avatar(p.id, 36));
         const n = document.createElement("span");
         n.textContent = p.name || "…";
-        const tag = mine(p) ? "you" : p.kind === "guest" ? "guest" : p.kind === "account" ? "friend" : "";
+        const tag = mine(p) ? "you" : p.kind === "guest" ? "guest" : p.staff ? "staff" : p.kind === "account" ? "friend" : "";
         if (tag){ const t = document.createElement("small"); t.textContent = tag; n.append(t); }
         b.append(n);
         tap(b, () => close(p.id));
-        list_.append(b);
+        return b;
+      };
+      for (const p of top) list_.append(row(p));
+      if (folded.length){
+        const f = document.createElement("button");
+        f.type = "button";
+        f.className = "pk-fold";
+        f.setAttribute("aria-expanded", String(clubOpen));
+        f.innerHTML = `<span class="lbl">Sessions</span><span>${folded.length} · ${clubOpen ? "Hide" : "Show"}</span>`;
+        tap(f, () => { clubOpen = !clubOpen; paint(); });
+        list_.append(f);
+        if (clubOpen) for (const p of folded) list_.append(row(p));
       }
     }
     q("find").addEventListener("input", paint);

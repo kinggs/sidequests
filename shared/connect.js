@@ -80,6 +80,9 @@ const CSS = `
   border-radius:50%;padding:3px;background:var(--text-2,#c3ceda);overflow:hidden;font-family:var(--grot,inherit);font-weight:700;
   line-height:1;font-size:calc(var(--s) * .42);color:var(--ink-0,#0a0d11)}
 .cn-scan video{display:block;width:min(100%,60dvh);aspect-ratio:1;object-fit:cover;border-radius:var(--r-card,18px);background:#000;margin:0 auto}
+.cn-ov .rows>li.cn-fold{cursor:pointer;justify-content:space-between;min-height:var(--tap,60px);color:var(--dim,#a8b6c4);font-size:.8889rem;background:none}
+.cn-fold .lbl{color:var(--faint,#7d8b99)}
+.cn-ov .l1 small{font-size:.8333rem;font-weight:600;color:var(--dim,#a8b6c4);margin-left:8px}
 .cn-av img{display:block;width:100%;height:100%;border-radius:50%;object-fit:cover;border:2px solid var(--ink-0,#0a0d11);background:var(--ink-0,#0a0d11)}
 `;
 function injectCss(){
@@ -394,6 +397,7 @@ function scan({ app = "", title = "Scan their QR" } = {}){
 // ---- Friends, and each friend's card ----
 // The card is yours alone (profiles/<you>/friends/<them>): a note, when and where you met,
 // and tags. Tags you've used are offered again, and filter the list.
+const CLUB = "sessions-loyalty";   // a pair the club's app made: folded under "Sessions"
 const PLACE = "connect.place";   // the last place typed, offered for the next one
 const lastPlace = () => { try { return localStorage.getItem(PLACE) || ""; } catch { return ""; } };
 const keepPlace = p => { try { if (p) localStorage.setItem(PLACE, p); } catch {} };
@@ -417,7 +421,7 @@ function showFriends(){
       <ul class="rows" data-k="list"><li class="empty">Loading…</li></ul>
     </div>`);
   const q = s => ov.querySelector(`[data-k="${s}"]`);
-  let friends = [], names = {}, tag = "";
+  let friends = [], names = {}, tag = "", clubOpen = false;
   const unwatch = cloud.account.watchFriends(list => {
     friends = list;
     Promise.all(list.map(f => cloud.account.profile(f.uid).then(p => { names[f.uid] = p; }))).then(paint);
@@ -448,7 +452,10 @@ function showFriends(){
     list.innerHTML = "";
     if (!friends.length){ list.innerHTML = `<li class="empty">No friends yet. Open My QR and let them scan it.</li>`; return; }
     if (!shown.length){ list.innerHTML = `<li class="empty">Nobody matches.</li>`; return; }
-    for (const f of shown){
+    // The club's connections (made by its app) fold under "Sessions", below the people you
+    // play with, unless you're searching or filtering (KIT-PLAN Session 10 step 3).
+    const folded = find || tag ? [] : shown.filter(f => f.app === CLUB);
+    const row = f => {
       const p = names[f.uid];
       const li = document.createElement("li");
       li.append(avatar(f.uid, 44, p));
@@ -456,10 +463,22 @@ function showFriends(){
       who.className = "who";
       who.innerHTML = `<div class="l1"></div><div class="l2"></div>`;
       who.firstChild.textContent = (p && p.name) || "…";
+      if ((f.tags || []).includes("staff")){ const t = document.createElement("small"); t.textContent = "staff"; who.firstChild.append(t); }
       who.lastChild.textContent = f.note || [f.metPlace, when(f.metAt || f.since)].filter(Boolean).join(" · ");
       li.append(who);
       tap(li, () => openCard(f, p, used));
+      return li;
+    };
+    for (const f of shown) if (!folded.includes(f)) list.append(row(f));
+    if (folded.length){
+      const li = document.createElement("li");
+      li.className = "cn-fold";
+      li.setAttribute("role", "button");
+      li.setAttribute("aria-expanded", String(clubOpen));
+      li.innerHTML = `<span class="lbl">Sessions</span><span>${folded.length} · ${clubOpen ? "Hide" : "Show"}</span>`;
+      tap(li, () => { clubOpen = !clubOpen; paint(); });
       list.append(li);
+      if (clubOpen) for (const f of folded) list.append(row(f));
     }
     const hint = document.createElement("li");
     hint.className = "empty";

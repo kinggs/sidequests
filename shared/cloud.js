@@ -33,8 +33,9 @@
 //   await cloud.account.invite()          // your live code, renewed when under an hour is left
 //   await cloud.account.lookupInvite(code)  // { uid, name }, or null if gone or expired; works signed out
 //   await cloud.account.accept(code, app)   // { uid, name } | { …, already: true } | { self: true } | null (dead)
-//   cloud.account.watchFriends(cb, onError) // [{ uid, since, app, note, tags, metAt, metPlace }], newest first
+//   cloud.account.watchFriends(cb, onError) // [{ uid, since, app, note, tags, metAt, metPlace, staffAt }], newest first
 //   await cloud.account.saveFriend(uid, { note, tags, metPlace })  // your private card only
+//   await cloud.account.clubStaff(uid)    // true when they're on Sessions Loyalty's staff list (the staff badge)
 //   await cloud.account.unfriend(uid)
 //   cloud.account.watchGuests(cb, onError) // [{ id, name, createdAt, claimedBy }]: your guests, people with no phone
 //   await cloud.account.addGuest(name)    // the new guest's id, "g_<id>"; written in the background
@@ -327,6 +328,13 @@ export const cloud = {
       }
       return profiles.get(uid);
     },
+    // The one read outside an app's namespace that every app may make: is this friend on the
+    // club's staff list (sessions-loyalty/staff/<uid>, gettable by anyone signed in)? It feeds
+    // the `staff` tag on your card for them (people.js, KIT-PLAN Session 10 step 3).
+    async clubStaff(uid) {
+      if (!uid) return false;
+      return (await fs.getDoc(fs.doc(db, "sidequests", "sessions-loyalty", "staff", uid))).exists();
+    },
     // Your code lives in private/main, never in the profile, so having your uid isn't enough
     // to friend you. Renewed when it has under an hour left; the one it replaces is deleted.
     async invite() {
@@ -371,7 +379,7 @@ export const cloud = {
         cb(pairs.map(p => {
           const uid = p.uids.find(x => x !== u.uid) || "", c = cards[uid] || {};
           return { uid, since: ms(p.since), app: p.app || "", note: c.note || "", tags: c.tags || [],
-            metAt: ms(c.metAt) ?? ms(p.since), metPlace: c.metPlace || "" };
+            metAt: ms(c.metAt) ?? ms(p.since), metPlace: c.metPlace || "", staffAt: ms(c.staffAt) || 0 };
         }).sort((a, b) => (b.since || 0) - (a.since || 0)));
       };
       const est = { serverTimestamps: "estimate" };

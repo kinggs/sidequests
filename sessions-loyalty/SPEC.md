@@ -63,7 +63,8 @@ Staff read it two ways:
 
 Either way the scan **makes the Connect friendship** between that staff account and the member,
 with `app: "sessions-loyalty"` on the pair (owner, 2026-10-02: staff are real connections; the
-pair's `app` is how Rack It can show club connections as their own group later, `KIT-PLAN.md`).
+pair's `app` is how every app's Friends and picker fold club connections under **Sessions**,
+and a member's phone tags a friend on `staff/` as **staff**: KIT-PLAN Session 10 step 3).
 A code that has expired says so; your own says so. The first scan of someone makes their card.
 
 **Sign up a new member** shows the staff member's own QR. The member scans it, signs in, and the

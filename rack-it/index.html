@@ -706,7 +706,7 @@ import { connect } from "../shared/connect.js";
 import { ui } from "../shared/ui.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "2.18.0";
+const APP_VERSION = "2.19.0";
 const APP_ID = "rack-it";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 document.getElementById("versionMore").textContent = "v" + APP_VERSION;
@@ -1822,9 +1822,10 @@ const CHIPS_MAX = 8;
 let chipsSig = "";
 function paintWhoChips(){
   const me = people.meId();
-  const pool = people.players().filter(p => !p.deleted && (!friendMode || p.kind !== "household"));
   const order = [...new Set([me, setup.a, setup.b, ...recentFor(null)].filter(Boolean).map(people.resolve))];
   const rank = id => { const i = order.indexOf(id); return i < 0 ? Infinity : i; };
+  // The club's connections stay in the picker's Sessions fold unless you've played them lately.
+  const pool = people.players().filter(p => !p.deleted && (!friendMode || p.kind !== "household") && !(p.club && rank(p.id) === Infinity));
   const list = pool.sort((x, y) => rank(x.id) - rank(y.id) || String(x.name).localeCompare(String(y.name)))
     .slice(0, CHIPS_MAX);
   for(const id of [setup.a, setup.b]) if(id && !list.some(p => p.id === id) && people.get(id)) list.push(people.get(id));

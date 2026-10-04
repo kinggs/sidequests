@@ -495,6 +495,10 @@ const account = {
     try { return asProfile(uid, await getDoc("profiles/" + uid)); }
     catch (e) { console.warn("[cloud.account] profile", uid, e); return null; }
   },
+  async clubStaff(uid){
+    if (!uid) return false;
+    return !!(await getDoc("sidequests/sessions-loyalty/staff/" + uid));
+  },
   async invite(){
     const u = needUser();
     const privPath = `profiles/${u.uid}/private/main`;
@@ -530,7 +534,7 @@ const account = {
       .map(p => {
         const uid = p.uids.find(x => x !== u.uid) || "", c = store.docs[`${cards}/${uid}`] || {};
         return { uid, since: p.since || null, app: p.app || "", note: c.note || "", tags: c.tags || [],
-          metAt: c.metAt || p.since || null, metPlace: c.metPlace || "" };
+          metAt: c.metAt || p.since || null, metPlace: c.metPlace || "", staffAt: c.staffAt || 0 };
       })
       .sort((a, b) => (b.since || 0) - (a.since || 0)), cb, onError);
   },

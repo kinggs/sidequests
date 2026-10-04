@@ -15,6 +15,7 @@ shares `pw.mjs` with them.
 | `rack-it-two-phones.mjs` | Session 8 step 3: two phones score one match; a tab offline for five changes; a race; Undo on the echo strip | Playwright |
 | `rack-it-scorer.mjs` | Session 8 step 4: Mel scores a rated match for the owner and Ann; both sign; Rebuild agrees | Playwright |
 | `connect-scan.mjs` | Session 10 step 2: My QR's Or scan theirs, from Rack It's Show QR and `people.pick`; your own QR and a dead code; Sessions Loyalty's scanner on `connect.scan` | Playwright |
+| `club-friends.mjs` | Session 10 step 3: club connections fold under Sessions in Friends and the picker; the staff tag stamped once a day, and taken off | Playwright |
 | `rev-probe.mjs` | Session 8 step 3's probe: queued offline writes against a counter and against the chain, on the emulator | Java 21, npx |
 | `zombie-dice-open.mjs` | Session 7 step 4: the open rule in Zombie Dice, on a seed of old games (`seeds/`); with `OLD=<git rev>`, old build against new | Playwright |
 | `bloc-11-open.mjs` | Session 9 step 1: Bloc 11 on the open rule, on a seed of old climbs (as the backfill left them, since Session 10); a guest's climb; That was them; with `OLD=<git rev>`, old build against new | Playwright |

@@ -53,7 +53,7 @@ await owner.bringToFront();
 await owner.click("#guestBtn"); await owner.fill("#pk-guest", "Dan"); await owner.click('.sheet [data-k="addguest"]'); await owner.waitForTimeout(400);
 await owner.click("#startBtn"); await owner.waitForTimeout(500);
 const startCard = (await text(owner, ".done")).replace(/\s+/g, " ");
-ok(/Pass the phone to/i.test(startCard) && /I'm Mock — go/.test(startCard), "one phone: the start card passes the phone, as before: " + startCard);
+ok(/Pass the phone to/i.test(startCard) && /I'm Mock Player — go/.test(startCard), "one phone: the start card passes the phone, as before: " + startCard);
 gameId = (await gamesOf(owner)).find(x => x.status === "live").id;
 await playTurn(owner);
 const turnCard = (await text(owner, ".done")).replace(/\s+/g, " ");

@@ -64,6 +64,11 @@ Meet someone, show your QR, and you're connected in every sidequest that has Con
     filter friends by tag.
   - **Remove**: takes you out of each other's lists. They can't re-add themselves: the
     code they scanned has expired.
+- **The club** (Session 10): a friend made by Sessions Loyalty (the pair's `app` is
+  `sessions-loyalty`) folds under **Sessions** in Friends and `people.pick`, below the people
+  you play with. One on the club's staff list gets the `staff` tag on your card, stamped by your
+  phone once a day (`cloud.account.clubStaff`, the one read every app may make outside its
+  namespace), and shows **staff** on their row.
 - **Export / Import** of your profile, friend cards and guests as JSON. Import restores
   your notes; it can't remake a friendship.
 - **Delete my account** removes your profile, photo, friendships, notes and guests.

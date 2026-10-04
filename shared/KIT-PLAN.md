@@ -179,13 +179,16 @@ the session runs out of room, and write the Handover note in `KIT-HISTORY.md`.
 
 ### Step 3 — Club connections and the staff badge (minor bumps; no rules)
 
-- [ ] Rack It's Friends and `people.pick` group friends by the pair's `app`: the club's
+- [x] Rack It's Friends and `people.pick` group friends by the pair's `app`: the club's
   (per the owner's answer 2) folded under their own heading, "Sessions", below the people you play
   with.
-- [ ] Per answer 3: the member's phone stamps `tags: ["staff", …]` on the friend card of a friend
+- [x] Per answer 3: the member's phone stamps `tags: ["staff", …]` on the friend card of a friend
   who is on `sessions-loyalty/staff/` (one `get` each, at most once a day per friend); Rack It shows
   the tag as "staff" on the row. No rule change: the card is yours, and the staff list is gettable.
-- [ ] SPECs (Rack It §8, Sessions Loyalty), `KIT.md` (Connect).
+- [x] SPECs (Rack It §8, Sessions Loyalty), `KIT.md` (Connect). (Rack It 2.19.0, the rest a
+  patch; `shared/proofs/club-friends.mjs`, 12 checks. The fold is in `connect.showFriends`, so
+  every app's Friends has it. A tag the phone stamped carries `staffAt`, and goes when they
+  leave the list; one you typed stays.)
 
 ### Step 4 — A table session (rules + minor bumps, one push)
 

@@ -1,5 +1,5 @@
 // Network-first shell cache. Bump CACHE whenever index.html changes so old copies are dropped.
-const CACHE = "sessions-loyalty-v0.2.0";
+const CACHE = "sessions-loyalty-v0.2.1";
 const SHELL = ["./", "./index.html", "./manifest.json", "./loyalty.js", "../shared/theme.css", "../shared/ui.js",
                "../shared/connect.js", "../shared/phone.js", "../shared/vendor/qrcode.js",
                "../shared/fonts/space-grotesk-600.woff2", "../shared/fonts/space-grotesk-700.woff2"];
