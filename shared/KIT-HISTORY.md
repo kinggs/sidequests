@@ -1538,3 +1538,69 @@ What the plan got wrong, or didn't say:
 12. **Bloc 11 keeps its date field**: frame 3a swaps it for a "Today. Tap the date to change it."
     line. Left for Session 10.
 13. **Fair Nine stays** until 2026-10-16, a month after it moved.
+
+### Session 10, 2026-10-04 (Opus)
+
+Shipped, all live, one push a step: step 1, the household backfills gone and Bloc 11's When line
+(Bloc 11 0.9.1, Around the Clock 0.10.1, Zombie Dice 0.6.1); step 2, `connect.scan()` and My QR's
+**Or scan theirs** (Rack It 2.18.0, Sessions Loyalty 0.2.0); step 3, club connections under
+**Sessions** and the staff badge (Rack It 2.19.0); step 4, a table session (Rack It 2.20.0,
+Sessions Loyalty 0.3.0, rules run 37188187740); step 5, four from Parked: a pending match expires
+(Rack It 2.21.0, 37188657291), a late scorer by Game QR (2.22.0, 37189142835), a chain for turn
+games (Zombie Dice 0.7.0, 37189834457), My QR in the app's look (Rack It 2.23.0, every app a bump).
+Fair Nine deleted the same day, early, at the owner's word (its stub only redirected to Rack It).
+
+Proved:
+
+- Rules: 191 cases before, 215 after (24 new, each written first and red on the rules before it,
+  bar the "may" cases a rule only opened). 20 new guards. The full mutation check, run clean after step 5 (`node shared/proofs/mutate.mjs`): every one of the 98 guards turns its own case red when loosened. It found five guards quoting rules text this session changed (fixed), one retired (the owner's Rack It skip, now redundant with `openLink()`), and one case that passed for the wrong reason (fixed).
+- `?mock` proofs, all with no page errors, console errors or refusal warnings: `connect-scan.mjs`
+  (16), `club-friends.mjs` (12), `table-session.mjs` (25), `rack-it-expiry.mjs` (9),
+  `rack-it-late-scorer.mjs` (10), `zombie-dice-chain.mjs` (7), `qr-look.mjs` (42, with zbar and
+  jsQR). Every older proof re-run after every step, and `rack-it-same-match.mjs` against the
+  session's first commit (7e930bd): one 11-Point-Nine match saves the same documents.
+- `make verify` green throughout: 42 node tests (one new, an entry's `match`), smoke on seven apps.
+
+Not done: the real-phone checks (the owner tested My QR between their own accounts): a table session at Sessions (staff scores, both players confirm, the points land on the
+staff phone); a late scorer; Zombie Dice with one phone going offline mid-turn.
+
+What the plan got wrong, or didn't say:
+
+1. **Removing the backfills changed one name.** The owner was named from the household list in
+   those three apps; now it's their profile ("Mock Player", in production the Google name). Two
+   proofs read "Mock" and were updated. Imports had leaned on the backfill to fill `uids`; each
+   app's import now names an old record as it saves it. The open-rule proofs start from
+   `seeds/<app>-backfilled.json`, made by running the old build on the old seed.
+2. **"Or scan theirs" is on My QR itself**, not on two callers, so `people.pick`, setup's Show QR
+   and every app's My QR have it. While the scanner is up, My QR's own friend watch stands aside,
+   or the new pair would be announced twice.
+3. **The fold lives in `connect.showFriends`** and `people.pick`, so every app's Friends has it.
+   Setup's chips leave club friends out unless you've played them lately. A `staff` tag the phone
+   stamped carries `staffAt`, so it can come off again when they leave the list; one you typed stays.
+4. **Two reads across apps, both in `cloud.js`**: `cloud.account.clubStaff(uid)` and
+   `cloud.clubMatch(id)`. Rule 3 otherwise holds: Rack It writes nothing of the loyalty app's, nor
+   the other way round. The plan's "the scorer's phone logs the points" is the loyalty app on that
+   phone: it mints the match id, remembers the table (localStorage, the sitting is six hours), reads
+   the match by id until both have confirmed, then logs `rackit_<match>_<uid>`, checked first. So
+   the points land when that phone next opens the loyalty app, comes back to it, or within 30s.
+5. **`logEntry` used the open member page's entries for any member.** Harmless until something
+   logged for someone else; it now uses them only when they're that member's.
+6. **Expiry needed no new power.** Anyone in a pending match could already Withdraw or say Not
+   right. The rule only allows `expired`, on a friendly, once `endedAt` is a week old; the first
+   phone in it does it.
+7. **A late scorer is offered beside any guest seat left**, not only when the seats are gone. A
+   match is "full" now only with no seat and a scorer. `rack-it-seats.mjs` updated for it.
+8. **The owner's blanket write keeps the turn chain** on a live record that carries `rev`, as
+   Session 8 note 8 did for Rack It. ⚠ A Zombie Dice phone still on 0.6.x mid-game when the rules
+   landed has its writes refused; reopening updates it.
+9. **My QR's look is a frame and a badge, not an icon in the code.** Round dots made jsQR miss 7
+   codes in 18. The icon over the modules at H made zbar miss two apps' codes, and which ones flipped
+   with the code (an 18% icon failed where 22% passed), so a daily code couldn't be trusted to scan
+   first time. The code inside is the plain one, byte for byte. Parked keeps "an icon in the
+   middle", only with a decoder check on the phone first.
+10. **Two rules runs at once corrupt each other** (Session 9 note 10), again: a rules check ran
+    while the mutation check did. Give the second its own `RULES_DIR`.
+11. On this machine: Playwright is at
+    `/mnt/devdata/kenny/source/totemiq/zarp-portal/node_modules/playwright-core/index.mjs`, zbarimg
+    is installed, and SSH pushes failed (the 1Password agent didn't sign), so pushes went over HTTPS
+    with `gh`'s credential helper.

@@ -1643,7 +1643,8 @@ describe("A pending match expires: must refuse", () => {
     await seed(M + "youngScored", scored({ status: "pending", endedBy: "cat", endedAt: DAYS(6) }));
   });
   test("expired before the week is up, by a player or the scorer", async () => {
-    await assertSucceeds(updateDoc(doc(user("ben"), M + "young"), { status: "done", rated: false, declinedBy: "ben" }));   // Not right is fine
+    await seed(M + "young2", abMatch({ status: "pending", endedBy: "ann", endedAt: DAYS(6) }));
+    await assertSucceeds(updateDoc(doc(user("ben"), M + "young2"), { status: "done", rated: false, declinedBy: "ben" }));   // Not right is fine
     await assertFails(updateDoc(doc(user("ann"), M + "young"), { status: "done", rated: false, expired: true }));
     await assertFails(updateDoc(doc(user("cat"), M + "youngScored"), { status: "done", rated: false, withdrawnBy: "cat", expired: true }));
   });

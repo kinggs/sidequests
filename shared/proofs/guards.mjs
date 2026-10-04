@@ -7,14 +7,14 @@ export const GUARDS = [
   // ---- Rack It: one admin, everyone else a player (Sessions 6 and 6b) ----
   // ---- One admin (Session 9 step 4): no household tier ----
   { guard: "One admin: only the owner reaches sidequests/ beyond an app's own rules",
-    from: "allow read, write: if isOwner() && !(appId in ['rack-it', 'sessions-loyalty']);",
-    to: "allow read, write: if signedIn() && !(appId in ['rack-it', 'sessions-loyalty']);", red: /the household way|the other apps or the household people/ },
-  { guard: "One admin: the owner's reach skips Rack It, whose live matches keep their chain",
-    from: "allow read, write: if isOwner() && !(appId in ['rack-it', 'sessions-loyalty']);",
-    to: "allow read, write: if isOwner() && !(appId in ['sessions-loyalty']);", red: /the owner's stale write/ },
+    from: "allow read, create, delete: if isOwner() && !(appId in ['rack-it', 'sessions-loyalty']);",
+    to: "allow read, create, delete: if signedIn() && !(appId in ['rack-it', 'sessions-loyalty']);", red: /the household way|the other apps or the household people/ },
+  // "The owner's reach skips Rack It" retired in Session 10: the owner's update now keeps any live
+  // chain (openLink), so a stale write to a live match is refused with or without the skip, and no
+  // case can tell them apart. The skip stays in the rules as belt and braces.
   { guard: "One admin: the owner's reach skips Sessions Loyalty, whose entries are only voided",
-    from: "allow read, write: if isOwner() && !(appId in ['rack-it', 'sessions-loyalty']);",
-    to: "allow read, write: if isOwner() && !(appId in ['rack-it']);", red: /the owner rewriting an entry/ },
+    from: "allow update: if isOwner() && !(appId in ['rack-it', 'sessions-loyalty'])\n",
+    to: "allow update: if isOwner() && !(appId in ['rack-it'])\n", red: /the owner rewriting an entry/ },
   { guard: "One admin: an account asks only for its own /members document",
     from: "allow get: if signedIn() && request.auth.token.email == email;", to: "allow get: if signedIn();",
     red: /someone else's/ },
@@ -54,7 +54,7 @@ export const GUARDS = [
     from: "allow read: if isOpen(appId) && coll in openApps()[appId]\n        && signedIn() && request.auth.uid in resource.data.get('uids', []);",
     to: "allow read: if isOpen(appId) && coll in openApps()[appId]\n        && signedIn();", red: /a stranger reading, listing or changing/ },
   { guard: "Open: a record is changed by the accounts in it",
-    from: "((request.auth.uid in resource.data.get('uids', []) && (keepsWho() || openClaim()))", to: "(((keepsWho() || openClaim()))",
+    from: "((request.auth.uid in resource.data.get('uids', []) && ((keepsWho() && openLink()) || openClaim()))", to: "((((keepsWho() && openLink()) || openClaim()))",
     red: /a stranger reading, listing or changing/ },
   { guard: "Open: playing on never changes who's in it",
     from: "affectedKeys().hasAny(['uids', 'players', 'by'])", to: "affectedKeys().hasAny([])", red: /changing who's in it/ },
@@ -187,7 +187,7 @@ export const GUARDS = [
     to: "|| true)) || isOwner();", red: /a stranger reading it/ },
   { guard: "Scorer: never confirms", from: "was.status == 'pending' && now.status == 'done' && !rated(now)\n",
     to: "was.status == 'pending' && now.status == 'done'\n", red: /the scorer confirming/ },
-  { guard: "Scorer: withdraws only as themselves", from: "&& now.get('withdrawnBy', '') == request.auth.uid);", to: ");",
+  { guard: "Scorer: withdraws only as themselves", from: "'expired', '_updatedAt']) && now.get('withdrawnBy', '') == request.auth.uid\n", to: "'expired', '_updatedAt'])\n",
     red: /withdrawing in someone else's name/ },
   { guard: "Both sign: a confirm touches only confirms", from: "return keys.hasOnly(['confirms', '_updatedAt']) && request.auth.uid != resource.data.get('endedBy', request.auth.uid)",
     to: "return request.auth.uid != resource.data.get('endedBy', request.auth.uid)", red: /moving the score with it/ },
