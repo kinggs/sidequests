@@ -543,7 +543,8 @@ account, not to Rack It, so they show in every app with Connect.
   `…/rack-it/?i=<code>`. It holds the screen on and goes fullscreen. The code lasts 24 hours
   and renews itself when you open My QR with under an hour left. **Copy link** sends it by
   message. When someone scans it while it's open, it says "Connected with …" and closes.
-  **Or scan theirs** (2.18.0, KIT-PLAN Session 10 step 2): their phone shows My QR, this one's
+  It's framed in teal with Rack It's 9-ball as a badge on the frame (2.23.0, Session 10 step 5);
+  the code inside is the plain one. **Or scan theirs** (2.18.0, KIT-PLAN Session 10 step 2): their phone shows My QR, this one's
   camera reads it in the app (`connect.scan`; a pasted link where the phone can't), and the
   friendship is made from their code, as their link would. So setup's **Show QR** and **Add
   player** work whichever phone does the scanning.
@@ -845,6 +846,7 @@ account, so a static app can't upload results.
 | 2.9.0 | Rated matches and confirming (KIT-PLAN Session 5). Setup gains a **Rated** tick, off by default, offered when both players have an account. A friendly moves no rating; a rated match moves both only once the opponent confirms on their own phone, worked out from the ratings at that moment, in one batch. Not right or Withdraw leaves it a friendly. Rebuild replays rated matches by `ratedAt`, else `endedAt`; a match with no `rated` field is rated. For the social leagues, where a rating has to be agreed by both players. |
 | 2.10.0 | Outsiders play in Rack It (KIT-PLAN Session 6): friend mode instead of the outsider screen. The rules open the matches an account plays in, starting one against a connection or a guest, and a rating only in the batch that confirms a rated match the other player ended. Ratings are read by id, matches with one `uids` query. A household member can no longer turn a friendly into a rated match. For pool friends who aren't family. |
 | 2.11.0 | One admin, everyone else a player (KIT-PLAN Session 6b). The owner sees and rewrites every match; everyone else, a household member included, runs friend mode and reads only the matches they play in. The owner's phone backfills `uids` and `names` on matches from before 2.8.0, so the players keep them. The "Before you play" note goes: there's nothing left to warn about. Owner's call, 2026-10-02: "a family member is just another member". Other apps keep the household. |
+| 2.23.0 | My QR wears the app's look: a frame in its accent and its icon as a badge on the frame; the code inside is untouched (KIT-PLAN Session 10 step 5). |
 | 2.22.0 | A late scorer: the Game QR offers Score this match on a live match with no scorer (KIT-PLAN Session 10 step 5). |
 | 2.21.0 | A pending rated match expires a week after it ended: the first phone in it makes it a friendly (`expired`), and the strips count the days down (KIT-PLAN Session 10 step 5). |
 | 2.20.0 | A table session (KIT-PLAN Session 10 step 4): staff start a match at Sessions from the loyalty app (`?club`), scored by them at `venue: "sessions"`; "Logged at Sessions" and Back to Sessions. `?p=<id>` opens a player's page. |

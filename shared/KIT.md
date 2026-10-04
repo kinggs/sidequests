@@ -39,7 +39,8 @@ How it was built: `shared/KIT-HISTORY.md` (Sessions 0 to 9). What's proposed nex
 
 Meet someone, show your QR, and you're connected in every sidequest that has Connect.
 
-- **My QR**: a big QR with your name and photo above it. It holds the screen on. The code
+- **My QR**: a big QR with your name and photo above it, framed in the app's accent with the
+  app's icon as a badge on the frame (Session 10; the code itself stays the plain one). It holds the screen on. The code
   lasts **24 hours** and renews itself when you open My QR, so a photo of it or a forwarded
   link stops working overnight. The link points into the app you opened it from, e.g.
   `…/sidequests/rack-it/?i=<code>`, so the person scanning lands in Rack It. The friendship

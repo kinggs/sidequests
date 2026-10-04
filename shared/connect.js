@@ -3,7 +3,7 @@
 //   import { connect } from "../shared/connect.js";   // reads ?i=<code> the moment it loads
 //   await cloud.init("rack-it");
 //   connect.handleInvite({ app: "rack-it", appName: "Rack It", onDone }); // first, before the app's own start
-//   connect.showQR({ app: "rack-it" });               // My QR
+//   connect.showQR({ app: "rack-it" });               // My QR, in the app's look: its icon.svg, its --accent (icon: false for plain)
 //   connect.showQR({ app, onFriend: uid => …, onClose }) // …and who scanned it (people.pick's Scan)
 //   const qr = connect.showQR({ app, game: { id, title } })  // a Game QR: "Join Kenny's match", ?g=<id>&i=<code>
 //   qr.say("Rolf joined · lilac side"); qr()             // …a line under it, from the app watching its match; close
@@ -62,6 +62,8 @@ const CSS = `
 .cn-ov .cn-big{min-height:var(--tap-lg,76px);font-size:1.1111rem}
 .cn-qr{background:#fff;border-radius:var(--r-card,18px);padding:0;width:min(82vw,46dvh,360px);aspect-ratio:1}
 .cn-qr svg{display:block;width:100%;height:100%}
+.cn-qr.cn-look{box-shadow:0 0 0 6px var(--frame,transparent)}
+.cn-badge{display:block;width:52px;height:52px;margin-top:-10px;position:relative;border-radius:14px;box-shadow:0 0 0 4px var(--ink-0,#0a0d11)}
 .cn-head{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:60px}
 .cn-head button{width:auto;padding:0 18px}
 .cn-ov input{width:100%}
@@ -205,6 +207,11 @@ function handleInvite({ app = "", appName = "", onDone } = {}){
 }
 
 // ---- My QR ----
+// The code itself is the plain one, square modules at error correction M, dark on light with its
+// quiet zone. The app's look goes around it (showQR, KIT-PLAN Session 10 step 5): a frame in its
+// accent and its icon as a badge on the frame. An icon in the middle (at H) and round dots were
+// tried and dropped: zbar and jsQR missed some codes either way, and which ones changed with the
+// code (shared/proofs/qr-look.mjs keeps the check that the code is untouched and reads).
 function qrSvg(text){
   const q = qrcode(0, "M");
   q.addData(text);
@@ -214,6 +221,16 @@ function qrSvg(text){
   for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (q.isDark(r, c)) d += `M${c + pad} ${r + pad}h1v1h-1z`;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${n + pad * 2} ${n + pad * 2}" shape-rendering="crispEdges" role="img" aria-label="QR code">
     <path fill="#000" d="${d}"/></svg>`;
+}
+// The app's icon for the badge, read once; null if it can't be read (the frame still shows).
+const icons = new Map();
+function iconOf(app){
+  if (!app) return Promise.resolve(null);
+  if (!icons.has(app)) icons.set(app, fetch(new URL(`../${app}/icon.svg`, import.meta.url))
+    .then(r => r.ok ? r.text() : null)
+    .then(t => t && t.includes("<svg") ? "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(t))) : null)
+    .catch(() => null));
+  return icons.get(app);
 }
 function linkFor(app, code, game = ""){
   const url = new URL(`../${app}/`, import.meta.url);
@@ -227,13 +244,15 @@ function linkFor(app, code, game = ""){
 // onClose() runs whenever it closes.
 // game: { id, title } makes it a Game QR: the headline is the title ("Join Kenny's match"), the
 // link carries ?g=<id>, and it stays open when someone scans; the app says who joined (.say).
-function showQR({ app = "", onFriend = null, onClose = null, game = null } = {}){
+// icon: the app's icon.svg unless false; colour: the frame, the app's --accent unless given.
+function showQR({ app = "", onFriend = null, onClose = null, game = null, icon = true, colour = "" } = {}){
   const ov = overlay(`
     <div class="cn-head"><span class="lbl">${game ? "Game QR" : "My QR"}</span><button type="button" class="quiet" data-k="close">Close</button></div>
     <div class="cn-mid">
       <div data-k="who"></div>
       <h2 data-k="name"></h2>
       <div class="cn-qr" data-k="qr" hidden></div>
+      <img class="cn-badge" data-k="badge" alt="" hidden>
       <p class="cn-dim" data-k="msg">Making your code…</p>
       <p data-k="joined" hidden></p>
       <button type="button" class="quiet" data-k="copy" hidden>Copy link</button>
@@ -260,10 +279,14 @@ function showQR({ app = "", onFriend = null, onClose = null, game = null } = {})
     q("who").replaceChildren(avatar(me.uid, 72, p));
   }).catch(() => {});
 
-  cloud.account.invite().then(code => {
+  const frame = colour || getComputedStyle(document.documentElement).getPropertyValue("--accent").trim();
+  if (icon !== false && frame) q("qr").style.setProperty("--frame", frame);
+  Promise.all([cloud.account.invite(), icon === false ? null : typeof icon === "string" ? icon : iconOf(app)]).then(([code, iconUrl]) => {
     if (!ov.isConnected) return;
     const link = linkFor(app, code, game && game.id);
     q("qr").innerHTML = qrSvg(link);
+    q("qr").classList.toggle("cn-look", icon !== false && !!frame);
+    if (iconUrl){ q("badge").src = iconUrl; q("badge").hidden = false; }
     q("qr").hidden = false;
     q("msg").textContent = game ? "Point their phone's camera at this. They join the match and your Friends in one go."
       : "Point their phone's camera at this. Lasts a day.";

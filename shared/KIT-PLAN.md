@@ -229,10 +229,14 @@ Each its own push, cases first where the rules change.
   moved on is refused and catches up. (Zombie Dice 0.7.0; `openLink()`, the owner's live records
   included; 7 cases, 4 guards. The proof is its own file, `shared/proofs/zombie-dice-chain.mjs`, 7
   checks.)
-- [ ] **My QR wears the app's look.** `connect.showQR` takes `icon` and `colour`: the app's icon in
-  the middle at error-correction level H, rounded dots, a frame. The code stays square, dark on
-  light, with its quiet zone. Proof: every app's code decodes in the browser; the owner checks it
-  scans first time on both real phones at the pool hall, and it comes out if it doesn't.
+- [x] **My QR wears the app's look.** `connect.showQR` takes `icon` and `colour` (by default the
+  app's `icon.svg` and `--accent`): a frame in the colour, and the icon as a badge on the frame.
+  The code stays the plain one, square, dark on light, with its quiet zone. (Built differently:
+  the icon in the middle at H, and round dots, were tried first and dropped. Round dots made jsQR
+  miss 7 codes in 18; the icon over the modules made zbar miss two apps' codes, and which ones
+  changed with the code, so a daily code couldn't be trusted to scan first time.
+  `shared/proofs/qr-look.mjs`, 42 checks: the framed code is the plain code byte for byte, and zbar
+  and jsQR read every app's. Every app a bump; Rack It 2.23.0. The owner's real-phone check stays.)
 
 **Done when:** Fair Nine is gone (or dated), a friend is made by scanning in-app, a staff member
 shows as staff in Rack It, a club match scored by staff moves ratings and points once each, and
@@ -302,10 +306,8 @@ some level"); the club's staff list is `staff/<uid>`, gettable by any account.
 - A standalone Connect app at `connect/`, for people who only want the QR.
 - iPhone: the home-screen app and Safari keep separate sign-ins, so an iPhone scan always
   lands in Safari. Note it and leave it.
-- **Maybe:** My QR wears the app's look, e.g. Rack It's code on a 9-ball's white circle.
-  `connect.showQR` takes an icon and a colour: the icon in the middle at error-correction level
-  H, rounded dots, and a frame around the code. Keep the code itself square, dark on light, with
-  its quiet zone. Only if it scans first time on both real phones in the pool hall.
+- **An icon in the middle of My QR**, or round dots (Session 10 tried both: the decoders missed
+  some codes). Only with a decoder check on the phone before the code is shown.
 
 ## Handover
 

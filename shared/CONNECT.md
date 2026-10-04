@@ -12,6 +12,9 @@ same screen with a different headline. Each holds the screen on and has **Copy l
 
 - **My QR** connects two people: `…/<app>/?i=<code>`. The code lasts 24 hours and renews itself.
   Its **Or scan theirs** turns it round: this phone reads theirs in the app (`connect.scan`).
+  It wears the app's look: a frame in the app's `--accent` and its icon as a badge on the frame.
+  The code inside is the plain one (Session 10: an icon in the middle and round dots made decoders
+  miss some codes, so they were dropped).
 - **Game QR** ("Join Kenny's match"): `…/<app>/?g=<game id>&i=<code>`, from the play screen's
   `⋯` → **Invite to this game**. The scan makes the friendship first, exactly as My QR does,
   then opens the game. The screen stays up and the app says who joined ("Rolf joined · lilac
