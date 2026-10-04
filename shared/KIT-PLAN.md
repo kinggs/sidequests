@@ -285,6 +285,13 @@ some level"); the club's staff list is `staff/<uid>`, gettable by any account.
 
 ## Parked
 
+- **Points for playing on any staff phone.** Today only the staff phone that started a club match
+  remembers it (`localStorage`), so its points land only when that phone opens Sessions Loyalty
+  again; cleared data or another phone means they never do (an Award by hand fixes it). The fix:
+  keep the table in the loyalty app's own Firestore (`tables/<match>`, staff-only, a rules case
+  first), so any staff phone logs them. Until then, staff reopen the app after a confirmed match.
+- **Rack It reads Cuescore** (next fixture, league results): specced in `rack-it/CUESCORE.md`, the
+  first step towards Leagues below.
 - **Blaze.** Reopen when one of these happens: a rating is tampered with and Rebuild isn't
   enough; push notifications are wanted ("confirm your match"); automatic backups are
   wanted (Firestore's scheduled backups need Blaze but no code). Until then the backup is
