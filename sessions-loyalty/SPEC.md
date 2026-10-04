@@ -55,7 +55,7 @@ QR are the same thing, read by either app.
 Staff read it two ways:
 
 - **Scan a member's QR** (the staff Home's big button): the phone's camera in the app
-  (`BarcodeDetector`, Android Chrome). It reads any sidequests QR, whichever app the link names,
+  (`connect.scan`, `BarcodeDetector` on Android Chrome; since 0.2.0 it lives in `shared/connect.js`). It reads any sidequests QR, whichever app the link names,
   and takes the code from it. Where the phone can't scan in the app, the same screen takes a
   pasted link or code, and says to use the camera app instead.
 - **The camera app**: the link opens this app, and `connect.handleInvite` connects as in Rack
@@ -170,8 +170,8 @@ Ann becomes staff when the owner adds her under More → Staff with her QR link.
 - **Points and XP with tiers**, as the old app. (Owner, 2026-10-02.)
 - **A scan makes a real friendship**, tagged by the pair's `app`. (Owner, 2026-10-02: "staff
   being real connections on some level"; how Rack It shows them is in `KIT-PLAN.md`.)
-- The scanner lives in this app for now; `KIT-PLAN.md` moves it to `connect.scan()` when Rack
-  It wants it.
+- The scanner is `connect.scan()` (0.2.0, KIT-PLAN Session 10 step 2), shared with My QR's
+  **Or scan theirs** in every app.
 - Accents: **green** (points in, the balance) and **coral** (points out: a redeem).
 - Rands are kept to the cent; points and XP round down.
 - No photos of members: their avatar is their profile's, as everywhere.

@@ -44,6 +44,10 @@ Meet someone, show your QR, and you're connected in every sidequest that has Con
   link stops working overnight. The link points into the app you opened it from, e.g.
   `…/sidequests/rack-it/?i=<code>`, so the person scanning lands in Rack It. The friendship
   itself belongs to the account, not to Rack It, so it appears in every app.
+- **Scanning theirs**: My QR's **Or scan theirs** opens the scanner in the app
+  (`connect.scan`: `BarcodeDetector` on Android Chrome, else a pasted link or code), and the
+  friendship is made from their code, as their link would. `people.pick`'s **Scan a new player**
+  and setup's **Show QR** pick whoever it was, either way round.
 - **Scanning**: the other person points their phone camera at the QR.
   - **The app is installed (Android)**: the link opens it, already signed in, and you're
     connected at once.

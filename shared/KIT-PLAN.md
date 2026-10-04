@@ -166,13 +166,15 @@ the session runs out of room, and write the Handover note in `KIT-HISTORY.md`.
 
 ### Step 2 — `connect.scan()` (minor bumps; no rules)
 
-- [ ] Move the in-app QR scanner (`BarcodeDetector`, with the paste fallback) out of
+- [x] Move the in-app QR scanner (`BarcodeDetector`, with the paste fallback) out of
   `sessions-loyalty/index.html` into `connect.js` as `connect.scan({ app })` → a scanned code, or
   null. Sessions Loyalty uses it unchanged on screen.
-- [ ] `people.pick`'s **Scan a new player** and setup's **Show QR** gain "or scan theirs": the
+- [x] `people.pick`'s **Scan a new player** and setup's **Show QR** gain "or scan theirs": the
   other person shows My QR, this phone scans it and the friendship is made from their code, as a
-  link would (`cloud.account.accept`). Unparks "An in-app scanner".
-- [ ] Proof: two `?mock` tabs, Ann shows My QR, Ben's `connect.scan` is fed the code (the paste
+  link would (`cloud.account.accept`). Unparks "An in-app scanner". Built as My QR's **Or scan theirs**, so
+  both get it, and so does every app's My QR (Rack It 2.18.0, Sessions Loyalty 0.2.0, the rest a
+  patch; `shared/proofs/connect-scan.mjs`, 16 checks).
+- [x] Proof: two `?mock` tabs, Ann shows My QR, Ben's `connect.scan` is fed the code (the paste
   fallback), they're connected and Ben's pick has Ann.
 
 ### Step 3 — Club connections and the staff badge (minor bumps; no rules)
@@ -286,9 +288,6 @@ some level"); the club's staff list is `staff/<uid>`, gettable by any account.
 - A pending rated match never expires. An expiry, or a reminder.
 - Other sign-in methods: email link, Apple, phone. The uid keying makes them additive.
 - Firebase anonymous sign-in, for someone with a phone but no Google account.
-- An in-app scanner (`BarcodeDetector` on Android Chrome), to add a player without the
-  camera app. Built inside Sessions Loyalty (2026-10-02); moving it to `connect.scan()` is in
-  "Sessions Loyalty meets Rack It" above.
 - Groups: "connect me to everyone at the club", a group QR. The 24-hour code rules out a
   printed QR until this exists.
 - Blocking. Remove now holds, because the old code has expired by the next day.

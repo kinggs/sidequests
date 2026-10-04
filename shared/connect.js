@@ -7,6 +7,8 @@
 //   connect.showQR({ app, onFriend: uid => …, onClose }) // …and who scanned it (people.pick's Scan)
 //   const qr = connect.showQR({ app, game: { id, title } })  // a Game QR: "Join Kenny's match", ?g=<id>&i=<code>
 //   qr.say("Rolf joined · lilac side"); qr()             // …a line under it, from the app watching its match; close
+//   await connect.scan({ app, title })                // the camera reads their QR in the app → its code, or null
+//                                                     // (My QR's "Or scan theirs" uses it: the friendship is made from their code)
 //   connect.showFriends();                            // Friends: each one's card (note, met, tags), Remove
 //   connect.showProfile({ onClose });                 // your name and photo; Delete my account
 //   connect.avatar(uid, 36)                           // <span>: their photo in a neutral ring, or their initial
@@ -77,6 +79,7 @@ const CSS = `
 .cn-av{display:inline-flex;align-items:center;justify-content:center;flex:none;box-sizing:border-box;width:var(--s);height:var(--s);
   border-radius:50%;padding:3px;background:var(--text-2,#c3ceda);overflow:hidden;font-family:var(--grot,inherit);font-weight:700;
   line-height:1;font-size:calc(var(--s) * .42);color:var(--ink-0,#0a0d11)}
+.cn-scan video{display:block;width:min(100%,60dvh);aspect-ratio:1;object-fit:cover;border-radius:var(--r-card,18px);background:#000;margin:0 auto}
 .cn-av img{display:block;width:100%;height:100%;border-radius:50%;object-fit:cover;border:2px solid var(--ink-0,#0a0d11);background:var(--ink-0,#0a0d11)}
 `;
 function injectCss(){
@@ -231,6 +234,7 @@ function showQR({ app = "", onFriend = null, onClose = null, game = null } = {})
       <p class="cn-dim" data-k="msg">Making your code…</p>
       <p data-k="joined" hidden></p>
       <button type="button" class="quiet" data-k="copy" hidden>Copy link</button>
+      <button type="button" class="quiet" data-k="theirs"${game ? " hidden" : ""}>Or scan theirs</button>
     </div>`);
   const q = s => ov.querySelector(`[data-k="${s}"]`);
   phone.fullscreen();
@@ -272,6 +276,39 @@ function showQR({ app = "", onFriend = null, onClose = null, game = null } = {})
     q("msg").textContent = e && e.code === "unavailable" ? "Your code needs a signal the first time. Try again in a moment." : "Couldn't make your code: " + ((e && e.message) || e);
   });
 
+  // Connected, either way round: say who, then hand them to onFriend and close.
+  const connected = uid => cloud.account.profile(uid).then(p => {
+    if (!ov.isConnected) return;
+    // A Game QR stays up: the match may have another seat, and the app says who joined.
+    if (game){ if (q("joined").hidden) close.say(`Connected with ${(p && p.name) || "them"}`); return; }
+    const mid = ov.querySelector(".cn-mid");
+    mid.innerHTML = `<h2>Connected with ${esc((p && p.name) || "them")}</h2><p class="cn-dim">You're in each other's Friends now.</p>`;
+    mid.prepend(avatar(uid, 96, p));
+    if (navigator.vibrate) navigator.vibrate(30);
+    if (onFriend){
+      timer = setTimeout(() => { try { onFriend(uid); } catch (e) { console.warn("[connect]", e); } close(); }, 1500);
+    } else timer = setTimeout(close, 4000);
+  });
+
+  // Or scan theirs: their phone shows My QR, this one reads it, and the friendship is made from
+  // their code, as their link would. While the scanner is up, the watch below stands aside.
+  let scanning = false;
+  tap(q("theirs"), async () => {
+    scanning = true;
+    const code = await scan({ app, title: "Scan their QR" });
+    if (!code || !ov.isConnected){ scanning = false; return; }
+    let r = null;
+    try { r = await cloud.account.accept(code, app); }
+    catch (e){ console.warn("[connect] accept", e); q("msg").textContent = "Couldn't connect: " + ((e && (e.code || e.message)) || e); }
+    scanning = false;
+    if (r && r.self) q("msg").textContent = "That's your own QR. Scan theirs.";
+    else if (r){
+      if (!r.already) cloud.account.saveFriend(r.uid, { metAt: Date.now(), ...(lastPlace() ? { metPlace: lastPlace() } : {}) })
+        .catch(e => console.warn("[connect] card", e));
+      connected(r.uid);
+    } else if (!q("msg").textContent.startsWith("Couldn't")) q("msg").textContent = "That QR has expired. Ask them to open My QR again.";
+  });
+
   // Someone just scanned it: say who, then close.
   let seen = null;
   unwatch = cloud.account.watchFriends(list => {
@@ -279,24 +316,79 @@ function showQR({ app = "", onFriend = null, onClose = null, game = null } = {})
     if (seen === null){ seen = uids; return; }
     const fresh = list.find(f => !seen.has(f.uid));
     seen = uids;
-    if (!fresh || !ov.isConnected) return;
+    if (!fresh || !ov.isConnected || scanning) return;
     // Your card for them: stamped now, since only the scanner's side was made with the pair.
     cloud.account.saveFriend(fresh.uid, { metAt: Date.now(), ...(lastPlace() ? { metPlace: lastPlace() } : {}) })
       .catch(e => console.warn("[connect] card", e));
-    cloud.account.profile(fresh.uid).then(p => {
-      if (!ov.isConnected) return;
-      // A Game QR stays up: the match may have another seat, and the app says who joined.
-      if (game){ if (q("joined").hidden) close.say(`Connected with ${(p && p.name) || "them"}`); return; }
-      const mid = ov.querySelector(".cn-mid");
-      mid.innerHTML = `<h2>Connected with ${esc((p && p.name) || "them")}</h2><p class="cn-dim">You're in each other's Friends now.</p>`;
-      mid.prepend(avatar(fresh.uid, 96, p));
-      if (navigator.vibrate) navigator.vibrate(30);
-      if (onFriend){
-        timer = setTimeout(() => { try { onFriend(fresh.uid); } catch (e) { console.warn("[connect]", e); } close(); }, 1500);
-      } else timer = setTimeout(close, 4000);
-    });
+    connected(fresh.uid);
   }, e => { q("msg").textContent = "Couldn't watch for new friends: " + (e.code || e.message); });
   return close;
+}
+
+// ---- scanning their QR in the app ----
+// The camera where the phone can read a QR in the browser (BarcodeDetector: Android Chrome); a
+// pasted link or code anywhere. Resolves with the code, or null. `app` is the app asking, for
+// symmetry with showQR; the code is the same whichever app made it.
+const CODE = /^[A-Za-z0-9]{8,40}$/;
+function codeFrom(text){
+  const t = String(text || "").trim();
+  if (CODE.test(t)) return t;
+  try { const c = new URL(t).searchParams.get("i"); if (c && CODE.test(c)) return c; } catch {}
+  const m = t.match(/[?&]i=([A-Za-z0-9]{8,40})/);
+  return m ? m[1] : null;
+}
+function scan({ app = "", title = "Scan their QR" } = {}){
+  return new Promise(resolve => {
+    const ov = overlay(`
+      <div class="cn-head"><span class="lbl">${esc(title)}</span><button type="button" class="quiet" data-k="close">Close</button></div>
+      <div class="cn-top cn-scan">
+        <video playsinline muted autoplay hidden data-k="video"></video>
+        <p class="cn-dim" data-k="msg">Point the camera at the QR on their phone.</p>
+        <input type="text" placeholder="Or paste the link or code" aria-label="Paste the link or code" autocomplete="off" data-k="paste">
+        <button type="button" data-k="use">Use what I pasted</button>
+      </div>`);
+    const q = s => ov.querySelector(`[data-k="${s}"]`);
+    const video = q("video"), msg = q("msg"), paste = q("paste");
+    let stream = null, timer = 0, done = false;
+    const close = v => {
+      if (done) return; done = true;
+      cancelAnimationFrame(timer);
+      if (stream) stream.getTracks().forEach(t => t.stop());
+      ov.remove(); resolve(v || null);
+    };
+    const take = text => { const c = codeFrom(text); if (c) close(c); else { msg.textContent = "That isn't a sidequests QR or link."; msg.className = "cn-warn"; } };
+    tap(q("close"), () => close(null));
+    tap(q("use"), () => take(paste.value));
+    paste.addEventListener("keydown", e => { if (e.key === "Enter") take(paste.value); });
+    paste.addEventListener("paste", () => setTimeout(() => take(paste.value), 0));
+    (async () => {
+      if (!("BarcodeDetector" in window) || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+        msg.textContent = "This phone can't scan in the app. Scan with the camera app instead (the link opens here), or paste it.";
+        return;
+      }
+      let detector;
+      try {
+        detector = new BarcodeDetector({ formats: ["qr_code"] });
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+      } catch {
+        msg.textContent = "The camera isn't available here. Scan with the camera app instead (the link opens here), or paste it.";
+        return;
+      }
+      if (done){ stream.getTracks().forEach(t => t.stop()); return; }
+      video.srcObject = stream; video.hidden = false;
+      try { await video.play(); } catch {}
+      const look = async () => {
+        if (done) return;
+        try {
+          const codes = await detector.detect(video);
+          const hit = codes.map(c => codeFrom(c.rawValue)).find(Boolean);
+          if (hit){ ui.buzz(30); return close(hit); }
+        } catch {}
+        timer = requestAnimationFrame(() => setTimeout(look, 120));
+      };
+      look();
+    })();
+  });
 }
 
 // ---- Friends, and each friend's card ----
@@ -549,4 +641,4 @@ function showProfile({ onClose } = {}){
   return close;
 }
 
-export const connect = { handleInvite, showQR, showFriends, showProfile, avatar };
+export const connect = { handleInvite, showQR, scan, showFriends, showProfile, avatar };

@@ -11,6 +11,7 @@ A phone shows a QR; the other phone's camera opens the app. Both QRs are `connec
 same screen with a different headline. Each holds the screen on and has **Copy link**.
 
 - **My QR** connects two people: `…/<app>/?i=<code>`. The code lasts 24 hours and renews itself.
+  Its **Or scan theirs** turns it round: this phone reads theirs in the app (`connect.scan`).
 - **Game QR** ("Join Kenny's match"): `…/<app>/?g=<game id>&i=<code>`, from the play screen's
   `⋯` → **Invite to this game**. The scan makes the friendship first, exactly as My QR does,
   then opens the game. The screen stays up and the app says who joined ("Rolf joined · lilac

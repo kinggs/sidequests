@@ -14,7 +14,7 @@
 <style>
   /* The look and every shared part come from shared/theme.css (shared/DESIGN.md). Green marks
      points coming in and the balance; coral marks points going out (a redeem). Below is only
-     what is this app's own: the loyalty card, an item's picture, and the scanner. */
+     what is this app's own: the loyalty card and an item's picture. */
   :root{ --accent:var(--green); --accent-ink:var(--green-ink); --accent-soft:var(--green-soft);
          --accent-2:var(--coral); --accent-2-ink:var(--coral-ink); --accent-2-soft:var(--coral-soft) }
 
@@ -34,13 +34,6 @@
   .pic img{width:100%;height:100%;object-fit:cover;display:block}
   .pic.big{width:7rem;height:7rem;font-size:3.2rem;margin:0 auto}
   .rows>li.void .l1{text-decoration:line-through;color:var(--dim)}
-
-  /* The scanner: the camera's view, square, with the code's quiet zone drawn on it. */
-  .scan{position:fixed;inset:0;z-index:40;background:var(--ink-0);display:flex;flex-direction:column;gap:14px;overflow-y:auto;
-    padding:max(16px,env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom))}
-  .scan .head{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:60px}
-  .scan video{display:block;width:min(100%,60dvh);aspect-ratio:1;object-fit:cover;border-radius:var(--r-card);background:#000;margin:0 auto}
-  .scan .box{width:100%;max-width:26rem;margin:0 auto;display:flex;flex-direction:column;gap:12px}
 
   /* Pages that stack: the member's page over the Members tab. */
   .pagehead{display:flex;align-items:center;gap:12px;margin:4px 0 14px}
@@ -80,7 +73,7 @@
   import * as L from "./loyalty.js";
 
   // Bump on every change. The deploy skill checks this against the live site.
-  const APP_VERSION = "0.1.3";
+  const APP_VERSION = "0.2.0";
   const APP_ID = "sessions-loyalty";
   const APP_NAME = "Sessions Loyalty";
   document.getElementById("version").textContent = "v" + APP_VERSION;
@@ -451,70 +444,10 @@
     if (v) openMember(v, profiles.get(v).name);
   }
 
-  // ---- scanning ----
-  const CODE = /^[A-Za-z0-9]{8,40}$/;
-  function codeFrom(text){
-    const t = String(text || "").trim();
-    if (CODE.test(t)) return t;
-    try { const c = new URL(t).searchParams.get("i"); if (c && CODE.test(c)) return c; } catch {}
-    const m = t.match(/[?&]i=([A-Za-z0-9]{8,40})/);
-    return m ? m[1] : null;
-  }
-  // The camera in the app where the phone can read a QR (Android Chrome); a pasted link or code
-  // anywhere. Resolves with the code, or null.
-  function scanQR(title = "Scan their QR"){
-    return new Promise(resolve => {
-      const ov = h("div", { class: "scan", role: "dialog", "aria-modal": "true" });
-      const video = h("video", { playsinline: true, muted: true, autoplay: true, hidden: true });
-      const msg = h("p", { class: "note", text: "Point the camera at the QR on their phone." });
-      const paste = h("input", { type: "text", placeholder: "Or paste the link or code", "aria-label": "Paste the link or code", autocomplete: "off" });
-      let stream = null, timer = 0, done = false;
-      const close = v => {
-        if (done) return; done = true;
-        cancelAnimationFrame(timer);
-        if (stream) stream.getTracks().forEach(t => t.stop());
-        ov.remove(); resolve(v || null);
-      };
-      const take = text => { const c = codeFrom(text); if (c) close(c); else { msg.textContent = "That isn't a sidequests QR or link."; msg.className = "gate-err"; } };
-      paste.addEventListener("keydown", e => { if (e.key === "Enter") take(paste.value); });
-      paste.addEventListener("paste", () => setTimeout(() => take(paste.value), 0));
-      ov.append(
-        h("div", { class: "head" }, h("span", { class: "lbl", text: title }), btn("Close", "quiet", () => close(null))),
-        video,
-        h("div", { class: "box" }, msg, paste, btn("Use what I pasted", "", () => take(paste.value))));
-      document.body.append(ov);
-      (async () => {
-        if (!("BarcodeDetector" in window) || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
-          msg.textContent = "This phone can't scan in the app. Scan with the camera app instead (the link opens here), or paste it.";
-          return;
-        }
-        let detector;
-        try {
-          detector = new BarcodeDetector({ formats: ["qr_code"] });
-          stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
-        } catch (e){
-          msg.textContent = "The camera isn't available here. Scan with the camera app instead (the link opens here), or paste it.";
-          return;
-        }
-        if (done){ stream.getTracks().forEach(t => t.stop()); return; }
-        video.srcObject = stream; video.hidden = false;
-        try { await video.play(); } catch {}
-        const look = async () => {
-          if (done) return;
-          try {
-            const codes = await detector.detect(video);
-            const hit = codes.map(c => codeFrom(c.rawValue)).find(Boolean);
-            if (hit){ ui.buzz(30); return close(hit); }
-          } catch {}
-          timer = requestAnimationFrame(() => setTimeout(look, 120));
-        };
-        look();
-      })();
-    });
-  }
+  // ---- scanning: connect.scan (shared/connect.js), the camera or a pasted link ----
   async function scanMember(){
     phone.fullscreen();
-    const code = await scanQR("Scan a member's QR");
+    const code = await connect.scan({ app: APP_ID, title: "Scan a member's QR" });
     if (!code) return;
     await codeToMember(code);
   }
@@ -833,7 +766,7 @@
     } catch (e){ report("Couldn't save", e); }
   }
   async function addStaff(){
-    const code = await scanQR("Scan the new staff member's QR");
+    const code = await connect.scan({ app: APP_ID, title: "Scan the new staff member's QR" });
     if (!code) return;
     const r = await codeToMember(code, { thenOpen: false });
     if (!r) return;
