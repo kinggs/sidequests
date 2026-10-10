@@ -33,12 +33,13 @@ test("matchProfiles links one sure match and sends the rest to the owner", () =>
     profile(4, "Fenwick-3", "Frank", "", "Fenwick", "1878-01-01"),          // two Franks born 1878 ("ABT 1878" counts)
     profile(5, "Nash-9", "Ivy", "", "Nash", "1861-00-00"),                  // a year out: near miss
     profile(6, "Fenwick-8", "Zed", "", "Fenwick", "1990-00-00"),            // Jon's newer work
+    profile(7, "Nash-12", "Ivy", "", "Nash", "1920-00-00"),                 // a namesake sixty years on: not worth a look
   ];
   const m = matchProfiles(people, profiles);
   assert.deepEqual(m.links, { "albert-fenwick-1850": "Fenwick-1", "clara-beamish-1852": "Beamish-4", "dora-fenwick": "Fenwick-2" });
   assert.deepEqual(m.ambiguous, [{ profile: "Fenwick-3", people: ["frank-fenwick-1878", "frank-fenwick-1878-2"] }]);
   assert.deepEqual(m.near.map(n => n.profile), ["Nash-9"]);
-  assert.deepEqual(m.unmatched, ["Fenwick-8"]);
+  assert.deepEqual(m.unmatched, ["Fenwick-8", "Nash-12"]);
 });
 
 test("matchProfiles: no year on either side, the parents' names agree → linked", () => {

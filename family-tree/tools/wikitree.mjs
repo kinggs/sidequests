@@ -55,8 +55,13 @@ export function matchProfiles(people, profiles){
     });
     if (hits.length === 1) claims.set(hits[0].id, [...(claims.get(hits[0].id) || []), w]);
     else if (hits.length > 1) out.ambiguous.push({ profile: w.Name, people: hits.map(p => p.id) });
-    else if (pool.length) out.near.push({ profile: w.Name, people: pool.map(p => p.id), why: wy ? "birth year differs or ours is missing" : "no birth year on WikiTree, parents don't settle it" });
-    else out.unmatched.push(w.Name);
+    else {
+      // A near miss is worth the owner's look only when the years nearly agree or one is missing:
+      // a common name otherwise fits half the country.
+      const close = pool.filter(p => { const py = anyYear(p.birth); return !py || !wy || Math.abs(py - wy) <= 2; });
+      if (close.length) out.near.push({ profile: w.Name, people: close.map(p => p.id), why: !wy ? "no birth year on WikiTree, parents don't settle it" : close.some(p => anyYear(p.birth)) ? "birth years a year or two apart" : "no birth year in Jon's tree" });
+      else out.unmatched.push(w.Name);
+    }
   }
   for (const [pid, ws] of claims){
     if (ws.length === 1) out.links[pid] = ws[0].Name;
@@ -112,9 +117,16 @@ export async function run(dataDir, { surnames = null, log = console.error } = {}
     if (++n % 25 === 0 || got.length) log(`  ${n}/${names.length} ${got.length ? `${s}: ${got.length}` : ""}`);
   }
   const m = matchProfiles(people, profiles);
+  // Searching some surnames (--surnames) keeps the links of the rest from the last run.
+  const linksFile = path.join(dataDir, "wikitree.json");
+  if (surnames && fs.existsSync(linksFile)){
+    const searched = new Set(names.map(norm));
+    const before = JSON.parse(fs.readFileSync(linksFile, "utf8"));
+    for (const p of people) if (before[p.id] && !searched.has(norm(p.surname)) && !m.links[p.id]) m.links[p.id] = before[p.id];
+  }
   for (const p of people){ if (m.links[p.id]) p.wikitree = m.links[p.id]; else delete p.wikitree; }
   fs.writeFileSync(file, JSON.stringify(people, null, 1) + "\n");
-  fs.writeFileSync(path.join(dataDir, "wikitree.json"), JSON.stringify(m.links, null, 1) + "\n");
+  fs.writeFileSync(linksFile, JSON.stringify(m.links, null, 1) + "\n");
   const byId = new Map(people.map(p => [p.id, p]));
   const who = id => { const p = byId.get(id); return `${p.name} (${[p.birth.date, p.death.date].filter(Boolean).join(" – ") || "no dates"}; \`${id}\`)`; };
   const link = name => `[${name}](https://www.wikitree.com/wiki/${name})`;
@@ -134,7 +146,7 @@ ${m.near.map(a => `- ${link(a.profile)}: ${a.people.map(who).join("; ")} — ${a
 `);
   writeSection(path.join(dataDir, "parse-report.md"), "wikitree", `## WikiTree (\`wikitree.mjs\`, ${new Date().toISOString().slice(0, 10)})
 
-${names.length} surnames searched, ${profiles.length} profiles. **Linked: ${Object.keys(m.links).length}.** For the owner (\`wikitree-review.md\`): ${m.ambiguous.length} ambiguous, ${m.near.length} near misses. With no match in the 2006 tree: ${m.unmatched.length} (Jon's newer work, Parked: "Also on WikiTree").`);
+${names.length} surnames searched, ${profiles.length} profiles. **Linked: ${Object.keys(m.links).length}.** For the owner (\`wikitree-review.md\`): ${m.ambiguous.length} ambiguous, ${m.near.length} near misses. Inggs profiles with no match in the 2006 tree: ${m.unmatched.filter(n => /^Inggs-/i.test(n)).length} (Jon's newer work, Parked: "Also on WikiTree"); other surnames' unmatched profiles are other families.${surnames ? ` Searched only ${names.join(", ")} this run; the other links kept from the last.` : ""}`);
   return { surnames: names.length, profiles: profiles.length, linked: Object.keys(m.links).length, ambiguous: m.ambiguous.length, near: m.near.length, unmatched: m.unmatched.length };
 }
 

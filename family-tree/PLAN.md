@@ -355,7 +355,7 @@ what it lacks.
 
 ### Step 2b — WikiTree ids (owner, 2026-10-10: link, don't copy)
 
-- [ ] `tools/wikitree.mjs` → `data/wikitree.json`: for each surname in `people.json` that WikiTree
+- [x] `tools/wikitree.mjs` → `data/wikitree.json`: for each surname in `people.json` that WikiTree
       has (start with Inggs; `searchPerson` by `LastName`, `limit` at most 100, paged, a second
       between calls), match a profile to a person when the given names and the surname agree
       and the birth years agree (or both lack one and the parents' names agree). One match →
@@ -363,7 +363,7 @@ what it lacks.
       `data/wikitree-review.md` for the owner and are not linked. Store the id only: no dates,
       no bio, nothing else from WikiTree enters the data repo or Firestore. The pure matching
       (`matchProfiles(people, profiles)`) gets `wikitree.test.mjs` on invented rows.
-- [ ] Count in `parse-report.md`: matched, ambiguous, WikiTree profiles with no match (those are
+- [x] Count in `parse-report.md`: matched, ambiguous, WikiTree profiles with no match (those are
       Jon's newer work; the person page can't show them, and Parked says what might).
 
 ### Step 3 — The seed, and a mock seed
@@ -381,7 +381,7 @@ what it lacks.
 
 ### Step 4 — The rules (cases first)
 
-- [ ] Cases in `shared/rules-check.mjs`, a "Family Tree" describe block in the Sessions Loyalty
+- [x] Cases in `shared/rules-check.mjs`, a "Family Tree" describe block in the Sessions Loyalty
       style, seeded past the rules with members `owner` (role owner) and `ann`, newcomer `ben`
       connected to `ann` (`friendships/ann_ben`), stranger `cat`, a person, a photo, an image,
       meta, a suggestion:
@@ -403,10 +403,10 @@ what it lacks.
   - a member creates a suggestion with `by` self; refused with `by` another or updating one; the
     owner updates and deletes;
   - a member creates `exports/x` with `by` self; refused reading the list; the owner reads it.
-- [ ] The block in `shared/firestore.rules` after Sessions Loyalty's, `isFam()`, with
+- [x] The block in `shared/firestore.rules` after Sessions Loyalty's, `isFam()`, with
       `'family-tree'` added to the generic owner rule's exclusion list; the SPEC §4 table is the
       rule. The approval is `getAfter` on the invite in the same batch, as `confirming()` does.
-- [ ] Guards in `shared/proofs/guards.mjs` for each new condition; rows in `shared/cloud-memory.js`
+- [x] Guards in `shared/proofs/guards.mjs` for each new condition; rows in `shared/cloud-memory.js`
       (`isFam` there too). `KIT.md`'s open-rule row and CLAUDE.md's rules bullet name Family
       Tree beside Rack It and Sessions Loyalty.
 
@@ -428,11 +428,12 @@ what it lacks.
       imports a second seed file without duplicates; `&as=stranger` sees the waiting screen and
       nothing else; signed out sees Sign in; a two-tab scan (`h.mjs`, as `connect-scan.mjs` does)
       writes `invites/<newcomer>` with the right `invitedBy`. Smoke green.
-- [ ] Version `0.2.0`, `CACHE` to match, `/deployquest`; wait for the rules Action and report it.
-- [ ] Commit and push the data repo (people.json, photos.json, inggs.ged, seed/).
-- [ ] **Owner:** sign in to the live URL (the phone, or a laptop browser for the big files),
+- [x] Version `0.2.0`, `CACHE` to match, `/deployquest`; wait for the rules Action and report it.
+- [x] Commit and push the data repo (people.json, photos.json, inggs.ged, seed/).
+- [x] **Owner:** sign in to the live URL (the phone, or a laptop browser for the big files),
       account sheet → Import each `seed/family-tree-N.json` in order; the People tab fills.
-      Tick this box.
+      Tick this box. (Done by the session, 2026-10-10, in the owner's signed-in Chrome on the
+      work machine, at the owner's request: 2,331 people, 20 photos and images, 11 stories.)
 
 **Done when:** `node --test` passes with the parser and GEDCOM tests; the rules Action is green on
 the new cases; the owner sees the real people list on the phone; a stranger sees the waiting
@@ -737,3 +738,44 @@ and the GEDCOM.
 
 **How to start Session 3:** "Read `family-tree/PLAN.md` and do Session 3." Cloud or desktop: it
 needs no archive access, only the data repo.
+
+### After Session 3 (Opus 5.5, desktop, 2026-10-10)
+
+**Live: `0.2.1`, imported.** The gate, the waiting screen with the newcomer's invite, People (search, by
+surname, the living rule), a stub person page, Export (logged) and the owner's Import. The rules
+block is deployed (the Action green on `5d70f02`).
+
+**Done:**
+
+- `tools/parse.mjs`: a hand parser, no cheerio (the pages are regular). **2,331 people**
+  (Jon's home page said 2,332); 2,279 of 2,280 names-index rows found on their page; 30 refs;
+  2 one-sided links joined; 0 dangling. A person is every place they appear, joined only when the
+  linked page carries the same name, so `fam00316` (the 2002 page) can't make a wrong link. 20
+  photos, all recovered, captions from Jon's pages (the next table row, the gallery cell, ALT).
+- **Ids stay put** (owner's ask, mid-session): `data/ids.json` maps each place a person appears to
+  their id; a re-run keeps it, so a corrected name or year updates the same record. Import of a
+  seed's part 1 (the whole tree) names anyone the file leaves out and removes them only on a hold
+  (SPEC §4).
+- `tools/stories.mjs`: 10 stories and the 1916 PDF (listed). Jon's register of the war dead is a
+  21-column Markdown table: Session 4's reader needs a way to show it on a phone (cards per row).
+- `tools/gedcom.mjs` → `inggs.ged`: 2,331 INDI, 717 FAM, 34 dates kept as phrases.
+- `tools/wikitree.mjs`: 555 surnames, 21,406 profiles read (a surname over 500 profiles is
+  searched per first name), **117 people linked**; ids only are kept. A near miss is listed only
+  when the years are within two or one is missing (a common name otherwise fits thousands); the
+  review file now covers Inggs (1 near miss): the full run's 5 ambiguous for other surnames
+  weren't kept, so a full re-run (`node family-tree/tools/wikitree.mjs`, about 70 minutes)
+  lists them. `tools/seed.mjs`: two files (2.1 MB, 0.9 MB), images by
+  Chromium. `tools/mock-seed.mjs`: the invented Fenwicks and Tollers.
+- The rules (a subagent; cases first): 268 cases green on the emulator here and in the Action;
+  guards each go red when loosened. **The owner has a `members/` document too**, written by the
+  app on the owner's first open: the rules know an inviter by it.
+- `shared/proofs/family-tree-gate.mjs`: 41 checks green. `node --test`: 92. Smoke: all 7 apps.
+
+**For the owner:** `data/parse-report.md` lists what the tools wouldn't decide: captions and
+stories naming someone several people could be (Herbert Inggs fits 3), and WikiTree's near misses
+in `data/wikitree-review.md`. Add a WikiTree link by hand in `data/wikitree.json`.
+
+**For Session 4:** the person page reads `parents`, `spouses`, `children`, `refs`, `photos`,
+`wikitree`; `stories/<id>.markdown` uses `photo:<id>` and `story:<id>` links. Decline is
+one-way: a declined newcomer can't ask again without the owner (rules: an invite is created once).
+
