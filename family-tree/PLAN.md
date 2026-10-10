@@ -742,7 +742,7 @@ needs no archive access, only the data repo.
 
 ### After Session 3 (Opus 5.5, desktop, 2026-10-10)
 
-**Live: `0.2.1`, imported.** The gate, the waiting screen with the newcomer's invite, People (search, by
+**Live: `0.2.2`, imported (99 WikiTree links).** The gate, the waiting screen with the newcomer's invite, People (search, by
 surname, the living rule), a stub person page, Export (logged) and the owner's Import. The rules
 block is deployed (the Action green on `5d70f02`).
 
@@ -756,7 +756,8 @@ block is deployed (the Action green on `5d70f02`).
 - **Ids stay put** (owner's ask, mid-session): `data/ids.json` maps each place a person appears to
   their id; a re-run keeps it, so a corrected name or year updates the same record. Import of a
   seed's part 1 (the whole tree) names anyone the file leaves out and removes them only on a hold
-  (SPEC §4).
+  (SPEC §4). Import replaces each document whole (`cloud.batch`'s new `{ set }`), so a field a
+  new file drops goes too.
 - `tools/stories.mjs`: 10 stories and the 1916 PDF (listed). Jon's register of the war dead is a
   21-column Markdown table: Session 4's reader needs a way to show it on a phone (cards per row).
 - `tools/gedcom.mjs` → `inggs.ged`: 2,331 INDI, 717 FAM, 34 dates kept as phrases.
