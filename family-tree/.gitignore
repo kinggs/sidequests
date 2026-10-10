@@ -1,0 +1,6 @@
+# Family data never enters the public repo (SPEC.md, Privacy). data/ is a clone of the private
+# data repo (PLAN.md): the raw mirror, the manifest, the parsed JSON, the GEDCOM and the seed files.
+data/
+mirror/
+node_modules/
+*.ged

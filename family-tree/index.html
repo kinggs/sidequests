@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0E0D0B">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Inggs Family Tree</title>
+<link rel="stylesheet" href="../shared/theme.css">
+<style>
+  /* The look and every shared part come from shared/theme.css (read shared/DESIGN.md). Pick two
+     accents from the ramp: --accent marks this app's data, --accent-2 its second state (drop
+     those three lines if it has none). Add only what's this app's own below. */
+  :root{ --accent:var(--lilac); --accent-ink:var(--lilac-ink); --accent-soft:var(--lilac-soft);
+         --accent-2:var(--coral); --accent-2-ink:var(--coral-ink); --accent-2-soft:var(--coral-soft) }
+</style>
+</head>
+<body>
+
+<header class="apphead">
+  <h1>Inggs Family Tree</h1>
+  <div class="me-host" id="meHost"></div>
+</header>
+
+<main class="page" id="main">
+  <section class="gate hidden" id="gate">
+    <p id="gateMsg">Sign in to start.</p>
+    <button class="primary" id="signInBig">Sign in with Google</button>
+  </section>
+
+  <!-- A placeholder from _template (PLAN.md, Session 1). Session 3 replaces this section with the
+       app: the member gate, the people list and the owner's Import (SPEC.md). -->
+  <section class="hidden" id="app">
+    <h2 class="lbl sect">Who's playing</h2>
+    <div class="chips" id="whoChips"></div>
+    <div class="row"><button class="quiet" id="qrBtn">Show QR</button><button class="quiet" id="guestBtn">Add a guest</button></div>
+    <button class="primary big wide" id="goBtn" style="margin-top:12px">Save one</button>
+
+    <h2 class="lbl sect">Recent</h2>
+    <ul class="rows" id="recent"></ul>
+    <input type="file" id="importFile" accept="application/json,.json" class="hidden">
+  </section>
+</main>
+
+<footer class="foot">Researched by Jon Inggs · familytree.inggs.com · 2010 · <span id="version"></span></footer>
+
+<script type="module">
+  import { cloud } from "../shared/cloud.js";
+  import { phone } from "../shared/phone.js";
+  import { people } from "../shared/people.js";
+  import { connect } from "../shared/connect.js";
+  import { ui } from "../shared/ui.js";
+
+  // Bump on every change. The deploy skill checks this against the live site.
+  const APP_VERSION = "0.1.0";
+  const APP_ID = "family-tree";
+  document.getElementById("version").textContent = "v" + APP_VERSION;
+
+  const $ = id => document.getElementById(id);
+  const tap = ui.tap, toast = ui.toast;
+  const myUid = () => (cloud.user && cloud.user.uid) || "";
+
+  // ---- records: the open rule (shared/KIT.md) ----
+  // Anyone signed in uses the app. Each record lives in RECORDS (a collection named on this app's
+  // line in openApps(), shared/firestore.rules) and names its players: players (ids from
+  // people.js), names, uids (the accounts among them) and by (you). Only the accounts in uids, and
+  // the owner, reach it; every list carries the uids filter. A one-person log names just you.
+  const RECORDS = "records";
+  const recordOf = (ids, fields) => ({ ...fields, players: ids, names: people.names(ids), uids: people.uidsOf(ids), by: myUid() });
+
+  // ---- state ----
+  let rows = [];            // RECORDS this phone can see, newest first
+  let picked = [];          // who's playing
+  let unsubs = [];
+  let run = 0;              // which sign-in start() is on (declared up here: start() runs before the code below)
+  let accountSig = "";      // what the header's avatar last showed (mountAccount)
+  let knownNames = {};      // id → the name a record stored, for players this phone can't name
+  const nameOf = id => people.get(id) ? people.nameOf(id) : knownNames[id] || "Someone";
+
+  // ---- render ----
+  function render(){
+    const list = people.players().filter(p => !p.deleted);
+    picked = picked.filter(id => list.some(p => p.id === id));
+    if (!picked.length && people.meId()) picked = [people.meId()];
+    const wrap = $("whoChips");
+    wrap.replaceChildren();
+    for (const p of list){
+      const b = document.createElement("button");
+      b.type = "button";
+      const nm = document.createElement("span");
+      nm.textContent = people.isMe(p.id) ? `${p.name} (you)` : p.name;
+      b.append(people.avatar(p.id, 40), nm);
+      b.setAttribute("aria-pressed", picked.includes(p.id) ? "true" : "false");
+      tap(b, () => { picked = picked.includes(p.id) ? picked.filter(x => x !== p.id) : [...picked, p.id]; render(); });
+      wrap.appendChild(b);
+    }
+    const ul = $("recent");
+    ul.replaceChildren();
+    if (!rows.length){ ul.innerHTML = `<li class="empty">Nothing yet.</li>`; return; }
+    for (const r of rows.slice(0, 30)){
+      const li = document.createElement("li");
+      li.innerHTML = `<span class="who"><div class="l1"></div><div class="l2"></div></span><button type="button" class="more" aria-label="More">⋯</button>`;
+      li.querySelector(".l1").textContent = (r.players || []).map(nameOf).join(" · ");
+      li.querySelector(".l2").textContent = new Date(r.at).toLocaleString();
+      if (r.by === myUid()) ui.menu(li.querySelector(".more"), { title: li.querySelector(".l1").textContent, items: [{ label: "Delete", value: "del", hold: true,
+        run: () => cloud.delete(`${RECORDS}/${r.id}`).catch(e => toast("Couldn't delete: " + (e.message || e))) }] });
+      else li.querySelector(".more").remove();
+      ul.appendChild(li);
+    }
+  }
+
+  // ---- wiring ----
+  tap($("goBtn"), () => {
+    if (!picked.length) return toast("Pick who's playing first.");
+    cloud.save(`${RECORDS}/${cloud.newId()}`, recordOf(picked, { at: Date.now() })).catch(e => toast("Couldn't save: " + (e.message || e)));
+  });
+  const addToLineup = id => { if (id && !picked.includes(id)){ picked = [...picked, id]; render(); } };
+  tap($("qrBtn"), async () => addToLineup(await people.scan(APP_ID)));     // whoever scans your QR joins
+  tap($("guestBtn"), async () => addToLineup(await people.addGuest()));    // someone with no phone
+  people.onChange(() => { render(); mountAccount(); });
+
+  // ---- export / import ----
+  function exportAll(){
+    const url = URL.createObjectURL(new Blob([JSON.stringify({ app: APP_ID, version: APP_VERSION, exportedAt: new Date().toISOString(), [RECORDS]: rows }, null, 2)], { type: "application/json" }));
+    const a = document.createElement("a");
+    a.href = url; a.download = `${APP_ID}-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 4000);
+  }
+  // An import comes in as yours: each record keeps its players, names and uids, with you as by.
+  $("importFile").addEventListener("change", async e => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (!f) return;
+    let data;
+    try { data = JSON.parse(await f.text()); } catch { return toast("That file isn't JSON."); }
+    const have = new Set(rows.map(r => r.id));
+    let added = 0;
+    for (const r of (data && data[RECORDS]) || []){
+      if (!r || !r.id || have.has(r.id)) continue;
+      const { id, _updatedAt, ...doc } = r;
+      try { await cloud.save(`${RECORDS}/${id}`, { ...doc, by: myUid() }); added++; } catch (err){ console.warn("[import]", err); }
+    }
+    toast(added ? `Imported ${added}` : "Nothing new to import");
+  });
+
+  // ---- cloud ----
+  await cloud.init(APP_ID);
+  connect.handleInvite({ app: APP_ID, appName: "Family Tree" });   // a scanned QR: connect first
+
+  // Your avatar in the header, and its sheet: Profile, My QR, Friends, Your guests, Export, Import,
+  // Install on this phone (Chrome stops offering it once anything is on the home screen), Sign out.
+  function mountAccount(){
+    const user = cloud.user, me = user ? people.meId() : null, p = me ? people.get(me) : null;
+    const installed = phone.installed();
+    const sig = JSON.stringify([user && user.uid, me, p && [p.name, p.photo, people.colourOf(me)], installed, people.guests().length]);
+    if (sig === accountSig) return;
+    accountSig = sig;
+    const extra = !user ? [] : [
+      { label: "Profile", value: "profile", run: () => connect.showProfile() },
+      { label: "My QR", value: "qr", run: () => connect.showQR({ app: APP_ID }) },
+      { label: "Friends", value: "friends", run: () => connect.showFriends() },
+      ...(people.guests().length ? [{ label: "Your guests", value: "guests", run: () => people.showGuests({ app: APP_ID }) }] : []),
+      { label: "Export", value: "export", run: exportAll },
+      { label: "Import", value: "import", run: () => $("importFile").click() },
+      ...(installed ? [] : [{ label: "Install on this phone", value: "install", run: async () => {
+        const how = await phone.install();
+        if (how) ui.sheet({ title: "Install", text: how });
+      } }]),
+    ];
+    ui.account($("meHost"), user, { onSignIn: () => cloud.signIn().catch(e => toast("Sign-in failed: " + (e.code || e.message || e))),
+      onSignOut: () => cloud.signOut(), extra, name: p ? p.name : "", avatar: me ? people.avatar(me, 48) : null });
+  }
+
+  // onUser only fires straight away when someone is signed in, so paint the signed-out state
+  // ourselves. Also what makes the app run before Firebase is set up.
+  cloud.onUser(start);
+  if (!cloud.user) start(null);
+  tap($("signInBig"), () => cloud.signIn().catch(err => { $("gateMsg").textContent = "Sign-in failed: " + (err && err.code ? err.code : err); }));
+
+  // ---- app ----
+  async function start(user){
+    unsubs.forEach(u => { try { u(); } catch {} });
+    unsubs = []; rows = []; picked = [];
+    const mine = ++run;
+    mountAccount();
+    const gated = cloud.configured() && !user;
+    $("gate").classList.toggle("hidden", !gated);
+    $("app").classList.toggle("hidden", gated);
+    if (gated) return;
+    if (cloud.configured()){
+      unsubs.push(people.start({ onError: e => console.warn("[people]", e) }));
+      if (mine !== run) return;
+      unsubs.push(cloud.watchList(RECORDS, list => {
+        rows = list.sort((a, b) => (b.at || 0) - (a.at || 0));
+        knownNames = {};
+        for (const r of rows) (r.players || []).forEach((id, i) => { if (r.names && r.names[i]) knownNames[id] = r.names[i]; });
+        render();
+      }, { where: ["uids", "array-contains", user.uid] }, e => toast("Couldn't load: " + (e.code || e.message || e))));
+    }
+    render();
+  }
+
+  // ---- on a phone ----
+  // If the app has a screen you stare at while doing something else, hold the screen on for it:
+  // phone.keepAwake(true) on the way in, false on the way out, and phone.fullscreen() from the tap
+  // that opens it.
+
+  // ---- offline shell ----
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
+</script>
+</body>
+</html>
