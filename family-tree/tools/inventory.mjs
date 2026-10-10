@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // family-tree/tools/inventory.mjs — Phase 1 steps 1 and 2 (BRIEF.md): ask the Wayback Machine's
-// CDX index for every capture of the tree (Jon's intekom pages and the familytree.inggs.com
+// CDX index for every capture of the tree (Jon's ISP pages, `data/site.json`, and the familytree.inggs.com
 // forwarder, cdx.QUERIES), save the answer, and print the shape of
 // the site. Read-only against archive.org, about one request a second, with backoff on 429 and
 // 5xx. Run from the repo root:
@@ -89,7 +89,7 @@ if (OFFLINE){
   if (!fs.existsSync(cdxPath)){ console.error(`No ${cdxPath} to analyse.`); process.exit(1); }
   rows = JSON.parse(fs.readFileSync(cdxPath, "utf8")).rows;
 } else {
-  // The tree: every query, kept to the site's own prefixes ("joni*" would also match "jonix").
+  // The tree: every query, kept to the site's own prefixes ("site*" would also match "sitex").
   // Another host: its own, *.inggs.com meaning every subdomain.
   if (HOST === SITE){
     rows = [];

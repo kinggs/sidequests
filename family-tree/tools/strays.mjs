@@ -15,7 +15,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { HOST, canonical, onSite, parseCdx, pickBest, waybackRaw, waybackView } from "./cdx.mjs";
+import { ALIASES, HOST, canonical, onSite, parseCdx, pickBest, waybackRaw, waybackView } from "./cdx.mjs";
 import { manifestRow, mirrorAll, politeGet, readManifest, sleep, summarise, writeManifest } from "./mirror.mjs";
 
 // Every reference in a page: href, src, background, lowsrc, data and action attributes, CSS
@@ -38,7 +38,7 @@ export function extractRefs(html){
 // those on the given host kept (www. and http/https fold together, as in cdx.canonical).
 // A scheme with too few or backward slashes is read as the host it meant (Jon wrote
 // "http:\familytree.inggs.com"; a browser would take that as a path).
-export function onSiteRefs(refs, pageUrl, host = HOST){
+export function onSiteRefs(refs, pageUrl, host = HOST, aliases = ALIASES){
   const out = new Set();
   for (const r of refs){
     if (/^(mailto|javascript|data|tel|about|ftp|news):/i.test(r) || r.startsWith("#")) continue;
@@ -47,7 +47,7 @@ export function onSiteRefs(refs, pageUrl, host = HOST){
     try { u = new URL(fixed, pageUrl); } catch { continue; }
     if (!/^https?:$/.test(u.protocol)) continue;
     u.hash = "";
-    const key = canonical(u.href);
+    const key = canonical(u.href, aliases);
     if (onSite(key, host)) out.add(key);
   }
   return [...out];
@@ -55,9 +55,9 @@ export function onSiteRefs(refs, pageUrl, host = HOST){
 
 // The strays of one pass: on-site references from the given pages that aren't known yet.
 // pages: [{ url, html }]; known: a Set of canonical keys (cdx-best's keys plus past lookups).
-export function findStrays(pages, known, host = HOST){
+export function findStrays(pages, known, host = HOST, aliases = ALIASES){
   const found = new Map();                       // key → the first page that linked to it
-  for (const p of pages) for (const key of onSiteRefs(extractRefs(p.html), p.url, host))
+  for (const p of pages) for (const key of onSiteRefs(extractRefs(p.html), p.url, host, aliases))
     if (!known.has(key) && !found.has(key)) found.set(key, canonical(p.url));
   return found;
 }

@@ -9,7 +9,7 @@ be (0.1.0 is a placeholder from `_template`; Session 3 ships the first real buil
 **Jon Inggs is the author.** Every screen that shows his work says so: the home page, every
 person page ("Researched by Jon Inggs, familytree.inggs.com, 2010"), the footer, the GEDCOM's
 `SOUR` record and this file. (The brief wrote "John"; the owner settled on Jon on 2026-10-10,
-the spelling on Jon's own forum post and WikiTree profiles, and confirmed in Session 2: the
+the spelling he uses himself online, and confirmed in Session 2: the
 recovered home page is titled "Jon Inggs's home page".)
 
 **Files.** `index.html` (the app), `sw.js`, `manifest.json`, icons, `tools/` (the Node scripts

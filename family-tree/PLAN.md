@@ -66,7 +66,7 @@ inventory and the HTML sampling are Session 2's step 0, with the script ready.
 - [x] `tools/cdx.mjs` + tests (parsing the CDX index, canonical URLs, the best capture per URL, the
       site's shape) and `tools/inventory.mjs` (the fetch, one request a second, resumable).
 - [ ] ~~Run the inventory and sample the HTML~~ → Session 2 step 0 (network).
-- [x] The owner's decisions (SPEC.md §8). The email to Jon drafted: `EMAIL-DRAFT.md`.
+- [x] The owner's decisions (SPEC.md §8). The email to Jon drafted (now `data/EMAIL-DRAFT.md`, private).
 - [x] Handover. Pushed to `main`.
 
 ---
@@ -176,7 +176,7 @@ cloud session with: "Read `family-tree/PLAN.md` and finish Session 2 from the la
 
 - [x] `tools/mirror.mjs` (Session 2; `recover.mjs` runs it): reads `cdx-best.json`, downloads
       every URL with status 200 via `waybackRaw()` (the `id_` flag), one request a second with the
-      same backoff as the inventory, into `data/mirror/<path as on the site>` (`home.intekom.com/joni/html/fam00012.htm`
+      same backoff as the inventory, into `data/mirror/<path as on the site>` (`<site>/html/fam00012.htm`
       → `data/mirror/html/fam00012.htm`; the site's root → `index.html`, another host under `_hosts/<host>/`; a query string becomes part of
       the file name, URL-encoded). **Never overwrites**: a file already there is skipped, so the
       run is resumable and the mirror immutable. Each file's row goes into `data/manifest.json`:
@@ -225,8 +225,8 @@ and `git status` in `sidequests` shows no data.
 ### Findings (Session 2 fills in)
 
 - **Where the tree was:** not on familytree.inggs.com, a forwarder framing Jon's ISP page
-  `home.intekom.com/joni` (The site's pattern). The tools were re-aimed there (`cdx.SITE`,
-  `ALIASES`, `QUERIES`).
+  (The site's pattern). The tools were re-aimed there; its address is in the private
+  `data/site.json`, which `cdx.mjs` reads (`SITE`, `ALIASES`, `QUERIES`).
 - **Inventory:** `Captures 10679 of 782 URLs, 1998-12-05 to 2021-02-13; 760 URLs best-captured
   on 2017-07-02; 6 with no 200 at all.` By kind: page 760, image 20, file 1, other 1. Best status:
   200 776, 404 5, 301 1. Paths: `/html/` 726, `/` 52. Extensions: htm 753, jpg 19, and a gif,
@@ -239,7 +239,7 @@ and `git status` in `sidequests` shows no data.
   its people against the names index. 724 URLs whose capture moved had identical bytes and kept
   the copy already mirrored (`sameAs` in `cdx-best.json`); 32 were re-fetched.
 - **inggs.com and \*.inggs.com:** 5 and 7 URLs. inggs.com was another forwarder, onto a Windows
-  Live Spaces family blog (`inggs.spaces.live.com`), of which the archive holds only a 2011 home
+  Live Spaces family blog (address in `data/report.md`), of which the archive holds only a 2011 home
   page. Nothing to add to the mirror (Parked).
 - **GEDCOM in the index: no**, and never published. Session 3 parses the HTML. The email asks Jon
   for the GEDCOM; if it comes, it replaces most of the parser.
@@ -251,23 +251,23 @@ and `git status` in `sidequests` shows no data.
   last edited 16 September 2026. Against the names index: 8 match on first name and birth year, 8
   on first name only, 28 don't match. Owner's decision: link by id, read live (Step 3).
 - **Jon's own pages** (the stories): the surname's origins, early photographs and history (with a
-  burial account from 1819), a 150th anniversary, pages on individual relatives, a 1930 obituary,
+  burial account), a 150th anniversary, pages on individual relatives, a 1930 obituary,
   the war dead, statistics, "new". About 15 more are his economic-history work, not family.
 
 ### The site's pattern (Session 2 fills in; Session 3's parser and its fixtures follow it)
 
 - **Where the site was:** `familytree.inggs.com` was only a domain forwarder: every capture
-  (2002–2010) is a one-frame `<frameset>` onto Jon's ISP home page, `home.intekom.com/joni`
-  (before about 2003, `home.intekom.co.za/joni`, the same paths). The tools now treat
-  `home.intekom.com/joni` as the site (`cdx.SITE`), fold `.co.za` into it (`cdx.ALIASES`) and keep
+  (2002–2010) is a one-frame `<frameset>` onto Jon's personal ISP home page (before about 2003, the same
+  paths under an older address). Both addresses are in the private `data/site.json`, not here: it
+  is his personal page. The tools treat it as the site (`cdx.SITE`), fold the older address into it (`cdx.ALIASES`) and keep
   the forwarder beside it (`mirror/_hosts/familytree.inggs.com/`).
 - **Generator:** `<META NAME="Generator" CONTENT="Gedpage Version 2.00">`, footer "Page built by
   Gedpage Version 2.00 ©1997 on 17 July 2006". Gedpage turns a GEDCOM into one page per
   family. Jon's home page says "Browse the 2332 people… (updated 17th July 2006)". The GEDCOM
   itself was never published.
-- **File naming and ids:** `joni/html/famNNNNN.htm` (five digits, from `fam00001`), one per
-  family (a couple, or a parent with children); `joni/html/namesN.htm`, the names index in parts;
-  `joni/html/surnames.htm`, the surname index. **There are no person ids.** A person is
+- **File naming and ids:** `<site>/html/famNNNNN.htm` (five digits, from `fam00001`), one per
+  family (a couple, or a parent with children); `<site>/html/namesN.htm`, the names index in parts;
+  `<site>/html/surnames.htm`, the surname index. **There are no person ids.** A person is
   identified by the family page where they are a spouse, plus their name.
 - **A family page:** `<TITLE>` is `<Given> <SURNAME>/<Given> <SURNAME>` (husband/wife). The body is
   one `<PRE>` block of labelled lines between `<HR NOSHADE SIZE=3>` rules: `Husband: <B>name</B>`,
@@ -285,14 +285,14 @@ and `git status` in `sidequests` shows no data.
 - **Notes:** none on the pages sampled. Some child names carry a short prefix of Jon's
   (`D1 <given> <SURNAME>`); keep it verbatim, don't interpret it.
 - **Photos and captions:** none on the Gedpage pages. Photos are on Jon's hand-made pages beside
-  the tree (`joni/j_stone.htm`, "photographs and history"; `joni/*.jpg`, 20 in the index),
+  the tree (`<site>/j_stone.htm`, "photographs and history"; `<site>/*.jpg`, 20 in the index),
   with captions in the page text. Session 3 links them to people by hand-checked name matches.
 - **Index pages:** `namesN.htm`: under `<A NAME="SURNAME">` anchors, one line per person,
   `<A HREF="famN.htm">SURNAME, Given</A> (birth-death)<BR>`, dates as on the family page, either
   side blank. This is the closest thing to a person list: one row per person with their page.
 - **Character set and oddities:** no charset declared; the names index is ISO-8859-1 (accented
   names), the rest ASCII; CRLF line ends; upper-case tags. Jon's own pages (home, history,
-  articles, the economic-history society) share the folder: the parser reads `joni/html/`, and
+  articles, the economic-history society) share the folder: the parser reads `<site>/html/`, and
   Session 3's stories step reads the family-history pages (Findings lists them); the
   economic-history pages stay in the mirror only.
 
@@ -500,7 +500,7 @@ session, load it before the tree view; if not, say so and build from DESIGN.md.
       runs long, the stories view and Share as Markdown are the first to move to a Session 4b.
 - [ ] Version `1.0.0`, `/deployquest`.
 - [ ] **Owner:** install on the phone, browse to the grandparents' photos, show Dad the QR, approve
-      him. Tick this box. Send the email to Jon if not yet sent (`EMAIL-DRAFT.md`).
+      him. Tick this box. Send the email to Jon if not yet sent (`data/EMAIL-DRAFT.md`).
 
 **Done when:** the owner's step above is ticked.
 
@@ -561,7 +561,7 @@ approve findings.
   parents and grandparents in their own words, open to the family, with an edit history,
   per-person visibility and opt-out. It grows from the first Parked item (members editing, with
   history) and Session 5's consent field. Decide after Session 4 is in the family's hands.
-- `inggs.com` framed a Windows Live Spaces family blog (`inggs.spaces.live.com`); the archive holds
+- `inggs.com` framed a Windows Live Spaces family blog (address in `data/report.md`); the archive holds
   only its 2011 home page. Ask the family whether anyone kept its photos.
 - The 24-hour QR code can't be printed for a family gathering (KIT-PLAN Parked, Groups).
 
@@ -574,7 +574,7 @@ must know.
 
 **Done:** the folder (`0.1.0`, a `_template` placeholder with lilac/coral accents, the credit in
 the footer, the icon and its PNGs), `SPEC.md`, this plan, `tools/cdx.mjs` + 8 tests,
-`tools/inventory.mjs`, `EMAIL-DRAFT.md`, the owner's seven decisions (SPEC §8), CLAUDE.md's
+`tools/inventory.mjs`, the email draft (now private), the owner's seven decisions (SPEC §8), CLAUDE.md's
 layout line and DESIGN.md's ramp row. `node --test`: 50 pass. Smoke on `family-tree` green
 (owner, stranger, signed out) with Playwright from the scratchpad. Nothing is on the launcher yet.
 
@@ -584,8 +584,8 @@ to CONNECT), and `WebFetch` is denied the same way; `www.genealogy.com`, `www.wi
 `linkpendium.com` fail too. So Session 1 step 4 (the counts, the URL conventions, the generator,
 whether a GEDCOM was published) is Session 2's step 0, with the script written and tested on
 synthetic rows. What the web search did show, from snippets only: the only inbound link to
-familytree.inggs.com is a Genealogy.com South Africa board post signed **Jon Inggs** (Mildenhall
-and Hinton ancestors; his address written with backslashes, `http:\familytree.inggs.com`), and
+familytree.inggs.com is a genealogy forum post signed by Jon, with the address written with
+backslashes (`http:\familytree.inggs.com`), and
 WikiTree's INGGS surname page lists profiles managed by Jon Inggs. Both are leads, not facts
 about the site.
 
@@ -605,7 +605,7 @@ about the site.
 2. **Make the data repo.** GitHub → New repository → `family-tree-data`, **Private**, with a
    README. Nothing else. The session asks for push access to it when it starts (`add_repo`); if
    GitHub refuses, the error names the settings page to open.
-3. **Send the email** (`EMAIL-DRAFT.md`), or wait for the recovered site to confirm the name.
+3. **Send the email** (now `data/EMAIL-DRAFT.md`), or wait for the recovered site to confirm the name.
    The build doesn't wait on a reply.
 
 **How to start Session 2:** a new cloud session on the sidequests environment, model Opus 5.5,
@@ -686,7 +686,7 @@ was left behind. If the owner says yes to it, the next session can add it.
 
 **Done:** the inventory, the checks, the mirror, strays, the hand sample, WikiTree's counts, and
 `data/report.md`; Findings and The site's pattern above. The big turn: familytree.inggs.com was
-only a forwarder, so the tools now aim at `home.intekom.com/joni` (`.co.za` folded in) and the
+only a forwarder, so the tools now aim at Jon's ISP page (the older address folded in) and the
 target moved to the site's last good day, 2 July 2017 (Findings says why). `node --test`: 19
 family-tree tool tests, 61 in all, pass. Smoke skipped: no Playwright on this laptop, and no app
 or `shared/` file changed.
@@ -707,7 +707,7 @@ living; a family wiki parked, undecided.
   was refused and the owner runs it (Step 4).
 
 ⚠ **For the owner:** the credit line reads "familytree.inggs.com, 2010" (SPEC §2, §8). The tree
-is the 2006 build and lived at Jon's intekom page; "Researched by Jon Inggs · 2006" may be truer.
+is the 2006 build and lived on Jon's ISP page; "Researched by Jon Inggs · 2006" may be truer.
 Say if you want it changed; Session 3 writes the credit into the data.
 
 **How to start Session 3:** "Read `family-tree/PLAN.md` and do Session 3." Cloud or desktop: it

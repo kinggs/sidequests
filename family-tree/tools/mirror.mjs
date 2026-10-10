@@ -118,7 +118,7 @@ export function writeManifest(dataDir, manifest){
 // Bring the mirror up to date with a list of chosen captures (cdx-best.json's rows). Every item
 // ends with exactly one manifest row. Skips what's already done; writes each file via a .part
 // file so a stopped run never leaves half a file that would then be skipped for ever.
-export async function mirrorAll(list, { dataDir, fetchImpl = fetch, wait = sleep, pause = 1100, log = console.error } = {}){
+export async function mirrorAll(list, { dataDir, host = HOST, fetchImpl = fetch, wait = sleep, pause = 1100, log = console.error } = {}){
   const mirror = path.join(dataDir, "mirror");
   fs.mkdirSync(mirror, { recursive: true });
   const manifest = readManifest(dataDir);
@@ -144,7 +144,7 @@ export async function mirrorAll(list, { dataDir, fetchImpl = fetch, wait = sleep
     // Done before: a file on disk, or a soft-404 (that answer won't change). A failed fetch is retried.
     if (old && old.path && fs.existsSync(path.join(mirror, old.path))){ counts.skipped++; continue; }
     if (old && old.status === "soft-404"){ counts.soft404++; continue; }
-    const rel = claimPath(localPath(item.url), key, taken);
+    const rel = claimPath(localPath(item.url, host), key, taken);
     const file = path.join(mirror, rel);
     if (fs.existsSync(file)){
       // On disk with no row (a run stopped between the file and the manifest): record it, never refetch.

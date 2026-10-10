@@ -6,23 +6,22 @@ import os from "node:os";
 import path from "node:path";
 import { claimPath, isSoft404, localPath, mirrorAll, politeGet, summarise } from "./mirror.mjs";
 
-const SITE = "http://home.intekom.com/joni";
+const SITE = "http://home.example.net/tree", H = "home.example.net/tree";   // invented: the real site is in data/site.json
 const html = s => Buffer.from(`<html><head><title>Example family</title></head><body>${s}</body></html>`);
 const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 16, 0x4a, 0x46, 0x49, 0x46, 0]);
 
 test("localPath keeps the site's paths, makes folders index.html and folds the query into the name", () => {
-  assert.equal(localPath(`${SITE}/people/p12.htm`), "people/p12.htm");
-  assert.equal(localPath(`${SITE}/`), "index.html");
-  assert.equal(localPath("https://www.home.intekom.com/joni"), "index.html");
-  assert.equal(localPath(`${SITE}/index.htm`), "index.html");
-  assert.equal(localPath(`${SITE}/photos/`), "photos/index.html");
-  assert.equal(localPath(`${SITE}/p.php?id=3&x=a b`), "p.php%3Fid%3D3%26x%3Da%2520b");
-  assert.equal(localPath(`${SITE}/a/../../etc/passwd`), "_hosts/home.intekom.com/etc/passwd");   // out of /joni: never above the mirror
-  assert.equal(localPath(`${SITE}/odd:name|x.htm`), "odd%3Aname%7Cx.htm");
-  assert.equal(localPath("http://inggs.com/pics/a.jpg"), "_hosts/inggs.com/pics/a.jpg");
-  assert.equal(localPath("http://familytree.inggs.com/"), "_hosts/familytree.inggs.com/index.html");   // the forwarder
-  assert.equal(localPath("http://home.intekom.co.za/joni/html/fam00001.htm"), "html/fam00001.htm");   // the old address
-  assert.equal(localPath("http://home.intekom.com/joni"), "index.html");
+  assert.equal(localPath(`${SITE}/people/p12.htm`, H), "people/p12.htm");
+  assert.equal(localPath(`${SITE}/`, H), "index.html");
+  assert.equal(localPath("https://www.home.example.net/tree", H), "index.html");
+  assert.equal(localPath(`${SITE}/index.htm`, H), "index.html");
+  assert.equal(localPath(`${SITE}/photos/`, H), "photos/index.html");
+  assert.equal(localPath(`${SITE}/p.php?id=3&x=a b`, H), "p.php%3Fid%3D3%26x%3Da%2520b");
+  assert.equal(localPath(`${SITE}/a/../../etc/passwd`, H), "_hosts/home.example.net/etc/passwd");   // out of the site: never above the mirror
+  assert.equal(localPath(`${SITE}/odd:name|x.htm`, H), "odd%3Aname%7Cx.htm");
+  assert.equal(localPath("http://inggs.com/pics/a.jpg", H), "_hosts/inggs.com/pics/a.jpg");
+  assert.equal(localPath("http://familytree.inggs.com/", H), "_hosts/familytree.inggs.com/index.html");   // the forwarder
+  assert.equal(localPath("http://home.example.net/tree", H), "index.html");
 });
 
 test("claimPath gives a second spelling that differs only in case its own file", () => {
@@ -67,7 +66,7 @@ function fakeArchive(bodies, calls){
     return { status: 200, url, headers: new Headers({ "content-type": type }), arrayBuffer: async () => b.buffer.slice(b.byteOffset, b.byteOffset + b.length) };
   };
 }
-const item = (p, status = "200", mime = "text/html") => ({ key: "home.intekom.com/joni" + p, url: SITE + p, timestamp: "20100214230828", status, mime });
+const item = (p, status = "200", mime = "text/html") => ({ key: "home.example.net/tree" + p, url: SITE + p, timestamp: "20100214230828", status, mime });
 
 test("mirrorAll keeps 200s, logs gaps and soft-404s, never overwrites, and retries only failures", async () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "ft-mirror-"));
@@ -77,7 +76,7 @@ test("mirrorAll keeps 200s, logs gaps and soft-404s, never overwrites, and retri
     const bodies = { [`${SITE}/`]: html("home"), [`${SITE}/people/p1.htm`]: html("one"), [`${SITE}/photos/a.jpg`]: JPEG,
       [`${SITE}/photos/b.jpg`]: html("Wayback Machine"), [`${SITE}/people/p3.htm`]: 404 };
     const calls = [];
-    const opts = { dataDir, fetchImpl: fakeArchive(bodies, calls), wait: () => {}, log: () => {} };
+    const opts = { dataDir, host: H, fetchImpl: fakeArchive(bodies, calls), wait: () => {}, log: () => {} };
     const first = await mirrorAll(list, opts);
     assert.deepEqual(first.counts, { kept: 3, skipped: 0, gaps: 1, soft404: 1, failed: 1 });
     assert.equal(calls.length, 5);                                   // the 401 is never fetched

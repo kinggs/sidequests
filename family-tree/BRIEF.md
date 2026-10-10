@@ -2,7 +2,7 @@
 
 Oct 10, 2026 · Kenny Inggs
 
-> **How to start a session:** "Read `family-tree/PLAN.md` and do Session N." Session 1 (2026-10-10) wrote `PLAN.md` and `SPEC.md` from this brief; where they differ from it, they win (the owner's decisions are in `SPEC.md` §8). One of them: the researcher is **Jon** Inggs, the spelling on his own forum post and WikiTree profiles; "John" below is as the brief was written.
+> **How to start a session:** "Read `family-tree/PLAN.md` and do Session N." Session 1 (2026-10-10) wrote `PLAN.md` and `SPEC.md` from this brief; where they differ from it, they win (the owner's decisions are in `SPEC.md` §8). One of them: the researcher is **Jon** Inggs, the spelling he uses himself online; "John" below is as the brief was written.
 
 ## Purpose & background
 
@@ -113,7 +113,7 @@ John Inggs is credited as the original researcher on the site's home page, on ev
 
 Kenny will email John separately, early, to tell him about the revival, ask for his blessing, and ask whether he still has the original data (a GEDCOM or database export would replace most of Phase 2). The build does not wait on a reply. If John wants in, he becomes a member with edit rights.
 
-- [ ] Kenny: send the email to Jon. Drafted in Session 1: `family-tree/EMAIL-DRAFT.md`.
+- [ ] Kenny: send the email to Jon. Drafted in Session 1: `family-tree/data/EMAIL-DRAFT.md` (private).
 
 ## Privacy guardrails
 
@@ -151,6 +151,6 @@ Decisions still needed from Kenny:
 - [x] Surname confirmed: Inggs. App id `family-tree`.
 - [x] Confirm "no family data in the public repo": confirmed 2026-10-10. The mirror, manifest, parsed JSON, GEDCOM and seed files live in a private data repo (`kinggs/kinggs-family-tree-data`), cloned at `family-tree/data/` (gitignored). Pages is untouched.
 - [x] Living-person rule: go with the default above (born after 1926, no death date → details hidden by default).
-- [x] Members: Kenny only at launch, with invites built in from day one. First invitee is Kenny's father, who is not technical: the invite must work from a phone (QR or a link) and viewing must need nothing beyond Google sign-in. Second: John himself via his University of Cape Town address if it still works; otherwise ask the wider family who has a current contact for him.
+- [x] Members: Kenny only at launch, with invites built in from day one. First invitee is Kenny's father, who is not technical: the invite must work from a phone (QR or a link) and viewing must need nothing beyond Google sign-in. Second: John himself, at an address the data repo's `report.md` lists, if one still works; otherwise ask the wider family who has a current contact for him.
 
 Parked for later: members claiming their own profile and editing it directly.

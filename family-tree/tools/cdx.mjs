@@ -14,14 +14,22 @@
 // last good day; Jon's own pages stayed up until 2017, and their latest capture holds the same
 // 2006 tree with none of the 2002 build's stale pages (Session 2).
 export const TARGET = "20170702235959";   // the end of 2 July 2017, the last day the archive saw it whole
-// familytree.inggs.com only ever framed Jon's ISP home page (Session 2 found it): the tree lived
-// at home.intekom.com/joni, earlier home.intekom.co.za/joni (the same paths, so one site here).
-export const SITE = "home.intekom.com/joni";
-export const HOST = SITE;
-export const ALIASES = { "home.intekom.co.za/joni": SITE };
+import fs from "node:fs";
+
+// familytree.inggs.com only ever framed Jon's ISP home page, where the tree lived (Session 2).
+// That address is his personal page, so it lives in the private data repo (data/site.json:
+// site, aliases, queries), not here. Without the file (the tests, a fresh clone) the tools fall
+// back to a placeholder site and query only the forwarder.
+const CONFIG = (() => {
+  try { return JSON.parse(fs.readFileSync(new URL("../data/site.json", import.meta.url), "utf8")); }
+  catch { return {}; }
+})();
 export const FORWARDER = "familytree.inggs.com";
-// What the inventory asks the CDX for: the site under both addresses, and the forwarder.
-export const QUERIES = ["home.intekom.com/joni*", "home.intekom.co.za/joni*", FORWARDER + "/*"];
+export const SITE = CONFIG.site || "tree.example.org/site";
+export const HOST = SITE;
+export const ALIASES = CONFIG.aliases || {};
+// What the inventory asks the CDX for: the site under each address it had, and the forwarder.
+export const QUERIES = CONFIG.queries || [FORWARDER + "/*"];
 
 // Is a canonical key on the site (or under another prefix: a host, or a host and a path)?
 export const onSite = (key, prefix = SITE) => key === prefix || key.startsWith(prefix + "/") || key.startsWith(prefix + "?");
@@ -53,13 +61,13 @@ export function parseCdx(json){
 // One canonical spelling for a URL, so http/https, a port, a trailing index page and the host's
 // case all count as one page: "familytree.inggs.com/people/p12.htm". The path keeps its case
 // (the site may have been on a case-sensitive server) and its query string.
-export function canonical(url){
+export function canonical(url, aliases = ALIASES){
   let u;
   try { u = new URL(/^[a-z]+:\/\//i.test(url) ? url : "http://" + url); } catch { return String(url); }
   let path = (u.pathname || "/").replace(/\/+/g, "/");
   path = path.replace(/\/(index|default)\.(html?|php|asp)$/i, "/");
   const key = u.hostname.toLowerCase().replace(/^www\./, "") + path + (u.search || "");
-  for (const [from, to] of Object.entries(ALIASES)) if (onSite(key, from)) return to + key.slice(from.length);
+  for (const [from, to] of Object.entries(aliases)) if (onSite(key, from)) return to + key.slice(from.length);
   return key;
 }
 
