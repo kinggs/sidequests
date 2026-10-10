@@ -91,18 +91,21 @@ Next iterations: members editing people directly with an edit history, adding ph
 
 ## Access & invites
 
-Membership is controlled by the family, not just by Kenny: any existing member can approve a newcomer.
+Reuse the sidequests connect kit, not a separate invite system. Friendships made here are network-wide (the same `?i=<code>` friendship that Rack It and the dart scorer use), and Kenny is fine with that: inviting someone into the family tree also makes them a friend across all the side quests.
 
-Flow:
+Flow, built on `shared/connect.js` (`showQR`, `scan`, `handleInvite`) and `shared/people.js`:
 
-1. A member taps "Invite" and enters the person's name and the Gmail address they will sign in with. This creates a record in `invites/` (name, email, invited-by, date, status: pending).
-2. The newcomer signs in with Google. If their email matches a pending invite, they see "Waiting for a family member to confirm it's you"; nothing else loads.
-3. Every member sees the pending invite in an "Invites" section: "Kenny invited Dad (dad@gmail.com). Is this them?" with Approve / Decline. One approval from any member (other than the inviter) adds the uid to `members/` and the newcomer is in. The approver is recorded.
-4. Members can see the full member list, who invited whom, and who approved. Kenny can remove a member.
+1. A member opens **My QR** in the family-tree app (same screen as every other quest, in this app's accent). The newcomer scans it, or opens the copied link, and lands on Google sign-in.
+2. `handleInvite` makes the friendship as usual. Because the code was shown from inside the family-tree app, the app also writes an `invites/` record: name, Google email, invited-by (the QR's owner), date, status pending.
+3. The newcomer sees "Waiting for a family member to confirm it's you"; nothing else loads.
+4. Every member sees the pending invite in an **Invites** section: "Kenny invited Dad (dad@gmail.com). Is this them?" with Approve / Decline. One approval from any member other than the inviter adds the uid to `members/`; the approver is recorded.
+5. Members can see the member list, who invited whom, and who approved. Kenny can remove a member (removal from `members/` does not undo the friendship).
 
-For a first-time user on a phone (Kenny's father), the invite is a link or QR that opens the app and lands straight on Google sign-in; no app store, no password.
+Existing friends who are family: a member can also pick an existing friend from the friends list and send them an invite without a QR; the same approval step applies.
 
-Firestore rules: `invites/` writable by members; `members/` writable only through an approval by a member who is not the inviter; everything else readable only by members. Known limitation, accepted for now: this trusts the family to recognise each other, and a member could approve someone they shouldn't. Revisit if the family grows beyond a few dozen.
+For Kenny's father, this is: Kenny shows his phone, Dad's camera opens the link, Dad taps his Google account, Kenny (or any other member) taps Approve. No app store, no password.
+
+Firestore rules: `invites/` writable by members; `members/` writable only through an approval by a member who is not the inviter; everything else readable only by members. Known limitation, accepted for now: this trusts the family to recognise each other. Revisit if the family grows beyond a few dozen.
 
 ## Attribution & engaging John
 
