@@ -11,7 +11,17 @@
 // status.
 
 export const TARGET = "20100214230828";   // the last known good capture (BRIEF.md): 14 Feb 2010
-export const HOST = "familytree.inggs.com";
+// familytree.inggs.com only ever framed Jon's ISP home page (Session 2 found it): the tree lived
+// at home.intekom.com/joni, earlier home.intekom.co.za/joni (the same paths, so one site here).
+export const SITE = "home.intekom.com/joni";
+export const HOST = SITE;
+export const ALIASES = { "home.intekom.co.za/joni": SITE };
+export const FORWARDER = "familytree.inggs.com";
+// What the inventory asks the CDX for: the site under both addresses, and the forwarder.
+export const QUERIES = ["home.intekom.com/joni*", "home.intekom.co.za/joni*", FORWARDER + "/*"];
+
+// Is a canonical key on the site (or under another prefix: a host, or a host and a path)?
+export const onSite = (key, prefix = SITE) => key === prefix || key.startsWith(prefix + "/") || key.startsWith(prefix + "?");
 
 // The CDX API's JSON output: the first row names the fields, the rest are rows. With
 // showResumeKey=true a blank row and then the resume key may end the list; both are dropped and
@@ -45,7 +55,9 @@ export function canonical(url){
   try { u = new URL(/^[a-z]+:\/\//i.test(url) ? url : "http://" + url); } catch { return String(url); }
   let path = (u.pathname || "/").replace(/\/+/g, "/");
   path = path.replace(/\/(index|default)\.(html?|php|asp)$/i, "/");
-  return u.hostname.toLowerCase().replace(/^www\./, "") + path + (u.search || "");
+  const key = u.hostname.toLowerCase().replace(/^www\./, "") + path + (u.search || "");
+  for (const [from, to] of Object.entries(ALIASES)) if (onSite(key, from)) return to + key.slice(from.length);
+  return key;
 }
 
 // What kind of thing a URL is, by its mime type first and its extension second.
@@ -116,7 +128,7 @@ export function analyse(rows, best = pickBest(rows), host = HOST){
     kinds[b.kind] = (kinds[b.kind] || 0) + 1;
     statuses[b.status] = (statuses[b.status] || 0) + 1;
     if (b.status !== "200") missing++;
-    const key = canonical(b.url), path = key.startsWith(host) ? key.slice(host.length) : "/" + key;
+    const key = canonical(b.url), path = onSite(key, host) ? key.slice(host.length) : "/" + key;
     const seg = path.split("/")[1] || "";
     const prefix = path.endsWith("/") && !seg ? "/" : "/" + (path.split("/").length > 2 ? seg + "/" : "");
     prefixes[prefix] = (prefixes[prefix] || 0) + 1;

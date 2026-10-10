@@ -17,7 +17,7 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { HOST, canonical, kindOf, waybackRaw, waybackView } from "./cdx.mjs";
+import { HOST, canonical, onSite, kindOf, waybackRaw, waybackView } from "./cdx.mjs";
 
 export const USER_AGENT = "sidequests-family-tree mirror (read-only, one request a second)";
 export const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -30,9 +30,11 @@ export const sleep = ms => new Promise(r => setTimeout(r, ms));
 // percent-encoded, so the same mirror works on a Mac, Windows or Linux.
 export function localPath(url, host = HOST){
   const key = canonical(url);
+  const mine = onSite(key, host);
   const slash = key.indexOf("/");
   const h = slash < 0 ? key : key.slice(0, slash);
-  let rest = slash < 0 ? "/" : key.slice(slash);
+  let rest = mine ? key.slice(host.length) || "/" : slash < 0 ? "/" : key.slice(slash);
+  if (!rest.startsWith("/")) rest = "/" + rest;
   let query = "";
   const q = rest.indexOf("?");
   if (q >= 0){ query = rest.slice(q); rest = rest.slice(0, q); }
@@ -40,7 +42,7 @@ export function localPath(url, host = HOST){
   const safe = s => s.replace(/[<>:"\\|?*\x00-\x1f]/g, c => "%" + c.charCodeAt(0).toString(16).toUpperCase().padStart(2, "0"));
   const segs = rest.split("/").filter(s => s && s !== "." && s !== "..").map(safe);
   if (query) segs[segs.length - 1] += encodeURIComponent(query);
-  return (h === host ? "" : `_hosts/${safe(h)}/`) + segs.join("/");
+  return (mine ? "" : `_hosts/${safe(h)}/`) + segs.join("/");
 }
 
 // Two URLs that differ only in case would share one file on a Mac's disk. The second one to

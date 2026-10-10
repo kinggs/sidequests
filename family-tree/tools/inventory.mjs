@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // family-tree/tools/inventory.mjs — Phase 1 steps 1 and 2 (BRIEF.md): ask the Wayback Machine's
-// CDX index for every capture of familytree.inggs.com, save the answer, and print the shape of
+// CDX index for every capture of the tree (Jon's intekom pages and the familytree.inggs.com
+// forwarder, cdx.QUERIES), save the answer, and print the shape of
 // the site. Read-only against archive.org, about one request a second, with backoff on 429 and
 // 5xx. Run from the repo root:
 //
@@ -19,7 +20,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { HOST as SITE, analyse, describe, parseCdx, pickBest, waybackRaw, waybackView } from "./cdx.mjs";
+import { FORWARDER, HOST as SITE, QUERIES, analyse, canonical, onSite, describe, parseCdx, pickBest, waybackRaw, waybackView } from "./cdx.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -38,9 +39,9 @@ const FIELDS = "timestamp,original,statuscode,mimetype,digest,length";
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 // One CDX page, with retries: 429 and 5xx back off 2s, 4s, 8s, 16s, 32s.
-async function fetchPage(resumeKey){
+async function fetchPage(query, resumeKey){
   const url = new URL(CDX);
-  url.searchParams.set("url", HOST.startsWith("*.") ? HOST : HOST + "/*");   // *.inggs.com: every subdomain
+  url.searchParams.set("url", query);
   url.searchParams.set("output", "json");
   url.searchParams.set("fl", FIELDS);
   url.searchParams.set("showResumeKey", "true");
@@ -65,16 +66,16 @@ async function fetchPage(resumeKey){
   }
 }
 
-async function fetchAll(){
+async function fetchAll(query){
   const rows = [];
   let key = null, pages = 0;
   do {
-    const text = await fetchPage(key);
+    const text = await fetchPage(query, key);
     const parsed = parseCdx(text.trim() ? JSON.parse(text) : []);
     rows.push(...parsed.rows);
     key = parsed.resumeKey;
     pages++;
-    console.error(`page ${pages}: ${parsed.rows.length} rows${key ? ", more to come" : ""}`);
+    console.error(`${query} page ${pages}: ${parsed.rows.length} rows${key ? ", more to come" : ""}`);
     if (key) await sleep(PAUSE_MS);
   } while (key);
   return rows;
@@ -88,7 +89,13 @@ if (OFFLINE){
   if (!fs.existsSync(cdxPath)){ console.error(`No ${cdxPath} to analyse.`); process.exit(1); }
   rows = JSON.parse(fs.readFileSync(cdxPath, "utf8")).rows;
 } else {
-  rows = await fetchAll();
+  // The tree: every query, kept to the site's own prefixes ("joni*" would also match "jonix").
+  // Another host: its own, *.inggs.com meaning every subdomain.
+  if (HOST === SITE){
+    rows = [];
+    for (const [i, q] of QUERIES.entries()){ if (i) await sleep(PAUSE_MS); rows.push(...await fetchAll(q)); }
+    rows = rows.filter(r => { const k = canonical(r.url); return onSite(k, SITE) || onSite(k, FORWARDER); });
+  } else rows = await fetchAll(HOST.startsWith("*.") ? HOST : HOST + "/*");
   fs.writeFileSync(cdxPath, JSON.stringify({ host: HOST, fetchedAt: new Date().toISOString(), rows }, null, 1));
   console.error(`saved ${rows.length} rows to ${cdxPath}`);
 }

@@ -15,7 +15,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { HOST, canonical, parseCdx, pickBest, waybackRaw, waybackView } from "./cdx.mjs";
+import { HOST, canonical, onSite, parseCdx, pickBest, waybackRaw, waybackView } from "./cdx.mjs";
 import { manifestRow, mirrorAll, politeGet, readManifest, sleep, summarise, writeManifest } from "./mirror.mjs";
 
 // Every reference in a page: href, src, background, lowsrc, data and action attributes, CSS
@@ -48,7 +48,7 @@ export function onSiteRefs(refs, pageUrl, host = HOST){
     if (!/^https?:$/.test(u.protocol)) continue;
     u.hash = "";
     const key = canonical(u.href);
-    if (key.split("/")[0] === host) out.add(key);
+    if (onSite(key, host)) out.add(key);
   }
   return [...out];
 }
