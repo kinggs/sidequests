@@ -108,7 +108,25 @@ went in Handover.
 (`tools/recover.mjs`, below), written and proved here on a fake archive; Steps 0's sample, 3 and 4
 wait for its output in the data repo.
 
-### The laptop run (owner; once, about an hour, safe to stop and restart)
+### On a desktop session (the way to finish; owner's choice, 2026-10-10)
+
+A Claude Code session on the laptop (the desktop app or the CLI, in a local folder, not a cloud
+environment) can reach the archive, so it does **all of the rest of Session 2 itself**: the run
+below, then Step 0's checks and sample, Step 3, Step 4, and the pushes. Start it in an empty
+folder with:
+
+> Clone https://github.com/kinggs/sidequests, read `family-tree/PLAN.md`, and finish Session 2 on
+> this machine.
+
+Notes for that session: it runs locally, so no `NODE_USE_ENV_PROXY` and no proxy; it clones the
+data repo into `sidequests/family-tree/data` as below, then starts `recover.mjs` in the
+background (about a second per file; it prints progress and is safe to restart) and does the
+reading as files land. Push `sidequests` straight to `main` (CLAUDE.md rule 5) and the data repo
+to its `main`. Before each `sidequests` commit, `git status` must show nothing under
+`family-tree/data/` (it's gitignored; check anyway). For WikiTree (Step 3), ask the owner to save
+the page from their own browser into `family-tree/data/wikitree/`; if they skip it, park it.
+
+### The laptop run by hand (if not a desktop session; about an hour, safe to stop and restart)
 
 On a Mac or PC with Node 18 or later (`node -v`; nodejs.org if not) and git, in a terminal:
 
@@ -504,6 +522,9 @@ later, set `TARGET` and re-mirror once, before anything reads the mirror: since 
 overwrites, that means deleting `data/mirror/` and `manifest.json`, then `inventory.mjs
 --offline`, `mirror.mjs` and `strays.mjs` (cloud-side, only if the archive answers; else the
 laptop again). Say so in Findings.
+
+**Owner's choice, after part 1:** finish on a desktop session (see "On a desktop session" under
+Session 2's opening), which needs neither the Action below nor a cloud session afterwards.
 
 **An option that would skip the laptop:** a GitHub Action in the private data repo (private logs,
 its own `GITHUB_TOKEN` to push) that checks out `kinggs/sidequests` and runs `recover.mjs` with
