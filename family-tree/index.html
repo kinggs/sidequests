@@ -91,7 +91,7 @@
   import { ui } from "../shared/ui.js";
 
   // Bump on every change. The deploy skill checks this against the live site.
-  const APP_VERSION = "0.2.0";
+  const APP_VERSION = "0.2.1";
   const APP_ID = "family-tree";
   document.getElementById("version").textContent = "v" + APP_VERSION;
 
@@ -292,6 +292,26 @@
     }
     for (const d of parsed) if (!d || d.app !== APP_ID) return toast("That isn't a Family Tree file.");
     parsed.sort((a, b) => ((a.seed && a.seed.part) || 0) - ((b.seed && b.seed.part) || 0));
+    // Seed part 1 is the whole tree. Anyone already here but not in it (a re-run of the tools
+    // changed something) is named first, and goes only on a hold; otherwise they stay beside it.
+    let gone = [];
+    const whole = parsed.find(d => d.seed && d.seed.part === 1);
+    if (whole){
+      try {
+        for (const col of ["people", "photos", "stories"]){
+          if (!Array.isArray(whole[col])) continue;
+          const keep = new Set(whole[col].map(d => d && d.id));
+          for (const d of await cloud.list(col)) if (!keep.has(d.id)) gone.push({ col, id: d.id, name: d.name || d.caption || d.title || d.id });
+        }
+      } catch (e){ return report("Couldn't check what's there", e); }
+    }
+    if (gone.length){
+      const names = gone.slice(0, 12).map(g => g.name).join(", ") + (gone.length > 12 ? `, and ${gone.length - 12} more` : "");
+      const choice = await ui.sheet({ title: `${gone.length} no longer in the tree`, text: `This file doesn't have: ${names}. Remove them, or keep them beside the new import?`,
+        items: [{ label: `Remove ${gone.length} and import`, value: "remove", hold: true }, { label: "Import and keep them", value: "keep" }] });
+      if (!choice) return;
+      if (choice !== "remove") gone = [];
+    }
     let n = 0;
     try {
       for (const data of parsed){
@@ -308,7 +328,10 @@
           }
         }
       }
-      toast(`Imported ${n.toLocaleString()} documents`);
+      // A removed photo takes its image with it.
+      const dels = gone.flatMap(g => g.col === "photos" ? [`photos/${g.id}`, `images/${g.id}`] : [`${g.col}/${g.id}`]);
+      for (let i = 0; i < dels.length; i += 400) await cloud.batch(dels.slice(i, i + 400).map(path => ({ delete: path })));
+      toast(`Imported ${n.toLocaleString()} documents${gone.length ? `, removed ${gone.length}` : ""}`);
     } catch (e){ report(`Import stopped after ${n.toLocaleString()}`, e); }
   }
   $("importFile").addEventListener("change", e => {

@@ -156,9 +156,12 @@ export function splitName(name){
 
 // Every family page → the people, their relationships, and a log of what didn't check out.
 //   families: Map<famId, parseFamily()>   index: parseNames() rows   sourceOf: famId → { url, wayback, captured }
-export function buildPeople(families, index = [], sourceOf = () => null){
+//   previous: { slot: id } from the last run (data/ids.json). A person keeps the id they had, found
+//   by any place they appear, so a corrected name or year updates the same record on re-import
+//   instead of leaving the old one behind. Only someone new gets a new id.
+export function buildPeople(families, index = [], sourceOf = () => null, previous = {}){
   const log = { childFixedByIndex: [], childUnresolved: [], otherUnverified: [], parentMirrored: [], parentOneSided: [],
-    conflicts: [], sexConflicts: [], indexUnmatched: [], notInIndex: 0, stale: [] };
+    conflicts: [], sexConflicts: [], indexUnmatched: [], notInIndex: 0, stale: [], idsKept: 0 };
   const famIds = [...families.keys()].sort();
 
   // The build most pages carry; a page from another one is reported, and its links still have to check out.
@@ -231,7 +234,15 @@ export function buildPeople(families, index = [], sourceOf = () => null){
   for (const k of slots.keys()){ const r = find(k); clusters.set(r, [...(clusters.get(r) || []), slots.get(k)]); }
   const famNo = k => Number(k.match(/fam(\d+)/)[1]);
   const order = [...clusters.values()].sort((a, b) => Math.min(...a.map(s => famNo(s.key))) - Math.min(...b.map(s => famNo(s.key))) || (a[0].key < b[0].key ? -1 : 1));
-  const people = [], idOf = new Map(), used = new Map();
+  const people = [], idOf = new Map(), taken = new Set();
+  // Ids from the last run first, in order, each to one person; then new ones, never reusing any.
+  const kept = new Map();
+  for (const group of order){
+    const prior = group.map(s => previous[s.key]).find(id => id && !taken.has(id));
+    if (prior){ kept.set(group, prior); taken.add(prior); }
+  }
+  for (const id of Object.values(previous)) taken.add(id);   // a vanished person's id isn't handed to someone else
+  log.idsKept = kept.size;
   const indexKey = new Map(index.map(r => [norm(r.name), r]));
 
   for (const group of order){
@@ -249,10 +260,13 @@ export function buildPeople(families, index = [], sourceOf = () => null){
     const fromIndex = indexKey.get(norm(first.name));
     const { given, surname } = fromIndex ? { given: fromIndex.given, surname: fromIndex.surname } : splitName(first.name);
     const birth = pick("born"), death = pick("died");
-    let id = slug([given, surname, birth.year].filter(Boolean).join(" ")) || "person";
-    const n = (used.get(id) || 0) + 1;
-    used.set(id, n);
-    if (n > 1) id = `${id}-${n}`;
+    let id = kept.get(group);
+    if (!id){
+      const base = slug([given, surname, birth.year].filter(Boolean).join(" ")) || "person";
+      id = base;
+      for (let n = 2; taken.has(id); n++) id = `${base}-${n}`;
+      taken.add(id);
+    }
     const home = spouses[0]?.fam || kids[0].fam;
     const person = {
       id, name: first.name, given, surname, sex, birth, death,
@@ -542,7 +556,13 @@ export function run(dataDir){
   }
   const index = fs.readdirSync(htmlDir).filter(f => /^names\d+\.htm$/i.test(f)).sort((a, b) => parseInt(a.slice(5)) - parseInt(b.slice(5)))
     .flatMap(f => parseNames(fs.readFileSync(path.join(htmlDir, f))));
-  const { people, log } = buildPeople(families, index, fam => source(`html/${fam}.htm`));
+  const idsFile = path.join(dataDir, "ids.json");
+  const previous = fs.existsSync(idsFile) ? JSON.parse(fs.readFileSync(idsFile, "utf8")) : {};
+  const { people, log } = buildPeople(families, index, fam => source(`html/${fam}.htm`), previous);
+  const ids = {};
+  for (const p of people) for (const k of p._slots) ids[k] = p.id;
+  const gone = [...new Set(Object.values(previous))].filter(id => !people.some(p => p.id === id));
+  fs.writeFileSync(idsFile, JSON.stringify(ids, null, 1) + "\n");
 
   const pages = STORY_PAGES.filter(f => fs.existsSync(path.join(mirror, decodeURIComponent(f))) || fs.existsSync(path.join(mirror, f)))
     .map(f => { const p = fs.existsSync(path.join(mirror, f)) ? f : decodeURIComponent(f); return { file: p, html: fs.readFileSync(path.join(mirror, p)), source: source(p) }; });
@@ -566,6 +586,7 @@ export function run(dataDir){
 
 | | |
 |---|---|
+| Ids | ${log.idsKept} kept from the last run (\`ids.json\`), ${people.length - log.idsKept} new${gone.length ? `; **no longer anyone's: ${gone.join(", ")}** (Import offers to remove them)` : ""} |
 | Family pages read | ${families.size} (failed to parse: ${failed.length ? failed.join(", ") : "none"}) |
 | From another build | ${log.stale.length ? log.stale.map(s => `${s.fam} (${s.build})`).join(", ") + ": read like the rest; every link from it had to check out by name" : "none"} |
 | Names index rows | ${index.length} (matched to a person on that row's page: ${index.length - log.indexUnmatched.length}) |

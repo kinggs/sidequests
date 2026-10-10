@@ -189,3 +189,26 @@ test("writeSection rewrites only its own part of the report", () => {
   assert.ok(doc.includes("<!-- b -->\nB one\n<!-- /b -->"));
   assert.ok(!doc.includes("A one"));
 });
+
+test("buildPeople keeps last run's ids: a corrected name or year updates the same person", () => {
+  const first = built().people;
+  const previous = {};
+  for (const p of first) for (const k of p._slots) previous[k] = p.id;
+  const fams = families();
+  // Jon's Ivy re-read as "Ivy May NASH" born 1861, and Edwin's page gone: their ids must not move or be reused.
+  fams.set("fam00004", parseFamily(decode(read("fam00004.htm")).replace(/Ivy NASH/g, "Ivy May NASH").replace("Born: 1860 ", "Born: 1861 ")));
+  const again = buildPeople(fams, parseNames(read("names1.htm")), () => null, { ...previous, "fam00009/husband": "edwin-toller-1874-9" }).people;
+  const ivy = again.find(p => p.name === "Ivy May NASH");
+  assert.equal(ivy.id, "ivy-nash-1860");
+  assert.deepEqual(again.map(p => p.id).sort(), first.map(p => p.id).sort());
+  // Someone new whose natural id is already taken by a past person gets the next free one.
+  const twin = decode(read("fam00003.htm")).replace("<HR NOSHADE SIZE=1></PRE>", "")
+    .replace(/<HR NOSHADE SIZE=1>\n<\/PRE>/, "<HR NOSHADE SIZE=1>   Name: Albert Quill FENWICK\n   Born: 3 MAR 1850       at:   \nMarried:                  at:   \n   Died:                  at:   \nSpouses: \n<HR NOSHADE SIZE=1>\n</PRE>");
+  fams.set("fam00003", parseFamily(twin));
+  const third = buildPeople(fams, parseNames(read("names1.htm")), () => null, previous).people;
+  assert.equal(third.filter(p => p.id === "albert-quill-fenwick-1850").length, 1);
+  assert.ok(third.some(p => p.id === "albert-quill-fenwick-1850-2"));
+  assert.equal(third.find(p => p._slots.includes("fam00001/husband")).id, "albert-quill-fenwick-1850");
+  assert.equal(third.find(p => p._slots.includes("fam00003/c1")).id, "albert-quill-fenwick-1850-2");
+  assert.equal(third.find(p => p._slots.includes("fam00003/c0")).id, "ida-fenwick");   // the place keeps its person
+});

@@ -1,6 +1,6 @@
 // Family Tree, Session 3 step 5 (family-tree/PLAN.md): the gate. The owner on the invented mock
-// seed sees the people list (the living rule applied) and imports a second seed file twice
-// without duplicates; a stranger sees the waiting screen and can't read a person; signed out
+// seed sees the people list (the living rule applied), imports a second seed file twice without
+// duplicates, and a whole tree that leaves people out removes them only on a hold; a stranger sees the waiting screen and can't read a person; signed out
 // sees Sign in; Ann, a member, shows My QR and Ben, scanning it, writes invites/<ben> naming Ann,
 // waits, and is let in the moment the owner approves.
 //
@@ -8,7 +8,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { ok, summary, serve, browser, tab, C, tryC, text, store, account, accountItems, shot } from "./h.mjs";
+import { ok, summary, serve, browser, tab, C, tryC, text, store, account, accountItems, shot, hold } from "./h.mjs";
 
 const srv = await serve();
 const { b, ctx } = await browser();
@@ -67,6 +67,24 @@ ok(await rows(owner).count() === 16, "…and the list shows 16");
 await owner.setInputFiles("#importFile", { name: "x.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify({ app: "rack-it" })) });
 ok(await owner.locator(".toast", { hasText: "isn't a Family Tree file" }).first().waitFor({ timeout: 2000 }).then(() => true, () => false), "another app's file is refused");
 
+// A whole tree again (seed part 1) without Ivy: she and Olive (only in part 2) are named, and go
+// only on a hold. Keep first, then remove.
+const mock = JSON.parse(fs.readFileSync(new URL("./seeds/family-tree-mock.json", import.meta.url)));
+const one = { ...mock, seed: { part: 1, of: 2 }, people: mock.people.filter(p => p.id !== "ivy-nash-1860"), images: [], suggestions: [], members: [] };
+const oneFile = path.join(path.dirname(file), "family-tree-1.json");
+fs.writeFileSync(oneFile, JSON.stringify(one));
+const sheet = owner.locator(".scrim .sheet");
+await owner.setInputFiles("#importFile", oneFile); await owner.waitForTimeout(600);
+ok(/2 no longer in the tree/.test(await text(owner, ".scrim .sheet")) && /Ivy NASH/.test(await text(owner, ".scrim .sheet")) && /Olive WARD/.test(await text(owner, ".scrim .sheet")), "a whole tree without two people names them first: " + (await text(owner, ".scrim .sheet h2")));
+await sheet.locator("button", { hasText: "Import and keep them" }).click(); await owner.waitForTimeout(800);
+ok((await docs(owner, "people")).length === 16, "…Keep imports and leaves them: " + (await docs(owner, "people")).length);
+await owner.setInputFiles("#importFile", oneFile); await owner.waitForTimeout(600);
+await hold(owner, '.scrim .sheet button:has-text("Hold to remove")'); await owner.waitForTimeout(1000);
+const left = await docs(owner, "people");
+ok(left.length === 14 && !left.some(k => k.endsWith("/ivy-nash-1860")), "…the hold removes them: " + left.length);
+await owner.setInputFiles("#importFile", oneFile); await owner.waitForTimeout(800);
+ok(!(await owner.locator(".scrim .sheet").isVisible()) && (await docs(owner, "people")).length === 14, "…and the same file again asks nothing");
+
 // ---- a stranger: the waiting screen, and nothing else ----
 const stranger = await tab(ctx, `${F}?mock&as=stranger`, "stranger");
 await stranger.waitForTimeout(600);
@@ -105,7 +123,7 @@ await C(owner, c => c.batch([
   { save: "members/mock-ben", data: { name: "Ben", since: Date.now(), invitedBy: "mock-ann", approvedBy: "mock-uid" } },
 ]));
 await ben.waitForTimeout(1000);
-ok(await ben.locator("#peopleTab").isVisible() && await rows(ben).count() === 16, "approved: Ben's phone opens the tree at once");
+ok(await ben.locator("#peopleTab").isVisible() && await rows(ben).count() === 14, "approved: Ben's phone opens the tree at once");
 await shot(ben, "family-tree-people");
 
 summary();

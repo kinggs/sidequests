@@ -4,7 +4,7 @@ The Inggs family tree that Jon Inggs researched and published at familytree.ingg
 from the Wayback Machine's copies (the last whole one, 2 July 2017) before they are lost, and given a private home where
 the family can browse the tree and the oldest photographs and add or correct what they know.
 The brief is `BRIEF.md`; the sessions that build it are `PLAN.md`. This spec is the app as it will
-be. **Built so far (0.2.0, Session 3):** the gate, the waiting screen with the newcomer's invite,
+be. **Built so far (0.2.1, Session 3):** the gate, the waiting screen with the newcomer's invite,
 the People tab, a stub person page with the living rule, the account sheet with Export and the
 owner's Import. Photos and Family say "coming next"; the rest is Session 4 (`PLAN.md`).
 
@@ -145,6 +145,13 @@ rest: `images`, with `seed: { part, of }`). Several can be picked at once and go
 each is written in batches of at most 400 documents (images 10 at a time), merged by id, so a
 file can be imported twice without harm. `members` and `invites` aren't imported: they are made
 by approval (§5). From a laptop browser if the phone struggles with the size.
+
+**Ids stay put across re-runs.** The parser keeps `data/ids.json` (each place a person appears on
+Jon's pages → their id) and gives a person the id they had last time, so a corrected name or year
+updates the same record; only someone new gets a new id, and a retired id is never reused.
+**Seed part 1 is the whole tree**, so its Import first lists anyone in people, photos or stories
+that the file doesn't have: **Hold to remove** them (a photo takes its image), or **Import and
+keep them**. Nothing goes without the owner seeing it.
 
 **Export** (any member): one JSON file, `{ app: "family-tree", version, exportedAt, meta: { main },
 people, photos, images, stories, suggestions }` for a member (every collection an array of
