@@ -346,7 +346,7 @@ what it lacks.
 
 - [ ] `tools/gedcom.mjs` (pure; `gedcom.test.mjs` on the same fixtures) → `data/inggs.ged`,
       GEDCOM 5.5.1, UTF-8: `HEAD` with `SOUR` "sidequests family-tree", a `SOUR` record naming
-      **Jon Inggs** as compiler and familytree.inggs.com (2010) as the publication; one `INDI` per
+      **Jon Inggs** as compiler and familytree.inggs.com (2006) as the publication; one `INDI` per
       person (`NAME` given /surname/, `SEX`, `BIRT`/`DEAT` with `DATE` as written and `PLAC`,
       `NOTE`, `OBJE` per photo naming the mirror file, a `SOUR` citation with the Wayback URL);
       one `FAM` per couple or per single parent with children (`HUSB`, `WIFE`, `CHIL`, `MARR`
@@ -706,9 +706,9 @@ living; a family wiki parked, undecided.
 - The data repo was pushed by this session; if `git log` there shows no "Recovery run", the push
   was refused and the owner runs it (Step 4).
 
-⚠ **For the owner:** the credit line reads "familytree.inggs.com, 2010" (SPEC §2, §8). The tree
-is the 2006 build and lived on Jon's ISP page; "Researched by Jon Inggs · 2006" may be truer.
-Say if you want it changed; Session 3 writes the credit into the data.
+**The credit, settled after the session (owner):** "Compiled by Jon Inggs · familytree.inggs.com ·
+2006" (SPEC §8). The footer and manifest carry it from `0.1.1`; Session 3 writes it into `meta`
+and the GEDCOM.
 
 **How to start Session 3:** "Read `family-tree/PLAN.md` and do Session 3." Cloud or desktop: it
 needs no archive access, only the data repo.

@@ -7,7 +7,7 @@ The brief is `BRIEF.md`; the sessions that build it are `PLAN.md`. This spec is 
 be (0.1.0 is a placeholder from `_template`; Session 3 ships the first real build).
 
 **Jon Inggs is the author.** Every screen that shows his work says so: the home page, every
-person page ("Researched by Jon Inggs, familytree.inggs.com, 2010"), the footer, the GEDCOM's
+person page ("Compiled by Jon Inggs · familytree.inggs.com · 2006"), the footer, the GEDCOM's
 `SOUR` record and this file. (The brief wrote "John"; the owner settled on Jon on 2026-10-10,
 the spelling he uses himself online, and confirmed in Session 2: the
 recovered home page is titled "Jon Inggs's home page".)
@@ -41,8 +41,8 @@ Three tabs (`.tabbar`: **People · Photos · Family**), person pages and the tre
 Everything on the shared parts (`shared/DESIGN.md`); the app's own CSS is the tree view and the
 photo treatment, nothing else.
 
-**People** (Home). The credit line under the title ("Researched by Jon Inggs · familytree.inggs.com
-· 2010"), a search field (name, any part), then every person as a `.rows` list sorted by surname
+**People** (Home). The credit line under the title ("Compiled by Jon Inggs · familytree.inggs.com
+· 2006"), a search field (name, any part), then every person as a `.rows` list sorted by surname
 then given name: a neutral initial ring or their first photo as the avatar, the name as `.l1`, the
 years as `.l2` ("1884–1951", "b. 1902", or nothing). A caps label groups them by surname. Tap
 opens the person. The list reads from one `people` listener (a few hundred documents, fine).
@@ -62,7 +62,7 @@ opens the person. The list reads from one `people` listener (a few hundred docum
   dates or places differ from the 2006 tree, the Born and Died rows show WikiTree's, and the 2006
   value stays under Source ("2006 tree: …"). Offline, or if WikiTree doesn't answer, the row is
   the link alone. Nothing from WikiTree is stored.
-- **Source**: "Researched by Jon Inggs, familytree.inggs.com, 2010" and a link to the Wayback
+- **Source**: "Compiled by Jon Inggs · familytree.inggs.com · 2006" and a link to the Wayback
   page the record came from (opens in the browser).
 - **Tree** (76px, the one you came for): the tree view centred on them.
 - **Suggest a correction**: a sheet with a text box; saves to `suggestions/` with your name.
@@ -222,6 +222,7 @@ link per person, read live, never copied: §2, §8); notifications.
 | 2026-10-10 (owner) | **A private data repo** holds the mirror, manifest, parsed JSON, GEDCOM and seed files, cloned at `family-tree/data/` (gitignored). Confirms "no family data in the public repo". |
 | 2026-10-10 (owner) | **Straight to main**, per CLAUDE.md: the planning branch was fast-forwarded into it. |
 | 2026-10-10 (owner) | **WikiTree as a cross-check** in Session 2's recovery report; nothing imported from it without the owner's say-so. The Wayback copy is canonical. |
+| 2026-10-10 (owner) | **The credit reads "Compiled by Jon Inggs · familytree.inggs.com · 2006"**: the year Jon built this version of the tree, the family domain people knew it by (not his ISP page), and "compiled", the genealogy word GEDCOM uses. |
 | 2026-10-10 (owner) | **WikiTree is linked, not copied.** Jon still keeps his Inggs profiles there (44 Inggs profiles against 2,332 people in his 2006 tree), so a matched person stores only the WikiTree id, and the person page reads the profile live from WikiTree's public API; its dates win on screen, the 2006 values stay as the source. Replaces "a cross-check only". The email to Jon says so and offers him the recovered tree. |
 | 2026-10-10 (owner) | **Jon's stories and a Markdown export.** His family-history pages become readable stories linked to the people they name (Sessions 3 and 4, `PLAN.md`); any member can share a person's line or family as Markdown (for NotebookLM and the like), logged like Export. **Research agents** come after the MVP (Session 5), on hard lines: the dead freely, a living person only with their recorded consent and only genealogy, never contact, ID, financial, health, legal or social-media details. |
 | 2026-10-10 (owner) | Accents **lilac** first, **coral** second. |

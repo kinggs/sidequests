@@ -2,7 +2,7 @@
   "id": "/sidequests/family-tree/",
   "name": "Inggs Family Tree",
   "short_name": "Family Tree",
-  "description": "The Inggs family tree, researched by Jon Inggs.",
+  "description": "The Inggs family tree, compiled by Jon Inggs.",
   "start_url": "./",
   "scope": "./",
   "display": "fullscreen",
