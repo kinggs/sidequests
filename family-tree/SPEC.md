@@ -207,7 +207,7 @@ cross-check in Session 2 only); notifications.
 | Date | Decision |
 |---|---|
 | 2026-10-10 (owner) | **Jon Inggs**, not John, on every credit; Session 2 confirms against the recovered home page. |
-| 2026-10-10 (owner) | **archive.org is allowlisted** in the cloud environment (web.archive.org and archive.org under Allowed domains), so Sessions 2 and 3 run in the cloud. |
+| 2026-10-10 (owner) | **archive.org is allowlisted** in the cloud environment (web.archive.org, archive.org and www.wikitree.com under Allowed domains). Checked the same day: `web.archive.org` resets the cloud's TLS handshakes, so Session 2 opens with a one-line check and runs the recovery on the laptop if it still does (`PLAN.md`). |
 | 2026-10-10 (owner) | **A private data repo** holds the mirror, manifest, parsed JSON, GEDCOM and seed files, cloned at `family-tree/data/` (gitignored). Confirms "no family data in the public repo". |
 | 2026-10-10 (owner) | **Straight to main**, per CLAUDE.md: the planning branch was fast-forwarded into it. |
 | 2026-10-10 (owner) | **WikiTree as a cross-check** in Session 2's recovery report; nothing imported from it without the owner's say-so. The Wayback copy is canonical. |

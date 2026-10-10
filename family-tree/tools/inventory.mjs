@@ -8,8 +8,11 @@
 //   node family-tree/tools/inventory.mjs --data ../x     # another data folder (PLAN.md: data/ is the private repo)
 //   node family-tree/tools/inventory.mjs --offline       # no fetch: re-analyse the saved cdx.json
 //
-// The cloud environment must allow web.archive.org (PLAN.md, Session 1 Handover); without it the
-// fetch fails with a proxy 403 and this says so. The analysis is cdx.mjs, which has tests.
+// In a cloud session run it as NODE_USE_ENV_PROXY=1 node …: Node's fetch ignores the session's
+// proxy otherwise and just times out. The environment must allow web.archive.org (a proxy 403
+// otherwise), and the archive must accept the address: in Session 1 it reset every TLS handshake
+// from the cloud (PLAN.md, Session 2's opening check), in which case run this on a laptop. The
+// analysis is cdx.mjs, which has tests.
 
 import fs from "node:fs";
 import path from "node:path";

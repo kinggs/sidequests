@@ -77,9 +77,10 @@ inventory and the HTML sampling are Session 2's step 0, with the script ready.
 manifest that ties every file to its capture, a recovery report, and the site's HTML pattern
 recorded here for the parser. No app work. Lands nothing on the live site except this doc.
 
-**Owner, before the session** (each is a minute from the phone; the Session 1 Handover says how):
+**Owner, before the session** (the Session 1 Handover says how):
 
-- [ ] The cloud environment allows `web.archive.org`, `archive.org` and `www.wikitree.com`.
+- [x] The cloud environment allows `web.archive.org`, `archive.org` and `www.wikitree.com`
+      (done 2026-10-10; the Handover says what each host then did).
 - [ ] The private repo `kinggs/family-tree-data` exists (empty, private) and the environment can
       reach it (the session adds it with `add_repo` for push; if that's refused, the Handover
       says what to open).
@@ -88,13 +89,36 @@ recorded here for the parser. No app work. Lands nothing on the live site except
 (gitignored here). If the clone can't happen, work in `family-tree/data/` anyway and say in
 Handover that the mirror needs pushing from a machine that can.
 
+**Then the one check that decides where this session runs:**
+
+```bash
+curl -sS -m 30 -o /dev/null -w "%{http_code}\n" "https://web.archive.org/cdx/search/cdx?url=familytree.inggs.com/*&output=json&limit=2"
+```
+
+200 means the cloud can do it: carry on here, with `NODE_USE_ENV_PROXY=1` in front of every
+`node` command that fetches (Node's fetch ignores the proxy otherwise). `000` with "Connection
+reset by peer" means what Session 1 saw: `web.archive.org` resets this cloud address at the TLS
+handshake while `archive.org` answers, which is the archive's side and no setting fixes it. Then
+Steps 0 to 2 run **on the owner's laptop** instead (`git clone` both repos, `node
+family-tree/tools/inventory.mjs`, then the mirror and strays scripts, written here and run
+there), and this session writes and tests the scripts, records what the laptop run printed when
+the owner pastes it back, and does Step 3 and 4 from what reached the data repo. Say which way it
+went in Handover.
+
 ### Step 0 — The inventory and the sample (Session 1's step 4)
 
-- [ ] `node family-tree/tools/inventory.mjs`. It writes `data/cdx.json` (every capture),
+- [ ] `NODE_USE_ENV_PROXY=1 node family-tree/tools/inventory.mjs` (the env var only in the cloud).
+      It writes `data/cdx.json` (every capture),
       `data/cdx-best.json` (the chosen capture per URL) and `data/inventory.md`, and prints the
       shape. Paste the printed lines into **Findings** below. If the CDX returns nothing for
       `familytree.inggs.com/*`, try `inggs.com/*` and `*.inggs.com/*` by editing `HOST` for the
       run, and record what each returned.
+- [ ] The brief's "last known good" is 2010-02-14, but the availability API says the home page's
+      latest 200 is **2010-04-18 17:31:09** (Session 1 Handover). Check that capture: if it is the
+      site, intact and later, set `TARGET` in `tools/cdx.mjs` to it (one constant, one test
+      fixture) and say so in Findings; if it is a 401 dressed as a 200 or a holding page, keep
+      February. Also look at `inggs.com` (captured 2010-02-22): if it links to the tree or holds
+      photos, add it to the inventory with a second `HOST` run.
 - [ ] Is there a GEDCOM in the index (`describe()` says)? If so, it changes Session 3: say so in
       Findings, download it in step 1 like any file, and Session 3's parser becomes a GEDCOM
       reader first and an HTML parser for what the GEDCOM lacks (photos, notes).
@@ -137,10 +161,13 @@ Handover that the mirror needs pushing from a machine that can.
 ### Step 3 — The WikiTree cross-check (owner, 2026-10-10)
 
 - [ ] Fetch `https://www.wikitree.com/genealogy/INGGS` (and the surname pages the recovered index
-      names, if the owner allowed the host). Record in Findings: how many Inggs profiles WikiTree
-      holds, whether Jon Inggs manages them, and roughly how the names and dates overlap with the
-      recovered index (counts, not names). **Nothing is imported from it.** If the host isn't
-      allowed, say so and move this to Parked.
+      names). Session 1 found the host allowed but answering an empty `202`, WikiTree's
+      JavaScript challenge, to curl and to headless Chromium alike; so this is a laptop step: the
+      owner opens the page in a browser, saves it (Ctrl+S, "web page, complete") into the data
+      repo under `wikitree/`, and the session reads the saved file. Record in Findings: how many
+      Inggs profiles WikiTree holds, whether Jon Inggs manages them, and roughly how the names
+      and dates overlap with the recovered index (counts, not names). **Nothing is imported from
+      it.** If the owner doesn't get to it, say so and move this to Parked.
 
 ### Step 4 — The recovery report
 
@@ -373,18 +400,27 @@ and Hinton ancestors; his address written with backslashes, `http:\familytree.in
 WikiTree's INGGS surname page lists profiles managed by Jon Inggs. Both are leads, not facts
 about the site.
 
-**Owner, before Session 2** (three things, each a minute):
+**Owner, before Session 2:**
 
-1. **Allow the hosts.** In the Claude Code app: the cloud environment menu in the session's title
-   bar → Edit → Network access → Allowed domains: add `web.archive.org`, `archive.org` and
-   `www.wikitree.com` (keep "Allow package managers" ticked). Steps:
-   https://code.claude.com/docs/en/cloud-environments#network-access. The change applies to new
-   sessions.
+1. ~~Allow the hosts.~~ Done 2026-10-10 (claude.ai/code → the cloud icon above the message box →
+   the gear on the environment → Network access **Custom** → Allowed domains, with the package
+   managers box ticked). **What it gave, checked the same hour:** `archive.org` answers (its
+   availability API works: the home page has a 200 capture at `20100214230828` and its latest 200
+   is `20100418173109`; `inggs.com` was captured too, nearest `20100222093706`); `web.archive.org`
+   accepts the tunnel and then **resets the TLS handshake every time**, from curl, Node and
+   Chromium, over several minutes; `www.wikitree.com` answers an empty `202` (a JavaScript
+   challenge) to curl and to headless Chromium. So the CDX and the downloads, which only
+   `web.archive.org` serves, could not run from this cloud address: the archive's side, not the
+   environment's. Session 2 checks once more from a fresh session (its own egress address may
+   differ) and otherwise runs Steps 0 to 2 on the laptop, as its opening says.
 2. **Make the data repo.** GitHub → New repository → `family-tree-data`, **Private**, with a
    README. Nothing else. The session asks for push access to it when it starts (`add_repo`); if
    GitHub refuses, the error names the settings page to open.
 3. **Send the email** (`EMAIL-DRAFT.md`), or wait for the recovered site to confirm the name.
    The build doesn't wait on a reply.
+
+**How to start Session 2:** a new cloud session on the sidequests environment, model Opus 5.5,
+with exactly: "Read `family-tree/PLAN.md` and do Session 2."
 
 **Choices made where the brief was open** (all in SPEC §8 or §2):
 
@@ -410,4 +446,7 @@ would run, but the tools are ours), Java absent (no rules emulator: the Action i
 Chromium at `/opt/pw-browsers`, Playwright by `npm i playwright-core` in the scratchpad then
 `PLAYWRIGHT=<scratchpad>/node_modules/playwright-core/index.mjs`. `registry.npmjs.org` and
 `raw.githubusercontent.com` are reachable; `*.github.io` isn't (the deploy skill's fallback proof
-applies). `gh` is installed and proxy-configured. Pushes go over HTTPS.
+applies). `gh` is installed and proxy-configured. Pushes go over HTTPS. **Node's built-in fetch
+ignores the proxy**: run any fetching script as `NODE_USE_ENV_PROXY=1 node …` (Node 22.21+), or it
+times out with no proxy error. curl reads the proxy on its own. Headless Chromium needs
+`proxy: { server: process.env.HTTPS_PROXY }` on the context to reach outside.
