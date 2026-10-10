@@ -113,7 +113,7 @@ John Inggs is credited as the original researcher on the site's home page, on ev
 
 Kenny will email John separately, early, to tell him about the revival, ask for his blessing, and ask whether he still has the original data (a GEDCOM or database export would replace most of Phase 2). The build does not wait on a reply. If John wants in, he becomes a member with edit rights.
 
-- [ ] Kenny: send the email to Jon. Drafted in Session 1: `family-tree/data/EMAIL-DRAFT.md` (private).
+- [ ] Kenny: send the email to Jon. Drafted in Session 1: `family-tree/data/EMAIL-DRAFT.md` (private). Sent after the MVP is live, to have something to show him (owner, 2026-10-10; `PLAN.md` Session 4).
 
 ## Privacy guardrails
 

@@ -504,7 +504,10 @@ session, load it before the tree view; if not, say so and build from DESIGN.md.
 - [ ] Version `1.0.0`, `/deployquest`.
 - [ ] **Owner:** install on the phone, browse from the grandparents up the tree and open one of Jon's
       stories with its photos, show Dad the QR, approve
-      him. Tick this box. Send the email to Jon if not yet sent (`data/EMAIL-DRAFT.md`).
+      him. Tick this box. **Then send the email to Jon** (`data/EMAIL-DRAFT.md`): the owner
+      waits until the MVP is live so there is something to show him (owner, 2026-10-10). The
+      session refreshes the draft first: the app exists by then, so it offers to show him and
+      let him in, rather than asking whether to build it.
 
 **Done when:** the owner's step above is ticked.
 
