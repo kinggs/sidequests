@@ -91,7 +91,7 @@
   import { ui } from "../shared/ui.js";
 
   // Bump on every change. The deploy skill checks this against the live site.
-  const APP_VERSION = "0.2.1";
+  const APP_VERSION = "0.2.2";
   const APP_ID = "family-tree";
   document.getElementById("version").textContent = "v" + APP_VERSION;
 
@@ -281,8 +281,9 @@
       toast("Exported");
     } catch (e){ report("Couldn't export", e); }
   }
-  // The seed files and exports: each collection merged by id, 400 documents a batch (images 10,
-  // they're big), so a file imported twice changes nothing. members and invites are the owner's
+  // The seed files and exports: each document replaced whole by id (a field the file drops, like
+  // a WikiTree link that didn't hold up, goes too), 400 a batch (images 10, they're big), so a
+  // file imported twice changes nothing. members and invites are the owner's
   // record in an export; they're made by approval (SPEC §5), not imported.
   const IMPORTS = [["meta", 400], ["people", 400], ["photos", 400], ["stories", 50], ["suggestions", 400], ["images", 10]];
   async function importFiles(files){
@@ -322,7 +323,7 @@
           docs = docs.filter(([id, d]) => id && d && typeof d === "object");
           if (col === "meta") docs = docs.map(([id, d]) => [id, { ...d, importedAt: Date.now(), importedBy: user.uid }]);
           for (let i = 0; i < docs.length; i += size){
-            await cloud.batch(docs.slice(i, i + size).map(([id, d]) => ({ save: `${col}/${id}`, data: d })));
+            await cloud.batch(docs.slice(i, i + size).map(([id, d]) => ({ set: `${col}/${id}`, data: d })));
             n += Math.min(size, docs.length - i);
             toast(`Importing… ${n.toLocaleString()}`);
           }

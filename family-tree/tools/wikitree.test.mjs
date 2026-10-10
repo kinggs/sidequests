@@ -1,7 +1,7 @@
 // node --test from the repo root. Invented rows on both sides: nothing from WikiTree or the site.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { givenAgree, matchProfiles, search } from "./wikitree.mjs";
+import { confirmLinks, corroborate, givenAgree, isoDate, matchProfiles, search } from "./wikitree.mjs";
 
 const person = (id, given, surname, birth = "", parents = []) => ({ id, given, surname, birth: { date: birth, year: /^\d{4}$/.test(birth.slice(-4)) && !/ABT/.test(birth) ? Number(birth.slice(-4)) : null }, parents });
 const profile = (Id, Name, FirstName, MiddleName, LastNameAtBirth, BirthDate = "0000-00-00", Father = 0, Mother = 0) => ({ Id, Name, FirstName, MiddleName, LastNameAtBirth, BirthDate, Father, Mother });
@@ -85,4 +85,44 @@ test("search stops at the first page when a surname is too common, and can add a
   assert.equal(calls.length, 1);
   await search("SMITH", { first: "Albert", fetchImpl: async url => { calls.push(url); return { ok: true, status: 200, json: async () => [{ status: 0, total: 1, matches: [] }] }; }, wait: async () => {} });
   assert.ok(calls[1].includes("&FirstName=Albert"));
+});
+
+test("isoDate reads only a date with its day and month", () => {
+  assert.equal(isoDate("11 APR 1863"), "1863-04-11");
+  assert.equal(isoDate("4 JUNE 1901"), "1901-06-04");
+  for (const d of ["APR 1863", "1863", "ABT 1863", "22 MAR", ""]) assert.equal(isoDate(d), null, d);
+});
+
+test("corroborate wants a second fact: the full birth date, or a parent's or spouse's name", () => {
+  const people = [
+    { id: "albert", given: "Albert Quill", surname: "FENWICK", birth: { date: "3 MAR 1850" }, parents: [], spouses: [{ id: "clara" }] },
+    { id: "clara", given: "Clara", surname: "BEAMISH", birth: { date: "1852" }, parents: ["jack"], spouses: [{ id: "albert" }] },
+    { id: "jack", given: "Jack", surname: "BEAMISH", birth: { date: "" }, parents: [], spouses: [] },
+  ];
+  const byId = new Map(people.map(p => [p.id, p]));
+  assert.equal(corroborate(people[0], byId, { BirthDate: "1850-03-03" }), "date");
+  assert.equal(corroborate(people[0], byId, { BirthDate: "1850-07-01", Spouses: { 9: { FirstName: "Clara", LastNameAtBirth: "Beamish" } } }), "relative");
+  assert.equal(corroborate(people[1], byId, { BirthDate: "1852-00-00", Parents: { 7: { FirstName: "Jack", LastNameAtBirth: "Beamish" } } }), "relative");
+  assert.equal(corroborate(people[1], byId, { BirthDate: "1852-00-00", Parents: { 7: { FirstName: "John", LastNameAtBirth: "Beamish" } } }), null);   // a namesake
+  assert.equal(corroborate(people[0], byId, { BirthDate: "1850-00-00" }), null);
+  assert.equal(corroborate(people[2], byId, { BirthDate: "0000-00-00", Parents: { 1: { FirstName: "", LastNameAtBirth: "" } } }), null);
+});
+
+test("confirmLinks keeps the backed links and lists the rest, 25 profiles a request", async () => {
+  const people = Array.from({ length: 30 }, (_, i) => ({ id: `p${i}`, given: "Ann", surname: "FENWICK", birth: { date: `${i + 1} JAN 1900` }, parents: [], spouses: [] }));
+  const links = Object.fromEntries(people.map((p, i) => [p.id, `Fenwick-${i}`]));
+  const calls = [];
+  const fetchImpl = async url => {
+    calls.push(url);
+    const keys = new URL(url).searchParams.get("keys").split(",");
+    return { ok: true, json: async () => [{ status: 0, items: keys.map(k => ({ key: k, person: { BirthDate: Number(k.split("-")[1]) % 2 ? "1899-12-31" : `1900-01-${String(Number(k.split("-")[1]) + 1).padStart(2, "0")}` } })) }] };
+  };
+  const c = await confirmLinks(people, links, { fetchImpl, wait: async () => {} });
+  assert.equal(calls.length, 2);
+  assert.ok(calls.every(u => u.includes("action=getRelatives") && u.includes("appId=sidequests-family-tree")));
+  assert.equal(Object.keys(c.links).length, 15);           // the even ones: their full birth date agrees
+  assert.equal(c.links.p0, "Fenwick-0");
+  assert.equal(c.links.p1, undefined);
+  assert.deepEqual(c.unconfirmed[0], { id: "p1", wikitree: "Fenwick-1" });
+  assert.ok(Object.values(c.how).every(h => h === "date"));
 });

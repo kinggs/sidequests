@@ -237,15 +237,17 @@ export const cloud = {
   delete(path) { return fs.deleteDoc(ref(path)); },
 
   // Several writes that land together or not at all (a Firestore batch). Each op is
-  // { save: path, data } (merged, as save), { patch: path, data } (as patch: the document must
+  // { save: path, data } (merged, as save), { set: path, data } (the whole document replaced: a
+  // field the data leaves out is gone), { patch: path, data } (as patch: the document must
   // exist, dotted paths work) or { delete: path }.
   batch(ops) {
     const b = fs.writeBatch(db), at = fs.serverTimestamp();
     for (const op of ops) {
       if (op.save) b.set(ref(op.save), { ...op.data, _updatedAt: at }, { merge: true });
+      else if (op.set) b.set(ref(op.set), { ...op.data, _updatedAt: at });
       else if (op.patch) b.update(ref(op.patch), { ...op.data, _updatedAt: at });
       else if (op.delete) b.delete(ref(op.delete));
-      else throw new Error("cloud.batch: an op needs save, patch or delete");
+      else throw new Error("cloud.batch: an op needs save, set, patch or delete");
     }
     return b.commit();
   },

@@ -4,7 +4,7 @@ The Inggs family tree that Jon Inggs researched and published at familytree.ingg
 from the Wayback Machine's copies (the last whole one, 2 July 2017) before they are lost, and given a private home where
 the family can browse the tree and the oldest photographs and add or correct what they know.
 The brief is `BRIEF.md`; the sessions that build it are `PLAN.md`. This spec is the app as it will
-be. **Built so far (0.2.1, Session 3):** the gate, the waiting screen with the newcomer's invite,
+be. **Built so far (0.2.2, Session 3):** the gate, the waiting screen with the newcomer's invite,
 the People tab, a stub person page with the living rule, the account sheet with Export and the
 owner's Import. Photos and Family say "coming next"; the rest is Session 4 (`PLAN.md`).
 
@@ -60,10 +60,13 @@ opens the person. The list reads from one `people` listener (a few hundred docum
 - **Notes**: Jon's own text, verbatim.
 - **On WikiTree** (only for a person matched to a profile, §4 `wikitree`): "Kept by Jon on
   WikiTree" (or the manager WikiTree names), the profile's current birth and death, fetched live
-  from WikiTree's public API when the page opens, and a link to the profile. Where WikiTree's
-  dates or places differ from the 2006 tree, the Born and Died rows show WikiTree's, and the 2006
-  value stays under Source ("2006 tree: …"). Offline, or if WikiTree doesn't answer, the row is
-  the link alone. Nothing from WikiTree is stored.
+  from WikiTree's public API when the page opens, and a link to the profile. The Born and Died
+  rows always show Jon's 2006 values; where WikiTree's differ, its value sits beside them
+  ("WikiTree: 11 Apr 1863"), so a wrong link shows rather than quietly replacing a relative's
+  dates. Offline, or if WikiTree doesn't answer, the row is the link alone. Nothing from WikiTree
+  is stored. A link is made only when a second fact agrees beyond name and birth year: the full
+  birth date, or a parent's or spouse's name (`tools/wikitree.mjs`); the rest wait in the data
+  repo's `wikitree-review.md` for the owner.
 - **Source**: "Compiled by Jon Inggs · familytree.inggs.com · 2006" and a link to the Wayback
   page the record came from (opens in the browser).
 - **Tree** (76px, the one you came for): the tree view centred on them.
@@ -142,8 +145,9 @@ named whose page the parser couldn't match, rather than dropping it.
 **Import** (the owner, the account sheet): the seed files the tools emit, `seed/family-tree-N.json`,
 each under 20 MB, in the export format below (part 1: `meta`, `people`, `photos`, `stories`; the
 rest: `images`, with `seed: { part, of }`). Several can be picked at once and go in part order;
-each is written in batches of at most 400 documents (images 10 at a time), merged by id, so a
-file can be imported twice without harm. `members` and `invites` aren't imported: they are made
+each is written in batches of at most 400 documents (images 10 at a time), each document
+replaced whole by id (a field the file drops goes too), so a file can be imported twice without
+harm. `members` and `invites` aren't imported: they are made
 by approval (§5). From a laptop browser if the phone struggles with the size.
 
 **Ids stay put across re-runs.** The parser keeps `data/ids.json` (each place a person appears on
@@ -246,8 +250,9 @@ link per person, read live, never copied: §2, §8); notifications.
 | 2026-10-10 (owner) | **WikiTree as a cross-check** in Session 2's recovery report; nothing imported from it without the owner's say-so. The Wayback copy is canonical. |
 | 2026-10-10 (owner) | **The email to Jon waits until the MVP is live**, so there is something to show him. The build doesn't depend on it: Session 3 parses the recovered HTML, and a GEDCOM from Jon, if he sends one, replaces that later. |
 | 2026-10-10 (owner) | **The credit reads "Compiled by Jon Inggs · familytree.inggs.com · 2006"**: the year Jon built this version of the tree, the family domain people knew it by (not his ISP page), and "compiled", the genealogy word GEDCOM uses. |
-| 2026-10-10 (owner) | **WikiTree is linked, not copied.** Jon still keeps his Inggs profiles there (44 Inggs profiles against 2,332 people in his 2006 tree), so a matched person stores only the WikiTree id, and the person page reads the profile live from WikiTree's public API; its dates win on screen, the 2006 values stay as the source. Replaces "a cross-check only". The email to Jon says so and offers him the recovered tree. |
+| 2026-10-10 (owner) | **WikiTree is linked, not copied.** Jon still keeps his Inggs profiles there (44 Inggs profiles against 2,332 people in his 2006 tree), so a matched person stores only the WikiTree id, and the person page reads the profile live from WikiTree's public API. Replaces "a cross-check only". The email to Jon says so and offers him the recovered tree. |
 | 2026-10-10 (owner) | **Jon's stories and a Markdown export.** His family-history pages become readable stories linked to the people they name (Sessions 3 and 4, `PLAN.md`); any member can share a person's line or family as Markdown (for NotebookLM and the like), logged like Export. **Research agents** come after the MVP (Session 5), on hard lines: the dead freely, a living person only with their recorded consent and only genealogy, never contact, ID, financial, health, legal or social-media details. |
+| 2026-10-10 (owner) | **Jon's dates stay first; WikiTree's sit beside them** where they differ (replaces "WikiTree's dates win"), and a WikiTree link needs a second fact (the full birth date, or a parent's or spouse's name) beyond name and birth year. A namesake born the same year is common outside the Inggs name: 18 of 117 name-and-year links failed the check and went to the owner's review. |
 | 2026-10-10 (owner) | Accents **lilac** first, **coral** second. |
 | 2026-10-10 (owner) | **The owner approves anyone**, their own invitees included; another member needs a second member. |
 | 2026-10-10 (Fable) | Three tabs; the tree view reached from a person. A living person is one with no death and a birth within 100 years or unknown. Show details is per phone. The seed is the app's own Import, in files under 20 MB, since there is no server code and no admin key. Tools in `tools/` with tests beside them (the brief's own allowance; CLAUDE.md rule 1 names it). |

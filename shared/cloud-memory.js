@@ -738,8 +738,8 @@ export const memory = {
     read();
     const next = clone(store.docs), at = Date.now(), touched = [];
     for (const op of ops){
-      const path = op.save || op.patch || op.delete;
-      if (!path) return Promise.reject(new Error("cloud.batch: an op needs save, patch or delete"));
+      const path = op.save || op.set || op.patch || op.delete;
+      if (!path) return Promise.reject(new Error("cloud.batch: an op needs save, set, patch or delete"));
       const full = docPath(path, appBase());
       touched.push(full);
       if (op.delete){
@@ -750,6 +750,7 @@ export const memory = {
       if (op.patch && !next[full]) return Promise.reject(Object.assign(new Error("No document to update: " + full), { code: "not-found" }));
       let doc;
       if (op.save) doc = deepMerge(next[full], { ...op.data, _updatedAt: at });
+      else if (op.set) doc = { ...clone(op.data), _updatedAt: at };
       else {
         doc = clone(next[full]);
         for (const [k, v] of Object.entries({ ...op.data, _updatedAt: at })){

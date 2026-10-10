@@ -70,7 +70,7 @@ ok(await owner.locator(".toast", { hasText: "isn't a Family Tree file" }).first(
 // A whole tree again (seed part 1) without Ivy: she and Olive (only in part 2) are named, and go
 // only on a hold. Keep first, then remove.
 const mock = JSON.parse(fs.readFileSync(new URL("./seeds/family-tree-mock.json", import.meta.url)));
-const one = { ...mock, seed: { part: 1, of: 2 }, people: mock.people.filter(p => p.id !== "ivy-nash-1860"), images: [], suggestions: [], members: [] };
+const one = { ...mock, seed: { part: 1, of: 2 }, people: mock.people.filter(p => p.id !== "ivy-nash-1860").map(({ wikitree, ...p }) => p), images: [], suggestions: [], members: [] };
 const oneFile = path.join(path.dirname(file), "family-tree-1.json");
 fs.writeFileSync(oneFile, JSON.stringify(one));
 const sheet = owner.locator(".scrim .sheet");
@@ -78,6 +78,7 @@ await owner.setInputFiles("#importFile", oneFile); await owner.waitForTimeout(60
 ok(/2 no longer in the tree/.test(await text(owner, ".scrim .sheet")) && /Ivy NASH/.test(await text(owner, ".scrim .sheet")) && /Olive WARD/.test(await text(owner, ".scrim .sheet")), "a whole tree without two people names them first: " + (await text(owner, ".scrim .sheet h2")));
 await sheet.locator("button", { hasText: "Import and keep them" }).click(); await owner.waitForTimeout(800);
 ok((await docs(owner, "people")).length === 16, "…Keep imports and leaves them: " + (await docs(owner, "people")).length);
+ok(!("wikitree" in (await store(owner))["sidequests/family-tree/people/edwin-toller-1874"]), "…and a field the file drops (Edwin's WikiTree link) is gone");
 await owner.setInputFiles("#importFile", oneFile); await owner.waitForTimeout(600);
 await hold(owner, '.scrim .sheet button:has-text("Hold to remove")'); await owner.waitForTimeout(1000);
 const left = await docs(owner, "people");

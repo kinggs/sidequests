@@ -457,8 +457,9 @@ session, load it before the tree view; if not, say so and build from DESIGN.md.
 - [ ] **The person page** (SPEC §2): photos strip, Born/Died, Parents/Married/Children rows with
       `(not in the tree)` for a `ref`, Notes verbatim, **On WikiTree** (SPEC §2: a live
       `getProfile` by the stored id, fields `Name,BirthDate,DeathDate,BirthLocation,DeathLocation,Manager,Touched`,
-      kept in memory for the session; WikiTree's dates win on screen with the 2006 value under
-      Source; offline or no answer → the link alone; never for a living person), Source with
+      kept in memory for the session; Jon's dates stay on the Born and Died rows, WikiTree's
+      beside them where they differ (SPEC §2, owner 2026-10-10); offline or no answer → the link
+      alone; never for a living person), Source with
       the Wayback link, **Tree**
       (76px), **Suggest a correction** (a sheet → `suggestions/`). Living: Show details toggles
       the dates and places, per phone.
@@ -760,11 +761,13 @@ block is deployed (the Action green on `5d70f02`).
   21-column Markdown table: Session 4's reader needs a way to show it on a phone (cards per row).
 - `tools/gedcom.mjs` → `inggs.ged`: 2,331 INDI, 717 FAM, 34 dates kept as phrases.
 - `tools/wikitree.mjs`: 555 surnames, 21,406 profiles read (a surname over 500 profiles is
-  searched per first name), **117 people linked**; ids only are kept. A near miss is listed only
-  when the years are within two or one is missing (a common name otherwise fits thousands); the
-  review file now covers Inggs (1 near miss): the full run's 5 ambiguous for other surnames
-  weren't kept, so a full re-run (`node family-tree/tools/wikitree.mjs`, about 70 minutes)
-  lists them. `tools/seed.mjs`: two files (2.1 MB, 0.9 MB), images by
+  searched per first name); 117 matched on name and birth year. Then a second fact must agree
+  (`--check`, owner's ask): the full birth date, or a parent's or spouse's name. **99 linked** (50
+  by date, 49 by a relative); 18 wait in `wikitree-review.md`. Ids only are kept. A near miss is
+  listed only when the years are within two or one is missing; the review covers Inggs near misses
+  (1): the full run's 5 ambiguous for other surnames weren't kept, so a full re-run
+  (`node family-tree/tools/wikitree.mjs`, about 70 minutes) lists them.
+- `tools/seed.mjs`: two files (2.1 MB, 0.9 MB), images by
   Chromium. `tools/mock-seed.mjs`: the invented Fenwicks and Tollers.
 - The rules (a subagent; cases first): 268 cases green on the emulator here and in the Action;
   guards each go red when loosened. **The owner has a `members/` document too**, written by the
