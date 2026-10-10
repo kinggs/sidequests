@@ -454,7 +454,7 @@ Read `shared/DESIGN.md` again before this session; the tree view and the photo t
 app's own CSS, everything else is theme parts. If a `frontend-design` skill is available in the
 session, load it before the tree view; if not, say so and build from DESIGN.md.
 
-- [ ] **The person page** (SPEC §2): photos strip, Born/Died, Parents/Married/Children rows with
+- [x] **The person page** (SPEC §2): photos strip, Born/Died, Parents/Married/Children rows with
       `(not in the tree)` for a `ref`, Notes verbatim, **On WikiTree** (SPEC §2: a live
       `getProfile` by the stored id, fields `Name,BirthDate,DeathDate,BirthLocation,DeathLocation,Manager,Touched`,
       kept in memory for the session; Jon's dates stay on the Born and Died rows, WikiTree's
@@ -463,12 +463,12 @@ session, load it before the tree view; if not, say so and build from DESIGN.md.
       the Wayback link, **Tree**
       (76px), **Suggest a correction** (a sheet → `suggestions/`). Living: Show details toggles
       the dates and places, per phone.
-- [ ] **Jon's stories**: a reading view (Grotesk title, body at 18px, images full width with
+- [x] **Jon's stories**: a reading view (Grotesk title, body at 18px, images full width with
       their captions, the source line), reached from a **Stories** list (the top of the Photos
       tab, or a fourth tab if DESIGN.md's count allows: decide by eye) and from a person's
       **Jon wrote about them** row. Markdown rendered by a small hand renderer (headings,
       paragraphs, emphasis, links, images): no library.
-- [ ] **Share as Markdown** (any member, on a person's `⋯`): **Their line** (the person and every
+- [x] **Share as Markdown** (any member, on a person's `⋯`): **Their line** (the person and every
       parent up to the earliest known ancestor, by father then mother, each generation a
       section) or **Their family** (parents, spouses, children). Each person: name, dates and
       places verbatim (the living rule applies: hidden unless Show details), the full text of
@@ -477,33 +477,33 @@ session, load it before the tree view; if not, say so and build from DESIGN.md.
       `exports/` like Export. The building is a pure function (`lineageMarkdown(people, stories,
       id, mode)`) the proof calls on the mock seed. ⚠ A member born after 2006 isn't in the tree;
       the line stops at the newest recorded generation until members can add people (Parked).
-- [ ] **The tree view**: three generations up and down and spouses beside, the centre in lilac,
+- [x] **The tree view**: three generations up and down and spouses beside, the centre in lilac,
       the descendant side's lines in coral; cards of name and years; a tap re-centres; scrolls both
       ways; readable at 390×844 with nothing under 15px; no animation under reduced motion. Build
       it as one `<section class="tree">` with CSS grid rows per generation and SVG lines drawn
       from the laid-out card positions (a `ResizeObserver` redraws). Test with the mock seed's four
       generations and with a person who has no parents and no children.
-- [ ] **Photos** tab: the grid of thumbs with captions, a placeholder for a photo not recovered;
+- [x] **Photos** tab: the grid of thumbs with captions, a placeholder for a photo not recovered;
       the photo page loads `images/<id>` on demand, shows the caption, the people as chips, the
       source.
-- [ ] **Family** tab: members with "invited by · approved by"; **Waiting** with Approve and
+- [x] **Family** tab: members with "invited by · approved by"; **Waiting** with Approve and
       Decline in each row's `⋯` (one batch, SPEC §5); **Show my QR** (`connect.showQR({ app })`);
       **Invite a friend** (`people.pick`-style sheet over `cloud.account.watchFriends`, minus
       members and invitees) → `invites/<uid>`; the owner's **Hold to remove** on a member. The
       newcomer's phone opens the app the moment its invite is approved.
-- [ ] **Suggestions for the owner**: a section on the Family tab the owner alone sees, each
+- [x] **Suggestions for the owner**: a section on the Family tab the owner alone sees, each
       suggestion with the person, the text, who and when, and **Done** (hold) → `status: "done"`.
-- [ ] The launcher tile in the root `index.html`, alphabetical (between Bloc 11 and Photo Coach),
+- [x] The launcher tile in the root `index.html`, alphabetical (between Bloc 11 and Photo Coach),
       lilac, "The family tree, from Jon's research".
-- [ ] `shared/proofs/family-tree-invites.mjs`: two tabs: the owner shows My QR, `dad` lands with
+- [x] `shared/proofs/family-tree-invites.mjs`: two tabs: the owner shows My QR, `dad` lands with
       `&i=<code>`, sees the waiting screen, the owner approves from the Family tab, dad's tab opens
       the people list; a second member `ann` invites friend `eve` without a QR; the owner declines
       `eve`; `ann` can't approve her own invitee but `dad` can. `family-tree-tree.mjs`: the tree
       view renders four generations at 390×844 with no overlap (card rects don't intersect) and a
       screenshot to `SHOTS`. Smoke green.
-- [ ] SPEC.md updated to "the app as it is"; KIT.md's row; this doc's Handover. If the session
+- [x] SPEC.md updated to "the app as it is"; KIT.md's row; this doc's Handover. If the session
       runs long, the stories view and Share as Markdown are the first to move to a Session 4b.
-- [ ] Version `1.0.0`, `/deployquest`.
+- [x] Version `1.0.0`, `/deployquest`.
 - [ ] **Owner:** install on the phone, browse from the grandparents up the tree and open one of Jon's
       stories with its photos, show Dad the QR, approve
       him. Tick this box. **Then send the email to Jon** (`data/EMAIL-DRAFT.md`): the owner
@@ -782,4 +782,48 @@ in `data/wikitree-review.md`. Add a WikiTree link by hand in `data/wikitree.json
 **For Session 4:** the person page reads `parents`, `spouses`, `children`, `refs`, `photos`,
 `wikitree`; `stories/<id>.markdown` uses `photo:<id>` and `story:<id>` links. Decline is
 one-way: a declined newcomer can't ask again without the owner (rules: an invite is created once).
+
+### After Session 4 (Opus 5.5, desktop, 2026-10-10)
+
+**Live: `1.0.0`, the MVP.** Everything on Session 4's list is built and deployed; the owner's
+step (install, browse, let Dad in, then the email) is the one box left.
+
+**Done:**
+
+- `family-tree/kin.js`, the app's pure logic (CLAUDE.md rule 1's exception, as `rack-it/zargo.js`),
+  with `kin.test.mjs` (11 tests, on the mock seed): the living rule, `layoutTree` (each card over
+  the middle of its parents' or children's block, so no overlap; whole and half units),
+  `markdownToHtml` (every real story renders with no Markdown left over; the 21-column register is
+  128 cards), `wtDate` and `sameDate`, and `lineageMarkdown`.
+- The app: four tabs (**Stories got its own tab**, my call by eye), a view stack over them (the
+  phone's Back closes a person, a tree, a photo or a story; each tab keeps its scroll), the person
+  page, the tree view, Photos, the story reader, Share as Markdown, the Family tab with Waiting,
+  Invite a friend, removing a member and the owner's Suggestions. On the real data, locally: 2,331
+  people listed in under a second, no errors.
+- The launcher tile (lilac, between Bloc 11 and Photo Coach).
+- Proofs: `family-tree-invites.mjs` 30 green, `family-tree-tree.mjs` 47 green,
+  `family-tree-gate.mjs` 42 green (its "Photos coming next" check now counts the photos). `make
+  verify`: 106 node tests, smoke green on all 7 apps. No rules change was needed: every write
+  Session 4 makes was already allowed and tested in Session 3.
+- No `frontend-design` skill in this session; the tree view and the photo treatment were built
+  from DESIGN.md and checked by screenshot at 390×844.
+
+**For the owner:**
+
+- ⚠ **The data repo isn't committed.** `data/EMAIL-DRAFT.md` is revised (the app is live; offer to
+  show Jon and let him in; editing is "next"), but a guard on this session refuses changes to
+  any checkout but this repo's. Open a session in `family-tree/data` (or a terminal) to commit and
+  push it, and change one sentence first: the WikiTree paragraph says "one of your WikiTree
+  profiles (99 of them so far)", but the 99 links aren't all Jon's (he keeps 44 Inggs profiles).
+  Say "a WikiTree profile (99 so far, many of them yours)".
+- ⚠ **WikiTree's live read can't work from github.io.** Its API sends
+  `Access-Control-Allow-Origin` only for wikitree.com's own pages (checked today, with no JSONP
+  either), so every browser refuses the answer. The app asks once a session, then shows the link
+  alone, as the spec's offline case. The link works; the dates beside Jon's don't appear. Fixing
+  it needs either WikiTree allowing the origin (ask them; their apps live on apps.wikitree.com)
+  or a proxy, which means server code (not in this repo's deal). Your call; nothing to do today.
+- Re-import isn't needed: Session 4 reads the data Session 3 imported.
+
+**For Session 5:** the research agents plan from its own opening questions. Where the email to Jon
+stands decides whether his GEDCOM replaces the parse first.
 

@@ -22,7 +22,71 @@
   /* A person: the name is the hero. */
   .ft-name{font-family:var(--grot);font-size:2rem;font-weight:600;letter-spacing:-.02em;line-height:1.15;margin:14px 0 6px;overflow-wrap:anywhere}
   .ft-years{font-family:var(--grot);font-size:1.3333rem;font-weight:600;color:var(--accent);min-height:1.5em}
-  .ft-src a{overflow-wrap:anywhere}
+  .ft-bar{display:flex;align-items:center;gap:12px}
+  .ft-bar .grow{flex:1}
+  .ft-bar .back{flex:none;white-space:nowrap}
+  .ft-bar .dots{width:60px;padding:0;font-size:1.4444rem;letter-spacing:.1em}
+  .ft-src a,.ft-read a{overflow-wrap:anywhere}
+  .ft-read{-webkit-user-select:text;user-select:text}
+  .ft-fact+.ft-fact{margin-top:12px}
+  .ft-fact .lbl{color:var(--dim)}
+  .ft-fact .wt{color:var(--dim);font-size:.8889rem}
+  .ft-notes{white-space:pre-wrap}
+  .ft-sugg{white-space:normal;font-weight:400;margin:2px 0}
+  .ft-sec>.sect:first-child{margin-top:30px}
+  .ft-wrap .l2{white-space:normal}
+  #pBody>.card{margin-top:14px}
+
+  /* ---- the photo treatment: never cropped, height follows the photo, on --ink-1 ---- */
+  .ft-strip{display:flex;gap:10px;overflow-x:auto;padding:4px 0 2px;margin-top:14px}
+  .ft-strip img,.ft-strip .ft-missing{flex:none;height:120px;width:auto;border-radius:10px;background:var(--ink-1)}
+  .ft-strip .ft-missing{width:90px;font-size:calc(15rem / 18);padding:6px}
+  .ft-grid{columns:2;column-gap:10px;margin-top:8px}
+  .ft-ph{break-inside:avoid;margin:0 0 10px;background:var(--ink-1);border-radius:var(--r-card);padding:8px;cursor:pointer}
+  .ft-ph img{display:block;width:100%;height:auto;border-radius:10px}
+  .ft-ph .cap{font-size:.8889rem;color:var(--text-2);line-height:1.35;margin:8px 2px 2px;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+  .ft-missing{display:grid;place-items:center;text-align:center;background:var(--ink-2);color:var(--accent-2);font-weight:700;border-radius:10px}
+  .ft-photo{background:var(--ink-1);border-radius:var(--r-card);padding:10px;margin-top:12px}
+  .ft-photo img{display:block;width:100%;height:auto;border-radius:10px}
+  .ft-cap{margin:14px 2px 0}
+
+  /* ---- Jon's stories: a reading view ---- */
+  .ft-story{line-height:1.6;overflow-wrap:anywhere}
+  .ft-story h1{font-family:var(--grot);font-size:2rem;font-weight:600;letter-spacing:-.02em;line-height:1.15;margin:14px 0 10px}
+  .ft-story h2,.ft-story h3,.ft-story h4,.ft-story h5,.ft-story h6{font-family:var(--grot);font-weight:600;font-size:1.2222rem;line-height:1.3;margin:24px 0 8px}
+  .ft-story p,.ft-story ul{margin:0 0 14px}
+  .ft-story ul{padding-left:1.4em}
+  .ft-story blockquote{margin:0 0 14px;padding:2px 0 2px 14px;box-shadow:inset 3px 0 0 var(--line);color:var(--text-2)}
+  .ft-story hr{border:0;height:1px;background:var(--line);margin:22px 0}
+  .ft-story figure{margin:18px 0;background:var(--ink-1);border-radius:var(--r-card);padding:10px}
+  .ft-story figure img{display:block;width:100%;height:auto;border-radius:10px}
+  .ft-story figcaption:empty{display:none}
+  .ft-story figcaption{color:var(--dim);font-size:.8889rem;margin:10px 2px 2px;line-height:1.4}
+  .ft-tablewrap{overflow-x:auto;margin:0 0 14px}
+  .ft-story table{border-collapse:collapse;font-size:.8889rem;min-width:100%}
+  .ft-story td,.ft-story th{padding:8px 10px;text-align:left;vertical-align:top;box-shadow:inset 0 -1px 0 var(--line)}
+  .ft-rec{background:var(--ink-1);border-radius:var(--r-card);padding:12px 14px;margin:0 0 10px}
+  .ft-rec dt{color:var(--dim);margin-top:8px}
+  .ft-rec dt:first-child{margin-top:0}
+
+  /* ---- the tree view: generations are grid rows, a card is two half-unit columns wide, and the
+     lines are an SVG under the cards drawn from where they land (SPEC §2) ---- */
+  main.page.ft-wide{max-width:none;overflow:auto}
+  #treePage{width:max-content;min-width:100%}
+  #treePage .ft-bar{position:sticky;left:0;max-width:calc(100vw - 32px)}
+  .tree{--cw:9rem;position:relative;display:grid;grid-auto-columns:calc(var(--cw) / 2);row-gap:52px;width:max-content;margin:16px auto 28px}
+  .tree svg{position:absolute;left:0;top:0;pointer-events:none;overflow:visible}
+  .tree path{fill:none;stroke:var(--faint);stroke-width:2}
+  .tree path.down{stroke:var(--accent-2)}
+  .tc{position:relative;z-index:1;margin:0 5px;min-height:var(--tap);padding:8px 10px;border-radius:var(--r-ctl);background:var(--ink-1);
+      display:flex;flex-direction:column;justify-content:center;align-items:flex-start;text-align:left;font-weight:600;line-height:1.25}
+  .tc .tn{font-size:.9444rem;overflow-wrap:anywhere}
+  .tc .ty{font-family:var(--grot);font-size:calc(15rem / 18);color:var(--dim);margin-top:2px}
+  .tc.centre{background:var(--accent);color:var(--accent-ink)}
+  .tc.centre .ty{color:var(--accent-ink)}
+  .tc.down{box-shadow:inset 0 3px 0 var(--accent-2)}
+  .tc.down .ty{color:var(--accent-2)}
+  .tree.fresh .tc{animation:fade var(--snap)}
 </style>
 </head>
 <body>
@@ -56,22 +120,75 @@
     <div id="list"></div>
   </section>
 
-  <!-- A person: a stub until Session 4 (PLAN.md). -->
+  <!-- Stories: Jon's family-history pages. -->
+  <section class="hidden" id="storiesTab">
+    <p class="note">Jon's family-history pages, as he wrote them.</p>
+    <ul class="rows" id="storyList" style="margin-top:14px"></ul>
+  </section>
+
+  <!-- Photos: every photograph Jon published, newest-captured first. -->
+  <section class="hidden" id="photosTab">
+    <p class="note" id="photoCount"></p>
+    <div class="ft-grid" id="photoGrid"></div>
+  </section>
+
+  <!-- Family: who's in, who's waiting, inviting, and the owner's suggestions (SPEC §2, §5). -->
+  <section class="hidden" id="familyTab">
+    <h2 class="lbl sect">Members</h2>
+    <ul class="rows ft-wrap" id="fMembers"></ul>
+    <div id="fWaitWrap" class="ft-sec hidden">
+      <h2 class="lbl sect">Waiting</h2>
+      <ul class="rows" id="fWaiting"></ul>
+    </div>
+    <h2 class="lbl sect">Invite family</h2>
+    <button class="primary big wide" id="showQr">Show my QR</button>
+    <button class="quiet wide" id="inviteFriend" style="margin-top:14px">Invite a friend</button>
+    <p class="note" style="margin-top:12px">Whoever you invite waits until another member says "yes, that's them".</p>
+    <div id="fSuggWrap" class="ft-sec hidden">
+      <h2 class="lbl sect">Suggestions</h2>
+      <ul class="rows ft-wrap" id="fSugg"></ul>
+    </div>
+  </section>
+
+  <!-- A person (SPEC §2). -->
   <section class="hidden" id="personPage">
-    <button class="quiet back" id="backBtn">‹ People</button>
+    <div class="ft-bar"><button class="quiet back" data-back>‹ Back</button><span class="grow"></span><button class="quiet dots" id="pMore" aria-label="Share">⋯</button></div>
     <h2 class="ft-name" id="pName"></h2>
     <p class="ft-years" id="pYears"></p>
     <div id="pLiving" class="hidden">
       <p class="note" id="pLivingNote"></p>
       <button class="quiet wide" id="detailsBtn" style="margin-top:12px">Show details</button>
     </div>
+    <div class="ft-strip hidden" id="pPhotos"></div>
+    <button class="primary big wide" id="treeBtn" style="margin-top:18px">Tree</button>
+    <div id="pBody" class="ft-sec"></div>
     <h3 class="lbl sect">Source</h3>
     <p class="ft-src">Compiled by Jon Inggs · familytree.inggs.com · 2006<br><a id="pSource" target="_blank" rel="noopener">Jon's page on the Wayback Machine</a></p>
-    <p class="empty">More in the next session: parents, children, photos, Jon's stories and the tree.</p>
+    <button class="quiet wide" id="suggestBtn" style="margin-top:24px">Suggest a correction</button>
   </section>
 
-  <section class="hidden" id="photosTab"><p class="empty">Photos are coming next.</p></section>
-  <section class="hidden" id="familyTab"><p class="empty">The family's members and invites are coming next.</p></section>
+  <!-- The tree view, centred on someone (SPEC §2). -->
+  <section class="hidden" id="treePage">
+    <div class="ft-bar"><button class="quiet back" data-back>‹ Back</button><p class="note">Tap someone to move to them. Tap the middle for their page.</p></div>
+    <section class="tree" id="tree" aria-label="Family tree"></section>
+  </section>
+
+  <!-- A photograph. -->
+  <section class="hidden" id="photoPage">
+    <div class="ft-bar"><button class="quiet back" data-back>‹ Back</button></div>
+    <div class="ft-photo" id="phBox"></div>
+    <p class="ft-cap ft-read" id="phCap"></p>
+    <div id="phPeopleWrap" class="ft-sec"><h3 class="lbl sect">In the photo</h3><div class="chips" id="phPeople"></div></div>
+    <h3 class="lbl sect">Source</h3>
+    <p class="ft-src">Compiled by Jon Inggs · familytree.inggs.com · 2006<br><a id="phSource" target="_blank" rel="noopener">Jon's page on the Wayback Machine</a></p>
+  </section>
+
+  <!-- One of Jon's stories: a reading view. -->
+  <section class="hidden" id="storyPage">
+    <div class="ft-bar"><button class="quiet back" data-back>‹ Back</button></div>
+    <article class="ft-story ft-read" id="storyBody"></article>
+    <div id="stPeopleWrap" class="ft-sec"><h3 class="lbl sect">In this story</h3><div class="chips" id="stPeople"></div></div>
+  </section>
 
   <input type="file" id="importFile" accept="application/json,.json" multiple class="hidden">
 </main>
@@ -79,6 +196,7 @@
 <footer class="foot">Compiled by Jon Inggs · familytree.inggs.com · 2006 · <span id="version"></span></footer>
 <nav class="tabbar hidden" id="tabs" aria-label="Family Tree">
   <button type="button" data-tab="people">People</button>
+  <button type="button" data-tab="stories">Stories</button>
   <button type="button" data-tab="photos">Photos</button>
   <button type="button" data-tab="family">Family</button>
 </nav>
@@ -89,60 +207,95 @@
   import { people } from "../shared/people.js";
   import { connect } from "../shared/connect.js";
   import { ui } from "../shared/ui.js";
+  import { isLiving as livingAt, yearsText as yearsAt, eventText, wtDate, sameDate, layoutTree, markdownToHtml, lineageMarkdown, WIKITREE } from "./kin.js";
 
   // Bump on every change. The deploy skill checks this against the live site.
-  const APP_VERSION = "0.2.2";
+  const APP_VERSION = "1.0.0";
   const APP_ID = "family-tree";
   document.getElementById("version").textContent = "v" + APP_VERSION;
 
   const $ = id => document.getElementById(id);
   const tap = ui.tap, toast = ui.toast;
   const report = (what, e) => { console.warn("[family-tree]", what, e); toast(`${what}: ${(e && (e.code || e.message)) || e}`); };
+  const MOCK = new URLSearchParams(location.search).has("mock");
+  const el = (tag, cls, txt) => { const n = document.createElement(tag); if (cls) n.className = cls; if (txt != null) n.textContent = txt; return n; };
 
-  // ---- the living rule (SPEC §6) ----
-  // No death recorded, and born within the last 100 years or with no birth year: living. Their
-  // dates and places stay behind Show details, a per-phone choice.
-  const yearIn = ev => (ev && ev.year) || Number((String((ev && ev.date) || "").match(/\b(\d{4})\b/) || [])[1]) || null;
-  function isLiving(p, now = new Date()){
-    if (p.death && (p.death.date || p.death.place)) return false;
-    const born = yearIn(p.birth);
-    return !born || born > now.getFullYear() - 100;
-  }
+  // ---- the living rule (SPEC §6, kin.js): Show details is a per-phone choice ----
   const DETAILS = "family-tree.details";
   const showDetails = () => { try { return localStorage.getItem(DETAILS) === "1"; } catch { return false; } };
-  // "1884–1951", "b. 1902", "d. 1950", "c. 1850–1920" (a year from an inexact date), or nothing.
-  function yearsText(p){
-    if (isLiving(p) && !showDetails()) return "";
-    const y = ev => { const n = yearIn(ev); return n ? (ev.year ? String(n) : `c. ${n}`) : ""; };
-    const b = y(p.birth), d = y(p.death);
-    return b && d ? `${b}–${d}` : b ? `b. ${b}` : d ? `d. ${d}` : "";
-  }
+  const isLiving = p => livingAt(p);
+  const yearsText = p => yearsAt(p, { details: showDetails() });
+  const hidden = p => isLiving(p) && !showDetails();
   const plain = s => String(s || "").normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase();
   const firstGiven = p => (String(p.given || p.name || "").split(" ").find(w => w && !/^[A-Z]\d+$/.test(w)) || "?");
+  const day = ms => ms ? new Date(ms).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "";
 
   // ---- state ----
   let user = null, owner = false, member = false;
   let tree = [];            // people/, sorted by surname then given
-  let photos = new Map();   // photos/ by id, for the avatars
-  let tab = "people", openId = null;
+  let byId = new Map();     // people/ by id
+  let photos = new Map();   // photos/ by id
+  let stories = [];         // stories/, by title
+  let members = [], invites = [], suggestions = [], friends = [];
+  let tab = "people";
+  let stack = [], scrolls = [];   // the views opened on top of the tab: { kind, id }; Back pops one
+  let dataVer = 0;
   let unsubs = [], run = 0, accountSig = "";
   let memberDoc, inviteDoc; // undefined until their first answer
   let scanned = null;       // the QR this phone was invited by (connect.handleInvite)
+  const myName = () => { const me = people.meId(), p = me ? people.get(me) : null; return (p && p.name) || (user && user.displayName) || ""; };
 
   // ---- the screens ----
+  const SECTIONS = ["gate", "wait", "peopleTab", "storiesTab", "photosTab", "familyTab", "personPage", "treePage", "photoPage", "storyPage"];
   function show(which){
     $("opening").classList.add("hidden");
-    for (const id of ["gate", "wait", "peopleTab", "personPage", "photosTab", "familyTab"]) $(id).classList.toggle("hidden", id !== which);
-    $("tabs").classList.toggle("hidden", !["peopleTab", "personPage", "photosTab", "familyTab"].includes(which));
+    for (const id of SECTIONS) $(id).classList.toggle("hidden", id !== which);
+    $("tabs").classList.toggle("hidden", !member || !user);
+    $("main").classList.toggle("ft-wide", which === "treePage");
     for (const b of $("tabs").querySelectorAll("button")) b.classList.toggle("sel", b.dataset.tab === tab);
   }
+  const top = () => stack[stack.length - 1] || null;
   function paint(){
     if (!user) return show("gate");
     if (!member) return paintWait();
-    if (openId && tab === "people") return paintPerson();
+    const v = top();
+    if (v && v.kind === "person") return paintPerson(v.id);
+    if (v && v.kind === "tree") return paintTree(v.id);
+    if (v && v.kind === "photo") return paintPhoto(v.id);
+    if (v && v.kind === "story") return paintStory(v.id);
     show(tab + "Tab");
     if (tab === "people") paintList();
+    if (tab === "stories") paintStories();
+    if (tab === "photos") paintPhotos();
+    if (tab === "family") paintFamily();
   }
+
+  // Opening a view pushes it, so the phone's Back closes it; the tab underneath keeps its place.
+  function go(kind, id){
+    scrolls[stack.length] = [$("main").scrollLeft, $("main").scrollTop];
+    stack.push({ kind, id });
+    history.pushState({ ft: stack.length }, "");
+    paint();
+    if (kind !== "tree") $("main").scrollTo(0, 0);
+  }
+  const openPerson = id => go("person", id);
+  history.replaceState({ ft: 0 }, "");
+  addEventListener("popstate", () => {
+    const depth = (history.state && history.state.ft) || 0;
+    if (depth >= stack.length) return;
+    stack.length = depth;
+    paint();
+    const [x, y] = scrolls[depth] || [0, 0];
+    $("main").scrollTo(x, y);
+  });
+  for (const b of document.querySelectorAll("[data-back]")) tap(b, () => stack.length ? history.back() : paint());
+  for (const b of $("tabs").querySelectorAll("button")) tap(b, () => {
+    const n = stack.length;
+    tab = b.dataset.tab; stack = []; scrolls = [];
+    if (n) history.go(-n);
+    paint();
+    $("main").scrollTo(0, 0);
+  });
 
   function paintWait(){
     show("wait");
@@ -160,57 +313,70 @@
     }
   }
 
+  // A person as an avatar: their first photo, or the initial of their first name, in a neutral ring.
+  function personAvatar(p, size = 48){
+    const ph = (p.photos || []).map(id => photos.get(id)).find(x => x && x.thumb);
+    return connect.avatar(null, size, { name: firstGiven(p), photo: ph ? ph.thumb : "" });
+  }
+  // A row for a person: avatar, name, a second line; a tap opens them.
+  function personRow(p, l2 = yearsText(p)){
+    const li = el("li");
+    li.tabIndex = 0;
+    li.setAttribute("role", "button");
+    li.append(personAvatar(p));
+    const who = el("span", "who");
+    who.append(el("div", "l1", p.name), el("div", "l2", l2));
+    li.append(who);
+    tap(li, () => openPerson(p.id));
+    return li;
+  }
+  // A name Jon gave that the parser couldn't match to a page.
+  function refRow(name, what = "Not in the tree"){
+    const li = el("li");
+    li.append(connect.avatar(null, 48, { name }));
+    const who = el("span", "who");
+    who.append(el("div", "l1", name), el("div", "l2", what));
+    li.append(who);
+    return li;
+  }
+
   // People: grouped by surname, filtered by any part of the name.
   let listSig = "";
   function paintList(){
     const q = plain($("search").value).trim();
     const words = q.split(/\s+/).filter(Boolean);
     const rows = words.length ? tree.filter(p => { const n = plain(p.name); return words.every(w => n.includes(w)); }) : tree;
-    const sig = `${q}|${tree.length}|${photos.size}|${showDetails()}|${rows.length}`;
+    const sig = `${q}|${dataVer}|${showDetails()}|${rows.length}`;
     if (sig === listSig) return;
     listSig = sig;
     $("count").textContent = !tree.length ? "" : words.length ? `${rows.length.toLocaleString()} of ${tree.length.toLocaleString()} people` : `${tree.length.toLocaleString()} people`;
     const host = $("list");
     host.replaceChildren();
     if (!tree.length){
-      host.innerHTML = `<p class="empty"></p>`;
-      host.firstChild.textContent = owner ? "Nothing imported yet. Open your account sheet → Import, and pick the seed files in order." : "The tree hasn't been imported yet.";
+      host.append(el("p", "empty", owner ? "Nothing imported yet. Open your account sheet → Import, and pick the seed files in order." : "The tree hasn't been imported yet."));
       return;
     }
-    if (!rows.length){ host.innerHTML = `<p class="empty">Nobody by that name.</p>`; return; }
+    if (!rows.length){ host.append(el("p", "empty", "Nobody by that name.")); return; }
     const frag = document.createDocumentFragment();
     let surname = null, ul = null;
     for (const p of rows){
       if (p.surname !== surname){
         surname = p.surname;
-        const h = document.createElement("h2");
-        h.className = "lbl sect";
-        h.textContent = surname || "No surname";
-        ul = document.createElement("ul");
-        ul.className = "rows ft-list";
-        frag.append(h, ul);
+        ul = el("ul", "rows ft-list");
+        frag.append(el("h2", "lbl sect", surname || "No surname"), ul);
       }
-      const li = document.createElement("li");
-      li.tabIndex = 0;
-      li.setAttribute("role", "button");
-      const ph = (p.photos || []).map(id => photos.get(id)).find(x => x && x.thumb);
-      li.append(connect.avatar(null, 48, { name: firstGiven(p), photo: ph ? ph.thumb : "" }));
-      const who = document.createElement("span");
-      who.className = "who";
-      who.innerHTML = `<div class="l1"></div><div class="l2"></div>`;
-      who.querySelector(".l1").textContent = p.name;
-      who.querySelector(".l2").textContent = yearsText(p);
-      li.append(who);
-      tap(li, () => openPerson(p.id));
-      ul.append(li);
+      ul.append(personRow(p));
     }
     host.append(frag);
   }
 
-  // A person: the stub page (Session 4 fills it in).
-  function paintPerson(){
-    const p = tree.find(x => x.id === openId);
-    if (!p){ openId = null; return paint(); }
+  let searchTimer = 0;
+  $("search").addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(paintList, 120); });
+
+  // ---- a person (SPEC §2) ----
+  function paintPerson(id){
+    const p = byId.get(id);
+    if (!p){ show("personPage"); $("pName").textContent = tree.length ? "Not in the tree" : "Opening…"; $("pBody").replaceChildren(); return; }
     show("personPage");
     $("pName").textContent = p.name;
     $("pYears").textContent = yearsText(p);
@@ -221,24 +387,442 @@
     const a = $("pSource");
     a.href = (p.source && p.source.wayback) || "#";
     a.classList.toggle("hidden", !(p.source && p.source.wayback));
+
+    // Photos of them, as a strip.
+    const strip = $("pPhotos");
+    strip.replaceChildren();
+    for (const phid of p.photos || []){
+      const ph = photos.get(phid);
+      if (!ph) continue;
+      const n = ph.thumb ? Object.assign(el("img"), { src: ph.thumb, alt: ph.caption || "" }) : el("div", "ft-missing", "Not recovered");
+      n.tabIndex = 0; n.setAttribute("role", "button");
+      tap(n, () => go("photo", phid));
+      strip.append(n);
+    }
+    strip.classList.toggle("hidden", !strip.children.length);
+
+    const body = $("pBody");
+    body.replaceChildren();
+    const wt = p.wikitree && !living ? wikitree(p.wikitree) : null;
+    // Born and Died: Jon's, with WikiTree's beside where it differs.
+    if (!hidden(p)){
+      const facts = el("div", "card");
+      for (const [label, ev, wd, wp] of [["Born", p.birth, wt && wt.BirthDate, wt && wt.BirthLocation], ["Died", p.death, wt && wt.DeathDate, wt && wt.DeathLocation]]){
+        const t = eventText(ev), w = wtDate(wd);
+        if (!t && !w) continue;
+        const f = el("div", "ft-fact");
+        f.append(el("div", "lbl", label), el("div", "ft-read", t || "Not recorded"));
+        if (w && !sameDate(ev && ev.date, w)) f.append(el("div", "wt", `WikiTree: ${[w, wp].filter(Boolean).join(", ")}`));
+        facts.append(f);
+      }
+      if (facts.children.length) body.append(facts);
+    }
+    const refs = role => (p.refs || []).filter(r => role === "parent" ? !["spouse", "child"].includes(r.role) : r.role === role);
+    const section = (title, rows) => {
+      if (!rows.length) return;
+      const ul = el("ul", "rows");
+      ul.append(...rows);
+      body.append(el("h3", "lbl sect", title), ul);
+    };
+    const known = ids => (ids || []).map(x => byId.get(x)).filter(Boolean);
+    section("Parents", [...known(p.parents).map(q => personRow(q)), ...refs("parent").map(r => refRow(r.name, `${r.role ? r.role[0].toUpperCase() + r.role.slice(1) + " · " : ""}not in the tree`))]);
+    section("Married", [...(p.spouses || []).map(s => {
+      const q = byId.get(s.id);
+      const when = q && !hidden(p) && !hidden(q) ? [s.date, s.place].filter(Boolean).join(", ") : "";
+      return q ? personRow(q, [yearsText(q), when && `m. ${when}`].filter(Boolean).join(" · ")) : refRow(s.name);
+    }), ...refs("spouse").map(r => refRow(r.name))]);
+    section("Children", [...known(p.children).map(q => personRow(q)), ...refs("child").map(r => refRow(r.name))]);
+    section("Jon wrote about them", stories.filter(s => (s.people || []).includes(p.id)).map(storyRow));
+    if (p.notes){
+      body.append(el("h3", "lbl sect", "Notes"), el("p", "ft-notes ft-read", p.notes));
+    }
+    // On WikiTree: read live, never stored; a living person's row is the link alone.
+    if (p.wikitree){
+      const li = el("li");
+      li.tabIndex = 0; li.setAttribute("role", "button");
+      const who = el("span", "who");
+      const facts = wt ? [wtDate(wt.BirthDate) && `b. ${wtDate(wt.BirthDate)}`, wtDate(wt.DeathDate) && `d. ${wtDate(wt.DeathDate)}`].filter(Boolean).join(" · ") : "";
+      const touched = wt && /^\d{8}/.test(wt.Touched || "") ? day(Date.UTC(+wt.Touched.slice(0, 4), +wt.Touched.slice(4, 6) - 1, +wt.Touched.slice(6, 8))) : "";
+      who.append(el("div", "l1", `WikiTree · ${p.wikitree}`), el("div", "l2", [facts, touched && `updated ${touched}`].filter(Boolean).join(" · ") || "Opens WikiTree"));
+      li.append(who);
+      tap(li, () => window.open(WIKITREE(p.wikitree), "_blank", "noopener"));
+      const ul = el("ul", "rows");
+      ul.append(li);
+      body.append(el("h3", "lbl sect", "On WikiTree"), ul);
+    }
   }
-  function openPerson(id){
-    openId = id;
-    history.pushState({ person: id }, "");
-    paint();
-    $("main").scrollTop = 0;
-  }
-  function closePerson(){ if (openId){ openId = null; paint(); } }
-  addEventListener("popstate", () => closePerson());
-  tap($("backBtn"), () => history.state && history.state.person ? history.back() : closePerson());
   tap($("detailsBtn"), () => {
     try { localStorage.setItem(DETAILS, showDetails() ? "0" : "1"); } catch {}
-    listSig = "";
+    listSig = ""; treeSig = "";
     paint();
   });
-  let searchTimer = 0;
-  $("search").addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(paintList, 120); });
-  for (const b of $("tabs").querySelectorAll("button")) tap(b, () => { tab = b.dataset.tab; if (tab !== "people") openId = null; paint(); });
+  tap($("treeBtn"), () => { const v = top(); if (v) go("tree", v.id); });
+  tap($("suggestBtn"), () => { const v = top(); if (v) suggest(v.id); });
+  ui.menu($("pMore"), { title: "Share as Markdown", text: "For NotebookLM, Drive or mail. Living people's dates stay hidden unless Show details is on.", items: [
+    { label: "Their line", value: "line", run: () => shareMarkdown(top().id, "line") },
+    { label: "Their family", value: "family", run: () => shareMarkdown(top().id, "family") },
+  ] });
+
+  // WikiTree's public API, by the stored id alone (SPEC §2, §6). Kept in memory for the session.
+  // Offline, refused or no answer: the row is the link alone. ?mock never asks.
+  const wtCache = new Map();
+  let wtDown = MOCK;
+  function wikitree(id){
+    if (wtCache.has(id)) return wtCache.get(id);
+    wtCache.set(id, null);
+    if (wtDown || !navigator.onLine) return null;
+    const fields = "Name,BirthDate,DeathDate,BirthLocation,DeathLocation,Manager,Touched";
+    fetch(`https://api.wikitree.com/api.php?appId=sidequests-family-tree&action=getProfile&key=${encodeURIComponent(id)}&fields=${fields}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(j => { const prof = j && j[0] && j[0].profile; if (prof){ wtCache.set(id, prof); const v = top(); if (v && v.kind === "person") paint(); } })
+      .catch(() => { wtDown = true; });   // refused (the browser's cross-site rule) or offline: stop asking this session
+    return null;
+  }
+
+  // ---- Suggest a correction (SPEC §2): to suggestions/, with your name ----
+  async function suggest(id){
+    const p = byId.get(id);
+    if (!p) return;
+    const text = await ui.sheet({ title: "Suggest a correction", text: `About ${p.name}. What's wrong, or what's missing?`, body: close => {
+      const box = el("div");
+      const ta = el("textarea");
+      ta.maxLength = 2000;
+      ta.placeholder = "Born in Townsville, not Riverton…";
+      const send = el("button", "primary", "Send");
+      send.type = "button";
+      send.style.marginTop = "12px";
+      tap(send, () => { const v = ta.value.trim(); if (v) close(v); else ta.focus(); });
+      box.append(ta, send);
+      setTimeout(() => ta.focus(), 50);
+      return box;
+    } });
+    if (!text) return;
+    try {
+      await cloud.save(`suggestions/${cloud.newId()}`, { person: p.id, personName: p.name, text, by: user.uid, byName: myName(), at: Date.now(), status: "open" });
+      const o = members.find(m => m.invitedBy === m.id && m.approvedBy === m.id);
+      toast(`Thanks, ${o && o.name ? o.name.split(" ")[0] : "the owner"} will look at it.`);
+    } catch (e){ report("Couldn't send it", e); }
+  }
+
+  // ---- Share as Markdown (kin.js lineageMarkdown), logged in exports/ first like Export ----
+  async function shareMarkdown(id, mode){
+    const p = byId.get(id);
+    if (!p) return;
+    const md = lineageMarkdown(byId, stories, id, mode, { details: showDetails(), photos });
+    const name = `${p.name.replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "").toLowerCase()}-${mode === "family" ? "family" : "line"}.md`;
+    try {
+      await cloud.save(`exports/${cloud.newId()}`, { by: user.uid, byName: myName(), at: Date.now(), people: (md.match(/^### /gm) || []).length, photos: 0, kind: "markdown", person: id, mode });
+    } catch (e){ return report("Couldn't share", e); }
+    const file = new File([md], name, { type: "text/markdown" });
+    if (navigator.canShare && navigator.canShare({ files: [file] })){
+      try { await navigator.share({ files: [file], title: `${p.name}: ${mode === "family" ? "their family" : "their line"}` }); return; }
+      catch (e){ if (e && e.name === "AbortError") return; }
+    }
+    saveFile(name, file);
+    toast("Saved " + name);
+  }
+
+  // ---- the tree view (SPEC §2; layout in kin.js) ----
+  let treeSig = "", treeLayout = null;
+  function paintTree(id){
+    show("treePage");
+    const host = $("tree");
+    const sig = `${id}|${dataVer}|${showDetails()}`;
+    if (sig === treeSig) return;
+    const first = !treeSig;
+    treeSig = sig;
+    const t = treeLayout = byId.size ? layoutTree(byId, id) : null;
+    host.replaceChildren();
+    if (!t){ host.append(el("p", "empty", tree.length ? "Not in the tree." : "Opening…")); return; }
+    host.style.gridTemplateColumns = `repeat(${t.cols * 2}, calc(var(--cw) / 2))`;
+    const rowOf = new Map(t.gens.map((g, i) => [g, i + 1]));
+    host.append(document.createElementNS("http://www.w3.org/2000/svg", "svg"));
+    for (const n of t.nodes){
+      const p = byId.get(n.id);
+      const b = el("button", `tc ${n.side}`);
+      b.type = "button";
+      b.dataset.key = n.key;
+      b.style.gridRow = rowOf.get(n.gen);
+      b.style.gridColumn = `${n.x * 2 + 1} / span 2`;
+      b.append(el("span", "tn", p.name), el("span", "ty", yearsText(p) || " "));
+      if (n.side === "centre"){ b.setAttribute("aria-label", `${p.name}, the centre. Open their page.`); tap(b, () => openPerson(n.id)); }
+      else tap(b, () => go("tree", n.id));
+      host.append(b);
+    }
+    host.classList.toggle("fresh", !first);
+    drawLines();
+    centreTree(first || matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth");
+  }
+  // The lines: from each parent's foot down to a bar halfway, across, and down to the child's head.
+  function drawLines(){
+    const host = $("tree"), t = treeLayout;
+    const svg = host.querySelector("svg");
+    if (!svg || !t) return;
+    svg.setAttribute("width", host.scrollWidth); svg.setAttribute("height", host.scrollHeight);
+    const box = k => { const n = host.querySelector(`[data-key="${k}"]`); return n && { x: n.offsetLeft + n.offsetWidth / 2, top: n.offsetTop, bottom: n.offsetTop + n.offsetHeight, l: n.offsetLeft, r: n.offsetLeft + n.offsetWidth, y: n.offsetTop + n.offsetHeight / 2 }; };
+    const parts = { up: [], down: [] };
+    for (const l of t.links){
+      const c = box(l.child), ps = l.parents.map(box).filter(Boolean);
+      if (!c || !ps.length) continue;
+      const mid = Math.round((Math.max(...ps.map(p => p.bottom)) + c.top) / 2);
+      const xs = [...ps.map(p => p.x), c.x];
+      let d = `M${Math.min(...xs)} ${mid}H${Math.max(...xs)}M${c.x} ${mid}V${c.top}`;
+      for (const p of ps) d += `M${p.x} ${p.bottom}V${mid}`;
+      parts[l.side === "down" ? "down" : "up"].push(d);
+    }
+    // A spouse beside the centre: a line between them, behind the cards.
+    const cc = box("c");
+    for (const n of t.nodes) if (n.side === "spouse"){ const s = box(n.key); if (cc && s) parts.up.push(`M${cc.r} ${cc.y}H${s.l}`); }
+    svg.innerHTML = Object.entries(parts).map(([k, ds]) => ds.length ? `<path class="${k}" d="${ds.join("")}"/>` : "").join("");
+  }
+  function centreTree(behavior){
+    const main = $("main"), c = $("tree").querySelector('[data-key="c"]');
+    if (!c) return;
+    const m = main.getBoundingClientRect(), r = c.getBoundingClientRect();
+    main.scrollBy({ left: r.left + r.width / 2 - (m.left + main.clientWidth / 2), top: r.top + r.height / 2 - (m.top + main.clientHeight / 2), behavior });
+  }
+  new ResizeObserver(() => drawLines()).observe($("tree"));
+
+  // ---- Photos (SPEC §2) ----
+  const photoOrder = () => [...photos.values()].sort((a, b) => ((b.source && b.source.captured) || 0) - ((a.source && a.source.captured) || 0) || String(a.caption).localeCompare(String(b.caption)));
+  // A photo as the grid and the strip show it: the thumb at its own shape, or the placeholder.
+  function picture(ph){
+    if (ph && ph.thumb){
+      const img = el("img");
+      img.src = ph.thumb; img.alt = ph.caption || ""; img.decoding = "async";
+      if (ph.w && ph.h){ img.width = ph.w; img.height = ph.h; }
+      return img;
+    }
+    const m = el("div", "ft-missing", "Not recovered");
+    m.style.aspectRatio = ph && ph.w && ph.h ? `${ph.w} / ${ph.h}` : "4 / 3";
+    return m;
+  }
+  let photosSig = "";
+  function paintPhotos(){
+    const sig = String(dataVer);
+    if (sig === photosSig) return;
+    photosSig = sig;
+    const all = photoOrder(), got = all.filter(p => p.recovered).length;
+    $("photoCount").textContent = all.length ? `${all.length} photographs from Jon's pages${got < all.length ? `, ${got} recovered` : ""}.` : "";
+    const grid = $("photoGrid");
+    grid.replaceChildren();
+    if (!all.length){ grid.append(el("p", "empty", "No photos yet.")); return; }
+    for (const ph of all){
+      const card = el("div", "ft-ph");
+      card.tabIndex = 0; card.setAttribute("role", "button");
+      card.append(picture(ph), el("div", "cap", ph.caption || ""));
+      tap(card, () => go("photo", ph.id));
+      grid.append(card);
+    }
+  }
+  // The 1400px image, loaded on demand, apart from the list (images/<id>).
+  const fullImages = new Map();
+  const fullImage = id => {
+    if (!fullImages.has(id)) fullImages.set(id, cloud.load(`images/${id}`).then(d => (d && d.data) || "").catch(e => { console.warn("[images]", e); fullImages.delete(id); return ""; }));
+    return fullImages.get(id);
+  };
+  function upgrade(img, id){ fullImage(id).then(src => { if (src && img.isConnected) img.src = src; }); }
+  let photoSig = "";
+  function paintPhoto(id){
+    show("photoPage");
+    const sig = `${id}|${dataVer}`;
+    if (sig === photoSig) return;
+    photoSig = sig;
+    const ph = photos.get(id);
+    const box = $("phBox");
+    box.replaceChildren(picture(ph));
+    if (ph && ph.recovered) upgrade(box.firstChild, id);
+    $("phCap").textContent = ph ? (ph.caption || "") : "Not in the tree.";
+    const chips = $("phPeople");
+    chips.replaceChildren();
+    for (const pid of (ph && ph.people) || []){
+      const p = byId.get(pid);
+      if (!p) continue;
+      const b = el("button");
+      b.type = "button";
+      b.append(personAvatar(p, 40), el("span", null, p.name));
+      tap(b, () => openPerson(pid));
+      chips.append(b);
+    }
+    $("phPeopleWrap").classList.toggle("hidden", !chips.children.length);
+    const a = $("phSource");
+    a.href = (ph && ph.source && ph.source.wayback) || "#";
+    a.classList.toggle("hidden", !(ph && ph.source && ph.source.wayback));
+  }
+
+  // ---- Jon's stories ----
+  function storyRow(s){
+    const li = el("li");
+    li.tabIndex = 0; li.setAttribute("role", "button");
+    const th = (s.images || []).map(id => photos.get(id)).find(x => x && x.thumb);
+    li.append(connect.avatar(null, 48, { name: s.title, photo: th ? th.thumb : "" }));
+    const who = el("span", "who");
+    const n = (s.people || []).length, m = (s.images || []).length;
+    who.append(el("div", "l1", s.title), el("div", "l2", s.pdf ? "A PDF, not converted" : [n && `${n} ${n === 1 ? "person" : "people"}`, m && `${m} ${m === 1 ? "photo" : "photos"}`].filter(Boolean).join(" · ") || "Jon's page"));
+    li.append(who);
+    tap(li, () => go("story", s.id));
+    return li;
+  }
+  let storiesSig = "";
+  function paintStories(){
+    const sig = String(dataVer);
+    if (sig === storiesSig) return;
+    storiesSig = sig;
+    const ul = $("storyList");
+    ul.replaceChildren(...stories.map(storyRow));
+    if (!stories.length) ul.append(el("li", "empty", "No stories yet."));
+  }
+  let storySig = "";
+  function paintStory(id){
+    show("storyPage");
+    const sig = `${id}|${dataVer}`;
+    if (sig === storySig) return;
+    storySig = sig;
+    const s = stories.find(x => x.id === id);
+    const art = $("storyBody");
+    if (!s){ art.innerHTML = `<p class="empty">${stories.length ? "That page wasn't recovered." : "Opening…"}</p>`; $("stPeopleWrap").classList.add("hidden"); return; }
+    if (s.pdf || !s.markdown){
+      art.replaceChildren(el("h1", null, s.title), el("p", null, "A PDF on Jon's site, not converted. The Wayback Machine keeps a copy."));
+      if (s.source && s.source.wayback){ const a = el("a", null, "Open the PDF"); a.href = s.source.wayback; a.target = "_blank"; a.rel = "noopener"; art.append(a); }
+    } else {
+      // kin.js escapes everything it doesn't write itself, so this is Jon's words and our tags only.
+      art.innerHTML = markdownToHtml(s.markdown);
+      for (const fig of art.querySelectorAll("figure[data-photo]")){
+        const ph = photos.get(fig.dataset.photo);
+        const pic = picture(ph);
+        fig.prepend(pic);
+        if (ph && ph.recovered) upgrade(pic, ph.id);
+        fig.tabIndex = 0; fig.setAttribute("role", "button");
+        tap(fig, () => ph && go("photo", ph.id));
+      }
+    }
+    const chips = $("stPeople");
+    chips.replaceChildren();
+    for (const pid of s.people || []){
+      const p = byId.get(pid);
+      if (!p) continue;
+      const b = el("button");
+      b.type = "button";
+      b.append(personAvatar(p, 40), el("span", null, p.name));
+      tap(b, () => openPerson(pid));
+      chips.append(b);
+    }
+    $("stPeopleWrap").classList.toggle("hidden", !chips.children.length);
+  }
+  $("storyBody").addEventListener("click", e => {
+    const a = e.target.closest("a[data-photo], a[data-story]");
+    if (!a) return;
+    e.preventDefault();
+    if (a.dataset.photo) return photos.has(a.dataset.photo) ? go("photo", a.dataset.photo) : toast("That photo isn't in the tree.");
+    stories.some(s => s.id === a.dataset.story) ? go("story", a.dataset.story) : toast("That page wasn't recovered.");
+  });
+
+  // ---- Family (SPEC §2, §5) ----
+  const nameOfUid = uid => { const m = members.find(x => x.id === uid); return (m && m.name) || (people.get(uid) || {}).name || "someone"; };
+  const canDecide = inv => owner || inv.invitedBy !== user.uid;
+  let familySig = "";
+  function paintFamily(){
+    const sig = JSON.stringify([dataVer, members.length, invites, suggestions, owner, user && user.uid]);
+    if (sig === familySig) return;
+    familySig = sig;
+    // Members: invited by · approved by. The owner may remove anyone but themselves.
+    const ms = [...members].sort((a, b) => (a.since || 0) - (b.since || 0));
+    $("fMembers").replaceChildren(...ms.map(m => {
+      const li = el("li");
+      li.append(connect.avatar(m.id, 48, { name: m.name }));
+      const who = el("span", "who");
+      const self = m.invitedBy === m.id && m.approvedBy === m.id;
+      who.append(el("div", "l1", m.name + (m.id === user.uid ? " (you)" : "")), el("div", "l2", self ? "Keeps the tree" : `invited by ${nameOfUid(m.invitedBy)} · approved by ${nameOfUid(m.approvedBy)}`));
+      li.append(who);
+      if (owner && m.id !== user.uid){
+        const more = el("button", "more", "⋯");
+        more.type = "button"; more.setAttribute("aria-label", `More for ${m.name}`);
+        ui.menu(more, { title: m.name, text: "Removing them closes the tree on their phone. You stay friends.", items: [
+          { label: "Remove from the family", value: "remove", hold: true, run: () => cloud.delete(`members/${m.id}`).then(() => toast(`Removed ${m.name}`), e => report("Couldn't remove", e)) },
+        ] });
+        li.append(more);
+      }
+      return li;
+    }));
+    // Waiting: "Kenny invited Dad. Is this them?"; Approve and Decline in the ⋯ (SPEC §5).
+    const waiting = invites.filter(i => i.status === "pending").sort((a, b) => (a.at || 0) - (b.at || 0));
+    $("fWaitWrap").classList.toggle("hidden", !waiting.length);
+    $("fWaiting").replaceChildren(...waiting.map(inv => {
+      const li = el("li");
+      li.append(connect.avatar(inv.uid, 48, { name: inv.name }));
+      const who = el("span", "who");
+      const by = inv.invitedBy === user.uid ? "You" : (inv.invitedByName || nameOfUid(inv.invitedBy));
+      who.append(el("div", "l1", `${by} invited ${inv.name}`), el("div", "l2", inv.email || "Is this them?"));
+      li.append(who);
+      const more = el("button", "more", "⋯");
+      more.type = "button"; more.setAttribute("aria-label", `Decide ${inv.name}`);
+      const q = `${by} invited ${inv.name}${inv.email ? ` (${inv.email})` : ""}. Is this them?`;
+      ui.menu(more, canDecide(inv)
+        ? { title: inv.name, text: q, items: [
+            { label: "Approve", value: "approve", primary: true, run: () => approve(inv) },
+            { label: "Decline", value: "decline", hold: true, run: () => decline(inv) } ] }
+        : { title: inv.name, text: "You invited them, so another member says whether it's them.", items: [] });
+      li.append(more);
+      return li;
+    }));
+    // The owner's suggestions: the person, the text, who and when; Done on a hold.
+    $("fSuggWrap").classList.toggle("hidden", !owner);
+    if (owner){
+      const open = suggestions.filter(s => s.status !== "done").sort((a, b) => (b.at || 0) - (a.at || 0));
+      $("fSugg").replaceChildren(...open.map(s => {
+        const li = el("li");
+        const who = el("span", "who");
+        who.append(el("div", "l1", s.personName || s.person), el("div", "ft-sugg ft-read", s.text), el("div", "l2", `${s.byName || "Someone"} · ${day(s.at)}`));
+        li.append(who);
+        const more = el("button", "more", "⋯");
+        more.type = "button"; more.setAttribute("aria-label", `More for ${s.personName}`);
+        ui.menu(more, { title: s.personName || "Suggestion", text: s.text, items: [
+          ...(byId.has(s.person) ? [{ label: `Open ${s.personName}`, value: "open", run: () => openPerson(s.person) }] : []),
+          { label: "Mark done", value: "done", hold: true, run: () => cloud.patch(`suggestions/${s.id}`, { status: "done", doneBy: user.uid, doneAt: Date.now() }).catch(e => report("Couldn't mark it done", e)) },
+        ] });
+        li.append(more);
+        return li;
+      }));
+      if (!open.length) $("fSugg").append(el("li", "empty", "No suggestions waiting."));
+    }
+  }
+  // Approve: one batch, the invite decided and members/<uid> made (the rules check both together).
+  function approve(inv){
+    cloud.batch([
+      { patch: `invites/${inv.uid}`, data: { status: "approved", decidedBy: user.uid, decidedAt: Date.now() } },
+      { save: `members/${inv.uid}`, data: { name: inv.name, since: Date.now(), invitedBy: inv.invitedBy, approvedBy: user.uid } },
+    ]).then(() => toast(`${inv.name} is in`), e => report("Couldn't approve", e));
+  }
+  function decline(inv){
+    cloud.patch(`invites/${inv.uid}`, { status: "declined", decidedBy: user.uid, decidedAt: Date.now() })
+      .then(() => toast(`Declined ${inv.name}`), e => report("Couldn't decline", e));
+  }
+  tap($("showQr"), () => connect.showQR({ app: APP_ID }));
+  // Invite a friend: your Connect friends who aren't members and aren't waiting (the owner may ask
+  // again for someone declined). They wait as a newcomer does, or are in once someone approves.
+  tap($("inviteFriend"), async () => {
+    const inMembers = new Set(members.map(m => m.id));
+    const asked = new Set(invites.filter(i => !owner || i.status === "pending" || inMembers.has(i.id)).map(i => i.id));
+    const list = friends.filter(f => f.uid && !inMembers.has(f.uid) && !asked.has(f.uid));
+    const names = new Map(await Promise.all(list.map(async f => [f.uid, ((people.get(f.uid) || {}).name) || ((await cloud.account.profile(f.uid)) || {}).name || "Someone"])));
+    const uid = await ui.sheet({ title: "Invite a friend", text: list.length ? "Pick someone you're connected with. Another member confirms it's them." : "Everyone you're connected with is in, or waiting. Show your QR to someone new.", body: close => {
+      const box = el("div");
+      box.style.cssText = "display:flex;flex-direction:column;gap:10px";
+      for (const f of list){
+        const b = el("button");
+        b.type = "button";
+        b.append(connect.avatar(f.uid, 40, { name: names.get(f.uid) }), el("span", null, names.get(f.uid)));
+        tap(b, () => close(f.uid));
+        box.append(b);
+      }
+      return box;
+    } });
+    if (!uid) return;
+    try {
+      await cloud.batch([{ set: `invites/${uid}`, data: { uid, name: names.get(uid).slice(0, 60), email: "", invitedBy: user.uid, invitedByName: myName().slice(0, 60), at: Date.now(), status: "pending" } }]);
+      toast(`Invited ${names.get(uid)}. Another member confirms it's them.`);
+    } catch (e){ report("Couldn't invite", e); }
+  });
 
   // ---- invites (SPEC §5): the newcomer writes their own, from the QR they scanned ----
   async function maybeInvite(){
@@ -259,13 +843,14 @@
   }
 
   // ---- export (members, logged) and import (the owner) ----
-  function download(name, data){
-    const url = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: "application/json" }));
+  function saveFile(name, blob){
+    const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url; a.download = name;
     document.body.appendChild(a); a.click();
     setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 4000);
   }
+  const download = (name, data) => saveFile(name, new Blob([JSON.stringify(data)], { type: "application/json" }));
   // An export that can't be logged doesn't happen (SPEC §6).
   async function exportAll(){
     try {
@@ -377,12 +962,16 @@
 
   // Signed in: who are you to the family? The owner always a member; anyone else by members/<uid>,
   // and the invite while they wait. Becoming a member opens the tree; being removed closes it.
+  function forget(){
+    tree = []; byId = new Map(); photos = new Map(); stories = []; members = []; invites = []; suggestions = []; friends = [];
+    stack = []; scrolls = []; listSig = treeSig = photosSig = photoSig = storiesSig = storySig = familySig = ""; dataVer++;
+  }
   async function start(u){
     unsubs.forEach(f => { try { f(); } catch {} });
     unsubs = [];
     const mine = ++run;
     user = u; owner = false; member = false; memberDoc = inviteDoc = undefined;
-    tree = []; photos = new Map(); openId = null; listSig = "";
+    forget();
     mountAccount();
     if (!u){ paint(); return; }
     paint();
@@ -395,14 +984,13 @@
     const settle = () => {
       if (owner && memberDoc === null && !ownDocAsked){
         ownDocAsked = true;
-        const me = people.meId(), p = me ? people.get(me) : null;
-        cloud.save(`members/${u.uid}`, { name: (p && p.name) || u.displayName || "Owner", since: Date.now(), invitedBy: u.uid, approvedBy: u.uid })
+        cloud.save(`members/${u.uid}`, { name: myName() || "Owner", since: Date.now(), invitedBy: u.uid, approvedBy: u.uid })
           .catch(e => console.warn("[family-tree] owner's member document", e));
       }
       const was = member;
       member = owner || !!memberDoc;
       if (member && !was) openTree(mine);
-      if (!member && was){ tree = []; photos = new Map(); openId = null; listSig = ""; dropTree(); }
+      if (!member && was){ forget(); dropTree(); }
       mountAccount();
       paint();
       maybeInvite();
@@ -412,14 +1000,23 @@
   }
   let treeUnsubs = [];
   function dropTree(){ treeUnsubs.forEach(f => { try { f(); } catch {} }); treeUnsubs = []; }
+  // A member's listeners: the tree, its photos and stories, who's in and who's waiting, your
+  // friends (for Invite a friend), and the suggestions for the owner. Images load one at a time.
   function openTree(mine){
     dropTree();
     if (mine !== run) return;
+    const changed = () => { dataVer++; paint(); };
     treeUnsubs.push(cloud.watchList("people", list => {
       tree = list.sort((a, b) => plain(a.surname).localeCompare(plain(b.surname)) || plain(a.given).localeCompare(plain(b.given)) || a.id.localeCompare(b.id));
-      paint();
+      byId = new Map(tree.map(p => [p.id, p]));
+      changed();
     }, {}, e => report("Couldn't load the people", e)));
-    treeUnsubs.push(cloud.watchList("photos", list => { photos = new Map(list.map(p => [p.id, p])); paint(); }, {}, e => console.warn("[photos]", e)));
+    treeUnsubs.push(cloud.watchList("photos", list => { photos = new Map(list.map(p => [p.id, p])); changed(); }, {}, e => console.warn("[photos]", e)));
+    treeUnsubs.push(cloud.watchList("stories", list => { stories = list.sort((a, b) => String(a.title).localeCompare(String(b.title))); changed(); }, {}, e => console.warn("[stories]", e)));
+    treeUnsubs.push(cloud.watchList("members", list => { members = list; changed(); }, {}, e => console.warn("[members list]", e)));
+    treeUnsubs.push(cloud.watchList("invites", list => { invites = list; changed(); }, {}, e => console.warn("[invites list]", e)));
+    treeUnsubs.push(cloud.account.watchFriends(list => { friends = list; }, e => console.warn("[friends]", e)));
+    if (owner) treeUnsubs.push(cloud.watchList("suggestions", list => { suggestions = list; changed(); }, {}, e => console.warn("[suggestions]", e)));
     unsubs.push(dropTree);
   }
 

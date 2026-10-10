@@ -47,7 +47,7 @@ await owner.click("#detailsBtn"); await owner.waitForTimeout(200);
 await owner.goBack(); await owner.waitForTimeout(300);
 ok(await owner.locator("#peopleTab").isVisible(), "Back returns to People");
 await owner.click('.tabbar button[data-tab="photos"]'); await owner.waitForTimeout(200);
-ok(/coming next/i.test(await text(owner, "#photosTab")), "Photos says coming next");
+ok(await owner.locator("#photoGrid .ft-ph").count() === 6, "Photos shows the six (Session 4): " + await owner.locator("#photoGrid .ft-ph").count());
 await owner.click('.tabbar button[data-tab="people"]'); await owner.waitForTimeout(200);
 const items = await accountItems(owner);
 ok(["Profile", "My QR", "Friends", "Export", "Import"].every(i => items.includes(i)), "the owner's sheet: " + items.join(", "));

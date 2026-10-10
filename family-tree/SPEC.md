@@ -3,10 +3,9 @@
 The Inggs family tree that Jon Inggs researched and published at familytree.inggs.com, recovered
 from the Wayback Machine's copies (the last whole one, 2 July 2017) before they are lost, and given a private home where
 the family can browse the tree and the oldest photographs and add or correct what they know.
-The brief is `BRIEF.md`; the sessions that build it are `PLAN.md`. This spec is the app as it will
-be. **Built so far (0.2.2, Session 3):** the gate, the waiting screen with the newcomer's invite,
-the People tab, a stub person page with the living rule, the account sheet with Export and the
-owner's Import. Photos and Family say "coming next"; the rest is Session 4 (`PLAN.md`).
+The brief is `BRIEF.md`; the sessions that build it are `PLAN.md`. This spec is the app as it is:
+**1.0.0, the MVP (Session 4).** What comes next is `PLAN.md` (Session 5, research agents) and its
+Parked list (adding family photos is next in line).
 
 **Jon Inggs is the author.** Every screen that shows his work says so: the home page, every
 person page ("Compiled by Jon Inggs · familytree.inggs.com · 2006"), the footer, the GEDCOM's
@@ -14,7 +13,9 @@ person page ("Compiled by Jon Inggs · familytree.inggs.com · 2006"), the foote
 the spelling he uses himself online, and confirmed in Session 2: the
 recovered home page is titled "Jon Inggs's home page".)
 
-**Files.** `index.html` (the app), `sw.js`, `manifest.json`, icons, `tools/` (the Node scripts
+**Files.** `index.html` (the app), `kin.js` (its pure logic: the living rule, the tree view's
+layout, the Markdown renderer, WikiTree's dates beside Jon's and Share as Markdown; `kin.test.mjs`
+beside it, CLAUDE.md rule 1's one exception), `sw.js`, `manifest.json`, icons, `tools/` (the Node scripts
 that recover and parse the site: run locally or in a cloud session, never shipped; each pure
 module has a `*.test.mjs` beside it, run by `node --test` from the repo root), `data/` (a clone of
 the private data repo, gitignored: nothing in it ever enters this repo).
@@ -39,7 +40,9 @@ member is two things that aren't linked (Parked in `PLAN.md`).
 
 ## 2. Screens
 
-Three tabs (`.tabbar`: **People · Photos · Family**), person pages and the tree view on top.
+Four tabs (`.tabbar`: **People · Stories · Photos · Family**; Stories got its own tab rather than
+the top of Photos, Session 4), with person pages, the tree view, a photo and a story opened on top:
+the phone's Back closes them one at a time, and each tab keeps its place.
 Everything on the shared parts (`shared/DESIGN.md`); the app's own CSS is the tree view and the
 photo treatment, nothing else.
 
@@ -49,7 +52,8 @@ then given name: a neutral initial ring or their first photo as the avatar, the 
 years as `.l2` ("1884–1951", "b. 1902", or nothing). A caps label groups them by surname. Tap
 opens the person. The list reads from one `people` listener (a few hundred documents, fine).
 
-**A person.** The name large (Grotesk, the hero), the years line, then:
+**A person.** The name large (Grotesk, the hero), the years line, **Tree** (76px, the one you came
+for: the tree view centred on them), then:
 
 - **Photos** of them, as a strip (tap → the photo).
 - **Born** and **Died**: date and place, as Jon wrote them. Hidden for a living person (§6) behind
@@ -57,6 +61,7 @@ opens the person. The list reads from one `people` listener (a few hundred docum
 - **Parents**, **Married** (each spouse, with the date and place if known), **Children**: rows,
   each a tap to that person. A reference that doesn't resolve shows the name from the source with
   "(not in the tree)".
+- **Jon wrote about them**: each of Jon's stories that names them (tap → the story).
 - **Notes**: Jon's own text, verbatim.
 - **On WikiTree** (only for a person matched to a profile, §4 `wikitree`): "Kept by Jon on
   WikiTree" (or the manager WikiTree names), the profile's current birth and death, fetched live
@@ -66,21 +71,48 @@ opens the person. The list reads from one `people` listener (a few hundred docum
   dates. Offline, or if WikiTree doesn't answer, the row is the link alone. Nothing from WikiTree
   is stored. A link is made only when a second fact agrees beyond name and birth year: the full
   birth date, or a parent's or spouse's name (`tools/wikitree.mjs`); the rest wait in the data
-  repo's `wikitree-review.md` for the owner.
+  repo's `wikitree-review.md` for the owner. ⚠ WikiTree's API answers a browser only from
+  wikitree.com's own pages (checked 2026-10-10: no `Access-Control-Allow-Origin` for any other
+  origin, and no JSONP), so on github.io the read is refused and the row is the link alone, as
+  offline. The app asks once a session and stops; it starts working, unchanged, if WikiTree ever
+  allows the origin.
 - **Source**: "Compiled by Jon Inggs · familytree.inggs.com · 2006" and a link to the Wayback
   page the record came from (opens in the browser).
-- **Tree** (76px, the one you came for): the tree view centred on them.
 - **Suggest a correction**: a sheet with a text box; saves to `suggestions/` with your name.
-  "Thanks, Kenny will look at it."
+  "Thanks, Kenny will look at it." (the owner's first name, from their member document).
+- **Share as Markdown** (the `⋯` beside Back, any member): **Their line** (the person and every
+  parent up to the earliest known ancestor, father then mother, each generation a section) or
+  **Their family** (parents, spouses, children). Each person: name, dates and places verbatim
+  (a living person's only with Show details on), relationships, Jon's notes, the full text of
+  every story that names them (written out once, under the first person it names, and pointed
+  at after), the WikiTree link; every source at the end. `navigator.share` with a `.md` file
+  (NotebookLM, Drive, mail), a download where share isn't offered; logged in `exports/` first,
+  like Export. ⚠ A member born after 2006 isn't in the tree: the line stops at the newest
+  recorded generation until members can add people (Parked).
 
 **The tree view.** The person in the middle; parents, grandparents and great-grandparents above;
 children, grandchildren and great-grandchildren below; spouses beside. Each person a card with
 name and years, in `--accent` for the centre, neutral for the rest; a tap moves the centre there.
-Generations are rows; lines join a child to its parents. It scrolls both ways and fits a phone
-held upright: three generations each way on a 390px screen with the cards readable (nothing
-under 15px). This is the one screen built to feel like something: the brief says aim high, and
+Generations are rows; lines join a child to its parents (neutral above, coral below, the
+descendant cards edged in coral), and a spouse beside the centre is joined to them. A tap moves
+the centre there (Back moves it back); the centre itself opens their page. It scrolls both ways,
+opens with the centre in the middle of the screen, and fits a phone held upright: cards 9rem wide,
+the name at 17px and the years at 15px, at 390px. The layout is `kin.js` `layoutTree`: each person
+sits over the middle of the block their parents (above) or children (below) take, so cards never
+overlap; the page is a CSS grid of half-card columns, one row a generation, and an SVG under the
+cards draws the lines from where they land (redrawn on resize). This is the one screen built to feel like something: the brief says aim high, and
 the owner wants the family to see the shape of the tree, not a table. Reduced motion: no
 animated re-centring.
+
+**Stories.** Jon's family-history pages, by title, each with how many people and photos it has.
+A story opens in a reading view: the title in Grotesk, the body at 18px, selectable, each image
+full width (the thumb at once, the 1400px image as it loads) under its own ALT text (the caption
+Jon wrote beside it is already in the words that follow), `photo:` and `story:` links opening
+the photo or the story (a page that wasn't recovered says so), the source line, and the people it
+names as chips. Markdown by `kin.js` `markdownToHtml`, no library: headings, paragraphs and line
+breaks, rules, quotes, lists, emphasis, links, images and tables; a table wider than four columns
+(Jon's register of the war dead has 21) is a card per row, label and value, read down a phone.
+The 1916 PDF is a link to the Wayback copy.
 
 **Photos.** Every recovered photograph as a grid, newest-captured first, each with its caption
 under it. Tap: the photo full width (the 1400px image, loaded on demand), the caption verbatim,
@@ -88,11 +120,15 @@ the people in it as chips (tap → the person), the source link. A photo the Way
 didn't keep shows as a placeholder with its caption and "Not recovered", so the family knows it
 existed.
 
-**Family.** Who's in: every member with their avatar, "invited by Ann · approved by Kenny". Then
-**Waiting** (§5): each pending invite as "Kenny invited Dad. Is this them?" with **Approve** and
-**Decline** in its `⋯` sheet. Then **Invite family**: **Show my QR** (My QR in the app's look)
-and **Invite a friend** (pick from your Connect friends who aren't members). The owner's `⋯` on
-a member row holds **Hold to remove**.
+**Family.** Who's in: every member with their avatar, "invited by Ann · approved by Kenny" (the
+owner's own row: "Keeps the tree"). Then **Waiting** (§5): each pending invite as "Kenny invited
+Dad" with the email, and **Approve** and **Hold to decline** in its `⋯` sheet ("Is this them?");
+on an invite you sent, the sheet says another member decides (the owner decides any). Then
+**Invite family**: **Show my QR** (My QR in the app's look) and **Invite a friend** (pick from
+your Connect friends who aren't members or waiting; the owner may ask again for someone
+declined). The owner's `⋯` on a member row holds **Hold to remove from the family**. Last, the
+owner alone sees **Suggestions**: each open one with the person, the text, who and when, and in
+its `⋯` **Open** the person and **Hold to mark done** (`status: "done"`, `doneBy`, `doneAt`).
 
 **The account sheet** (your avatar, every tab): Profile, My QR, Friends, **Export** (members:
 the whole tree as JSON, logged, §6), **Import** (owner only: the recovered data, §4), Install on
@@ -131,7 +167,8 @@ photos/<id>         { caption, people: [id], names: [name], file, recovered, thu
 images/<id>         { data }                                         // the 1400px JPEG data URL, apart so lists stay light
 stories/<id>        { title, markdown, images: [photoId], people: [id], source, pdf }   // Jon's pages; pdf: listed, not converted
 suggestions/<id>    { person, personName, text, by, byName, at, status, doneBy, doneAt }   // status: "open" | "done"
-exports/<id>        { by, byName, at, people, photos }               // the export log
+exports/<id>        { by, byName, at, people, photos, kind, person, mode }   // the export log; kind "markdown"
+                                                                     // for Share as Markdown (person, mode "line" | "family")
 meta/main           { source, credit, captured, researcher, people, photos, photosRecovered, stories, mirrorFiles,
                       importedAt, importedBy, version }
 ```
@@ -254,5 +291,7 @@ link per person, read live, never copied: §2, §8); notifications.
 | 2026-10-10 (owner) | **Jon's stories and a Markdown export.** His family-history pages become readable stories linked to the people they name (Sessions 3 and 4, `PLAN.md`); any member can share a person's line or family as Markdown (for NotebookLM and the like), logged like Export. **Research agents** come after the MVP (Session 5), on hard lines: the dead freely, a living person only with their recorded consent and only genealogy, never contact, ID, financial, health, legal or social-media details. |
 | 2026-10-10 (owner) | **Jon's dates stay first; WikiTree's sit beside them** where they differ (replaces "WikiTree's dates win"), and a WikiTree link needs a second fact (the full birth date, or a parent's or spouse's name) beyond name and birth year. A namesake born the same year is common outside the Inggs name: 18 of 117 name-and-year links failed the check and went to the owner's review. |
 | 2026-10-10 (owner) | Accents **lilac** first, **coral** second. |
+| 2026-10-10 (Opus, Session 4) | **Stories is a fourth tab**, not the top of Photos: eleven stories and twenty photos read better apart, and four tabs fit 390px. A story's figure is captioned by the image's ALT, since Jon's own caption follows it in the text. In Share as Markdown a story naming several people in the line is written out once. |
+| 2026-10-10 (Opus, Session 4) | **WikiTree's live read can't run from github.io** (its API allows only wikitree.com origins). Built as specified, with the spec's own fallback (the link alone); no proxy, since there is no server code. |
 | 2026-10-10 (owner) | **The owner approves anyone**, their own invitees included; another member needs a second member. |
 | 2026-10-10 (Fable) | Three tabs; the tree view reached from a person. A living person is one with no death and a birth within 100 years or unknown. Show details is per phone. The seed is the app's own Import, in files under 20 MB, since there is no server code and no admin key. Tools in `tools/` with tests beside them (the brief's own allowance; CLAUDE.md rule 1 names it). |

@@ -1,0 +1,276 @@
+// family-tree/kin.js — the Family Tree's pure logic, no browser and no cloud: the living rule, the
+// tree view's layout, Jon's Markdown as HTML, WikiTree's dates beside Jon's, and Share as Markdown.
+// index.html imports it; kin.test.mjs proves it (`node --test` from the repo root), on the invented
+// mock seed. CLAUDE.md rule 1's one exception, as rack-it/zargo.js.
+
+export const CREDIT = "Compiled by Jon Inggs · familytree.inggs.com · 2006";
+export const WIKITREE = id => `https://www.wikitree.com/wiki/${encodeURIComponent(id)}`;
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const MONTHS_LONG = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+// ---- the living rule (SPEC §6) ----
+// No death recorded, and born within the last 100 years or with no birth year: living. Their dates
+// and places stay behind Show details, a per-phone choice.
+export const yearIn = ev => (ev && ev.year) || Number((String((ev && ev.date) || "").match(/\b(\d{4})\b/) || [])[1]) || null;
+export function isLiving(p, now = new Date()){
+  if (p.death && (p.death.date || p.death.place)) return false;
+  const born = yearIn(p.birth);
+  return !born || born > now.getFullYear() - 100;
+}
+// "1884–1951", "b. 1902", "d. 1950", "c. 1850–1920" (a year from an inexact date), or nothing.
+export function yearsText(p, { details = false, now = new Date() } = {}){
+  if (isLiving(p, now) && !details) return "";
+  const y = ev => { const n = yearIn(ev); return n ? (ev.year ? String(n) : `c. ${n}`) : ""; };
+  const b = y(p.birth), d = y(p.death);
+  return b && d ? `${b}–${d}` : b ? `b. ${b}` : d ? `d. ${d}` : "";
+}
+// A date and place as Jon wrote them: "3 MAR 1850, Townsville".
+export const eventText = ev => [ev && ev.date, ev && ev.place].filter(Boolean).join(", ");
+
+// ---- WikiTree beside Jon (SPEC §2): its dates are shown only where they differ from his ----
+// WikiTree writes "1863-04-11", with 00 for what it doesn't know. → "11 Apr 1863", or "" for none.
+export function wtDate(s){
+  const m = String(s || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m || m[1] === "0000") return "";
+  const mo = Number(m[2]), d = Number(m[3]);
+  return [d && mo ? String(d) : "", mo ? MONTHS[mo - 1] : "", m[1]].filter(Boolean).join(" ");
+}
+// The same day? Jon's "11 APR 1863" and WikiTree's "11 Apr 1863" are; "ABT 1863" and "1863" are
+// too (WikiTree has no "about", so the year is all either says).
+const dateKey = s => String(s || "").toUpperCase().replace(/\b(ABT|ABOUT|CIRCA|C\.|EST|CAL)\b\.?/g, "").replace(/\s+/g, " ").trim();
+export const sameDate = (jon, wt) => dateKey(jon) === dateKey(wt);
+
+// ---- the tree view's layout (SPEC §2) ----
+// Up to `depth` generations each way from the centre: parents above (father first), children below
+// (oldest first), the centre's spouses beside. Each person takes one unit across; a person sits over
+// the middle of the block their own parents (above) or children (below) take, so no two cards in a
+// row share a unit and every x is a whole or half unit. The app lays the units out as a CSS grid of
+// half-unit columns and draws the lines from where the cards land.
+//   → { cols, gens: [-3..3 present], nodes: [{ key, id, gen, x, side }], links: [{ child, parents: [key], side }] }
+//   side: "up" (an ancestor), "centre", "spouse", "down" (a descendant). A link joins a child to the
+//   parents shown in the row above it (below the centre, a spouse too when they're that child's parent).
+export function layoutTree(byId, centreId, { depth = 3 } = {}){
+  const get = id => (byId instanceof Map ? byId.get(id) : byId[id]) || null;
+  const c = get(centreId);
+  if (!c) return null;
+  const order = (a, b) => (a.sex === "M" ? 0 : a.sex === "F" ? 1 : 2) - (b.sex === "M" ? 0 : b.sex === "F" ? 1 : 2);
+  const parentsOf = p => (p.parents || []).map(get).filter(Boolean).sort(order).slice(0, 2);
+  const born = p => yearIn(p.birth) || Infinity;
+  const childrenOf = p => (p.children || []).map(get).filter(Boolean).sort((a, b) => born(a) - born(b));
+  const build = (p, gen, step, next) => {
+    const kids = Math.abs(gen) < depth ? next(p).map(q => build(q, gen + step, step, next)) : [];
+    return { p, gen, kids, w: Math.max(1, kids.reduce((s, k) => s + k.w, 0)) };
+  };
+  const up = build(c, 0, -1, parentsOf), down = build(c, 0, 1, childrenOf);
+  const X = Math.max((up.w - 1) / 2, (down.w - 1) / 2);
+  const nodes = [], links = [];
+  const place = (t, start, side, key) => {
+    t.x = start + (t.w - 1) / 2;
+    t.key = key;
+    let s = start;
+    t.kids.forEach((k, i) => { place(k, s, side, `${key}.${i}`); s += k.w; });
+    if (t.gen) nodes.push({ key, id: t.p.id, gen: t.gen, x: t.x, side });
+  };
+  place(up, X - (up.w - 1) / 2, "up", "u");
+  place(down, X - (down.w - 1) / 2, "down", "d");
+  nodes.push({ key: "c", id: c.id, gen: 0, x: X, side: "centre" });
+  const spouses = (c.spouses || []).map(s => get(s.id)).filter(Boolean);
+  spouses.forEach((s, i) => nodes.push({ key: `s${i}`, id: s.id, gen: 0, x: X + 1 + i, side: "spouse" }));
+  const keyOf = t => (t.gen ? t.key : "c");
+  const walkUp = t => { if (t.kids.length) links.push({ child: keyOf(t), parents: t.kids.map(keyOf), side: "up" }); t.kids.forEach(walkUp); };
+  const walkDown = t => t.kids.forEach(k => {
+    const ps = [keyOf(t)];
+    if (!t.gen) spouses.forEach((s, i) => { if ((k.p.parents || []).includes(s.id)) ps.push(`s${i}`); });
+    links.push({ child: k.key, parents: ps, side: "down" });
+    walkDown(k);
+  });
+  walkUp(up); walkDown(down);
+  // Shift so the leftmost card is at 0.
+  const min = Math.min(...nodes.map(n => n.x));
+  for (const n of nodes) n.x -= min;
+  return { cols: Math.max(...nodes.map(n => n.x)) + 1, gens: [...new Set(nodes.map(n => n.gen))].sort((a, b) => a - b), nodes, links };
+}
+
+// ---- Jon's Markdown as HTML (SPEC §2, Jon's stories) ----
+// The little Markdown tools/stories.mjs writes: headings, paragraphs and line breaks, ---, quotes,
+// "- " lists, bold and italics, links and images, and tables. A link or image to `photo:<id>` or
+// `story:<id>` becomes a data-photo / data-story the app wires up; http(s) opens in the browser;
+// anything else is its words alone. An image on its own line is a <figure data-photo> the app fills
+// with the picture and its caption. A table of up to four columns stays a table; a wider one (Jon's
+// register of the war dead has 21) becomes a card per row of label and value, to read on a phone.
+const esc = s => String(s ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+function linkTo(href, inner){
+  const m = /^(photo|story):(.+)$/.exec(href);
+  if (m) return `<a href="#" data-${m[1]}="${esc(m[2])}">${inner}</a>`;
+  if (/^https?:\/\//i.test(href)) return `<a href="${esc(href)}" target="_blank" rel="noopener">${inner}</a>`;
+  return inner;
+}
+export function inline(s){
+  const parts = [];
+  const keep = html => `\u0000${parts.push(html) - 1}\u0000`;
+  let t = String(s);
+  // Images and links first, held aside so emphasis never reaches into a URL.
+  t = t.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (_, alt, href) => keep(linkTo(href, esc(alt || "a photo"))));
+  t = t.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_, words, href) => keep(linkTo(href, emph(esc(words)))));
+  t = emph(esc(t));
+  return t.replace(/\u0000(\d+)\u0000/g, (_, i) => parts[i]);
+}
+const emph = h => h.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/(^|[^*])\*(?!\s)(.+?)\*(?!\*)/g, "$1<em>$2</em>");
+const cellsOf = line => line.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map(c => c.trim());
+const isRule = cells => cells.length && cells.every(c => /^:?-{3,}:?$/.test(c));
+function table(lines){
+  const rows = lines.map(cellsOf);
+  const ruleAt = rows.findIndex(isRule);
+  const body = rows.filter(r => !isRule(r));
+  const cols = Math.max(...body.map(r => r.length));
+  if (cols <= 4){
+    const head = ruleAt === 1 && body[0].some(Boolean) ? body.shift() : null;
+    return `<div class="ft-tablewrap"><table>${head ? `<thead><tr>${head.map(c => `<th>${inline(c)}</th>`).join("")}</tr></thead>` : ""}<tbody>${
+      body.map(r => `<tr>${r.map(c => `<td>${inline(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+  }
+  // Wide: the labels are whichever of the first two rows is fullest; a row above them is a title.
+  const filled = r => r.filter(Boolean).length;
+  const at = body.length > 1 && filled(body[1]) > filled(body[0]) ? 1 : 0;
+  const labels = body[at], above = body.slice(0, at).flat().filter(Boolean);
+  return (above.length ? `<p class="note">${above.map(inline).join(" · ")}</p>` : "") + body.slice(at + 1).map(r =>
+    `<dl class="ft-rec">${r.map((v, i) => v ? `<dt class="lbl">${inline(labels[i] || "")}</dt><dd>${inline(v)}</dd>` : "").join("")}</dl>`).join("");
+}
+export function markdownToHtml(md){
+  const lines = String(md || "").replace(/\r\n?/g, "\n").split("\n");
+  const out = [];
+  let para = [];
+  const endPara = () => {
+    if (!para.length) return;
+    const solo = para.length === 1 && /^!\[([^\]]*)\]\(photo:([^)\s]+)\)$/.exec(para[0].trim());
+    if (solo) out.push(`<figure data-photo="${esc(solo[2])}"><figcaption>${esc(solo[1])}</figcaption></figure>`);
+    // The lines go through together, so bold that runs across a line break still closes.
+    else out.push(`<p>${inline(para.map((l, i) => l.trim() + (i < para.length - 1 ? (/ {2,}$/.test(l) ? "\u0001" : " ") : "")).join("")).replace(/\u0001/g, "<br>")}</p>`);
+    para = [];
+  };
+  for (let i = 0; i < lines.length; i++){
+    const l = lines[i];
+    let m;
+    if (!l.trim()){ endPara(); continue; }
+    if ((m = /^(#{1,6})\s+(.*)$/.exec(l))){ endPara(); out.push(`<h${m[1].length}>${inline(m[2])}</h${m[1].length}>`); continue; }
+    if (/^\s*(-{3,}|\*{3,})\s*$/.test(l)){ endPara(); out.push("<hr>"); continue; }
+    if (/^\s*>/.test(l)){
+      endPara();
+      const q = [];
+      while (i < lines.length && /^\s*>/.test(lines[i])) q.push(lines[i++].replace(/^\s*>\s?/, ""));
+      i--;
+      out.push(`<blockquote>${markdownToHtml(q.join("\n"))}</blockquote>`);
+      continue;
+    }
+    if (/^\s*\|/.test(l)){
+      endPara();
+      const t = [];
+      while (i < lines.length && /^\s*\|/.test(lines[i])) t.push(lines[i++]);
+      i--;
+      out.push(table(t));
+      continue;
+    }
+    if (/^\s*[-*]\s+/.test(l)){
+      endPara();
+      const items = [];
+      while (i < lines.length && /^\s*[-*]\s+/.test(lines[i])) items.push(lines[i++].replace(/^\s*[-*]\s+/, ""));
+      i--;
+      out.push(`<ul>${items.map(x => `<li>${inline(x)}</li>`).join("")}</ul>`);
+      continue;
+    }
+    para.push(l);
+  }
+  endPara();
+  return out.join("\n");
+}
+
+// ---- Share as Markdown (SPEC §2, PLAN Session 4) ----
+// "line": the person and every parent up to the earliest known ancestor, father then mother, each
+// generation a section. "family": the person, their parents, spouses and children. Each person:
+// name, dates and places verbatim (a living person's only with details on), Jon's notes, the full
+// text of every story that names them (a story naming several people in it is written out once,
+// under the first, and pointed at after), the WikiTree link, and every source at the end.
+// people and stories: arrays or Maps by id. photos (optional) gives a story's pictures their captions.
+export function lineageMarkdown(people, stories, id, mode = "line", { details = false, now = new Date(), photos = null } = {}){
+  const P = people instanceof Map ? people : new Map(people.map(p => [p.id, p]));
+  const S = stories instanceof Map ? [...stories.values()] : stories || [];
+  const Ph = photos instanceof Map ? photos : new Map((photos || []).map(p => [p.id, p]));
+  const me = P.get(id);
+  if (!me) return "";
+  const order = (a, b) => (a.sex === "M" ? 0 : a.sex === "F" ? 1 : 2) - (b.sex === "M" ? 0 : b.sex === "F" ? 1 : 2);
+  const parentsOf = p => (p.parents || []).map(x => P.get(x)).filter(Boolean).sort(order);
+  const sections = [];
+  if (mode === "family"){
+    sections.push([me.name, [me]]);
+    sections.push(["Parents", parentsOf(me)]);
+    sections.push(["Married", (me.spouses || []).map(s => P.get(s.id)).filter(Boolean)]);
+    sections.push(["Children", (me.children || []).map(x => P.get(x)).filter(Boolean)]);
+  } else {
+    const seen = new Set([me.id]);
+    let level = [me];
+    for (let g = 0; level.length && g < 60; g++){
+      sections.push([g === 0 ? me.name : generationName(g), level]);
+      const next = [];
+      for (const p of level) for (const q of parentsOf(p)) if (!seen.has(q.id)){ seen.add(q.id); next.push(q); }
+      level = next;
+    }
+  }
+  const told = new Map();   // story id → the name it was written out under
+  const sources = new Map(); // url → [what it's the source of]
+  const cite = (url, what) => { if (url){ if (!sources.has(url)) sources.set(url, []); sources.get(url).push(what); } };
+  const names = ids => ids.map(x => (P.get(x) || {}).name).filter(Boolean).join(", ");
+  const d = new Date(now);
+  const out = [
+    `# ${me.name}: ${mode === "family" ? "their family" : "their line"}`, "",
+    `${CREDIT}. Shared from the Inggs Family Tree on ${d.getDate()} ${MONTHS_LONG[d.getMonth()]} ${d.getFullYear()}.`, "",
+  ];
+  for (const [title, ps] of sections){
+    if (!ps.length) continue;
+    out.push(`## ${title}`, "");
+    for (const p of ps){
+      out.push(`### ${p.name}`, "");
+      const facts = [];
+      if (isLiving(p, now) && !details) facts.push("Living: dates and places left out");
+      else {
+        if (eventText(p.birth)) facts.push(`Born: ${eventText(p.birth)}`);
+        if (eventText(p.death)) facts.push(`Died: ${eventText(p.death)}`);
+      }
+      if ((p.parents || []).length) facts.push(`Parents: ${names(p.parents)}`);
+      const married = (p.spouses || []).map(s => {
+        const sp = P.get(s.id);
+        const hide = !details && (isLiving(p, now) || (sp && isLiving(sp, now)));
+        const when = hide ? "" : [s.date, s.place].filter(Boolean).join(", ");
+        return `${(sp && sp.name) || s.name}${when ? ` (${when})` : ""}`;
+      }).concat((p.refs || []).filter(r => r.role === "spouse").map(r => `${r.name} (not in the tree)`));
+      if (married.length) facts.push(`Married: ${married.join("; ")}`);
+      if ((p.children || []).length) facts.push(`Children: ${names(p.children)}`);
+      const otherRefs = (p.refs || []).filter(r => r.role !== "spouse");
+      if (otherRefs.length) facts.push(`Also named: ${otherRefs.map(r => `${r.name}, ${r.role} (not in the tree)`).join("; ")}`);
+      if (p.wikitree) facts.push(`On WikiTree: ${WIKITREE(p.wikitree)}`);
+      out.push(...facts.map(f => `- ${f}`), "");
+      if (p.notes) out.push(String(p.notes).trim(), "");
+      cite(p.source && p.source.wayback, p.name);
+      for (const s of S.filter(s => (s.people || []).includes(p.id))){
+        if (told.has(s.id)){ out.push(`Jon's story "${s.title}" is above, under ${told.get(s.id)}.`, ""); continue; }
+        told.set(s.id, p.name);
+        cite(s.source && s.source.wayback, `Jon's story "${s.title}"`);
+        out.push(`#### Jon wrote: ${s.title}`, "");
+        out.push(s.markdown ? storyBody(s.markdown, Ph) : `A PDF on Jon's site, not converted: ${(s.source && s.source.wayback) || ""}`, "");
+      }
+    }
+  }
+  out.push("## Sources", "", `- ${CREDIT}`);
+  for (const [url, what] of sources) out.push(`- ${what.join(", ")}: ${url}`);
+  return out.join("\n").replace(/\n{3,}/g, "\n\n").trim() + "\n";
+}
+export function generationName(g){
+  return g === 1 ? "Parents" : g === 2 ? "Grandparents" : g === 3 ? "Great-grandparents" : `${g - 2}× great-grandparents`;
+}
+// A story inside the export: its own title line dropped (the heading above says it), its headings
+// moved under that one, and photo: and story: links, which mean nothing outside the app, made words.
+function storyBody(md, photos){
+  return String(md).replace(/^#\s+.*\n+/, "")
+    .replace(/^(#{1,6})\s/gm, (_, h) => "#".repeat(Math.min(6, h.length + 4)) + " ")
+    .replace(/!\[([^\]]*)\]\(photo:([^)\s]+)\)/g, (_, alt, id) => `*[Photo: ${(photos.get(id) || {}).caption || alt || id}]*`)
+    .replace(/\[([^\]]+)\]\((?:photo|story):[^)\s]+\)/g, "$1")
+    .trim();
+}

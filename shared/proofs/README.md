@@ -27,6 +27,8 @@ shares `pw.mjs` with them.
 | `photo-coach-open.mjs` | Session 9 step 2: Photo Coach on the open rule, on a seed of the owner's old log; a stranger's empty log; the stored size of a full photo | Playwright |
 | `zombie-dice-phones.mjs` | Session 9 step 3: one phone as before; three tabs play a whole game, the starter playing for a guest; a Game QR seat | Playwright |
 | `family-tree-gate.mjs` | Family Tree Session 3: the owner's people list on the invented seed (`seeds/family-tree-mock.json`, from `family-tree/tools/mock-seed.mjs`), the living rule, Import twice without duplicates; a stranger's waiting screen; signed out; a scan that writes the newcomer's invite, and approval opening the tree | Playwright |
+| `family-tree-invites.mjs` | Family Tree Session 4: the Family tab. The owner's QR, Dad waits and is approved from Waiting; Ann invites friends without a QR, can't approve her own, Dad approves one and the owner declines the other; a suggestion marked done; a member removed | Playwright |
+| `family-tree-tree.mjs` | Family Tree Session 4: the person page, the tree view at 390×844 (four generations, no card overlapping, nothing under 15px, re-centring and Back; a screenshot to `SHOTS`), photos, Jon's stories, Share as Markdown logged | Playwright |
 | `rules.mjs` | `shared/rules-check.mjs` against the rules on a local emulator | Java 21, npx |
 | `mutate.mjs`, `guards.mjs` | Loosens each guard in turn; its own case must go red | Java 21, npx |
 

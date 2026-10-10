@@ -32,7 +32,8 @@ sidequests/
     index.html            ← the whole app, one file
     sw.js  manifest.json  icon.svg
     SPEC.md               ← the brief; read it before touching the app
-  family-tree/            ← also PLAN.md (the sessions), BRIEF.md, tools/ (the Node scripts that recover and
+  family-tree/            ← also kin.js (its pure logic, tested: the tree layout, Markdown, Share as Markdown),
+                            PLAN.md (the sessions), BRIEF.md, tools/ (the Node scripts that recover and
                             parse the archived site, with tests; never shipped) and data/ (gitignored: a clone
                             of the private data repo; no family data ever enters this repo)
 ```
