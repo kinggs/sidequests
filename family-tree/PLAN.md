@@ -145,26 +145,26 @@ closes), run it again. If it can't connect at all, say so in the next session. W
 Step 3's WikiTree save into `family-tree/data/wikitree/` so the one push carries both. Then start a new
 cloud session with: "Read `family-tree/PLAN.md` and finish Session 2 from the laptop run."
 
-- [ ] **Owner:** the laptop run, pushed to the data repo.
+- [x] **Owner:** the laptop run, pushed to the data repo. (Done by the desktop session itself, 2026-10-10.)
 
 ### Step 0 — The inventory and the sample (Session 1's step 4)
 
-- [ ] `NODE_USE_ENV_PROXY=1 node family-tree/tools/inventory.mjs` (the env var only in the cloud).
+- [x] `NODE_USE_ENV_PROXY=1 node family-tree/tools/inventory.mjs` (the env var only in the cloud).
       It writes `data/cdx.json` (every capture),
       `data/cdx-best.json` (the chosen capture per URL) and `data/inventory.md`, and prints the
       shape. Paste the printed lines into **Findings** below (`data/inventory.md` holds them).
       `inggs.com` and `*.inggs.com` are run too, by `--host` (no edit), into `data/hosts/`;
       record what each returned.
-- [ ] The brief's "last known good" is 2010-02-14, but the availability API says the home page's
+- [x] The brief's "last known good" is 2010-02-14, but the availability API says the home page's
       latest 200 is **2010-04-18 17:31:09** (Session 1 Handover). Check that capture: if it is the
       site, intact and later, set `TARGET` in `tools/cdx.mjs` to it (one constant, one test
       fixture) and say so in Findings; if it is a 401 dressed as a 200 or a holding page, keep
       February. Also look at `inggs.com` (captured 2010-02-22): if it links to the tree or holds
       photos, add it to the inventory with a second `HOST` run.
-- [ ] Is there a GEDCOM in the index (`describe()` says)? If so, it changes Session 3: say so in
+- [x] Is there a GEDCOM in the index (`describe()` says)? If so, it changes Session 3: say so in
       Findings, download it in step 1 like any file, and Session 3's parser becomes a GEDCOM
       reader first and an HTML parser for what the GEDCOM lacks (photos, notes).
-- [ ] **Sample by hand** (BRIEF.md Phase 2 step 1): the home page, an index or surname page, and
+- [x] **Sample by hand** (BRIEF.md Phase 2 step 1): the home page, an index or surname page, and
       five or six person pages, fetched with the `id_` URL. Write **The site's pattern** below:
       the generator (a `<meta name="generator">`, a footer line, the file naming), where the
       name, sex, birth, death, parents, spouses and children sit (tags, classes, label text), how
@@ -212,7 +212,7 @@ cloud session with: "Read `family-tree/PLAN.md` and finish Session 2 from the la
 
 ### Step 4 — The recovery report
 
-- [ ] `data/report.md`: URLs in the index, pages and images recovered, missing (by status), bytes,
+- [x] `data/report.md`: URLs in the index, pages and images recovered, missing (by status), bytes,
       the capture date range, the GEDCOM question, the WikiTree counts, what strays found, and
       anything the parser should know. One page.
 - [ ] Commit and push the data repo. Commit the tools and this doc's Findings and Handover to
@@ -224,10 +224,35 @@ and `git status` in `sidequests` shows no data.
 
 ### Findings (Session 2 fills in)
 
-- Inventory: _the `describe()` lines_.
-- GEDCOM in the index: _yes/no_.
-- Recovered: _N pages, N images; missing N (401), N (404), N never captured_.
-- WikiTree: _N profiles; managed by…; overlap…_.
+- **Where the tree was:** not on familytree.inggs.com, a forwarder framing Jon's ISP page
+  `home.intekom.com/joni` (The site's pattern). The tools were re-aimed there (`cdx.SITE`,
+  `ALIASES`, `QUERIES`).
+- **Inventory:** `Captures 10679 of 782 URLs, 1998-12-05 to 2021-02-13; 760 URLs best-captured
+  on 2017-07-02; 6 with no 200 at all.` By kind: page 760, image 20, file 1, other 1. Best status:
+  200 776, 404 5, 301 1. Paths: `/html/` 726, `/` 52. Extensions: htm 753, jpg 19, and a gif,
+  a pdf, a txt, two xml.
+- **The target moved to 2 July 2017** (`TARGET = "20170702235959"`). February 2010 was the
+  forwarder's last good day, not Jon's pages': they stayed up until 2017 with the same 2006 tree
+  (his home page then: "updated 17th July 2006", last updated 6 September 2016). With the 2010
+  target, 19 family pages came from his older 2002 build, whose family numbers differ; the 2017
+  captures fixed 18. `fam00316.htm` is still the 2002 build (no later capture): the parser checks
+  its people against the names index. 724 URLs whose capture moved had identical bytes and kept
+  the copy already mirrored (`sameAs` in `cdx-best.json`); 32 were re-fetched.
+- **inggs.com and \*.inggs.com:** 5 and 7 URLs. inggs.com was another forwarder, onto a Windows
+  Live Spaces family blog (`inggs.spaces.live.com`), of which the archive holds only a 2011 home
+  page. Nothing to add to the mirror (Parked).
+- **GEDCOM in the index: no**, and never published. Session 3 parses the HTML. The email asks Jon
+  for the GEDCOM; if it comes, it replaces most of the parser.
+- **Recovered: 776 of 782 URLs, 5.4 MB**: 721 family pages, 4 index pages (2,280 names, 554
+  surnames, 325 Inggs), 28 of Jon's own pages, 20 images, a 1916 memoir (PDF), the forwarder's 2.
+  Missing: 5 × 404 (`ehsoc`, `ehsoc.html`, `html/ind01873.htm`, two `filelist.xml`), 1 × 301.
+  Never captured: none (strays read 754 pages, found nothing new). Soft-404s: none.
+- **WikiTree:** 44 Inggs profiles, 14 managers, births 1779–1922 where given; Jon manages several,
+  last edited 16 September 2026. Against the names index: 8 match on first name and birth year, 8
+  on first name only, 28 don't match. Owner's decision: link by id, read live (Step 3).
+- **Jon's own pages** (the stories): the surname's origins, early photographs and history (with a
+  burial account from 1819), a 150th anniversary, pages on individual relatives, a 1930 obituary,
+  the war dead, statistics, "new". About 15 more are his economic-history work, not family.
 
 ### The site's pattern (Session 2 fills in; Session 3's parser and its fixtures follow it)
 
@@ -260,15 +285,16 @@ and `git status` in `sidequests` shows no data.
 - **Notes:** none on the pages sampled. Some child names carry a short prefix of Jon's
   (`D1 <given> <SURNAME>`); keep it verbatim, don't interpret it.
 - **Photos and captions:** none on the Gedpage pages. Photos are on Jon's hand-made pages beside
-  the tree (`joni/j_stone.htm`, "photographs and history"; `joni/*.jpg`, a few dozen in the index),
+  the tree (`joni/j_stone.htm`, "photographs and history"; `joni/*.jpg`, 20 in the index),
   with captions in the page text. Session 3 links them to people by hand-checked name matches.
 - **Index pages:** `namesN.htm`: under `<A NAME="SURNAME">` anchors, one line per person,
   `<A HREF="famN.htm">SURNAME, Given</A> (birth-death)<BR>`, dates as on the family page, either
   side blank. This is the closest thing to a person list: one row per person with their page.
 - **Character set and oddities:** no charset declared; the names index is ISO-8859-1 (accented
   names), the rest ASCII; CRLF line ends; upper-case tags. Jon's own pages (home, history,
-  articles, the economic-history society) share the folder: the parser reads only
-  `joni/html/` and the photo pages.
+  articles, the economic-history society) share the folder: the parser reads `joni/html/`, and
+  Session 3's stories step reads the family-history pages (Findings lists them); the
+  economic-history pages stay in the mirror only.
 
 ---
 
@@ -300,6 +326,21 @@ what it lacks.
 - [ ] `data/parse-report.md`: people parsed, photos (recovered vs missing), unresolved refs,
       pages that failed to parse, one-sided links fixed. The brief's one-page recovery report is
       this plus Session 2's.
+
+### Step 1b — Jon's stories (owner, 2026-10-10)
+
+- [ ] `tools/stories.mjs` → `data/stories/<slug>.md` and `data/stories.json`: each of Jon's
+      family-history pages (Findings: the surname's origins, photographs and history, the 150th,
+      the relatives' pages, the 1930 obituary, the war dead, statistics, "new"; not the
+      economic-history pages) as clean Markdown, Jon's words verbatim, images in place by their
+      mirror path, headed with the title, the Wayback source and the capture date. The 1916 PDF is
+      listed with its title, not converted. `stories.json`: `{ id, title, file, source, images,
+      people: [personId] }`, `people` by name match against `people.json`; a name that matches
+      more than one person or none goes in `parse-report.md` for the owner, not linked. The pure
+      HTML→Markdown step gets `stories.test.mjs` on an invented page.
+- [ ] SPEC §4 gains `stories/<id> { title, markdown, images: [photoId], people: [id], source }`
+      and the rules block reads it like `people` (member read, owner write): the cases go with
+      Step 4's.
 
 ### Step 2 — GEDCOM
 
@@ -417,6 +458,20 @@ session, load it before the tree view; if not, say so and build from DESIGN.md.
       the Wayback link, **Tree**
       (76px), **Suggest a correction** (a sheet → `suggestions/`). Living: Show details toggles
       the dates and places, per phone.
+- [ ] **Jon's stories**: a reading view (Grotesk title, body at 18px, images full width with
+      their captions, the source line), reached from a **Stories** list (the top of the Photos
+      tab, or a fourth tab if DESIGN.md's count allows: decide by eye) and from a person's
+      **Jon wrote about them** row. Markdown rendered by a small hand renderer (headings,
+      paragraphs, emphasis, links, images): no library.
+- [ ] **Share as Markdown** (any member, on a person's `⋯`): **Their line** (the person and every
+      parent up to the earliest known ancestor, by father then mother, each generation a
+      section) or **Their family** (parents, spouses, children). Each person: name, dates and
+      places verbatim (the living rule applies: hidden unless Show details), the full text of
+      every story that names them, the WikiTree link, and a sources list at the end. `navigator.share`
+      with a `.md` file (NotebookLM, Drive, mail), a download where share isn't offered; logged in
+      `exports/` like Export. The building is a pure function (`lineageMarkdown(people, stories,
+      id, mode)`) the proof calls on the mock seed. ⚠ A member born after 2006 isn't in the tree;
+      the line stops at the newest recorded generation until members can add people (Parked).
 - [ ] **The tree view**: three generations up and down and spouses beside, the centre in lilac,
       the descendant side's lines in coral; cards of name and years; a tap re-centres; scrolls both
       ways; readable at 390×844 with nothing under 15px; no animation under reduced motion. Build
@@ -441,7 +496,8 @@ session, load it before the tree view; if not, say so and build from DESIGN.md.
       `eve`; `ann` can't approve her own invitee but `dad` can. `family-tree-tree.mjs`: the tree
       view renders four generations at 390×844 with no overlap (card rects don't intersect) and a
       screenshot to `SHOTS`. Smoke green.
-- [ ] SPEC.md updated to "the app as it is"; KIT.md's row; this doc's Handover.
+- [ ] SPEC.md updated to "the app as it is"; KIT.md's row; this doc's Handover. If the session
+      runs long, the stories view and Share as Markdown are the first to move to a Session 4b.
 - [ ] Version `1.0.0`, `/deployquest`.
 - [ ] **Owner:** install on the phone, browse to the grandparents' photos, show Dad the QR, approve
       him. Tick this box. Send the email to Jon if not yet sent (`EMAIL-DRAFT.md`).
@@ -449,6 +505,42 @@ session, load it before the tree view; if not, say so and build from DESIGN.md.
 **Done when:** the owner's step above is ticked.
 
 ---
+
+## Session 5 — Research agents (sketch; planned after Session 4 is live)
+
+**Goal:** agents that fill the tree's gaps from public records and hand every finding to a person
+to approve. Not specified yet: Session 5 opens with the owner's answers to the questions below,
+then plans itself the way Session 1 did.
+
+**Shape.** A tool lists the gaps (no birth year, no parents, a `ref` that didn't resolve, a
+story naming someone not in the tree) and writes one brief per gap: who, what's known with its
+source, what's missing. An agent takes a brief, searches public sources, and writes back a
+finding with a citation for every claim. A finding is a **suggestion** (SPEC §4), never a change
+to the tree: the owner approves it, and the person's record shows it with its source. Agents
+have no Firestore access (no service account): briefs and findings move through the data repo
+(`research/briefs/`, `research/findings/`) and the owner's Import.
+
+**Hard lines (owner, 2026-10-10).** These are rules, not settings:
+
+- **The dead:** anything in public records.
+- **A living person** (SPEC §6's rule) **only with their consent**, recorded on their record
+  (`research: "none" | "genealogy" | "genealogy-shared"`, default `"none"`): set by the person once
+  they have claimed their record, or by the owner with a dated note ("Dad said yes, 12 Oct").
+  Consent covers genealogy only: published birth, marriage and death indexes, newspaper notices,
+  school and graduation lists, public service records, relatives' obituaries that name them,
+  their own published work. Findings go to that person first, and to the family only if they
+  choose (`"genealogy-shared"`).
+- **Never, for anyone living, even with consent:** current address, phone, email, ID or passport
+  numbers, employer today, finances, health, court or legal records, social-media profiles,
+  current photos. The agent brief says so and the review rejects a finding that carries any.
+- **Without consent: nothing** about a living person is searched.
+- For a living relative, the first tool is an interview, not an agent: a **Tell your story**
+  sheet the person fills in, or a member fills in with them.
+
+**Open questions for the owner (Session 5's opening):** which sources (FamilySearch, the South
+African archives' NAAIRS, eGGSA, WikiTree, newspaper archives); Claude Code sessions or a
+scheduled cloud routine; how many briefs a run, and the cost ceiling; who besides the owner may
+approve findings.
 
 ## Parked (not in any session)
 
@@ -465,6 +557,12 @@ session, load it before the tree view; if not, say so and build from DESIGN.md.
 - A one-off Node seed using the Admin SDK, if the owner ever adds a service account with Firestore
   write; until then the app's Import is the seed (no server code, no paid plan: KIT-PLAN.md).
 - Revisit the trust-the-family approval if membership passes a few dozen.
+- **A family wiki** (owner, 2026-10-10, uncertain): members adding to any record, stories about
+  parents and grandparents in their own words, open to the family, with an edit history,
+  per-person visibility and opt-out. It grows from the first Parked item (members editing, with
+  history) and Session 5's consent field. Decide after Session 4 is in the family's hands.
+- `inggs.com` framed a Windows Live Spaces family blog (`inggs.spaces.live.com`); the archive holds
+  only its 2011 home page. Ask the family whether anyone kept its photos.
 - The 24-hour QR code can't be printed for a family gathering (KIT-PLAN Parked, Groups).
 
 ## Handover
@@ -582,3 +680,35 @@ answers them. This session tried to push a one-step probe workflow to the data r
 session's permission check refused it (adding CI to a shared repo); it wasn't pushed and nothing
 was left behind. If the owner says yes to it, the next session can add it.
 
+### After Session 2, part 2 (Opus 5.5, desktop, 2026-10-10)
+
+**Which way it went: a desktop session on the laptop**, and `web.archive.org` answered (200).
+
+**Done:** the inventory, the checks, the mirror, strays, the hand sample, WikiTree's counts, and
+`data/report.md`; Findings and The site's pattern above. The big turn: familytree.inggs.com was
+only a forwarder, so the tools now aim at `home.intekom.com/joni` (`.co.za` folded in) and the
+target moved to the site's last good day, 2 July 2017 (Findings says why). `node --test`: 19
+family-tree tool tests, 61 in all, pass. Smoke skipped: no Playwright on this laptop, and no app
+or `shared/` file changed.
+
+**Owner decisions this session** (SPEC §8): WikiTree linked by id and read live, never copied (the
+email updated to say so and to offer Jon the recovered tree); Jon's stories and Share as
+Markdown (Sessions 3 and 4); research agents as a sketched Session 5 on hard lines for the
+living; a family wiki parked, undecided.
+
+**For Session 3:**
+
+- The parser reads the **names index** as the person list (2,280 rows) and the family pages for
+  relationships and events; there are no person ids (SPEC §4 now says slugs). Fixtures follow The
+  site's pattern. `fam00316.htm` is the one 2002-build page.
+- New steps: 1b (stories) and 2b (WikiTree ids).
+- Jon's addresses are in `data/report.md` for the email, never in this repo.
+- The data repo was pushed by this session; if `git log` there shows no "Recovery run", the push
+  was refused and the owner runs it (Step 4).
+
+⚠ **For the owner:** the credit line reads "familytree.inggs.com, 2010" (SPEC §2, §8). The tree
+is the 2006 build and lived at Jon's intekom page; "Researched by Jon Inggs · 2006" may be truer.
+Say if you want it changed; Session 3 writes the credit into the data.
+
+**How to start Session 3:** "Read `family-tree/PLAN.md` and do Session 3." Cloud or desktop: it
+needs no archive access, only the data repo.
