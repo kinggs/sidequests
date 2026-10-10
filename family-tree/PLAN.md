@@ -444,7 +444,10 @@ screen; nothing personal is in `sidequests`.
 
 **Goal:** the person page, the tree view, the photo gallery, suggestions, the Family tab with
 invites and members, the launcher tile, and `1.0.0` live. MVP done when Kenny can sign in on his
-phone and browse to his grandparents' photos, and his father can be invited by QR and approved.
+phone, browse from his grandparents' records up through Jon's tree, read Jon's stories with their
+photos, and his father can be invited by QR and approved. (The brief said "his grandparents'
+photos"; the recovery found 20 photos, all on Jon's history pages, so that test was changed on
+2026-10-10: the MVP preserves what Jon had, and adding family photos stays Parked, next in line.)
 
 Read `shared/DESIGN.md` again before this session; the tree view and the photo treatment are the
 app's own CSS, everything else is theme parts. If a `frontend-design` skill is available in the
@@ -499,7 +502,8 @@ session, load it before the tree view; if not, say so and build from DESIGN.md.
 - [ ] SPEC.md updated to "the app as it is"; KIT.md's row; this doc's Handover. If the session
       runs long, the stories view and Share as Markdown are the first to move to a Session 4b.
 - [ ] Version `1.0.0`, `/deployquest`.
-- [ ] **Owner:** install on the phone, browse to the grandparents' photos, show Dad the QR, approve
+- [ ] **Owner:** install on the phone, browse from the grandparents up the tree and open one of Jon's
+      stories with its photos, show Dad the QR, approve
       him. Tick this box. Send the email to Jon if not yet sent (`data/EMAIL-DRAFT.md`).
 
 **Done when:** the owner's step above is ticked.
@@ -537,6 +541,22 @@ have no Firestore access (no service account): briefs and findings move through 
 - For a living relative, the first tool is an interview, not an agent: a **Tell your story**
   sheet the person fills in, or a member fills in with them.
 
+**Archive requests (owner, 2026-10-10).** Much of what's missing isn't online, so agents also
+draft what a person sends to an archive. A **research request** is a short letter built from a
+topic, not only a person: who or what (a person, or a family business and the people known from
+it), places, a date range, what's already known with its sources, and the exact ask (for
+example: references to the business and its well-known people in the newspapers and magazines a
+library holds, the years to search, the copy or scan wanted). It exports as plain text or
+Markdown, to send by email or a library's request form, and the reply comes back as a story or
+suggestions with the library's reference. Beside it, a **research guide** (`family-tree/RESEARCH.md`,
+public, no family data): how to research deeper in South Africa, the archives and what each
+holds, how to write a request a librarian can act on, what it costs and how long it takes,
+how to cite what comes back. ⚠ Session 5 checks each archive's current services and request
+routes before writing them down (to start from: the National Library of South Africa's newspaper
+holdings, the National Archives' online index NAAIRS and its provincial repositories, the
+Genealogical Society of South Africa's eGGSA, and local museums). The specifics of the family
+business sit in the data repo, not here.
+
 **Open questions for the owner (Session 5's opening):** which sources (FamilySearch, the South
 African archives' NAAIRS, eGGSA, WikiTree, newspaper archives); Claude Code sessions or a
 scheduled cloud routine; how many briefs a run, and the cost ceiling; who besides the owner may
@@ -546,6 +566,8 @@ approve findings.
 
 - Members editing people directly, with an edit history (`history/` per person); then adding
   photos (the photo-coach pattern, 1400px data URLs; Firebase Storage if that gets heavy).
+  **Adding family photos is next in line after the MVP** (owner, 2026-10-10): the recovery holds
+  only Jon's 20, so the family's own photos are how the tree gets faces.
 - A member claiming the person in the tree that is them (links a `people/<id>` to a uid; would let
   "Show details" default to on for your own record).
 - Jon as a member with edit rights, if he wants in.
