@@ -10,7 +10,10 @@
 // the id_ flag still serves the content, so for choosing a capture it counts as that digest's
 // status.
 
-export const TARGET = "20100214230828";   // the last known good capture (BRIEF.md): 14 Feb 2010
+// The capture to prefer: the site's last good state. BRIEF.md's 14 Feb 2010 was the forwarder's
+// last good day; Jon's own pages stayed up until 2017, and their latest capture holds the same
+// 2006 tree with none of the 2002 build's stale pages (Session 2).
+export const TARGET = "20170702235959";   // the end of 2 July 2017, the last day the archive saw it whole
 // familytree.inggs.com only ever framed Jon's ISP home page (Session 2 found it): the tree lived
 // at home.intekom.com/joni, earlier home.intekom.co.za/joni (the same paths, so one site here).
 export const SITE = "home.intekom.com/joni";
@@ -118,7 +121,7 @@ export const waybackView = (timestamp, url) => `https://web.archive.org/web/${ti
 // The shape of the site, read off the inventory (BRIEF.md, Phase 1 step 2): counts by kind and
 // status, the date range, the URL conventions (the first path segment of every page) and how
 // many URLs have no 200 at all. Pure, so the report is the same wherever it's printed.
-export function analyse(rows, best = pickBest(rows), host = HOST){
+export function analyse(rows, best = pickBest(rows), host = HOST, target = TARGET){
   const stamps = rows.map(r => r.timestamp).filter(Boolean).sort();
   const years = {};
   for (const s of stamps) years[s.slice(0, 4)] = (years[s.slice(0, 4)] || 0) + 1;
@@ -141,7 +144,7 @@ export function analyse(rows, best = pickBest(rows), host = HOST){
     first: stamps[0] || null, last: stamps[stamps.length - 1] || null, years,
     kinds: sortDesc(kinds), statuses: sortDesc(statuses), prefixes: sortDesc(prefixes), extensions: sortDesc(extensions),
     gedcom: [...best.values()].filter(b => b.kind === "gedcom").map(b => b.url),
-    onTarget: [...best.values()].filter(b => b.timestamp.startsWith(TARGET.slice(0, 8))).length,
+    target, onTarget: [...best.values()].filter(b => b.timestamp.startsWith(target.slice(0, 8))).length,
   };
 }
 
@@ -150,7 +153,7 @@ export function describe(a){
   const line = (k, o) => `${k}: ` + Object.entries(o).map(([x, n]) => `${x} ${n}`).join(", ");
   const day = s => s ? `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}` : "none";
   return [
-    `Captures ${a.captures} of ${a.urls} URLs, ${day(a.first)} to ${day(a.last)}; ${a.onTarget} URLs best-captured on 2010-02-14; ${a.missing} with no 200 at all.`,
+    `Captures ${a.captures} of ${a.urls} URLs, ${day(a.first)} to ${day(a.last)}; ${a.onTarget} URLs best-captured on ${day(a.target)}; ${a.missing} with no 200 at all.`,
     line("By kind", a.kinds), line("Best status", a.statuses), line("Years", a.years), line("Paths", a.prefixes), line("Extensions", a.extensions),
     a.gedcom.length ? `GEDCOM found: ${a.gedcom.join(", ")}` : "No GEDCOM file in the index.",
   ].join("\n");
