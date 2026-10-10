@@ -149,7 +149,7 @@ One planning session on Fable, then implementation on Opus 5.5, since Fable usag
 Decisions still needed from Kenny:
 
 - [x] Surname confirmed: Inggs. App id `family-tree`.
-- [x] Confirm "no family data in the public repo": confirmed 2026-10-10. The mirror, manifest, parsed JSON, GEDCOM and seed files live in a private data repo (`kinggs/family-tree-data`), cloned at `family-tree/data/` (gitignored). Pages is untouched.
+- [x] Confirm "no family data in the public repo": confirmed 2026-10-10. The mirror, manifest, parsed JSON, GEDCOM and seed files live in a private data repo (`kinggs/kinggs-family-tree-data`), cloned at `family-tree/data/` (gitignored). Pages is untouched.
 - [x] Living-person rule: go with the default above (born after 1926, no death date → details hidden by default).
 - [x] Members: Kenny only at launch, with invites built in from day one. First invitee is Kenny's father, who is not technical: the invite must work from a phone (QR or a link) and viewing must need nothing beyond Google sign-in. Second: John himself via his University of Cape Town address if it still works; otherwise ask the wider family who has a current contact for him.
 

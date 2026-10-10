@@ -7,6 +7,8 @@
 //   node family-tree/tools/inventory.mjs                 # writes family-tree/data/cdx.json and cdx-best.json
 //   node family-tree/tools/inventory.mjs --data ../x     # another data folder (PLAN.md: data/ is the private repo)
 //   node family-tree/tools/inventory.mjs --offline       # no fetch: re-analyse the saved cdx.json
+//   node family-tree/tools/inventory.mjs --host inggs.com   # another host, into data/hosts/inggs.com/
+//   node family-tree/tools/inventory.mjs --host "*.inggs.com"   # every subdomain, into data/hosts/all.inggs.com/
 //
 // In a cloud session run it as NODE_USE_ENV_PROXY=1 node …: Node's fetch ignores the session's
 // proxy otherwise and just times out. The environment must allow web.archive.org (a proxy 403
@@ -17,12 +19,16 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { HOST, analyse, describe, parseCdx, pickBest, waybackRaw, waybackView } from "./cdx.mjs";
+import { HOST as SITE, analyse, describe, parseCdx, pickBest, waybackRaw, waybackView } from "./cdx.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
 const flag = (name, dflt) => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : dflt; };
-const DATA = path.resolve(flag("--data", path.join(here, "..", "data")));
+const HOST = flag("--host", SITE);
+export const hostDir = h => h.replace(/^\*\./, "all.").replace(/[^a-z0-9.-]/gi, "_");   // *.inggs.com → all.inggs.com
+const ROOT = path.resolve(flag("--data", path.join(here, "..", "data")));
+// The tree itself writes at the top of the data folder; any other host keeps to hosts/<host>/.
+const DATA = HOST === SITE ? ROOT : path.join(ROOT, "hosts", hostDir(HOST));
 const OFFLINE = args.includes("--offline");
 const PAUSE_MS = 1100;
 
@@ -34,7 +40,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 // One CDX page, with retries: 429 and 5xx back off 2s, 4s, 8s, 16s, 32s.
 async function fetchPage(resumeKey){
   const url = new URL(CDX);
-  url.searchParams.set("url", HOST + "/*");
+  url.searchParams.set("url", HOST.startsWith("*.") ? HOST : HOST + "/*");   // *.inggs.com: every subdomain
   url.searchParams.set("output", "json");
   url.searchParams.set("fl", FIELDS);
   url.searchParams.set("showResumeKey", "true");
@@ -92,8 +98,8 @@ const list = [...best.entries()].map(([key, b]) => ({ key, ...b, raw: waybackRaw
   .sort((a, b) => a.key.localeCompare(b.key));
 fs.writeFileSync(bestPath, JSON.stringify(list, null, 1));
 
-const a = analyse(rows, best);
-const report = [`# familytree.inggs.com — what the Wayback Machine holds`, ``, `Inventory run ${new Date().toISOString().slice(0, 10)} (\`tools/inventory.mjs\`).`, ``,
+const a = analyse(rows, best, HOST);
+const report = [`# ${HOST} — what the Wayback Machine holds`, ``, `Inventory run ${new Date().toISOString().slice(0, 10)} (\`tools/inventory.mjs\`).`, ``,
   describe(a), ``, `Best capture per URL: \`cdx-best.json\` (${list.length} URLs). Missing (no 200 anywhere):`, ``,
   ...list.filter(b => b.status !== "200").slice(0, 200).map(b => `- ${b.key} (${b.status}, ${b.captures} captures)`),
   list.filter(b => b.status !== "200").length > 200 ? `- …and more; see cdx-best.json` : ``].join("\n");

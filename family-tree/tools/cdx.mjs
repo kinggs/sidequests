@@ -106,7 +106,7 @@ export const waybackView = (timestamp, url) => `https://web.archive.org/web/${ti
 // The shape of the site, read off the inventory (BRIEF.md, Phase 1 step 2): counts by kind and
 // status, the date range, the URL conventions (the first path segment of every page) and how
 // many URLs have no 200 at all. Pure, so the report is the same wherever it's printed.
-export function analyse(rows, best = pickBest(rows)){
+export function analyse(rows, best = pickBest(rows), host = HOST){
   const stamps = rows.map(r => r.timestamp).filter(Boolean).sort();
   const years = {};
   for (const s of stamps) years[s.slice(0, 4)] = (years[s.slice(0, 4)] || 0) + 1;
@@ -116,7 +116,7 @@ export function analyse(rows, best = pickBest(rows)){
     kinds[b.kind] = (kinds[b.kind] || 0) + 1;
     statuses[b.status] = (statuses[b.status] || 0) + 1;
     if (b.status !== "200") missing++;
-    const path = canonical(b.url).slice(HOST.length);
+    const key = canonical(b.url), path = key.startsWith(host) ? key.slice(host.length) : "/" + key;
     const seg = path.split("/")[1] || "";
     const prefix = path.endsWith("/") && !seg ? "/" : "/" + (path.split("/").length > 2 ? seg + "/" : "");
     prefixes[prefix] = (prefixes[prefix] || 0) + 1;
