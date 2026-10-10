@@ -176,8 +176,8 @@ cloud session with: "Read `family-tree/PLAN.md` and finish Session 2 from the la
 
 - [x] `tools/mirror.mjs` (Session 2; `recover.mjs` runs it): reads `cdx-best.json`, downloads
       every URL with status 200 via `waybackRaw()` (the `id_` flag), one request a second with the
-      same backoff as the inventory, into `data/mirror/<path as on the site>` (`familytree.inggs.com/people/p12.htm`
-      → `data/mirror/people/p12.htm`; the root page → `index.html`; a query string becomes part of
+      same backoff as the inventory, into `data/mirror/<path as on the site>` (`home.intekom.com/joni/html/fam00012.htm`
+      → `data/mirror/html/fam00012.htm`; the site's root → `index.html`, another host under `_hosts/<host>/`; a query string becomes part of
       the file name, URL-encoded). **Never overwrites**: a file already there is skipped, so the
       run is resumable and the mirror immutable. Each file's row goes into `data/manifest.json`:
       `{ path, url, timestamp, status, mime, bytes, sha256, wayback (the view URL), raw (the id_
@@ -202,14 +202,13 @@ cloud session with: "Read `family-tree/PLAN.md` and finish Session 2 from the la
 
 ### Step 3 — The WikiTree cross-check (owner, 2026-10-10)
 
-- [ ] Fetch `https://www.wikitree.com/genealogy/INGGS` (and the surname pages the recovered index
-      names). Session 1 found the host allowed but answering an empty `202`, WikiTree's
-      JavaScript challenge, to curl and to headless Chromium alike; so this is a laptop step: the
-      owner opens the page in a browser, saves it (Ctrl+S, "web page, complete") into the data
-      repo under `wikitree/`, and the session reads the saved file. Record in Findings: how many
-      Inggs profiles WikiTree holds, whether Jon Inggs manages them, and roughly how the names
-      and dates overlap with the recovered index (counts, not names). **Nothing is imported from
-      it.** If the owner doesn't get to it, say so and move this to Parked.
+- [x] Count WikiTree's Inggs profiles and who manages them (Findings). Done from the laptop: the
+      surname page through the owner's Chrome, the counts through WikiTree's public API
+      (`api.wikitree.com/api.php?action=searchPerson&LastName=Inggs&limit=100`), which answers
+      curl and allows browser calls. No page saved: the counts were enough.
+- **Owner's decision after the counts (2026-10-10): link, don't copy.** A matched person stores
+  only a WikiTree id, and the person page reads the profile live (SPEC §2, §4, §8). Session 3
+  does the matching, Session 4 the live row. The email to Jon now says so.
 
 ### Step 4 — The recovery report
 
@@ -232,13 +231,44 @@ and `git status` in `sidequests` shows no data.
 
 ### The site's pattern (Session 2 fills in; Session 3's parser and its fixtures follow it)
 
-- Generator: _…_
-- File naming and ids: _…_
-- A person page: _where each field sits_.
-- Links between people: _…_
-- Photos and captions: _…_
-- Index pages: _…_
-- Character set and oddities: _…_
+- **Where the site was:** `familytree.inggs.com` was only a domain forwarder: every capture
+  (2002–2010) is a one-frame `<frameset>` onto Jon's ISP home page, `home.intekom.com/joni`
+  (before about 2003, `home.intekom.co.za/joni`, the same paths). The tools now treat
+  `home.intekom.com/joni` as the site (`cdx.SITE`), fold `.co.za` into it (`cdx.ALIASES`) and keep
+  the forwarder beside it (`mirror/_hosts/familytree.inggs.com/`).
+- **Generator:** `<META NAME="Generator" CONTENT="Gedpage Version 2.00">`, footer "Page built by
+  Gedpage Version 2.00 ©1997 on 17 July 2006". Gedpage turns a GEDCOM into one page per
+  family. Jon's home page says "Browse the 2332 people… (updated 17th July 2006)". The GEDCOM
+  itself was never published.
+- **File naming and ids:** `joni/html/famNNNNN.htm` (five digits, from `fam00001`), one per
+  family (a couple, or a parent with children); `joni/html/namesN.htm`, the names index in parts;
+  `joni/html/surnames.htm`, the surname index. **There are no person ids.** A person is
+  identified by the family page where they are a spouse, plus their name.
+- **A family page:** `<TITLE>` is `<Given> <SURNAME>/<Given> <SURNAME>` (husband/wife). The body is
+  one `<PRE>` block of labelled lines between `<HR NOSHADE SIZE=3>` rules: `Husband: <B>name</B>`,
+  then `Born: <date> at: <place>`, `Married: … at: …`, `Died: … at: …`, `Father:<A HREF=famN>name</a>`,
+  `Mother:<A HREF=famN>name</a>` (both link to the *parents'* family page), `Other Spouses:`
+  (links); the same for `Wife:`; then `<B>CHILDREN</B>` and per child, between
+  `<HR NOSHADE SIZE=1>`: `Name:`, `Born:`, `Married:`, `Died:`, `Spouses:` (links). Labels are
+  right-aligned with leading spaces, values padded to column 26 before `at:`. Surnames are in
+  capitals. Dates are GEDCOM style (`30 DEC 1922`, `22 MAR` with no year, `1845`); empty fields
+  keep the label. A side with no person has a blank label line.
+- **Links between people:** a child with a family of their own links to it (`Name: <A HREF=famN>`);
+  a child with none is plain text (no page: they exist only on their parents' sheet). Father and
+  Mother link to one parents' page. The footer links HOME (`http://familytree.inggs.com`),
+  `mailto:` and `surnames.htm`.
+- **Notes:** none on the pages sampled. Some child names carry a short prefix of Jon's
+  (`D1 <given> <SURNAME>`); keep it verbatim, don't interpret it.
+- **Photos and captions:** none on the Gedpage pages. Photos are on Jon's hand-made pages beside
+  the tree (`joni/j_stone.htm`, "photographs and history"; `joni/*.jpg`, a few dozen in the index),
+  with captions in the page text. Session 3 links them to people by hand-checked name matches.
+- **Index pages:** `namesN.htm`: under `<A NAME="SURNAME">` anchors, one line per person,
+  `<A HREF="famN.htm">SURNAME, Given</A> (birth-death)<BR>`, dates as on the family page, either
+  side blank. This is the closest thing to a person list: one row per person with their page.
+- **Character set and oddities:** no charset declared; the names index is ISO-8859-1 (accented
+  names), the rest ASCII; CRLF line ends; upper-case tags. Jon's own pages (home, history,
+  articles, the economic-history society) share the folder: the parser reads only
+  `joni/html/` and the photo pages.
 
 ---
 
@@ -281,6 +311,19 @@ what it lacks.
       one `FAM` per couple or per single parent with children (`HUSB`, `WIFE`, `CHIL`, `MARR`
       with `DATE`/`PLAC`); `FAMC`/`FAMS` links; a `NOTE` on every unresolved ref. Every xref
       resolves (the test checks a round-trip of the ids).
+
+### Step 2b — WikiTree ids (owner, 2026-10-10: link, don't copy)
+
+- [ ] `tools/wikitree.mjs` → `data/wikitree.json`: for each surname in `people.json` that WikiTree
+      has (start with Inggs; `searchPerson` by `LastName`, `limit` at most 100, paged, a second
+      between calls), match a profile to a person when the given names and the surname agree
+      and the birth years agree (or both lack one and the parents' names agree). One match →
+      `people[i].wikitree = "<Surname>-<n>"`; two or more, or a near miss, go in
+      `data/wikitree-review.md` for the owner and are not linked. Store the id only: no dates,
+      no bio, nothing else from WikiTree enters the data repo or Firestore. The pure matching
+      (`matchProfiles(people, profiles)`) gets `wikitree.test.mjs` on invented rows.
+- [ ] Count in `parse-report.md`: matched, ambiguous, WikiTree profiles with no match (those are
+      Jon's newer work; the person page can't show them, and Parked says what might).
 
 ### Step 3 — The seed, and a mock seed
 
@@ -367,7 +410,11 @@ app's own CSS, everything else is theme parts. If a `frontend-design` skill is a
 session, load it before the tree view; if not, say so and build from DESIGN.md.
 
 - [ ] **The person page** (SPEC §2): photos strip, Born/Died, Parents/Married/Children rows with
-      `(not in the tree)` for a `ref`, Notes verbatim, Source with the Wayback link, **Tree**
+      `(not in the tree)` for a `ref`, Notes verbatim, **On WikiTree** (SPEC §2: a live
+      `getProfile` by the stored id, fields `Name,BirthDate,DeathDate,BirthLocation,DeathLocation,Manager,Touched`,
+      kept in memory for the session; WikiTree's dates win on screen with the 2006 value under
+      Source; offline or no answer → the link alone; never for a living person), Source with
+      the Wayback link, **Tree**
       (76px), **Suggest a correction** (a sheet → `suggestions/`). Living: Show details toggles
       the dates and places, per phone.
 - [ ] **The tree view**: three generations up and down and spouses beside, the centre in lilac,
@@ -410,7 +457,9 @@ session, load it before the tree view; if not, say so and build from DESIGN.md.
 - A member claiming the person in the tree that is them (links a `people/<id>` to a uid; would let
   "Show details" default to on for your own record).
 - Jon as a member with edit rights, if he wants in.
-- Importing anything from WikiTree, if the cross-check finds Jon's tree there and the owner says so.
+- WikiTree people with no match in the 2006 tree (Jon's newer additions): show them, read live,
+  as "Also on WikiTree" on the parent's page, still storing ids only. And an offer to Jon of the
+  recovered tree as a GEDCOM (the email makes it; whether he wants it is his call).
 - An ancestor or descendant *chart* for print (a PDF of the tree).
 - A "This day" or "Born 100 years ago" note on the People tab.
 - A one-off Node seed using the Admin SDK, if the owner ever adds a service account with Firestore

@@ -9,8 +9,8 @@ be (0.1.0 is a placeholder from `_template`; Session 3 ships the first real buil
 **Jon Inggs is the author.** Every screen that shows his work says so: the home page, every
 person page ("Researched by Jon Inggs, familytree.inggs.com, 2010"), the footer, the GEDCOM's
 `SOUR` record and this file. (The brief wrote "John"; the owner settled on Jon on 2026-10-10,
-the spelling on Jon's own forum post and WikiTree profiles. Session 2 checks the recovered home
-page's byline and, if it says otherwise, this line and every credit change with it.)
+the spelling on Jon's own forum post and WikiTree profiles, and confirmed in Session 2: the
+recovered home page is titled "Jon Inggs's home page".)
 
 **Files.** `index.html` (the app), `sw.js`, `manifest.json`, icons, `tools/` (the Node scripts
 that recover and parse the site: run locally or in a cloud session, never shipped; each pure
@@ -56,6 +56,12 @@ opens the person. The list reads from one `people` listener (a few hundred docum
   each a tap to that person. A reference that doesn't resolve shows the name from the source with
   "(not in the tree)".
 - **Notes**: Jon's own text, verbatim.
+- **On WikiTree** (only for a person matched to a profile, §4 `wikitree`): "Kept by Jon on
+  WikiTree" (or the manager WikiTree names), the profile's current birth and death, fetched live
+  from WikiTree's public API when the page opens, and a link to the profile. Where WikiTree's
+  dates or places differ from the 2006 tree, the Born and Died rows show WikiTree's, and the 2006
+  value stays under Source ("2006 tree: …"). Offline, or if WikiTree doesn't answer, the row is
+  the link alone. Nothing from WikiTree is stored.
 - **Source**: "Researched by Jon Inggs, familytree.inggs.com, 2010" and a link to the Wayback
   page the record came from (opens in the browser).
 - **Tree** (76px, the one you came for): the tree view centred on them.
@@ -103,7 +109,8 @@ joined by a lilac fork on the card colour.
 ## 4. Data
 
 Under `/sidequests/family-tree/`. Times are milliseconds. Ids are the parser's: a person's id is
-the id from Jon's page URL where it has one (`p12`), else a slug of the name and birth year.
+a slug of the name and birth year (`<given>-<surname>-<year>`, `-2` on a clash): Jon's pages
+are one per family (Gedpage), with no person ids (`PLAN.md`, The site's pattern).
 
 ```
 members/<uid>       { name, since, invitedBy, approvedBy }
@@ -112,6 +119,7 @@ invites/<uid>       { uid, name, email, invitedBy, invitedByName, at, status, de
 people/<id>         { name, given, surname, sex, birth: { date, year, place }, death: { date, year, place },
                       parents: [id], spouses: [{ id, name, date, place }], children: [id], notes,
                       photos: [photoId], refs: [{ role, name }],      // refs: references that didn't resolve
+                      wikitree,                                       // a WikiTree id ("Inggs-12") or absent
                       source: { url, wayback, captured } }
 photos/<id>         { caption, people: [id], names: [name], file, recovered, thumb, w, h,
                       source: { url, wayback, captured } }           // thumb: ~400px JPEG data URL
@@ -194,13 +202,16 @@ Trusts the family to recognise each other; accepted for a few dozen people (BRIE
 - **The raw mirror** lives in the private data repo and the owner's backup: never in Firestore,
   never here.
 - **Export is logged** (`exports/`), so the data doesn't quietly leave.
+- **The WikiTree read sends only the id.** The phone asks `api.wikitree.com` for one public
+  profile by its WikiTree id, no sign-in and nothing about the family app; WikiTree's own privacy
+  levels decide what comes back. A living person is never fetched (their row is the link alone).
 
 ## 7. Out of scope (for now)
 
 Re-researching or verifying the genealogy; a public site; members editing people directly (next:
 with an edit history); adding photos (photo-coach pattern); a member claiming the person that is
 them; committing to WikiTree, Gramps or Ancestry (GEDCOM keeps the door open; WikiTree is a
-cross-check in Session 2 only); notifications.
+link per person, read live, never copied: §2, §8); notifications.
 
 ## 8. Decisions
 
@@ -211,6 +222,7 @@ cross-check in Session 2 only); notifications.
 | 2026-10-10 (owner) | **A private data repo** holds the mirror, manifest, parsed JSON, GEDCOM and seed files, cloned at `family-tree/data/` (gitignored). Confirms "no family data in the public repo". |
 | 2026-10-10 (owner) | **Straight to main**, per CLAUDE.md: the planning branch was fast-forwarded into it. |
 | 2026-10-10 (owner) | **WikiTree as a cross-check** in Session 2's recovery report; nothing imported from it without the owner's say-so. The Wayback copy is canonical. |
+| 2026-10-10 (owner) | **WikiTree is linked, not copied.** Jon still keeps his Inggs profiles there (44 Inggs profiles against 2,332 people in his 2006 tree), so a matched person stores only the WikiTree id, and the person page reads the profile live from WikiTree's public API; its dates win on screen, the 2006 values stay as the source. Replaces "a cross-check only". The email to Jon says so and offers him the recovered tree. |
 | 2026-10-10 (owner) | Accents **lilac** first, **coral** second. |
 | 2026-10-10 (owner) | **The owner approves anyone**, their own invitees included; another member needs a second member. |
 | 2026-10-10 (Fable) | Three tabs; the tree view reached from a person. A living person is one with no death and a birth within 100 years or unknown. Show details is per phone. The seed is the app's own Import, in files under 20 MB, since there is no server code and no admin key. Tools in `tools/` with tests beside them (the brief's own allowance; CLAUDE.md rule 1 names it). |
