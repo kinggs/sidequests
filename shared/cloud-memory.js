@@ -22,7 +22,7 @@
 //
 // Permissions model the tiers, not every field rule (ACCESS below): the owner, the one admin, and
 // anyone signed in, as in production; there is no household tier (Session 9). Field-level rules
-// are modelled on Rack It's matches, Sessions Loyalty and the open apps; check the rest against
+// are modelled on Rack It's matches, Sessions Loyalty, Family Tree and the open apps; check the rest against
 // shared/firestore.rules (and shared/rules-check.mjs).
 // The account paths are modelled more closely, since outsiders live there: your own
 // private/friends/guests only, a pair only by one of its two, and a friendship only with
@@ -103,6 +103,20 @@ const ACCESS = [
       : !d ? isOwner(u)
       : isStaff(u) && changed(was, d).every(k => ["voided", "voidedBy", "voidedAt", "_updatedAt"].includes(k)) },
   { path: /^sidequests\/sessions-loyalty(\/|$)/, read: "owner", write: "owner" },
+  // Family Tree: members only (family-tree/SPEC.md §4 and §5). Members read the tree, the owner
+  // writes it; a newcomer asks in, a member who didn't send it decides, approving is one batch.
+  { path: /^sidequests\/family-tree\/(people|photos|images|meta|stories)(\/[^/]+)?$/, read: (m, u) => isFam(u), write: (m, u) => isOwner(u) },
+  { path: /^sidequests\/family-tree\/(members|invites)$/, read: (m, u) => isFam(u) },
+  { path: /^sidequests\/family-tree\/members\/([^/]+)$/, read: (m, u) => m[1] === u.uid || isFam(u),
+    write: (m, u, d, was, ctx) => isOwner(u) || (!was && !!d && famApproving(m[1], u, d, ctx.after)) },
+  { path: /^sidequests\/family-tree\/invites\/([^/]+)$/, read: (m, u) => m[1] === u.uid || isFam(u),
+    write: (m, u, d, was, ctx) => isOwner(u) || (!!d && (!was ? famAsksIn(m[1], u, d) || famInvitesFriend(m[1], u, d)
+      : famDecides(m[1], u, d, was, ctx.after))) },
+  { path: /^sidequests\/family-tree\/suggestions(\/[^/]+)?$/, read: (m, u) => isFam(u),
+    write: (m, u, d, was) => isOwner(u) || (!was && !!d && isFam(u) && d.by === u.uid && d.status === "open") },
+  { path: /^sidequests\/family-tree\/exports(\/[^/]+)?$/, read: (m, u) => isOwner(u),
+    write: (m, u, d, was) => !was && !!d && isFam(u) && d.by === u.uid },
+  { path: /^sidequests\/family-tree(\/|$)/ },   // nothing else, the owner included
   // The owner reaches the rest of sidequests/, the household people under _shared included.
   { path: /^sidequests(\/|$)/, read: "owner", write: "owner" },
   // Accounts (Session 1). Yours alone: private, friends, guests, as documents or as a list.
@@ -150,6 +164,30 @@ const inUids = (doc, u) => !!doc && Array.isArray(doc.uids) && doc.uids.includes
 // Sessions Loyalty's staff: listed under staff/, or the owner. A member's entries list must carry
 // its own uid filter, as a Rack It player's matches list carries uids.
 const isStaff = u => isOwner(u) || !!store.docs["sidequests/sessions-loyalty/staff/" + u.uid];
+// Family Tree (family-tree/SPEC.md §4): a member is in members/, or the owner.
+const FT = "sidequests/family-tree/";
+const isFam = u => isOwner(u) || !!store.docs[FT + "members/" + u.uid];
+const FT_INVITE = ["uid", "name", "email", "invitedBy", "invitedByName", "at", "status"];
+const famInvite = (uid, d) => FT_INVITE.every(k => k in d) && Object.keys(d).every(k => FT_INVITE.includes(k) || k === "_updatedAt")
+  && d.uid === uid && d.status === "pending" && typeof d.name === "string" && d.name.length <= 60
+  && typeof d.invitedByName === "string" && d.invitedByName.length <= 60;
+// The newcomer's own, with their own email, naming a member they're connected to.
+const famAsksIn = (uid, u, d) => uid === u.uid && famInvite(uid, d) && d.email === u.email
+  && connectedTo(uid, d.invitedBy) && !!store.docs[FT + "members/" + d.invitedBy];
+// A member's, for a friend: themselves as inviter, no email.
+const famInvitesFriend = (uid, u, d) => isFam(u) && famInvite(uid, d) && d.invitedBy === u.uid && d.email === "" && connectedTo(u.uid, uid);
+// Deciding: a member who didn't send it, from pending, only the decision; approving makes the
+// member in the same batch (`after` is the store as the batch leaves it).
+const famDecides = (uid, u, d, was, after) => isFam(u) && was.status === "pending" && ["approved", "declined"].includes(d.status)
+  && was.invitedBy !== u.uid && changed(was, d).every(k => ["status", "decidedBy", "decidedAt", "_updatedAt"].includes(k))
+  && d.decidedBy === u.uid && (d.status === "declined" || !!(after && after[FT + "members/" + uid]));
+const FT_MEMBER = ["name", "since", "invitedBy", "approvedBy"];
+function famApproving(uid, u, d, after){
+  const path = FT + "invites/" + uid, was = store.docs[path], now = after && after[path];
+  return !!was && !!now && was.status === "pending" && now.status === "approved"
+    && FT_MEMBER.every(k => k in d) && Object.keys(d).every(k => FT_MEMBER.includes(k) || k === "_updatedAt")
+    && d.approvedBy === u.uid && d.invitedBy === was.invitedBy;
+}
 const uidIs = (ctx, u) => !!ctx.where && ctx.where[0] === "uid" && ctx.where[1] === "==" && ctx.where[2] === u.uid;
 const rated = doc => (doc.rated === undefined ? true : doc.rated) === true;
 const scorerFilter = (ctx, u) => !!ctx.where && ctx.where[0] === "scorer" && ctx.where[1] === "==" && ctx.where[2] === u.uid;

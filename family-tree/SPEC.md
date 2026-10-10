@@ -1,10 +1,12 @@
 # Inggs Family Tree — spec
 
 The Inggs family tree that Jon Inggs researched and published at familytree.inggs.com, recovered
-from the Wayback Machine's February 2010 capture before it is lost, and given a private home where
+from the Wayback Machine's copies (the last whole one, 2 July 2017) before they are lost, and given a private home where
 the family can browse the tree and the oldest photographs and add or correct what they know.
 The brief is `BRIEF.md`; the sessions that build it are `PLAN.md`. This spec is the app as it will
-be (0.1.0 is a placeholder from `_template`; Session 3 ships the first real build).
+be. **Built so far (0.2.0, Session 3):** the gate, the waiting screen with the newcomer's invite,
+the People tab, a stub person page with the living rule, the account sheet with Export and the
+owner's Import. Photos and Family say "coming next"; the rest is Session 4 (`PLAN.md`).
 
 **Jon Inggs is the author.** Every screen that shows his work says so: the home page, every
 person page ("Compiled by Jon Inggs · familytree.inggs.com · 2006"), the footer, the GEDCOM's
@@ -124,23 +126,31 @@ people/<id>         { name, given, surname, sex, birth: { date, year, place }, d
 photos/<id>         { caption, people: [id], names: [name], file, recovered, thumb, w, h,
                       source: { url, wayback, captured } }           // thumb: ~400px JPEG data URL
 images/<id>         { data }                                         // the 1400px JPEG data URL, apart so lists stay light
+stories/<id>        { title, markdown, images: [photoId], people: [id], source, pdf }   // Jon's pages; pdf: listed, not converted
 suggestions/<id>    { person, personName, text, by, byName, at, status, doneBy, doneAt }   // status: "open" | "done"
 exports/<id>        { by, byName, at, people, photos }               // the export log
-meta/main           { source, captured, researcher, people, photos, photosRecovered, importedAt, importedBy, version }
+meta/main           { source, credit, captured, researcher, people, photos, photosRecovered, stories, mirrorFiles,
+                      importedAt, importedBy, version }
 ```
 
-Dates stay as Jon wrote them (`date`, a string) with a parsed `year` beside them when one can be
-read; nothing is guessed (BRIEF.md, parsing rules). `refs` keeps a parent, spouse or child Jon
+Dates stay as Jon wrote them (`date`, a string) with a parsed `year` beside them only for an exact
+date (`30 DEC 1922`, `MAR 1850`, `1845`, the first year of `1750/51`); `ABT 1850` keeps its text
+and no `year`, and the app shows it as "c. 1850". Nothing is guessed (BRIEF.md, parsing rules).
+A story's Markdown points at its images as `photo:<id>` and at another story as `story:<id>`. `refs` keeps a parent, spouse or child Jon
 named whose page the parser couldn't match, rather than dropping it.
 
 **Import** (the owner, the account sheet): the seed files the tools emit, `seed/family-tree-N.json`,
-each under 20 MB, in the export format below; each is written in batches of at most 400
-documents (images 10 at a time), merged by id, so a file can be imported twice without harm.
-From a laptop browser if the phone struggles with the size.
+each under 20 MB, in the export format below (part 1: `meta`, `people`, `photos`, `stories`; the
+rest: `images`, with `seed: { part, of }`). Several can be picked at once and go in part order;
+each is written in batches of at most 400 documents (images 10 at a time), merged by id, so a
+file can be imported twice without harm. `members` and `invites` aren't imported: they are made
+by approval (§5). From a laptop browser if the phone struggles with the size.
 
-**Export** (any member): one JSON file, `{ app: "family-tree", version, exportedAt, meta, people,
-photos, images, suggestions }` for a member; the owner's also carries `members` and `invites`.
-An `exports/` entry is written first; an export that can't be logged doesn't happen.
+**Export** (any member): one JSON file, `{ app: "family-tree", version, exportedAt, meta: { main },
+people, photos, images, stories, suggestions }` for a member (every collection an array of
+`{ id, … }`, meta keyed like a collection, so `?mock&seed=` reads it as it is); the owner's also
+carries `members` and `invites`. An `exports/` entry is written first; an export that can't be
+logged doesn't happen.
 
 **Who reads what** (`shared/firestore.rules`, its own block; cases in `shared/rules-check.mjs`;
 mirrored in `shared/cloud-memory.js`). `isFam()` is "in `members/`, or the owner".
@@ -149,7 +159,7 @@ mirrored in `shared/cloud-memory.js`). `isFam()` is "in `members/`, or the owner
 |---|---|---|---|
 | members/ | get their own | get, list | create (by approval, below), delete |
 | invites/ | get their own; create their own (below) | get, list; create for a friend; decide one they didn't send | the same, and decide their own |
-| people, photos, images, meta | — | read | read, write |
+| people, photos, images, stories, meta | — | read | read, write |
 | suggestions/ | — | read; create with `by` = me | read, write, delete |
 | exports/ | — | create with `by` = me | read |
 
@@ -184,6 +194,11 @@ their profile name (no email: profiles don't carry one). The rule accepts it fro
 connected to that uid. When they next open the app, they wait as above, or are already in.
 
 **Removing a member** (the owner, hold): deletes `members/<uid>`. The friendship stays.
+
+**The owner has a member document too** (`members/<owner's uid>`, written by the app on the
+owner's first open): the rules know an inviter by their member document, and can't tell the owner
+from a uid alone (the owner is found by email). A newcomer asking in writes their invite once: a
+declined newcomer asks again through the owner.
 
 Trusts the family to recognise each other; accepted for a few dozen people (BRIEF.md).
 

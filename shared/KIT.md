@@ -19,7 +19,7 @@ How it was built: `shared/KIT-HISTORY.md` (Sessions 0 to 9). What's proposed nex
 | **Connect** | `connect.js` | My QR, scan to connect, friends list with note, met and tags | Sign-in | ✓ |
 | **Players** | `people.js` | Pick who's playing: you, a friend, a QR scan, or a guest; That was them | Connect | ✓ every app that names players |
 | **UI** | `ui.js` | Tap, hold-to-confirm, toast, bottom sheet, row menu, the account sheet, the echo strip, presence (`DESIGN.md`) | Theme | ✓ every app |
-| **Open rule** | the rules (`openApps()`) | Anyone signed in uses the app; each record reached by the accounts in it, the owner by all | Sign-in | ✓ every app bar Rack It and Sessions Loyalty, which have their own blocks |
+| **Open rule** | the rules (`openApps()`) | Anyone signed in uses the app; each record reached by the accounts in it, the owner by all | Sign-in | ✓ every app bar Rack It, Sessions Loyalty and Family Tree (private, members only), which have their own blocks |
 | **Shared games** | `connect.js`, `ui.js`, the rules | A Game QR, guest seats, one game on several phones (`CONNECT.md`); in Rack It also a scorer and both sign | Players | ✓ Rack It (table game), Zombie Dice (turn game) |
 | **Owner** | `cloud.js` | `cloud.role()`: the one admin | Sign-in | ✓ |
 
@@ -148,6 +148,7 @@ One game on several phones. The design and what was built: `shared/CONNECT.md`. 
 | The household people list | The owner only. |
 | A Rack It rating | Anyone signed in who has that player's id, one at a time. Only the owner can list them. |
 | A Sessions Loyalty card and its entries | That member, and the club's staff. The staff note on a member: staff only. The club's rewards and ways to earn: anyone signed in. (`sessions-loyalty/SPEC.md` §6) |
+| The Family Tree | Its members (`members/`, each approved by a member who didn't invite them) and the owner. A newcomer reads only their own invite, which carries their Google email for members to recognise them; the export log, the owner only. (`family-tree/SPEC.md` §4) |
 | A Rack It match at the club (`venue: "sessions"`) | As any match: its players, its scorer (the staff member) and the owner. The staff member's loyalty app reads it by id, as its scorer. |
 
 Email addresses are never in a profile, a friendship or a record's `names`.

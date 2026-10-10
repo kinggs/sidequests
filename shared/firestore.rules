@@ -9,7 +9,8 @@ rules_version = '2';
 // - An account: anyone signed in, keyed by uid. It reaches /profiles, /invites and /friendships,
 //   each as narrowly as below, and under /sidequests/ only what an app's own rules open to it:
 //   Rack It's matches it plays in (Sessions 6 and 6b), Sessions Loyalty's card (staff see all),
-//   and in every open app (openApps() below) the records it's in.
+//   Family Tree once a member has approved it, and in every open app (openApps() below) the
+//   records it's in.
 //
 // Cost: making a friendship reads the invite with one get(). Every rule here has cases in
 // shared/rules-check.mjs, written before the rule; a failing case stops the deploy.
@@ -31,12 +32,13 @@ service cloud.firestore {
     }
 
     // The owner reaches every app's data under /sidequests/<appId>/..., the household people under
-    // _shared included (only Rack It's admin path reads them). Rack It and Sessions Loyalty spell
-    // out the owner's writes below instead: a live match keeps its chain, an entry is only voided.
+    // _shared included (only Rack It's admin path reads them). Rack It, Sessions Loyalty and Family
+    // Tree spell out the owner's reach below instead: a live match keeps its chain, an entry is
+    // only voided, the export log is only read.
     match /sidequests/{appId}/{document=**} {
-      allow read, create, delete: if isOwner() && !(appId in ['rack-it', 'sessions-loyalty']);
+      allow read, create, delete: if isOwner() && !(appId in ['rack-it', 'sessions-loyalty', 'family-tree']);
       // A live record that carries rev keeps its chain, even for the owner (Session 10 step 5).
-      allow update: if isOwner() && !(appId in ['rack-it', 'sessions-loyalty'])
+      allow update: if isOwner() && !(appId in ['rack-it', 'sessions-loyalty', 'family-tree'])
         && (resource.data.get('status', '') != 'live' || openLink());
     }
 
@@ -212,6 +214,91 @@ service cloud.firestore {
       allow update: if isStaff()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['voided', 'voidedBy', 'voidedAt', '_updatedAt']);
       allow delete: if isOwner();
+    }
+
+    // Family Tree (family-tree/SPEC.md §4 and §5): a private app, members only. A member is a
+    // uid under members/, or the owner (the owner's own members/ document is what lets a
+    // newcomer name them as inviter). A newcomer, signed in and connected to a member, asks in
+    // with invites/<their uid>; a member decides it, but never one they sent (the owner decides
+    // any, their own included); approving is one batch with members/<uid>. Members read the
+    // tree; the owner alone writes it (Import) and removes a member.
+    function isFam() {
+      return signedIn()
+        && (exists(/databases/$(database)/documents/sidequests/family-tree/members/$(request.auth.uid)) || isOwner());
+    }
+    function famMember(uid) {
+      return exists(/databases/$(database)/documents/sidequests/family-tree/members/$(uid));
+    }
+    match /sidequests/family-tree/{coll}/{id} {
+      allow read: if coll in ['people', 'photos', 'images', 'meta', 'stories'] && isFam();
+      allow write: if coll in ['people', 'photos', 'images', 'meta', 'stories'] && isOwner();
+    }
+    match /sidequests/family-tree/members/{uid} {
+      allow get: if me(uid) || isFam();      // "am I in?": your own document, present or not
+      allow list: if isFam();
+      allow create: if isOwner() || famApproving(uid);
+      allow update, delete: if isOwner();
+    }
+    match /sidequests/family-tree/invites/{uid} {
+      allow get: if me(uid) || isFam();      // the waiting screen watches its own
+      allow list: if isFam();
+      allow create: if isOwner() || famAsksIn(uid) || famInvitesFriend(uid);
+      allow update: if isOwner() || famDecides(uid);
+      allow delete: if isOwner();
+    }
+    match /sidequests/family-tree/suggestions/{id} {
+      allow read: if isFam();
+      allow create: if isOwner() || (isFam() && request.resource.data.by == request.auth.uid
+        && request.resource.data.status == 'open');
+      allow update, delete: if isOwner();
+    }
+    // The export log: written before every export, read by the owner alone.
+    match /sidequests/family-tree/exports/{id} {
+      allow create: if isFam() && request.resource.data.by == request.auth.uid;
+      allow read: if isOwner();
+    }
+    // A new invite: exactly these keys, pending, keyed by whose it is.
+    function famInvite(uid) {
+      let r = request.resource.data;
+      return r.keys().hasAll(['uid', 'name', 'email', 'invitedBy', 'invitedByName', 'at', 'status'])
+        && r.keys().hasOnly(['uid', 'name', 'email', 'invitedBy', 'invitedByName', 'at', 'status', '_updatedAt'])
+        && r.uid == uid && r.status == 'pending'
+        && r.name is string && r.name.size() <= 60 && r.invitedByName is string && r.invitedByName.size() <= 60;
+    }
+    // The newcomer's own, with their own Google email, naming a member they're connected to.
+    function famAsksIn(uid) {
+      let r = request.resource.data;
+      return me(uid) && famInvite(uid) && r.email == request.auth.token.email
+        && connected(uid, r.invitedBy) && famMember(r.invitedBy);
+    }
+    // A member's, for a friend: themselves as inviter, no email (profiles carry none).
+    function famInvitesFriend(uid) {
+      let r = request.resource.data;
+      return isFam() && famInvite(uid) && r.invitedBy == request.auth.uid && r.email == ''
+        && connected(request.auth.uid, uid);
+    }
+    // Deciding: a member who didn't send it, once, from pending, touching only the decision.
+    // Approving is the batch that also creates members/<uid> (famApproving, below).
+    function famDecides(uid) {
+      let was = resource.data;
+      let now = request.resource.data;
+      return isFam() && was.status == 'pending' && now.status in ['approved', 'declined']
+        && was.invitedBy != request.auth.uid
+        && now.diff(was).affectedKeys().hasOnly(['status', 'decidedBy', 'decidedAt', '_updatedAt'])
+        && now.decidedBy == request.auth.uid
+        && (now.status == 'declined'
+          || existsAfter(/databases/$(database)/documents/sidequests/family-tree/members/$(uid)));
+    }
+    // A member's document is made only in the batch that approves its pending invite, as
+    // confirming() reads its match: the approver named, the inviter the invite's. Who may
+    // approve is famDecides(), which has to pass in the same batch.
+    function famApproving(uid) {
+      let path = /databases/$(database)/documents/sidequests/family-tree/invites/$(uid);
+      let m = request.resource.data;
+      return exists(path) && get(path).data.status == 'pending' && getAfter(path).data.status == 'approved'
+        && m.keys().hasAll(['name', 'since', 'invitedBy', 'approvedBy'])
+        && m.keys().hasOnly(['name', 'since', 'invitedBy', 'approvedBy', '_updatedAt'])
+        && m.approvedBy == request.auth.uid && m.invitedBy == get(path).data.invitedBy;
     }
 
     // A match with no `rated` field is rated: every match before 2.9.0 moved ratings.

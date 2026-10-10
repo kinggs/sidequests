@@ -26,6 +26,7 @@ shares `pw.mjs` with them.
 | `bloc-11-open.mjs` | Session 9 step 1: Bloc 11 on the open rule, on a seed of old climbs (as the backfill left them, since Session 10); a guest's climb; That was them; with `OLD=<git rev>`, old build against new | Playwright |
 | `photo-coach-open.mjs` | Session 9 step 2: Photo Coach on the open rule, on a seed of the owner's old log; a stranger's empty log; the stored size of a full photo | Playwright |
 | `zombie-dice-phones.mjs` | Session 9 step 3: one phone as before; three tabs play a whole game, the starter playing for a guest; a Game QR seat | Playwright |
+| `family-tree-gate.mjs` | Family Tree Session 3: the owner's people list on the invented seed (`seeds/family-tree-mock.json`, from `family-tree/tools/mock-seed.mjs`), the living rule, Import twice without duplicates; a stranger's waiting screen; signed out; a scan that writes the newcomer's invite, and approval opening the tree | Playwright |
 | `rules.mjs` | `shared/rules-check.mjs` against the rules on a local emulator | Java 21, npx |
 | `mutate.mjs`, `guards.mjs` | Loosens each guard in turn; its own case must go red | Java 21, npx |
 

@@ -311,7 +311,7 @@ what it lacks.
 
 ### Step 1 — The parser
 
-- [ ] `tools/parse.mjs` → `data/people.json` and `data/photos.json` in SPEC.md §4's shapes, read
+- [x] `tools/parse.mjs` → `data/people.json` and `data/photos.json` in SPEC.md §4's shapes, read
       from `data/mirror/` only. HTML parsing with `cheerio` (`npm i --no-save cheerio` in
       `family-tree/tools/`, its `node_modules/` gitignored) unless the pages are regular enough
       for a small hand parser; either way `tools/parse.test.mjs` pins the pattern on **synthetic
@@ -320,16 +320,16 @@ what it lacks.
       digits read cleanly; notes and captions verbatim; `refs` for a parent, spouse or child whose
       page couldn't be matched; `source` on every record (`url`, `wayback`, `captured` from the
       manifest).
-- [ ] Validate: every `parents`, `spouses[].id`, `children` and `photos` id resolves; a photo's
+- [x] Validate: every `parents`, `spouses[].id`, `children` and `photos` id resolves; a photo's
       `recovered` is whether its file is in the mirror; a spouse link is symmetric and a
       parent/child link is mirrored (fix the data where one side is missing, and log it).
-- [ ] `data/parse-report.md`: people parsed, photos (recovered vs missing), unresolved refs,
+- [x] `data/parse-report.md`: people parsed, photos (recovered vs missing), unresolved refs,
       pages that failed to parse, one-sided links fixed. The brief's one-page recovery report is
       this plus Session 2's.
 
 ### Step 1b — Jon's stories (owner, 2026-10-10)
 
-- [ ] `tools/stories.mjs` → `data/stories/<slug>.md` and `data/stories.json`: each of Jon's
+- [x] `tools/stories.mjs` → `data/stories/<slug>.md` and `data/stories.json`: each of Jon's
       family-history pages (Findings: the surname's origins, photographs and history, the 150th,
       the relatives' pages, the 1930 obituary, the war dead, statistics, "new"; not the
       economic-history pages) as clean Markdown, Jon's words verbatim, images in place by their
@@ -338,13 +338,13 @@ what it lacks.
       people: [personId] }`, `people` by name match against `people.json`; a name that matches
       more than one person or none goes in `parse-report.md` for the owner, not linked. The pure
       HTML→Markdown step gets `stories.test.mjs` on an invented page.
-- [ ] SPEC §4 gains `stories/<id> { title, markdown, images: [photoId], people: [id], source }`
+- [x] SPEC §4 gains `stories/<id> { title, markdown, images: [photoId], people: [id], source }`
       and the rules block reads it like `people` (member read, owner write): the cases go with
       Step 4's.
 
 ### Step 2 — GEDCOM
 
-- [ ] `tools/gedcom.mjs` (pure; `gedcom.test.mjs` on the same fixtures) → `data/inggs.ged`,
+- [x] `tools/gedcom.mjs` (pure; `gedcom.test.mjs` on the same fixtures) → `data/inggs.ged`,
       GEDCOM 5.5.1, UTF-8: `HEAD` with `SOUR` "sidequests family-tree", a `SOUR` record naming
       **Jon Inggs** as compiler and familytree.inggs.com (2006) as the publication; one `INDI` per
       person (`NAME` given /surname/, `SEX`, `BIRT`/`DEAT` with `DATE` as written and `PLAC`,
@@ -368,13 +368,13 @@ what it lacks.
 
 ### Step 3 — The seed, and a mock seed
 
-- [ ] `tools/seed.mjs` → `data/seed/family-tree-1.json`, `-2.json`, …: the app's export format
+- [x] `tools/seed.mjs` → `data/seed/family-tree-1.json`, `-2.json`, …: the app's export format
       (SPEC.md §4), each file under 20 MB: the first carries `meta`, `people` and `photos`
       (thumbs ~400px, made with `sharp`? no: no native deps; use Chromium via `shared/proofs/pw.mjs`
       to draw and shrink, as `make-icons.mjs` does, or a pure-JS JPEG decoder/encoder in
       `node_modules` of `tools/` if Chromium can't be had), the rest carry `images` (1400px long
       edge JPEG data URLs) in chunks. `meta.photosRecovered` counts files actually in the mirror.
-- [ ] `tools/mock-seed.mjs` → `shared/proofs/seeds/family-tree-mock.json`: about 15 invented
+- [x] `tools/mock-seed.mjs` → `shared/proofs/seeds/family-tree-mock.json`: about 15 invented
       people over four generations (two living by the rule, one with no birth year, one
       unresolved ref), six photos as small generated images (an SVG-drawn JPEG or a coloured
       PNG data URL), captions, one suggestion. Committed: it's invented. `?mock&seed=../shared/proofs/seeds/family-tree-mock.json`.
@@ -412,7 +412,7 @@ what it lacks.
 
 ### Step 5 — The shell
 
-- [ ] Replace the placeholder section of `index.html` with: the gate (signed out), the
+- [x] Replace the placeholder section of `index.html` with: the gate (signed out), the
       **waiting screen** (a newcomer, watching `invites/<me>` and `members/<me>`), and the three
       tabs with People working: the credit line, search, the surname-grouped list (SPEC §2). A
       person's tap opens a stub person page: name, years, source link, "More in the next
@@ -422,9 +422,9 @@ what it lacks.
       invite from `onDone({ uid })` when there is no `members/<me>` and no invite yet
       (SPEC §5 step 2). The invite UI itself (approve, decline, invite a friend) is Session 4;
       but the waiting screen and the invite write are here, so the rules are exercised end to end.
-- [ ] Living rule applied in the stub page already (`isLiving()` in a small pure function in the
+- [x] Living rule applied in the stub page already (`isLiving()` in a small pure function in the
       page; the years line shows nothing for a living person without Show details).
-- [ ] `shared/proofs/family-tree-gate.mjs`: the owner on the mock seed sees the people list and
+- [x] `shared/proofs/family-tree-gate.mjs`: the owner on the mock seed sees the people list and
       imports a second seed file without duplicates; `&as=stranger` sees the waiting screen and
       nothing else; signed out sees Sign in; a two-tab scan (`h.mjs`, as `connect-scan.mjs` does)
       writes `invites/<newcomer>` with the right `invitedBy`. Smoke green.

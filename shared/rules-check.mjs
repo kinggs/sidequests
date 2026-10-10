@@ -1209,6 +1209,297 @@ describe("Sessions Loyalty: a member", () => {
   });
 });
 
+// ---- Family Tree: a private app, members only (family-tree/SPEC.md §4 and §5) ----
+// A member is a uid under members/, or the owner. Ann and Dee are members, and so is the owner
+// (their own members/ document, which lets a newcomer name them). Ben is a newcomer, connected to
+// Ann; Cat is a stranger (connected to Ann, as everywhere here, and to Ben, but nobody's member).
+// A newcomer asks in with invites/<uid>; a member who didn't send it decides it, the owner any;
+// approving is one batch with members/<uid>. Members read the tree; the owner alone writes it.
+
+const FT = "sidequests/family-tree/";
+const ftInvite = (extra = {}) => ({ uid: "ben", name: "Ben", email: "ben@gmail.com", invitedBy: "ann", invitedByName: "Ann", at: 1, status: "pending", ...extra });
+const ftMember = (extra = {}) => ({ name: "Ben", since: 2, invitedBy: "ann", approvedBy: "dee", ...extra });
+const ftDecide = (by, extra = {}) => ({ status: "approved", decidedBy: by, decidedAt: 2, ...extra });
+// The approval: the invite decided and the member's document, in one batch.
+function ftApprove(db, uid, decide, member){
+  const b = writeBatch(db);
+  b.update(doc(db, FT + "invites/" + uid), decide);
+  if (member) b.set(doc(db, FT + "members/" + uid), member);
+  return b.commit();
+}
+async function ftSeed(){
+  await seed(FT + "members/owner", { name: "Kenny", since: 1, invitedBy: "", approvedBy: "" });
+  await seed(FT + "members/ann", { name: "Ann", since: 1, invitedBy: "owner", approvedBy: "owner" });
+  await seed(FT + "members/dee", { name: "Dee", since: 1, invitedBy: "owner", approvedBy: "owner" });
+  await seed("friendships/ann_ben", { uids: ["ann", "ben"], since: 1, via: "x", app: "family-tree" });
+  await seed("friendships/ben_cat", { uids: ["ben", "cat"], since: 1, via: "x", app: "rack-it" });
+  await seed(FT + "people/p1", { name: "Henry Inggs", given: "Henry", surname: "Inggs" });
+  await seed(FT + "photos/f1", { caption: "Henry", people: ["p1"], thumb: "data:," });
+  await seed(FT + "images/f1", { data: "data:," });
+  await seed(FT + "meta/main", { source: "familytree.inggs.com", people: 1 });
+  await seed(FT + "stories/s1", { title: "The 150th", markdown: "# The 150th", images: [], people: ["p1"], source: "x" });
+  await seed(FT + "suggestions/q1", { person: "p1", personName: "Henry Inggs", text: "Born 1850", by: "ann", byName: "Ann", at: 1, status: "open" });
+  await seed(FT + "exports/e1", { by: "ann", byName: "Ann", at: 1, people: 1, photos: 1 });
+}
+const FT_TREE = ["people/p1", "photos/f1", "images/f1", "meta/main", "stories/s1"];
+
+describe("Family Tree: a member", () => {
+  beforeEach(async () => {
+    await ftSeed();
+    await seed(FT + "invites/ben", ftInvite());
+  });
+
+  test("reads people, photos, images, meta, stories, suggestions, members and invites (get and list)", async () => {
+    const db = user("ann");
+    for (const p of FT_TREE) await assertSucceeds(getDoc(doc(db, FT + p)));
+    for (const c of ["people", "photos", "images", "meta", "stories", "suggestions", "members", "invites"])
+      await assertSucceeds(getDocs(collection(db, FT + c)));
+    await assertSucceeds(getDoc(doc(db, FT + "members/dee")));
+    await assertSucceeds(getDoc(doc(db, FT + "invites/ben")));
+    await assertSucceeds(getDoc(doc(db, FT + "suggestions/q1")));
+  });
+  test("refused: writing people, photos, images, meta, stories or members, or deleting an invite", async () => {
+    const db = user("ann");
+    for (const p of FT_TREE){
+      await assertFails(setDoc(doc(db, FT + p), { name: "x" }, { merge: true }));
+      await assertFails(deleteDoc(doc(db, FT + p)));
+    }
+    await assertFails(setDoc(doc(db, FT + "people/p2"), { name: "Eve" }));
+    await assertFails(setDoc(doc(db, FT + "members/eve"), ftMember({ name: "Eve", approvedBy: "ann" })));
+    await assertFails(updateDoc(doc(db, FT + "members/dee"), { name: "Dee Dee" }));
+    await assertFails(deleteDoc(doc(db, FT + "invites/ben")));
+  });
+  test("refused: a member removing a member", async () => {
+    await assertFails(deleteDoc(doc(user("ann"), FT + "members/dee")));
+  });
+  test("creates a suggestion with by herself", async () => {
+    await assertSucceeds(setDoc(doc(user("ann"), FT + "suggestions/q2"), { person: "p1", personName: "Henry Inggs", text: "Died 1920", by: "ann", byName: "Ann", at: 2, status: "open" }));
+  });
+  test("refused: a suggestion by another", async () => {
+    await assertFails(setDoc(doc(user("ann"), FT + "suggestions/q3"), { person: "p1", text: "x", by: "dee", byName: "Dee", at: 2, status: "open" }));
+  });
+  test("refused: a suggestion already done", async () => {
+    await assertFails(setDoc(doc(user("ann"), FT + "suggestions/q4"), { person: "p1", text: "x", by: "ann", byName: "Ann", at: 2, status: "done" }));
+  });
+  test("refused: updating or deleting a suggestion, her own included", async () => {
+    const db = user("ann");
+    await assertFails(updateDoc(doc(db, FT + "suggestions/q1"), { status: "done", doneBy: "ann", doneAt: 3 }));
+    await assertFails(deleteDoc(doc(db, FT + "suggestions/q1")));
+  });
+  test("logs an export with by herself", async () => {
+    await assertSucceeds(setDoc(doc(user("ann"), FT + "exports/e2"), { by: "ann", byName: "Ann", at: 2, people: 1, photos: 1 }));
+  });
+  test("refused: an export logged as another", async () => {
+    await assertFails(setDoc(doc(user("ann"), FT + "exports/e3"), { by: "dee", byName: "Dee", at: 2, people: 1, photos: 1 }));
+  });
+  test("refused: reading the export log", async () => {
+    const db = user("ann");
+    await assertFails(getDocs(collection(db, FT + "exports")));
+    await assertFails(getDoc(doc(db, FT + "exports/e1")));
+  });
+});
+
+describe("Family Tree: a newcomer, a stranger, signed out", () => {
+  beforeEach(async () => {
+    await ftSeed();
+    await seed(FT + "invites/ben", ftInvite());
+  });
+
+  test("a newcomer gets his own member document (absent) and his own invite", async () => {
+    const db = user("ben");
+    await assertSucceeds(getDoc(doc(db, FT + "members/ben")));
+    await assertSucceeds(getDoc(doc(db, FT + "invites/ben")));
+  });
+  test("refused: a newcomer listing members or invites, or getting anyone else's", async () => {
+    const db = user("ben");
+    await assertFails(getDocs(collection(db, FT + "members")));
+    await assertFails(getDocs(collection(db, FT + "invites")));
+    await assertFails(getDoc(doc(db, FT + "members/ann")));
+    await assertFails(getDoc(doc(user("cat"), FT + "invites/ben")));
+  });
+  test("refused: a newcomer reading any person, photo, image, meta, story or suggestion", async () => {
+    const db = user("ben");
+    for (const p of FT_TREE) await assertFails(getDoc(doc(db, FT + p)));
+    for (const c of ["people", "photos", "images", "meta", "stories", "suggestions"]) await assertFails(getDocs(collection(db, FT + c)));
+  });
+  test("refused: a newcomer writing a suggestion or an export", async () => {
+    const db = user("ben");
+    await assertFails(setDoc(doc(db, FT + "suggestions/q9"), { person: "p1", text: "x", by: "ben", at: 2, status: "open" }));
+    await assertFails(setDoc(doc(db, FT + "exports/e9"), { by: "ben", at: 2 }));
+  });
+  test("refused: a household member who isn't in the tree reads nothing", async () => {
+    const db = as(MEMBER);
+    await assertFails(getDoc(doc(db, FT + "people/p1")));
+    await assertFails(getDocs(collection(db, FT + "members")));
+  });
+  test("refused: everything signed out", async () => {
+    const db = signedOut();
+    for (const p of [...FT_TREE, "members/ann", "invites/ben", "suggestions/q1", "exports/e1"]) await assertFails(getDoc(doc(db, FT + p)));
+    for (const c of ["people", "members", "invites", "stories"]) await assertFails(getDocs(collection(db, FT + c)));
+    await assertFails(setDoc(doc(db, FT + "invites/ben"), ftInvite()));
+  });
+});
+
+describe("Family Tree: asking in", () => {
+  beforeEach(ftSeed);
+
+  test("ben asks in: his own invite, pending, his own email, naming Ann, who he's connected to", async () => {
+    await assertSucceeds(setDoc(doc(user("ben"), FT + "invites/ben"), ftInvite()));
+  });
+  test("ben asks in naming the owner, a member he's connected to", async () => {
+    await seed("friendships/ben_owner", { uids: ["ben", "owner"], since: 1, via: "x", app: "family-tree" });
+    await assertSucceeds(setDoc(doc(user("ben"), FT + "invites/ben"), ftInvite({ invitedBy: "owner", invitedByName: "Kenny" })));
+  });
+  test("refused: an invite for cat, not his own", async () => {
+    await assertFails(setDoc(doc(user("ben"), FT + "invites/cat"), ftInvite({ uid: "cat", name: "Cat" })));   // his email, Ann (cat's friend too)
+  });
+  test("refused: his own invite with uid naming someone else", async () => {
+    await assertFails(setDoc(doc(user("ben"), FT + "invites/ben"), ftInvite({ uid: "cat" })));
+  });
+  test("refused: asking in already approved", async () => {
+    await assertFails(setDoc(doc(user("ben"), FT + "invites/ben"), ftInvite({ status: "approved" })));
+  });
+  test("refused: invitedBy someone he isn't connected to", async () => {
+    await assertFails(setDoc(doc(user("ben"), FT + "invites/ben"), ftInvite({ invitedBy: "dee", invitedByName: "Dee" })));
+  });
+  test("refused: invitedBy someone he's connected to who isn't a member", async () => {
+    await assertFails(setDoc(doc(user("ben"), FT + "invites/ben"), ftInvite({ invitedBy: "cat", invitedByName: "Cat" })));
+  });
+  test("refused: another's email", async () => {
+    await assertFails(setDoc(doc(user("ben"), FT + "invites/ben"), ftInvite({ email: "ann@gmail.com" })));
+    await assertFails(setDoc(doc(user("ben"), FT + "invites/ben"), ftInvite({ email: "" })));
+  });
+  test("refused: an invite with an extra key", async () => {
+    await assertFails(setDoc(doc(user("ben"), FT + "invites/ben"), ftInvite({ role: "owner" })));
+  });
+  test("refused: an invite missing a key", async () => {
+    const { at, ...short } = ftInvite();
+    await assertFails(setDoc(doc(user("ben"), FT + "invites/ben"), short));
+  });
+  test("ann invites cat, a friend, as herself with no email", async () => {
+    await assertSucceeds(setDoc(doc(user("ann"), FT + "invites/cat"), ftInvite({ uid: "cat", name: "Cat", email: "" })));
+  });
+  test("refused: ann inviting eve, who she isn't connected to", async () => {
+    await assertFails(setDoc(doc(user("ann"), FT + "invites/eve"), ftInvite({ uid: "eve", name: "Eve", email: "" })));
+  });
+  test("refused: ann inviting a friend in someone else's name", async () => {
+    await assertFails(setDoc(doc(user("ann"), FT + "invites/cat"), ftInvite({ uid: "cat", name: "Cat", email: "", invitedBy: "dee", invitedByName: "Dee" })));
+  });
+  test("refused: ann inviting a friend with an email for a friend", async () => {
+    await assertFails(setDoc(doc(user("ann"), FT + "invites/cat"), ftInvite({ uid: "cat", name: "Cat", email: "cat@gmail.com" })));
+  });
+  test("refused: a newcomer inviting a friend", async () => {
+    await assertFails(setDoc(doc(user("ben"), FT + "invites/cat"), ftInvite({ uid: "cat", name: "Cat", email: "", invitedBy: "ben", invitedByName: "Ben" })));
+  });
+});
+
+describe("Family Tree: deciding", () => {
+  beforeEach(async () => {
+    await ftSeed();
+    await seed(FT + "invites/ben", ftInvite());
+    await seed(FT + "invites/eve", ftInvite({ uid: "eve", name: "Eve", email: "eve@gmail.com", invitedBy: "owner", invitedByName: "Kenny" }));
+    await seed(FT + "invites/cat", ftInvite({ uid: "cat", name: "Cat", email: "cat@gmail.com", status: "declined", decidedBy: "dee", decidedAt: 1 }));
+    await seed(FT + "invites/gil", ftInvite({ uid: "gil", name: "Gil", email: "gil@gmail.com", status: "approved", decidedBy: "dee", decidedAt: 1 }));
+  });
+
+  test("dee approves ben: the invite decided and members/ben in one batch", async () => {
+    await assertSucceeds(ftApprove(user("dee"), "ben", ftDecide("dee"), ftMember()));
+    await assertSucceeds(getDoc(doc(user("ben"), FT + "people/p1")));
+  });
+  test("dee declines ben: the invite alone", async () => {
+    await assertSucceeds(ftApprove(user("dee"), "ben", ftDecide("dee", { status: "declined" })));
+  });
+  test("the owner approves ben, and eve, whom the owner invited", async () => {
+    const db = as(OWNER);
+    await assertSucceeds(ftApprove(db, "ben", ftDecide("owner"), ftMember({ approvedBy: "owner" })));
+    await assertSucceeds(ftApprove(db, "eve", ftDecide("owner"), ftMember({ name: "Eve", invitedBy: "owner", approvedBy: "owner" })));
+  });
+  test("refused: ann (the inviter) deciding ben's invite", async () => {
+    await assertFails(ftApprove(user("ann"), "ben", ftDecide("ann"), ftMember({ approvedBy: "ann" })));
+    await assertFails(ftApprove(user("ann"), "ben", ftDecide("ann", { status: "declined" })));
+  });
+  test("refused: a newcomer approving himself", async () => {
+    await assertFails(ftApprove(user("ben"), "ben", ftDecide("ben"), ftMember({ approvedBy: "ben" })));
+  });
+  test("refused: the member doc alone", async () => {
+    await assertFails(setDoc(doc(user("dee"), FT + "members/ben"), ftMember()));
+  });
+  test("refused: re-adding a member whose invite was approved before", async () => {
+    await assertFails(setDoc(doc(user("dee"), FT + "members/gil"), ftMember({ name: "Gil" })));
+  });
+  test("refused: approving with no member doc", async () => {
+    await assertFails(ftApprove(user("dee"), "ben", ftDecide("dee")));
+  });
+  test("refused: approvedBy not self", async () => {
+    await assertFails(ftApprove(user("dee"), "ben", ftDecide("dee"), ftMember({ approvedBy: "owner" })));
+  });
+  test("refused: decidedBy someone else", async () => {
+    await assertFails(ftApprove(user("dee"), "ben", ftDecide("owner", { status: "declined" })));
+  });
+  test("refused: a member doc naming another inviter", async () => {
+    await assertFails(ftApprove(user("dee"), "ben", ftDecide("dee"), ftMember({ invitedBy: "dee" })));
+  });
+  test("refused: a member doc missing a key", async () => {
+    const { since, ...short } = ftMember();
+    await assertFails(ftApprove(user("dee"), "ben", ftDecide("dee"), short));
+  });
+  test("refused: a member doc with an extra key", async () => {
+    await assertFails(ftApprove(user("dee"), "ben", ftDecide("dee"), ftMember({ role: "owner" })));
+  });
+  test("refused: deciding an invite already decided", async () => {
+    await assertFails(ftApprove(user("dee"), "gil", ftDecide("dee", { status: "declined" })));
+    await assertFails(ftApprove(user("dee"), "cat", ftDecide("dee"), ftMember({ name: "Cat" })));
+  });
+  test("refused: a status that isn't approved or declined", async () => {
+    await assertFails(ftApprove(user("dee"), "ben", ftDecide("dee", { status: "maybe" })));
+    // Even on the invite of someone already in (the owner wrote their member document).
+    await seed(FT + "invites/dee", ftInvite({ uid: "dee", name: "Dee", email: "dee@gmail.com", invitedBy: "owner", invitedByName: "Kenny" }));
+    await assertFails(ftApprove(user("ann"), "dee", ftDecide("ann", { status: "maybe" })));
+  });
+  test("refused: changing any other field while deciding", async () => {
+    await assertFails(ftApprove(user("dee"), "ben", ftDecide("dee", { status: "declined", invitedBy: "dee" })));
+    await assertFails(ftApprove(user("dee"), "ben", ftDecide("dee", { name: "Benjamin" }), ftMember()));
+  });
+  test("refused: declining with a member doc in the batch", async () => {
+    await assertFails(ftApprove(user("dee"), "ben", ftDecide("dee", { status: "declined" }), ftMember()));
+  });
+});
+
+describe("Family Tree: the owner", () => {
+  beforeEach(ftSeed);
+
+  test("writes and deletes people, photos, images, meta and stories (Import)", async () => {
+    const db = as(OWNER);
+    for (const p of FT_TREE){
+      await assertSucceeds(setDoc(doc(db, FT + p), { name: "x" }, { merge: true }));
+      await assertSucceeds(deleteDoc(doc(db, FT + p)));
+    }
+    await assertSucceeds(setDoc(doc(db, FT + "people/p2"), { name: "Eve" }));
+  });
+  test("writes members and invites (Import), removes a member, deletes an invite", async () => {
+    const db = as(OWNER);
+    await assertSucceeds(setDoc(doc(db, FT + "members/hal"), { name: "Hal", since: 1, invitedBy: "ann", approvedBy: "dee" }));
+    await assertSucceeds(setDoc(doc(db, FT + "invites/hal"), ftInvite({ uid: "hal", status: "approved", decidedBy: "dee", decidedAt: 1 })));
+    await assertSucceeds(deleteDoc(doc(db, FT + "members/ann")));
+    await assertSucceeds(deleteDoc(doc(db, FT + "invites/hal")));
+  });
+  test("updates and deletes a suggestion", async () => {
+    const db = as(OWNER);
+    await assertSucceeds(updateDoc(doc(db, FT + "suggestions/q1"), { status: "done", doneBy: "owner", doneAt: 3 }));
+    await assertSucceeds(deleteDoc(doc(db, FT + "suggestions/q1")));
+  });
+  test("reads the export log", async () => {
+    const db = as(OWNER);
+    await assertSucceeds(getDocs(collection(db, FT + "exports")));
+    await assertSucceeds(getDoc(doc(db, FT + "exports/e1")));
+  });
+  test("refused: the owner rewriting or deleting an export log entry", async () => {
+    const db = as(OWNER);
+    await assertFails(updateDoc(doc(db, FT + "exports/e1"), { people: 9 }));
+    await assertFails(deleteDoc(doc(db, FT + "exports/e1")));
+  });
+});
+
 // ---- Session 8 step 1: claiming a guest, "That was them" (KIT-PLAN.md) ----
 // Whoever started a record (`by`) may give a guest's seat in it to a friend: exactly one player
 // id that starts g_ becomes the friend's uid, and `uids` gains exactly that uid. Ann's guest
