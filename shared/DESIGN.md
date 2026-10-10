@@ -42,9 +42,9 @@ soft (a tinted ground for a live row or strip):
 | green | `--green` | Sessions Loyalty (points in) |
 | lime | `--lime` | Zombie Dice |
 | amber | `--amber` | Bloc 11 |
-| coral | `--coral` | free (Zombie Dice's second: a shot; Sessions Loyalty's second: points out) |
+| coral | `--coral` | free (Zombie Dice's second: a shot; Sessions Loyalty's second: points out; Family Tree's second: the descendant side) |
 | pink | `--pink` | Photo Coach |
-| lilac | `--lilac` | Rack It's second (side B) |
+| lilac | `--lilac` | Family Tree (Rack It's second: side B) |
 | sky | `--sky` | Around the Clock (Bloc 11's second: projecting) |
 
 A new app takes a free one. Two apps never share a first accent: the launcher lines them up.
