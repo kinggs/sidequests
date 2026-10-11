@@ -27,7 +27,7 @@ test("seedFiles keeps the tree in the first file and spreads the images under th
 test("the mock seed is invented, consistent, and has what the proofs need", () => {
   const s = mockSeed();
   const ids = new Set(s.people.map(p => p.id));
-  assert.equal(s.people.length, 15);
+  assert.equal(s.people.length, 21);
   for (const p of s.people){
     for (const id of [...p.parents, ...p.children, ...p.spouses.map(x => x.id)]) assert.ok(ids.has(id), `${p.id} → ${id}`);
     for (const c of p.children) assert.ok(s.people.find(q => q.id === c).parents.includes(p.id));
