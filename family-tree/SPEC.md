@@ -4,7 +4,7 @@ The Inggs family tree that Jon Inggs researched and published at familytree.ingg
 from the Wayback Machine's copies (the last whole one, 2 July 2017) before they are lost, and given a private home where
 the family can browse the tree and the oldest photographs and add or correct what they know.
 The brief is `BRIEF.md`; the sessions that build it are `PLAN.md`. This spec is the app as it is:
-**1.0.0, the MVP (Session 4).** What comes next is `PLAN.md` (Session 5, research agents) and its
+**1.0.0, the MVP (Session 4).** What comes next is `PLAN.md` (Sessions 6 to 8, research agents) and its
 Parked list (adding family photos is next in line).
 
 **Jon Inggs is the author.** Every screen that shows his work says so: the home page, every
@@ -266,7 +266,12 @@ Trusts the family to recognise each other; accepted for a few dozen people (BRIE
   published them on his public site for years, and the app is members-only and all family. The
   living rule stays for one thing, research agents (`PLAN.md` Session 5): a person with no death
   date who was born within the last 100 years, or whose birth year is unknown, is treated as
-  living, and an agent searches for them only with their recorded consent.
+  living, and an agent searches for them only with their recorded consent (`consent/<id>`, set by
+  the owner with a dated note). A relative's dates prove death (owner, 2026-10-11): no birth year,
+  but a child born 100+ years ago, a parent 150+ or a spouse 110+, and they are searched as the
+  dead (`kin.js` `isPresumedDead`). Never searched for anyone living, even with consent: address,
+  phone, email, ID numbers, employer today, finances, health, legal records, social media,
+  current photos.
 - **Opt-out honoured.** Any relative may ask for their record minimised or removed; `suggestions/`
   is the channel and the owner acts on it.
 - **The raw mirror** lives in the private data repo and the owner's backup: never in Firestore,
@@ -308,4 +313,5 @@ link per person with a dated copy of its facts: §2, §8); notifications.
 | 2026-10-11 (owner) | **WikiTree is cached, not read live.** Since the live read can't run from github.io, the owner's laptop keeps a dated copy of each linked person's public WikiTree profile (facts only: see the terms row below), refreshed by hand and imported into `wikitree/`, apart from Jon's records. Replaces "linked, not copied"; built in Session 4b (`PLAN.md`). |
 | 2026-10-11 (owner) | **Members see everyone's dates and places**, the living included; Show details is gone. The rule had hidden 1,411 of 2,331 people, 876 of them only for want of a birth year, and Jon published these dates for years. The living rule stays for research agents' consent (Session 5). The WikiTree copy takes what WikiTree shows publicly, living included. |
 | 2026-10-11 (Opus, Session 4b) | **WikiTree's terms checked**: personal family research, not a substantial part of the site, link back, keep it fresh; biographies and photos belong to their authors, so the copy is facts only. Its dates are compared with Jon's as same, vaguer, more or differ: only "more" and "differ" show beside his, and only "differ" goes to the owner's review (7 of 97 on the first run; 36 more only add a day or a date). |
+| 2026-10-11 (owner, Session 5) | **Research agents**: free public sources searched by agents (WikiTree's API, FreeBMD, FreeREG, FreeCEN, eGGSA, NAAIRS, free newspaper archives); FamilySearch and paid sites by hand, from lookups the agent writes. Run from a laptop session, 10 briefs a run. The owner alone approves a finding; an approved one shows on the person page with its source and never changes Jon's record. A relative's dates prove death (316 more searchable). `PLAN.md` Sessions 5 to 8. |
 | 2026-10-10 (Fable) | Three tabs; the tree view reached from a person. A living person is one with no death and a birth within 100 years or unknown. Show details is per phone. The seed is the app's own Import, in files under 20 MB, since there is no server code and no admin key. Tools in `tools/` with tests beside them (the brief's own allowance; CLAUDE.md rule 1 names it). |

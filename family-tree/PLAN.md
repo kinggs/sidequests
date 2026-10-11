@@ -6,8 +6,8 @@ Claude Code sessions, the `rack-it/V3-PLAN.md` pattern: each session does its li
 boxes, and writes its Handover note at the bottom, so the next session starts from the truth.
 
 **Start every session with:** "Read `family-tree/PLAN.md` and do Session N."
-Session 1 (planning, Fable) is done. Sessions 2 to 4 run on Opus 5.5 and are specified below in
-full; don't re-plan them, do them.
+Sessions 1 to 5 are done (1 and 5 were planning). Sessions 6 to 8 run on Opus 5.5 and are
+specified below in full; don't re-plan them, do them.
 
 ## Read first, every session
 
@@ -567,57 +567,236 @@ schedule, since a scheduled job would need a Firebase admin key (no server code,
 
 ---
 
-## Session 5 — Research agents (sketch; planned after Session 4 is live)
+## Session 5 — Research agents, planned (Opus 5.5, 2026-10-11)
 
-**Goal:** agents that fill the tree's gaps from public records and hand every finding to a person
-to approve. Not specified yet: Session 5 opens with the owner's answers to the questions below,
-then plans itself the way Session 1 did.
+**Goal:** settle the open questions and specify the build. **Status: done.** Sessions 6 to 8
+below build it; don't re-plan them, do them. The hard lines and archive requests from the
+sketch stand as written in **Hard lines** and **Archive requests** below.
 
-**Shape.** A tool lists the gaps (no birth year, no parents, a `ref` that didn't resolve, a
-story naming someone not in the tree) and writes one brief per gap: who, what's known with its
-source, what's missing. An agent takes a brief, searches public sources, and writes back a
-finding with a citation for every claim. A finding is a **suggestion** (SPEC §4), never a change
-to the tree: the owner approves it, and the person's record shows it with its source. Agents
-have no Firestore access (no service account): briefs and findings move through the data repo
-(`research/briefs/`, `research/findings/`) and the owner's Import.
+**The owner's answers (2026-10-11):**
 
-**Hard lines (owner, 2026-10-10).** These are rules, not settings:
+| Question | Answer |
+|---|---|
+| Sources | **Agents search** free, public sources with no sign-in: WikiTree's API, FreeBMD, FreeREG, FreeCEN, eGGSA, NAAIRS, and free newspaper archives (Trove, Papers Past, Welsh Newspapers, Google Books, Internet Archive texts). **By hand:** FamilySearch (sign-in; its terms bar automated tools) and paid sites (Ancestry, Findmypast, British Newspaper Archive): the agent writes the lookup, the owner runs it. |
+| Who runs them | A Claude Code session on the laptop, by hand. No schedule, no cloud. |
+| Run size | 10 briefs a run, then stop. That is the cost ceiling. |
+| Who approves | The owner alone. A living person's findings follow their consent (below). |
+| The living rule | **A relative's dates prove death** (owner's call; it loosens the sketch's rule): a person with no birth year is presumed dead when a child was born 100+ years ago, a parent 150+ years ago, or a spouse 110+ years ago. On today's data that releases 316 of the 880 who are "living" only for want of a birth year: **1,231 people searchable** (915 dead, 316 presumed dead); **1,100 consent-only**. The app's display doesn't change (members already see every date). |
 
-- **The dead:** anything in public records.
-- **A living person** (SPEC §6's rule) **only with their consent**, recorded on their record
-  (`research: "none" | "genealogy" | "genealogy-shared"`, default `"none"`): set by the person once
-  they have claimed their record, or by the owner with a dated note ("Dad said yes, 12 Oct").
-  Consent covers genealogy only: published birth, marriage and death indexes, newspaper notices,
-  school and graduation lists, public service records, relatives' obituaries that name them,
-  their own published work. Findings go to that person first, and to the family only if they
-  choose (`"genealogy-shared"`).
+### Hard lines (owner, 2026-10-10). Rules, not settings.
+
+- **The dead** (and the presumed dead): anything in public records.
+- **A living person** (SPEC §6's rule) **only with their consent**, recorded as
+  `consent/<person id>` (Session 7): `"genealogy"` or `"genealogy-shared"`; no document means
+  none. The owner sets it with a dated note ("Dad said yes, 12 Oct"); the person sets it
+  themselves once claiming a record exists (Parked). Consent covers genealogy only: published
+  birth, marriage and death indexes, newspaper notices, school and graduation lists, public
+  service records, relatives' obituaries that name them, their own published work. Findings go
+  to that person first (until claiming exists, the owner holds them), and to the family only
+  with `"genealogy-shared"`.
 - **Never, for anyone living, even with consent:** current address, phone, email, ID or passport
   numbers, employer today, finances, health, court or legal records, social-media profiles,
-  current photos. The agent brief says so and the review rejects a finding that carries any.
-- **Without consent: nothing** about a living person is searched.
-- For a living relative, the first tool is an interview, not an agent: a **Tell your story**
-  sheet the person fills in, or a member fills in with them.
+  current photos. The agent brief says so, and `research.mjs check` rejects a finding that
+  carries any.
+- **Without consent: nothing** about a living person is searched. The tools never write a brief
+  for one.
+- For a living relative, the first tool is an interview, not an agent: **Tell their story**
+  (Session 8).
 
-**Archive requests (owner, 2026-10-10).** Much of what's missing isn't online, so agents also
-draft what a person sends to an archive. A **research request** is a short letter built from a
-topic, not only a person: who or what (a person, or a family business and the people known from
-it), places, a date range, what's already known with its sources, and the exact ask (for
-example: references to the business and its well-known people in the newspapers and magazines a
-library holds, the years to search, the copy or scan wanted). It exports as plain text or
-Markdown, to send by email or a library's request form, and the reply comes back as a story or
-suggestions with the library's reference. Beside it, a **research guide** (`family-tree/RESEARCH.md`,
-public, no family data): how to research deeper in South Africa, the archives and what each
-holds, how to write a request a librarian can act on, what it costs and how long it takes,
-how to cite what comes back. ⚠ Session 5 checks each archive's current services and request
-routes before writing them down (to start from: the National Library of South Africa's newspaper
-holdings, the National Archives' online index NAAIRS and its provincial repositories, the
-Genealogical Society of South Africa's eGGSA, and local museums). The specifics of the family
-business sit in the data repo, not here.
+### The design (Sessions 6 to 8 build it)
 
-**Open questions for the owner (Session 5's opening):** which sources (FamilySearch, the South
-African archives' NAAIRS, eGGSA, WikiTree, newspaper archives); Claude Code sessions or a
-scheduled cloud routine; how many briefs a run, and the cost ceiling; who besides the owner may
-approve findings.
+```
+data/people.json ─ gaps.mjs ─► data/research/briefs/<brief id>.json   (ranked, 10 taken a run)
+                                   │  one agent per brief (a laptop session, tools/research/RUN.md)
+                                   ▼
+                    data/research/findings/<finding id>.json  ─ research.mjs check ─► rejected/ + why
+                                   │  research.mjs pack
+                                   ▼
+                    data/seed/family-tree-research.json ─ the owner's Import ─► findings/ (owner only)
+                                   │  the owner approves a claim on the phone
+                                   ▼
+                    found/<id> (members read) ─► the person page's "Research found", with its source
+```
+
+- **Who may be researched:** `kin.js` `isPresumedDead(p, byId, now)` and
+  `researchable(p, byId, consent, now)` → `"dead" | "presumed" | "consented" | "no"`. One
+  function, used by the tools and, later, by the app's consent sheet.
+- **Gap kinds**, in this order within a tier: no parents; no birth date; no death date though
+  born 100+ years ago (or presumed dead); a parent, spouse or child Jon named who didn't resolve
+  (`refs`); someone a story names who isn't in the tree (`data/parse-report.md`'s list). Counts
+  for the 915 clearly dead today: 170, 33, 393, 8, and the report's. Session 6 recounts with the
+  presumed dead.
+- **A brief's id** is `<kind>.<person id>` and never changes (ids stay put: `data/ids.json`). A
+  brief is done once a finding names it; the owner reopens one by deleting its finding, and the
+  re-run's finding id is `<brief id>.<run>`.
+- **Ranking:** tier 1, the direct ancestors of `root` (the owner's own id in the tree, in
+  `data/research/config.json`, asked once at the first run), nearest generation first; tier 2,
+  surname Inggs; tier 3, everyone else. Within a tier, a person with a known place and year comes
+  first (an agent can find them), then the gap order above.
+- **A brief** carries: who (name, dates and places verbatim, parents, spouses and children with
+  their dates), what's known and from where (Jon 2006; the WikiTree copy with its "as of"; the
+  stories that name them, by title), what's missing, why they may be searched (`dead`,
+  `presumed` with the relative's date that proves it, or `consented` with its scope), and the
+  sources, never-list and lookup sites from `tools/research/AGENT.md`.
+- **A finding** (`data/research/findings/<finding id>.json`):
+
+  ```
+  { id, brief, person, ranAt, model,
+    claims: [{ field,            // "birth" | "death" | "marriage" | "parent" | "spouse" | "child" |
+                                 // "baptism" | "burial" | "residence" | "occupation" | "note"
+               value,            // { date, place } for an event; { name, birth, death } for a person; text for a note
+               citations: [{ source, title, url, accessed, quote, reference }],   // quote: the words that say it
+               confidence,       // "record" (the original or its image) | "index" | "secondary" (a tree, a book, a notice)
+               reasoning }],      // why this is the same person: the facts that match
+    lookups: [{ site, query, url, why }],   // by hand: FamilySearch and the paid sites, a search URL ready to tap
+    searched: [{ source, query, result }],  // "nothing" counts: it stops the next run repeating it
+    notFound }                              // what the agent looked for and didn't find
+  ```
+
+  Every claim cites at least one source with a URL and the quote that says it. A claim that only
+  repeats what Jon has is dropped by `check` (it says "already known"). A family tree (WikiTree
+  included) is `secondary` and is never a claim's only citation for a parent.
+- **`research.mjs check`** rejects a finding to `findings/rejected/` with the reason, and the
+  run's report lists it: a claim with no citation, URL or quote; a citation host off the allowed
+  list (AGENT.md's sources); a brief or person that doesn't exist; a person no longer
+  `researchable`; and for a consented living person, any field outside the genealogy set or any
+  text that looks like an email, a phone number, a street address, a 13-digit ID number, a
+  social-media host, or an employer today. Tested on invented findings, one per reason.
+- **`research.mjs pack`** writes `data/seed/family-tree-research.json`
+  (`{ app, version, seed: { kind: "research" }, findings: [...] }`), every checked finding not yet
+  packed, each with `scope`: `"family"` for the dead, presumed dead and `"genealogy-shared"`;
+  `"person"` for `"genealogy"`.
+- **In the app (Session 7):** `findings/<finding id>` is the finding plus `personName`, `scope`
+  and each claim's `status` (`open` | `approved` | `rejected`, with `decidedAt`); owner only.
+  Approving a claim with `scope: "family"` writes `found/<finding id>.<n>`
+  (`{ person, field, value, citations, confidence, finding, approvedBy, approvedAt }`), which
+  members read. A `"person"` claim is approved in place and never copied to `found/`. Nothing
+  changes `people/`: Jon's record stays his, and seed part 1's Import leaves `findings/` and
+  `found/` alone.
+- **The agent contract** is `tools/research/AGENT.md` (public, no family data): the role, the
+  sources and how to use each (WikiTree's API; the rest by search and fetch), politeness (about a
+  request a second, never signed in, never past a bot check or a paywall, stop on a refusal), the
+  never-list, the output schema above, about 20 searches and fetches a brief, then write what you
+  have. A source that refuses an agent becomes a lookup.
+- **The run** is `tools/research/RUN.md`, started in a laptop session with "Read
+  `family-tree/tools/research/RUN.md` and do a research run": the owner's latest Export (for
+  `consent/`) saved as `data/research/export.json` (without it, nobody living is briefed);
+  `gaps.mjs` (briefs, top 10 not done); one `general-purpose` agent per brief, in parallel, each
+  given AGENT.md and its brief; `check`; `pack`; a report (`data/research/runs/<date>.md`: what
+  was found, rejected and why, the lookups); `data/research/runs.json` logs the run. The owner
+  Imports the pack and reviews on the phone. The data repo is committed from a session opened in
+  `family-tree/data` (the guard on this repo's sessions refuses git there).
+- **Research doesn't wait on Jon.** Findings sit beside his record, never in it; if his GEDCOM
+  replaces the parse, ids stay put and the findings still point at the right people.
+
+### Archive requests (owner, 2026-10-10)
+
+Much of what's missing isn't online, so agents also draft what a person sends to an archive. A
+**research request** is a short letter built from a topic, not only a person: who or what (a
+person, or a family business and the people known from it), places, a date range, what's
+already known with its sources, and the exact ask (for example: references to the business and
+its well-known people in the newspapers and magazines a library holds, the years to search, the
+copy or scan wanted). It exports as plain text or Markdown, to send by email or a library's
+request form, and the reply comes back as a story or suggestions with the library's reference.
+Beside it, a **research guide** (`family-tree/RESEARCH.md`, public, no family data): how to
+research deeper in South Africa, the archives and what each holds, how to write a request a
+librarian can act on, what it costs and how long it takes, how to cite what comes back. The
+topics are in the data repo (`research-leads.md`), never here. Session 8 builds both.
+
+---
+
+## Session 6 — Gaps, briefs, agents and the first run (Opus 5.5, the laptop)
+
+**Goal:** the laptop side, end to end: the first 10 briefs run and their findings checked and
+packed. No app change, so no version bump; the pack waits for Session 7's Import.
+
+- [ ] **Terms first**, as in Session 4b: read each automated source's terms and robots rules
+      (WikiTree API, FreeBMD, FreeREG, FreeCEN, eGGSA, NAAIRS, Trove, Papers Past, Welsh
+      Newspapers, Google Books, Internet Archive) and try one search from this laptop with the
+      agent's own tools (WebSearch, WebFetch). ⚠ Expect some to fail: FreeBMD's search is a form,
+      WikiTree's pages sit behind a bot check (its API doesn't), Trove's and Papers Past's APIs
+      want a key. A source that refuses automated use, or can't be reached, moves to lookups.
+      Record each verdict, with the date, in AGENT.md's source table.
+- [ ] **`kin.js`**: `isPresumedDead` and `researchable` (the design above), with tests in
+      `kin.test.mjs` on the mock seed (add invented people to `tools/mock-seed.mjs` for each
+      case: a child's date, a parent's, a spouse's, none). SPEC §6 already states the rule.
+- [ ] **`tools/gaps.mjs`** + `gaps.test.mjs`: the gap kinds, brief ids, ranking and brief
+      contents above, pure functions on invented rows; the CLI writes `data/research/briefs/` and
+      prints the counts per kind and tier, and how many living were skipped (all of them, until
+      Session 7's consent exists; with an `export.json`, those without consent).
+- [ ] **`tools/research/AGENT.md`** and **`tools/research/RUN.md`** (public, no family data).
+- [ ] **`tools/research.mjs`** + `research.test.mjs`: `check` (one invented finding per rejection
+      reason, and one that passes) and `pack`.
+- [ ] **The first run**, on the laptop: ask the owner for `root` once; run RUN.md on 10 briefs.
+      Record in Handover: how many claims, rejected and why, lookups, how long it took, and the
+      run's token use (the cost of a run of 10, for the owner).
+- [ ] `make verify` green. This doc's Handover. Push this repo; the data repo's research files
+      wait for a session opened there (say so).
+
+## Session 7 — Findings in the app: review, sources, consent (Opus 5.5)
+
+**Goal:** the owner reviews findings on the phone, approved ones show on the person page with
+their sources, and the owner records a living person's consent. Version `1.2.0`.
+
+- [ ] **The rules, cases first** (`shared/rules-check.mjs`, then the rule, its guard in
+      `shared/proofs/guards.mjs`, then `shared/cloud-memory.js`): `consent/` and `findings/`, the
+      owner only, read and write; `found/`, members read, the owner writes. A member, a newcomer
+      and signed out each refused what isn't theirs.
+- [ ] **Import** takes `family-tree-research.json` (`seed.kind: "research"`): creates each
+      `findings/` document that doesn't exist yet and skips one that does ("3 already
+      imported"), so a decision is never reset. It never offers removal.
+- [ ] **Research** on the Family tab, the owner alone, under Suggestions: the open findings, newest
+      run first, each a row with the person and how many claims. Open: each claim as its value,
+      confidence, the source title (tap → the source in the browser) and the quote; its `⋯`:
+      **Approve** (a tap: `found/` for a family claim, in place for a person's) and **Hold to
+      reject**. Then the finding's lookups as rows ("Look up on FamilySearch": the search URL), and
+      **Add what you found**: a sheet with the value, where (site and reference) and a note, saved
+      as an approved claim with the owner as its source. Then what was searched and not found.
+- [ ] **The person page: Research found** (members), after On WikiTree: each `found/` entry as
+      its value, "Source: <title>" (tap → the source), the confidence in words ("from the
+      record", "from an index", "from a family tree or notice"), and "approved by Kenny, 12 Oct".
+      Born and Died stay Jon's.
+- [ ] **Research consent** (the owner, a living person's page, the `⋯`): None, Genealogy (only
+      them), Genealogy, shared with the family; a note is required ("Dad said yes, 12 Oct").
+      Setting None holds, and deletes that person's open findings and `found/` entries.
+- [ ] **Export** carries `found` (members) and `consent` and `findings` (the owner); Share as
+      Markdown adds Research found with each citation to a person's section and its sources.
+- [ ] Mock seed: an invented finding of each kind, one consented living person; a proof
+      `shared/proofs/family-tree-research.mjs` (import twice, approve, reject, add what you
+      found, consent to None, a member sees found and not findings). `make verify` green.
+- [ ] SPEC §2, §4, §6; this doc's Handover; `/deployquest`. The owner Imports Session 6's pack
+      and reviews it: their box below.
+- [ ] **Owner:** Import `data/seed/family-tree-research.json`, review the first run, tick this.
+
+## Session 8 — Archive requests, the research guide, and Tell their story (Opus 5.5, the laptop)
+
+**Goal:** the offline half of research: a guide to the archives, requests a librarian can act
+on, replies back into the tree, and an interview for the living.
+
+- [ ] **`family-tree/RESEARCH.md`** (public, no family data): ⚠ check each archive's current
+      services and request route before writing it down, with the date checked. To start from:
+      the National Library of South Africa's newspaper holdings, the National Archives' NAAIRS
+      and its provincial repositories (the Cape Town Archives Repository holds the Cape Colony's
+      records; the Eastern Cape's), the Genealogical Society of South Africa and eGGSA, local
+      museums, and for the family before emigration the GRO, FreeBMD and the county record
+      offices. For each: what it holds, how to ask, what it costs, how long it takes. Then how to
+      write a request, and how to cite a reply.
+- [ ] **Research requests**: `tools/research/REQUEST.md` (how a session drafts one: the topic from
+      `data/research-leads.md`, the people and dates from the tree, what's known with sources, the
+      exact ask, the archive's route from RESEARCH.md) → `data/research/requests/<slug>.md` and
+      `.txt`. Draft the first: the first topic in research-leads.md. The owner sends it.
+- [ ] **Replies come back as stories**: `data/research/replies/<slug>.md` with
+      `{ archive, reference, received }` front matter; `tools/seed.mjs` adds each to seed part 1 as
+      a story whose source is the archive and its reference (so part 1's Import, which replaces
+      the tree whole, keeps them). The story reader shows that source line in place of Jon's.
+- [ ] **Tell their story** (any member, on a living person's page): a sheet of prompts (where
+      they were born and grew up, schools, marriage, children, places lived, what they remember
+      of their parents and grandparents) and a free text box, with "I'm filling this in with
+      them" ticked or not → `told/<id>` `{ person, personName, text, withThem, by, byName, at }`.
+      The owner alone reads it (the rules, cases first: members create with `by` = me, the owner
+      reads and deletes) and turns it into findings or notes by hand. "Thanks, Kenny will look
+      at it."
+- [ ] Version `1.3.0`, SPEC, Handover, `/deployquest`; the data repo from a session opened there.
 
 ## Parked (not in any session)
 
@@ -626,7 +805,7 @@ approve findings.
   **Adding family photos is next in line after the MVP** (owner, 2026-10-10): the recovery holds
   only Jon's 20, so the family's own photos are how the tree gets faces.
 - A member claiming the person in the tree that is them (links a `people/<id>` to a uid; lets them
-  set Session 5's research consent on their own record).
+  set their own research consent, `consent/<id>`, and see their own findings: Session 5).
 - Jon as a member with edit rights, if he wants in.
 - WikiTree people with no match in the 2006 tree (Jon's newer additions): Session 4b lists them as
   "Also on WikiTree" links on a relative's page; giving them pages of their own stays here. And an offer to Jon of the
@@ -898,3 +1077,18 @@ stands decides whether his GEDCOM replaces the parse first.
   read with headless Chromium. The API itself answers plain requests.
 
 **For Session 5:** the living rule now matters only to research agents; `kin.js` `isLiving` is it.
+
+### After Session 5 (Opus 5.5, desktop, 2026-10-11)
+
+**Planned, no code.** The owner answered the sketch's four questions (all the recommended
+answers, and every source, the sign-in and paid ones by hand) and one more: a relative's dates
+prove death, which makes 1,231 of 2,331 people searchable today. Session 5 above holds the
+answers and the design; Sessions 6 to 8 are specified in full. SPEC §6 and §8 say the same.
+
+**For Session 6:** start on the laptop with "Read `family-tree/PLAN.md` and do Session 6". It
+asks the owner for `root` (their own id in the tree) at the first run. Nobody living is briefed
+until Session 7 ships consent. ⚠ The source list is the owner's wish; step 1's terms and
+reachability check decides which an agent may use and which become lookups.
+
+**Still waiting from earlier:** the data repo's uncommitted Session 4 and 4b files (Handover
+4b), and the owner's Import of seed part 1.
