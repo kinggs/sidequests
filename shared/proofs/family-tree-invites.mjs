@@ -45,7 +45,7 @@ const dadMember = await doc(owner, "members/mock-dad");
 ok(dadMember && dadMember.invitedBy === "mock-uid" && dadMember.approvedBy === "mock-uid", "approve wrote members/dad: " + JSON.stringify(dadMember && { invitedBy: dadMember.invitedBy, approvedBy: dadMember.approvedBy }));
 ok((await doc(owner, "invites/mock-dad")).status === "approved", "…and the invite says approved");
 await dad.bringToFront(); await dad.waitForTimeout(600);
-ok(await dad.locator("#peopleTab").isVisible() && await dad.locator("#list .rows > li").count() === 15, "Dad's phone opens the people list");
+ok(await dad.locator("#peopleTab").isVisible() && await dad.locator("#list .rows > li").count() === 21, "Dad's phone opens the people list");
 
 // ---- Ann invites her friends Eve and Fay without a QR ----
 const ann = await tab(ctx, `${F}?mock&as=ann`, "ann");

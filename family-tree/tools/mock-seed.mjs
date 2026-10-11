@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // family-tree/tools/mock-seed.mjs — Session 3 step 3 (PLAN.md): an invented family for ?mock, in
 // the seed's format, committed (nothing in it is real). Four generations of Fenwicks and Tollers:
-// two born within the last 100 years, one with no birth year, one unresolved ref, six photos as
+// two born within the last 100 years, five with no birth year (two of them presumed dead by a
+// relative's date, two with a name Jon didn't know), one unresolved ref, six photos as
 // small generated images, captions, a story, two WikiTree copies (one adds to Jon's dates, one
 // disagrees), a suggestion, two members besides the mock owner.
 //
@@ -52,6 +53,15 @@ export function mockSeed(now = Date.UTC(2026, 9, 10)){
     ["lena-orme-1934", "Lena ORME", "Lena", "ORME", "F", ev("1934", ""), ev(), "fam00006"],
     ["mark-toller-1960", "Mark TOLLER", "Mark", "TOLLER", "M", ev("14 MAY 1960", "Port Example"), ev(), "fam00006"],
     ["nina-toller-1964", "Nina TOLLER", "Nina", "TOLLER", "F", ev("1964", "Port Example"), ev(), "fam00006"],
+    // No birth year, for the research rule (PLAN Session 6): Hattie is presumed dead by her son's
+    // 1910, Walter by his wife's 1912; Owen's unnamed child (a parent born 1910) is not. And two
+    // names Jon didn't know, which the People list sorts last.
+    ["hattie-pell", "Hattie PELL", "Hattie", "PELL", "F", ev(), ev(), "fam00007"],
+    ["owen-pell-1910", "Owen PELL", "Owen", "PELL", "M", ev("1910", "Riverton"), ev("1975", ""), "fam00007"],
+    ["pell", "? PELL", "?", "PELL", "U", ev(), ev(), "fam00007"],
+    ["walter-crane", "Walter CRANE", "Walter", "CRANE", "M", ev(), ev(), "fam00008"],
+    ["maud-dunn-1912", "Maud DUNN", "Maud", "DUNN", "F", ev("1912", ""), ev("1980", ""), "fam00008"],
+    ["rose", "Rose ?", "Rose", "?", "F", ev(), ev(), "fam00008"],
   ];
   const people = rows.map(([id, name, given, surname, sex, birth, death, page]) => ({ id, name, given, surname, sex, birth, death, parents: [], spouses: [], children: [], notes: "", photos: [], refs: [], source: SRC(page) }));
   const P = new Map(people.map(p => [p.id, p]));
@@ -67,6 +77,9 @@ export function mockSeed(now = Date.UTC(2026, 9, 10)){
   kids(["dora-may-fenwick-1876", "edwin-toller-1874"], ["george-toller-1901"]);
   kids(["george-toller-1901", "helen-ward-1905"], ["james-toller-1930", "kate-toller-1933"]);
   kids(["james-toller-1930", "lena-orme-1934"], ["mark-toller-1960", "nina-toller-1964"]);
+  marry("walter-crane", "maud-dunn-1912", "1935", "Port Example");
+  kids(["hattie-pell"], ["owen-pell-1910"]);
+  kids(["owen-pell-1910"], ["pell"]);
   P.get("ivy-nash-1860").refs.push({ role: "father", name: "Jack NASH" });
   P.get("albert-quill-fenwick-1850").notes = "Kept the shop on Main Street for forty years.";
   P.get("edwin-toller-1874").wikitree = "Toller-7";

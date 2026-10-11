@@ -203,10 +203,10 @@
   import { people } from "../shared/people.js";
   import { connect } from "../shared/connect.js";
   import { ui } from "../shared/ui.js";
-  import { yearsText, eventText, wtDate, dateRelation, wtSummary, wtFamily, dayText, layoutTree, markdownToHtml, lineageMarkdown, WIKITREE } from "./kin.js";
+  import { yearsText, eventText, wtDate, dateRelation, wtSummary, wtFamily, dayText, layoutTree, markdownToHtml, lineageMarkdown, WIKITREE, byName, surnameKnown } from "./kin.js";
 
   // Bump on every change. The deploy skill checks this against the live site.
-  const APP_VERSION = "1.1.0";
+  const APP_VERSION = "1.1.1";
   const APP_ID = "family-tree";
   document.getElementById("version").textContent = "v" + APP_VERSION;
 
@@ -221,7 +221,7 @@
 
   // ---- state ----
   let user = null, owner = false, member = false;
-  let tree = [];            // people/, sorted by surname then given
+  let tree = [];            // people/, sorted by surname then given, the unknown ("?") last
   let byId = new Map();     // people/ by id
   let photos = new Map();   // photos/ by id
   let stories = [];         // stories/, by title
@@ -331,7 +331,7 @@
     return li;
   }
 
-  // People: grouped by surname, filtered by any part of the name.
+  // People: grouped by surname, the unknown last (kin.js byName), filtered by any part of the name.
   let listSig = "";
   function paintList(){
     const q = plain($("search").value).trim();
@@ -351,10 +351,11 @@
     const frag = document.createDocumentFragment();
     let surname = null, ul = null;
     for (const p of rows){
-      if (p.surname !== surname){
-        surname = p.surname;
+      const s = surnameKnown(p) ? p.surname : "";
+      if (s !== surname){
+        surname = s;
         ul = el("ul", "rows ft-list");
-        frag.append(el("h2", "lbl sect", surname || "No surname"), ul);
+        frag.append(el("h2", "lbl sect", surname || "Surname not known"), ul);
       }
       ul.append(personRow(p));
     }
@@ -982,7 +983,7 @@
     if (mine !== run) return;
     const changed = () => { dataVer++; paint(); };
     treeUnsubs.push(cloud.watchList("people", list => {
-      tree = list.sort((a, b) => plain(a.surname).localeCompare(plain(b.surname)) || plain(a.given).localeCompare(plain(b.given)) || a.id.localeCompare(b.id));
+      tree = list.sort(byName);
       byId = new Map(tree.map(p => [p.id, p]));
       byWikitree = new Map(tree.filter(p => p.wikitree).map(p => [p.wikitree, p.id]));
       changed();

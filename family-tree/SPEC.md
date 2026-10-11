@@ -49,7 +49,9 @@ photo treatment, nothing else.
 **People** (Home). The credit line under the title ("Compiled by Jon Inggs · familytree.inggs.com
 · 2006"), a search field (name, any part), then every person as a `.rows` list sorted by surname
 then given name: a neutral initial ring or their first photo as the avatar, the name as `.l1`, the
-years as `.l2` ("1884–1951", "b. 1902", or nothing). A caps label groups them by surname. Tap
+years as `.l2` ("1884–1951", "b. 1902", or nothing). A caps label groups them by surname. A
+name Jon didn't know sorts last (owner, 2026-10-11): a surname of only "?" at the end of the list
+under "Surname not known", a given name of only "?" last in its surname (`kin.js` `byName`). Tap
 opens the person. The list reads from one `people` listener (a few hundred documents, fine).
 
 **A person.** The name large (Grotesk, the hero), the years line, **Tree** (76px, the one you came

@@ -22,15 +22,19 @@ const owner = await tab(ctx, `${F}?mock=reset&seed=${SEED}`, "owner");
 await owner.waitForTimeout(800);
 ok(await owner.locator("#peopleTab").isVisible(), "the owner sees People");
 ok(!!(await store(owner))["sidequests/family-tree/members/mock-uid"], "the owner's first open writes their own member document");
-ok(await rows(owner).count() === 15, "…all 15 people: " + await rows(owner).count());
-ok(/15 people/.test(await text(owner, "#count")), "…counted: " + await text(owner, "#count"));
-ok((await owner.locator("#list h2.lbl").allInnerTexts()).join(",") === "BEAMISH,FENWICK,NASH,ORME,TOLLER,WARD", "…grouped by surname: " + (await owner.locator("#list h2.lbl").allInnerTexts()).join(","));
+ok(await rows(owner).count() === 21, "…all 21 people: " + await rows(owner).count());
+ok(/21 people/.test(await text(owner, "#count")), "…counted: " + await text(owner, "#count"));
+const heads = await owner.locator("#list h2").allTextContents(), names = await owner.locator("#list li .l1").allTextContents();
+ok(heads.at(-1) === "Surname not known" && names.at(-1) === "Rose ?" && names.indexOf("? PELL") === names.indexOf("Owen PELL") + 1, "…a name Jon didn't know sorts last: " + heads.at(-1) + ", " + names.at(-1));
+ok((await owner.locator("#list h2.lbl").allInnerTexts()).join(",") === "BEAMISH,CRANE,DUNN,FENWICK,NASH,ORME,PELL,TOLLER,WARD,SURNAME NOT KNOWN", "…grouped by surname: " + (await owner.locator("#list h2.lbl").allInnerTexts()).join(","));
 const rowOf = name => owner.locator("#list .rows > li", { hasText: name });
-ok(await text(rowOf("Albert Quill FENWICK"), ".l2") === "1850–1921", "a dead person's years: " + await text(rowOf("Albert Quill FENWICK"), ".l2"));
-ok(await text(rowOf("Clara BEAMISH"), ".l2") === "1852–c. 1930", "an inexact year says c.: " + await text(rowOf("Clara BEAMISH"), ".l2"));
-ok(await text(rowOf("Mark TOLLER"), ".l2") === "b. 1960", "a living person's years show too: " + await text(rowOf("Mark TOLLER"), ".l2"));
-ok(await text(rowOf("D1 Ernest FENWICK"), ".l2") === "", "no birth year: no years");
-ok(await text(rowOf("Ivy NASH"), ".l2") === "b. 1860", "a birth and no death: " + await text(rowOf("Ivy NASH"), ".l2"));
+// textContent, not innerText: a row scrolled off-screen skips rendering, and innerText is then empty.
+const yrs = async name => (await rowOf(name).locator(".l2").textContent().catch(() => "")) || "";
+ok(await yrs("Albert Quill FENWICK") === "1850–1921", "a dead person's years: " + await yrs("Albert Quill FENWICK"));
+ok(await yrs("Clara BEAMISH") === "1852–c. 1930", "an inexact year says c.: " + await yrs("Clara BEAMISH"));
+ok(await yrs("Mark TOLLER") === "b. 1960", "a living person's years show too: " + await yrs("Mark TOLLER"));
+ok(await yrs("D1 Ernest FENWICK") === "", "no birth year: no years");
+ok(await yrs("Ivy NASH") === "b. 1860", "a birth and no death: " + await yrs("Ivy NASH"));
 await owner.fill("#search", "toller"); await owner.waitForTimeout(400);
 ok(await rows(owner).count() === 6, "search finds the Tollers: " + await rows(owner).count());
 await owner.fill("#search", "may fen"); await owner.waitForTimeout(400);
@@ -58,9 +62,9 @@ const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "ft-")), "family-tr
 fs.writeFileSync(file, JSON.stringify(two));
 for (let i = 0; i < 2; i++){ await owner.setInputFiles("#importFile", file); await owner.waitForTimeout(800); }
 const ps = await docs(owner, "people");
-ok(ps.length === 16, "two imports of a second file: 16 people, no duplicates: " + ps.length);
+ok(ps.length === 22, "two imports of a second file: 22 people, no duplicates: " + ps.length);
 ok((await store(owner))["sidequests/family-tree/people/nina-toller-1964"].notes === "Changed", "…merged by id");
-ok(await rows(owner).count() === 16, "…and the list shows 16");
+ok(await rows(owner).count() === 22, "…and the list shows 22");
 await owner.setInputFiles("#importFile", { name: "x.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify({ app: "rack-it" })) });
 ok(await owner.locator(".toast", { hasText: "isn't a Family Tree file" }).first().waitFor({ timeout: 2000 }).then(() => true, () => false), "another app's file is refused");
 
@@ -74,14 +78,14 @@ const sheet = owner.locator(".scrim .sheet");
 await owner.setInputFiles("#importFile", oneFile); await owner.waitForTimeout(600);
 ok(/2 no longer in the tree/.test(await text(owner, ".scrim .sheet")) && /Ivy NASH/.test(await text(owner, ".scrim .sheet")) && /Olive WARD/.test(await text(owner, ".scrim .sheet")), "a whole tree without two people names them first: " + (await text(owner, ".scrim .sheet h2")));
 await sheet.locator("button", { hasText: "Import and keep them" }).click(); await owner.waitForTimeout(800);
-ok((await docs(owner, "people")).length === 16, "…Keep imports and leaves them: " + (await docs(owner, "people")).length);
+ok((await docs(owner, "people")).length === 22, "…Keep imports and leaves them: " + (await docs(owner, "people")).length);
 ok(!("wikitree" in (await store(owner))["sidequests/family-tree/people/edwin-toller-1874"]), "…and a field the file drops (Edwin's WikiTree link) is gone");
 await owner.setInputFiles("#importFile", oneFile); await owner.waitForTimeout(600);
 await hold(owner, '.scrim .sheet button:has-text("Hold to remove")'); await owner.waitForTimeout(1000);
 const left = await docs(owner, "people");
-ok(left.length === 14 && !left.some(k => k.endsWith("/ivy-nash-1860")), "…the hold removes them: " + left.length);
+ok(left.length === 20 && !left.some(k => k.endsWith("/ivy-nash-1860")), "…the hold removes them: " + left.length);
 await owner.setInputFiles("#importFile", oneFile); await owner.waitForTimeout(800);
-ok(!(await owner.locator(".scrim .sheet").isVisible()) && (await docs(owner, "people")).length === 14, "…and the same file again asks nothing");
+ok(!(await owner.locator(".scrim .sheet").isVisible()) && (await docs(owner, "people")).length === 20, "…and the same file again asks nothing");
 
 // ---- a stranger: the waiting screen, and nothing else ----
 const stranger = await tab(ctx, `${F}?mock&as=stranger`, "stranger");
@@ -121,7 +125,7 @@ await C(owner, c => c.batch([
   { save: "members/mock-ben", data: { name: "Ben", since: Date.now(), invitedBy: "mock-ann", approvedBy: "mock-uid" } },
 ]));
 await ben.waitForTimeout(1000);
-ok(await ben.locator("#peopleTab").isVisible() && await rows(ben).count() === 14, "approved: Ben's phone opens the tree at once");
+ok(await ben.locator("#peopleTab").isVisible() && await rows(ben).count() === 20, "approved: Ben's phone opens the tree at once");
 await shot(ben, "family-tree-people");
 
 summary();

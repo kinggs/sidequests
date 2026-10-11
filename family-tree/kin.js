@@ -1,5 +1,5 @@
-// family-tree/kin.js — the Family Tree's pure logic, no browser and no cloud: the living rule, the
-// tree view's layout, Jon's Markdown as HTML, the WikiTree copy beside Jon's, and Share as Markdown.
+// family-tree/kin.js — the Family Tree's pure logic, no browser and no cloud: the living rule and who
+// research may search, the People list's order, the tree view's layout, Jon's Markdown as HTML, the WikiTree copy beside Jon's, and Share as Markdown.
 // index.html imports it; kin.test.mjs proves it (`node --test` from the repo root), on the invented
 // mock seed. CLAUDE.md rule 1's one exception, as rack-it/zargo.js.
 
@@ -18,6 +18,43 @@ export function isLiving(p, now = new Date()){
   const born = yearIn(p.birth);
   return !born || born > now.getFullYear() - 100;
 }
+// A relative's dates prove death (owner, 2026-10-11; PLAN Session 5): no birth year, but a child
+// born 100+ years ago, a parent 150+ or a spouse 110+. → { by: "child" | "parent" | "spouse", id,
+// year } for the relative that proves it (the oldest, children first), or null.
+const PROOF = [["child", "children", 100], ["parent", "parents", 150], ["spouse", "spouses", 110]];
+export function isPresumedDead(p, byId, now = new Date()){
+  if (!isLiving(p, now) || yearIn(p.birth)) return null;
+  const get = id => (byId instanceof Map ? byId.get(id) : byId[id]) || null;
+  for (const [by, key, age] of PROOF){
+    const hits = (p[key] || []).map(r => get(typeof r === "string" ? r : r.id)).filter(Boolean)
+      .map(q => ({ by, id: q.id, year: yearIn(q.birth) })).filter(r => r.year && r.year <= now.getFullYear() - age);
+    if (hits.length) return hits.sort((a, b) => a.year - b.year)[0];
+  }
+  return null;
+}
+// Who a research agent may search for (SPEC §6): "dead", "presumed" (dead by a relative's dates),
+// "consented" (living, with consent/<id> of "genealogy" or "genealogy-shared") or "no".
+// consent: a Map or object by person id of the consent document, or of its scope.
+export function researchable(p, byId, consent = {}, now = new Date()){
+  if (!isLiving(p, now)) return "dead";
+  if (isPresumedDead(p, byId, now)) return "presumed";
+  const c = consent instanceof Map ? consent.get(p.id) : consent[p.id];
+  const scope = c && typeof c === "object" ? c.scope : c;
+  return scope === "genealogy" || scope === "genealogy-shared" ? "consented" : "no";
+}
+
+// ---- the People list's order (SPEC §2) ----
+// A name Jon didn't know sorts after the known: a surname of only "?" goes to the end of the list
+// (the app heads it "Surname not known"), a given name of only "?" last in its surname. Brackets
+// and marks don't count: "Smith(?)" sorts just after "Smith", "(Ballard)" with the Bs.
+const nameKey = s => String(s || "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^\p{L}\s'-]/gu, "").replace(/\s+/g, " ").trim().toUpperCase();
+export const surnameKnown = p => !!nameKey(p.surname);
+export function byName(a, b){
+  const sa = nameKey(a.surname), sb = nameKey(b.surname), ga = nameKey(a.given), gb = nameKey(b.given);
+  return (!sa - !sb) || sa.localeCompare(sb) || (sa ? String(a.surname).localeCompare(String(b.surname)) : 0)
+    || (!ga - !gb) || ga.localeCompare(gb) || String(a.id).localeCompare(String(b.id));
+}
+
 // "1884–1951", "b. 1902", "d. 1950", "c. 1850–1920" (a year from an inexact date), or nothing.
 export function yearsText(p){
   const y = ev => { const n = yearIn(ev); return n ? (ev.year ? String(n) : `c. ${n}`) : ""; };

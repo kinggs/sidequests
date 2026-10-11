@@ -1,7 +1,7 @@
 // node --test family-tree/kin.test.mjs — the Family Tree's pure logic, on the invented mock seed.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isLiving, yearsText, wtDate, sameDate, dateRelation, wtSummary, wtFamily, dayText, layoutTree, markdownToHtml, inline, lineageMarkdown, generationName } from "./kin.js";
+import { isLiving, isPresumedDead, researchable, byName, surnameKnown, yearsText, wtDate, sameDate, dateRelation, wtSummary, wtFamily, dayText, layoutTree, markdownToHtml, inline, lineageMarkdown, generationName } from "./kin.js";
 import { mockSeed } from "./tools/mock-seed.mjs";
 
 const NOW = new Date(Date.UTC(2026, 9, 10));
@@ -15,6 +15,33 @@ test("the living rule (for research agents) and the years line, shown for everyo
   assert.equal(isLiving(P("d1-ernest-fenwick"), NOW), true, "no birth year");
   assert.equal(yearsText(P("mark-toller-1960")), "b. 1960");
   assert.equal(yearsText(P("clara-beamish-1852")), "1852–c. 1930");
+});
+
+test("who research may search: the dead, the presumed dead by a relative's dates, the consented", () => {
+  assert.deepEqual(isPresumedDead(P("hattie-pell"), byId, NOW), { by: "child", id: "owen-pell-1910", year: 1910 });
+  assert.deepEqual(isPresumedDead(P("d1-ernest-fenwick"), byId, NOW), { by: "parent", id: "albert-quill-fenwick-1850", year: 1850 }, "the older parent");
+  assert.deepEqual(isPresumedDead(P("walter-crane"), byId, NOW), { by: "spouse", id: "maud-dunn-1912", year: 1912 });
+  assert.equal(isPresumedDead(P("pell"), byId, NOW), null, "a parent born 1910 is under 150 years");
+  assert.equal(isPresumedDead(P("rose"), byId, NOW), null, "no relatives");
+  assert.equal(isPresumedDead(P("albert-quill-fenwick-1850"), byId, NOW), null, "dead already, not presumed");
+  assert.equal(isPresumedDead(P("mark-toller-1960"), byId, NOW), null, "a birth year: the living rule decides");
+  assert.equal(researchable(P("ivy-nash-1860"), byId, {}, NOW), "dead");
+  assert.equal(researchable(P("walter-crane"), byId, {}, NOW), "presumed");
+  assert.equal(researchable(P("mark-toller-1960"), byId, {}, NOW), "no");
+  assert.equal(researchable(P("mark-toller-1960"), byId, { "mark-toller-1960": { scope: "genealogy", note: "Mark said yes" } }, NOW), "consented");
+  assert.equal(researchable(P("nina-toller-1964"), byId, new Map([["nina-toller-1964", "genealogy-shared"]]), NOW), "consented");
+  assert.equal(researchable(P("nina-toller-1964"), byId, { "nina-toller-1964": "none" }, NOW), "no");
+});
+
+test("the People list: a name Jon didn't know sorts last", () => {
+  const order = [...seed.people].sort(byName).map(p => p.name);
+  assert.equal(order.at(-1), "Rose ?", "a surname of only ? at the very end");
+  assert.deepEqual(order.filter(n => / PELL$/.test(n)), ["Hattie PELL", "Owen PELL", "? PELL"], "a given name of only ? last in its surname");
+  assert.equal(order[0], "Clara BEAMISH");
+  assert.equal(surnameKnown(P("rose")), false);
+  assert.equal(surnameKnown({ surname: "(?)" }), false);
+  const odd = [{ id: "a", surname: "SMITH(?)", given: "Ann" }, { id: "b", surname: "SMITH", given: "Zoe" }, { id: "c", surname: "", given: "Ben" }, { id: "d", surname: "ABEL", given: "(?)" }, { id: "e", surname: "ABEL", given: "Cy" }, { id: "f", surname: "(BALLARD)", given: "Al" }];
+  assert.deepEqual(odd.sort(byName).map(p => p.id), ["e", "d", "f", "b", "a", "c"], "brackets don't count; Smith(?) after Smith; an empty surname with the unknown");
 });
 
 test("the WikiTree copy: its summary, and the family Jon's record doesn't already show", () => {
