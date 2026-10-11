@@ -515,6 +515,57 @@ session, load it before the tree view; if not, say so and build from DESIGN.md.
 
 ---
 
+## Session 4b — The WikiTree cache (Opus 5.5; owner, 2026-10-11)
+
+**Goal:** the person page shows what WikiTree says about a linked person, read from a copy the
+owner refreshes by hand, because WikiTree's API won't answer a browser on github.io (SPEC §8,
+Session 4). Replaces "link, don't copy" (Session 3 step 2b): the owner is happy to keep a small
+cache of WikiTree's public data, dated, beside Jon's tree, never mixed into it.
+
+- [ ] **Terms first.** Read WikiTree's current API and content terms (the API help pages, the
+      Honor Code, the licence on biographies and photos) and note in the Handover what may be
+      kept. ⚠ Until that's done, the cache holds facts only (names, dates, places, relatives,
+      manager); **biographies and photos** join it only if the terms allow keeping a copy, with
+      their credit.
+- [ ] **`tools/wikitree.mjs --cache`**: for every id in `data/wikitree.json`, WikiTree's public
+      `getPeople` (many keys a call, a second between calls; check the per-call limit), never
+      signed in, so WikiTree's own privacy levels decide what comes back. Fields: `Name,
+      FirstName, MiddleName, LastNameAtBirth, LastNameCurrent, Nicknames, Gender, BirthDate,
+      DeathDate, BirthLocation, DeathLocation, Father, Mother, Spouses, Children, Manager,
+      Touched, Privacy` (and `Bio`, `Photo` if the terms allow). **Never a living person**
+      (SPEC §6's rule, on Jon's dates): their id is skipped, not fetched. A profile whose
+      `Touched` hasn't changed since the last run is kept as it is. → `data/wikitree-cache.json`
+      `{ wikitreeId: { person, fetchedAt, touched, … } }`; the pure shaping (`cacheEntry(profile,
+      person)`) gets tests on invented rows.
+- [ ] **Differences for the owner**: the same run lists in `data/wikitree-review.md` every linked
+      person whose WikiTree dates, places or parents differ from Jon's, so a wrong link or a
+      newer correction shows. Nothing changes Jon's records.
+- [ ] **The seed and the data**: `wikitree/<WikiTreeId>` documents (SPEC §4), in seed part 1,
+      imported whole like the rest; Import's "anyone the file leaves out" list covers them. Kept
+      apart from `people/` so Jon's records stay his and a refresh never touches them.
+- [ ] **The rules (cases first)**: `wikitree/` read by members, written by the owner, like
+      `people/`; `cloud-memory.js` mirrored; `rules-check.mjs` cases for a member, a newcomer
+      and signed out.
+- [ ] **The person page**: **On WikiTree** reads the cached document: "On WikiTree, as of
+      11 Oct 2026", the manager, birth and death with places, and WikiTree's value beside Jon's
+      Born and Died where they differ (as now). Relatives WikiTree names that have a person here
+      are rows that open them; those that don't are listed as "Also on WikiTree" with a link
+      (moves part of the Parked item). The live read goes: it never works from github.io, and
+      the cache replaces it. A missing cache entry → the link alone.
+- [ ] **Share as Markdown** adds "On WikiTree (as of …)" under each linked person; **Export**
+      carries `wikitree`.
+- [ ] Mock seed: two cached profiles, one that differs from Jon's dates; `family-tree-tree.mjs`
+      checks the row and the "as of" date. Smoke green.
+- [ ] SPEC §2, §4, §6, §7 and KIT.md's row updated; this doc's Handover. Version `1.1.0`,
+      `/deployquest`. Run the cache and Import it in the same session (on the laptop, with
+      `data/` cloned), and commit the data repo.
+
+**Refreshing later (owner):** `node family-tree/tools/wikitree.mjs --cache`, then Import seed
+part 1. A few minutes, whenever you like; no schedule, since a scheduled job would need a
+Firebase admin key (no server code, 2026-10-01).
+
+---
+
 ## Session 5 — Research agents (sketch; planned after Session 4 is live)
 
 **Goal:** agents that fill the tree's gaps from public records and hand every finding to a person
@@ -576,8 +627,8 @@ approve findings.
 - A member claiming the person in the tree that is them (links a `people/<id>` to a uid; would let
   "Show details" default to on for your own record).
 - Jon as a member with edit rights, if he wants in.
-- WikiTree people with no match in the 2006 tree (Jon's newer additions): show them, read live,
-  as "Also on WikiTree" on the parent's page, still storing ids only. And an offer to Jon of the
+- WikiTree people with no match in the 2006 tree (Jon's newer additions): Session 4b lists them as
+  "Also on WikiTree" links on a relative's page; giving them pages of their own stays here. And an offer to Jon of the
   recovered tree as a GEDCOM (the email makes it; whether he wants it is his call).
 - An ancestor or descendant *chart* for print (a PDF of the tree).
 - A "This day" or "Born 100 years ago" note on the People tab.
