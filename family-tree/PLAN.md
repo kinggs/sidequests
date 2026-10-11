@@ -557,7 +557,7 @@ that members see everyone's dates and places, the living included (SPEC §6, §8
       `make verify` 110 tests and smoke green.
 - [x] SPEC §2, §4, §6, §7, §8 and KIT.md's row; this doc's Handover. Version `1.1.0`,
       `/deployquest`. The cache is run and seed part 1 rebuilt in `data/`.
-- [ ] **Owner:** Import seed part 1 (`data/seed/family-tree-1.json`) from the account sheet; open
+- [x] **Owner:** Import seed part 1 (`data/seed/family-tree-1.json`) from the account sheet; open
       a linked person and see "On WikiTree … as of 11 Oct 2026". Commit and push the data repo
       from a session opened in `family-tree/data` (this session can't: Handover). Tick this box.
 
@@ -1090,5 +1090,6 @@ asks the owner for `root` (their own id in the tree) at the first run. Nobody li
 until Session 7 ships consent. ⚠ The source list is the owner's wish; step 1's terms and
 reachability check decides which an agent may use and which become lookups.
 
-**Still waiting from earlier:** the data repo's uncommitted Session 4 and 4b files (Handover
-4b), and the owner's Import of seed part 1.
+**Closed after the session (2026-10-11):** seed part 1 imported from the owner's Chrome (a
+linked person shows On WikiTree); the email to Jon reworded (WikiTree facts are copied, never
+biographies or photos); the data repo committed (`c4f9180`), by `git -C` on the owner's say-so.
