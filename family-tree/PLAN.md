@@ -6,7 +6,7 @@ Claude Code sessions, the `rack-it/V3-PLAN.md` pattern: each session does its li
 boxes, and writes its Handover note at the bottom, so the next session starts from the truth.
 
 **Start every session with:** "Read `family-tree/PLAN.md` and do Session N."
-Sessions 1 to 5 are done (1 and 5 were planning). Sessions 6 to 8 run on Opus 5.5 and are
+Sessions 1 to 6 are done (1 and 5 were planning). Sessions 7 and 8 run on Opus 5.5 and are
 specified below in full; don't re-plan them, do them.
 
 ## Read first, every session
@@ -714,28 +714,39 @@ topics are in the data repo (`research-leads.md`), never here. Session 8 builds 
 **Goal:** the laptop side, end to end: the first 10 briefs run and their findings checked and
 packed. No app change, so no version bump; the pack waits for Session 7's Import.
 
-- [ ] **Terms first**, as in Session 4b: read each automated source's terms and robots rules
+- [x] **Terms first**, as in Session 4b: read each automated source's terms and robots rules
       (WikiTree API, FreeBMD, FreeREG, FreeCEN, eGGSA, NAAIRS, Trove, Papers Past, Welsh
       Newspapers, Google Books, Internet Archive) and try one search from this laptop with the
       agent's own tools (WebSearch, WebFetch). ⚠ Expect some to fail: FreeBMD's search is a form,
       WikiTree's pages sit behind a bot check (its API doesn't), Trove's and Papers Past's APIs
       want a key. A source that refuses automated use, or can't be reached, moves to lookups.
-      Record each verdict, with the date, in AGENT.md's source table.
-- [ ] **`kin.js`**: `isPresumedDead` and `researchable` (the design above), with tests in
+      Record each verdict, with the date, in AGENT.md's source table. **Done 2026-10-11:** agents
+      use WikiTree's API, Papers Past (through DigitalNZ's API), Internet Archive, and three the
+      owner added mid-session after asking for more: eGGSA's registers (a plain GET works), The
+      National Archives' catalogue API and Wikidata. Lookups: FreeBMD, FreeREG, FreeCEN (terms
+      forbid automation), eGGSA gravestones, NAAIRS (unreachable), Trove (bot wall; a free key
+      would open its API), Welsh Newspapers (403), Google Books (robots), Chronicling America
+      (Cloudflare), FamilySearch and the paid sites.
+- [x] **`kin.js`**: `isPresumedDead` and `researchable` (the design above), with tests in
       `kin.test.mjs` on the mock seed (add invented people to `tools/mock-seed.mjs` for each
       case: a child's date, a parent's, a spouse's, none). SPEC §6 already states the rule.
-- [ ] **`tools/gaps.mjs`** + `gaps.test.mjs`: the gap kinds, brief ids, ranking and brief
+- [x] **`tools/gaps.mjs`** + `gaps.test.mjs`: the gap kinds, brief ids, ranking and brief
       contents above, pure functions on invented rows; the CLI writes `data/research/briefs/` and
       prints the counts per kind and tier, and how many living were skipped (all of them, until
       Session 7's consent exists; with an `export.json`, those without consent).
-- [ ] **`tools/research/AGENT.md`** and **`tools/research/RUN.md`** (public, no family data).
-- [ ] **`tools/research.mjs`** + `research.test.mjs`: `check` (one invented finding per rejection
-      reason, and one that passes) and `pack`.
-- [ ] **The first run**, on the laptop: ask the owner for `root` once; run RUN.md on 10 briefs.
+- [x] **`tools/research/AGENT.md`** and **`tools/research/RUN.md`** (public, no family data).
+- [x] **`tools/research.mjs`** + `research.test.mjs`: `check` (one invented finding per rejection
+      reason, and one that passes) and `pack`; and `lookups` (owner, mid-session): every
+      finding's hand searches as one page of links by site, `data/research/lookups.html`.
+- [x] **The first run**, on the laptop: ask the owner for `root` once; run RUN.md on 10 briefs.
       Record in Handover: how many claims, rejected and why, lookups, how long it took, and the
       run's token use (the cost of a run of 10, for the owner).
-- [ ] `make verify` green. This doc's Handover. Push this repo; the data repo's research files
+- [x] `make verify` green. This doc's Handover. Push this repo; the data repo's research files
       wait for a session opened there (say so).
+- [x] **Mid-session (owner):** the People list sorts a name Jon didn't know ("?") last, under
+      "Surname not known" (`kin.js` `byName`, `1.1.1`); and the living rule softened: a living
+      person's parents may be researched, and the owner's own line counts as consented (Hard
+      lines, above).
 
 ## Session 7 — Findings in the app: review, sources, consent (Opus 5.5)
 
@@ -1097,3 +1108,40 @@ reachability check decides which an agent may use and which become lookups.
 **Closed after the session (2026-10-11):** seed part 1 imported from the owner's Chrome (a
 linked person shows On WikiTree); the email to Jon reworded (WikiTree facts are copied, never
 biographies or photos); the data repo committed (`c4f9180`), by `git -C` on the owner's say-so.
+
+### After Session 6 (Opus 5.5, laptop, 2026-10-11)
+
+**Done:** the research pipeline end to end, and its first run. `kin.js` `isPresumedDead`,
+`researchable`, `researchStatus`, `ownLine`, `ancestors`; `tools/gaps.mjs`, `tools/research.mjs`
+(`check`, `pack`, `lookups`), `tools/research/AGENT.md` and `RUN.md`, tests on six new invented
+mock people. `make verify`: 129 node tests, smoke green on 7 apps; the three Family Tree proofs
+green (gate 42, tree 51, invites 30) with Playwright from the scratchpad. Live: `1.1.1`.
+
+**The owner's calls mid-session:** the People list puts "?" names last; more agent sources
+(three added, see the Terms box); one-tap lookup pages; and the living rule softened (Hard lines).
+`root` is the owner's own record (`data/research/config.json`).
+
+**Run 1** (`data/research/runs/2026-10-11.md`): 10 briefs, all the owner's direct ancestors. 10
+findings, **6 claims, all from WikiTree (secondary)**, 0 rejected, 0 dropped, **48 lookups**
+(FamilySearch 14, FreeREG 10, FreeBMD 5, the rest scattered). About 6 minutes; **746k tokens**
+across the 10 agents, 64k to 86k each: the cost of a run of 10. ⚠ The free agent sources are thin
+for 18th-century England and the Cape; the real answers sit in FamilySearch and FreeREG, by hand.
+
+**Recounted** on today's data (2026-10-11): 1,006 dead, 302 presumed dead, 1,023 living (Session 5
+counted 915 and 316; the rule is `isLiving`, unchanged, so the difference is the data since). 1,517
+open briefs before run 1; with the softening, a living person's "parents" gap is briefed too.
+
+**For the owner:**
+
+- ⚠ **The data repo isn't committed**: `research/` (config, briefs, findings, runs, lookups.html)
+  and `seed/family-tree-research.json`. Commit from a session opened in `family-tree/data`.
+- Open `data/research/lookups.html` on the laptop for the hand searches.
+- Agents flagged a likely error in Jon's data: Kenneth Stanley INGGS born 1887 to a 15-year-old
+  mother; WikiTree has about 1916. In `runs/2026-10-11.md`.
+- A free Trove API key would make Australian newspapers an agent source.
+
+**For Session 7:** the pack is waiting (`seed.kind: "research"`, 10 findings). Findings carry
+`why.status` `lineage` for a living person's parents; `pack` gives them scope `"family"`. Consent
+from an Export overrides the owner's own line, so the consent sheet's None must reach
+`export.json` before the next run.
+

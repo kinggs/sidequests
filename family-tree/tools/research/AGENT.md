@@ -104,7 +104,8 @@ brief id on run 1 and `<brief id>.<run>` after. Write it even when you found not
 
 - `value`: `{ date, place }` for an event (dates as the source writes them); `{ name, birth,
   death }` for a person (`parent`, `spouse`, `child`); text for `residence`, `occupation`, `note`.
-- `lookups`: the best two to five hand searches, most promising first, each with a URL ready to
+- `lookups`: the best two to five hand searches, most promising first, `site` named exactly as
+  the Source column above names it (an archive not in the table: its own name), each with a URL ready to
   tap (a pre-filled search where the site allows one, else its search page) and the exact query.
 - `searched`: every search you ran, "nothing" included, so the next run doesn't repeat it.
 

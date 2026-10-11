@@ -82,7 +82,7 @@ export function whyOf(p, kind, byId, consent, now){
 export function rank({ people, storyNames = [], wikitree = {}, root = null, consent = {}, now = new Date(), done = new Set() }){
   const byId = new Map(people.map(p => [p.id, p]));
   const up = root ? ancestors(byId, root) : new Map();
-  const wtOf = new Map(Object.values(wikitree).map(e => [e.person, e]));
+  const wtOf = new Map(Object.entries(wikitree).map(([id, e]) => [e.person, { id, ...e }]));   // the cache is keyed by WikiTree id
   const storiesOf = new Map();
   for (const s of storyNames.filter(s => s.people)) for (const id of s.people) storiesOf.set(id, [...(storiesOf.get(id) || []), s.title]);
   const tierOf = p => up.has(p.id) ? 1 : /^INGGS$/i.test(String(p.surname).trim()) ? 2 : 3;
@@ -120,6 +120,7 @@ export function rank({ people, storyNames = [], wikitree = {}, root = null, cons
 // The next n briefs for a run: one per person, so two agents never search for the same someone.
 export function take(briefs, n = 10){
   const seen = new Set(), out = [];
+  if (n <= 0) return out;
   for (const b of briefs){
     const who = b.person ? b.person.id : b.id;
     if (seen.has(who)) continue;

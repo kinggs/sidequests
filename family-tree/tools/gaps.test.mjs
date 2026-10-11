@@ -8,7 +8,7 @@ const NOW = new Date(Date.UTC(2026, 9, 10));
 const seed = mockSeed(NOW.getTime());
 const byId = new Map(seed.people.map(p => [p.id, p]));
 const P = id => byId.get(id);
-const wikitree = Object.fromEntries(seed.wikitree.map(e => [e.id, e]));
+const wikitree = Object.fromEntries(seed.wikitree.map(({ id, ...e }) => [id, e]));   // as wikitree-cache.json: keyed by id, no id inside
 const storyNames = [
   { story: "the-shop", title: "The Fenwick shop", people: ["albert-quill-fenwick-1850", "frank-fenwick-1878"] },
   { story: "the-shop", title: "The Fenwick shop", name: "Jack INGGS (1830)" },
@@ -62,6 +62,7 @@ test("consent puts a living person in; a brief says why each may be searched", (
 test("a run takes one brief a person, and skips the done", () => {
   const next = take(all.briefs, 7);
   assert.equal(next.length, 7);
+  assert.deepEqual(take(all.briefs, 0), []);
   assert.equal(new Set(next.map(b => b.person ? b.person.id : b.id)).size, 7);
   assert.ok(!next.some(b => b.id === "birth.walter-crane"), "Walter's parents brief goes first; his birth waits");
   const later = rank({ people: seed.people, root: "mark-toller-1960", now: NOW, done: new Set(["parents.lena-orme-1934", "parents.helen-ward-1905"]) });
