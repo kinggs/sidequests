@@ -50,7 +50,17 @@ test("rejected: a brief or person that doesn't exist, or doesn't match", () => {
 test("rejected: a person no longer researchable", () => {
   const f = finding({ id: "parents.lena-orme-1934", brief: "parents.lena-orme-1934", person: "lena-orme-1934" });
   assert.deepEqual(reasons(f), [], "with consent");
-  assert.match(check(f, { ...ctx, consent: {} }).reasons.join(), /living and has no research consent/);
+  const b = new Map([...briefs, ["birth.pell", { id: "birth.pell", kind: "birth", person: { id: "pell" } }]]);
+  assert.match(check(finding({ id: "birth.pell", brief: "birth.pell", person: "pell" }), { ...ctx, briefs: b }).reasons.join(), /living and has no research consent/);
+});
+
+test("a living person without consent: their parents only, parent and birth claims", () => {
+  const f = c => finding({ id: "parents.lena-orme-1934", brief: "parents.lena-orme-1934", person: "lena-orme-1934", claims: [claim(c)] });
+  const none = { ...ctx, consent: {} };
+  assert.deepEqual(check(f({ field: "parent", value: { name: "Arthur ORME", birth: "1901" } }), none).reasons, []);
+  assert.deepEqual(check(f({ field: "birth", value: { date: "4 JUN 1934", place: "Riverton" } }), none).reasons, []);
+  assert.match(check(f({}), none).reasons.join(), /only parent and birth/, "a marriage: no");
+  assert.match(check(f({ field: "parent", value: { name: "Arthur ORME" }, reasoning: "Her mother wrote from lena@example.com" }), none).reasons.join(), /an email/, "the never-list holds");
 });
 
 test("rejected: for a consented living person, anything outside genealogy or on the never-list", () => {

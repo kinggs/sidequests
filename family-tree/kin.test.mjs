@@ -1,7 +1,7 @@
 // node --test family-tree/kin.test.mjs — the Family Tree's pure logic, on the invented mock seed.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isLiving, isPresumedDead, researchable, byName, surnameKnown, yearsText, wtDate, sameDate, dateRelation, wtSummary, wtFamily, dayText, layoutTree, markdownToHtml, inline, lineageMarkdown, generationName } from "./kin.js";
+import { isLiving, isPresumedDead, researchable, researchStatus, ownLine, byName, surnameKnown, yearsText, wtDate, sameDate, dateRelation, wtSummary, wtFamily, dayText, layoutTree, markdownToHtml, inline, lineageMarkdown, generationName } from "./kin.js";
 import { mockSeed } from "./tools/mock-seed.mjs";
 
 const NOW = new Date(Date.UTC(2026, 9, 10));
@@ -31,6 +31,16 @@ test("who research may search: the dead, the presumed dead by a relative's dates
   assert.equal(researchable(P("mark-toller-1960"), byId, { "mark-toller-1960": { scope: "genealogy", note: "Mark said yes" } }, NOW), "consented");
   assert.equal(researchable(P("nina-toller-1964"), byId, new Map([["nina-toller-1964", "genealogy-shared"]]), NOW), "consented");
   assert.equal(researchable(P("nina-toller-1964"), byId, { "nina-toller-1964": "none" }, NOW), "no");
+});
+
+test("softened (owner, 2026-10-11): the living's parents, and the owner's own line", () => {
+  assert.equal(researchStatus(P("lena-orme-1934"), "parents", byId, {}, NOW), "lineage");
+  assert.equal(researchStatus(P("pell"), "birth", byId, {}, NOW), "no");
+  assert.equal(researchStatus(P("ivy-nash-1860"), "parents", byId, {}, NOW), "dead");
+  const line = ownLine(byId, "mark-toller-1960", NOW);
+  assert.deepEqual(Object.keys(line).sort(), ["lena-orme-1934", "mark-toller-1960"], "root and the living among their ancestors");
+  assert.equal(line["mark-toller-1960"].scope, "genealogy-shared");
+  assert.equal(researchable(P("lena-orme-1934"), byId, line, NOW), "consented");
 });
 
 test("the People list: a name Jon didn't know sorts last", () => {

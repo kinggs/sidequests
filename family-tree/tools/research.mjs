@@ -14,7 +14,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { researchable, yearIn } from "../kin.js";
+import { researchable, researchStatus, ownLine, LINEAGE, yearIn } from "../kin.js";
 
 // The sources (AGENT.md's table says the same, with each verdict's reason; checked 2026-10-11).
 // "agent": the agent may search it, the way `how` says. "lookup": the owner searches by hand; the
@@ -94,9 +94,10 @@ export function check(f, { briefs, byId, consent = {}, now = new Date() }){
   if (f.person && !p) reasons.push(`no person ${f.person}`);
   const about = brief ? (brief.person ? brief.person.id : null) : f.person;
   if ((f.person || null) !== about) reasons.push(`the brief is about ${about || "a story's name"}, not ${f.person || "nobody"}`);
-  const status = p ? researchable(p, byId, consent, now) : brief && brief.story ? "dead" : "no";
+  const kind = brief ? brief.kind : String(f.brief || "").split(".")[0];
+  const status = p ? researchStatus(p, kind, byId, consent, now) : brief && brief.story ? "dead" : "no";
   if (p && status === "no") reasons.push(`${f.person} is living and has no research consent`);
-  const living = status === "consented";
+  const living = status === "consented" || status === "lineage";
   for (const [i, c] of f.claims.entries()){
     const at = `claim ${i + 1} (${c.field})`;
     if (!FIELDS.includes(c.field)) reasons.push(`${at}: not a field a finding may carry`);
@@ -111,7 +112,8 @@ export function check(f, { briefs, byId, consent = {}, now = new Date() }){
     if (c.field === "parent" && cites.length && cites.every(x => /wikitree\.com$/.test(hostOf(x.url))))
       reasons.push(`${at}: a family tree is never a parent's only source`);
     if (living){
-      if (!GENEALOGY.has(c.field)) reasons.push(`${at}: outside the genealogy a living person consented to`);
+      if (status === "lineage" && !LINEAGE.has(c.field)) reasons.push(`${at}: for a living person without consent, only parent and birth`);
+      else if (!GENEALOGY.has(c.field)) reasons.push(`${at}: outside the genealogy a living person consented to`);
       for (const [what, re] of NEVER) if (re.test(claimText(c))) reasons.push(`${at}: carries ${what}, never kept for anyone living`);
     }
   }
@@ -165,9 +167,10 @@ ${sites.map(s => `<h2>${esc(s)}</h2>\n<ol>\n${bySite.get(s).map(l => `<li><a hre
 // ---- the CLI ----
 const readJson = (f, d) => fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, "utf8")) : d;
 const jsonIn = dir => fs.existsSync(dir) ? fs.readdirSync(dir).filter(f => f.endsWith(".json")).map(f => path.join(dir, f)) : [];
-// The owner's latest Export, for consent/ (Session 7). Without it, nobody living is researched.
-export function consentFrom(exp){
-  const out = {};
+// Consent: the owner's own line (kin.js ownLine), then the owner's latest Export's consent/ (Session
+// 7), which wins: a relative on the line who says None is never researched.
+export function consentFrom(exp, { byId = new Map(), root = null, now = new Date() } = {}){
+  const out = root ? ownLine(byId, root, now) : {};
   for (const c of (exp && exp.consent) || []) if (c && c.id) out[c.id] = c;
   return out;
 }
@@ -175,7 +178,8 @@ function context(dataDir){
   const people = readJson(path.join(dataDir, "people.json"), []);
   const R = path.join(dataDir, "research");
   const briefs = new Map(jsonIn(path.join(R, "briefs")).map(f => readJson(f)).map(b => [b.id, b]));
-  return { R, byId: new Map(people.map(p => [p.id, p])), briefs, consent: consentFrom(readJson(path.join(R, "export.json"), null)), now: new Date() };
+  const byId = new Map(people.map(p => [p.id, p])), now = new Date(), root = readJson(path.join(R, "config.json"), {}).root;
+  return { R, byId, briefs, consent: consentFrom(readJson(path.join(R, "export.json"), null), { byId, root, now }), now };
 }
 
 export function runCheck(dataDir){

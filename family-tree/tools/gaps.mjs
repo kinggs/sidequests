@@ -2,7 +2,8 @@
 // family-tree/tools/gaps.mjs — Session 6 (PLAN.md, Session 5's design): what's missing from the tree,
 // as research briefs, ranked. A brief is one gap in one person's record, for one agent to research
 // (tools/research/AGENT.md); its id, `<kind>.<person id>`, never changes. Nobody living is briefed
-// without their consent (kin.js researchable). A brief is done once a finding names it.
+// without their consent, but for who their parents were (kin.js researchStatus). A brief is done
+// once a finding names it.
 // Run from the repo root:
 //
 //   node family-tree/tools/gaps.mjs            # rank everything, write the next 10 briefs
@@ -11,7 +12,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { isLiving, isPresumedDead, researchable, yearIn, wtSummary, dayText } from "../kin.js";
+import { isLiving, isPresumedDead, researchStatus, ancestors, yearIn, wtSummary, dayText } from "../kin.js";
+export { ancestors };
 import { findPeople, slug } from "./parse.mjs";
 import { SOURCES, consentFrom } from "./research.mjs";
 
@@ -33,19 +35,6 @@ export function gapsOf(p, byId, now = new Date()){
   if (!yearIn(p.birth)) out.push("birth");
   if (blank(p.death) && (!isLiving(p, now) || isPresumedDead(p, byId, now))) out.push("death");
   if ((p.refs || []).length) out.push("refs");
-  return out;
-}
-
-// The direct ancestors of root: id → generation (1 a parent, 2 a grandparent…), nearest first.
-export function ancestors(byId, root){
-  const out = new Map();
-  let gen = [root], g = 0;
-  while (gen.length){
-    g++;
-    const next = [];
-    for (const id of gen) for (const q of ((byId.get(id) || {}).parents || [])) if (!out.has(q) && q !== root){ out.set(q, g); next.push(q); }
-    gen = next;
-  }
   return out;
 }
 
@@ -73,19 +62,21 @@ export function brief(p, kind, { byId, tier, generation = null, why, wikitree = 
   };
 }
 
-// Why a person may be researched, for the brief: { status, proof? }, or null for nobody.
-export function whyOf(p, byId, consent, now){
-  const status = researchable(p, byId, consent, now);
+// Why a person may be researched for this gap, for the brief: { status, proof? }, or null for no.
+export function whyOf(p, kind, byId, consent, now){
+  const status = researchStatus(p, kind, byId, consent, now);
   if (status === "no") return null;
   if (status === "presumed"){
     const r = isPresumedDead(p, byId, now), q = byId.get(r.id);
     return { status, proof: `their ${r.by}, ${q.name}, was born in ${r.year}` };
   }
   if (status === "consented"){ const c = consent[p.id]; return { status, scope: c.scope || c, note: c.note || "" }; }
+  if (status === "lineage") return { status, scope: "living, without consent: who their parents were, and only parent and birth claims" };
   return { status };
 }
 
-// Everyone's gaps as ranked briefs. → { briefs (ranked), counts: { kind: { tier: n } }, living, skipped }
+// Everyone's gaps as ranked briefs. → { briefs (ranked), counts: { kind: { tier: n } }, living (people with a gap
+// left unbriefed: living, no consent), skipped }
 // people: people.json; storyNames: [{ story, title, name }] (a name a story gives that isn't in the
 // tree); wikitree: { wikitreeId: entry }; root: the owner's own id; consent: by person id.
 export function rank({ people, storyNames = [], wikitree = {}, root = null, consent = {}, now = new Date(), done = new Set() }){
@@ -100,10 +91,10 @@ export function rank({ people, storyNames = [], wikitree = {}, root = null, cons
   for (const p of people){
     const gaps = gapsOf(p, byId, now);
     if (!gaps.length) continue;
-    const why = whyOf(p, byId, consent, now);
-    if (!why){ living++; continue; }
     const tier = tierOf(p);
-    for (const kind of gaps){
+    const briefed = gaps.map(kind => [kind, whyOf(p, kind, byId, consent, now)]).filter(([, why]) => why);
+    if (briefed.length < gaps.length) living++;
+    for (const [kind, why] of briefed){
       counts[kind] = counts[kind] || {}; counts[kind][tier] = (counts[kind][tier] || 0) + 1;
       out.push({ b: brief(p, kind, { byId, tier, generation: up.get(p.id) || null, why, wikitree: wtOf.get(p.id), stories: storiesOf.get(p.id) || [] }), findable: findable(p) });
     }
@@ -156,7 +147,8 @@ export function run(dataDir, { n = 10, now = new Date() } = {}){
   }
   const fdir = path.join(R, "findings");
   const done = new Set(fs.existsSync(fdir) ? fs.readdirSync(fdir).filter(f => f.endsWith(".json")).map(f => readJson(path.join(fdir, f)).brief) : []);
-  const r = rank({ people, storyNames, wikitree: readJson(path.join(dataDir, "wikitree-cache.json"), {}), root: config.root, consent: consentFrom(readJson(path.join(R, "export.json"), null)), now, done });
+  const byId = new Map(people.map(p => [p.id, p]));
+  const r = rank({ people, storyNames, wikitree: readJson(path.join(dataDir, "wikitree-cache.json"), {}), root: config.root, consent: consentFrom(readJson(path.join(R, "export.json"), null), { byId, root: config.root, now }), now, done });
   const next = take(r.briefs, n);
   const bdir = path.join(R, "briefs");
   fs.mkdirSync(bdir, { recursive: true });

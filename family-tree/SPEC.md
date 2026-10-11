@@ -269,7 +269,11 @@ Trusts the family to recognise each other; accepted for a few dozen people (BRIE
   living rule stays for one thing, research agents (`PLAN.md` Session 5): a person with no death
   date who was born within the last 100 years, or whose birth year is unknown, is treated as
   living, and an agent searches for them only with their recorded consent (`consent/<id>`, set by
-  the owner with a dated note). A relative's dates prove death (owner, 2026-10-11): no birth year,
+  the owner with a dated note). Softened (owner, 2026-10-11, "we all want to trace our lineage
+  back"): without consent, an agent may still find a living person's parents (parent and birth
+  claims only), and the owner's own line (the owner and their living ancestors) counts as
+  consented, shared with the family, unless one of them says None (`kin.js` `researchStatus`,
+  `ownLine`). A relative's dates prove death (owner, 2026-10-11): no birth year,
   but a child born 100+ years ago, a parent 150+ or a spouse 110+, and they are searched as the
   dead (`kin.js` `isPresumedDead`). Never searched for anyone living, even with consent: address,
   phone, email, ID numbers, employer today, finances, health, legal records, social media,

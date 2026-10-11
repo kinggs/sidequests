@@ -598,8 +598,12 @@ sketch stand as written in **Hard lines** and **Archive requests** below.
   numbers, employer today, finances, health, court or legal records, social-media profiles,
   current photos. The agent brief says so, and `research.mjs check` rejects a finding that
   carries any.
-- **Without consent: nothing** about a living person is searched. The tools never write a brief
-  for one.
+- **Without consent: nothing** about a living person is searched, with one exception: **who
+  their parents were** (softened by the owner in Session 6, 2026-10-11: "we all want to trace our
+  lineage back"). The tools brief only a living person's "parents" gap, as `lineage`, and `check`
+  keeps only parent and birth claims, the never-list holding. **The owner's own line** (root and
+  their living ancestors) counts as consented, `"genealogy-shared"`, unless an Export's
+  `consent/` says otherwise for one of them (`kin.js` `researchStatus`, `ownLine`).
 - For a living relative, the first tool is an interview, not an agent: **Tell their story**
   (Session 8).
 

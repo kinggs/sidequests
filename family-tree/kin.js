@@ -43,6 +43,40 @@ export function researchable(p, byId, consent = {}, now = new Date()){
   return scope === "genealogy" || scope === "genealogy-shared" ? "consented" : "no";
 }
 
+// Softened (owner, 2026-10-11: "we all want to trace our lineage back"): for anyone living, an agent
+// may research one thing without their consent, who their parents were ("lineage": parent and birth
+// claims only); and the owner's own line, root and their ancestors, counts as consented, shared with
+// the family. The never-list holds for both. → the status for one gap kind: researchable's, or
+// "lineage" for a living person's "parents" gap.
+export const LINEAGE = new Set(["parent", "birth"]);
+export function researchStatus(p, kind, byId, consent = {}, now = new Date()){
+  const s = researchable(p, byId, consent, now);
+  return s === "no" && kind === "parents" ? "lineage" : s;
+}
+// The direct ancestors of root: id → generation (1 a parent, 2 a grandparent…).
+export function ancestors(byId, root){
+  const get = id => (byId instanceof Map ? byId.get(id) : byId[id]) || null;
+  const out = new Map();
+  let gen = [root], g = 0;
+  while (gen.length){
+    g++;
+    const next = [];
+    for (const id of gen) for (const q of ((get(id) || {}).parents || [])) if (!out.has(q) && q !== root){ out.set(q, g); next.push(q); }
+    gen = next;
+  }
+  return out;
+}
+// The owner's own line as consent documents: root and their living ancestors, shared with the family.
+export function ownLine(byId, root, now = new Date()){
+  const get = id => (byId instanceof Map ? byId.get(id) : byId[id]) || null;
+  const out = {};
+  for (const id of [root, ...ancestors(byId, root).keys()]){
+    const p = get(id);
+    if (p && isLiving(p, now)) out[id] = { id, scope: "genealogy-shared", note: "The owner's own line (owner, 2026-10-11)" };
+  }
+  return out;
+}
+
 // ---- the People list's order (SPEC §2) ----
 // A name Jon didn't know sorts after the known: a surname of only "?" goes to the end of the list
 // (the app heads it "Surname not known"), a given name of only "?" last in its surname. Brackets

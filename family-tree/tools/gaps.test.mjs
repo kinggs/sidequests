@@ -31,20 +31,22 @@ test("the direct ancestors of root, by generation", () => {
   assert.equal(up.has("kate-toller-1933"), false, "an aunt isn't an ancestor");
 });
 
-test("ranked: root's line nearest first, then Inggs, then the rest; the findable first; nobody living", () => {
+test("ranked: root's line nearest first, then Inggs, then the rest; the findable first; the living only for their parents", () => {
   const ids = all.briefs.map(b => b.id);
-  assert.deepEqual(ids.slice(0, 5), ["parents.helen-ward-1905", "parents.edwin-toller-1874", "parents.albert-quill-fenwick-1850", "parents.clara-beamish-1852", "story.the-shop.jack-inggs-1830"]);
+  assert.deepEqual(ids.slice(0, 6), ["parents.lena-orme-1934", "parents.helen-ward-1905", "parents.edwin-toller-1874", "parents.albert-quill-fenwick-1850", "parents.clara-beamish-1852", "story.the-shop.jack-inggs-1830"]);
   assert.ok(ids.indexOf("death.walter-crane") < ids.indexOf("death.hattie-pell"), "Walter has a year and a place (his marriage); Hattie has neither");
-  assert.ok(!ids.some(id => /lena-orme|\.pell$|\.rose$/.test(id)), "the living, without consent, aren't briefed");
-  assert.equal(all.living, 3);
+  assert.ok(ids.includes("parents.rose") && !ids.includes("birth.rose") && !ids.includes("birth.pell"), "the living, without consent: who their parents were, nothing else");
+  assert.deepEqual(all.briefs.find(b => b.id === "parents.lena-orme-1934").why.status, "lineage");
+  assert.equal(all.living, 2, "Rose's and ?'s births wait for consent");
   assert.equal(all.skipped, 1, "a story's name with no year: can't tell they're dead");
-  assert.deepEqual(all.counts.parents, { 1: 4, 3: 4 });
+  assert.deepEqual(all.counts.parents, { 1: 5, 3: 5 }, "Lena and Rose among them");
 });
 
 test("consent puts a living person in; a brief says why each may be searched", () => {
   const r = rank({ people: seed.people, root: "mark-toller-1960", now: NOW, consent: { "lena-orme-1934": { scope: "genealogy", note: "Lena said yes, 12 Oct" } } });
   assert.deepEqual(r.briefs.find(b => b.id === "parents.lena-orme-1934").why, { status: "consented", scope: "genealogy", note: "Lena said yes, 12 Oct" });
   assert.equal(r.briefs[0].id, "parents.lena-orme-1934", "root's mother, generation 1");
+  assert.equal(r.briefs.find(b => b.id === "parents.lena-orme-1934").why.status, "consented", "consent outranks lineage");
   const b = all.briefs.find(b => b.id === "death.walter-crane");
   assert.deepEqual(b.why, { status: "presumed", proof: "their spouse, Maud DUNN, was born in 1912" });
   assert.deepEqual(b.spouses[0].married, { date: "1935", place: "Port Example" });
@@ -62,6 +64,6 @@ test("a run takes one brief a person, and skips the done", () => {
   assert.equal(next.length, 7);
   assert.equal(new Set(next.map(b => b.person ? b.person.id : b.id)).size, 7);
   assert.ok(!next.some(b => b.id === "birth.walter-crane"), "Walter's parents brief goes first; his birth waits");
-  const later = rank({ people: seed.people, root: "mark-toller-1960", now: NOW, done: new Set(["parents.helen-ward-1905"]) });
+  const later = rank({ people: seed.people, root: "mark-toller-1960", now: NOW, done: new Set(["parents.lena-orme-1934", "parents.helen-ward-1905"]) });
   assert.equal(later.briefs[0].id, "parents.edwin-toller-1874");
 });

@@ -18,7 +18,11 @@ This file is public. It holds no family data; your brief does, and stays in the 
 
 - Search only for the person in your brief, and their family as it helps identify them.
 - `why.status` is `dead` or `presumed` (dead by a relative's dates): anything in public records.
-- `why.status` is `consented` (a living person who said yes): **genealogy only**: birth,
+- `why.status` is `lineage` (a living person, no consent; owner, 2026-10-11): **who their
+  parents were, and nothing else.** Search for their birth or baptism entry and their parents'
+  marriage, deaths and obituaries; claim only `parent` and `birth`. Everything about the parents
+  themselves (usually the dead) is fair game in the reasoning.
+- `why.status` is `consented` (a living person who said yes, or the owner's own line): **genealogy only**: birth,
   marriage and death indexes, newspaper notices, school and graduation lists, public service
   records, relatives' obituaries that name them, their own published work.
 - **Never, for anyone living, even with consent:** current address, phone, email, ID or passport
