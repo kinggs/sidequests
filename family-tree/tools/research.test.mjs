@@ -36,6 +36,9 @@ test("rejected: a source agents may not use", () => {
   assert.match(reasons(finding({ claims: [claim({ citations: [cite({ url: "https://www.freebmd.org.uk/cgi/information.pl?r=1" })] })] })).join(), /freebmd\.org\.uk isn't a source/);
   assert.match(reasons(finding({ claims: [claim({ citations: [cite({ url: "https://paperspast.natlib.govt.nz.evil.example/x" })] })] })).join(), /isn't a source/);
   assert.deepEqual(reasons(finding({ claims: [claim({ citations: [cite({ url: "https://archive.org/details/riverton1900" })] })] })), []);
+  for (const url of ["https://www.eggsa.org/cgi-bin/dosearchBurials.pl?what_surname=Nash", "https://discovery.nationalarchives.gov.uk/details/r/C123", "https://www.wikidata.org/wiki/Q1"])
+    assert.deepEqual(reasons(finding({ claims: [claim({ citations: [cite({ url })] })] })), [], url);
+  assert.match(reasons(finding({ claims: [claim({ citations: [cite({ url: "https://graves.eggsa.org/x" })] })] })).join(), /isn't a source/, "eGGSA's gravestones: by hand");
 });
 
 test("rejected: a brief or person that doesn't exist, or doesn't match", () => {
