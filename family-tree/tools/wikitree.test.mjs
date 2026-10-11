@@ -1,7 +1,7 @@
 // node --test from the repo root. Invented rows on both sides: nothing from WikiTree or the site.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { confirmLinks, corroborate, givenAgree, isoDate, matchProfiles, search } from "./wikitree.mjs";
+import { cacheEntry, confirmLinks, corroborate, differences, givenAgree, isoDate, matchProfiles, search } from "./wikitree.mjs";
 
 const person = (id, given, surname, birth = "", parents = []) => ({ id, given, surname, birth: { date: birth, year: /^\d{4}$/.test(birth.slice(-4)) && !/ABT/.test(birth) ? Number(birth.slice(-4)) : null }, parents });
 const profile = (Id, Name, FirstName, MiddleName, LastNameAtBirth, BirthDate = "0000-00-00", Father = 0, Mother = 0) => ({ Id, Name, FirstName, MiddleName, LastNameAtBirth, BirthDate, Father, Mother });
@@ -125,4 +125,42 @@ test("confirmLinks keeps the backed links and lists the rest, 25 profiles a requ
   assert.equal(c.links.p1, undefined);
   assert.deepEqual(c.unconfirmed[0], { id: "p1", wikitree: "Fenwick-1" });
   assert.ok(Object.values(c.how).every(h => h === "date"));
+});
+
+test("cacheEntry: the profile's facts and its close family, named by WikiTree id", () => {
+  const edwin = { Id: 10, Name: "Toller-7", FirstName: "Edwin", MiddleName: "", LastNameAtBirth: "Toller", LastNameCurrent: "Toller", Gender: "Male",
+    BirthDate: "1874-06-02", DeathDate: "1940-00-00", BirthLocation: "Riverton", DeathLocation: "", Father: 11, Mother: 0, Manager: 99, Touched: "20200101120000",
+    Spouses: [{ Id: "12", Name: "Fenwick-3", FirstName: "Dora", MiddleName: "May", LastNameAtBirth: "Fenwick", BirthDate: "1876-04-04", DeathDate: "0000-00-00", MarriageDate: "1900-05-01", MarriageLocation: "Riverton" }] };
+  const family = new Map([[10, edwin], [11, { Id: 11, Name: "Toller-2", FirstName: "Silas", LastNameAtBirth: "Toller", BirthDate: "1840-00-00" }],
+    [13, { Id: 13, Name: "Toller-9", FirstName: "Kate", LastNameAtBirth: "Toller", BirthDate: "1905-00-00", Father: 10, Mother: 12 }],
+    [14, { Id: 14, Name: "Toller-8", FirstName: "George", LastNameAtBirth: "Toller", BirthDate: "1901-01-12", Father: 10, Mother: 12 }]]);
+  const e = cacheEntry(edwin, family, { person: "edwin-toller-1874", managers: new Map([[99, "Jon Inggs"]]), at: 5 });
+  assert.deepEqual(e, { person: "edwin-toller-1874", fetchedAt: 5, name: "Edwin Toller", birth: { date: "1874-06-02", place: "Riverton" }, death: { date: "1940-00-00" },
+    relatives: [
+      { role: "father", wikitree: "Toller-2", name: "Silas Toller", birth: "1840-00-00", death: "" },
+      { role: "spouse", wikitree: "Fenwick-3", name: "Dora May Fenwick", birth: "1876-04-04", death: "", date: "1900-05-01", place: "Riverton" },
+      { role: "child", wikitree: "Toller-8", name: "George Toller", birth: "1901-01-12", death: "" },
+      { role: "child", wikitree: "Toller-9", name: "Kate Toller", birth: "1905-00-00", death: "" },
+    ], gender: "Male", manager: "Jon Inggs", touched: "20200101120000" });
+  // A privacy-limited profile: only what came back, nothing invented.
+  assert.deepEqual(cacheEntry({ Id: 20, Name: "Nash-1" }, new Map(), { person: "x", at: 1 }), { person: "x", fetchedAt: 1, name: "Nash-1", birth: {}, death: {}, relatives: [] });
+});
+
+test("differences: a date or a parent WikiTree has otherwise, for the owner", () => {
+  const people = [
+    { id: "a", name: "A", birth: { date: "11 APR 1863" }, death: { date: "" }, parents: ["f"] },
+    { id: "b", name: "B", birth: { date: "ABT 1870" }, death: {}, parents: [] },
+    { id: "f", name: "F", wikitree: "X-1", birth: {}, death: {}, parents: [] },
+  ];
+  const cache = {
+    "A-1": { person: "a", birth: { date: "1863-04-12" }, death: { date: "1920-00-00" }, relatives: [{ role: "father", wikitree: "X-2" }] },
+    "B-1": { person: "b", birth: { date: "1870-00-00" }, death: {}, relatives: [] },
+  };
+  people.push({ id: "c", name: "C", birth: { date: "6 JUL 1847" }, death: { date: "1867" }, parents: [] });
+  cache["C-1"] = { person: "c", birth: { date: "1847-00-00" }, death: { date: "1867-09-24" }, relatives: [] };
+  assert.deepEqual(differences(people, cache), [
+    { person: "a", wikitree: "A-1", kind: "differ", why: ["born 11 APR 1863 here, 12 Apr 1863 on WikiTree", "parent F is X-1 here, not a parent on WikiTree"] },
+    { person: "a", wikitree: "A-1", kind: "more", why: ["died 1920 (no date here)"] },
+    { person: "c", wikitree: "C-1", kind: "more", why: ["died 1867 here, 24 Sep 1867 on WikiTree"] },
+  ], "WikiTree's vaguer 1847 against Jon's 6 JUL 1847 isn't listed");
 });

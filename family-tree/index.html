@@ -155,10 +155,6 @@
     <div class="ft-bar"><button class="quiet back" data-back>‹ Back</button><span class="grow"></span><button class="quiet dots" id="pMore" aria-label="Share">⋯</button></div>
     <h2 class="ft-name" id="pName"></h2>
     <p class="ft-years" id="pYears"></p>
-    <div id="pLiving" class="hidden">
-      <p class="note" id="pLivingNote"></p>
-      <button class="quiet wide" id="detailsBtn" style="margin-top:12px">Show details</button>
-    </div>
     <div class="ft-strip hidden" id="pPhotos"></div>
     <button class="primary big wide" id="treeBtn" style="margin-top:18px">Tree</button>
     <div id="pBody" class="ft-sec"></div>
@@ -207,25 +203,18 @@
   import { people } from "../shared/people.js";
   import { connect } from "../shared/connect.js";
   import { ui } from "../shared/ui.js";
-  import { isLiving as livingAt, yearsText as yearsAt, eventText, wtDate, sameDate, layoutTree, markdownToHtml, lineageMarkdown, WIKITREE } from "./kin.js";
+  import { yearsText, eventText, wtDate, dateRelation, wtSummary, wtFamily, dayText, layoutTree, markdownToHtml, lineageMarkdown, WIKITREE } from "./kin.js";
 
   // Bump on every change. The deploy skill checks this against the live site.
-  const APP_VERSION = "1.0.0";
+  const APP_VERSION = "1.1.0";
   const APP_ID = "family-tree";
   document.getElementById("version").textContent = "v" + APP_VERSION;
 
   const $ = id => document.getElementById(id);
   const tap = ui.tap, toast = ui.toast;
   const report = (what, e) => { console.warn("[family-tree]", what, e); toast(`${what}: ${(e && (e.code || e.message)) || e}`); };
-  const MOCK = new URLSearchParams(location.search).has("mock");
   const el = (tag, cls, txt) => { const n = document.createElement(tag); if (cls) n.className = cls; if (txt != null) n.textContent = txt; return n; };
 
-  // ---- the living rule (SPEC §6, kin.js): Show details is a per-phone choice ----
-  const DETAILS = "family-tree.details";
-  const showDetails = () => { try { return localStorage.getItem(DETAILS) === "1"; } catch { return false; } };
-  const isLiving = p => livingAt(p);
-  const yearsText = p => yearsAt(p, { details: showDetails() });
-  const hidden = p => isLiving(p) && !showDetails();
   const plain = s => String(s || "").normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase();
   const firstGiven = p => (String(p.given || p.name || "").split(" ").find(w => w && !/^[A-Z]\d+$/.test(w)) || "?");
   const day = ms => ms ? new Date(ms).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "";
@@ -236,6 +225,8 @@
   let byId = new Map();     // people/ by id
   let photos = new Map();   // photos/ by id
   let stories = [];         // stories/, by title
+  let wtById = new Map();   // wikitree/ (the WikiTree copy) by WikiTree id
+  let byWikitree = new Map(); // WikiTree id → the person linked to it
   let members = [], invites = [], suggestions = [], friends = [];
   let tab = "people";
   let stack = [], scrolls = [];   // the views opened on top of the tab: { kind, id }; Back pops one
@@ -346,7 +337,7 @@
     const q = plain($("search").value).trim();
     const words = q.split(/\s+/).filter(Boolean);
     const rows = words.length ? tree.filter(p => { const n = plain(p.name); return words.every(w => n.includes(w)); }) : tree;
-    const sig = `${q}|${dataVer}|${showDetails()}|${rows.length}`;
+    const sig = `${q}|${dataVer}|${rows.length}`;
     if (sig === listSig) return;
     listSig = sig;
     $("count").textContent = !tree.length ? "" : words.length ? `${rows.length.toLocaleString()} of ${tree.length.toLocaleString()} people` : `${tree.length.toLocaleString()} people`;
@@ -380,10 +371,6 @@
     show("personPage");
     $("pName").textContent = p.name;
     $("pYears").textContent = yearsText(p);
-    const living = isLiving(p);
-    $("pLiving").classList.toggle("hidden", !living);
-    $("pLivingNote").textContent = showDetails() ? "Treated as living: born within the last 100 years with no death recorded, or with no birth year. Details are showing on this phone." : "Treated as living, so dates and places are hidden on this phone.";
-    $("detailsBtn").textContent = showDetails() ? "Hide details" : "Show details";
     const a = $("pSource");
     a.href = (p.source && p.source.wayback) || "#";
     a.classList.toggle("hidden", !(p.source && p.source.wayback));
@@ -403,20 +390,18 @@
 
     const body = $("pBody");
     body.replaceChildren();
-    const wt = p.wikitree && !living ? wikitree(p.wikitree) : null;
-    // Born and Died: Jon's, with WikiTree's beside where it differs.
-    if (!hidden(p)){
-      const facts = el("div", "card");
-      for (const [label, ev, wd, wp] of [["Born", p.birth, wt && wt.BirthDate, wt && wt.BirthLocation], ["Died", p.death, wt && wt.DeathDate, wt && wt.DeathLocation]]){
-        const t = eventText(ev), w = wtDate(wd);
-        if (!t && !w) continue;
-        const f = el("div", "ft-fact");
-        f.append(el("div", "lbl", label), el("div", "ft-read", t || "Not recorded"));
-        if (w && !sameDate(ev && ev.date, w)) f.append(el("div", "wt", `WikiTree: ${[w, wp].filter(Boolean).join(", ")}`));
-        facts.append(f);
-      }
-      if (facts.children.length) body.append(facts);
+    const wt = p.wikitree ? wtById.get(p.wikitree) : null;
+    // Born and Died: Jon's, with WikiTree's beside where it adds to his or differs (kin.js dateRelation).
+    const facts = el("div", "card");
+    for (const [label, ev, w] of [["Born", p.birth, wt && wt.birth], ["Died", p.death, wt && wt.death]]){
+      const t = eventText(ev), wd = wtDate(w && w.date);
+      if (!t && !wd) continue;
+      const f = el("div", "ft-fact");
+      f.append(el("div", "lbl", label), el("div", "ft-read", t || "Not recorded"));
+      if (wd && ["more", "differ"].includes(dateRelation(ev && ev.date, wd))) f.append(el("div", "wt", `WikiTree: ${[wd, w.place].filter(Boolean).join(", ")}`));
+      facts.append(f);
     }
+    if (facts.children.length) body.append(facts);
     const refs = role => (p.refs || []).filter(r => role === "parent" ? !["spouse", "child"].includes(r.role) : r.role === role);
     const section = (title, rows) => {
       if (!rows.length) return;
@@ -428,7 +413,7 @@
     section("Parents", [...known(p.parents).map(q => personRow(q)), ...refs("parent").map(r => refRow(r.name, `${r.role ? r.role[0].toUpperCase() + r.role.slice(1) + " · " : ""}not in the tree`))]);
     section("Married", [...(p.spouses || []).map(s => {
       const q = byId.get(s.id);
-      const when = q && !hidden(p) && !hidden(q) ? [s.date, s.place].filter(Boolean).join(", ") : "";
+      const when = [s.date, s.place].filter(Boolean).join(", ");
       return q ? personRow(q, [yearsText(q), when && `m. ${when}`].filter(Boolean).join(" · ")) : refRow(s.name);
     }), ...refs("spouse").map(r => refRow(r.name))]);
     section("Children", [...known(p.children).map(q => personRow(q)), ...refs("child").map(r => refRow(r.name))]);
@@ -436,48 +421,38 @@
     if (p.notes){
       body.append(el("h3", "lbl sect", "Notes"), el("p", "ft-notes ft-read", p.notes));
     }
-    // On WikiTree: read live, never stored; a living person's row is the link alone.
+    // On WikiTree: the copy's dates and who keeps the profile, as of when the owner last fetched
+    // it (SPEC §2); the link alone if it isn't in the copy. Then the family WikiTree names that
+    // Jon's record doesn't show here: someone in the tree opens their page, anyone else WikiTree.
     if (p.wikitree){
       const li = el("li");
       li.tabIndex = 0; li.setAttribute("role", "button");
       const who = el("span", "who");
-      const facts = wt ? [wtDate(wt.BirthDate) && `b. ${wtDate(wt.BirthDate)}`, wtDate(wt.DeathDate) && `d. ${wtDate(wt.DeathDate)}`].filter(Boolean).join(" · ") : "";
-      const touched = wt && /^\d{8}/.test(wt.Touched || "") ? day(Date.UTC(+wt.Touched.slice(0, 4), +wt.Touched.slice(4, 6) - 1, +wt.Touched.slice(6, 8))) : "";
-      who.append(el("div", "l1", `WikiTree · ${p.wikitree}`), el("div", "l2", [facts, touched && `updated ${touched}`].filter(Boolean).join(" · ") || "Opens WikiTree"));
+      const l2 = wt ? [wtSummary(wt), wt.manager && `kept by ${wt.manager}`, `as of ${dayText(wt.fetchedAt)}`].filter(Boolean).join(" · ") : "Opens WikiTree";
+      who.append(el("div", "l1", `WikiTree · ${p.wikitree}`), el("div", "l2", l2));
       li.append(who);
       tap(li, () => window.open(WIKITREE(p.wikitree), "_blank", "noopener"));
-      const ul = el("ul", "rows");
+      const ul = el("ul", "rows ft-wrap");
       ul.append(li);
       body.append(el("h3", "lbl sect", "On WikiTree"), ul);
+      const ROLE = { father: "Father", mother: "Mother", spouse: "Married", child: "Child" };
+      section("WikiTree also names", wtFamily(wt, p, byWikitree).map(r => {
+        const q = r.id && byId.get(r.id);
+        const what = [`${ROLE[r.role] || r.role} on WikiTree`, r.years].filter(Boolean).join(" · ");
+        if (q) return personRow(q, what);
+        const row = refRow(r.name, what);
+        row.tabIndex = 0; row.setAttribute("role", "button");
+        tap(row, () => window.open(WIKITREE(r.wikitree), "_blank", "noopener"));
+        return row;
+      }));
     }
   }
-  tap($("detailsBtn"), () => {
-    try { localStorage.setItem(DETAILS, showDetails() ? "0" : "1"); } catch {}
-    listSig = ""; treeSig = "";
-    paint();
-  });
   tap($("treeBtn"), () => { const v = top(); if (v) go("tree", v.id); });
   tap($("suggestBtn"), () => { const v = top(); if (v) suggest(v.id); });
-  ui.menu($("pMore"), { title: "Share as Markdown", text: "For NotebookLM, Drive or mail. Living people's dates stay hidden unless Show details is on.", items: [
+  ui.menu($("pMore"), { title: "Share as Markdown", text: "For NotebookLM, Drive or mail.", items: [
     { label: "Their line", value: "line", run: () => shareMarkdown(top().id, "line") },
     { label: "Their family", value: "family", run: () => shareMarkdown(top().id, "family") },
   ] });
-
-  // WikiTree's public API, by the stored id alone (SPEC §2, §6). Kept in memory for the session.
-  // Offline, refused or no answer: the row is the link alone. ?mock never asks.
-  const wtCache = new Map();
-  let wtDown = MOCK;
-  function wikitree(id){
-    if (wtCache.has(id)) return wtCache.get(id);
-    wtCache.set(id, null);
-    if (wtDown || !navigator.onLine) return null;
-    const fields = "Name,BirthDate,DeathDate,BirthLocation,DeathLocation,Manager,Touched";
-    fetch(`https://api.wikitree.com/api.php?appId=sidequests-family-tree&action=getProfile&key=${encodeURIComponent(id)}&fields=${fields}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(j => { const prof = j && j[0] && j[0].profile; if (prof){ wtCache.set(id, prof); const v = top(); if (v && v.kind === "person") paint(); } })
-      .catch(() => { wtDown = true; });   // refused (the browser's cross-site rule) or offline: stop asking this session
-    return null;
-  }
 
   // ---- Suggest a correction (SPEC §2): to suggestions/, with your name ----
   async function suggest(id){
@@ -508,7 +483,7 @@
   async function shareMarkdown(id, mode){
     const p = byId.get(id);
     if (!p) return;
-    const md = lineageMarkdown(byId, stories, id, mode, { details: showDetails(), photos });
+    const md = lineageMarkdown(byId, stories, id, mode, { photos, wikitree: wtById });
     const name = `${p.name.replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "").toLowerCase()}-${mode === "family" ? "family" : "line"}.md`;
     try {
       await cloud.save(`exports/${cloud.newId()}`, { by: user.uid, byName: myName(), at: Date.now(), people: (md.match(/^### /gm) || []).length, photos: 0, kind: "markdown", person: id, mode });
@@ -527,7 +502,7 @@
   function paintTree(id){
     show("treePage");
     const host = $("tree");
-    const sig = `${id}|${dataVer}|${showDetails()}`;
+    const sig = `${id}|${dataVer}`;
     if (sig === treeSig) return;
     const first = !treeSig;
     treeSig = sig;
@@ -860,7 +835,7 @@
       const strip = rows => rows.map(({ _updatedAt, ...d }) => d);
       const meta = await cloud.load("meta/main");
       const data = { app: APP_ID, version: APP_VERSION, exportedAt: new Date().toISOString(), meta: meta ? { main: (({ _updatedAt, ...m }) => m)(meta) } : {},
-        people: strip(ps), photos: strip(phs), images: strip(await cloud.list("images")), stories: strip(await cloud.list("stories")), suggestions: strip(await cloud.list("suggestions")) };
+        people: strip(ps), photos: strip(phs), images: strip(await cloud.list("images")), stories: strip(await cloud.list("stories")), wikitree: strip(await cloud.list("wikitree")), suggestions: strip(await cloud.list("suggestions")) };
       if (owner){ data.members = strip(await cloud.list("members")); data.invites = strip(await cloud.list("invites")); }
       download(`family-tree-${new Date().toISOString().slice(0, 10)}.json`, data);
       toast("Exported");
@@ -870,7 +845,7 @@
   // a WikiTree link that didn't hold up, goes too), 400 a batch (images 10, they're big), so a
   // file imported twice changes nothing. members and invites are the owner's
   // record in an export; they're made by approval (SPEC §5), not imported.
-  const IMPORTS = [["meta", 400], ["people", 400], ["photos", 400], ["stories", 50], ["suggestions", 400], ["images", 10]];
+  const IMPORTS = [["meta", 400], ["people", 400], ["photos", 400], ["stories", 50], ["wikitree", 400], ["suggestions", 400], ["images", 10]];
   async function importFiles(files){
     const parsed = [];
     for (const f of files){
@@ -884,10 +859,10 @@
     const whole = parsed.find(d => d.seed && d.seed.part === 1);
     if (whole){
       try {
-        for (const col of ["people", "photos", "stories"]){
+        for (const col of ["people", "photos", "stories", "wikitree"]){
           if (!Array.isArray(whole[col])) continue;
           const keep = new Set(whole[col].map(d => d && d.id));
-          for (const d of await cloud.list(col)) if (!keep.has(d.id)) gone.push({ col, id: d.id, name: d.name || d.caption || d.title || d.id });
+          for (const d of await cloud.list(col)) if (!keep.has(d.id)) gone.push({ col, id: d.id, name: col === "wikitree" ? `WikiTree ${d.id}` : d.name || d.caption || d.title || d.id });
         }
       } catch (e){ return report("Couldn't check what's there", e); }
     }
@@ -963,7 +938,7 @@
   // Signed in: who are you to the family? The owner always a member; anyone else by members/<uid>,
   // and the invite while they wait. Becoming a member opens the tree; being removed closes it.
   function forget(){
-    tree = []; byId = new Map(); photos = new Map(); stories = []; members = []; invites = []; suggestions = []; friends = [];
+    tree = []; byId = new Map(); photos = new Map(); stories = []; wtById = new Map(); byWikitree = new Map(); members = []; invites = []; suggestions = []; friends = [];
     stack = []; scrolls = []; listSig = treeSig = photosSig = photoSig = storiesSig = storySig = familySig = ""; dataVer++;
   }
   async function start(u){
@@ -1009,9 +984,11 @@
     treeUnsubs.push(cloud.watchList("people", list => {
       tree = list.sort((a, b) => plain(a.surname).localeCompare(plain(b.surname)) || plain(a.given).localeCompare(plain(b.given)) || a.id.localeCompare(b.id));
       byId = new Map(tree.map(p => [p.id, p]));
+      byWikitree = new Map(tree.filter(p => p.wikitree).map(p => [p.wikitree, p.id]));
       changed();
     }, {}, e => report("Couldn't load the people", e)));
     treeUnsubs.push(cloud.watchList("photos", list => { photos = new Map(list.map(p => [p.id, p])); changed(); }, {}, e => console.warn("[photos]", e)));
+    treeUnsubs.push(cloud.watchList("wikitree", list => { wtById = new Map(list.map(e => [e.id, e])); changed(); }, {}, e => console.warn("[wikitree]", e)));
     treeUnsubs.push(cloud.watchList("stories", list => { stories = list.sort((a, b) => String(a.title).localeCompare(String(b.title))); changed(); }, {}, e => console.warn("[stories]", e)));
     treeUnsubs.push(cloud.watchList("members", list => { members = list; changed(); }, {}, e => console.warn("[members list]", e)));
     treeUnsubs.push(cloud.watchList("invites", list => { invites = list; changed(); }, {}, e => console.warn("[invites list]", e)));

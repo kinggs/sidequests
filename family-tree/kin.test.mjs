@@ -1,7 +1,7 @@
 // node --test family-tree/kin.test.mjs — the Family Tree's pure logic, on the invented mock seed.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isLiving, yearsText, wtDate, sameDate, layoutTree, markdownToHtml, inline, lineageMarkdown, generationName } from "./kin.js";
+import { isLiving, yearsText, wtDate, sameDate, dateRelation, wtSummary, wtFamily, dayText, layoutTree, markdownToHtml, inline, lineageMarkdown, generationName } from "./kin.js";
 import { mockSeed } from "./tools/mock-seed.mjs";
 
 const NOW = new Date(Date.UTC(2026, 9, 10));
@@ -9,13 +9,26 @@ const seed = mockSeed(NOW.getTime());
 const byId = new Map(seed.people.map(p => [p.id, p]));
 const P = id => byId.get(id);
 
-test("the living rule and the years line", () => {
+test("the living rule (for research agents) and the years line, shown for everyone", () => {
   assert.equal(isLiving(P("mark-toller-1960"), NOW), true);
   assert.equal(isLiving(P("ivy-nash-1860"), NOW), false, "born over 100 years ago");
   assert.equal(isLiving(P("d1-ernest-fenwick"), NOW), true, "no birth year");
-  assert.equal(yearsText(P("mark-toller-1960"), { now: NOW }), "");
-  assert.equal(yearsText(P("mark-toller-1960"), { now: NOW, details: true }), "b. 1960");
-  assert.equal(yearsText(P("clara-beamish-1852"), { now: NOW }), "1852–c. 1930");
+  assert.equal(yearsText(P("mark-toller-1960")), "b. 1960");
+  assert.equal(yearsText(P("clara-beamish-1852")), "1852–c. 1930");
+});
+
+test("the WikiTree copy: its summary, and the family Jon's record doesn't already show", () => {
+  const W = new Map(seed.wikitree.map(e => [e.id, e]));
+  assert.equal(wtSummary(W.get("Toller-7")), "b. 2 Jun 1874, Riverton · d. 2 Feb 1940, Port Example");
+  assert.equal(wtSummary({ birth: {}, death: {} }), "");
+  assert.equal(dayText(Date.UTC(2026, 9, 11)), "11 Oct 2026");
+  const byWt = new Map(seed.people.filter(p => p.wikitree).map(p => [p.wikitree, p.id]));
+  // Edwin: Dora is his wife here too, so only the father Jon didn't have.
+  assert.deepEqual(wtFamily(W.get("Toller-7"), P("edwin-toller-1874"), byWt), [{ role: "father", wikitree: "Toller-2", name: "Silas Toller", years: "1840–1901", id: null }]);
+  assert.deepEqual(wtFamily(W.get("Fenwick-3"), P("dora-may-fenwick-1876"), byWt), []);
+  // A relative linked to someone in the tree, but not related here: their id, to open them.
+  assert.deepEqual(wtFamily({ relatives: [{ role: "child", wikitree: "Toller-7", name: "Edwin Toller", birth: "1874-06-02", death: "" }] }, P("ivy-nash-1860"), byWt),
+    [{ role: "child", wikitree: "Toller-7", name: "Edwin Toller", years: "b. 1874", id: "edwin-toller-1874" }]);
 });
 
 test("WikiTree's dates beside Jon's", () => {
@@ -147,8 +160,10 @@ test("Share as Markdown: their line", () => {
   assert.deepEqual(order, ["James TOLLER", "George TOLLER", "Helen WARD", "Edwin TOLLER", "Dora May FENWICK", "Albert Quill FENWICK", "Clara BEAMISH"]);
   assert.match(md, /- Born: 8 AUG 1930, Riverton/);
   assert.match(md, /- Married: Lena ORME/);
-  assert.ok(!/Lena ORME \(1958/.test(md), "a living spouse's marriage date is left out");
-  assert.match(md, /- On WikiTree: https:\/\/www\.wikitree\.com\/wiki\/Toller-7/);
+  assert.match(md, /- Married: Lena ORME \(1958, Port Example\)/, "every marriage's date and place");
+  assert.match(md, /- On WikiTree: https:\/\/www\.wikitree\.com\/wiki\/Toller-7\n/, "the link alone without the copy");
+  const withCopy = lineageMarkdown(seed.people, seed.stories, "james-toller-1930", "line", { now: NOW, wikitree: seed.wikitree });
+  assert.match(withCopy, /- On WikiTree: https:\/\/www\.wikitree\.com\/wiki\/Toller-7 \(b\. 2 Jun 1874, Riverton · d\. 2 Feb 1940, Port Example; as of 11 Oct 2026\)/);
   assert.match(md, /Kept the shop on Main Street for forty years\./, "Jon's notes, verbatim");
   // The story names Albert and Frank: written out under Albert, once.
   assert.equal((md.match(/#### Jon wrote: The Fenwick shop/g) || []).length, 1);
@@ -159,14 +174,11 @@ test("Share as Markdown: their line", () => {
   assert.match(md, /- Jon's story "The Fenwick shop": https:\/\/web\.archive\.org/);
 });
 
-test("Share as Markdown: the living rule, and their family", () => {
-  const hidden = lineageMarkdown(seed.people, seed.stories, "mark-toller-1960", "family", { now: NOW });
-  assert.match(hidden, /^# Mark TOLLER: their family/);
-  assert.match(hidden, /### Mark TOLLER\n\n- Living: dates and places left out/);
-  assert.ok(!/14 MAY 1960/.test(hidden));
-  assert.deepEqual(hidden.match(/^## .*$/gm), ["## Mark TOLLER", "## Parents", "## Sources"]);
-  const shown = lineageMarkdown(seed.people, seed.stories, "mark-toller-1960", "family", { now: NOW, details: true });
-  assert.match(shown, /- Born: 14 MAY 1960, Port Example/);
+test("Share as Markdown: their family, everyone's dates", () => {
+  const mark = lineageMarkdown(seed.people, seed.stories, "mark-toller-1960", "family", { now: NOW });
+  assert.match(mark, /^# Mark TOLLER: their family/);
+  assert.match(mark, /### Mark TOLLER\n\n- Born: 14 MAY 1960, Port Example/);
+  assert.deepEqual(mark.match(/^## .*$/gm), ["## Mark TOLLER", "## Parents", "## Sources"]);
   const albert = lineageMarkdown(seed.people, seed.stories, "albert-quill-fenwick-1850", "family", { now: NOW });
   assert.deepEqual(albert.match(/^## .*$/gm), ["## Albert Quill FENWICK", "## Married", "## Children", "## Sources"]);
   assert.match(albert, /Married: Clara BEAMISH \(1875, Riverton, St Example's Church\); Ivy NASH \(1932, Port Example\)/);
@@ -176,4 +188,17 @@ test("Share as Markdown: the living rule, and their family", () => {
   assert.match(ivy, /Also named: Jack NASH, father \(not in the tree\)/);
   assert.equal(lineageMarkdown(seed.people, seed.stories, "nobody"), "");
   assert.equal(generationName(5), "3× great-grandparents");
+});
+
+test("dateRelation: same, vaguer, more or differ", () => {
+  assert.equal(dateRelation("11 APR 1863", "11 Apr 1863"), "same");
+  assert.equal(dateRelation("ABT 1863", "1863"), "same");
+  assert.equal(dateRelation("6 JUL 1847", "1847"), "vaguer");
+  assert.equal(dateRelation("JUL 1847", "6 Jul 1847"), "more");
+  assert.equal(dateRelation("", "1847"), "more");
+  assert.equal(dateRelation("1793", "18 Sep 1793"), "more");
+  assert.equal(dateRelation("1867", "1869"), "differ");
+  assert.equal(dateRelation("6 JUL 1847", "7 Jul 1847"), "differ");
+  assert.equal(dateRelation("BEF 1850", "3 Mar 1849"), "differ");
+  assert.equal(dateRelation("1850", ""), "same", "WikiTree with nothing says nothing");
 });

@@ -515,54 +515,55 @@ session, load it before the tree view; if not, say so and build from DESIGN.md.
 
 ---
 
-## Session 4b — The WikiTree cache (Opus 5.5; owner, 2026-10-11)
+## Session 4b — The WikiTree cache, and everyone's dates (Opus 5.5; owner, 2026-10-11)
 
 **Goal:** the person page shows what WikiTree says about a linked person, read from a copy the
 owner refreshes by hand, because WikiTree's API won't answer a browser on github.io (SPEC §8,
-Session 4). Replaces "link, don't copy" (Session 3 step 2b): the owner is happy to keep a small
-cache of WikiTree's public data, dated, beside Jon's tree, never mixed into it.
+Session 4). Replaces "link, don't copy" (Session 3 step 2b). Mid-session the owner also decided
+that members see everyone's dates and places, the living included (SPEC §6, §8).
 
-- [ ] **Terms first.** Read WikiTree's current API and content terms (the API help pages, the
-      Honor Code, the licence on biographies and photos) and note in the Handover what may be
-      kept. ⚠ Until that's done, the cache holds facts only (names, dates, places, relatives,
-      manager); **biographies and photos** join it only if the terms allow keeping a copy, with
-      their credit.
-- [ ] **`tools/wikitree.mjs --cache`**: for every id in `data/wikitree.json`, WikiTree's public
-      `getPeople` (many keys a call, a second between calls; check the per-call limit), never
-      signed in, so WikiTree's own privacy levels decide what comes back. Fields: `Name,
-      FirstName, MiddleName, LastNameAtBirth, LastNameCurrent, Nicknames, Gender, BirthDate,
-      DeathDate, BirthLocation, DeathLocation, Father, Mother, Spouses, Children, Manager,
-      Touched, Privacy` (and `Bio`, `Photo` if the terms allow). **Never a living person**
-      (SPEC §6's rule, on Jon's dates): their id is skipped, not fetched. A profile whose
-      `Touched` hasn't changed since the last run is kept as it is. → `data/wikitree-cache.json`
-      `{ wikitreeId: { person, fetchedAt, touched, … } }`; the pure shaping (`cacheEntry(profile,
-      person)`) gets tests on invented rows.
-- [ ] **Differences for the owner**: the same run lists in `data/wikitree-review.md` every linked
-      person whose WikiTree dates, places or parents differ from Jon's, so a wrong link or a
-      newer correction shows. Nothing changes Jon's records.
-- [ ] **The seed and the data**: `wikitree/<WikiTreeId>` documents (SPEC §4), in seed part 1,
-      imported whole like the rest; Import's "anyone the file leaves out" list covers them. Kept
-      apart from `people/` so Jon's records stay his and a refresh never touches them.
-- [ ] **The rules (cases first)**: `wikitree/` read by members, written by the owner, like
-      `people/`; `cloud-memory.js` mirrored; `rules-check.mjs` cases for a member, a newcomer
-      and signed out.
-- [ ] **The person page**: **On WikiTree** reads the cached document: "On WikiTree, as of
-      11 Oct 2026", the manager, birth and death with places, and WikiTree's value beside Jon's
-      Born and Died where they differ (as now). Relatives WikiTree names that have a person here
-      are rows that open them; those that don't are listed as "Also on WikiTree" with a link
-      (moves part of the Parked item). The live read goes: it never works from github.io, and
-      the cache replaces it. A missing cache entry → the link alone.
-- [ ] **Share as Markdown** adds "On WikiTree (as of …)" under each linked person; **Export**
-      carries `wikitree`.
-- [ ] Mock seed: two cached profiles, one that differs from Jon's dates; `family-tree-tree.mjs`
-      checks the row and the "as of" date. Smoke green.
-- [ ] SPEC §2, §4, §6, §7 and KIT.md's row updated; this doc's Handover. Version `1.1.0`,
-      `/deployquest`. Run the cache and Import it in the same session (on the laptop, with
-      `data/` cloned), and commit the data repo.
+- [x] **Terms first** (read 2026-10-11, wikitree.com/about/terms.html and Help:Database_Dumps):
+      copying for personal family research is allowed, not "a substantial portion" of the site;
+      a copy should link back to each profile and be refreshed, since members change privacy
+      settings; biographies and photos are copyright of their authors. So the copy is **facts
+      only**, every entry links its profile, and the refresh is the owner's command.
+- [x] **`tools/wikitree.mjs --cache`**: WikiTree's public `getPeople` with `nuclear=1` for every
+      id in `data/wikitree.json` (100 keys a call, WikiTree's limit with relatives; one call for
+      99 today, a second for the managers' names), never signed in. → `data/wikitree-cache.json`
+      `{ wikitreeId: { person, fetchedAt, name, birth, death, relatives, manager, touched, … } }`;
+      `cacheEntry(profile, family, …)` and `differences(people, cache)` tested on invented rows.
+      Every profile is fetched each run (two calls): `Touched` doesn't change when a relative
+      does, so skipping on it would keep stale family. Living people too: WikiTree's privacy
+      levels decide what comes back. First run: 97 of 99 copied (2 private, merged or gone).
+- [x] **Differences for the owner**: `kin.js` `dateRelation(jon, wt)` says same, vaguer, more
+      or differ. `wikitree-review.md` gets "WikiTree and Jon disagree" (a date, or a parent linked
+      to a different profile: 7 on the first run) and "WikiTree adds to Jon" (36, nothing to do).
+- [x] **The seed and the data**: `wikitree/<WikiTree id>` (SPEC §4) in seed part 1, imported
+      whole; Import's "no longer in the tree" list covers it; Export carries it; `meta/main`
+      says how many and when.
+- [x] **The rules (cases first)**: `wikitree` joins people/photos/images/meta/stories (members
+      read, the owner writes); `cloud-memory.js` mirrored; `FT_TREE` in `rules-check.mjs` covers
+      a member, a newcomer and signed out. 268 cases green on the emulator locally.
+- [x] **The person page**: Born and Died carry WikiTree's value beside Jon's where it adds or
+      differs; **On WikiTree** shows the copy's dates, who keeps the profile and "as of"; **WikiTree
+      also names** lists the relatives Jon's record doesn't show here (in the tree → their page,
+      else WikiTree). The live read is gone.
+- [x] **Everyone's dates** (owner, mid-session): Show details is gone; the list, the person page,
+      the tree and Share as Markdown show every date and place. `isLiving` stays in `kin.js` for
+      Session 5's consent rule.
+- [x] **Share as Markdown** adds the copy's dates and "as of" to each WikiTree link.
+- [x] Mock seed: Edwin's copy adds a day and place and a father Jon didn't have; Dora's birth is a
+      day off. `family-tree-tree.mjs` 51 checks, `family-tree-gate.mjs` 41, invites 30;
+      `make verify` 110 tests and smoke green.
+- [x] SPEC §2, §4, §6, §7, §8 and KIT.md's row; this doc's Handover. Version `1.1.0`,
+      `/deployquest`. The cache is run and seed part 1 rebuilt in `data/`.
+- [ ] **Owner:** Import seed part 1 (`data/seed/family-tree-1.json`) from the account sheet; open
+      a linked person and see "On WikiTree … as of 11 Oct 2026". Commit and push the data repo
+      from a session opened in `family-tree/data` (this session can't: Handover). Tick this box.
 
-**Refreshing later (owner):** `node family-tree/tools/wikitree.mjs --cache`, then Import seed
-part 1. A few minutes, whenever you like; no schedule, since a scheduled job would need a
-Firebase admin key (no server code, 2026-10-01).
+**Refreshing later (owner):** `node family-tree/tools/wikitree.mjs --cache`, then
+`node family-tree/tools/seed.mjs` and Import part 1. A few minutes, whenever you like; no
+schedule, since a scheduled job would need a Firebase admin key (no server code, 2026-10-01).
 
 ---
 
@@ -624,8 +625,8 @@ approve findings.
   photos (the photo-coach pattern, 1400px data URLs; Firebase Storage if that gets heavy).
   **Adding family photos is next in line after the MVP** (owner, 2026-10-10): the recovery holds
   only Jon's 20, so the family's own photos are how the tree gets faces.
-- A member claiming the person in the tree that is them (links a `people/<id>` to a uid; would let
-  "Show details" default to on for your own record).
+- A member claiming the person in the tree that is them (links a `people/<id>` to a uid; lets them
+  set Session 5's research consent on their own record).
 - Jon as a member with edit rights, if he wants in.
 - WikiTree people with no match in the 2006 tree (Jon's newer additions): Session 4b lists them as
   "Also on WikiTree" links on a relative's page; giving them pages of their own stays here. And an offer to Jon of the
@@ -878,3 +879,22 @@ step (install, browse, let Dad in, then the email) is the one box left.
 **For Session 5:** the research agents plan from its own opening questions. Where the email to Jon
 stands decides whether his GEDCOM replaces the parse first.
 
+### After Session 4b (Opus 5.5, desktop, 2026-10-11)
+
+- **Shipped `1.1.0`**: the WikiTree copy (`wikitree/`), read from the owner's laptop and
+  imported; WikiTree's dates beside Jon's where they add or differ; "WikiTree also names"; every
+  date shown to members (Show details gone, owner's call mid-session); Share as Markdown with the
+  copy. The live read from the phone is gone.
+- **Waiting on the owner:** Import seed part 1, already rebuilt with 97 WikiTree entries. Until
+  then the live app shows the WikiTree link alone, as before.
+- **The data repo isn't committed.** A guard on sessions opened in this repo blocks changes to
+  `family-tree/data` through git, so `wikitree-cache.json`, the rebuilt seed,
+  `wikitree-review.md`, `parse-report.md` and Session 4's `EMAIL-DRAFT.md` (with its one-sentence
+  fix: "a WikiTree profile (99 so far, many of them yours)") wait for a session opened there.
+- **For the owner's review:** `data/wikitree-review.md` → "WikiTree and Jon disagree" (7). A
+  parent linked to a different profile may be a wrong link: take it out of `wikitree.json` and
+  re-run `--cache` and the seed.
+- WikiTree's web pages sit behind a bot check (a 202 with an empty body to curl); the terms were
+  read with headless Chromium. The API itself answers plain requests.
+
+**For Session 5:** the living rule now matters only to research agents; `kin.js` `isLiving` is it.

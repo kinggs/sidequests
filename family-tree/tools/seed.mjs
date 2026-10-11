@@ -2,7 +2,8 @@
 // family-tree/tools/seed.mjs — Session 3 step 3 (PLAN.md): the files the owner imports into the
 // app (account sheet → Import), data/seed/family-tree-1.json, -2.json, …, in the app's export
 // format (SPEC.md §4), each under 20 MB. The first carries meta, people, photos (with ~400px
-// thumbs) and stories; the rest carry images (1400px long edge) in chunks. Run after parse.mjs,
+// thumbs), stories and the WikiTree copy (wikitree-cache.json, from wikitree.mjs --cache); the
+// rest carry images (1400px long edge) in chunks. Run after parse.mjs,
 // stories.mjs and wikitree.mjs, from the repo root:
 //
 //   PLAYWRIGHT=…/playwright-core/index.mjs node family-tree/tools/seed.mjs [--data ../x]
@@ -30,12 +31,12 @@ export function storyDoc(row, markdown, photoByFile){
   return { ...rest, markdown: md, ...(row.pdf ? { pdf: true } : {}) };
 }
 
-// Split everything into files under the limit: the first with meta, people, photos and stories,
-// then images, as many to a file as fit. → [{ app, seed: { part, of }, … }]
-export function seedFiles({ meta, people, photos, stories, images }, limit = LIMIT){
+// Split everything into files under the limit: the first with meta, people, photos, stories and
+// wikitree, then images, as many to a file as fit. → [{ app, seed: { part, of }, … }]
+export function seedFiles({ meta, people, photos, stories, wikitree = [], images }, limit = LIMIT){
   // meta travels as { main: … }, like every other collection, so one loader reads them all.
-  const head = { app: APP, seed: { part: 1, of: 1 }, exportedAt: new Date().toISOString(), meta: { main: meta }, people, photos, stories };
-  if (Buffer.byteLength(JSON.stringify(head)) > limit) throw new Error("people, photos and stories alone pass the limit");
+  const head = { app: APP, seed: { part: 1, of: 1 }, exportedAt: new Date().toISOString(), meta: { main: meta }, people, photos, stories, wikitree };
+  if (Buffer.byteLength(JSON.stringify(head)) > limit) throw new Error("people, photos, stories and wikitree alone pass the limit");
   const files = [head];
   let cur = null, size = 0;
   for (const img of images){
@@ -95,22 +96,27 @@ export async function run(dataDir, { log = console.error } = {}){
   const images = shrunk ? [...shrunk].map(([id, r]) => ({ id, data: r.big })) : [];
   const photoByFile = new Map(photos.map(p => [p.file, p.id]));
   const stories = rows.map(r => storyDoc(r, r.pdf ? "" : fs.readFileSync(path.join(dataDir, r.file), "utf8"), photoByFile));
+  // The WikiTree copy, keyed by WikiTree id; only for people still in the tree.
+  const ids = new Set(people.map(p => p.id));
+  const wtFile = path.join(dataDir, "wikitree-cache.json");
+  const wikitree = fs.existsSync(wtFile) ? Object.entries(read("wikitree-cache.json")).filter(([, e]) => ids.has(e.person)).map(([id, e]) => ({ id, ...e })) : [];
   const captured = Math.max(...people.map(p => p.source?.captured || 0));
   const meta = {
     source: "familytree.inggs.com", credit: CREDIT, researcher: "Jon Inggs", captured,
-    people: people.length, photos: photos.length, photosRecovered: photos.filter(p => p.recovered).length, stories: stories.length,
+    people: people.length, photos: photos.length, photosRecovered: photos.filter(p => p.recovered).length, stories: stories.length, wikitree: wikitree.length,
+    wikitreeFetched: wikitree.reduce((n, e) => Math.max(n, e.fetchedAt || 0), 0) || null,
     version: new Date().toISOString().slice(0, 10), mirrorFiles: (manifest.rows || []).filter(r => r.path).length,
   };
-  const files = seedFiles({ meta, people, photos: photoDocs, stories, images });
+  const files = seedFiles({ meta, people, photos: photoDocs, stories, wikitree, images });
   const dir = path.join(dataDir, "seed");
   fs.mkdirSync(dir, { recursive: true });
   for (const f of fs.readdirSync(dir)) if (/^family-tree-\d+\.json$/.test(f)) fs.rmSync(path.join(dir, f));
   files.forEach((f, i) => fs.writeFileSync(path.join(dir, `family-tree-${i + 1}.json`), JSON.stringify(f)));
-  return files.map((f, i) => ({ file: `seed/family-tree-${i + 1}.json`, bytes: Buffer.byteLength(JSON.stringify(f)), people: f.people?.length || 0, photos: f.photos?.length || 0, stories: f.stories?.length || 0, images: f.images?.length || 0 }));
+  return files.map((f, i) => ({ file: `seed/family-tree-${i + 1}.json`, bytes: Buffer.byteLength(JSON.stringify(f)), people: f.people?.length || 0, photos: f.photos?.length || 0, stories: f.stories?.length || 0, wikitree: f.wikitree?.length || 0, images: f.images?.length || 0 }));
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] || "").href){
   const at = process.argv.indexOf("--data");
   const dataDir = at > 0 ? path.resolve(process.argv[at + 1]) : path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "data");
-  run(dataDir).then(fs => { for (const f of fs) console.log(`${f.file}: ${(f.bytes / 1048576).toFixed(2)} MB — ${f.people} people, ${f.photos} photos, ${f.stories} stories, ${f.images} images`); });
+  run(dataDir).then(fs => { for (const f of fs) console.log(`${f.file}: ${(f.bytes / 1048576).toFixed(2)} MB — ${f.people} people, ${f.photos} photos, ${f.stories} stories, ${f.wikitree} WikiTree, ${f.images} images`); });
 }

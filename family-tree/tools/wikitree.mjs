@@ -6,17 +6,21 @@
 // birth date, or a parent's or spouse's name), since a namesake born the same year is common;
 // → people[i].wikitree = "<Surname>-<n>"; two or more, a near miss, or name and year only, →
 // data/wikitree-review.md for the owner, not linked. Writes data/wikitree.json ({ personId: wikitreeId }, which parse.mjs
-// applies on every run), people.json, and the WikiTree part of parse-report.md. Only ids are
-// kept: WikiTree's dates and names are compared in memory and dropped. Run from the repo root:
+// applies on every run), people.json, and the WikiTree part of parse-report.md. Matching keeps
+// only ids; --cache (Session 4b, owner 2026-10-11) then keeps a dated copy of each linked public
+// profile's facts in data/wikitree-cache.json, which seed.mjs carries into the app as wikitree/.
+// Run from the repo root:
 //
 //   node family-tree/tools/wikitree.mjs                    # every surname in the tree
 //   node family-tree/tools/wikitree.mjs --surnames INGGS   # just these (comma-separated)
 //   node family-tree/tools/wikitree.mjs --check            # re-check the links in wikitree.json only
+//   node family-tree/tools/wikitree.mjs --cache            # refresh the copy of the linked profiles
 
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { anyYear, norm, text, writeSection } from "./parse.mjs";
+import { dateRelation, wtDate } from "../kin.js";
 
 export const API = "https://api.wikitree.com/api.php";
 export const APP_ID = "sidequests-family-tree";
@@ -236,8 +240,134 @@ ${names.length} surnames searched, ${profiles.length} profiles. Name and birth y
   return { surnames: names.length, profiles: profiles.length, linked: Object.keys(c.links).length, unconfirmed: c.unconfirmed.length, ambiguous: m.ambiguous.length, near: m.near.length, unmatched: m.unmatched.length };
 }
 
+// ---------- --cache: a dated copy of each linked profile (Session 4b, owner 2026-10-11) ----------
+// WikiTree's API won't answer the app on github.io, so the owner's laptop reads the linked
+// profiles and the seed carries the copy in. WikiTree's terms allow copying for personal family
+// research (not a substantial part of the site), and ask that a copy link back to each profile
+// and be refreshed, since members change their privacy settings: the app links every entry, and
+// this is the refresh. Facts only: a biography or photo belongs to whoever wrote or took it.
+// Never signed in, so WikiTree's own privacy levels decide what comes back.
+export const CACHE_FIELDS = "Id,Name,FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,Nicknames,Gender,BirthDate,DeathDate,BirthLocation,DeathLocation,Father,Mother,Spouses,Manager,Touched";
+const fullName = p => [p.FirstName, p.MiddleName, p.LastNameAtBirth].filter(Boolean).join(" ") || p.Name || "";
+const event = (date, place) => { const d = /^0000/.test(date || "") ? "" : date || "", e = {}; if (d) e.date = d; if (place) e.place = place; return e; };
+const born = p => String(p.BirthDate || "9999").slice(0, 4);
+
+// One linked profile and its close family (the API's nuclear set, by numeric Id) → the document
+// the app keeps under wikitree/<WikiTree id>. Relatives are named by their WikiTree id; the app
+// finds which of them are in Jon's tree. managers: numeric Id → a name.
+export function cacheEntry(profile, family, { person, managers = new Map(), at = Date.now() } = {}){
+  const rel = (role, p, extra = {}) => ({ role, wikitree: p.Name, name: fullName(p), birth: event(p.BirthDate).date || "", death: event(p.DeathDate).date || "", ...extra });
+  const relatives = [];
+  for (const [role, id] of [["father", profile.Father], ["mother", profile.Mother]]){ const p = id && family.get(Number(id)); if (p && p.Name) relatives.push(rel(role, p)); }
+  for (const sp of Array.isArray(profile.Spouses) ? profile.Spouses : Object.values(profile.Spouses || {})){
+    if (!sp || !sp.Name) continue;
+    const m = event(sp.MarriageDate || sp.marriage_date, sp.MarriageLocation || sp.marriage_location);
+    relatives.push(rel("spouse", sp, { ...(m.date ? { date: m.date } : {}), ...(m.place ? { place: m.place } : {}) }));
+  }
+  const kids = [...family.values()].filter(p => p.Name && p.Id !== profile.Id && (Number(p.Father) === Number(profile.Id) || Number(p.Mother) === Number(profile.Id)));
+  for (const p of kids.sort((a, b) => born(a).localeCompare(born(b)))) relatives.push(rel("child", p));
+  const out = { person, fetchedAt: at, name: fullName(profile), birth: event(profile.BirthDate, profile.BirthLocation), death: event(profile.DeathDate, profile.DeathLocation), relatives };
+  if (profile.LastNameCurrent && profile.LastNameCurrent !== profile.LastNameAtBirth) out.lastNameCurrent = profile.LastNameCurrent;
+  if (profile.Nicknames) out.nicknames = profile.Nicknames;
+  if (profile.Gender) out.gender = profile.Gender;
+  if (managers.get(Number(profile.Manager))) out.manager = managers.get(Number(profile.Manager));
+  if (profile.Touched) out.touched = profile.Touched;
+  return out;
+}
+
+// Where WikiTree and Jon disagree, for the owner: a date (kind "differ"), or a parent who's linked
+// on our side to a different profile; and where WikiTree only adds to Jon ("more": a day, a month,
+// a date he hadn't). WikiTree saying less than Jon isn't listed. people: people.json rows;
+// cache: { wikitreeId: entry }. → [{ person, wikitree, kind, why: [] }], one row a kind.
+export function differences(people, cache){
+  const byId = new Map(people.map(p => [p.id, p]));
+  const out = [];
+  for (const [wt, e] of Object.entries(cache)){
+    const p = byId.get(e.person);
+    if (!p) continue;
+    const why = { differ: [], more: [] };
+    for (const [label, ours, theirs] of [["born", p.birth, e.birth], ["died", p.death, e.death]]){
+      const w = wtDate(theirs && theirs.date), j = ours && ours.date;
+      const r = w ? dateRelation(j, w) : "same";
+      if (r === "differ") why.differ.push(`${label} ${j} here, ${w} on WikiTree`);
+      if (r === "more") why.more.push(j ? `${label} ${j} here, ${w} on WikiTree` : `${label} ${w} (no date here)`);
+    }
+    const linked = new Set((e.relatives || []).filter(r => r.role === "father" || r.role === "mother").map(r => r.wikitree));
+    for (const q of (p.parents || []).map(id => byId.get(id)).filter(Boolean))
+      if (q.wikitree && linked.size && !linked.has(q.wikitree)) why.differ.push(`parent ${q.name} is ${q.wikitree} here, not a parent on WikiTree`);
+    for (const kind of ["differ", "more"]) if (why[kind].length) out.push({ person: p.id, wikitree: wt, kind, why: why[kind] });
+  }
+  return out;
+}
+
+// getPeople, up to 100 keys a call with nuclear=1 (WikiTree's limit), a second apart.
+async function getPeople(keys, extra, { fetchImpl = fetch, wait = sleep, pause = 1100 } = {}){
+  const out = [];
+  for (let i = 0; i < keys.length; i += 100){
+    const url = `${API}?appId=${APP_ID}&action=getPeople&keys=${keys.slice(i, i + 100).map(encodeURIComponent).join(",")}${extra}`;
+    let body, tries = 0;
+    for (;;){
+      const res = await fetchImpl(url, { headers: { "user-agent": `${APP_ID} (read-only, one request a second)` } });
+      body = res.ok ? await res.json() : null;
+      if (res.ok && body?.[0]?.status !== "Limit exceeded.") break;
+      if (++tries > 5) throw new Error(`WikiTree getPeople: ${res.status}`);
+      await wait(30000 * tries);
+    }
+    out.push(body?.[0] || {});
+    await wait(pause);
+  }
+  return out;
+}
+
+export async function cache(dataDir, { log = console.error, fetchImpl = fetch, wait = sleep } = {}){
+  const people = JSON.parse(fs.readFileSync(path.join(dataDir, "people.json"), "utf8"));
+  const links = JSON.parse(fs.readFileSync(path.join(dataDir, "wikitree.json"), "utf8"));
+  const personOf = new Map(Object.entries(links).map(([id, wt]) => [wt, id]));
+  const answers = await getPeople([...personOf.keys()], `&nuclear=1&fields=${CACHE_FIELDS}`, { fetchImpl, wait });
+  const family = new Map(), idOf = new Map();
+  for (const a of answers){
+    for (const p of Object.values(a.people || {})) family.set(Number(p.Id), p);
+    for (const [key, r] of Object.entries(a.resultByKey || {})) if (r && r.Id) idOf.set(key, Number(r.Id));
+  }
+  const mids = [...new Set([...personOf.keys()].map(k => family.get(idOf.get(k))).filter(Boolean).map(p => Number(p.Manager)).filter(Boolean))];
+  const managers = new Map();
+  for (const a of mids.length ? await getPeople(mids.map(String), "&fields=Id,Name,FirstName,LastNameCurrent", { fetchImpl, wait }) : [])
+    for (const p of Object.values(a.people || {})) managers.set(Number(p.Id), [p.FirstName, p.LastNameCurrent].filter(Boolean).join(" ") || p.Name);
+  const at = Date.now(), out = {}, missing = [];
+  for (const [wt, person] of personOf){
+    const p = family.get(idOf.get(wt));
+    if (p && p.Name) out[wt] = cacheEntry(p, family, { person, managers, at });
+    else missing.push(wt);
+  }
+  fs.writeFileSync(path.join(dataDir, "wikitree-cache.json"), JSON.stringify(out, null, 1) + "\n");
+  const diffs = differences(people, out);
+  const byId = new Map(people.map(p => [p.id, p]));
+  const day = new Date(at).toISOString().slice(0, 10);
+  const review = path.join(dataDir, "wikitree-review.md");
+  if (!fs.existsSync(review)) fs.writeFileSync(review, reviewHead);
+  const list = kind => diffs.filter(d => d.kind === kind).map(d => `- [${d.wikitree}](https://www.wikitree.com/wiki/${d.wikitree}): ${who(byId, d.person)} — ${d.why.join("; ")}`).join("\n") || "- none";
+  const differ = diffs.filter(d => d.kind === "differ").length, more = diffs.length - differ;
+  writeSection(review, "differences", `## WikiTree and Jon disagree (${differ}, \`--cache\`, ${day})
+
+Jon's 2006 record stays as he wrote it; the app shows WikiTree's date beside his. A parent linked to
+a different profile may mean a wrong link: check it, and take the line out of \`wikitree.json\` if so.
+
+${list("differ")}
+
+## WikiTree adds to Jon (${more})
+
+A day or month Jon didn't have, or a date where he had none. The app shows it beside his; nothing to do.
+
+${list("more")}`);
+  writeSection(path.join(dataDir, "parse-report.md"), "wikitree-cache", `## WikiTree copy (\`wikitree.mjs --cache\`, ${day})
+
+${Object.keys(out).length} of ${personOf.size} linked profiles copied (facts only), ${missing.length} not answered${missing.length ? ` (${missing.join(", ")}: private, merged or gone)` : ""}. ${differ} disagree with Jon and ${more} add to him (\`wikitree-review.md\`). Run \`seed.mjs\` next and Import part 1.`);
+  log(`  copied ${Object.keys(out).length} of ${personOf.size}; ${differ} disagree with Jon, ${more} add to him`);
+  return { linked: personOf.size, copied: Object.keys(out).length, missing: missing.length, differ, more, managers: managers.size };
+}
+
 if (import.meta.url === pathToFileURL(process.argv[1] || "").href){
   const at = process.argv.indexOf("--data"), s = process.argv.indexOf("--surnames");
   const dataDir = at > 0 ? path.resolve(process.argv[at + 1]) : path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "data");
-  (process.argv.includes("--check") ? check(dataDir) : run(dataDir, { surnames: s > 0 ? process.argv[s + 1].split(",") : null })).then(r => console.log(JSON.stringify(r)));
+  (process.argv.includes("--cache") ? cache(dataDir) : process.argv.includes("--check") ? check(dataDir) : run(dataDir, { surnames: s > 0 ? process.argv[s + 1].split(",") : null })).then(r => console.log(JSON.stringify(r)));
 }

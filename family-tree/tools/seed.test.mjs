@@ -14,10 +14,11 @@ test("storyDoc points images at photo ids and links at story ids, and drops the 
 
 test("seedFiles keeps the tree in the first file and spreads the images under the limit", () => {
   const images = Array.from({ length: 5 }, (_, i) => ({ id: `p${i}`, data: "x".repeat(400) }));
-  const files = seedFiles({ meta: { people: 1 }, people: [{ id: "a" }], photos: [{ id: "p0" }], stories: [], images }, 1100);
+  const files = seedFiles({ meta: { people: 1 }, people: [{ id: "a" }], photos: [{ id: "p0" }], stories: [], wikitree: [{ id: "A-1", person: "a" }], images }, 1100);
   assert.deepEqual(files.map(f => f.seed), [{ part: 1, of: 4 }, { part: 2, of: 4 }, { part: 3, of: 4 }, { part: 4, of: 4 }]);
   assert.deepEqual(files[0].meta, { main: { people: 1 } });
   assert.equal(files[0].app, "family-tree");
+  assert.deepEqual(files[0].wikitree, [{ id: "A-1", person: "a" }], "the WikiTree copy goes with the tree");
   assert.deepEqual(files.slice(1).map(f => f.images.length), [2, 2, 1]);
   for (const f of files) assert.ok(JSON.stringify(f).length <= 1100);
   assert.throws(() => seedFiles({ meta: {}, people: [{ id: "x".repeat(2000) }], photos: [], stories: [], images: [] }, 1000));

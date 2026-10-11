@@ -1,5 +1,5 @@
 // Family Tree, Session 3 step 5 (family-tree/PLAN.md): the gate. The owner on the invented mock
-// seed sees the people list (the living rule applied), imports a second seed file twice without
+// seed sees the people list (everyone's years, the living too: owner, 2026-10-11), imports a second seed file twice without
 // duplicates, and a whole tree that leaves people out removes them only on a hold; a stranger sees the waiting screen and can't read a person; signed out
 // sees Sign in; Ann, a member, shows My QR and Ben, scanning it, writes invites/<ben> naming Ann,
 // waits, and is let in the moment the owner approves.
@@ -28,9 +28,9 @@ ok((await owner.locator("#list h2.lbl").allInnerTexts()).join(",") === "BEAMISH,
 const rowOf = name => owner.locator("#list .rows > li", { hasText: name });
 ok(await text(rowOf("Albert Quill FENWICK"), ".l2") === "1850–1921", "a dead person's years: " + await text(rowOf("Albert Quill FENWICK"), ".l2"));
 ok(await text(rowOf("Clara BEAMISH"), ".l2") === "1852–c. 1930", "an inexact year says c.: " + await text(rowOf("Clara BEAMISH"), ".l2"));
-ok(await text(rowOf("Mark TOLLER"), ".l2") === "", "a living person's years are hidden");
-ok(await text(rowOf("D1 Ernest FENWICK"), ".l2") === "", "no birth year counts as living");
-ok(await text(rowOf("Ivy NASH"), ".l2") === "b. 1860", "born over 100 years ago with no death isn't living: " + await text(rowOf("Ivy NASH"), ".l2"));
+ok(await text(rowOf("Mark TOLLER"), ".l2") === "b. 1960", "a living person's years show too: " + await text(rowOf("Mark TOLLER"), ".l2"));
+ok(await text(rowOf("D1 Ernest FENWICK"), ".l2") === "", "no birth year: no years");
+ok(await text(rowOf("Ivy NASH"), ".l2") === "b. 1860", "a birth and no death: " + await text(rowOf("Ivy NASH"), ".l2"));
 await owner.fill("#search", "toller"); await owner.waitForTimeout(400);
 ok(await rows(owner).count() === 6, "search finds the Tollers: " + await rows(owner).count());
 await owner.fill("#search", "may fen"); await owner.waitForTimeout(400);
@@ -39,11 +39,8 @@ await owner.fill("#search", ""); await owner.waitForTimeout(400);
 
 await rowOf("Mark TOLLER").click(); await owner.waitForTimeout(300);
 ok(await owner.locator("#personPage").isVisible() && await text(owner, "#pName") === "Mark TOLLER", "a tap opens the person");
-ok(await text(owner, "#pYears") === "" && await owner.locator("#detailsBtn").isVisible(), "…living: no dates, and Show details");
+ok(await text(owner, "#pYears") === "b. 1960" && !(await owner.locator("#detailsBtn").count()), "…living: the years, and no Show details");
 ok(/web\.archive\.org/.test(await owner.locator("#pSource").getAttribute("href")), "…the Wayback source link");
-await owner.click("#detailsBtn"); await owner.waitForTimeout(200);
-ok(await text(owner, "#pYears") === "b. 1960", "Show details shows them on this phone: " + await text(owner, "#pYears"));
-await owner.click("#detailsBtn"); await owner.waitForTimeout(200);
 await owner.goBack(); await owner.waitForTimeout(300);
 ok(await owner.locator("#peopleTab").isVisible(), "Back returns to People");
 await owner.click('.tabbar button[data-tab="photos"]'); await owner.waitForTimeout(200);

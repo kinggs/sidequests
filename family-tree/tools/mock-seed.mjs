@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // family-tree/tools/mock-seed.mjs — Session 3 step 3 (PLAN.md): an invented family for ?mock, in
 // the seed's format, committed (nothing in it is real). Four generations of Fenwicks and Tollers:
-// two living by the rule, one with no birth year, one unresolved ref, six photos as small
-// generated images, captions, a story, a suggestion, two members besides the mock owner.
+// two born within the last 100 years, one with no birth year, one unresolved ref, six photos as
+// small generated images, captions, a story, two WikiTree copies (one adds to Jon's dates, one
+// disagrees), a suggestion, two members besides the mock owner.
 //
 //   node family-tree/tools/mock-seed.mjs     → shared/proofs/seeds/family-tree-mock.json
 //
@@ -69,6 +70,21 @@ export function mockSeed(now = Date.UTC(2026, 9, 10)){
   P.get("ivy-nash-1860").refs.push({ role: "father", name: "Jack NASH" });
   P.get("albert-quill-fenwick-1850").notes = "Kept the shop on Main Street for forty years.";
   P.get("edwin-toller-1874").wikitree = "Toller-7";
+  P.get("dora-may-fenwick-1876").wikitree = "Fenwick-3";
+  // The WikiTree copy (wikitree.mjs --cache): Edwin's adds a day and place to Jon's 1874, and
+  // names a father Jon didn't have; Dora's birth is a day off Jon's.
+  const fetchedAt = Date.UTC(2026, 9, 11);
+  const wikitree = [
+    { id: "Toller-7", person: "edwin-toller-1874", fetchedAt, name: "Edwin Toller", gender: "Male", manager: "Jon Inggs", touched: "20250301120000",
+      birth: { date: "1874-06-02", place: "Riverton" }, death: { date: "1940-02-02", place: "Port Example" },
+      relatives: [
+        { role: "father", wikitree: "Toller-2", name: "Silas Toller", birth: "1840-00-00", death: "1901-00-00" },
+        { role: "spouse", wikitree: "Fenwick-3", name: "Dora May Fenwick", birth: "1876-04-05", death: "1950-00-00", date: "1900-00-00", place: "Riverton" },
+      ] },
+    { id: "Fenwick-3", person: "dora-may-fenwick-1876", fetchedAt, name: "Dora May Fenwick", lastNameCurrent: "Toller", gender: "Female", manager: "Jon Inggs",
+      birth: { date: "1876-04-05", place: "Townsville" }, death: { date: "1950-00-00", place: "Port Example" },
+      relatives: [{ role: "spouse", wikitree: "Toller-7", name: "Edwin Toller", birth: "1874-06-02", death: "1940-02-02", date: "1900-00-00", place: "Riverton" }] },
+  ];
 
   const COLOURS = [[176, 150, 210], [210, 140, 120], [150, 170, 140], [190, 175, 130], [130, 160, 190], [170, 150, 150]];
   const photoRows = [
@@ -89,10 +105,10 @@ export function mockSeed(now = Date.UTC(2026, 9, 10)){
     id: "the-shop", title: "The Fenwick shop", source: SRC("shop"), images: ["shop"], people: ["albert-quill-fenwick-1850", "frank-fenwick-1878"],
     markdown: `# The Fenwick shop\n\n*From Jon Inggs's pages · [the Wayback Machine's copy](${SRC("shop").wayback}) · captured 2 July 2017*\n\n![The shop](photo:shop)\n\n*The Fenwick shop in Townsville, about 1890.*\n\nAlbert Quill Fenwick (1850-1921) opened the shop in 1880. His son **Frank Fenwick** ran it from 1910.\n\nSee [the photographs](story:photos).\n`,
   }];
-  const meta = { source: "familytree.example.org", credit: CREDIT, researcher: "Jon Inggs", captured: Date.UTC(2017, 6, 2), people: people.length, photos: photos.length, photosRecovered: images.length, stories: stories.length, version: "mock" };
+  const meta = { source: "familytree.example.org", credit: CREDIT, researcher: "Jon Inggs", captured: Date.UTC(2017, 6, 2), people: people.length, photos: photos.length, photosRecovered: images.length, stories: stories.length, wikitree: wikitree.length, wikitreeFetched: fetchedAt, version: "mock" };
   return {
     app: "family-tree", seed: { part: 1, of: 1 }, exportedAt: new Date(now).toISOString(),
-    meta: { main: meta }, people, photos, images, stories,
+    meta: { main: meta }, people, photos, images, stories, wikitree,
     suggestions: [{ id: "s1", person: "ida-fenwick-1905", personName: "Ida FENWICK", text: "Ida was born in Townsville, not Riverton.", by: "mock-ann", byName: "Ann", at: now - 86400000, status: "open" }],
     members: [
       { id: "mock-ann", name: "Ann", since: now - 7 * 86400000, invitedBy: "mock-uid", approvedBy: "mock-uid" },

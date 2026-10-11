@@ -1,5 +1,5 @@
 // Family Tree, Session 4 (family-tree/PLAN.md): the person page, the tree view, photos, Jon's
-// stories and Share as Markdown, on the invented mock seed at 390×844. The tree renders four
+// stories, the WikiTree copy and Share as Markdown, on the invented mock seed at 390×844. The tree renders four
 // generations with no card overlapping another and nothing under 15px; a tap re-centres and Back
 // goes back; someone with no parents and no children still gets a tree. A screenshot of the tree
 // goes to SHOTS.
@@ -34,13 +34,17 @@ await open("Albert Quill FENWICK");
 ok(/Kept the shop on Main Street for forty years\./.test(await text(p, "#pBody")), "Jon's notes, verbatim");
 ok(await p.locator("#pPhotos img").count() === 1, "…a strip of his photos");
 ok(/JON WROTE ABOUT THEM[\s\S]*The Fenwick shop/i.test(await text(p, "#pBody")), "…and Jon wrote about them");
+// The WikiTree copy (wikitree/): Edwin's adds a day and place to Jon's 1874, Dora's birth is a day off.
 await open("Edwin TOLLER");
-ok(/WikiTree · Toller-7/.test(await text(p, "#pBody")), "a WikiTree link (mock never asks WikiTree, so the row is the link alone)");
+const ed = await text(p, "#pBody");
+ok(/Born\s*1874\s*WikiTree: 2 Jun 1874, Riverton/i.test(ed), "WikiTree's date beside Jon's where it adds to it: " + ed.slice(0, 120).replace(/\n/g, " | "));
+ok(/Died\s*2 FEB 1940, Port Example\s*(PARENTS|MARRIED)/i.test(ed), "…and not where it says the same");
+ok(/WikiTree · Toller-7\s*b\. 2 Jun 1874, Riverton · d\. 2 Feb 1940, Port Example · kept by Jon Inggs · as of 11 Oct 2026/.test(ed), "…the On WikiTree row: its dates, who keeps it, as of when");
+ok(/WIKITREE ALSO NAMES\s*S?\s*Silas Toller\s*Father on WikiTree · 1840–1901/i.test(ed) && !/WIKITREE ALSO NAMES[\s\S]*Dora May Fenwick/i.test(ed), "…the father Jon didn't have, and not the wife he did: " + (ed.split(/WikiTree also names/i)[1] || "").slice(0, 80).replace(/\n/g, " | "));
+await open("Dora May FENWICK");
+ok(/Born\s*4 APR 1876, Townsville\s*WikiTree: 5 Apr 1876, Townsville/i.test(await text(p, "#pBody")), "a date WikiTree has otherwise sits beside Jon's");
 await open("Mark TOLLER");
-ok(!/Born/i.test(await text(p, "#pBody")) && await p.locator("#detailsBtn").isVisible(), "a living person: no Born row, and Show details");
-await p.click("#detailsBtn"); await p.waitForTimeout(200);
-ok(/Born\s*14 MAY 1960, Port Example/i.test(await text(p, "#pBody")), "…Show details shows it on this phone");
-await p.click("#detailsBtn"); await p.waitForTimeout(200);
+ok(/Born\s*14 MAY 1960, Port Example/i.test(await text(p, "#pBody")) && !(await p.locator("#detailsBtn").count()), "a living person's dates show to members (owner, 2026-10-11)");
 
 // ---- the tree view: four generations up from Mark ----
 await p.click("#treeBtn"); await p.waitForTimeout(500);
@@ -113,6 +117,7 @@ const [dl] = await Promise.all([p.waitForEvent("download", { timeout: 5000 }), p
 const md = fs.readFileSync(await dl.path(), "utf8");
 ok(dl.suggestedFilename() === "james-toller-line.md", "Share their line downloads where share isn't offered: " + dl.suggestedFilename());
 ok(/^# James TOLLER: their line/.test(md) && /## Great-grandparents/.test(md) && /#### Jon wrote: The Fenwick shop/.test(md), "…the line, a section each generation, Jon's story");
+ok(/Toller-7 \(b\. 2 Jun 1874, Riverton · d\. 2 Feb 1940, Port Example; as of 11 Oct 2026\)/.test(md), "…with the WikiTree copy's dates");
 const logs = Object.entries(await store(p)).filter(([k]) => k.startsWith("sidequests/family-tree/exports/")).map(([, v]) => v);
 ok(logs.some(l => l.kind === "markdown" && l.person === "james-toller-1930" && l.mode === "line" && l.by === "mock-uid" && l.people === 7), "…logged in exports/: " + JSON.stringify(logs.map(l => [l.kind, l.people])));
 

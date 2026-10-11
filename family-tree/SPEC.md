@@ -14,7 +14,7 @@ the spelling he uses himself online, and confirmed in Session 2: the
 recovered home page is titled "Jon Inggs's home page".)
 
 **Files.** `index.html` (the app), `kin.js` (its pure logic: the living rule, the tree view's
-layout, the Markdown renderer, WikiTree's dates beside Jon's and Share as Markdown; `kin.test.mjs`
+layout, the Markdown renderer, the WikiTree copy beside Jon's and Share as Markdown; `kin.test.mjs`
 beside it, CLAUDE.md rule 1's one exception), `sw.js`, `manifest.json`, icons, `tools/` (the Node scripts
 that recover and parse the site: run locally or in a cloud session, never shipped; each pure
 module has a `*.test.mjs` beside it, run by `node --test` from the repo root), `data/` (a clone of
@@ -56,36 +56,37 @@ opens the person. The list reads from one `people` listener (a few hundred docum
 for: the tree view centred on them), then:
 
 - **Photos** of them, as a strip (tap → the photo).
-- **Born** and **Died**: date and place, as Jon wrote them. Hidden for a living person (§6) behind
-  **Show details**.
+- **Born** and **Died**: date and place, as Jon wrote them, for everyone (§6).
 - **Parents**, **Married** (each spouse, with the date and place if known), **Children**: rows,
   each a tap to that person. A reference that doesn't resolve shows the name from the source with
   "(not in the tree)".
 - **Jon wrote about them**: each of Jon's stories that names them (tap → the story).
 - **Notes**: Jon's own text, verbatim.
-- **On WikiTree** (only for a person matched to a profile, §4 `wikitree`): "Kept by Jon on
-  WikiTree" (or the manager WikiTree names), the profile's current birth and death, fetched live
-  from WikiTree's public API when the page opens, and a link to the profile. The Born and Died
-  rows always show Jon's 2006 values; where WikiTree's differ, its value sits beside them
-  ("WikiTree: 11 Apr 1863"), so a wrong link shows rather than quietly replacing a relative's
-  dates. Offline, or if WikiTree doesn't answer, the row is the link alone. Nothing from WikiTree
-  is stored. A link is made only when a second fact agrees beyond name and birth year: the full
+- **On WikiTree** (only for a person matched to a profile, §4 `wikitree`): the profile's birth
+  and death, who keeps it on WikiTree, "as of" the day the owner last copied it, and a link to
+  the profile. The copy is `wikitree/<WikiTree id>` (§4), made on the owner's laptop
+  (`tools/wikitree.mjs --cache`) and imported with seed part 1: WikiTree's API answers a browser
+  only from wikitree.com's own pages (checked 2026-10-10), so the app never asks it. The Born
+  and Died rows always show Jon's 2006 values; where WikiTree adds a day, a month or a date Jon
+  didn't have, or disagrees, its value sits beside them ("WikiTree: 11 Apr 1863"), so a wrong
+  link shows rather than quietly replacing a relative's dates; where WikiTree says less, nothing
+  is added. Not in the copy (private on WikiTree, merged, or not fetched yet): the row is the
+  link alone. A link is made only when a second fact agrees beyond name and birth year: the full
   birth date, or a parent's or spouse's name (`tools/wikitree.mjs`); the rest wait in the data
-  repo's `wikitree-review.md` for the owner. ⚠ WikiTree's API answers a browser only from
-  wikitree.com's own pages (checked 2026-10-10: no `Access-Control-Allow-Origin` for any other
-  origin, and no JSONP), so on github.io the read is refused and the row is the link alone, as
-  offline. The app asks once a session and stops; it starts working, unchanged, if WikiTree ever
-  allows the origin.
+  repo's `wikitree-review.md` for the owner, with the copy's disagreements.
+- **WikiTree also names**: the parents, spouses and children on the WikiTree profile that Jon's
+  record doesn't show here, with "Father on WikiTree" and their years: someone linked to a person
+  in the tree opens their page, anyone else opens WikiTree (Jon's newer work, mostly).
 - **Source**: "Compiled by Jon Inggs · familytree.inggs.com · 2006" and a link to the Wayback
   page the record came from (opens in the browser).
 - **Suggest a correction**: a sheet with a text box; saves to `suggestions/` with your name.
   "Thanks, Kenny will look at it." (the owner's first name, from their member document).
 - **Share as Markdown** (the `⋯` beside Back, any member): **Their line** (the person and every
   parent up to the earliest known ancestor, father then mother, each generation a section) or
-  **Their family** (parents, spouses, children). Each person: name, dates and places verbatim
-  (a living person's only with Show details on), relationships, Jon's notes, the full text of
-  every story that names them (written out once, under the first person it names, and pointed
-  at after), the WikiTree link; every source at the end. `navigator.share` with a `.md` file
+  **Their family** (parents, spouses, children). Each person: name, dates and places verbatim,
+  relationships, Jon's notes, the full text of every story that names them (written out once,
+  under the first person it names, and pointed at after), the WikiTree link with the copy's
+  dates and "as of"; every source at the end. `navigator.share` with a `.md` file
   (NotebookLM, Drive, mail), a download where share isn't offered; logged in `exports/` first,
   like Export. ⚠ A member born after 2006 isn't in the tree: the line stops at the newest
   recorded generation until members can add people (Parked).
@@ -166,10 +167,15 @@ photos/<id>         { caption, people: [id], names: [name], file, recovered, thu
                       source: { url, wayback, captured } }           // thumb: ~400px JPEG data URL
 images/<id>         { data }                                         // the 1400px JPEG data URL, apart so lists stay light
 stories/<id>        { title, markdown, images: [photoId], people: [id], source, pdf }   // Jon's pages; pdf: listed, not converted
+wikitree/<wtId>     { person, fetchedAt, name, lastNameCurrent, nicknames, gender, manager, touched,
+                      birth: { date, place }, death: { date, place },   // WikiTree's "1874-06-02", 00 for unknown
+                      relatives: [{ role, wikitree, name, birth, death, date, place }] }
+                    // the WikiTree copy (§2): a linked public profile's facts, never a biography or photo;
+                    // role "father" | "mother" | "spouse" | "child"; date and place: a marriage's
 suggestions/<id>    { person, personName, text, by, byName, at, status, doneBy, doneAt }   // status: "open" | "done"
 exports/<id>        { by, byName, at, people, photos, kind, person, mode }   // the export log; kind "markdown"
                                                                      // for Share as Markdown (person, mode "line" | "family")
-meta/main           { source, credit, captured, researcher, people, photos, photosRecovered, stories, mirrorFiles,
+meta/main           { source, credit, captured, researcher, people, photos, photosRecovered, stories, wikitree, wikitreeFetched, mirrorFiles,
                       importedAt, importedBy, version }
 ```
 
@@ -180,7 +186,7 @@ A story's Markdown points at its images as `photo:<id>` and at another story as 
 named whose page the parser couldn't match, rather than dropping it.
 
 **Import** (the owner, the account sheet): the seed files the tools emit, `seed/family-tree-N.json`,
-each under 20 MB, in the export format below (part 1: `meta`, `people`, `photos`, `stories`; the
+each under 20 MB, in the export format below (part 1: `meta`, `people`, `photos`, `stories`, `wikitree`; the
 rest: `images`, with `seed: { part, of }`). Several can be picked at once and go in part order;
 each is written in batches of at most 400 documents (images 10 at a time), each document
 replaced whole by id (a field the file drops goes too), so a file can be imported twice without
@@ -190,12 +196,12 @@ by approval (§5). From a laptop browser if the phone struggles with the size.
 **Ids stay put across re-runs.** The parser keeps `data/ids.json` (each place a person appears on
 Jon's pages → their id) and gives a person the id they had last time, so a corrected name or year
 updates the same record; only someone new gets a new id, and a retired id is never reused.
-**Seed part 1 is the whole tree**, so its Import first lists anyone in people, photos or stories
+**Seed part 1 is the whole tree**, so its Import first lists anyone in people, photos, stories or wikitree
 that the file doesn't have: **Hold to remove** them (a photo takes its image), or **Import and
 keep them**. Nothing goes without the owner seeing it.
 
 **Export** (any member): one JSON file, `{ app: "family-tree", version, exportedAt, meta: { main },
-people, photos, images, stories, suggestions }` for a member (every collection an array of
+people, photos, images, stories, wikitree, suggestions }` for a member (every collection an array of
 `{ id, … }`, meta keyed like a collection, so `?mock&seed=` reads it as it is); the owner's also
 carries `members` and `invites`. An `exports/` entry is written first; an export that can't be
 logged doesn't happen.
@@ -207,7 +213,7 @@ mirrored in `shared/cloud-memory.js`). `isFam()` is "in `members/`, or the owner
 |---|---|---|---|
 | members/ | get their own | get, list | create (by approval, below), delete |
 | invites/ | get their own; create their own (below) | get, list; create for a friend; decide one they didn't send | the same, and decide their own |
-| people, photos, images, stories, meta | — | read | read, write |
+| people, photos, images, stories, wikitree, meta | — | read | read, write |
 | suggestions/ | — | read; create with `by` = me | read, write, delete |
 | exports/ | — | create with `by` = me | read |
 
@@ -256,25 +262,30 @@ Trusts the family to recognise each other; accepted for a few dozen people (BRIE
 - **Nothing personal in the public repo**: no names, dates, photos, GEDCOM or screenshots with
   real data. `data/` is gitignored and is a clone of the private data repo. `?mock` runs on
   invented people (`tools/mock-seed.mjs` makes them, Session 3).
-- **Living people shown with less.** A person with no death date who was born within the last
-  100 years, or whose birth year is unknown, is treated as living: name and relationships only;
-  dates and places sit behind **Show details**, a per-phone toggle (localStorage) each member
-  sets for themselves. (BRIEF.md said "born after 1926", which is this rule today.)
+- **Members see everyone's dates and places** (owner, 2026-10-11), the living included: Jon
+  published them on his public site for years, and the app is members-only and all family. The
+  living rule stays for one thing, research agents (`PLAN.md` Session 5): a person with no death
+  date who was born within the last 100 years, or whose birth year is unknown, is treated as
+  living, and an agent searches for them only with their recorded consent.
 - **Opt-out honoured.** Any relative may ask for their record minimised or removed; `suggestions/`
   is the channel and the owner acts on it.
 - **The raw mirror** lives in the private data repo and the owner's backup: never in Firestore,
   never here.
 - **Export is logged** (`exports/`), so the data doesn't quietly leave.
-- **The WikiTree read sends only the id.** The phone asks `api.wikitree.com` for one public
-  profile by its WikiTree id, no sign-in and nothing about the family app; WikiTree's own privacy
-  levels decide what comes back. A living person is never fetched (their row is the link alone).
+- **The app never asks WikiTree.** The copy is made on the owner's laptop, never signed in, so
+  WikiTree's own privacy levels decide what comes back, living people included. WikiTree's terms
+  (read 2026-10-11) allow copying for personal family research, not a substantial part of the
+  site, and ask a copy to link back to each profile and to be refreshed, since members change
+  their privacy settings: every entry links its profile, and the owner refreshes it
+  (`wikitree.mjs --cache`, then Import part 1). Facts only: a biography or photo is copyright
+  of whoever wrote or took it.
 
 ## 7. Out of scope (for now)
 
 Re-researching or verifying the genealogy; a public site; members editing people directly (next:
 with an edit history); adding photos (photo-coach pattern); a member claiming the person that is
 them; committing to WikiTree, Gramps or Ancestry (GEDCOM keeps the door open; WikiTree is a
-link per person, read live, never copied: §2, §8); notifications.
+link per person with a dated copy of its facts: §2, §8); notifications.
 
 ## 8. Decisions
 
@@ -294,5 +305,7 @@ link per person, read live, never copied: §2, §8); notifications.
 | 2026-10-10 (Opus, Session 4) | **Stories is a fourth tab**, not the top of Photos: eleven stories and twenty photos read better apart, and four tabs fit 390px. A story's figure is captioned by the image's ALT, since Jon's own caption follows it in the text. In Share as Markdown a story naming several people in the line is written out once. |
 | 2026-10-10 (Opus, Session 4) | **WikiTree's live read can't run from github.io** (its API allows only wikitree.com origins). Built as specified, with the spec's own fallback (the link alone); no proxy, since there is no server code. |
 | 2026-10-10 (owner) | **The owner approves anyone**, their own invitees included; another member needs a second member. |
-| 2026-10-11 (owner) | **WikiTree is cached, not read live.** Since the live read can't run from github.io, the owner's laptop keeps a dated copy of each linked person's public WikiTree profile (facts first; biographies and photos only if WikiTree's terms allow), refreshed by hand and imported into `wikitree/`, apart from Jon's records. Never a living person. Replaces "linked, not copied"; built in Session 4b (`PLAN.md`), and §2, §4 and §6 change when it ships. |
+| 2026-10-11 (owner) | **WikiTree is cached, not read live.** Since the live read can't run from github.io, the owner's laptop keeps a dated copy of each linked person's public WikiTree profile (facts only: see the terms row below), refreshed by hand and imported into `wikitree/`, apart from Jon's records. Replaces "linked, not copied"; built in Session 4b (`PLAN.md`). |
+| 2026-10-11 (owner) | **Members see everyone's dates and places**, the living included; Show details is gone. The rule had hidden 1,411 of 2,331 people, 876 of them only for want of a birth year, and Jon published these dates for years. The living rule stays for research agents' consent (Session 5). The WikiTree copy takes what WikiTree shows publicly, living included. |
+| 2026-10-11 (Opus, Session 4b) | **WikiTree's terms checked**: personal family research, not a substantial part of the site, link back, keep it fresh; biographies and photos belong to their authors, so the copy is facts only. Its dates are compared with Jon's as same, vaguer, more or differ: only "more" and "differ" show beside his, and only "differ" goes to the owner's review (7 of 97 on the first run; 36 more only add a day or a date). |
 | 2026-10-10 (Fable) | Three tabs; the tree view reached from a person. A living person is one with no death and a birth within 100 years or unknown. Show details is per phone. The seed is the app's own Import, in files under 20 MB, since there is no server code and no admin key. Tools in `tools/` with tests beside them (the brief's own allowance; CLAUDE.md rule 1 names it). |

@@ -15,6 +15,8 @@
    "photos": 6,
    "photosRecovered": 5,
    "stories": 1,
+   "wikitree": 2,
+   "wikitreeFetched": 1791676800000,
    "version": "mock"
   }
  },
@@ -147,7 +149,8 @@
     "url": "http://tree.example.org/html/fam00002.htm",
     "wayback": "https://web.archive.org/web/20170702000000/http://tree.example.org/html/fam00002.htm",
     "captured": 1498953600000
-   }
+   },
+   "wikitree": "Fenwick-3"
   },
   {
    "id": "edwin-toller-1874",
@@ -732,6 +735,71 @@
     "frank-fenwick-1878"
    ],
    "markdown": "# The Fenwick shop\n\n*From Jon Inggs's pages · [the Wayback Machine's copy](https://web.archive.org/web/20170702000000/http://tree.example.org/html/shop.htm) · captured 2 July 2017*\n\n![The shop](photo:shop)\n\n*The Fenwick shop in Townsville, about 1890.*\n\nAlbert Quill Fenwick (1850-1921) opened the shop in 1880. His son **Frank Fenwick** ran it from 1910.\n\nSee [the photographs](story:photos).\n"
+  }
+ ],
+ "wikitree": [
+  {
+   "id": "Toller-7",
+   "person": "edwin-toller-1874",
+   "fetchedAt": 1791676800000,
+   "name": "Edwin Toller",
+   "gender": "Male",
+   "manager": "Jon Inggs",
+   "touched": "20250301120000",
+   "birth": {
+    "date": "1874-06-02",
+    "place": "Riverton"
+   },
+   "death": {
+    "date": "1940-02-02",
+    "place": "Port Example"
+   },
+   "relatives": [
+    {
+     "role": "father",
+     "wikitree": "Toller-2",
+     "name": "Silas Toller",
+     "birth": "1840-00-00",
+     "death": "1901-00-00"
+    },
+    {
+     "role": "spouse",
+     "wikitree": "Fenwick-3",
+     "name": "Dora May Fenwick",
+     "birth": "1876-04-05",
+     "death": "1950-00-00",
+     "date": "1900-00-00",
+     "place": "Riverton"
+    }
+   ]
+  },
+  {
+   "id": "Fenwick-3",
+   "person": "dora-may-fenwick-1876",
+   "fetchedAt": 1791676800000,
+   "name": "Dora May Fenwick",
+   "lastNameCurrent": "Toller",
+   "gender": "Female",
+   "manager": "Jon Inggs",
+   "birth": {
+    "date": "1876-04-05",
+    "place": "Townsville"
+   },
+   "death": {
+    "date": "1950-00-00",
+    "place": "Port Example"
+   },
+   "relatives": [
+    {
+     "role": "spouse",
+     "wikitree": "Toller-7",
+     "name": "Edwin Toller",
+     "birth": "1874-06-02",
+     "death": "1940-02-02",
+     "date": "1900-00-00",
+     "place": "Riverton"
+    }
+   ]
   }
  ],
  "suggestions": [

@@ -1,5 +1,5 @@
 // Network-first shell cache. Bump CACHE whenever index.html changes so old copies are dropped.
-const CACHE = "family-tree-v1.0.0";
+const CACHE = "family-tree-v1.1.0";
 const SHELL = ["./", "./index.html", "./kin.js", "./manifest.json", "../shared/theme.css", "../shared/ui.js",
                "../shared/fonts/space-grotesk-600.woff2", "../shared/fonts/space-grotesk-700.woff2"];
 

@@ -1238,10 +1238,11 @@ async function ftSeed(){
   await seed(FT + "images/f1", { data: "data:," });
   await seed(FT + "meta/main", { source: "familytree.inggs.com", people: 1 });
   await seed(FT + "stories/s1", { title: "The 150th", markdown: "# The 150th", images: [], people: ["p1"], source: "x" });
+  await seed(FT + "wikitree/Example-1", { person: "p1", fetchedAt: 1, name: "Henry Inggs", birth: { date: "1850-00-00", place: "" } });
   await seed(FT + "suggestions/q1", { person: "p1", personName: "Henry Inggs", text: "Born 1850", by: "ann", byName: "Ann", at: 1, status: "open" });
   await seed(FT + "exports/e1", { by: "ann", byName: "Ann", at: 1, people: 1, photos: 1 });
 }
-const FT_TREE = ["people/p1", "photos/f1", "images/f1", "meta/main", "stories/s1"];
+const FT_TREE = ["people/p1", "photos/f1", "images/f1", "meta/main", "stories/s1", "wikitree/Example-1"];
 
 describe("Family Tree: a member", () => {
   beforeEach(async () => {
@@ -1249,16 +1250,16 @@ describe("Family Tree: a member", () => {
     await seed(FT + "invites/ben", ftInvite());
   });
 
-  test("reads people, photos, images, meta, stories, suggestions, members and invites (get and list)", async () => {
+  test("reads people, photos, images, meta, stories, wikitree, suggestions, members and invites (get and list)", async () => {
     const db = user("ann");
     for (const p of FT_TREE) await assertSucceeds(getDoc(doc(db, FT + p)));
-    for (const c of ["people", "photos", "images", "meta", "stories", "suggestions", "members", "invites"])
+    for (const c of ["people", "photos", "images", "meta", "stories", "wikitree", "suggestions", "members", "invites"])
       await assertSucceeds(getDocs(collection(db, FT + c)));
     await assertSucceeds(getDoc(doc(db, FT + "members/dee")));
     await assertSucceeds(getDoc(doc(db, FT + "invites/ben")));
     await assertSucceeds(getDoc(doc(db, FT + "suggestions/q1")));
   });
-  test("refused: writing people, photos, images, meta, stories or members, or deleting an invite", async () => {
+  test("refused: writing people, photos, images, meta, stories, wikitree or members, or deleting an invite", async () => {
     const db = user("ann");
     for (const p of FT_TREE){
       await assertFails(setDoc(doc(db, FT + p), { name: "x" }, { merge: true }));

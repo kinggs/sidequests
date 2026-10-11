@@ -230,8 +230,8 @@ service cloud.firestore {
       return exists(/databases/$(database)/documents/sidequests/family-tree/members/$(uid));
     }
     match /sidequests/family-tree/{coll}/{id} {
-      allow read: if coll in ['people', 'photos', 'images', 'meta', 'stories'] && isFam();
-      allow write: if coll in ['people', 'photos', 'images', 'meta', 'stories'] && isOwner();
+      allow read: if coll in ['people', 'photos', 'images', 'meta', 'stories', 'wikitree'] && isFam();
+      allow write: if coll in ['people', 'photos', 'images', 'meta', 'stories', 'wikitree'] && isOwner();
     }
     match /sidequests/family-tree/members/{uid} {
       allow get: if me(uid) || isFam();      // "am I in?": your own document, present or not

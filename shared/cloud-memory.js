@@ -105,7 +105,7 @@ const ACCESS = [
   { path: /^sidequests\/sessions-loyalty(\/|$)/, read: "owner", write: "owner" },
   // Family Tree: members only (family-tree/SPEC.md §4 and §5). Members read the tree, the owner
   // writes it; a newcomer asks in, a member who didn't send it decides, approving is one batch.
-  { path: /^sidequests\/family-tree\/(people|photos|images|meta|stories)(\/[^/]+)?$/, read: (m, u) => isFam(u), write: (m, u) => isOwner(u) },
+  { path: /^sidequests\/family-tree\/(people|photos|images|meta|stories|wikitree)(\/[^/]+)?$/, read: (m, u) => isFam(u), write: (m, u) => isOwner(u) },
   { path: /^sidequests\/family-tree\/(members|invites)$/, read: (m, u) => isFam(u) },
   { path: /^sidequests\/family-tree\/members\/([^/]+)$/, read: (m, u) => m[1] === u.uid || isFam(u),
     write: (m, u, d, was, ctx) => isOwner(u) || (!was && !!d && famApproving(m[1], u, d, ctx.after)) },
