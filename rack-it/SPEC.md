@@ -264,7 +264,10 @@ room, and opening a fold scrolls it into view.
    player** opens My QR and picks whoever scans it; **Add a guest** takes a name. Picking the
    player who's on the other side swaps the two, and the break stays with whoever had it.
 3. **Length**, **Handicap** and **Break**: one settings card, a row each showing the current
-   choice. Length and Handicap open on tap; Break flips on tap (teal breaks first by default).
+   choice. Length and Handicap open on tap. **Break** (2.25.0) reads "Lag or coin, at Start"
+   until it's decided, then the call ("Melanie breaks · won the lag", "· the coin's call"); tapping
+   it asks the question below early. A new opponent starts over; swapping sides keeps the break
+   with the person who had it.
 4. **Rated**, a tick under Break, off by default and offered only when both players have an
    account (a household person who has claimed, or a friend; never a guest). Off reads "Off · a
    friendly"; on, "On · moves ratings once Melanie confirms". It resets with each new setup.
@@ -275,8 +278,16 @@ room, and opening a fold scrolls it into view.
    points a rack instead ("Kenny expects 8.4 points a rack to Melanie's 5.1"), since its loser
    scores too.
 
+**Who breaks first** (2.25.0). Unless the Break row has settled it, **Start** opens a sheet,
+"Who breaks first?", with two ways to answer: **Kenny won the lag** / **Melanie won the lag**
+(the players lagged at the table and say who won), or **Flip a coin**: the phone flips one (heads
+teal, tails lilac, from `crypto.getRandomValues`), shows the coin and "Tails · Melanie breaks
+first", and one tap on **Melanie breaks** starts the match with her shooting. Cancel stays on
+setup. The live screen's break chip (§6) still puts a wrong answer right. Nothing about the
+choice is stored: the match carries only who broke each rack, as before.
+
 The handicap isn't remembered: each game starts at its default. A repeat of last night is Game,
-two names, Start. Play keeps your picks while you look at another tab and starts fresh after a
+two names, Start, and the question. Play keeps your picks while you look at another tab and starts fresh after a
 match has begun.
 
 ## 6. The live screen
@@ -859,6 +870,7 @@ account, so a static app can't upload results.
 | 2.9.0 | Rated matches and confirming (KIT-PLAN Session 5). Setup gains a **Rated** tick, off by default, offered when both players have an account. A friendly moves no rating; a rated match moves both only once the opponent confirms on their own phone, worked out from the ratings at that moment, in one batch. Not right or Withdraw leaves it a friendly. Rebuild replays rated matches by `ratedAt`, else `endedAt`; a match with no `rated` field is rated. For the social leagues, where a rating has to be agreed by both players. |
 | 2.10.0 | Outsiders play in Rack It (KIT-PLAN Session 6): friend mode instead of the outsider screen. The rules open the matches an account plays in, starting one against a connection or a guest, and a rating only in the batch that confirms a rated match the other player ended. Ratings are read by id, matches with one `uids` query. A household member can no longer turn a friendly into a rated match. For pool friends who aren't family. |
 | 2.11.0 | One admin, everyone else a player (KIT-PLAN Session 6b). The owner sees and rewrites every match; everyone else, a household member included, runs friend mode and reads only the matches they play in. The owner's phone backfills `uids` and `names` on matches from before 2.8.0, so the players keep them. The "Before you play" note goes: there's nothing left to warn about. Owner's call, 2026-10-02: "a family member is just another member". Other apps keep the household. |
+| 2.25.0 | Who breaks first: Start asks, with two answers. The players lagged and say who won, or the phone flips a coin and says who starts. The Break row shows the call and can ask early; it no longer flips blindly. Owner's ask: "prompt us for the starting player". |
 | 2.24.0 | Count it as rated: the owner turns a finished friendly between two accounts into a rated match from its summary (a hold), with no confirmation asked, and ratings rebuild at once; the match replays where it was played. Rated is off by default, and matches meant to count were being played as friendlies. |
 | 2.23.0 | My QR wears the app's look: a frame in its accent and its icon as a badge on the frame; the code inside is untouched (KIT-PLAN Session 10 step 5). |
 | 2.22.0 | A late scorer: the Game QR offers Score this match on a live match with no scorer (KIT-PLAN Session 10 step 5). |

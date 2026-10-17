@@ -117,8 +117,23 @@ export const RACKS = [[["a",1],["a",2],["a",3],["a",4],["a",5],["b",6],["b",7],[
 const under = (prefix, docs) => Object.entries(docs).filter(([k]) => k.startsWith(prefix) && !k.slice(prefix.length).includes("/"));
 export const matchesOf = async p => under("sidequests/rack-it/matches/", await store(p)).map(([k, v]) => ({ id: k.split("/").pop(), ...v }));
 export const ratingsOf = async p => Object.fromEntries(under("sidequests/rack-it/ratings/", await store(p)).map(([k, v]) => [k.split("/").pop(), v]));
+// Start asks who breaks first (2.25.0): say that side won the lag, or "coin" to flip and take
+// the call. Nothing to answer (no sheet) is fine too.
+export async function answerBreak(p, breaker = "a"){
+  const sheet = p.locator(".sheet.brk");
+  if (!(await sheet.isVisible().catch(() => false))) return null;
+  if (breaker === "coin"){
+    await sheet.locator('[data-coin="flip"]').click(); await p.waitForTimeout(300);
+    const go = sheet.locator("button.primary");
+    const side = await go.getAttribute("data-coin");
+    await go.click(); await p.waitForTimeout(400);
+    return side;
+  }
+  await sheet.locator(`[data-lag="${breaker}"]`).click(); await p.waitForTimeout(400);
+  return breaker;
+}
 // Start a match from Play; returns whether Rated was offered.
-export async function startMatch(p, { a, b, rated = false }){
+export async function startMatch(p, { a, b, rated = false, breaker = "a" }){
   await p.bringToFront();
   await p.click('.tabbar button[data-tab="play"]'); await p.waitForTimeout(250);
   if (a) await pickSlot(p, "#pickA", a);
@@ -128,6 +143,7 @@ export async function startMatch(p, { a, b, rated = false }){
   const label = await p.locator("#startBtn").innerText();
   await p.click("#startBtn", { timeout: 5000 }).catch(() => {});
   await p.waitForTimeout(400);
+  await answerBreak(p, breaker);
   if (!(await p.locator("#scrLive").isVisible())){
     await shot(p, "nostart");
     throw new Error(`match didn't start: Start said "${label}", A "${await text(p, "#pickA")}", B "${await text(p, "#pickB")}"`);

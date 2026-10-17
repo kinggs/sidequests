@@ -3,7 +3,7 @@
 // the second, in one write. Rebuild then proposes no change. Mel can't confirm, nor stand in.
 //
 //   node shared/proofs/rack-it-scorer.mjs
-import { ok, summary, serve, browser, tab, C, tryC, text, store, scoreLeague, RACKS, matchesOf, ratingsOf } from "./h.mjs";
+import { ok, summary, serve, browser, tab, C, tryC, text, store, scoreLeague, RACKS, matchesOf, ratingsOf, answerBreak } from "./h.mjs";
 const srv = await serve();
 const { b, ctx } = await browser();
 const R = srv.base + "/rack-it/";
@@ -29,7 +29,7 @@ ok(await mel.locator("#ratedBtn").isVisible(), "Rated is offered");
 await mel.click("#ratedBtn"); await mel.waitForTimeout(200);
 ok(/once Mock Player and Ann confirm/.test(await text(mel, "#ratedWho")), "rated says both confirm: " + (await text(mel, "#ratedWho")));
 ok(/Score it for Mock Player and Ann/.test(await text(mel, "#startBtn")), "Start: " + (await text(mel, "#startBtn")));
-await mel.click("#startBtn"); await mel.waitForTimeout(600);
+await mel.click("#startBtn"); await mel.waitForTimeout(600); await answerBreak(mel);
 let m = (await matchesOf(owner)).find(x => x.status === "live");
 ok(m && m.scorer === "mock-mel" && m.by === "mock-mel" && JSON.stringify(m.uids) === '["mock-uid","mock-ann"]' && m.rated === true,
   "the match: scorer Mel, uids the players only: " + JSON.stringify({ scorer: m && m.scorer, uids: m && m.uids }));

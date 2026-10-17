@@ -144,7 +144,11 @@
   .foldv .na{color:var(--a)} .foldv .nb{color:var(--b)}
   .foldhead::after{content:"▾";flex:0 0 auto;color:var(--dim);font-size:.8889rem}
   .fold.open .foldhead::after{content:"▴"}
-  #breakBtn::after{content:"⇄";font-size:1rem}
+  .brk .coin{width:88px;height:88px;border-radius:50%;background:var(--text);color:var(--ink-0);display:grid;place-items:center;
+    margin:6px auto;font-family:var(--grot);font-size:2rem;font-weight:700;animation:toss .7s ease}
+  .brk .coinsay{color:var(--text);font-weight:600;font-size:1.1111rem;text-align:center;padding:0 2px 4px}
+  .brkbody{display:flex;flex-direction:column;gap:10px}
+  @keyframes toss{from{transform:translateY(0) rotateX(0)}50%{transform:translateY(-36px) rotateX(540deg)}to{transform:translateY(0) rotateX(1080deg)}}
   #ratedBtn{box-shadow:0 -1px 0 var(--line)}
   #ratedBtn::after{content:"";flex:0 0 26px;height:26px;border-radius:6px;box-shadow:inset 0 0 0 2px var(--dim)}
   #ratedBtn.on::after{content:"✓";display:flex;align-items:center;justify-content:center;background:var(--text);color:var(--ink-0);
@@ -710,7 +714,7 @@ import { connect } from "../shared/connect.js";
 import { ui } from "../shared/ui.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "2.24.0";
+const APP_VERSION = "2.25.0";
 const APP_ID = "rack-it";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 document.getElementById("versionMore").textContent = "v" + APP_VERSION;
@@ -1498,7 +1502,7 @@ const GAME_KEY = "rack-it.game";   // the last game picked, per phone
 //   raceOther the race length is typed in rather than a chip.
 //   handicap  off | scoring | racks.  form: a Racks handicap as unequal targets, or a head start.
 //   rated     the Rated tick: off (a friendly) unless both players have an account and it's ticked.
-const setup = { game:"league", a:null, b:null, mode:"race", breaker:"a", raceTo:5, raceOther:false,
+const setup = { game:"league", a:null, b:null, mode:"race", breaker:"a", breakHow:null, breakPair:"", raceTo:5, raceOther:false,
   handicap:"scoring", form:"targets", rated:false };
 const HCP_LABEL = { off: "Off", scoring: "Scoring", racks: "Racks" };
 const RACK_RACE_MAX = 15;     // the race chart's range
@@ -1535,6 +1539,7 @@ function applyLengthDefaults(){
 function applyGameDefaults(){
   setup.handicap = rackGame(setup.game) ? "off" : "scoring";
   setup.breaker = "a";
+  setup.breakHow = null;
   applyLengthDefaults();
 }
 
@@ -1569,6 +1574,7 @@ function openSetup(){
   setup.a = selfPlayable(me) ? me : null;   // you, on the teal side
   setup.b = null;
   setup.rated = false;
+  setup.breakHow = null;
   setup.touched = false;   // until you change a side, the people list arriving late still pre-picks you
   applyGameDefaults();
   el.foldGame.classList.remove("open");
@@ -1830,7 +1836,12 @@ function renderSetup(){
       more = " Targets share the points out on that basis.";
     }
     el.setupHint.textContent = (setup.club ? "At Sessions: you score it for the club. " : "") + odds + more;
-    el.breakWho.textContent = (setup.breaker === "a" ? a.name : b.name) + " breaks";
+    // Who breaks first is lagged for or flipped (2.25.0): the row shows the call, and a new pair
+    // of players starts over. A swap keeps it: the break stays with the person who had it.
+    if(setup.breakHow && setup.breakPair !== pairKey()) setup.breakHow = null;
+    el.breakWho.textContent = setup.breakHow
+      ? `${(setup.breaker === "a" ? a : b).name} breaks · ${setup.breakHow === "coin" ? "the coin's call" : "won the lag"}`
+      : "Lag or coin, at Start";
     showShortRaceWarning(a, b, eA);
   } else {
     el.setupHint.textContent = "Pick a player for each side to see the handicap.";
@@ -1940,12 +1951,69 @@ function showShortRaceWarning(a, b, eA){
 el.racksIn.addEventListener("input", () => { proposeTargets(); renderSetup(); });
 el.modes.querySelectorAll("button").forEach(b =>
   ui.tap(b, () => { setup.mode = b.dataset.mode; proposeTargets(); renderSetup(); }));
-ui.tap(el.breakBtn, () => {
-  if(!(setup.a && setup.b)) return;
-  setup.breaker = setup.breaker === "a" ? "b" : "a";
-  renderSetup();
+ui.tap(el.breakBtn, () => { if(setup.a && setup.b) chooseBreak(); });
+ui.tap(el.startBtn, async () => {
+  const a = P(setup.a), b = P(setup.b);
+  if(!(a && b && plannedMatch())) return;
+  if(!setup.breakHow && !(await chooseBreak())) return;
+  startMatch();
 });
-ui.tap(el.startBtn, startMatch);
+
+// ---------- who breaks first: lag or coin (2.25.0) ----------
+// Start asks, unless the Break row settled it already: the players lag and say who won, or the
+// phone flips a coin and says who starts. Heads is teal, tails lilac, from crypto's randomness.
+// The live screen's break chip still puts a wrong answer right.
+const pairKey = () => [setup.a, setup.b].map(String).sort().join("|");
+async function chooseBreak(){
+  const a = P(setup.a), b = P(setup.b);
+  if(!(a && b)) return false;
+  const picked = await ui.sheet({
+    title: "Who breaks first?",
+    text: "Lag for it and say who won, or let the phone flip a coin.",
+    className: "brk",
+    body: close => {
+      const box = document.createElement("div");
+      box.className = "brkbody";
+      const lag = (side, p) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.dataset.lag = side;
+        const label = document.createElement("span");
+        label.textContent = `${p.name} won the lag`;
+        btn.append(people.avatar(p.id, 36), label);
+        ui.tap(btn, () => close({ how: "lag", breaker: side }));
+        return btn;
+      };
+      const coin = document.createElement("button");
+      coin.type = "button";
+      coin.dataset.coin = "flip";
+      coin.textContent = "Flip a coin";
+      ui.tap(coin, () => {
+        const heads = (crypto.getRandomValues(new Uint8Array(1))[0] & 1) === 0;
+        const side = heads ? "a" : "b", p = heads ? a : b;
+        const disc = document.createElement("div");
+        disc.className = "coin";
+        disc.textContent = heads ? "H" : "T";
+        const say = document.createElement("p");
+        say.className = "coinsay";
+        say.textContent = `${heads ? "Heads" : "Tails"} · ${p.name} breaks first`;
+        const go = document.createElement("button");
+        go.type = "button"; go.className = "primary"; go.dataset.coin = side;
+        go.textContent = `${p.name} breaks`;
+        ui.tap(go, () => close({ how: "coin", breaker: side }));
+        box.replaceChildren(disc, say, go);
+      });
+      box.append(lag("a", a), lag("b", b), coin);
+      return box;
+    }
+  });
+  if(!picked) return false;
+  setup.breaker = picked.breaker;
+  setup.breakHow = picked.how;
+  setup.breakPair = pairKey();
+  renderSetup();
+  return true;
+}
 ui.tap(el.ratedBtn, () => { setup.rated = !setup.rated; renderSetup(); }, LOOSE);
 
 // ---------- live session ----------

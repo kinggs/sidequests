@@ -5,7 +5,7 @@
 // tap puts that tap back. The echo strip's Undo undoes the other phone's change. Presence shows.
 //
 //   node shared/proofs/rack-it-two-phones.mjs
-import { ok, summary, serve, browser, tab, C, text, store, matchesOf, RACKS, hold } from "./h.mjs";
+import { ok, summary, serve, browser, tab, C, text, store, matchesOf, RACKS, hold, answerBreak } from "./h.mjs";
 const srv = await serve();
 const { b, ctx } = await browser();
 const R = srv.base + "/rack-it/";
@@ -43,7 +43,7 @@ async function start(ann){
   await ann.bringToFront();
   await ann.click('.tabbar button[data-tab="play"]'); await ann.waitForTimeout(300);
   await ann.locator("#whoChips button", { hasText: "Cat" }).click(); await ann.waitForTimeout(250);
-  await ann.click("#startBtn"); await ann.waitForTimeout(600);
+  await ann.click("#startBtn"); await ann.waitForTimeout(600); await answerBreak(ann);
 }
 await start(solo);
 for (const [side, n] of RACKS[0]) await tapBall(solo, side, n);

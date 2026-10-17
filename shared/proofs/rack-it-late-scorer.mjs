@@ -5,7 +5,7 @@
 // it's full. Ben's own scan just opens it.
 //
 //   node shared/proofs/rack-it-late-scorer.mjs
-import { ok, summary, serve, browser, tab, C, tryC, text, scoreLeague, RACKS, matchesOf, ratingsOf } from "./h.mjs";
+import { ok, summary, serve, browser, tab, C, tryC, text, scoreLeague, RACKS, matchesOf, ratingsOf, answerBreak } from "./h.mjs";
 const srv = await serve();
 const { b, ctx } = await browser();
 const R = srv.base + "/rack-it/";
@@ -23,7 +23,7 @@ await ann.reload(); await ann.waitForTimeout(1000);
 await ann.click('.tabbar button[data-tab="play"]'); await ann.waitForTimeout(300);
 await ann.locator("#whoChips button", { hasText: "Ben" }).click(); await ann.waitForTimeout(250);
 await ann.click("#ratedBtn"); await ann.waitForTimeout(150);
-await ann.click("#startBtn"); await ann.waitForTimeout(500);
+await ann.click("#startBtn"); await ann.waitForTimeout(500); await answerBreak(ann);
 let m = (await matchesOf(owner)).find(x => x.status === "live");
 ok(!!m && m.rated === true && !m.scorer, "ann started a rated match against Ben, no scorer");
 await ann.click("#liveMore"); await ann.waitForTimeout(250);

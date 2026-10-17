@@ -5,7 +5,7 @@
 // but the seat is gone. A friend Ann picks at setup finds the match on Home.
 //
 //   node shared/proofs/rack-it-seats.mjs
-import { ok, summary, serve, browser, tab, C, tryC, text, store, scoreLeague, RACKS, matchesOf, hold, shot } from "./h.mjs";
+import { ok, summary, serve, browser, tab, C, tryC, text, store, scoreLeague, RACKS, matchesOf, hold, shot, answerBreak } from "./h.mjs";
 const srv = await serve();
 const { b, ctx } = await browser();
 const R = srv.base + "/rack-it/";
@@ -29,7 +29,7 @@ ok(chips.includes("Ann (you)") && chips.includes("Cat") && chips.includes("Dan")
 await ann.locator("#whoChips button", { hasText: "Dan" }).click(); await ann.waitForTimeout(250);
 ok(/Ann/.test(await text(ann, "#pickA")) && /Dan/.test(await text(ann, "#pickB")), "the Dan chip filled the lilac side");
 ok(await ann.locator("#whoChips button", { hasText: "Dan" }).getAttribute("aria-pressed") === "true", "…and shows chosen");
-await ann.click("#startBtn"); await ann.waitForTimeout(500);
+await ann.click("#startBtn"); await ann.waitForTimeout(500); await answerBreak(ann);
 const m0 = (await matchesOf(owner)).find(x => x.playerB === gid && x.status === "live");
 ok(!!m0, "ann started against Dan");
 
@@ -78,7 +78,7 @@ ok((await store(owner))[`profiles/mock-ann/guests/${gid}`].claimedBy === "mock-c
 // A friend picked at setup finds the match on Home.
 await ann.click('.tabbar button[data-tab="play"]'); await ann.waitForTimeout(300);
 await ann.locator("#whoChips button", { hasText: "Cat" }).click(); await ann.waitForTimeout(250);
-await ann.click("#startBtn"); await ann.waitForTimeout(600);
+await ann.click("#startBtn"); await ann.waitForTimeout(600); await answerBreak(ann);
 await cat.goto(R + "?mock&as=cat"); await cat.waitForTimeout(1000);
 ok(/Ann's match · you're in/.test(await text(cat, "#inCard")) && /lilac side/.test(await text(cat, "#inCard")), "cat's Home card: " + (await text(cat, "#inCard")).replace(/\s+/g, " "));
 await cat.click("#inOpen"); await cat.waitForTimeout(500);
