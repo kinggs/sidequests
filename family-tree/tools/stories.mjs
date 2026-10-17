@@ -18,8 +18,14 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { STORY_PAGES, entities, findPeople, pageImages, slug, sources, text, writeSection } from "./parse.mjs";
 
 // The Excel-made page declares windows-1252; the rest declare nothing and are ASCII or Latin-1,
-// which windows-1252 reads the same apart from its curly quotes and dashes.
-export const decode1252 = buf => Buffer.isBuffer(buf) ? new TextDecoder("windows-1252").decode(buf) : String(buf);
+// which windows-1252 reads the same apart from its curly quotes and dashes. Those live in the
+// bytes 0x80–0x9F, mapped here by hand: Node's own TextDecoder("windows-1252") reads them as
+// Latin-1 control characters on some versions (22 among them), so the proof broke by Node version.
+const C1 = "\u20AC\u0081\u201A\u0192\u201E\u2026\u2020\u2021\u02C6\u2030\u0160\u2039\u0152\u008D\u017D\u008F" +
+           "\u0090\u2018\u2019\u201C\u201D\u2022\u2013\u2014\u02DC\u2122\u0161\u203A\u0153\u009D\u017E\u0178";
+export const decode1252 = buf => Buffer.isBuffer(buf)
+  ? buf.toString("latin1").replace(/[\x80-\x9f]/g, c => C1[c.charCodeAt(0) - 0x80])
+  : String(buf);
 
 const BLOCK = new Set(["p", "div", "center", "h1", "h2", "h3", "h4", "h5", "h6", "table", "tr", "td", "th", "li", "ul", "ol", "dl", "dt", "dd", "blockquote", "pre", "body", "form"]);
 

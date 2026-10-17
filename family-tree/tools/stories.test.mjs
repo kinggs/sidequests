@@ -2,7 +2,12 @@
 // here is from the real site.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { htmlToMarkdown, story } from "./stories.mjs";
+import { decode1252, htmlToMarkdown, story } from "./stories.mjs";
+
+test("decode1252 reads windows-1252's quotes and dashes, and leaves Latin-1 alone, on every Node", () => {
+  assert.equal(decode1252(Buffer.from("\x93Caf\xe9\x94 \x96 \x85 \x80", "latin1")), "“Café” – … €");
+  assert.equal(decode1252("already a string"), "already a string");
+});
 
 const PAGE = `<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
 <HTML><HEADER><TITLE>Albert Fenwick and the first bicycle</TITLE></HEADER>
