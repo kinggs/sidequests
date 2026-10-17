@@ -148,6 +148,13 @@
     margin:6px auto;font-family:var(--grot);font-size:2rem;font-weight:700;animation:toss .7s ease}
   .brk .coinsay{color:var(--text);font-weight:600;font-size:1.1111rem;text-align:center;padding:0 2px 4px}
   .brkbody{display:flex;flex-direction:column;gap:10px}
+  .brk .ovr{list-style:none;display:flex;flex-direction:column;padding:0 2px}
+  .brk .ovr li{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:9px 0;box-shadow:0 -1px 0 var(--line)}
+  .brk .ovr li:first-child{box-shadow:none}
+  .brk .ovr li span:first-child{flex:0 0 auto;color:var(--dim)}
+  .brk .ovr li span:last-child{text-align:right;font-weight:600;color:var(--text-2);font-size:1rem;line-height:1.3}
+  .brk .ovr .prov{color:var(--warn)}
+  .brk h3.sechead{padding-top:6px}
   @keyframes toss{from{transform:translateY(0) rotateX(0)}50%{transform:translateY(-36px) rotateX(540deg)}to{transform:translateY(0) rotateX(1080deg)}}
   #ratedBtn{box-shadow:0 -1px 0 var(--line)}
   #ratedBtn::after{content:"";flex:0 0 26px;height:26px;border-radius:6px;box-shadow:inset 0 0 0 2px var(--dim)}
@@ -714,7 +721,7 @@ import { connect } from "../shared/connect.js";
 import { ui } from "../shared/ui.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "2.25.0";
+const APP_VERSION = "2.26.0";
 const APP_ID = "rack-it";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 document.getElementById("versionMore").textContent = "v" + APP_VERSION;
@@ -1959,21 +1966,50 @@ ui.tap(el.startBtn, async () => {
   startMatch();
 });
 
-// ---------- who breaks first: lag or coin (2.25.0) ----------
-// Start asks, unless the Break row settled it already: the players lag and say who won, or the
-// phone flips a coin and says who starts. Heads is teal, tails lilac, from crypto's randomness.
-// The live screen's break chip still puts a wrong answer right.
+// ---------- the match at a glance, and who breaks first (2.25.0, 2.26.0) ----------
+// Start opens one sheet: an overview of what's about to be played (the game, the length, the
+// handicap, both ratings, rated or friendly, the odds), read from the settings card's own rows so
+// it can't disagree with them, then the question, unless the Break row settled it already: the
+// players lag and say who won, or the phone flips a coin and says who starts. Heads is teal,
+// tails lilac, from crypto's randomness. The live screen's break chip still puts a wrong answer right.
 const pairKey = () => [setup.a, setup.b].map(String).sort().join("|");
+function overviewOf(a, b){
+  const ul = document.createElement("ul");
+  ul.className = "ovr";
+  const prov = p => p.robustness < cfg().provisionalRacks;
+  const rating = p => `${p.name} ${Math.round(p.zargo)}` + (prov(p) ? " ·\u00a0provisional" : "");
+  const ratedRow = setup.rated && ratedOffered(a, b) ? el.ratedWho.textContent.replace(/^On · /, "Rated · ") : "Friendly · ratings unchanged";
+  const rows = [["Game", el.gameName.textContent], ["Length", el.lenSummary.textContent],
+    ["Handicap", el.hcpSummary.textContent], ["Ratings", `${rating(a)} · ${rating(b)}`], ["Rated", ratedRow]];
+  for(const [k, v] of rows){
+    const li = document.createElement("li"), key = document.createElement("span"), val = document.createElement("span");
+    key.className = "lbl"; key.textContent = k;
+    val.textContent = v;
+    if(k === "Ratings" && (prov(a) || prov(b))) val.classList.add("prov");
+    li.append(key, val);
+    ul.appendChild(li);
+  }
+  return ul;
+}
 async function chooseBreak(){
   const a = P(setup.a), b = P(setup.b);
   if(!(a && b)) return false;
   const picked = await ui.sheet({
-    title: "Who breaks first?",
-    text: "Lag for it and say who won, or let the phone flip a coin.",
+    title: `${a.name} v ${b.name}`,
     className: "brk",
     body: close => {
+      const wrap = document.createElement("div");
+      wrap.className = "brkbody";
+      const odds = document.createElement("p");
+      odds.textContent = el.setupHint.textContent;
+      const q = document.createElement("h3");
+      q.className = "lbl sechead";
+      q.textContent = "Who breaks first?";
+      const how = document.createElement("p");
+      how.textContent = "Lag for it and say who won, or let the phone flip a coin.";
       const box = document.createElement("div");
       box.className = "brkbody";
+      wrap.append(overviewOf(a, b), odds, q, how, box);
       const lag = (side, p) => {
         const btn = document.createElement("button");
         btn.type = "button";
@@ -2001,10 +2037,11 @@ async function chooseBreak(){
         go.type = "button"; go.className = "primary"; go.dataset.coin = side;
         go.textContent = `${p.name} breaks`;
         ui.tap(go, () => close({ how: "coin", breaker: side }));
+        how.remove();
         box.replaceChildren(disc, say, go);
       });
       box.append(lag("a", a), lag("b", b), coin);
-      return box;
+      return wrap;
     }
   });
   if(!picked) return false;

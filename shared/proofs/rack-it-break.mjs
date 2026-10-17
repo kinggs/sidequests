@@ -26,15 +26,26 @@ await pickSlot(owner, "#pickB", "Mel");
 ok(/Lag or coin, at Start/.test(await text(owner, "#breakWho")), "the Break row before Start: " + await text(owner, "#breakWho"));
 await owner.click("#startBtn"); await owner.waitForTimeout(400);
 const sheet = owner.locator(".sheet.brk");
-ok(await sheet.isVisible() && /Who breaks first\?/.test(await text(owner, ".sheet.brk h2")), "Start asks who breaks first");
+ok(await sheet.isVisible() && /Who breaks first\?/i.test(await text(owner, ".sheet.brk h3")), "Start asks who breaks first");
+// The overview above the question (2.26.0): the settings card's own rows, both ratings, the odds.
+ok(/^Mock v Mel$/.test(await text(owner, ".sheet.brk h2")), "the sheet is headed by the two names: " + await text(owner, ".sheet.brk h2"));
+// The labels are tracked caps (CSS), so innerText reads them upper-case.
+const rowsOf = async () => Object.fromEntries((await sheet.locator(".ovr li").allInnerTexts()).map(r => r.split("\n").map(x => x.trim()).filter(Boolean)).map(([k, v]) => [k.toLowerCase(), v]));
+const rows = await rowsOf();
+ok(rows.game === "11-Point-Nine" && /^Race/.test(rows.length || "") && /^Scoring/.test(rows.handicap || ""), "Game, Length and Handicap rows: " + JSON.stringify(rows));
+ok(/^Mock 500 ·\sprovisional · Mel 500 ·\sprovisional$/.test(rows.ratings || ""), "the Ratings row, provisional marked: " + rows.ratings);
+ok(rows.rated === "Friendly · ratings unchanged", "the Rated row for a friendly: " + rows.rated);
+ok(/even match|expects/.test(await text(owner, ".sheet.brk")), "the odds sentence is there");
 const labels = await sheet.locator("button").allInnerTexts();
 ok(labels.some(l => /Mock won the lag/.test(l)) && labels.some(l => /Mel won the lag/.test(l)) && labels.some(l => /Flip a coin/.test(l)) && labels.some(l => /Cancel/.test(l)),
   "two lag answers, a coin and Cancel: " + labels.join(" | "));
 await sheet.locator("button.cancel").click(); await owner.waitForTimeout(400);
 ok(!(await sheet.isVisible().catch(() => false)) && await owner.locator("#scrSetup, #setupHint").first().isVisible() && !(await live()), "Cancel: no match started, still on setup");
 
-// 2. Mel won the lag: Mel breaks, and shoots first.
+// 2. Rated on: the overview says so. Mel won the lag: Mel breaks, and shoots first.
+await owner.click("#ratedBtn"); await owner.waitForTimeout(200);
 await owner.click("#startBtn"); await owner.waitForTimeout(400);
+ok((await rowsOf()).rated === "Rated · moves ratings once Mel confirms", "the Rated row for a rated match: " + (await rowsOf()).rated);
 await answerBreak(owner, "b");
 let m = await live();
 ok(m && m.turn === "b", "Mel won the lag: she shoots first (turn b)");
@@ -51,6 +62,7 @@ const say = await text(owner, ".sheet.brk .coinsay"), go = owner.locator(".sheet
 ok(/^(Heads|Tails) · (Mock|Mel) breaks first$/.test(say) && (side === "a" || side === "b")
   && ((side === "a") === /Heads · Mock/.test(say)), `the coin said: "${say}" (${side})`);
 ok(await owner.locator(".sheet.brk .coin").isVisible() && !(await owner.locator('.sheet.brk [data-coin="flip"]').isVisible().catch(() => false)), "the coin shows once, with no second flip");
+ok(await owner.locator(".sheet.brk .ovr").isVisible() && !/Lag for it/.test(await text(owner, ".sheet.brk")), "the overview stays while the coin's result shows; the how-to line went");
 await go.click(); await owner.waitForTimeout(500);
 m = await live();
 ok(m && m.turn === side, `the match starts with the coin's breaker (turn ${m && m.turn})`);

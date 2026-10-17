@@ -278,8 +278,13 @@ room, and opening a fold scrolls it into view.
    points a rack instead ("Kenny expects 8.4 points a rack to Melanie's 5.1"), since its loser
    scores too.
 
-**Who breaks first** (2.25.0). Unless the Break row has settled it, **Start** opens a sheet,
-"Who breaks first?", with two ways to answer: **Kenny won the lag** / **Melanie won the lag**
+**The match at a glance, and who breaks first** (2.25.0, 2.26.0). **Start** opens one sheet,
+headed by the two names. First the overview, so what's about to be played is read back before a
+ball moves: **Game**, **Length**, **Handicap** (each the settings card's own row, word for word),
+**Ratings** ("Kenny 505 · Melanie 332", "· provisional" in amber under 30 racks) and **Rated**
+("Rated · moves ratings once Melanie confirms" or "Friendly · ratings unchanged"), then the odds
+sentence from above Start. Under it, unless the Break row has settled it, the question "Who
+breaks first?" with two ways to answer: **Kenny won the lag** / **Melanie won the lag**
 (the players lagged at the table and say who won), or **Flip a coin**: the phone flips one (heads
 teal, tails lilac, from `crypto.getRandomValues`), shows the coin and "Tails · Melanie breaks
 first", and one tap on **Melanie breaks** starts the match with her shooting. Cancel stays on
@@ -870,6 +875,7 @@ account, so a static app can't upload results.
 | 2.9.0 | Rated matches and confirming (KIT-PLAN Session 5). Setup gains a **Rated** tick, off by default, offered when both players have an account. A friendly moves no rating; a rated match moves both only once the opponent confirms on their own phone, worked out from the ratings at that moment, in one batch. Not right or Withdraw leaves it a friendly. Rebuild replays rated matches by `ratedAt`, else `endedAt`; a match with no `rated` field is rated. For the social leagues, where a rating has to be agreed by both players. |
 | 2.10.0 | Outsiders play in Rack It (KIT-PLAN Session 6): friend mode instead of the outsider screen. The rules open the matches an account plays in, starting one against a connection or a guest, and a rating only in the batch that confirms a rated match the other player ended. Ratings are read by id, matches with one `uids` query. A household member can no longer turn a friendly into a rated match. For pool friends who aren't family. |
 | 2.11.0 | One admin, everyone else a player (KIT-PLAN Session 6b). The owner sees and rewrites every match; everyone else, a household member included, runs friend mode and reads only the matches they play in. The owner's phone backfills `uids` and `names` on matches from before 2.8.0, so the players keep them. The "Before you play" note goes: there's nothing left to warn about. Owner's call, 2026-10-02: "a family member is just another member". Other apps keep the household. |
+| 2.26.0 | The Start sheet opens with the match at a glance: game, length, handicap, both ratings, rated or friendly, and the odds, read from the settings card's own rows, above the who-breaks-first question. Owner's ask: "a little overview screen, a confirmation overview screen". |
 | 2.25.0 | Who breaks first: Start asks, with two answers. The players lagged and say who won, or the phone flips a coin and says who starts. The Break row shows the call and can ask early; it no longer flips blindly. Owner's ask: "prompt us for the starting player". |
 | 2.24.0 | Count it as rated: the owner turns a finished friendly between two accounts into a rated match from its summary (a hold), with no confirmation asked, and ratings rebuild at once; the match replays where it was played. Rated is off by default, and matches meant to count were being played as friendlies. |
 | 2.23.0 | My QR wears the app's look: a frame in its accent and its icon as a badge on the frame; the code inside is untouched (KIT-PLAN Session 10 step 5). |
