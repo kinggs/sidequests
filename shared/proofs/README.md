@@ -19,6 +19,7 @@ shares `pw.mjs` with them.
 | `table-session.mjs` | Session 10 step 4: staff start a club match from the loyalty app, score it in Rack It; a spend beside it; both confirm; one earn entry each; Rebuilds change nothing | Playwright |
 | `rack-it-expiry.mjs` | Session 10 step 5: a pending rated match expires after a week, on a player's phone or the scorer's; the strips count down | Playwright |
 | `rack-it-late-scorer.mjs` | Session 10 step 5: a scorer who joins a rated match under way by its Game QR; both players confirm | Playwright |
+| `rack-it-count-rated.mjs` | Rack It 2.24.0: the owner counts a finished friendly as rated from its summary; both ratings move, Mel's summary shows it, Rebuild changes nothing; no hold for Mel, a guest's friendly or a rated match | Playwright |
 | `zombie-dice-chain.mjs` | Session 10 step 5: a turn game's chain; a phone offline on its turn comes back after the starter played it, and is refused rather than rewinding | Playwright |
 | `qr-look.mjs` | Session 10 step 5: My QR's frame and badge leave the code untouched; zbar and jsQR read every app's | Playwright, zbarimg, network (jsQR) |
 | `rev-probe.mjs` | Session 8 step 3's probe: queued offline writes against a counter and against the chain, on the emulator | Java 21, npx |

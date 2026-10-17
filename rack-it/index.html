@@ -527,6 +527,9 @@
     <p id="sumScore"></p>
     <a class="linkbtn hidden" id="sumClub" href="../sessions-loyalty/">Back to Sessions</a>
     <p class="dim" id="sumZargo"></p>
+    <button class="quiet hold hidden" id="sumRate">Hold to count it as rated</button>
+    <p class="note hidden" id="sumRateNote">Makes this friendly a rated match, as if it had been confirmed when it was played,
+      and rebuilds every rating straight away. Nobody is asked to confirm.</p>
     <h3 class="lbl sechead">Racks</h3>
     <ul class="reclist" id="sumRacks"></ul>
     <h3 class="lbl sechead">Cuescore</h3>
@@ -707,7 +710,7 @@ import { connect } from "../shared/connect.js";
 import { ui } from "../shared/ui.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "2.23.0";
+const APP_VERSION = "2.24.0";
 const APP_ID = "rack-it";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 document.getElementById("versionMore").textContent = "v" + APP_VERSION;
@@ -724,7 +727,7 @@ const el = {};
  "targetsRow","tgtA","tgtB","tgtALabel","tgtBLabel","setupHint","setupWarn","breakBtn","breakWho","startBtn",
  "foldLen","foldHcp","lenHead","hcpHead","lenSummary","hcpSummary","goldLen","hcps","raceForm","formTargets","formStart","raceNLabel",
  "sideA","sideB","nameA","nameB","rawA","rawB","subA","subB","lead","leadFill","controls",
- "rackNo","breakFlip","rack","undo","next","end","sumDelete","sumDeleteNote","ownerNote",
+ "rackNo","breakFlip","rack","undo","next","end","sumDelete","sumDeleteNote","sumRate","sumRateNote","ownerNote",
  "done","doneTitle","doneBody","doneZargo","doneNext","doneAnyway","doneBack","signInBig",
  "watchBanner","liveBar","liveWho","resumeBtn","importFile",
  "histList",
@@ -3799,7 +3802,8 @@ function renderSummary(){
       : "Friendly · ratings unchanged" + (s.declinedBy ? ` · ${uidName(s, s.declinedBy)} said it wasn't right`
         : s.withdrawnBy ? ` · withdrawn by ${uidName(s, s.withdrawnBy)}` : "")
     : zb && za
-    ? `Zargo: ${nA} ${Math.round(zb.a)} → ${Math.round(za.a)} · ${nB} ${Math.round(zb.b)} → ${Math.round(za.b)}`
+    ? `Zargo: ${nA} ${Math.round(zb.a)} → ${Math.round(za.a)} · ${nB} ${Math.round(zb.b)} → ${Math.round(za.b)}` +
+      (s.ratedBy ? ` · counted as rated by ${uidName(s, s.ratedBy)}` : "")
     : "Zargo didn't move.";
   el.sumRacks.innerHTML = "";
   for(const { n, rec } of countedRacks(s)){
@@ -3822,12 +3826,56 @@ function renderSummary(){
   el.sumDelete.classList.toggle("hidden", !owner);
   el.sumDeleteNote.classList.toggle("hidden", owner);
   el.sumDelete.textContent = s.status === "live" ? "Hold to delete this live match" : "Hold to delete match";
+  const rateable = canMakeRated(s);
+  el.sumRate.classList.toggle("hidden", !rateable);
+  el.sumRateNote.classList.toggle("hidden", !rateable);
   return true;
 }
 ui.hold(el.sumDelete, async () => {
   const s = matches.find(x => x.id === summaryId);
   if(!s || !owner) return;
   if(await deleteMatch(s)) openPage(summaryFrom);
+});
+
+// Counting a friendly as rated, later (2.24.0): the owner only, from the summary of a finished
+// friendly between two accounts with a rack that counted. The setup's Rated tick is off by
+// default, so a match meant to count is easily played as a friendly; this puts it right without
+// asking the other player to confirm, since only the owner can. The match keeps its endedAt, so
+// Rebuild replays it where it was played (zargo.js ratedOrder: ratedAt, else endedAt), and the
+// ratings are rebuilt straight away, like a delete. A declined, withdrawn or expired match
+// loses those marks: it stands as rated now.
+function canMakeRated(s){
+  if(!owner || !s || s.status !== "done" || s.rated !== false) return false;
+  const a = people.resolve(s.playerA), b = people.resolve(s.playerB), uids = s.uids || [];
+  return a !== b && uids.includes(a) && uids.includes(b) && countedRacks(s).length > 0;
+}
+let ratingBusy = false;
+async function makeRated(s){
+  if(ratingBusy || !canMakeRated(s)) return false;
+  ratingBusy = true;
+  el.sumRate.disabled = true;
+  el.sumRate.textContent = "Counting it…";
+  try {
+    await cloud.patch("matches/" + s.id, { rated: true, ratedBy: myUid() });
+    const marks = ["declinedBy", "withdrawnBy", "expired"].filter(k => s[k] !== undefined);
+    if(marks.length) await cloud.deleteFields("matches/" + s.id, marks);
+    Object.assign(s, { rated: true, ratedBy: myUid() });
+    for(const k of marks) delete s[k];
+    await rebuildRatings(null);
+    ui.toast("Counted as rated. Ratings rebuilt.");
+  } catch(e){
+    console.warn("[rated]", e);
+    ui.toast("Couldn't count that match: " + (e.message || e));
+  }
+  ratingBusy = false;
+  el.sumRate.disabled = false;
+  el.sumRate.textContent = "Hold to count it as rated";
+  rerender();
+  return true;
+}
+ui.hold(el.sumRate, () => {
+  const s = matches.find(x => x.id === summaryId);
+  if(s) makeRated(s);
 });
 
 // One line in the shape Cuescore's challenge form wants (SPEC §12.6): the two names, the

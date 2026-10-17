@@ -164,6 +164,8 @@ of match records that change; **Apply** writes each player's `ratings/<id>` and 
   (`setBy: "rebuild"`).
 - Old matches' player ids are read through `people.resolve`, so merges carry history.
 - **Deleting a saved match rebuilds ratings straight away**, so it leaves no movement behind.
+- **Counting a friendly as rated** (2.24.0, §6.1) rebuilds straight away too: the match replays at
+  its `endedAt`, where it was played, so the rated matches after it move a little.
 - Confirming a rated match updates the two players directly, so a rebuild normally changes nothing.
   ⚠ A match from before 2.9.0 that was left open across another was rated from the ratings it
   started on, but replays after the other one; Rebuild moves it slightly (KIT-PLAN Session 3, note 1).
@@ -364,7 +366,16 @@ match** or **Discard**. Saving opens the match's summary; discarding goes to Rat
   `{ status: "done", zargoBefore, zargoAfter, ratedAt, confirmedBy }`.
 - **Not right** or **Withdraw** writes `{ status: "done", rated: false }` with `declinedBy` or
   `withdrawnBy`. It stands as a friendly.
-- A pending match can't be resumed. ⚠ It never expires (KIT-PLAN Parked).
+- A pending match can't be resumed. It expires after a week (2.21.0, §8.2).
+- **Count it as rated** (2.24.0). Rated is off by default, so a match meant to count is easily
+  played as a friendly. The owner puts it right from the summary of a finished friendly between
+  two accounts with a rack that counted: **Hold to count it as rated** writes `rated: true` and
+  `ratedBy` (the owner), drops `declinedBy`, `withdrawnBy` or `expired`, and rebuilds every rating
+  at once (§3.2). Nobody is asked to confirm: only the owner may rewrite a saved match, and the
+  result stood when it was played. The summary then reads "Zargo: Kenny 505 → 507 · Melanie 332 →
+  330 · counted as rated by Kenny" on every phone. No `ratedAt` is written, so Rebuild replays the
+  match where it was played, not when it was counted. Guests play friendlies only, so a guest's
+  match never offers it.
 
 ### 6.2 A scorer, and both sign (2.16.0, KIT-PLAN Session 8 step 4)
 
@@ -466,7 +477,8 @@ member's friend or guest) reads by the match's own `names`, in every list and su
 unchanged", with who said it wasn't right or withdrew it, or "Rated · waiting for Melanie to
 confirm"), the racks that
 counted, **Copy for Cuescore** (§10), and for the owner **Hold to delete match** (anyone else
-sees why it isn't there).
+sees why it isn't there) and, on a finished friendly between two accounts, **Hold to count it as
+rated** (§6.1).
 
 **Your account** (2.12.0, `shared/DESIGN.md`): your profile's avatar sits top right on Play,
 Ratings, Matches and More (`ui.account`). Tapping it opens a bottom sheet with your name, then
@@ -481,16 +493,16 @@ in, and `/members` holds only the owner's role. KIT-PLAN Session 9.)
 ### 7.1 The owner
 
 One member is the **owner**: `members/<email>.role: "owner"`, set by hand in the Firebase console.
-Only the owner deletes a match, changes a saved match (so only the owner rebuilds ratings or
-replaces everything on import), changes or deletes a starter rating, deletes a player, and
-removes an invite. `shared/firestore.rules` enforces the Firestore writes; the app hides the
+Only the owner deletes a match, changes a saved match (so only the owner rebuilds ratings,
+counts a friendly as rated or replaces everything on import), changes or deletes a starter
+rating, deletes a player, and removes an invite. `shared/firestore.rules` enforces the Firestore writes; the app hides the
 buttons from everyone else. **Since 2.11.0 the owner is Rack It's one admin** (KIT-PLAN Session
 6b): only the owner runs the path this section describes, reads every match and lists ratings
 and starters. Everyone else, a household member included, is a player in friend mode (§8.2).
 ⚠ People documents stay writable by any member.
 
-**Hold to confirm.** End, deleting a match or a player, changing a starter rating, removing an
-invite and replacing everything on import are a 600ms hold with a rising fill (`ui.hold`), never
+**Hold to confirm.** End, deleting a match or a player, counting a friendly as rated, changing a
+starter rating, removing an invite and replacing everything on import are a 600ms hold with a rising fill (`ui.hold`), never
 a dialog or a second tap. Under reduced motion the fill appears at once; the hold stays 600ms.
 The player form, Import and Rebuild open as bottom sheets.
 
@@ -682,6 +694,7 @@ matches/<id>
   startedAt, endedAt, status: "live" | "pending" | "done" | "discarded", turn: "a" | "b"
   endedBy: uid                     // a rated match: who saved it, so the other player confirms
   ratedAt, confirmedBy: uid        // a confirmed rated match: when, and who
+  ratedBy: uid                     // a friendly the owner counted as rated later (2.24.0); no ratedAt
   declinedBy | withdrawnBy: uid    // a rated match that stands as a friendly instead
   scorer: uid                      // someone scoring it who isn't playing (2.16.0); never in uids
   confirms: { "<uid>": <ms> }      // both sign: players who confirmed a scorer's match, one key each
@@ -846,6 +859,7 @@ account, so a static app can't upload results.
 | 2.9.0 | Rated matches and confirming (KIT-PLAN Session 5). Setup gains a **Rated** tick, off by default, offered when both players have an account. A friendly moves no rating; a rated match moves both only once the opponent confirms on their own phone, worked out from the ratings at that moment, in one batch. Not right or Withdraw leaves it a friendly. Rebuild replays rated matches by `ratedAt`, else `endedAt`; a match with no `rated` field is rated. For the social leagues, where a rating has to be agreed by both players. |
 | 2.10.0 | Outsiders play in Rack It (KIT-PLAN Session 6): friend mode instead of the outsider screen. The rules open the matches an account plays in, starting one against a connection or a guest, and a rating only in the batch that confirms a rated match the other player ended. Ratings are read by id, matches with one `uids` query. A household member can no longer turn a friendly into a rated match. For pool friends who aren't family. |
 | 2.11.0 | One admin, everyone else a player (KIT-PLAN Session 6b). The owner sees and rewrites every match; everyone else, a household member included, runs friend mode and reads only the matches they play in. The owner's phone backfills `uids` and `names` on matches from before 2.8.0, so the players keep them. The "Before you play" note goes: there's nothing left to warn about. Owner's call, 2026-10-02: "a family member is just another member". Other apps keep the household. |
+| 2.24.0 | Count it as rated: the owner turns a finished friendly between two accounts into a rated match from its summary (a hold), with no confirmation asked, and ratings rebuild at once; the match replays where it was played. Rated is off by default, and matches meant to count were being played as friendlies. |
 | 2.23.0 | My QR wears the app's look: a frame in its accent and its icon as a badge on the frame; the code inside is untouched (KIT-PLAN Session 10 step 5). |
 | 2.22.0 | A late scorer: the Game QR offers Score this match on a live match with no scorer (KIT-PLAN Session 10 step 5). |
 | 2.21.0 | A pending rated match expires a week after it ended: the first phone in it makes it a friendly (`expired`), and the strips count the days down (KIT-PLAN Session 10 step 5). |
