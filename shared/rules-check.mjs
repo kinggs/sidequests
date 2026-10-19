@@ -2038,3 +2038,56 @@ describe("A chain for turn games: must refuse", () => {
     await assertFails(setDoc(doc(as(OWNER), ZD + "live"), { scores: { ann: 0, cat: 0 }, seq: 4, rev: zlink(4, "o4", "k3", "owner") }, { merge: true }));
   });
 });
+
+// ---- Spot 9 (Rack It 2.27.0): a solo drill, yours alone ----
+// Ann logs her own drills; the owner logs them for anyone and lists them all. Nobody logs a
+// drill for someone else, rewrites a finished one, or reads a drill they aren't in.
+
+const D = "sidequests/rack-it/drills/";
+const annDrill = (extra = {}) => ({ drill: "spot9", players: ["ann"], names: ["Ann"], uids: ["ann"], by: "ann",
+  status: "live", startedAt: 1, endedAt: null, runs: [], totals: { runs: 0, points: 0, avg: 0, best: 0 }, ...extra });
+
+describe("Spot 9: a solo drill", () => {
+  beforeEach(async () => {
+    await seed(D + "live", annDrill());
+    await seed(D + "finished", annDrill({ status: "done", endedAt: 2, runs: [3, 9], totals: { runs: 2, points: 12, avg: 6, best: 9 } }));
+  });
+
+  test("an account starts its own drill, logs it run by run, ends it, lists its own and deletes one", async () => {
+    const db = user("ann");
+    await assertSucceeds(setDoc(doc(db, D + "new"), annDrill()));
+    await assertSucceeds(updateDoc(doc(db, D + "live"), { runs: [4], totals: { runs: 1, points: 4, avg: 4, best: 4 } }));
+    await assertSucceeds(updateDoc(doc(db, D + "live"), { status: "done", endedAt: 3 }));
+    await assertSucceeds(getDoc(doc(db, D + "finished")));
+    await assertSucceeds(getDocs(query(collection(db, "sidequests/rack-it/drills"), where("uids", "array-contains", "ann"))));
+    await assertSucceeds(deleteDoc(doc(db, D + "finished")));
+  });
+  test("the owner lists every drill, logs one for a friend or a guest, and rewrites a finished one", async () => {
+    const db = as(OWNER);
+    await assertSucceeds(getDocs(collection(db, "sidequests/rack-it/drills")));
+    await assertSucceeds(setDoc(doc(db, D + "forBen"), annDrill({ players: ["ben"], names: ["Ben"], uids: ["ben"], by: "owner" })));
+    await assertSucceeds(setDoc(doc(db, D + "forDan"), annDrill({ players: ["g_1"], names: ["Dan"], uids: [], by: "owner" })));
+    await assertSucceeds(updateDoc(doc(db, D + "finished"), { runs: [3] }));
+    await assertSucceeds(deleteDoc(doc(db, D + "live")));
+  });
+  test("refused: a drill for someone else or in their name, with two in it, or with runs already", async () => {
+    const db = user("ann");
+    await assertFails(setDoc(doc(db, D + "x1"), annDrill({ players: ["ben"], names: ["Ben"], uids: ["ben"] })));
+    await assertFails(setDoc(doc(db, D + "x2"), annDrill({ by: "ben" })));
+    await assertFails(setDoc(doc(db, D + "x3"), annDrill({ players: ["ann", "ben"], names: ["Ann", "Ben"], uids: ["ann", "ben"] })));
+    await assertFails(setDoc(doc(db, D + "x4"), annDrill({ players: ["g_1"], names: ["Dan"], uids: ["ann"] })));
+    await assertFails(setDoc(doc(db, D + "x5"), annDrill({ status: "done" })));
+  });
+  test("refused: changing who's in a drill, rewriting a finished one, or reading or deleting someone else's", async () => {
+    const ann = user("ann"), ben = user("ben");
+    await assertFails(updateDoc(doc(ann, D + "live"), { uids: ["ann", "ben"] }));
+    await assertFails(updateDoc(doc(ann, D + "live"), { by: "ben" }));
+    await assertFails(updateDoc(doc(ann, D + "finished"), { runs: [9, 9], totals: { runs: 2, points: 18, avg: 9, best: 9 } }));
+    await assertFails(getDoc(doc(ben, D + "live")));
+    await assertFails(getDocs(collection(ben, "sidequests/rack-it/drills")));
+    await assertFails(getDocs(query(collection(ben, "sidequests/rack-it/drills"), where("uids", "array-contains", "ann"))));
+    await assertFails(updateDoc(doc(ben, D + "live"), { runs: [1] }));
+    await assertFails(deleteDoc(doc(ben, D + "live")));
+    await assertFails(getDoc(doc(signedOut(), D + "live")));
+  });
+});

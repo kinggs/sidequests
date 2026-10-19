@@ -2,7 +2,8 @@
 
 A phone-first scorer for five cue games — three nine-ball, two 8-ball — between any two
 players, with one rating across all of them (**Zargo**) and handicaps that keep a mismatched
-pair close. Matches sync to the cloud, so any invited phone can score, resume or watch.
+pair close, and one solo drill (**Spot 9**, §2.5) tracked over time. Matches sync to the cloud,
+so any invited phone can score, resume or watch.
 Invite-only: members sign in with Google. Anyone else who signs in gets My QR and Friends (§8.1).
 
 This spec is the app as it is (2.2.0). The rating's reasoning is in [`ZARGO.md`](ZARGO.md); the
@@ -29,6 +30,8 @@ is reference only.
 | **Group** | 8-ball only: a player's set of seven, **solids** (1–7) or **stripes** (9–15). A rules word: since 2.4.0 the app doesn't track which is whose. |
 | **Rack** | One game on the table. What it records depends on the game (§2). |
 | **Handicap** | **Off**, **Scoring** (point quotas) or **Racks** (a race chart). Never enters the rating. |
+| **Drill** | One player practising alone, scored by the run and tracked over time (2.27.0). Spot 9 is the first. A drill never moves a rating. |
+| **Run** | One go at a drill: in Spot 9, balls 1 to 9 off the spot until a miss, scored 0 to 9. |
 
 Words: **match**, never session; **Tied**, never "dead level".
 
@@ -110,6 +113,23 @@ ones (VNEA, USAPL). The rules the app assumes:
   loser's count is known, and asking cost a question a rack. Racks scored before 2.4.0 have
   `groups: { a: "solids" | "stripes" | null }` and a ball drop instead, and are still read that
   way: their loser's balls come off the drop, the group guessed from who potted what.
+
+### 2.5 Spot 9, a solo drill (2.27.0)
+
+The owner's ask: a drill like Around the Clock's 180 for pool, logged on the phone and graphed
+over time. It sits under the five games in the Game dropdown, under a **Drills · on your own**
+label, stored as `"spot9"`.
+
+- **The drill.** On your own. Put the object ball on the spot and pot it; then the next, 1 to 9,
+  in a row. **A miss ends the run**, and the run's score is how many went in, 0 to 9: a clean
+  run is 9. Play as many runs as you like. **The drill's score is the average a run**, to one
+  decimal ("3.6 a run"), so a drill from one night can be beaten the next.
+- **Logging is one tap a run** (owner's call, 2026-10-19): a grid of ten numbers, 0 to 9; tap
+  the run's score and the next run starts. Which ball the miss came on isn't recorded beyond
+  the score itself, since in Spot 9 the score *is* the ball you missed.
+- **Open-ended.** There's no set number of runs: End (a hold) when you're done. A drill ended
+  with no runs leaves no record.
+- Setup, the screen, the lists and the chart are §5, §6.3 and §7; the record is §9.
 
 ## 3. Zargo
 
@@ -291,6 +311,16 @@ first", and one tap on **Melanie breaks** starts the match with her shooting. Ca
 setup. The live screen's break chip (§6) still puts a wrong answer right. Nothing about the
 choice is stored: the match carries only who broke each rack, as before.
 
+**A drill** (2.27.0, §2.5): picking **Spot 9** in the dropdown turns the page into one player
+and Start. The chips and the one slot (**Who's drilling**) pick who's at the table, you by
+default; the settings card (Length, Handicap, Break, Rated) steps aside, and the line above
+Start says where that player stands ("Kenny's Spot 9 so far: best 4.2 a run, last time 3.1,
+over 14 drills", or that it's their first). Start opens the drill screen with no sheet: nothing
+to lag for. In friend mode you drill as yourself (the rules let an account log only its own
+drills; Start reads "Pick yourself" otherwise); the owner logs a drill for anyone, a guest
+included. A drill left mid-way shows as a card at the top of Play ("Spot 9 · Kenny", "Live · 7
+runs · 3.4 a run"), and **Open** picks it up where it was.
+
 The handicap isn't remembered: each game starts at its default. A repeat of last night is Game,
 two names, Start, and the question. Play keeps your picks while you look at another tab and starts fresh after a
 match has begun.
@@ -414,6 +444,26 @@ match** or **Discard**. Saving opens the match's summary; discarding goes to Rat
 - A match started before 2.9.0 and resumed on 2.9.0 has no `rated` field: it saves as rated when
   both players have an account, otherwise as a friendly.
 
+### 6.3 The drill screen (2.27.0)
+
+Full-bleed like the live screen, holding the wake lock and fullscreen, and never scrolling:
+
+- The player's avatar and name across the top, with **Spot 9** as a caps label.
+- The running **average a run** as the screen's one big figure, in teal (it's the drill's
+  data), with "5 runs · 24 potted · best run 9" under it; a dash until the first run.
+- The last seven runs as a row of chips, the newest filled, a clean 9 ringed.
+- "Run 6 · how many went in?" over **the grid of ten**, 0 to 9, five a row and 76px tall; 0
+  says *miss* and 9 says *clean*. One tap logs the run and the next begins. Every tap writes
+  the document, so a reload loses nothing.
+- **Undo** (the last run) on the left, and **End**, a 600ms hold, on the right.
+- **End** with runs in it finishes the drill and shows the moment: the average, "4.2 a run over
+  5 runs: 21 potted, best run 9", then how it compares ("A new best: it was 3.1", or "Best so
+  far 4.2, last time 3.1", or that it's the first). **Play it again** starts another for the
+  same player; **Done** opens the player's page, where the tiles and the chart are. End with
+  no runs deletes the drill and goes back to setup.
+
+One phone logs a drill; there's no chain and no second phone. A drill never moves a rating.
+
 **Sync, Resume, Watch.** The match document is the record: every tap patches the current rack
 (`cloud.patch("matches/<id>", { "racks.N": … })`) with `turn` and running totals, and offline
 scoring lands later, in order.
@@ -480,6 +530,12 @@ page offers Edit to the owner only, for the override), Cuescore (read-only;
 Add or Change on your own page), the win record per game (finished matches, in picker order) and their matches.
 The win record counts every finished match, friendlies and declined or withdrawn ones included
 (owner's call, 2026-10-02: it's what happened at the table); pending ones aren't finished.
+**Spot 9** (2.27.0), under Record once they've finished a drill: three tiles, **best** (their
+best drill's average a run), **last drill** and **average, last 10** (the mean of their last
+ten drills' averages), then the chart: one dot a drill, average a run on a fixed 0 to 9 axis,
+joined in teal, with the date of the first and last drill underneath and a dotted line at the
+rolling average of the last ten (the shape Around the Clock's Progress uses). Their drills
+list among their matches below, by date.
 
 **Matches.** Live (last 24 hours) first, then newest. Each row: names and score (racks in a race
 in racks, head start included) with the winner's name in bold, then a caps line with game,
@@ -488,6 +544,13 @@ and reads "Live · 11-Point-Nine · rack 3". The caps line ends "· friendly" fo
 "· waiting to confirm" for a pending rated match; a rated match says nothing extra. Discarded matches don't show. No Delete in the list:
 a live row resumes; a finished one opens its summary. A player this phone doesn't know (another
 member's friend or guest) reads by the match's own `names`, in every list and summary.
+**Drills list here too** (2.27.0), in the same order: "Kenny **4.2** a run", then "Spot 9 · 12
+runs · best 9 · Today 21:14"; a live one of yours reads "Live · Spot 9 · 7 runs" and picks up
+where it was; any other opens the drill's summary.
+
+**A drill's summary** (2.27.0): the player, "Spot 9 · when", the average a run large, "12 runs ·
+43 potted · best run 9", where it stands among their drills ("Kenny's best Spot 9 of 14
+drills"), every run as a chip, and **Hold to delete drill** for whoever logged it or the owner.
 
 **Summary.** Winner, game, length, when, the score line, the Zargo movement (or "Friendly · ratings
 unchanged", with who said it wasn't right or withdrew it, or "Rated · waiting for Melanie to
@@ -730,8 +793,21 @@ matches/<id>
   rev: { n, key, was, by, at }     // the chain (2.15.0): every write to a live match is the next link
   log: { "<n>": { by, at, say, key } }   // who made each change, and the echo strip's words
   phones: { "<uid>": { at } }      // when each phone was last seen (light presence)
+
+drills/<id>                      // Spot 9 (2.27.0): one document a drill, written on every tap
+  drill: "spot9"
+  players: [id], names: [name]     // the one player (a uid, g_<id>, or a person id) and their name then
+  uids: [uid, …], by: uid          // the accounts in it (none for a guest), and who logged it
+  status: "live" | "done", startedAt, endedAt
+  runs: [0–9, …]                   // every run's score, in order: the whole record
+  totals: { runs, points, avg, best }   // derived from runs, stored so lists don't add it up
 ```
 
+- **Drills** (`shared/firestore.rules`, its own block): an account reads the drills with its uid in
+  `uids`, lists them only with that filter, starts one only as itself (`by` and the one `players`
+  and `uids` entry all its uid, live), writes a live one's runs and totals and ends it, never
+  changing who's in it or a finished one, and deletes what it started. The owner reaches every
+  drill and logs one for anyone. `shared/rules-check.mjs` holds the cases.
 - In Trad-Nine and Trad-Eight `a` and `b` are racks. An 11-Point-Nine rack counts to whoever took
   more of its live points (an equal split counts for nobody). `racksA/racksB` include any head
   start.
@@ -762,12 +838,12 @@ matches/<id>
   `zargo.js`, `shared/theme.css` and the two fonts, manifest, icons), network first.
 
 **Export** downloads one JSON file: `app: "rack-it"`, `state` (the config), `people`, `ratings`,
-`starters`, `matches`, and `account` (your profile, friends' cards and guests, `cloud.account.exportMe`). Import brings
+`starters`, `matches`, `drills` (2.27.0), and `account` (your profile, friends' cards and guests, `cloud.account.exportMe`). Import brings
 `account` back only when it's yours, and never remakes a friendship.
 It holds email addresses, so it never goes in the repo. **Import** accepts `app` `"rack-it"` or
 `"fair-nine"` (1.x exports, whose matches sit under `sessions`), keeps document ids, and asks:
-**Merge** adds what's missing and never overwrites; **Replace** (confirmed) wipes matches,
-starters, ratings and `state/main` first. A file from before 2.7.0 carries its ratings in
+**Merge** adds what's missing (matches and drills by id) and never overwrites; **Replace**
+(confirmed) wipes matches, drills, starters, ratings and `state/main` first. A file from before 2.7.0 carries its ratings in
 `state.players`; they're read through `resolve` into `ratings/`. People go to the shared list
 by adoption, never removed.
 
@@ -828,7 +904,10 @@ account, so a static app can't upload results.
 
 ## 12. Out of scope
 
-- Charts and trend lines; shot-level stats beyond who broke and the ball drop.
+- Charts and trend lines for matches and ratings (Spot 9 has its one chart, §7); shot-level
+  stats beyond who broke and the ball drop.
+- More drills, a drill with a set number of runs, which ball a Spot 9 run died on, two phones on
+  one drill, and a drill in a match. The `drill` field and the record's shape leave room.
 - A per-game rating, and an 11-Point-Nine point-share-to-rack-odds mapping (ZARGO.md ⚠).
 - Uploading to Cuescore, and Cuescore ratings as starter hints.
 - Club grouping; Golden-Nine's shot clock, time limit, early finish.
@@ -875,6 +954,7 @@ account, so a static app can't upload results.
 | 2.9.0 | Rated matches and confirming (KIT-PLAN Session 5). Setup gains a **Rated** tick, off by default, offered when both players have an account. A friendly moves no rating; a rated match moves both only once the opponent confirms on their own phone, worked out from the ratings at that moment, in one batch. Not right or Withdraw leaves it a friendly. Rebuild replays rated matches by `ratedAt`, else `endedAt`; a match with no `rated` field is rated. For the social leagues, where a rating has to be agreed by both players. |
 | 2.10.0 | Outsiders play in Rack It (KIT-PLAN Session 6): friend mode instead of the outsider screen. The rules open the matches an account plays in, starting one against a connection or a guest, and a rating only in the batch that confirms a rated match the other player ended. Ratings are read by id, matches with one `uids` query. A household member can no longer turn a friendly into a rated match. For pool friends who aren't family. |
 | 2.11.0 | One admin, everyone else a player (KIT-PLAN Session 6b). The owner sees and rewrites every match; everyone else, a household member included, runs friend mode and reads only the matches they play in. The owner's phone backfills `uids` and `names` on matches from before 2.8.0, so the players keep them. The "Before you play" note goes: there's nothing left to warn about. Owner's call, 2026-10-02: "a family member is just another member". Other apps keep the household. |
+| 2.27.0 | Spot 9, a solo drill (§2.5): pot 1 to 9 off the spot until a miss, one tap a run, scored by the average a run, with tiles and a chart on the player's page. It lives in the Game dropdown under a Drills label rather than a card or a fifth tab, records go in their own `drills/` collection with their own rule, and it never moves a rating. Owner's ask: "a solo player drill that scores points … graph it and track it over time", answered 2026-10-19: the first miss ends the run, one tap logs it, straight to main. |
 | 2.26.0 | The Start sheet opens with the match at a glance: game, length, handicap, both ratings, rated or friendly, and the odds, read from the settings card's own rows, above the who-breaks-first question. Owner's ask: "a little overview screen, a confirmation overview screen". |
 | 2.25.0 | Who breaks first: Start asks, with two answers. The players lagged and say who won, or the phone flips a coin and says who starts. The Break row shows the call and can ask early; it no longer flips blindly. Owner's ask: "prompt us for the starting player". |
 | 2.24.0 | Count it as rated: the owner turns a finished friendly between two accounts into a rated match from its summary (a hold), with no confirmation asked, and ratings rebuild at once; the match replays where it was played. Rated is off by default, and matches meant to count were being played as friendlies. |

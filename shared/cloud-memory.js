@@ -75,6 +75,11 @@ const ACCESS = [
   { path: /^sidequests\/rack-it\/ratings\/([^/]+)$/, read: "account",
     write: (m, u, d, was, ctx) => isOwner(u) || (!!d && (confirming(m[1], d, ctx.after) || (!was && !!store.docs[`profiles/${u.uid}/guests/${m[1]}`])
       || claimedStarter(m[1], u, d, was))) },
+  // Spot 9 (2.27.0): a solo drill, yours alone; the owner reaches every drill and logs one for anyone.
+  { path: /^sidequests\/rack-it\/drills$/, read: (m, u, d, was, ctx) => isOwner(u) || uidsFilter(ctx, u) },
+  { path: /^sidequests\/rack-it\/drills\/([^/]+)$/,
+    read: (m, u, d, was) => isOwner(u) || inUids(was, u),
+    write: (m, u, d, was) => isOwner(u) || (!was ? !!d && drillStarts(u, d) : !d ? was.by === u.uid : inUids(was, u) && drillLogs(d, was)) },
   { path: /^sidequests\/rack-it(\/|$)/, read: "owner", write: "owner" },   // starters, listing ratings
   // The open apps (Session 7): each record reached by the accounts in its uids, a list only with
   // the uids filter, and the rest of the app the owner's.
@@ -203,6 +208,13 @@ function outsiderStarts(u, d){
     && !["endedBy", "confirmedBy", "ratedAt", "declinedBy", "withdrawnBy", "scorer", "confirms", "venue"].some(k => k in d)
     && (uids.length === 1 || (uids.length === 2 && !!store.docs["friendships/" + [...uids].sort().join("_")]));
 }
+// Spot 9 (2.27.0): a new drill is yours, you its one player, live; logging touches a live one's
+// runs and totals (then done), never who's in it, never a finished one.
+const drillStarts = (u, d) => d.by === u.uid && d.status === "live"
+  && Array.isArray(d.uids) && d.uids.length === 1 && d.uids[0] === u.uid
+  && Array.isArray(d.players) && d.players.length === 1 && d.players[0] === u.uid;
+const drillLogs = (d, was) => was.status === "live" && ["live", "done"].includes(d.status)
+  && !changed(was, d).some(k => ["uids", "by", "players", "names", "drill", "startedAt"].includes(k));
 // Two phones, one match (Session 8 step 3): a live score write is the next link of the chain;
 // a presence write touches only your own phones entry.
 function nextLink(now, was){

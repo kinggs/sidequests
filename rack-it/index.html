@@ -160,6 +160,32 @@
   #ratedBtn::after{content:"";flex:0 0 26px;height:26px;border-radius:6px;box-shadow:inset 0 0 0 2px var(--dim)}
   #ratedBtn.on::after{content:"✓";display:flex;align-items:center;justify-content:center;background:var(--text);color:var(--ink-0);
     box-shadow:none;font-size:1rem;font-weight:800}
+
+  /* ---- Spot 9, the solo drill (2.27.0): one player, a grid of ten, built from the theme's parts ---- */
+  #games .glbl{padding:8px 4px 0;color:var(--dim)}
+  .drill{padding:12px 16px calc(12px + env(safe-area-inset-bottom));gap:12px}
+  .drillhead{flex:none;display:flex;align-items:center;gap:12px;min-height:48px}
+  .drillhead .dname{flex:1;min-width:0;font-size:1.0556rem;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .drillhead .lbl{color:var(--dim)}
+  .drill .stage{gap:6px}
+  .avg{font-family:var(--grot);font-size:72px;font-weight:600;letter-spacing:-.03em;line-height:1;color:var(--a)}
+  .avg.none{color:var(--faint)}
+  .drill .stage .lbl{color:var(--dim)}
+  .sofar{font-size:1rem;font-weight:600;color:var(--text-2);min-height:1.5em}
+  .runs{flex:none;display:flex;gap:6px;justify-content:flex-end;min-height:40px;overflow:hidden}
+  .runs span,.sumruns span{flex:0 0 40px;width:40px;height:40px;display:grid;place-items:center;border-radius:var(--r-chip);background:var(--ink-1);
+    font-family:var(--grot);font-size:1.1111rem;font-weight:600;color:var(--text-2)}
+  .runs span.last{background:var(--a);color:var(--a-ink)}
+  .runs span.clean,.sumruns span.clean{box-shadow:inset 0 0 0 2px var(--a);color:var(--text)}
+  .runs span.last.clean{color:var(--a-ink)}
+  .drill h3.lbl{flex:none;color:var(--dim);padding:0 2px}
+  .spotgrid{flex:none;grid-template-columns:repeat(5,1fr)}
+  .spotgrid button{min-height:76px}
+  .drill .controls .undo{flex:1}
+  .drill .controls .end{flex:0 0 112px}
+  .done .avg{font-size:88px}
+  .sumavg{font-family:var(--grot);font-size:2.6667rem;font-weight:600;letter-spacing:-.03em;line-height:1;color:var(--a)}
+  .sumruns{display:flex;flex-wrap:wrap;gap:6px}
   .foldbody{display:none;flex-direction:column;gap:12px;padding:0 12px 14px}
   .fold.open .foldbody{display:flex}
   .modes{display:flex;gap:8px}
@@ -392,6 +418,8 @@
     <button class="quiet hidden" id="perCueEdit">Add your Cuescore link</button>
     <h3 class="lbl sechead">Record</h3>
     <ul class="reclist" id="perRecord"></ul>
+    <h3 class="lbl sechead hidden" id="perSpotHead">Spot 9</h3>
+    <div class="hidden" id="perSpot"></div>
     <h3 class="lbl sechead">Matches</h3>
     <ul class="plist" id="perMatches"></ul>
   </div>
@@ -442,6 +470,10 @@
       <span class="t"><span id="inWho"></span><small id="inWhat"></small></span>
       <button id="inOpen">Open</button>
     </div>
+    <div class="resume hidden" id="drillCard">
+      <span class="t"><span id="drillCardWho"></span><small id="drillCardWhat"></small></span>
+      <button id="drillCardOpen">Open</button>
+    </div>
     <div class="settings">
       <div class="fold" id="foldGame">
         <button class="foldhead" id="gameHead"><span class="foldk lbl">Game</span><span class="foldv" id="gameName">&mdash;</span></button>
@@ -452,14 +484,14 @@
     <div class="whobox">
       <h3 class="lbl">Who's playing</h3>
       <div class="chips" id="whoChips"></div>
-      <p class="thint">Someone new scans your QR and appears here, already picked. Pick a friend who isn't here and they'll find the match on their phone.</p>
+      <p class="thint" id="whoHint">Someone new scans your QR and appears here, already picked. Pick a friend who isn't here and they'll find the match on their phone.</p>
     </div>
     <div class="pick">
-      <div class="pickcol ca"><h3 class="lbl">Teal side</h3><button class="slot" id="pickA"></button></div>
-      <div class="pickcol cb"><h3 class="lbl">Lilac side</h3><button class="slot" id="pickB"></button></div>
+      <div class="pickcol ca"><h3 class="lbl" id="pickALabel">Teal side</h3><button class="slot" id="pickA"></button></div>
+      <div class="pickcol cb" id="pickColB"><h3 class="lbl">Lilac side</h3><button class="slot" id="pickB"></button></div>
     </div>
 
-    <div class="settings">
+    <div class="settings" id="matchSettings">
       <div class="fold" id="foldLen">
         <button class="foldhead" id="lenHead"><span class="foldk lbl">Length</span><span class="foldv" id="lenSummary"></span></button>
         <div class="foldbody">
@@ -622,6 +654,48 @@
   </div>
 </div>
 
+<!-- ============ SPOT 9, THE SOLO DRILL (2.27.0) ============ -->
+<section class="screen drill hidden" id="scrDrill">
+  <div class="drillhead" id="drillHead"></div>
+  <div class="stage">
+    <div class="avg none" id="drillAvg">&ndash;</div>
+    <span class="lbl">average a run</span>
+    <p class="sofar" id="drillSoFar"></p>
+  </div>
+  <div class="runs" id="drillRuns" aria-label="The runs so far"></div>
+  <h3 class="lbl" id="drillAsk">Run 1 · how many did you pot?</h3>
+  <div class="grid spotgrid" id="spotGrid"></div>
+  <div class="controls">
+    <button class="undo" id="drillUndo" disabled>Undo</button>
+    <button class="end hold" id="drillEnd">End<small>hold</small></button>
+  </div>
+</section>
+<div class="done hidden" id="drillDone">
+  <h2 id="drillDoneTitle">Drill over</h2>
+  <div class="avg" id="drillDoneAvg"></div>
+  <p id="drillDoneBody"></p>
+  <button class="primary" id="drillAgain">Play it again</button>
+  <button class="ghost" id="drillDoneOk">Done</button>
+</div>
+
+<!-- ============ A DRILL'S SUMMARY ============ -->
+<section class="screen hidden" id="scrDrillSum">
+  <header class="apphead">
+    <h1>Spot 9</h1>
+    <button class="quiet back" id="dsBack">Back</button>
+  </header>
+  <div class="homebody">
+    <div class="perhead" id="dsHead"></div>
+    <p class="sumavg" id="dsAvg"></p>
+    <p class="lbl dim" id="dsMeta"></p>
+    <p id="dsLine"></p>
+    <h3 class="lbl sechead">Runs</h3>
+    <div class="sumruns" id="dsRuns"></div>
+    <button class="quiet warnbtn hold hidden" id="dsDelete">Hold to delete drill</button>
+    <p class="note hidden" id="dsDeleteNote">Only whoever logged a drill, or the owner, can delete it.</p>
+  </div>
+</section>
+
 <!-- ============ LIVE SCORING ============ -->
 <section class="screen hidden" id="scrLive">
   <div class="turnbar"></div>
@@ -721,7 +795,7 @@ import { connect } from "../shared/connect.js";
 import { ui } from "../shared/ui.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "2.26.0";
+const APP_VERSION = "2.27.0";
 const APP_ID = "rack-it";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 document.getElementById("versionMore").textContent = "v" + APP_VERSION;
@@ -747,7 +821,11 @@ const el = {};
  "games","foldGame","gameHead","gameName","gameBlurb","raceLen","raceNRow","raceN","winArea","drop","goldChip","doneExtra",
  "rebuild","rbInfo","rbList","rbNote","rbApply","rbCancel","rebuildBtn",
  "ratedBtn","ratedWho","pendBar","pendWho","pendGo","pendNo","perClaim","perClaimNote",
- "inCard","inWho","inWhat","inOpen","whoChips","liveMore","presence","echo","scoringFor","scoringWho","matchbar"
+ "inCard","inWho","inWhat","inOpen","whoChips","liveMore","presence","echo","scoringFor","scoringWho","matchbar",
+ "drillCard","drillCardWho","drillCardWhat","drillCardOpen","whoHint","pickALabel","pickColB","matchSettings","perSpotHead","perSpot",
+ "scrDrill","drillHead","drillAvg","drillSoFar","drillRuns","drillAsk","spotGrid","drillUndo","drillEnd",
+ "drillDone","drillDoneTitle","drillDoneAvg","drillDoneBody","drillAgain","drillDoneOk",
+ "scrDrillSum","dsBack","dsHead","dsAvg","dsMeta","dsLine","dsRuns","dsDelete","dsDeleteNote"
 ].forEach(id => el[id] = $(id));
 
 function buzz(ms){ if(navigator.vibrate) navigator.vibrate(ms); }
@@ -792,6 +870,16 @@ const GAME_BLURB = {
   eight:    "8-ball as the club plays it: clear your group, then the 8 in a called pocket. One rack is one rack, in a race, breaks alternating.",
   tenpoint: "8-ball scored by points: the winner takes 10, the loser 1 for each ball of their own group that's down. Matches run to a set number of racks."
 };
+// Drills (2.27.0, SPEC §2.5): solo, scored by the run and tracked over time. They sit under the
+// five games in the dropdown and never touch a rating. Spot 9: the object ball on the spot, pot
+// 1 to 9 in a row; a miss ends the run and its score is how many went in, 0 to 9. The drill's
+// score is the average a run, so a 3.6 drill can be beaten next week.
+const DRILL_LABEL = { spot9: "Spot 9" };
+const DRILL_ORDER = ["spot9"];
+const DRILL_GIST = { spot9: "Solo drill \u00b7 1 to 9 off the spot, a miss ends the run" };
+const DRILL_BLURB = { spot9: "On your own: put each ball on the spot and pot 1 to 9 in a row. A miss ends the run, and its score is how many went in. Play as many runs as you like; the drill scores your average a run." };
+const isDrill = g => !!DRILL_LABEL[g];
+const SPOT_MAX = 9;
 const isEight = g => g === "eight" || g === "tenpoint";
 // Scored in points, so Length is in points and the Scoring lever has something to share out.
 const pointsGame = g => g === "golden" || g === "tenpoint";
@@ -994,9 +1082,9 @@ const keepAwake = on => phone.keepAwake(on);
 // belong to none, so they hide the tab bar and the live strip.
 const SCREENS = { gate: "scrGate", ratings: "scrRatings", person: "scrPerson", setup: "scrSetup",
   matches: "scrMatches", summary: "scrSummary", more: "scrMore", about: "scrAbout",
-  live: "scrLive" };
+  live: "scrLive", drill: "scrDrill", drillsum: "scrDrillSum" };
 const TAB_OF = { ratings: "ratings", person: "ratings", setup: "play", matches: "matches", summary: "matches",
-  more: "more", about: "more" };
+  drillsum: "matches", more: "more", about: "more" };
 let current = "gate", lastPage = "ratings";
 function show(scr){
   current = scr;
@@ -1006,8 +1094,8 @@ function show(scr){
   el.tabbar.querySelectorAll("button").forEach(b => b.classList.toggle("sel", b.dataset.tab === TAB_OF[scr]));
   paintLiveBar();
   document.body.classList.toggle("scoring", scr === "live");
-  keepAwake(scr === "live");
-  if(scr === "live") phone.fullscreen();
+  keepAwake(scr === "live" || scr === "drill");
+  if(scr === "live" || scr === "drill") phone.fullscreen();
 }
 // Re-render a page from the current data, then show it.
 function openPage(scr){
@@ -1016,6 +1104,7 @@ function openPage(scr){
   if(scr === "setup") renderSetup();
   if(scr === "matches") renderMatches();
   if(scr === "summary") return renderSummary() && show("summary");
+  if(scr === "drillsum") return renderDrillSum() && show("drillsum");
   show(scr);
 }
 // Whatever page is showing, drawn again: after a save, a rename, an import.
@@ -1025,6 +1114,7 @@ function rerender(){
   if(current === "setup") renderSetup();
   if(current === "matches") renderMatches();
   if(current === "summary" && !renderSummary()) openPage("matches");
+  if(current === "drillsum" && !renderDrillSum()) openPage("matches");
 }
 
 let setupFresh = true;   // Play starts a new setup after a match; otherwise it keeps your picks
@@ -1140,6 +1230,8 @@ function paintOwner(){
 let started = false;
 // Declared before handleUser, which runs signed out before the rest of this script (2.10.1).
 let friendMode = false;              // signed in but not on /members (friend mode, below)
+let drills = [], unsubDrills = null; // Spot 9 (2.27.0): every drill this phone may read, watched
+let drill = null;                    // the drill this phone is logging: { id, doc }
 let accountSig = "";                 // what the header's avatar last showed (mountAccount)
 const ratingWatches = new Map();     // friend mode's one listener a rating
 let seatOffers = [], offering = false;   // a Game QR seat taken from a guest, to ask about (offerSeats)
@@ -1170,6 +1262,7 @@ async function handleUser(user){
       landed = false;
       watchRatings();
       watchMatches();
+      watchDrills();
     } catch(e){
       el.gateErr.textContent = (e && e.code === "permission-denied")
         ? "This account couldn't reach the matches. Sign out and in again, and tell Kenny if it keeps happening."
@@ -1190,6 +1283,8 @@ async function handleUser(user){
     people.stop();
     if(unsubMatches){ unsubMatches(); unsubMatches = null; }
     matches = []; liveDoc = null;
+    if(unsubDrills){ unsubDrills(); unsubDrills = null; }
+    drills = []; drill = null;
     mountAccount();
     el.gateErr.classList.add("hidden");
     el.gate.classList.remove("hidden");
@@ -1283,6 +1378,7 @@ async function startFriendMode(){
   landed = false;
   watchRatings();
   watchMatches();
+  watchDrills();
 }
 function paintFriendMode(){
   mountAccount();
@@ -1517,7 +1613,7 @@ const GOLD_RACE = 35;         // the Golden-Nine points race chip
 const EIGHT_RACE = 50;        // the Ten-Point-Eight points race chip
 const raceChip = () => setup.game === "tenpoint" ? EIGHT_RACE : GOLD_RACE;
 function storedGame(){
-  try { const g = localStorage.getItem(GAME_KEY); return GAME_LABEL[g] ? g : "league"; }
+  try { const g = localStorage.getItem(GAME_KEY); return GAME_LABEL[g] || DRILL_LABEL[g] ? g : "league"; }
   catch(e){ return "league"; }
 }
 // A race counted in racks rather than points: Trad-Nine always, any game with the Racks lever.
@@ -1603,17 +1699,18 @@ function revealFold(fold){
 ui.tap(el.lenHead, () => { el.foldLen.classList.toggle("open"); revealFold(el.foldLen); });
 ui.tap(el.hcpHead, () => { el.foldHcp.classList.toggle("open"); revealFold(el.foldHcp); });
 ui.tap(el.gameHead, () => { el.foldGame.classList.toggle("open"); revealFold(el.foldGame); });
-// One row a game inside the dropdown, built from GAME_ORDER so there's one list of games, not two.
-GAME_ORDER.forEach(g => {
+// One row a game inside the dropdown, built from GAME_ORDER so there's one list of games, not two;
+// then the drills (2.27.0) under their own label, built the same way.
+function gameOption(g, label, gist){
   const b = document.createElement("button");
   b.className = "gopt";
   b.dataset.game = g;
   const name = document.createElement("span");
   name.className = "gname";
-  name.textContent = GAME_LABEL[g];
+  name.textContent = label;
   const desc = document.createElement("span");
   desc.className = "gdesc";
-  desc.textContent = GAME_GIST[g];
+  desc.textContent = gist;
   b.append(name, desc);
   ui.tap(b, () => {
     setup.game = g;
@@ -1624,7 +1721,13 @@ GAME_ORDER.forEach(g => {
     renderSetup();
   });
   el.games.appendChild(b);
-});
+}
+GAME_ORDER.forEach(g => gameOption(g, GAME_LABEL[g], GAME_GIST[g]));
+const drillsLabel = document.createElement("h3");
+drillsLabel.className = "lbl glbl";
+drillsLabel.textContent = "Drills · on your own";
+el.games.appendChild(drillsLabel);
+DRILL_ORDER.forEach(g => gameOption(g, DRILL_LABEL[g], DRILL_GIST[g]));
 // The typed race length, or null while the box doesn't hold a usable number.
 const raceMax = () => setup.handicap === "racks" ? RACK_RACE_MAX : ptsRace() ? 200 : 30;
 function typedRace(){
@@ -1727,14 +1830,23 @@ function plannedMatch(){
 }
 
 function renderSetup(){
-  if(!hcpAllowed(setup.handicap)){ setup.handicap = rackGame(setup.game) ? "off" : "scoring"; applyLengthDefaults(); }
+  const drill = isDrill(setup.game);
+  paintDrillCard();
+  if(!drill && !hcpAllowed(setup.handicap)){ setup.handicap = rackGame(setup.game) ? "off" : "scoring"; applyLengthDefaults(); }
   const league = setup.game === "league", golden = setup.game === "golden";
   const pts = pointsGame(setup.game), ten = setup.game === "tenpoint";
   const racksLever = setup.handicap === "racks", rackRace = setupRacks();
-  el.gameName.textContent = GAME_LABEL[setup.game];
-  el.gameBlurb.textContent = GAME_BLURB[setup.game];
+  el.gameName.textContent = drill ? DRILL_LABEL[setup.game] : GAME_LABEL[setup.game];
+  el.gameBlurb.textContent = drill ? DRILL_BLURB[setup.game] : GAME_BLURB[setup.game];
   el.games.querySelectorAll("button").forEach(b =>
     b.classList.toggle("sel", b.dataset.game === setup.game));
+  // A drill (2.27.0) is one player and Start: the second slot and the match's settings step aside.
+  el.pickColB.classList.toggle("hidden", drill);
+  el.matchSettings.classList.toggle("hidden", drill);
+  el.pickALabel.textContent = drill ? "Who's drilling" : "Teal side";
+  el.whoHint.textContent = drill ? "Pick who's at the table. Someone new scans your QR and appears here, already picked."
+    : "Someone new scans your QR and appears here, already picked. Pick a friend who isn't here and they'll find the match on their phone.";
+  if(drill) setup.b = null;
 
   // ---- players: two slots, each filled from the picker (people.pick); you on teal ----
   const me = people.meId();
@@ -1750,6 +1862,7 @@ function renderSetup(){
   });
 
   paintWhoChips();
+  if(drill) return renderDrillSetup();
 
   // ---- length ----
   el.modes.classList.toggle("hidden", !(league && !racksLever));
@@ -1909,6 +2022,7 @@ function paintWhoChips(){
 function chipTap(id, fresh){
   id = people.resolve(id);
   setup.touched = true;
+  if(isDrill(setup.game)){ setup.a = !fresh && setup.a === id ? null : id; return renderSetup(); }
   if(!fresh && (setup.a === id || setup.b === id)){
     if(setup.a === id) setup.a = null; else setup.b = null;
     proposeTargets(); renderSetup(); return;
@@ -1918,7 +2032,7 @@ function chipTap(id, fresh){
 }
 async function chooseSide(side){
   const recent = side === "a" ? [people.meId(), ...recentFor(null)] : recentFor(setup.a);
-  const id = await people.pick({ title: side === "a" ? "Teal side" : "Lilac side", recent, app: APP_ID });
+  const id = await people.pick({ title: isDrill(setup.game) ? "Who's drilling" : side === "a" ? "Teal side" : "Lilac side", recent, app: APP_ID });
   if(id && id !== setup[side]) pickSide(side, id);
   else renderSetup();
 }
@@ -1928,6 +2042,7 @@ ui.tap(el.pickB, () => chooseSide("b"), LOOSE);
 // with the person who had it.
 function pickSide(side, id){
   setup.touched = true;
+  if(isDrill(setup.game)){ setup.a = id; return renderSetup(); }
   const opp = other(side);
   if(setup[opp] === id){
     setup[opp] = setup[side];
@@ -1960,6 +2075,7 @@ el.modes.querySelectorAll("button").forEach(b =>
   ui.tap(b, () => { setup.mode = b.dataset.mode; proposeTargets(); renderSetup(); }));
 ui.tap(el.breakBtn, () => { if(setup.a && setup.b) chooseBreak(); });
 ui.tap(el.startBtn, async () => {
+  if(isDrill(setup.game)) return startDrill();
   const a = P(setup.a), b = P(setup.b);
   if(!(a && b && plannedMatch())) return;
   if(!setup.breakHow && !(await chooseBreak())) return;
@@ -3847,10 +3963,10 @@ function matchRow(s, { from = "matches" } = {}){
 }
 
 function renderMatches(){
-  const rows = shownMatches();
+  const rows = historyRows(shownMatches(), drills, "matches");
   el.histList.innerHTML = "";
   if(!rows.length){ el.histList.innerHTML = '<li class="empty">No matches yet.</li>'; return; }
-  rows.forEach(s => el.histList.appendChild(matchRow(s)));
+  rows.forEach(li => el.histList.appendChild(li));
 }
 
 // Deleting a match: owner only, from its summary, behind the hold. A saved match moved
@@ -4117,9 +4233,11 @@ function renderPerson(){
   }
   if(!el.perRecord.children.length) el.perRecord.innerHTML = "<li><span>No finished matches yet</span></li>";
 
+  paintSpot(id);
+  const theirDrills = drills.filter(d => drillPlayer(d) === id);
   el.perMatches.innerHTML = "";
-  theirs.forEach(s => el.perMatches.appendChild(matchRow(s, { from: "person" })));
-  if(!theirs.length) el.perMatches.innerHTML = '<li class="empty">No matches yet.</li>';
+  historyRows(theirs, theirDrills, "person").forEach(li => el.perMatches.appendChild(li));
+  if(!theirs.length && !theirDrills.length) el.perMatches.innerHTML = '<li class="empty">No matches yet.</li>';
   return true;
 }
 
@@ -4221,6 +4339,340 @@ ui.tap(el.rebuildBtn, async () => {
 });
 ui.tap(el.rbCancel, () => el.rebuild.classList.add("hidden"));
 
+// ---------- Spot 9, the solo drill (2.27.0, SPEC §2.5) ----------
+// One player, one phone. Each run is one tap, its score 0 to 9, and the drill's score is the
+// average a run. Every tap writes the document (drills/<id>), so a reload picks the drill back
+// up from the card on Play. A drill never moves a rating; the chart on a person's page is
+// where it counts.
+const fmtAvg = x => (Math.round(x * 10) / 10).toFixed(1);
+const runsWord = n => `${n} ${n === 1 ? "run" : "runs"}`;
+const drillsWord = n => `${n} ${n === 1 ? "drill" : "drills"}`;
+function drillTotals(runs){
+  const n = runs.length, points = runs.reduce((s, r) => s + r, 0);
+  return { runs: n, points, avg: n ? points / n : 0, best: n ? Math.max(...runs) : 0 };
+}
+const totalsOf = d => d.totals && Number.isFinite(d.totals.runs) ? d.totals : drillTotals(d.runs || []);
+const drillPlayer = d => people.resolve((d.players && d.players[0]) || "");
+const drillLabel = d => DRILL_LABEL[d.drill] || "Drill";
+// The player's name now, or the name the drill was logged under when this phone doesn't know them.
+function drillName(d){
+  const p = people.get(drillPlayer(d));
+  return (p && p.name) || (d.names && d.names[0]) || "(deleted)";
+}
+function watchDrills(){
+  if(unsubDrills) unsubDrills();
+  // Friend mode lists only the drills it's in, which is the query the rule checks.
+  const opts = friendMode ? { where: ["uids", "array-contains", cloud.user.uid] } : { orderBy: "startedAt", desc: true, limit: 300 };
+  unsubDrills = cloud.watchList("drills", rows => {
+    drills = rows.slice().sort((x, y) => (y.startedAt || 0) - (x.startedAt || 0));
+    paintDrillCard();
+    if(current === "setup") renderSetup();
+    if(current === "matches") renderMatches();
+    if(current === "person") renderPerson();
+    if(current === "drillsum") renderDrillSum();
+  }, opts, e => console.warn("[drills]", e));
+}
+// A player's finished drills, oldest first: what the tiles and the chart read.
+const doneDrillsFor = id => drills.filter(d => d.status === "done" && drillPlayer(d) === id && totalsOf(d).runs > 0)
+  .sort((x, y) => (x.endedAt || x.startedAt || 0) - (y.endedAt || y.startedAt || 0));
+const listDrills = () => friendMode
+  ? cloud.list("drills", { where: ["uids", "array-contains", cloud.user.uid] }).then(r => r.sort((x, y) => (y.startedAt || 0) - (x.startedAt || 0)))
+  : cloud.list("drills", { orderBy: "startedAt", desc: true });
+
+// Setup for a drill: who's drilling, a line on where they stand, and Start. In friend mode you
+// drill as yourself: the rules let an account log only its own drills (the owner logs anyone's).
+function renderDrillSetup(){
+  const a = P(setup.a);
+  setup.rated = false;
+  el.setupWarn.classList.add("hidden");
+  const notYou = !!a && friendMode && !people.isMe(a.id);
+  const mine = a ? doneDrillsFor(a.id) : [];
+  const avgs = mine.map(d => totalsOf(d).avg);
+  el.setupHint.textContent = !a ? "Pick who's drilling, then Start. A clean run is 9."
+    : notYou ? "Here you log your own drills. Pick yourself."
+    : !mine.length ? `${a.name}'s first Spot 9. A miss ends the run; tap how many went in, 0 to 9.`
+    : `${a.name}'s Spot 9 so far: best ${fmtAvg(Math.max(...avgs))} a run, last time ${fmtAvg(avgs[avgs.length - 1])}, over ${drillsWord(mine.length)}.`;
+  el.startBtn.disabled = !a || notYou;
+  el.startBtn.textContent = !a ? "Pick a player" : notYou ? "Pick yourself" : "Start";
+}
+
+// A drill this phone left mid-way (its starter's, live, in the last day): a card on Play, and
+// Open picks it back up where it was.
+const liveDrillDoc = () => drills.find(d => d.status === "live" && d.by === myUid() && d.startedAt > Date.now() - LIVE_WINDOW) || null;
+function paintDrillCard(){
+  const d = drill ? null : liveDrillDoc();
+  el.drillCard.classList.toggle("hidden", !d);
+  if(!d) return;
+  const t = totalsOf(d);
+  el.drillCardWho.textContent = `${drillLabel(d)} · ${drillName(d)}`;
+  el.drillCardWhat.textContent = `Live · ${runsWord(t.runs)}` + (t.runs ? ` · ${fmtAvg(t.avg)} a run` : "");
+  el.drillCardOpen.onclick = () => resumeDrill(d.id);
+}
+
+function startDrill(){
+  const a = P(setup.a);
+  if(!a || !isDrill(setup.game) || (friendMode && !people.isMe(a.id))) return;
+  const ids = [people.resolve(setup.a)];
+  // Beside the player's id, their name now and the accounts in it (KIT.md, What an app stores).
+  const doc = { drill: setup.game, players: ids, names: [people.names(ids)[0] || a.name], uids: people.uidsOf(ids), by: myUid(),
+    status: "live", startedAt: Date.now(), endedAt: null, runs: [], totals: drillTotals([]) };
+  const id = cloud.newId();
+  setupFresh = true;
+  drill = { id, doc };
+  drills = [{ id, ...doc }, ...drills];
+  cloud.save("drills/" + id, doc).catch(e => { console.warn("[drill]", e); ui.toast("Couldn't start the drill: " + (e.message || e)); });
+  enterDrill();
+}
+function resumeDrill(id){
+  const d = drills.find(x => x.id === id);
+  if(!d) return ui.toast("That drill is gone.");
+  const { id: _id, _updatedAt, ...doc } = d;
+  drill = { id, doc };
+  enterDrill();
+}
+function enterDrill(){
+  el.drillDone.classList.add("hidden");
+  show("drill");
+  paintDrill();
+  paintDrillCard();
+}
+function runChip(r, last){
+  const c = document.createElement("span");
+  c.textContent = String(r);
+  c.className = (r === SPOT_MAX ? "clean" : "") + (last ? " last" : "");
+  c.setAttribute("aria-label", r === SPOT_MAX ? "9, a clean run" : String(r));
+  return c;
+}
+function paintDrill(){
+  if(!drill) return;
+  const d = drill.doc, runs = d.runs || [], t = drillTotals(runs), pid = drillPlayer(d);
+  const name = document.createElement("span"), what = document.createElement("span");
+  name.className = "dname";
+  name.textContent = drillName(d) + (people.isMe(pid) ? " (you)" : "");
+  what.className = "lbl";
+  what.textContent = drillLabel(d);
+  el.drillHead.replaceChildren(people.avatar(pid, 40), name, what);
+  el.drillAvg.textContent = t.runs ? fmtAvg(t.avg) : "–";
+  el.drillAvg.classList.toggle("none", !t.runs);
+  el.drillSoFar.textContent = !t.runs ? "No runs yet. Ball on the spot, off you go."
+    : `${runsWord(t.runs)} · ${t.points} potted · best run ${t.best}`;
+  el.drillAsk.textContent = `Run ${t.runs + 1} · how many went in?`;
+  el.drillRuns.replaceChildren(...runs.slice(-7).map((r, i, arr) => runChip(r, i === arr.length - 1)));
+  el.drillUndo.disabled = !t.runs;
+}
+// The grid of ten: tap the run's score and the next run starts. 0 is a miss on the 1; 9 is clean.
+for(let n = 0; n <= SPOT_MAX; n++){
+  const b = document.createElement("button");
+  b.type = "button";
+  const big = document.createElement("span");
+  big.textContent = String(n);
+  b.append(big);
+  if(n === 0 || n === SPOT_MAX){
+    const sm = document.createElement("small");
+    sm.textContent = n === 0 ? "miss" : "clean";
+    b.append(sm);
+  }
+  b.setAttribute("aria-label", n === SPOT_MAX ? "9, a clean run" : n === 0 ? "0, missed the first ball" : `${n} potted`);
+  ui.tap(b, () => logRun(n), LOOSE);
+  el.spotGrid.appendChild(b);
+}
+function writeDrill(fields){
+  Object.assign(drill.doc, fields);
+  const i = drills.findIndex(x => x.id === drill.id);
+  if(i >= 0) drills[i] = Object.assign({}, drills[i], fields);
+  return cloud.patch("drills/" + drill.id, fields)
+    .catch(e => { console.warn("[drill]", e); ui.toast("That didn't reach the cloud: " + (e.message || e)); });
+}
+function logRun(n){
+  if(!drill || drill.doc.status !== "live") return;
+  const runs = [...(drill.doc.runs || []), n];
+  writeDrill({ runs, totals: drillTotals(runs) });
+  buzz(16);
+  paintDrill();
+}
+ui.tap(el.drillUndo, () => {
+  if(!drill || !(drill.doc.runs || []).length) return;
+  const runs = drill.doc.runs.slice(0, -1);
+  writeDrill({ runs, totals: drillTotals(runs) });
+  buzz(9);
+  paintDrill();
+}, LOOSE);
+// End is a hold. With nothing logged the drill leaves no record; otherwise it's done, and the
+// card says how it compares with the player's drills before it.
+ui.hold(el.drillEnd, () => {
+  if(!drill) return;
+  const { id, doc } = drill, runs = doc.runs || [], pid = drillPlayer(doc);
+  if(!runs.length){
+    drill = null;
+    drills = drills.filter(x => x.id !== id);
+    cloud.delete("drills/" + id).catch(e => console.warn("[drill]", e));
+    ui.toast("No runs logged, so nothing was kept.");
+    openSetupTab();
+    return;
+  }
+  const before = doneDrillsFor(pid).filter(x => x.id !== id).map(x => totalsOf(x).avg);
+  const t = drillTotals(runs);
+  writeDrill({ status: "done", endedAt: Date.now(), totals: t });
+  buzz(16);
+  const best = before.length ? Math.max(...before) : null;
+  el.drillDoneTitle.textContent = `${drillName(doc)} · ${drillLabel(doc)}`;
+  el.drillDoneAvg.textContent = fmtAvg(t.avg);
+  el.drillDoneBody.textContent = `${fmtAvg(t.avg)} a run over ${runsWord(t.runs)}: ${t.points} potted, best run ${t.best}. ` +
+    (best === null ? "The first one, so that's the number to beat."
+      : t.avg > best + 1e-9 ? `A new best: it was ${fmtAvg(best)}.`
+      : `Best so far ${fmtAvg(best)}, last time ${fmtAvg(before[before.length - 1])}.`);
+  el.drillDone.classList.remove("hidden");
+});
+ui.tap(el.drillAgain, () => {
+  const d = drill && drill.doc;
+  el.drillDone.classList.add("hidden");
+  drill = null;
+  if(!d) return openSetupTab();
+  setup.game = d.drill;
+  setup.a = drillPlayer(d);
+  setup.touched = true;
+  startDrill();
+});
+ui.tap(el.drillDoneOk, () => {
+  const pid = drill ? drillPlayer(drill.doc) : null;
+  el.drillDone.classList.add("hidden");
+  drill = null;
+  setupFresh = true;
+  // Done lands on the player's page: the tiles and the chart are what the drill is for.
+  const p = pid && people.get(pid);
+  if(p && !p.deleted) openPerson(pid); else openPage("matches");
+});
+
+// A drill's row in Matches and on a person's page: the name and the average, then the drill, its
+// runs, its best run and when. A live one of yours picks up where it was; the rest open the summary.
+function drillRow(d, { from = "matches" } = {}){
+  const t = totalsOf(d), on = d.status === "live";
+  const li = document.createElement("li"), b = document.createElement("button");
+  b.className = "hrow" + (on ? " live" : "");
+  b.innerHTML = `<span class="hscore"><span class="won"></span><span class="fig"></span><span></span></span><span class="lbl hmeta"></span>`;
+  const [who, fig, unit] = b.querySelector(".hscore").children;
+  who.textContent = drillName(d);
+  fig.textContent = t.runs ? fmtAvg(t.avg) : "–";
+  unit.textContent = "a run";
+  b.querySelector(".hmeta").textContent = on ? `Live · ${drillLabel(d)} · ${runsWord(t.runs)}`
+    : `${drillLabel(d)} · ${runsWord(t.runs)} · best ${t.best} · ${whenText(d.startedAt)}`;
+  b.setAttribute("aria-label", `${who.textContent}, ${drillLabel(d)}, ${t.runs ? fmtAvg(t.avg) + " a run" : "no runs yet"}.` + (on ? " Live." : ""));
+  ui.tap(b, () => on && d.by === myUid() ? resumeDrill(d.id) : openDrillSum(d.id, from));
+  li.appendChild(b);
+  return li;
+}
+// Matches and drills in one list: live first, then newest.
+function historyRows(ms, ds, from){
+  const items = [...ms.map(s => ({ s, row: () => matchRow(s, { from }) })), ...ds.map(d => ({ s: d, row: () => drillRow(d, { from }) }))];
+  items.sort((x, y) => (isLiveNow(y.s) - isLiveNow(x.s)) || ((y.s.startedAt || 0) - (x.s.startedAt || 0)));
+  return items.map(i => i.row());
+}
+
+// The Spot 9 block on a person's page: best, last and the average of the last ten drills (each a
+// drill's average a run), then the chart, one dot a drill. Hidden until they've finished one.
+function paintSpot(id){
+  const mine = doneDrillsFor(id);
+  el.perSpotHead.classList.toggle("hidden", !mine.length);
+  el.perSpot.classList.toggle("hidden", !mine.length);
+  el.perSpot.innerHTML = "";
+  if(!mine.length) return;
+  const avgs = mine.map(d => totalsOf(d).avg), last10 = avgs.slice(-10);
+  const tiles = document.createElement("div");
+  tiles.className = "tiles";
+  const tile = (v, label) => {
+    const t = document.createElement("div"), b = document.createElement("b"), l = document.createElement("span");
+    t.className = "tile"; b.textContent = v; l.className = "lbl"; l.textContent = label;
+    t.append(b, l);
+    return t;
+  };
+  tiles.append(tile(fmtAvg(Math.max(...avgs)), "best"), tile(fmtAvg(avgs[avgs.length - 1]), "last drill"),
+    tile(fmtAvg(last10.reduce((s, x) => s + x, 0) / last10.length), `average, last ${last10.length}`));
+  el.perSpot.append(tiles, spotChart(mine));
+}
+// Average a run, drill by drill, with a dotted line at the rolling average of the last ten. The
+// axis is the drill's own 0 to 9, so a chart from one week reads like a chart from one year.
+function spotChart(mine){
+  const wrap = document.createElement("div");
+  wrap.className = "chart";
+  const host = el.scrPerson.querySelector(".homebody");
+  const W = Math.max(280, Math.min(640, ((host && host.clientWidth) || 372) - 48)), H = 200;
+  const L = 36, R = 16, T = 14, B = 30, iw = W - L - R, ih = H - T - B, n = mine.length;
+  const avgs = mine.map(d => totalsOf(d).avg);
+  const X = i => n === 1 ? L + iw / 2 : L + i / (n - 1) * iw;
+  const Y = v => T + ih - v / SPOT_MAX * ih;
+  const pt = (i, v) => `${X(i).toFixed(1)},${Y(v).toFixed(1)}`;
+  const when = d => d.endedAt || d.startedAt || 0;
+  const shortDate = ms => new Date(ms).toLocaleDateString(undefined, { day: "numeric", month: "short" });
+  const dayOf = ms => new Date(ms).toDateString();
+  const label = (x, y, anchor, text) => `<text x="${x}" y="${y}" text-anchor="${anchor}" font-size="15" font-weight="600" fill="var(--dim)">${text}</text>`;
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Average a run, drill by drill">`;
+  for(const v of [0, 3, 6, 9]){
+    s += `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)" stroke-width="1"/>`;
+    s += label(L - 8, Y(v) + 5, "end", v);
+  }
+  s += label(X(0), H - 8, n === 1 ? "middle" : "start", shortDate(when(mine[0])));
+  if(n > 1 && dayOf(when(mine[0])) !== dayOf(when(mine[n - 1]))) s += label(X(n - 1), H - 8, "end", shortDate(when(mine[n - 1])));
+  if(n > 1){
+    const roll = avgs.map((_, i) => { const w = avgs.slice(Math.max(0, i - 9), i + 1); return w.reduce((a, b) => a + b, 0) / w.length; });
+    s += `<polyline fill="none" stroke="var(--dim)" stroke-width="2" stroke-dasharray="4 5" points="${roll.map((v, i) => pt(i, v)).join(" ")}"/>`;
+    s += `<polyline fill="none" stroke="var(--a)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" points="${avgs.map((v, i) => pt(i, v)).join(" ")}"/>`;
+  }
+  for(let i = 0; i < n; i++)
+    s += `<circle cx="${X(i).toFixed(1)}" cy="${Y(avgs[i]).toFixed(1)}" r="${n > 30 ? 3.5 : 5.5}" fill="var(--a)" stroke="var(--ink-1)" stroke-width="2"/>`;
+  s += `</svg>`;
+  wrap.innerHTML = s;
+  const cap = document.createElement("div");
+  cap.className = "cap";
+  cap.textContent = n === 1 ? "One drill so far. Each dot is a drill's average a run."
+    : `${drillsWord(n)} · each dot is a drill's average a run · dotted line: the rolling average of the last ten`;
+  wrap.appendChild(cap);
+  return wrap;
+}
+
+// ---------- a drill's summary ----------
+let drillSumId = null, drillSumFrom = "matches";
+function openDrillSum(id, from){
+  drillSumId = id;
+  drillSumFrom = from || "matches";
+  if(renderDrillSum()) show("drillsum"); else ui.toast("That drill is gone.");
+}
+function renderDrillSum(){
+  const d = drills.find(x => x.id === drillSumId);
+  if(!d) return false;
+  const pid = drillPlayer(d), t = totalsOf(d), on = d.status === "live";
+  const box = document.createElement("div"), name = document.createElement("div"), sub = document.createElement("div");
+  name.className = "pername";
+  name.textContent = drillName(d);
+  sub.className = "perz";
+  sub.textContent = `${drillLabel(d)} · ${whenText(d.startedAt)}` + (on ? " · live" : "");
+  box.append(name, sub);
+  el.dsHead.replaceChildren(people.avatar(pid, 72), box);
+  el.dsAvg.textContent = t.runs ? `${fmtAvg(t.avg)} a run` : "No runs yet";
+  el.dsMeta.textContent = t.runs ? `${runsWord(t.runs)} · ${t.points} potted · best run ${t.best}` : "";
+  const mine = doneDrillsFor(pid), i = mine.findIndex(x => x.id === d.id), avgs = mine.map(x => totalsOf(x).avg);
+  el.dsLine.textContent = on ? "Still going." : i < 0 ? ""
+    : mine.length === 1 ? `${drillName(d)}'s first Spot 9.`
+    : avgs[i] >= Math.max(...avgs) - 1e-9 ? `${drillName(d)}'s best Spot 9 of ${drillsWord(mine.length)}.`
+    : `Drill ${i + 1} of ${mine.length}. The best is ${fmtAvg(Math.max(...avgs))} a run.`;
+  el.dsRuns.replaceChildren(...(d.runs || []).map(r => runChip(r, false)));
+  const mayDelete = owner || d.by === myUid();
+  el.dsDelete.classList.toggle("hidden", !mayDelete);
+  el.dsDeleteNote.classList.toggle("hidden", mayDelete);
+  return true;
+}
+ui.tap(el.dsBack, () => openPage(drillSumFrom));
+ui.hold(el.dsDelete, async () => {
+  const d = drills.find(x => x.id === drillSumId);
+  if(!d || !(owner || d.by === myUid())) return;
+  try { await cloud.delete("drills/" + d.id); }
+  catch(e){ console.warn("[drill]", e); ui.toast("Couldn't delete that drill."); return; }
+  drills = drills.filter(x => x.id !== d.id);
+  if(drill && drill.id === d.id) drill = null;
+  ui.toast("Drill deleted.");
+  openPage(drillSumFrom);
+});
+ui.tap(el.drillCardOpen, () => { const d = liveDrillDoc(); if(d) resumeDrill(d.id); });
+
 // ---------- export / import ----------
 async function exportAll(){
   // Friend mode exports your matches and the ratings it can read; starters are the household's.
@@ -4228,6 +4680,7 @@ async function exportAll(){
     ? [(await cloud.list("matches", { where: ["uids", "array-contains", cloud.user.uid] }))
         .sort((x, y) => (y.startedAt || 0) - (x.startedAt || 0)), {}]
     : await Promise.all([cloud.list("matches", { orderBy: "startedAt", desc: true }), loadStarters()]);
+  const drillRows = await listDrills();
   const data = {
     app: APP_ID, appVersion: APP_VERSION, exportedAt: new Date().toISOString(),
     state: { config: cfg() },
@@ -4235,6 +4688,7 @@ async function exportAll(){
     ratings: allStats(),
     starters,
     matches: all.map(withMatchFields),
+    drills: drillRows,   // Spot 9 (2.27.0)
     // Your profile, friends' cards and guests (shared/connect.js); Import restores them.
     account: await cloud.account.exportMe().catch(e => { console.warn("[export] account", e); return null; })
   };
@@ -4260,10 +4714,12 @@ el.importFile.addEventListener("change", async () => {
     const list = Array.isArray(data.matches) ? data.matches : data.sessions;
     if((data.app && !IMPORT_APPS.includes(data.app)) || !data.state || !(data.ratings || data.state.players) || !Array.isArray(list))
       throw new Error("not a Rack It (or Fair Nine) export");
-    pendingImport = Object.assign({}, data, { matches: list, starters: data.starters || {} });
+    const drillList = Array.isArray(data.drills) ? data.drills : [];
+    pendingImport = Object.assign({}, data, { matches: list, starters: data.starters || {}, drills: drillList });
     const yours = data.account && cloud.user && data.account.uid === cloud.user.uid;
     el.impInfo.textContent =
       `${Object.keys(data.ratings || data.state.players).length} players, ${list.length} matches` +
+      (drillList.length ? `, ${drillsWord(drillList.length)}` : "") +
       (data.exportedAt ? `, exported ${data.exportedAt.slice(0, 10)}` : "") +
       ". Merge adds what's missing (by match id) and never overwrites. Replace wipes the cloud data first." +
       (yours ? " Your profile and friends' cards come back too; friendships themselves can't." : "");
@@ -4303,6 +4759,10 @@ async function writeImportedMatch(s){
   delete doc._updatedAt;
   await cloud.save("matches/" + s.id, doc);
 }
+async function writeImportedDrill(d){
+  const { id, _updatedAt, ...doc } = d;
+  await cloud.save("drills/" + id, doc);
+}
 
 ui.tap(el.impMerge, async () => {
   const imp = pendingImport;
@@ -4319,6 +4779,8 @@ ui.tap(el.impMerge, async () => {
     if(!haveStarters[id] && st && Number.isFinite(st.zargo)) await cloud.save("starters/" + id, st);
   const existing = new Set((await cloud.list("matches")).map(s => s.id));
   for(const s of imp.matches) if(s.id && !existing.has(s.id)) await writeImportedMatch(s);
+  const haveDrills = new Set((await cloud.list("drills")).map(d => d.id));
+  for(const d of imp.drills) if(d.id && !haveDrills.has(d.id)) await writeImportedDrill(d);
   await importAccount(imp);
   pendingImport = null;
   await loadState();
@@ -4332,6 +4794,7 @@ ui.hold(el.impReplace, async () => {
   if(!imp || !owner) return;
   el.impChoice.classList.add("hidden");
   for(const s of await cloud.list("matches")) await cloud.delete("matches/" + s.id);
+  for(const d of await cloud.list("drills")) await cloud.delete("drills/" + d.id);
   for(const s of await cloud.list("starters")) await cloud.delete("starters/" + s.id);
   for(const s of await cloud.list("ratings")) await cloud.delete("ratings/" + s.id);
   await cloud.delete("state/main");
@@ -4343,6 +4806,7 @@ ui.hold(el.impReplace, async () => {
   for(const [id, st] of Object.entries(imp.starters))
     if(st && Number.isFinite(st.zargo)) await cloud.save("starters/" + id, st);
   for(const s of imp.matches) if(s.id) await writeImportedMatch(s);
+  for(const d of imp.drills) if(d.id) await writeImportedDrill(d);
   await importAccount(imp);
   pendingImport = null;
   await loadState();

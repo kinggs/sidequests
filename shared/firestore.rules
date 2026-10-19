@@ -160,6 +160,16 @@ service cloud.firestore {
     match /sidequests/rack-it/starters/{id} {
       allow read, write: if isOwner();
     }
+    // Spot 9, a solo drill (Rack It 2.27.0, rack-it/SPEC.md §2.5). Yours alone: an account starts
+    // a drill as itself, the one player in it, logs it run by run and ends it, never changing who's
+    // in it and never a finished one; whoever started it deletes it. Every list carries the uids
+    // filter. The owner reaches every drill, and logs one for anyone. A drill never moves a rating.
+    match /sidequests/rack-it/drills/{id} {
+      allow read: if (signedIn() && request.auth.uid in resource.data.get('uids', [])) || isOwner();
+      allow create: if (signedIn() && drillStarts()) || isOwner();
+      allow update: if (signedIn() && request.auth.uid in resource.data.get('uids', []) && drillLogs()) || isOwner();
+      allow delete: if (signedIn() && resource.data.get('by', '') == request.auth.uid) || isOwner();
+    }
     // Each player's rating, keyed by their resolved id (KIT-PLAN.md Session 3). A cache that
     // Rebuild ratings remakes from the matches. Anyone signed in gets one by its id; only the
     // owner lists them or writes one outside a confirmation.
@@ -452,6 +462,19 @@ service cloud.firestore {
       let path = /databases/$(database)/documents/sidequests/rack-it/matches/$(request.resource.data.match);
       let now = getAfter(path).data;
       return get(path).data.status == 'pending' && now.status == 'done' && rated(now) && pid in now.uids;
+    }
+    // A new drill (2.27.0): yours, you the one player in it, live.
+    function drillStarts() {
+      let d = request.resource.data;
+      return d.by == request.auth.uid && d.status == 'live'
+        && d.uids is list && d.uids.size() == 1 && d.uids[0] == request.auth.uid
+        && d.players is list && d.players.size() == 1 && d.players[0] == request.auth.uid;
+    }
+    // Logging a live drill: its runs and totals, then done. Never who's in it, and never a
+    // finished one.
+    function drillLogs() {
+      return resource.data.status == 'live' && request.resource.data.status in ['live', 'done']
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['uids', 'by', 'players', 'names', 'drill', 'startedAt']);
     }
     // A guest's starter estimate, written once by the account that made the guest.
     function guestStarter(pid) {
