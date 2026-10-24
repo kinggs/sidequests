@@ -795,7 +795,7 @@ import { connect } from "../shared/connect.js";
 import { ui } from "../shared/ui.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "2.27.0";
+const APP_VERSION = "2.27.1";
 const APP_ID = "rack-it";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 document.getElementById("versionMore").textContent = "v" + APP_VERSION;
@@ -4568,15 +4568,22 @@ function historyRows(ms, ds, from){
   return items.map(i => i.row());
 }
 
-// The Spot 9 block on a person's page: best, last and the average of the last ten drills (each a
-// drill's average a run), then the chart, one dot a drill. Hidden until they've finished one.
+// Average a run over several drills: every run counts once, so a long drill weighs more than a
+// short one (2.27.1; it was the mean of the drills' averages, which let a 3-run drill count as
+// much as a 30-run one).
+function pooledAvg(ds){
+  const t = ds.reduce((a, d) => { const x = totalsOf(d); return { runs: a.runs + x.runs, points: a.points + x.points }; }, { runs: 0, points: 0 });
+  return t.runs ? t.points / t.runs : 0;
+}
+// The Spot 9 block on a person's page: best, last and the average a run over the last ten drills
+// (all their runs pooled), then the chart, one dot a drill. Hidden until they've finished one.
 function paintSpot(id){
   const mine = doneDrillsFor(id);
   el.perSpotHead.classList.toggle("hidden", !mine.length);
   el.perSpot.classList.toggle("hidden", !mine.length);
   el.perSpot.innerHTML = "";
   if(!mine.length) return;
-  const avgs = mine.map(d => totalsOf(d).avg), last10 = avgs.slice(-10);
+  const avgs = mine.map(d => totalsOf(d).avg), last10 = mine.slice(-10);
   const tiles = document.createElement("div");
   tiles.className = "tiles";
   const tile = (v, label) => {
@@ -4586,7 +4593,7 @@ function paintSpot(id){
     return t;
   };
   tiles.append(tile(fmtAvg(Math.max(...avgs)), "best"), tile(fmtAvg(avgs[avgs.length - 1]), "last drill"),
-    tile(fmtAvg(last10.reduce((s, x) => s + x, 0) / last10.length), `average, last ${last10.length}`));
+    tile(fmtAvg(pooledAvg(last10)), `average, last ${last10.length}`));
   el.perSpot.append(tiles, spotChart(mine));
 }
 // Average a run, drill by drill, with a dotted line at the rolling average of the last ten. The
@@ -4613,7 +4620,7 @@ function spotChart(mine){
   s += label(X(0), H - 8, n === 1 ? "middle" : "start", shortDate(when(mine[0])));
   if(n > 1 && dayOf(when(mine[0])) !== dayOf(when(mine[n - 1]))) s += label(X(n - 1), H - 8, "end", shortDate(when(mine[n - 1])));
   if(n > 1){
-    const roll = avgs.map((_, i) => { const w = avgs.slice(Math.max(0, i - 9), i + 1); return w.reduce((a, b) => a + b, 0) / w.length; });
+    const roll = mine.map((_, i) => pooledAvg(mine.slice(Math.max(0, i - 9), i + 1)));
     s += `<polyline fill="none" stroke="var(--dim)" stroke-width="2" stroke-dasharray="4 5" points="${roll.map((v, i) => pt(i, v)).join(" ")}"/>`;
     s += `<polyline fill="none" stroke="var(--a)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" points="${avgs.map((v, i) => pt(i, v)).join(" ")}"/>`;
   }

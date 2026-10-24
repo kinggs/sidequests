@@ -531,10 +531,10 @@ Add or Change on your own page), the win record per game (finished matches, in p
 The win record counts every finished match, friendlies and declined or withdrawn ones included
 (owner's call, 2026-10-02: it's what happened at the table); pending ones aren't finished.
 **Spot 9** (2.27.0), under Record once they've finished a drill: three tiles, **best** (their
-best drill's average a run), **last drill** and **average, last 10** (the mean of their last
-ten drills' averages), then the chart: one dot a drill, average a run on a fixed 0 to 9 axis,
+best drill's average a run), **last drill** and **average, last 10** (every run in their last
+ten drills pooled: total potted over total runs, so a long drill weighs more than a short one), then the chart: one dot a drill, average a run on a fixed 0 to 9 axis,
 joined in teal, with the date of the first and last drill underneath and a dotted line at the
-rolling average of the last ten (the shape Around the Clock's Progress uses). Their drills
+rolling average of the last ten, pooled the same way (the shape Around the Clock's Progress uses). Their drills
 list among their matches below, by date.
 
 **Matches.** Live (last 24 hours) first, then newest. Each row: names and score (racks in a race
@@ -954,6 +954,7 @@ account, so a static app can't upload results.
 | 2.9.0 | Rated matches and confirming (KIT-PLAN Session 5). Setup gains a **Rated** tick, off by default, offered when both players have an account. A friendly moves no rating; a rated match moves both only once the opponent confirms on their own phone, worked out from the ratings at that moment, in one batch. Not right or Withdraw leaves it a friendly. Rebuild replays rated matches by `ratedAt`, else `endedAt`; a match with no `rated` field is rated. For the social leagues, where a rating has to be agreed by both players. |
 | 2.10.0 | Outsiders play in Rack It (KIT-PLAN Session 6): friend mode instead of the outsider screen. The rules open the matches an account plays in, starting one against a connection or a guest, and a rating only in the batch that confirms a rated match the other player ended. Ratings are read by id, matches with one `uids` query. A household member can no longer turn a friendly into a rated match. For pool friends who aren't family. |
 | 2.11.0 | One admin, everyone else a player (KIT-PLAN Session 6b). The owner sees and rewrites every match; everyone else, a household member included, runs friend mode and reads only the matches they play in. The owner's phone backfills `uids` and `names` on matches from before 2.8.0, so the players keep them. The "Before you play" note goes: there's nothing left to warn about. Owner's call, 2026-10-02: "a family member is just another member". Other apps keep the household. |
+| 2.27.1 | Spot 9's **average, last 10** tile and the chart's dotted line pool every run in those drills (total potted over total runs) instead of averaging the drills' averages, which let a short drill count as much as a long one. Owner's ask: "the averages on the last couple of games seem out". |
 | 2.27.0 | Spot 9, a solo drill (§2.5): pot 1 to 9 off the spot until a miss, one tap a run, scored by the average a run, with tiles and a chart on the player's page. It lives in the Game dropdown under a Drills label rather than a card or a fifth tab, records go in their own `drills/` collection with their own rule, and it never moves a rating. Owner's ask: "a solo player drill that scores points … graph it and track it over time", answered 2026-10-19: the first miss ends the run, one tap logs it, straight to main. |
 | 2.26.0 | The Start sheet opens with the match at a glance: game, length, handicap, both ratings, rated or friendly, and the odds, read from the settings card's own rows, above the who-breaks-first question. Owner's ask: "a little overview screen, a confirmation overview screen". |
 | 2.25.0 | Who breaks first: Start asks, with two answers. The players lagged and say who won, or the phone flips a coin and says who starts. The Break row shows the call and can ask early; it no longer flips blindly. Owner's ask: "prompt us for the starting player". |
