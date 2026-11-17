@@ -53,6 +53,13 @@ The deterministic half. No model calls.
 - [ ] Tests on synthetic images: a crop lands where the recipe says, a neutral recipe changes
       nothing, EXIF dates survive, `keep_colour` leaves white balance alone.
 - [ ] Seed `style.json` with Gentle punch (the table in SPEC).
+- [ ] Add what Muted bronze needs (SPEC, "A second style to try"): a curve per channel from
+      control points, a master curve, hue/saturation/luminance per colour band, the calibration
+      primaries as a matrix. Seed `style-muted-bronze.json` from SPEC's numbers, with the
+      flatten step at about a third strength for phone JPEGs. Tests: an identity curve changes
+      nothing; the master curve maps 255 to 238; a pure green pixel moves toward yellow and
+      darkens.
+- [ ] Render the test photos in both styles, side by side, for the owner to pick.
 
 **Done when:** a hand-written `recipes.json` for the three test photos renders an `edited/`
 folder and a contact sheet.
@@ -67,7 +74,8 @@ folder and a contact sheet.
       the taste test approved (crop to the people, keep hands and gestures, don't correct
       coloured light), the house style in words.
 - [ ] Overrules: "keep 7", "warmer on 3" edit the recipe and re-render one photo.
-- [ ] **Generative arm.** Pick the image model and check today's prices. Build the tone
+- [ ] **Generative arm.** Start with Codex (the command is in SPEC, Models and cost). The
+      owner signs in to `agy` so the same photos can go through Google's model. Build the tone
       transfer (generated image's low frequencies over the original's detail) and the face
       drift check. On five photos with a real problem (blown sky, dark face, mixed light),
       produce a four-way sheet: original, engine, generated, tone-transferred.
@@ -111,3 +119,16 @@ generative arm stays, and in which form.
 - Per-photo corrections that worked: faces dark against a bright background took shadows
   +0.35 to +0.4 and highlights +0.2 to +0.3; the dance-floor shot took contrast only.
 - Nothing is installed on the desktop yet. Start with Desktop setup.
+
+### Session 0b (the look and the pixel editor, desktop, 2026-11-17, on Fable)
+
+- No code. Two findings, both written into SPEC.
+- **Muted bronze:** the style the owner likes, read from the Lightroom settings embedded in a
+  reference gallery's JPEGs. A preset plus a per-photo exposure pass. To read such settings
+  from any Lightroom export: the `crs:` attributes and `crs:ToneCurvePV2012*` lists in the
+  file's XMP packet.
+- **Codex edits pixels headlessly on the ChatGPT subscription.** Tested on a synthetic image
+  only: it proves the plumbing, not that faces survive. Google's `agy` is installed (mise
+  fetched antigravity-cli 1.5.10 when the shim first ran) and needs the owner to sign in.
+- The desktop has ImageMagick but not Pillow or numpy yet. Desktop setup still stands.
+
