@@ -28,7 +28,7 @@ cloud session, and is done.
 - [ ] Clone this repo on the desktop if it is not there.
 - [x] Python libraries: none to install. `uv run pocket-editor/engine.py` fetches Pillow, numpy
       and pillow-heif itself (uv is on the desktop through mise). ffmpeg and libheif were there.
-- [ ] `sudo pacman -S rclone` (needs the owner: sudo).
+- [x] rclone v1.75.2, remote `kenny` (not `gdrive`), own client ID, scope `drive.file`.
 - [ ] `rclone config`: one remote named `gdrive` for the owner's Google Drive. This opens a
       browser to sign in, so the owner does it at the desktop.
 - [ ] In Drive, create `Editor/Inbox/` and `Editor/Done/`.
@@ -50,7 +50,10 @@ cloud session, and is done.
 - [x] `compare`: original and each style side by side, one image per photo.
 - [x] The first album (Summercamp Elemental: 20 photos, a poster, 17 videos) judged by hand in
       the session and rendered in both styles.
-- [ ] **The owner picks the style** from `photos/elemental/compare/`.
+- [x] The owner's verdict: mostly Gentle punch, with parts of Muted bronze. Built as
+      `style-punch-olive.json` (SPEC has the reasoning), with skin held back in vibrance.
+- [ ] **The owner confirms Punch and olive** from `photos/elemental/compare/` (three styles
+      side by side); then it becomes `style.json`.
 - [ ] HEIC: read path written, never run on a real file.
 
 ## Session 2 — the skill, and the generative proof

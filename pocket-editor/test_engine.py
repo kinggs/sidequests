@@ -109,6 +109,13 @@ class Grade(unittest.TestCase):
         a = scene()
         self.assertTrue(np.all(engine.grade(a, {"glow": 0.8}) >= a - 1e-6))
 
+    def test_vibrance_goes_easy_on_skin(self):
+        def gain(colour):
+            px = np.full((4, 4, 3), colour, np.float32)
+            sat = lambda v: float(engine.hue_sat(v)[1][0, 0])
+            return sat(engine.grade(px, {"vibrance": 0.5})) / sat(px)
+        self.assertGreater(gain((0.3, 0.45, 0.7)), gain((0.75, 0.55, 0.45)) + 0.05)  # sky, then skin
+
     def test_shipped_styles_run_and_stay_in_range(self):
         for name in ("style.json", "style-muted-bronze.json"):
             for light in ("day", "night"):

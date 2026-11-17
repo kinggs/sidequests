@@ -204,6 +204,23 @@ curve at 0.9 strength, and red and orange desaturated about half as much. Hue sh
 approximate: the engine turns a Lightroom hue slider into 0.3° per unit, and treats the
 calibration primaries as three wide colour bands.
 
+## The owner's verdict on the first album: Punch and olive
+
+After looking at both styles on the Elemental album (2026-11-17): Gentle punch is the one the
+owner mostly enjoys, but it "occasionally makes faces really red". Muted bronze was better on
+parts of some photos (the trees, the art car, the purples of the tent, and all of the busy
+forest-floor shot), always at the cost of a less vivid sky.
+
+`style-punch-olive.json` is the two combined: Gentle punch's adjustments and its sky; from
+Muted bronze the green band (olive, darker), the calibration, the calmer purple and magenta,
+and the channel S-curve at 0.6 for deeper darks. It leaves out what dulled the sky: the blue
+and aqua desaturation, the matte whites and the added warmth.
+
+**Red faces** had two causes and one fix so far. Vibrance boosted skin as much as anything
+else; the engine now gives hues between red and orange a quarter of the boost, in every style.
+Punch and olive also takes red and orange saturation down a little. What is still missing is
+knowing where the faces are (Later: face-aware brightening).
+
 ## Night: the same preset, treated differently
 
 The owner noticed the same photographer's night photos look different, and pointed at a second
@@ -274,7 +291,8 @@ deliberate practice; these notes are the passing remark from the editor, and may
 | Review | The cull, on a contact sheet. No per-photo approval of edits. |
 | Crops | The judge's crops were approved as they were. |
 | Input | A Drive folder. No Google Photos link (the API no longer allows reading an album). |
-| Style | Gentle punch, with Muted bronze as a candidate to compare in Session 1. |
+| Style | Punch and olive is the candidate to confirm: Gentle punch with Muted bronze's trees, darks and purples. `style.json` (Gentle punch) stays the default until the owner says. |
+| Drive access | rclone's remote is `kenny`, on its own client ID, with the `drive.file` scope: it reaches only what rclone itself put there. So it can deliver `Done/`, and cannot read an Inbox filled from the phone. |
 | Generative model | Codex on the ChatGPT subscription first; Antigravity as the comparison. |
 | Where it runs | The office desktop, Arch Linux, Claude Code. |
 | Engine | Python, one file (`engine.py`), run with `uv run`: uv reads the dependencies from the top of the file and fetches Pillow and numpy itself. Nothing to install with pacman. |
@@ -292,6 +310,9 @@ deliberate practice; these notes are the passing remark from the editor, and may
    cost). Still open: whether it holds faces on real photos, and whether Google's does better.
 3. Phone photo formats: the engine reads HEIC through `pillow-heif`, but no HEIC file has been
    through it yet. The owner's phone saves JPEG.
+5. **How photos get in.** With `drive.file` (see Decisions) rclone cannot see files the phone
+   shared to Drive. Either widen the scope to `drive.readonly` plus `drive.file`, or keep the
+   Google Photos zip download as the way in. Until decided, the zip is the input.
 4. Should the edited album go back into Google Photos automatically? The API allows an app to
    create and fill its own album. v1 leaves it in Drive.
 

@@ -244,8 +244,12 @@ def grade(rgb, adjust=None, style=None, keep_colour=False, light="day", seed=0):
     if a["saturation"]:
         out = scale_chroma(out, 1 + a["saturation"])
     if a["vibrance"]:
-        _, sat = hue_sat(np.clip(out, 0, 1))
-        out = scale_chroma(out, 1 + a["vibrance"] * (1 - sat))
+        hue, sat = hue_sat(np.clip(out, 0, 1))
+        # Skin sits between red and orange. Boosting it like everything else turns faces red,
+        # so those hues get a quarter of the boost (Lightroom's vibrance protects skin the same way).
+        d = np.abs((hue - 22 + 180) % 360 - 180)
+        skin = np.clip(1 - (d - 22) / 20, 0, 1)
+        out = scale_chroma(out, 1 + a["vibrance"] * (1 - sat) * (1 - 0.75 * skin))
 
     out = np.clip(out, 0, 1)
     curves = style.get("curves") or {}
