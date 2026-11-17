@@ -36,6 +36,8 @@ sidequests/
                             PLAN.md (the sessions), BRIEF.md, tools/ (the Node scripts that recover and
                             parse the archived site, with tests; never shipped) and data/ (gitignored: a clone
                             of the private data repo; no family data ever enters this repo)
+  pocket-editor/          ← not a web app yet: a desktop tool that edits a photo album (SPEC.md, PLAN.md for the
+                            build sessions). No index.html, so the smoke test skips it; photos/ is gitignored
 ```
 
 Live URL pattern: `https://<owner>.github.io/sidequests/<app-id>/`
