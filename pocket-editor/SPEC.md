@@ -5,8 +5,9 @@ same album culled, cropped and colour-corrected, the way a hired editor would re
 alternative it has to beat is paying someone on Fiverr about £15–50 an album and waiting a day
 or two.
 
-Status: **designed, not built.** Decisions below were made in a planning conversation on
-2026-11-17, with a taste test on seven real photos. `PLAN.md` holds the build sessions.
+Status: **the engine is built and has rendered one real album; the skill is not.** Decisions
+below were made on 2026-11-17, with a taste test on seven real photos. `PLAN.md` holds the
+build sessions.
 
 ## The brief, as given
 
@@ -94,24 +95,40 @@ session settles the exact fields:
 ```json
 {
   "file": "20261114_163012.jpg",
-  "verdict": "great | fine | drop",
+  "verdict": "great | fine | drop | as-is",
   "reason": "Best of the set: faces and stage both readable.",
   "duplicate_of": null,
   "crop": [0.0, 0.04, 1.0, 1.0],
   "straighten_deg": 0,
   "adjust": { "ev": 0.1, "shadows": 0.4, "highlights": 0.25, "temp": 0.02, "contrast": 0 },
   "keep_colour": false,
+  "light": "day | night",
   "generative": null,
-  "share": true
+  "share": true,
+  "cover": false
 }
 ```
 
+`engine.py`'s `ADJUST` table is the full list of `adjust` fields and their limits, and
+`validate()` checks a recipes file before anything renders. Beyond the sketch: `tint`,
+`vibrance`, `clarity`, `saturation`, and three for night (`glow`, `fade`, `grain`).
+
 `crop` is fractions of the frame (x0, y0, x1, y1). `keep_colour` tells the engine not to
-correct white balance, for scenes where coloured light is the point (a dance floor).
+correct white balance, for scenes where coloured light is the point (a dance floor). `light`
+picks the style's night values. `cover` copies the photo to `share-these/cover.jpg`.
+
+## Things in the album that are not photos: `as-is`
+
+A line-up poster, a ticket, a map, a screenshot, a flyer. They belong in the album and must
+not be edited: a grade would shift a designer's colours and a crop would cut text. The verdict
+`as-is` copies the file into `edited/` byte for byte, and it shows on the contact sheet in its
+own colour. The judge gives this verdict itself to anything that is a graphic and not a
+photograph (no camera in its EXIF is a strong hint, and it is plain to the eye); the owner does
+not have to flag it. It is never dropped as a duplicate or for quality.
 
 ## The cull
 
-Every photo gets **great**, **fine** or **drop**, with a one-line reason. Dropped photos are
+Every photo gets **great**, **fine** or **drop** (or **as-is**, above), with a one-line reason. Dropped photos are
 left out of `edited/` by default and shown on the contact sheet, so the owner can overrule.
 Nothing is ever deleted. Near-duplicates collapse to the best one (eyes open, sharpest).
 In the taste test the owner agreed with all seven verdicts and wants the "suggest dropping"
@@ -181,8 +198,35 @@ from control points, a master curve, hue/saturation/luminance per colour band, a
 calibration primaries (a 3×3 matrix is close enough). `style.json` holds these, so a style is
 data and the engine has no look built in.
 
-Status: a candidate. Session 1 renders the test photos in both styles, side by side, and the
-owner picks. The gallery's photos are the photographer's and are not kept: the numbers above
+**As shipped (`style-muted-bronze.json`).** The first render with the numbers above came out
+grey on phone photos, with beige skin. Tuned once by eye: warmer (`temp` 0.07), the channel
+curve at 0.9 strength, and red and orange desaturated about half as much. Hue shifts are
+approximate: the engine turns a Lightroom hue slider into 0.3° per unit, and treats the
+calibration primaries as three wide colour bands.
+
+## Night: the same preset, treated differently
+
+The owner noticed the same photographer's night photos look different, and pointed at a second
+gallery (an indoor club night, 21 images sampled). The settings say: **16 of 21 use the day
+preset unchanged.** The night look is these, on top:
+
+- **Coloured light is kept.** White balance is left as shot or pushed further (tint up to
+  +65), never corrected to neutral. This is `keep_colour`.
+- **Much more exposure:** +0.7 to +3.0 stops, on ISO 2500 to 10000.
+- **Grain** at 40 on about a third.
+- **Negative dehaze** (−16 to −43) on about a third: haze glows round the lights.
+- **Lifted blacks** on a few: the master curve starts at 21 or 35, not 0.
+- A handful are one-offs with a different preset and teal split toning. Not copied.
+- **Half were shot with on-camera flash at 1/80 to 1/125 s.** Sharp, evenly lit faces against
+  coloured ambient light is the flash, not the edit, and no edit adds it afterwards. The
+  editor's note for a phone: use the flash at night when people are the subject.
+
+In the engine a style file has a `night` block whose values replace the day ones, and the judge
+sets `"light": "night"` on the recipe. Both shipped styles have one: less contrast and clarity,
+plus `glow`, `grain` and (Muted bronze) `fade`.
+
+Status: a candidate. The first album is rendered in both styles, side by side, for the owner
+to pick. The gallery's photos are the photographer's and are not kept: the numbers above
 are the record.
 
 ## Editor's notes
@@ -233,16 +277,21 @@ deliberate practice; these notes are the passing remark from the editor, and may
 | Style | Gentle punch, with Muted bronze as a candidate to compare in Session 1. |
 | Generative model | Codex on the ChatGPT subscription first; Antigravity as the comparison. |
 | Where it runs | The office desktop, Arch Linux, Claude Code. |
+| Engine | Python, one file (`engine.py`), run with `uv run`: uv reads the dependencies from the top of the file and fetches Pillow and numpy itself. Nothing to install with pacman. |
+| Non-photos | Verdict `as-is`: in the album, untouched. The judge spots them. |
+| Night | One style, with a `night` block. Not a second style. |
 | Where the code lives | This folder. The skill in `.claude/skills/editalbum/`, written to stand alone so it can be published elsewhere later. |
 | Phone app | Not in v1. Drive is the gallery, the chat is the remote. |
 
 ## Open questions
 
-1. Does sharing from Google Photos to Drive send the full-quality original? Believed so; the
-   first real run checks file sizes and dimensions.
+1. Does sharing from Google Photos to Drive send the full-quality original? Untested: the
+   first album came as a zip downloaded from Google Photos, which was full quality (4000×1848
+   and 4000×3000 from a Galaxy S25 FE, EXIF intact). A zip in Downloads works as an input today.
 2. Which image model for the generative arm: Codex works on the subscription (see Models and
    cost). Still open: whether it holds faces on real photos, and whether Google's does better.
-3. Phone photo formats: the engine must read HEIC as well as JPEG.
+3. Phone photo formats: the engine reads HEIC through `pillow-heif`, but no HEIC file has been
+   through it yet. The owner's phone saves JPEG.
 4. Should the edited album go back into Google Photos automatically? The API allows an app to
    create and fill its own album. v1 leaves it in Drive.
 

@@ -26,8 +26,9 @@ cloud session, and is done.
 ## Desktop setup (once, at the start of Session 1)
 
 - [ ] Clone this repo on the desktop if it is not there.
-- [ ] `sudo pacman -S rclone python python-pillow python-numpy ffmpeg` and HEIC support
-      (`python-pillow-heif`, from the AUR if not in the repos). Record what was installed.
+- [x] Python libraries: none to install. `uv run pocket-editor/engine.py` fetches Pillow, numpy
+      and pillow-heif itself (uv is on the desktop through mise). ffmpeg and libheif were there.
+- [ ] `sudo pacman -S rclone` (needs the owner: sudo).
 - [ ] `rclone config`: one remote named `gdrive` for the owner's Google Drive. This opens a
       browser to sign in, so the owner does it at the desktop.
 - [ ] In Drive, create `Editor/Inbox/` and `Editor/Done/`.
@@ -36,33 +37,21 @@ cloud session, and is done.
       dimensions and size against the phone's original (SPEC open question 1).
 - [ ] Confirm the owner can reach the desktop's Claude Code session from the phone.
 
-## Session 1 — the engine
+## Session 1 — the engine (done, 2026-11-17)
 
-The deterministic half. No model calls.
-
-- [ ] Decide the language. Recommended: Python with Pillow and numpy (the taste test's engine
-      was this, about 60 lines). If so, add its tests to `make verify`.
-- [ ] `recipe`: settle the JSON fields in SPEC and write the validator.
-- [ ] `engine`: apply one recipe to one full-resolution photo. Crop, straighten, exposure,
-      shadows and highlights on a blurred-luminance mask, temperature, contrast, vibrance,
-      clarity, then the album style from `style.json`. Read JPEG and HEIC, honour EXIF
-      orientation, keep EXIF dates on the output, write JPEG at high quality.
-- [ ] Fix the taste test's known flaw: lifting shadows across the frame left faint halos at
-      strong settings. Use an edge-aware mask.
-- [ ] `contact-sheet`: every photo with its verdict; dropped ones marked with the reason.
-- [ ] Tests on synthetic images: a crop lands where the recipe says, a neutral recipe changes
-      nothing, EXIF dates survive, `keep_colour` leaves white balance alone.
-- [ ] Seed `style.json` with Gentle punch (the table in SPEC).
-- [ ] Add what Muted bronze needs (SPEC, "A second style to try"): a curve per channel from
-      control points, a master curve, hue/saturation/luminance per colour band, the calibration
-      primaries as a matrix. Seed `style-muted-bronze.json` from SPEC's numbers, with the
-      flatten step at about a third strength for phone JPEGs. Tests: an identity curve changes
-      nothing; the master curve maps 255 to 238; a pure green pixel moves toward yellow and
-      darkens.
-- [ ] Render the test photos in both styles, side by side, for the owner to pick.
-
-**Done when:** a hand-written `recipes.json` for the three test photos renders an `edited/`
-folder and a contact sheet.
+- [x] Python, Pillow and numpy, in `engine.py`; 18 tests in `test_engine.py`, run by `make verify`.
+- [x] `validate()` for recipes; the fields are in SPEC.
+- [x] `render`: crop, straighten, exposure, shadows and highlights, temperature, contrast,
+      vibrance, clarity, then the style. EXIF orientation honoured, dates kept, JPEG out.
+- [x] The halo: shadows and highlights work off an edge-aware mask (a guided filter), tested.
+- [x] Contact sheet, `share-these/` with a cover, videos copied through, `as-is` for non-photos.
+- [x] `style.json` (Gentle punch) and `style-muted-bronze.json`, each with a `night` block.
+      Curves per channel, a master curve, colour bands, calibration, glow, fade, grain.
+- [x] `compare`: original and each style side by side, one image per photo.
+- [x] The first album (Summercamp Elemental: 20 photos, a poster, 17 videos) judged by hand in
+      the session and rendered in both styles.
+- [ ] **The owner picks the style** from `photos/elemental/compare/`.
+- [ ] HEIC: read path written, never run on a real file.
 
 ## Session 2 — the skill, and the generative proof
 
@@ -132,3 +121,21 @@ generative arm stays, and in which form.
   fetched antigravity-cli 1.5.10 when the shim first ran) and needs the owner to sign in.
 - The desktop has ImageMagick but not Pillow or numpy yet. Desktop setup still stands.
 
+### Session 1 (the engine, desktop, 2026-11-17, on Fable)
+
+- Built and run on a real album; see the ticked list above. Commands:
+  `uv run pocket-editor/engine.py small|render|compare <album>` (the docstring has the flags).
+  An album is a folder with `inbox/` and `recipes.json`; this one is `photos/elemental/`.
+- The album came as a Google Photos zip in `~/Downloads`, not through Drive. rclone is still
+  not installed (sudo). Until it is, the results stay on the desktop.
+- Judging was done by reading 1100 px copies (`small`), six to a sheet. 4 of 20 dropped: two
+  near-duplicate sets and one bad frame. The recipes are in `photos/elemental/recipes.json`,
+  which is a worked example for the Session 2 judging prompt.
+- Muted bronze needed tuning away from the photographer's numbers (SPEC, "As shipped"). Expect
+  the same for any look copied from raw-file settings.
+- A full-resolution photo takes about 2 seconds to render; the compare sheets, 90 seconds an album.
+- Known gaps: no face-aware brightening (shadows are lifted by region, so a dark face in a
+  dark area gets the same lift as its surroundings); `keep_colour` still lets the style's
+  colour bands mute coloured light at night; the videos are copied, which doubles their disk use.
+- Next: the owner picks the style, then Session 2 (the skill and the generative proof). `agy`
+  is signed in now, so both Codex and Google can be tried.

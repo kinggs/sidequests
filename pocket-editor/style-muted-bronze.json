@@ -1,0 +1,31 @@
+{
+  "name": "Muted bronze",
+  "note": "From the Lightroom settings in SPEC. The flatten step (shadows, highlights) is about a third of the original's, because a phone JPEG arrives already flattened. Tuned by eye on the first album: warmer, and skin (red, orange) less desaturated than the original, which came out grey on phone photos. A value under `night` replaces the day value of the same name.",
+  "adjust": { "shadows": 0.08, "highlights": 0.25, "temp": 0.07, "contrast": 0.05, "clarity": 0.10, "saturation": -0.08, "vibrance": 0.20 },
+  "calibration": {
+    "red": { "hue": 25, "sat": -8 },
+    "green": { "hue": 45, "sat": -15 },
+    "blue": { "hue": -15, "sat": 15 }
+  },
+  "hsl": {
+    "red": { "hue": 3, "sat": -18, "lum": 1 },
+    "orange": { "hue": 4, "sat": -12, "lum": -22 },
+    "yellow": { "hue": -6, "sat": -10, "lum": 3 },
+    "green": { "hue": -21, "sat": -30, "lum": -35 },
+    "aqua": { "hue": 34, "sat": -46, "lum": -10 },
+    "blue": { "hue": 0, "sat": -15, "lum": 5 },
+    "purple": { "hue": 15, "sat": -37, "lum": -5 },
+    "magenta": { "hue": 12, "sat": -27, "lum": -5 }
+  },
+  "curves": {
+    "strength": 0.9,
+    "r": [[0, 0], [47, 18], [80, 62], [117, 122], [179, 200], [255, 255]],
+    "g": [[0, 0], [46, 20], [117, 122], [179, 200], [255, 255]],
+    "b": [[0, 0], [44, 18], [80, 63], [117, 122], [179, 200], [255, 255]],
+    "master": [[0, 0], [75, 76], [127, 128], [202, 194], [255, 238]]
+  },
+  "night": {
+    "adjust": { "shadows": 0.10, "highlights": 0, "temp": 0, "clarity": 0, "saturation": -0.10, "glow": 0.35, "fade": 0.25, "grain": 0.40 },
+    "curves": { "strength": 0.4 }
+  }
+}

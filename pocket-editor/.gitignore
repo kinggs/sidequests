@@ -1,2 +1,3 @@
 # Photos of real people never enter the public repo (SPEC.md). Working files only.
 photos/
+__pycache__/
