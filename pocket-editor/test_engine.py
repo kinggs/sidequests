@@ -201,21 +201,84 @@ class Files(unittest.TestCase):
         for n in ("a.jpg", "b.jpg", "poster.jpg"):
             write_jpeg(inbox / n, scene())
         (inbox / "clip.mp4").write_bytes(b"not really a video")
+        sys.argv = ["engine", "render", str(self.album), "--no-videos"]
         poster = (inbox / "poster.jpg").read_bytes()
         (self.album / "recipes.json").write_text(json.dumps({"photos": [
             {"file": "a.jpg", "verdict": "great", "share": True, "cover": True, "adjust": {"shadows": 0.3}},
             {"file": "b.jpg", "verdict": "drop", "reason": "Blurred."},
             {"file": "poster.jpg", "verdict": "as-is", "reason": "The line-up."},
         ]}))
-        sys.argv = ["engine", "render", str(self.album)]
         engine.main()
         done = self.album / "done"
         self.assertEqual(sorted(p.name for p in (done / "edited").iterdir()), ["a.jpg", "poster.jpg"])
         self.assertEqual((done / "edited" / "poster.jpg").read_bytes(), poster)  # byte for byte
         self.assertEqual(sorted(p.name for p in (done / "share-these").iterdir()), ["a.jpg", "cover.jpg"])
-        self.assertTrue((done / "videos" / "clip.mp4").exists())
+        self.assertFalse((done / "videos").exists())  # --no-videos
         self.assertTrue((done / "contact-sheet.jpg").exists())
         self.assertTrue((done / "recipes.json").exists())
+
+
+def make_clip(path, seconds=3, when="2026-11-13T18:42:16.000000Z"):
+    """A real little video with sound, made by ffmpeg: moving colour bars and a tone."""
+    import subprocess
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", f"testsrc2=size=320x240:rate=30:duration={seconds}",
+                    "-f", "lavfi", "-i", f"sine=frequency=440:duration={seconds}", "-c:v", "libx264", "-pix_fmt", "yuv420p",
+                    "-c:a", "aac", "-metadata", f"creation_time={when}", "-shortest", str(path)], check=True)
+
+
+@unittest.skipUnless(__import__("shutil").which("ffmpeg"), "no ffmpeg")
+class Video(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.album = Path(self.tmp.name)
+        (self.album / "inbox").mkdir()
+        write_jpeg(self.album / "inbox" / "a.jpg", scene())
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def render(self, videos):
+        (self.album / "recipes.json").write_text(json.dumps(
+            {"photos": [{"file": "a.jpg", "verdict": "fine", "reason": "x"}], "videos": videos}))
+        sys.argv = ["engine", "render", str(self.album)]
+        engine.main()
+        return self.album / "done" / "videos"
+
+    def test_a_clip_is_trimmed_kept_in_time_and_a_drop_never_appears(self):
+        import subprocess
+        for n in ("keep.mp4", "private.mp4", "plain.mp4"):
+            make_clip(self.album / "inbox" / n)
+        before = (self.album / "inbox" / "keep.mp4").read_bytes()
+        out = self.render([{"file": "keep.mp4", "trim_end": 1.5},
+                           {"file": "private.mp4", "verdict": "drop", "reason": "A personal message."}])
+        self.assertEqual(sorted(p.name for p in out.iterdir()), ["keep.mp4", "plain.mp4"])  # plain has no entry: kept
+        self.assertAlmostEqual(engine.video_info(out / "keep.mp4")[0], 1.5, delta=0.12)
+        self.assertAlmostEqual(engine.video_info(out / "plain.mp4")[0], 3.0, delta=0.12)
+        self.assertTrue(engine.video_info(out / "keep.mp4")[1])  # still has its sound
+        when = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format_tags=creation_time", "-of",
+                               "csv=p=0", str(out / "keep.mp4")], capture_output=True, text=True).stdout.strip()
+        self.assertTrue(when.startswith("2026-11-13T18:42:16"), when)
+        self.assertEqual((self.album / "inbox" / "keep.mp4").read_bytes(), before)  # the original is untouched
+
+    def test_dropping_a_clip_later_takes_it_out_of_the_album(self):
+        make_clip(self.album / "inbox" / "a.mp4")
+        make_clip(self.album / "inbox" / "b.mp4")
+        out = self.render([])
+        self.assertEqual(len(list(out.iterdir())), 2)
+        out = self.render([{"file": "b.mp4", "verdict": "drop", "reason": "A personal message."}])
+        self.assertEqual([p.name for p in out.iterdir()], ["a.mp4"])
+
+    def test_a_neutral_colour_table_changes_nothing(self):
+        engine.write_cube(self.album / "id.cube", {}, {}, "day", False, n=5)
+        rows = (self.album / "id.cube").read_text().splitlines()
+        self.assertEqual(rows[0], "LUT_3D_SIZE 5")
+        self.assertEqual(rows[1], "0.000000 0.000000 0.000000")
+        self.assertEqual(rows[2], "0.250000 0.000000 0.000000")  # red moves first
+        self.assertEqual(rows[-1], "1.000000 1.000000 1.000000")
+
+    def test_validation(self):
+        bad = {"photos": [], "videos": [{"file": "a.mp4", "verdict": "drop"}, {"file": "b.mp4", "trim_end": -1}]}
+        self.assertEqual(len(engine.validate(bad)), 2)
 
 
 class Inbox(unittest.TestCase):

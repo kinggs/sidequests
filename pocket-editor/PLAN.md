@@ -85,7 +85,7 @@ cloud session, and is done.
 
 - [ ] Auto-straighten.
 - [ ] Best-of-burst.
-- [ ] Video: the mechanical tidy with ffmpeg.
+- [x] Video: the mechanical tidy with ffmpeg (2026-11-17; SPEC, Video).
 - [ ] A phone page for swiping through the cull (this is when it becomes a Sidequests app:
       `/sidequest`, `index.html`, the landing page).
 - [ ] Put the edited album back into Google Photos (SPEC open question 4).
@@ -158,4 +158,19 @@ cloud session, and is done.
 - A lesson for whoever tunes tone transfer: check it with numbers against the generated image
   (mean, 5th percentile, saturation), not only by eye. The eye said "close"; the 5th percentile
   said the blacks had not moved.
+
+### Video tidy (desktop, 2026-11-17, on Fable)
+
+- `render` now tidies the videos (SPEC, Video). 28 tests; the video ones make their own clips
+  with ffmpeg and are skipped where there is no ffmpeg.
+- The owner asked for one clip removed and the last 1.5 s of another cut, both personal
+  messages. They are `"verdict": "drop"` and `"trim_end": 1.5` in the album's recipes. A
+  dropped clip is removed from `done/videos/` on the next full render (tested), and the
+  originals stay in `inbox/`, which never leaves the desktop.
+- vid.stab aborts on any pixel format but yuv420p (one of the phone's clips is yuvj420p), so
+  the filter chain converts first.
+- Two settings were wrong on the first pass and found by measuring: steadying at 25 frames
+  cropped about a sixth of the frame (now 13 frames, about 4%), and −16 LUFS made the clips
+  5 dB quieter than the phone's own (now −14).
+- Not done: watching a clip. Frames, durations, dates and loudness were checked; motion was not.
 

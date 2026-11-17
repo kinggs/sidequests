@@ -11,6 +11,9 @@
     uv run pocket-editor/engine.py generate <album> FILE [--via codex agy]   an image model's edit, kept in gen/
     uv run pocket-editor/engine.py fourway <album>                 original, engine, generated, tone transfer
 
+Photos are edited with Pillow and numpy. Videos are tidied with ffmpeg: trimmed, steadied, given the
+album style as a colour table, and their sound evened out.
+
 An album is a folder holding `inbox/` (the originals, never written to) and `recipes.json`.
 SPEC.md says what each recipe field and style field means.
 """
@@ -79,6 +82,19 @@ def validate(recipes):
         for k, v in (r.get("adjust") or {}).items():
             if k not in ADJUST: bad(f"unknown adjust field '{k}'")
             elif not isinstance(v, (int, float)) or not ADJUST[k][0] <= v <= ADJUST[k][1]:
+                bad(f"adjust.{k} must be within {ADJUST[k]}")
+    for i, v in enumerate(recipes.get("videos") or []):
+        name = v.get("file", f"video #{i}")
+        def bad(msg): errs.append(f"{name}: {msg}")
+        if not isinstance(v.get("file"), str): bad("needs 'file'")
+        if v.get("verdict", "keep") not in ("keep", "drop", "as-is"): bad("a video's verdict is keep, drop or as-is")
+        if v.get("verdict") == "drop" and not v.get("reason"): bad("a drop needs a reason")
+        if v.get("light", "auto") not in ("auto", "day", "night"): bad("light must be auto, day or night")
+        for k in ("trim_start", "trim_end"):
+            if not isinstance(v.get(k, 0), (int, float)) or v.get(k, 0) < 0: bad(f"{k} must be seconds, 0 or more")
+        for k, val in (v.get("adjust") or {}).items():
+            if k not in ADJUST: bad(f"unknown adjust field '{k}'")
+            elif not isinstance(val, (int, float)) or not ADJUST[k][0] <= val <= ADJUST[k][1]:
                 bad(f"adjust.{k} must be within {ADJUST[k]}")
     return errs
 
@@ -305,7 +321,7 @@ def for_light(style, light):
     return out
 
 
-def grade(rgb, adjust=None, style=None, keep_colour=False, light="day", seed=0, faces=None):
+def grade(rgb, adjust=None, style=None, keep_colour=False, light="day", seed=0, faces=None, pointwise=False):
     """rgb is float32 0..1, sRGB. Returns the same shape. A neutral call returns its input."""
     style = for_light(style, light)
     a = {k: 0.0 for k in ADJUST}
@@ -324,7 +340,9 @@ def grade(rgb, adjust=None, style=None, keep_colour=False, light="day", seed=0, 
         out = lin ** (1 / 2.2)
 
     if a["shadows"] or a["highlights"]:
-        base = smooth_base(luma(np.clip(out, 0, 1)))
+        # Pointwise (for video, where the edit must be a colour table): each pixel is its own
+        # region, so shadows and highlights become a tone curve and lose their edge-awareness.
+        base = luma(np.clip(out, 0, 1)) if pointwise else smooth_base(luma(np.clip(out, 0, 1)))
         gain = 1 + 1.5 * a["shadows"] * (1 - base) ** 3 - 0.6 * a["highlights"] * base ** 3
         out = out * gain[..., None]
 
@@ -336,6 +354,8 @@ def grade(rgb, adjust=None, style=None, keep_colour=False, light="day", seed=0, 
         x = np.clip(out, 0, 1)
         out = x + a["contrast"] * (x * x * (3 - 2 * x) - x)
 
+    if pointwise:  # these need neighbouring pixels, which a colour table has none of
+        a["clarity"] = a["glow"] = a["grain"] = 0.0
     if a["clarity"]:
         y = luma(np.clip(out, 0, 1))
         detail = y - smooth_base(y, radius_frac=0.08, eps=0.04)
@@ -479,6 +499,130 @@ def font(size):
     return ImageFont.load_default(size=size)
 
 
+# ---------- video ----------
+
+VIDEO_TIDY = 2  # raise this when the tidy itself changes, so finished clips are made again
+
+def run(cmd, cwd=None):
+    import subprocess
+    r = subprocess.run(cmd, cwd=cwd, stdin=subprocess.DEVNULL, capture_output=True, text=True)
+    if r.returncode:
+        sys.exit(f"{cmd[0]} failed:\n{r.stderr[-1500:]}")
+    return r
+
+
+def video_info(path):
+    r = run(["ffprobe", "-v", "error", "-show_entries", "format=duration:stream=codec_type", "-of", "json", str(path)])
+    d = json.loads(r.stdout)
+    return float(d["format"]["duration"]), any(s["codec_type"] == "audio" for s in d["streams"])
+
+
+def video_frame(path, at, width=480):
+    """One frame of a video, upright, as an image."""
+    import io
+    import subprocess
+    r = subprocess.run(["ffmpeg", "-v", "error", "-ss", f"{at:.2f}", "-i", str(path), "-frames:v", "1",
+                        "-vf", f"scale={width}:-2", "-f", "image2pipe", "-c:v", "png", "-"],
+                       stdin=subprocess.DEVNULL, capture_output=True)
+    return Image.open(io.BytesIO(r.stdout)).convert("RGB")
+
+
+def video_light(path, duration):
+    """Day or night, from how dark the middle frame is. The judge's own call overrides this."""
+    y = luma(np.asarray(video_frame(path, duration / 2, 160), dtype=np.float32) / 255)
+    return "night" if np.median(y) < 0.2 else "day"
+
+
+def write_cube(path, style, adjust, light, keep_colour, n=33):
+    """The style as a colour table ffmpeg can apply to every frame (a .cube file)."""
+    v = np.linspace(0, 1, n, dtype=np.float32)
+    b, g, r = np.meshgrid(v, v, v, indexing="ij")  # red changes fastest, as the format wants
+    lattice = np.stack([r, g, b], -1).reshape(n * n, n, 3)
+    out = grade(lattice, adjust, style, keep_colour, light, pointwise=True).reshape(-1, 3)
+    with open(path, "w") as f:
+        f.write(f"LUT_3D_SIZE {n}\n")
+        f.writelines(f"{p[0]:.6f} {p[1]:.6f} {p[2]:.6f}\n" for p in out)
+
+
+def tidy_video(src, dst, recipe, style, work):
+    """One clip: trimmed, steadied, graded like the photos, and its sound evened out."""
+    duration, has_audio = video_info(src)
+    start = recipe.get("trim_start", 0)
+    length = duration - start - recipe.get("trim_end", 0)
+    if length <= 0.2:
+        sys.exit(f"{src.name}: the trims leave nothing")
+    light = recipe.get("light", "auto")
+    if light == "auto":
+        light = video_light(src, duration)
+    keep_colour = recipe.get("keep_colour", light == "night")  # at night the coloured light is the point
+    work.mkdir(parents=True, exist_ok=True)
+    write_cube(work / "look.cube", style, recipe.get("adjust"), light, keep_colour)
+    cut = ["-ss", f"{start:.3f}", "-t", f"{length:.3f}", "-i", str(src.resolve())]
+    filters = []
+    # Steadying is for daylight. In the dark the frames are blurred and grainy, the stabiliser
+    # has nothing firm to hold on to, and it makes the picture wobble instead.
+    if recipe.get("stabilise", light == "day"):
+        # Two passes: measure the shake, then counter it. Gentle (it smooths over 13 frames), so a
+        # deliberate pan stays a pan and the picture is zoomed in only a little to hide the edges.
+        # At 25 frames the first album lost about a sixth of every frame to that zoom.
+        run(["ffmpeg", "-v", "error", "-y", *cut, "-vf", "format=yuv420p,vidstabdetect=shakiness=5:accuracy=15:result=shake.trf",
+             "-f", "null", "-"], cwd=work)
+        # vid.stab only takes plain yuv420p, and aborts on anything else.
+        filters += ["format=yuv420p",
+                    "vidstabtransform=input=shake.trf:smoothing=6:optzoom=1:interpol=bicubic"]
+    filters += ["lut3d=file=look.cube:interp=tetrahedral", "format=yuv420p"]
+    audio = ["-an"]
+    if has_audio:
+        # Measure the loudness first, then correct by one fixed amount, so the music does not pump.
+        m = run(["ffmpeg", "-v", "info", "-y", *cut, "-vn", "-af", "loudnorm=I=-14:TP=-1.5:LRA=11:print_format=json",
+                 "-f", "null", "-"], cwd=work).stderr
+        j = json.loads(m[m.rindex("{"):m.rindex("}") + 1])
+        audio = ["-af", ("loudnorm=I=-14:TP=-1.5:LRA=11:linear=true:measured_I={input_i}:measured_TP={input_tp}:"
+                         "measured_LRA={input_lra}:measured_thresh={input_thresh}:offset={target_offset},"
+                         "aresample=48000").format(**j), "-c:a", "aac", "-b:a", "192k"]
+    run(["ffmpeg", "-v", "error", "-y", *cut, "-vf", ",".join(filters), "-c:v", "libx264", "-crf", "21",
+         "-preset", "medium", "-pix_fmt", "yuv420p", *audio, "-map_metadata", "0", "-movflags", "+faststart",
+         str(dst.resolve())], cwd=work)
+    return light, length
+
+
+def render_videos(album, inbox, recipes, style, done, only=None):
+    """Every clip in the inbox. One with no entry in recipes.json is kept and tidied with the defaults."""
+    import hashlib
+    entries = {v["file"]: v for v in recipes.get("videos") or []}
+    out = done / "videos"
+    cache_file = album / ".video-cache.json"
+    cache = json.loads(cache_file.read_text()) if cache_file.exists() else {}
+    vids = [p for p in sorted(inbox.iterdir()) if p.suffix.lower() in VIDEO_EXT]
+    if vids:
+        out.mkdir(parents=True, exist_ok=True)
+    kept = set()
+    for v in vids:
+        r = entries.get(v.name, {"file": v.name})
+        dst = out / (v.stem + ".mp4")
+        if r.get("verdict") == "drop":
+            continue
+        kept.add(dst.name)
+        if only and v.name != only:
+            continue
+        key = hashlib.sha256(json.dumps([VIDEO_TIDY, r, style, v.stat().st_size, str(out)], sort_keys=True).encode()).hexdigest()
+        if cache.get(v.name) == key and dst.exists():
+            continue  # nothing about this clip changed since it was last made
+        if r.get("verdict") == "as-is":
+            shutil.copy2(v, dst)
+            print(f"  as-is {dst.name}")
+        else:
+            light, length = tidy_video(v, dst, r, style, album / ".video-work" / v.stem)
+            print(f"  video {dst.name}  {length:.1f}s  {light}")
+        cache[v.name] = key
+        cache_file.write_text(json.dumps(cache, indent=1))
+    if not only and out.is_dir():  # a clip dropped since the last render must not linger
+        for old in out.iterdir():
+            if old.name not in kept:
+                old.unlink()
+    return len(kept)
+
+
 def cmd_inbox(args):
     """Bring photos into a new album from a zip (a Google Photos download) or a folder. Copies only."""
     import zipfile
@@ -604,7 +748,17 @@ def cmd_small(args):
         im, _, _ = open_photo(p)
         im.thumbnail((args.size, args.size))
         im.save(out / f"{i:02d}_{p.stem}.jpg", quality=85)
-    print(f"{len(photos_in(inbox))} small copies in {out}")
+    vids = [p for p in sorted(inbox.iterdir()) if p.suffix.lower() in VIDEO_EXT]
+    for i, v in enumerate(vids, 1):  # five frames across each clip, so a video can be judged by reading
+        duration, _ = video_info(v)
+        frames = [video_frame(v, duration * f, 360) for f in (0.05, 0.275, 0.5, 0.725, 0.95)]
+        w, h = frames[0].size
+        strip = Image.new("RGB", (5 * (w + 4) - 4, h + 30), (18, 18, 20))
+        for k, fr in enumerate(frames):
+            strip.paste(fr, (k * (w + 4), 30))
+        ImageDraw.Draw(strip).text((4, 4), f"v{i:02d}  {v.name}  {duration:.1f}s", font=font(18), fill=(230, 230, 235))
+        strip.save(out / f"v{i:02d}_{v.stem}.jpg", quality=85)
+    print(f"{len(photos_in(inbox))} small copies and {len(vids)} video strips in {out}")
 
 
 def cmd_render(args):
@@ -626,6 +780,10 @@ def cmd_render(args):
     edited.mkdir(parents=True, exist_ok=True)
     share.mkdir(exist_ok=True)
     n = 0
+    known_v = {p.name for p in inbox.iterdir() if p.suffix.lower() in VIDEO_EXT}
+    lost = [v["file"] for v in recipes.get("videos") or [] if v.get("file") not in known_v]
+    if lost:
+        sys.exit(f"recipes.json names videos that are not in the inbox: {lost}")
     for r in recipes["photos"]:
         if args.only and r["file"] != args.only:
             continue
@@ -645,18 +803,15 @@ def cmd_render(args):
             shutil.copy2(dst, share / ("cover" + dst.suffix))
         n += 1
         print(f"  {r['verdict']:5} {dst.name}")
+    nv = 0
+    if not args.no_videos:
+        nv = render_videos(album, inbox, recipes, style, done, args.only)
     if not args.only:
-        vids = [p for p in sorted(inbox.iterdir()) if p.suffix.lower() in VIDEO_EXT]
-        if vids:
-            (done / "videos").mkdir(exist_ok=True)
-            for v in vids:
-                if not (done / "videos" / v.name).exists():
-                    shutil.copy2(v, done / "videos" / v.name)
         shutil.copy2(album / "recipes.json", done / "recipes.json")
         if (album / "notes.md").exists():
             shutil.copy2(album / "notes.md", done / "notes.md")
     contact_sheet(album, inbox, recipes, done)
-    print(f"{n} photos in {edited}; contact sheet at {done / 'contact-sheet.jpg'}")
+    print(f"{n} photos in {edited}, {nv} videos in {done / 'videos'}; contact sheet at {done / 'contact-sheet.jpg'}")
 
 
 def contact_sheet(album, inbox, recipes, done, cols=4, cell=420):
@@ -716,7 +871,8 @@ def main():
     s = sub.add_parser("inbox"); s.add_argument("source"); s.add_argument("album"); s.set_defaults(fn=cmd_inbox)
     s = sub.add_parser("small"); s.add_argument("album"); s.add_argument("--size", type=int, default=1400); s.set_defaults(fn=cmd_small)
     s = sub.add_parser("render"); s.add_argument("album"); s.add_argument("--style", default="style.json")
-    s.add_argument("--out", default="done"); s.add_argument("--only"); s.set_defaults(fn=cmd_render)
+    s.add_argument("--out", default="done"); s.add_argument("--only")
+    s.add_argument("--no-videos", action="store_true"); s.set_defaults(fn=cmd_render)
     s = sub.add_parser("compare"); s.add_argument("album"); s.add_argument("--styles", nargs="+", required=True)
     s.add_argument("--only"); s.add_argument("--size", type=int, default=1100); s.set_defaults(fn=cmd_compare)
     s = sub.add_parser("generate"); s.add_argument("album"); s.add_argument("file")

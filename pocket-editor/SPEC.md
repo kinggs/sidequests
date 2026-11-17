@@ -58,7 +58,7 @@ Editor/Done/<album>/
   edited/          every kept photo, full resolution, EXIF dates preserved (dropped ones stay in Inbox)
   share-these/     the top five or so, and a cover
   dropped/         nothing; dropped photos stay only in Inbox (never deleted)
-  videos/          passed through untouched (v1)
+  videos/          every kept clip: trimmed, steadied, in the album style, sound evened out
   contact-sheet.jpg  every photo with its verdict; dropped ones marked, with the reason
   notes.md         the editor's notes (see below)
   recipes.json     what was done to each photo, so any edit can be redone or adjusted
@@ -315,9 +315,32 @@ deliberate practice; these notes are the passing remark from the editor, and may
 
 ## Video
 
-- **v1: pass through.** Videos are copied to `Done/<album>/videos/` untouched.
-- **Next: mechanical tidy** with ffmpeg on the desktop: the same grade, stabilise, even out
-  audio. No model credits.
+- **Built (2026-11-17): the mechanical tidy**, with ffmpeg, as part of `render`. No model
+  credits. For each clip:
+  - **Trim** (`trim_start`, `trim_end`, in seconds) and **drop**, from the recipe.
+  - **The album style**, as a colour table (a 33-point `.cube` file made by running the
+    engine's own grade over every colour). Only what works one pixel at a time carries over:
+    curves, colour bands, contrast, saturation, white balance. Shadows and highlights become a
+    plain tone curve; clarity, glow, grain, face fixes and the AI edit are photo-only.
+  - **Steadying** (vid.stab, two passes), on daylight clips only. In the dark it has nothing
+    to hold on to and makes the picture wobble, so night clips are left as shot. It is gentle:
+    the picture is zoomed in about 4% to hide the moving edges.
+  - **Sound** brought to one level (−14 LUFS, measured first and then corrected by a fixed
+    amount). The phone's clips came in at about −10.5 with the peaks clipped; the clipping is
+    in the recording and cannot be undone.
+  - **Night:** `light` is set by the judge or guessed from how dark the middle frame is, and at
+    night white balance is left alone.
+  - Output is H.264 at 1080p with the recording time and location kept, so Google Photos sorts
+    it where the original was. About 15 seconds a clip; the first album's 16 clips took four
+    minutes and came out at 301 MB from 338 MB.
+  - A clip with no entry in `recipes.json` is kept and tidied with the defaults. `as-is`
+    copies one untouched. A finished clip is made again only when its recipe, the style or the
+    tidy itself changes.
+- **The judge reads videos as strips:** `small` writes five frames across each clip. That is
+  enough for the verdict and for day or night. It cannot hear, and it cannot see a moment
+  between frames, so anything private in a clip has to come from the owner.
+- **Not checked by anyone yet: the motion.** The steadying was tuned from still frames; the
+  owner should watch one daylight clip.
 - **Later: judged trims** (a few sampled frames per clip) and a **highlights reel**.
 - **Never: generative video editing.** That is where the cost is.
 
@@ -360,6 +383,8 @@ deliberate practice; these notes are the passing remark from the editor, and may
 | Engine | Python, one file (`engine.py`), run with `uv run`: uv reads the dependencies from the top of the file and fetches Pillow and numpy itself. Nothing to install with pacman. |
 | Non-photos | Verdict `as-is`: in the album, untouched. The judge spots them. |
 | Night | One style, with a `night` block. Not a second style. |
+| Video | The mechanical tidy, in `render`. Dropped and trimmed from the recipe. |
+| Dates | Photos keep their EXIF dates and videos their recording time, so Google Photos sorts them as the originals. An `as-is` graphic with no date in it sorts by when it is uploaded. |
 | Where the code lives | This folder. The skill in `.claude/skills/editalbum/`, written to stand alone so it can be published elsewhere later. |
 | Phone app | Not in v1. Drive is the gallery, the chat is the remote. |
 

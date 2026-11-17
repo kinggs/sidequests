@@ -23,7 +23,8 @@ uv run pocket-editor/engine.py small pocket-editor/photos/<album>
 ```
 
 Name the album after the event, in one lowercase word. `inbox` copies photos and videos and
-skips everything else; `small` writes numbered 1100 px copies to `small/` for you to look at.
+skips everything else; `small` writes numbered 1100 px copies to `small/` for you to look at,
+and for each video a strip of five frames (`v01_...jpg`).
 
 ## 2. Look at every photo
 
@@ -110,6 +111,33 @@ the aim is that it reads, not that it matches the person beside it.
 
 `"share": true` on the five to seven the owner would post. `"cover": true` on one.
 
+### Videos
+
+Beside `"photos"`, a `"videos"` list. Read each strip in `small/` and give every clip an entry:
+
+```json
+"videos": [
+  { "file": "20261113_150520.mp4", "light": "day", "reason": "The DJ, then round to the pool." },
+  { "file": "20261113_204157.mp4", "light": "night", "trim_end": 1.5, "reason": "Walking in at dusk." },
+  { "file": "20261112_173933.mp4", "verdict": "drop", "reason": "Removed by the owner." }
+]
+```
+
+- The render tidies every kept clip: the album style, steadying (daylight only), sound brought
+  to one level, and the trims. It takes about 15 seconds a clip.
+- `light`: `night` for anything lit by stage lights, lamps or fire, and for dusk that is mostly
+  dark. Night clips keep their coloured light and are not steadied.
+- `trim_start` and `trim_end` are seconds to cut from each end. `verdict` is `keep` (the
+  default), `drop` or `as-is` (copied untouched).
+- **Keep videos unless there is a reason.** You see five frames and hear nothing, so you cannot
+  judge a clip the way you judge a photo. Drop one only if it is plainly an accident (the
+  ground, a pocket, a few black frames).
+- **You cannot tell what is private.** A voice message or a personal remark is in the sound.
+  When the owner says a clip or part of one is personal, drop or trim it, do a full render,
+  and check it has gone from `done/videos/` before saying so.
+- `"stabilise": false` if the owner says a daylight clip looks swimmy; `"adjust"` works as for
+  photos, though only `ev`, `temp`, `contrast` and `saturation` do much on video.
+
 ## 4. Render
 
 ```bash
@@ -117,8 +145,10 @@ uv run pocket-editor/engine.py render pocket-editor/photos/<album>
 ```
 
 This checks the recipes, then writes `done/`: `edited/` (full resolution, EXIF dates kept),
-`share-these/` with `cover.jpg`, `videos/` (copied untouched), `contact-sheet.jpg` and
-`recipes.json`. Look at the contact sheet and at three or four of the edits before you say
+`share-these/` with `cover.jpg` (copies of files in `edited/`, so the album is whole without
+them), `videos/` (tidied, recording time kept), `contact-sheet.jpg` and `recipes.json`.
+Photos and videos keep their dates, so Google Photos sorts them as the originals; an `as-is`
+graphic with no date in it sorts by upload time, which is worth one line to the owner. Look at the contact sheet and at three or four of the edits before you say
 anything to the owner. If one looks wrong, change its recipe and render again. Then consider
 the AI edit for a few photos (its own section, below) before writing the notes.
 
@@ -167,6 +197,7 @@ uv run pocket-editor/engine.py render pocket-editor/photos/<album> --only 202611
 | "3 is too dark" | `adjust.ev` +0.2, or `shadows` +0.15 if only part of it is |
 | "his face is red" | a `faces` box with `calm` 0.3 |
 | "crop tighter on 5" | the crop, keeping hands and feet whole |
+| "remove that video" / "cut the end of it" | `verdict: drop`, or `trim_end` in seconds; a full render |
 | "too much" / "flat" | halve what you did / look again at `highlights` and `shadows` |
 
 A change to a verdict needs a full render (without `--only`), which rebuilds `edited/` cleanly.
