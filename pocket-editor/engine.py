@@ -151,7 +151,7 @@ def alignment(orig_im, gen_im):
     return float((a * b).sum() / (np.sqrt((a * a).sum() * (b * b).sum()) + 1e-9))
 
 
-def tone_transfer(rgb, orig_im, gen_im, strength=1.0):
+def tone_transfer(rgb, orig_im, gen_im, strength=1.0, reach=0.03):
     """The generated image's colour and light, on the original's own pixels.
 
     Per channel, how much brighter the generated image is than the original is measured on small
@@ -164,8 +164,28 @@ def tone_transfer(rgb, orig_im, gen_im, strength=1.0):
     out = np.empty_like(rgb)
     for i in range(3):
         ratio = np.clip((box(g[..., i], 2) + 0.03) / (box(o[..., i], 2) + 0.03), 0.4, 2.5)
-        full = np.clip(guided(guide_full, guide_small, ratio, 0.03, 0.005), 0.4, 2.5)
+        full = np.clip(guided(guide_full, guide_small, ratio, reach, 0.005), 0.4, 2.5)
         out[..., i] = rgb[..., i] * (1 + strength * (full - 1))
+    out = np.clip(out, 0, 1)
+
+    # The step above moves light region by region, which leaves the generated image's contrast and
+    # richness behind (its blacks were deeper, its colour fuller). Match those across the whole
+    # picture: one tone curve and one saturation factor, so again no detail changes hands.
+    q = np.linspace(0, 1, 17)
+    step = max(1, max(out.shape[:2]) // 600)
+    mine = out[::step, ::step]
+    have, want = np.quantile(luma(mine), q), np.quantile(luma(g), q)
+    have = np.maximum.accumulate(have + np.arange(17) * 1e-6)  # strictly rising, for the lookup
+    # A model that smoothed the picture has a narrow spread of tones; copying that exactly would
+    # flatten the original's texture. So the curve may not be flatter than 0.6 or steeper than 1.8.
+    rise = np.clip(np.diff(want), 0.6 * np.diff(have), 1.8 * np.diff(have))
+    want = np.concatenate([[0.0], np.cumsum(rise)])
+    want += np.quantile(luma(g), 0.5) - want[8]  # keep the middle where the generated image has it
+    y = luma(out)
+    gain = (np.interp(y, have, want).astype(np.float32) + 0.02) / (y + 0.02)
+    out = out * (1 + strength * (np.clip(gain, 0.5, 2.0) - 1))[..., None]
+    k = hue_sat(g)[1].mean() / max(float(hue_sat(np.clip(out[::step, ::step], 0, 1))[1].mean()), 1e-3)
+    out = scale_chroma(out, 1 + strength * (float(np.clip(k, 0.8, 1.4)) - 1))
     return np.clip(out, 0, 1)
 
 
@@ -399,9 +419,13 @@ def edit(path, recipe, style):
     im, exif, icc = open_photo(path)
     gen = recipe.get("generative")
     if gen:  # before the crop, because the generated image is of the whole frame
-        gen_im = Image.open(path.parent.parent / gen["file"])
+        gen_im = Image.open(path.parent.parent / gen["file"]).convert("RGB")
         rgb = tone_transfer(np.asarray(im, dtype=np.float32) / 255, im, gen_im, gen.get("strength", 1.0))
         im = Image.fromarray((rgb * 255 + 0.5).astype(np.uint8))
+        # The model's edit is a finished look. The album style on top of it would be a second
+        # grade, so it is skipped unless the recipe asks; the recipe's own adjust still applies.
+        if not gen.get("style"):
+            style = {}
     crop = recipe.get("crop")
     im = frame(im, crop, recipe.get("straighten_deg", 0))
     rgb = np.asarray(im, dtype=np.float32) / 255
@@ -552,11 +576,11 @@ def cmd_fourway(args):
             orig = open_photo(src)[0]
             g = Image.open(gen).convert("RGB")
             score = alignment(orig, g)
-            plain = {k: v for k, v in r.items() if k not in ("adjust", "faces", "generative")}
+            plain = {k: v for k, v in r.items() if k not in ("adjust", "generative")}
             toned = {**plain, "generative": {"file": str(gen.relative_to(album)), "strength": args.strength}}
             tiles = [("original", frame(orig, crop, deg)), ("engine", edit(src, r, style)[0]),
                      (f"{gen.stem}, as generated", frame(g.resize(orig.size, Image.LANCZOS), crop, deg)),
-                     (f"{gen.stem}, tone transfer ({score:.2f})", edit(src, toned, {})[0])]
+                     (f"{gen.stem}, tone transfer ({score:.2f})", edit(src, toned, style)[0])]
             for _, t in tiles:
                 t.thumbnail((args.size, args.size))
             w, h = tiles[0][1].size

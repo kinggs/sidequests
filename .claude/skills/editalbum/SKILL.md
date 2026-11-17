@@ -119,7 +119,8 @@ uv run pocket-editor/engine.py render pocket-editor/photos/<album>
 This checks the recipes, then writes `done/`: `edited/` (full resolution, EXIF dates kept),
 `share-these/` with `cover.jpg`, `videos/` (copied untouched), `contact-sheet.jpg` and
 `recipes.json`. Look at the contact sheet and at three or four of the edits before you say
-anything to the owner. If one looks wrong, change its recipe and render again.
+anything to the owner. If one looks wrong, change its recipe and render again. Then consider
+the AI edit for a few photos (its own section, below) before writing the notes.
 
 ## 5. Write `notes.md`
 
@@ -134,7 +135,13 @@ plain, to someone who is not a photographer:
 
 ## 6. Hand it back
 
-Tell the owner: how many kept and dropped, where the contact sheet is, and the notes. Send it
+**The owner looks at one thing: the contact sheet.** They are not a photographer and do not
+want to compare versions or approve edits photo by photo; when asked to, they said it wore
+them out. So never send comparison sheets, never ask "which do you prefer", and never list
+what you did to each photo. Make the calls yourself and say them in `notes.md`.
+
+Tell the owner, in five lines or fewer: how many kept and dropped, where the contact sheet is,
+anything you were unsure of, and the notes. Send it
 to their phone only when they ask or have said to always do so:
 
 ```bash
@@ -165,36 +172,71 @@ uv run pocket-editor/engine.py render pocket-editor/photos/<album> --only 202611
 A change to a verdict needs a full render (without `--only`), which rebuilds `edited/` cleanly.
 Do not argue with an overrule, and do not re-judge photos they did not mention.
 
-## When the sliders cannot fix it: the generative arm
+## The AI edit, for a few photos
 
-Rare, and never the default. For a photo whose problem is light that no slider reaches (a sky
-the camera blew out, a face lost in deep shadow, ugly mixed light) and that is worth the effort:
+An image model (Codex, on the owner's ChatGPT subscription) has better taste in light than the
+sliders do: it balanced hard dappled sun and warmed a flat evening sky better than the engine,
+and the owner preferred it on three of four daylight photos. It also redraws what it is given:
+on a night selfie it replaced both faces with invented ones. So its picture is never the
+output. The engine takes its light, colour, contrast and richness and puts them on the
+original's own pixels ("tone transfer"): full resolution, the real faces.
+
+Use it on a few photos an album, chosen by you. The owner is not asked.
+
+**Which photos.** After the first render, pick from the kept daylight photos:
+
+1. the cover and the `share` picks;
+2. any other photo with light the sliders handle badly: faces in shade against a bright
+   background, hard dappled sun, a flat, grey or hazy sky.
+
+About a quarter of the kept photos, and no more than eight (each takes a minute or two).
+
+**Never** on: night or coloured light (`light: night`, `keep_colour`), `as-is`, a drop, or a
+photo that is already good. On night photos it strips the colour that is the point.
+
+**Run it, then look.**
 
 ```bash
 uv run pocket-editor/engine.py generate pocket-editor/photos/<album> <file> --via codex
+uv run pocket-editor/engine.py fourway pocket-editor/photos/<album>
 ```
 
-This sends a 1536 px copy to an image model (Codex, on the owner's ChatGPT subscription; about
-a minute) and saves its picture in `gen/`. **That picture is never the output.** It has been
-redrawn: it is small, and faces in it are no longer the real faces. The engine takes only its
-colour and light and lays them over the original's own pixels ("tone transfer"). Use it by
-adding to the recipe:
+`generate` prints an **alignment** score; `fourway` writes a sheet per photo to `fourway/`:
+original, engine, as generated, tone transfer. Read each sheet and choose between **engine** and
+**tone transfer**. Never choose "as generated". Take tone transfer when it is plainly better,
+and turn it down when:
+
+- alignment is under 0.6 (the model reframed or redrew; its light would land in the wrong place);
+- it changed the time of day or the weather into something that was not there (a little warmth
+  in an evening sky is what the owner likes; noon turned to sunset is not);
+- skin has gone orange, grey or waxy;
+- you cannot tell the two apart. Then the engine version stays: it matches the rest of the album.
+
+**To use it**, replace that recipe's `adjust` with:
 
 ```json
-"generative": { "file": "gen/<stem>/codex.png", "strength": 0.8 }
+"generative": { "file": "gen/<stem>/codex.png", "strength": 1.0 }
 ```
 
-- `generate` prints an **alignment** score. Below 0.6 the model reframed or redrew the photo
-  and its light would land in the wrong places: do not use it.
-- With `generative` set, drop most of `adjust` (the model already balanced the light), render,
-  and compare with the plain engine render. Keep whichever is better; say which in `notes.md`.
-- `--via agy` (Google) exists but is not recommended: it reframes to 16:9 and takes minutes.
-- `--look "..."` changes the brief sent to the model. The default is the owner's own: Leica
-  colouring, gentle HDR, skies a little richer than life.
+and render. A recipe with `generative` skips the album style (the model's edit is already a
+finished look); crop and `faces` still apply, and `adjust` if you add any. Halve any face
+`lift` you had: the model has already opened the faces. `strength` 0.7 if it is a bit much.
+Say in `notes.md` which photos took the AI edit.
+
+**A second opinion, for the cover only.** `--via codex agy` also asks Google's model. It did the
+best job on one portrait, but it takes three minutes, and it cannot return anything wider than
+16:9, so a wide phone photo comes back reframed (alignment will say so). Worth it for the cover
+when the photo is 4:3 or 3:4; otherwise Codex alone.
+
+`--look "..."` changes the brief sent to the model. The default is the owner's own: Leica
+colouring, gentle HDR, skies a little richer than life.
 
 ## The style
 
-`pocket-editor/style.json` is the album style (Punch and olive). The owner changes it by saying
+`pocket-editor/style.json` is the album style (Punch and olive): bright, a vivid sky, olive
+trees, deep darks, skin left natural. What the owner has said about looks, to judge by: likes
+Leica colouring, gentle HDR and skies a little richer than life; dislikes washed-out or grey
+skin, red faces, a dull sky, and anything pushed so far it looks unnatural. The owner changes it by saying
 so ("less contrast overall"); it is data, with no look built into the engine. `--style
 style-muted-bronze.json` or `style-gentle-punch.json` renders another, and
 `engine.py compare <album> --styles A.json B.json` puts them side by side.

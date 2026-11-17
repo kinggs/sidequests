@@ -105,19 +105,40 @@ The sheets are in the album's `fourway/`: original, engine, as generated, tone-t
 - **Tone transfer works.** It carried the generated light onto the original pixels with no
   halos and the real faces. On the two daylight photos with people it was as good as or better
   than the engine. On the night photo it was worse: muddy, the colour half removed.
-- **Antigravity (`agy`) is not used.** On a wide photo it returned 16:9 (its widest shape),
+- **Antigravity (`agy`) is not the default.** On a wide photo it returned 16:9 (its widest shape),
   reframed and partly redrawn: alignment 0.22, which the check caught. On a 3:4 photo it held
   the frame (0.96) with a moodier, darker edit. It took 3 to 3.5 minutes each. Headless it
   needs an allow-rule for the one folder, which `engine.py` passes for that run only.
 
-**The rule that follows:** generative is for daylight photos with hard or flat light, by tone
+**The rule that follows:** generative is for a few daylight photos an album, by tone
 transfer, through Codex, and only when alignment is 0.6 or more. Never for night or coloured
 light. The "faces drift" check the plan asked for became the alignment check: tone transfer
 cannot change a face's shape, because no detail comes from the generated image; what it can do
 is put light in the wrong place if the picture was reframed, and alignment measures that.
 
-**Still the owner's call:** whether tone transfer should be used more freely than "only when
-sliders cannot fix it", since on people in hard light it beat the engine.
+### The owner's verdict on the sheets, and what changed (2026-11-17)
+
+- Preferred the Codex version on the lunch, the cloudy landscape and the art car; Antigravity's
+  on the selfie at the stage ("the best out of all of them"); and on the night selfie Codex
+  "went way too far, and the one face looks super unnatural".
+- On the lunch photo the engine's version had "really washed out skin colours". Punch and
+  olive was desaturating red and orange as well as holding vibrance back; the style now leaves
+  skin nearly alone.
+- **How often:** "rare-ish". The skill's rule: the judge picks about a quarter of the kept
+  daylight photos (the cover, the share picks, and bad light), eight at most, runs them, and
+  chooses engine or tone transfer per photo itself. The owner is not asked.
+- **Tone transfer was too timid.** It moved light region by region, which left the generated
+  image's contrast and richness behind: blacks stayed lifted and colour thinner, so it looked
+  weaker than the picture the owner liked. It now also matches one tone curve and one
+  saturation factor across the whole picture (the curve's slope is limited, so a model that
+  smoothed the photo cannot flatten its texture). Measured on four photos, brightness, blacks
+  and saturation now land within a few percent of the generated image, at full resolution.
+- **A photo that takes the AI edit skips the album style.** The model's edit is a finished
+  look; the style on top would grade it twice.
+- **Antigravity is kept for one job:** a second opinion on the cover, when it is 4:3 or 3:4.
+- **Review fatigue.** Comparing versions photo by photo wore the owner out ("so many nuances to
+  each photo that I'm almost starting to lose it"). That was style development and is over. The
+  skill now says: the owner sees the contact sheet and five lines, and nothing else.
 
 ## The recipe
 
@@ -333,7 +354,8 @@ deliberate practice; these notes are the passing remark from the editor, and may
 | Faces | The judge marks them in the recipe; the engine lifts and calms those areas. No face detector. |
 | Input | A zip downloaded from Google Photos. Drive is for delivery only, for now. |
 | Drive access | rclone's remote is `kenny`, on its own client ID, with the `drive.file` scope: it reaches only what rclone itself put there. So it can deliver `Done/`, and cannot read an Inbox filled from the phone. |
-| Generative model | Codex on the ChatGPT subscription. Antigravity was tried and dropped. |
+| Generative model | Codex on the ChatGPT subscription, for about a quarter of an album's daylight photos, by tone transfer. Antigravity only as a second opinion on a 4:3 or 3:4 cover. |
+| Review | The owner sees the contact sheet and a few lines. No comparison sheets, no per-photo questions. |
 | Where it runs | The office desktop, Arch Linux, Claude Code. |
 | Engine | Python, one file (`engine.py`), run with `uv run`: uv reads the dependencies from the top of the file and fetches Pillow and numpy itself. Nothing to install with pacman. |
 | Non-photos | Verdict `as-is`: in the album, untouched. The judge spots them. |

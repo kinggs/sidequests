@@ -1,6 +1,6 @@
 {
   "name": "Punch and olive",
-  "note": "Gentle punch, taking from Muted bronze what the owner liked on the first album (olive trees, deeper darks, calmer purples) and leaving what cost the sky (the blue and aqua desaturation, the matte whites, the warmth). Skin is held back so faces do not go red.",
+  "note": "Gentle punch, taking from Muted bronze what the owner liked on the first album (olive trees, deeper darks, calmer purples) and leaving what cost the sky (the blue and aqua desaturation, the matte whites, the warmth). Skin is left nearly alone (an earlier version desaturated red and orange more, and washed skin out on the lunch photo): vibrance already goes easy on it.",
   "adjust": { "contrast": 0.10, "vibrance": 0.22, "clarity": 0.20, "highlights": 0.15, "shadows": 0.10 },
   "calibration": {
     "red": { "hue": 25, "sat": -8 },
@@ -8,8 +8,8 @@
     "blue": { "hue": -15, "sat": 15 }
   },
   "hsl": {
-    "red": { "hue": 3, "sat": -12 },
-    "orange": { "hue": 4, "sat": -8, "lum": -8 },
+    "red": { "hue": 3, "sat": -5 },
+    "orange": { "hue": 4, "lum": -4 },
     "yellow": { "hue": -6, "sat": -8 },
     "green": { "hue": -21, "sat": -25, "lum": -30 },
     "purple": { "hue": 15, "sat": -30, "lum": -5 },

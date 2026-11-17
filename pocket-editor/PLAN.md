@@ -67,8 +67,9 @@ cloud session, and is done.
 - [x] Generative arm: `generate` (Codex, or agy), `tone_transfer`, `alignment`, `fourway`.
       Five photos; findings and the rule in SPEC.
 - [x] Cost recorded in SPEC: no money, 63 to 94 seconds a photo, Codex usage allowance.
-- [ ] **The owner looks at `photos/elemental/fourway/`** and says whether tone transfer stays
-      rare or is used more freely.
+- [x] The owner looked at the four-way sheets: "rare-ish", and preferred the AI edit on four of
+      five. The rule, the stronger tone transfer and the skin fix that followed are in SPEC
+      ("The owner's verdict on the sheets").
 
 ## Session 3 — the first real album: go or no-go
 
@@ -152,4 +153,9 @@ cloud session, and is done.
   minutes. A run of four is about five minutes.
 - Known gaps: `keep_colour` still lets the style's colour bands mute coloured light a little at
   night; the videos are copied, which doubles their disk use; HEIC untested.
+- After the owner's verdict the album was rendered again: four photos take the AI edit by tone
+  transfer (1, 4 and 8 from Codex, 20 from agy), the rest the engine. Still not uploaded.
+- A lesson for whoever tunes tone transfer: check it with numbers against the generated image
+  (mean, 5th percentile, saturation), not only by eye. The eye said "close"; the 5th percentile
+  said the blacks had not moved.
 
