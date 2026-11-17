@@ -1,0 +1,200 @@
+---
+name: editalbum
+description: Edit an album of phone photos the way a hired editor would - cull, crop, colour-correct - and hand it back. Use when the owner says "edit <album>", "edit my photos", drops a zip or folder of photos to be edited, or replies to an edited album with a change ("keep 7", "warmer on 3", "that one's too dark").
+---
+
+# Edit an album
+
+You are the editor. You look at every photo and decide; `pocket-editor/engine.py` applies your
+decisions to the full-resolution originals. You never edit pixels yourself and the originals
+are never changed or deleted.
+
+Everything runs from the repo root with `uv run pocket-editor/engine.py <command>` (uv fetches
+the Python libraries itself). An album is a folder: `pocket-editor/photos/<album>/`, which is
+gitignored. **No photo, sheet or thumbnail ever goes into git.**
+
+## 1. Bring the photos in
+
+The owner gives a zip (a Google Photos download, usually in `~/Downloads`) or a folder.
+
+```bash
+uv run pocket-editor/engine.py inbox ~/Downloads/Photos-1-001.zip pocket-editor/photos/<album>
+uv run pocket-editor/engine.py small pocket-editor/photos/<album>
+```
+
+Name the album after the event, in one lowercase word. `inbox` copies photos and videos and
+skips everything else; `small` writes numbered 1100 px copies to `small/` for you to look at.
+
+## 2. Look at every photo
+
+Read the files in `small/`. Read each one yourself; do not judge from a filename, and do not
+hand this to a subagent that only reports back in words. A montage of six is fine for a first
+pass, but look at a photo on its own before you give it a crop or face boxes.
+
+## 3. Write `recipes.json`
+
+One entry per file in `inbox/`, in filename order (which is time order):
+
+```json
+{ "album": "<album>", "photos": [
+  { "file": "20261114_115046.jpg",
+    "verdict": "great",
+    "reason": "The two of you at the stage. Faces lifted against the bright background.",
+    "crop": [0.0, 0.05, 1.0, 1.0],
+    "straighten_deg": 0,
+    "adjust": { "shadows": 0.35, "highlights": 0.25 },
+    "faces": [ { "box": [0.27, 0.53, 0.47, 0.75], "lift": 0.2, "calm": 0.1 } ],
+    "light": "day",
+    "keep_colour": false,
+    "share": true,
+    "cover": true }
+] }
+```
+
+Only `file`, `verdict` and `reason` are needed; leave out what you are not changing.
+
+### The verdict
+
+- **great**: you would show it to someone. About a third of a good album.
+- **fine**: belongs in the album.
+- **drop**: left out. Always with a reason the owner can read in five words. Be firm: the owner
+  asked for firm. Drop blur, a blocked or turned-away subject, an accident, and every
+  near-duplicate but the best one (eyes open, sharpest, cleanest edges). Set `duplicate_of`.
+- **as-is**: not a photograph. A poster, a line-up, a ticket, a map, a screenshot. It goes into
+  the album byte for byte: never cropped, never graded, never dropped as a duplicate.
+
+Nothing is deleted: a dropped photo stays in `inbox/` and shows on the contact sheet, dimmed.
+
+### The crop
+
+`[x0, y0, x1, y1]` as fractions of the upright photo. Crop for a reason and not by habit:
+
+- Crop to the people. Take out a stranger at the edge, empty ground, a thumb, a car bonnet.
+- Keep hands, feet and gestures whole. Never cut at a wrist, an ankle or through a face.
+- Keep the place when the place is the photo. A landscape usually needs no crop.
+- `straighten_deg` only for a horizon or a building that is plainly tilted. Positive turns the
+  picture anticlockwise.
+
+### The corrections (`adjust`)
+
+The album's style is added on top of these by the engine, so correct only what is wrong with
+this photo. Most photos need two fields or none.
+
+| Field | Range | Use it for |
+|---|---|---|
+| `ev` | -3..3 stops | The whole photo too dark or bright. Usually within ±0.3. |
+| `shadows` | -1..1 | Faces or foreground dark against a bright background: 0.3 to 0.4. |
+| `highlights` | -1..1 | A bright sky or sunlit ground to hold back: 0.15 to 0.3. |
+| `temp` | -0.5..0.5 | Too blue (positive warms) or too orange. Rarely past ±0.05. |
+| `tint`, `contrast`, `vibrance`, `clarity`, `saturation` | -1..1 | Seldom. The style sets these. |
+| `glow`, `fade`, `grain` | 0..1 | Night only, and the night style sets them. |
+
+- **Coloured light is the point of a dance floor.** Under stage lights, UV or neon set
+  `"keep_colour": true` and do not correct it to neutral.
+- **Night:** set `"light": "night"` for anything lit by lamps, stage lights or fire. The style
+  has gentler night values, with grain and glow.
+
+### Faces
+
+For a face that is too dark, or flushed and red, mark it. The engine cannot find faces; you can.
+
+- `box`: the face (or a sunburnt chest), as fractions of the **whole upright photo**, before
+  any crop. Go from hairline to chin, ear to ear. It is feathered, so near enough is fine.
+- `lift` (0..1): brighten. 0.1 is a nudge, 0.25 is a face in shade, past 0.4 looks lit by a torch.
+- `calm` (0..1): take the red out. 0.2 for a flush, 0.4 for sunburn.
+
+Mark only faces that need it. Lift a dark-skinned face in shade a little less than you think:
+the aim is that it reads, not that it matches the person beside it.
+
+### Share and cover
+
+`"share": true` on the five to seven the owner would post. `"cover": true` on one.
+
+## 4. Render
+
+```bash
+uv run pocket-editor/engine.py render pocket-editor/photos/<album>
+```
+
+This checks the recipes, then writes `done/`: `edited/` (full resolution, EXIF dates kept),
+`share-these/` with `cover.jpg`, `videos/` (copied untouched), `contact-sheet.jpg` and
+`recipes.json`. Look at the contact sheet and at three or four of the edits before you say
+anything to the owner. If one looks wrong, change its recipe and render again.
+
+## 5. Write `notes.md`
+
+In the album folder, before the last render (the render copies it into `done/`). Short and
+plain, to someone who is not a photographer:
+
+- What you kept and dropped, in one line.
+- Anything you were unsure of.
+- **Two or three things that would have made the photos better**, drawn from what you saw:
+  "four were backlit: turn so the sun is on the faces", "at night, use the flash when people
+  are the subject". This is how the albums get better.
+
+## 6. Hand it back
+
+Tell the owner: how many kept and dropped, where the contact sheet is, and the notes. Send it
+to their phone only when they ask or have said to always do so:
+
+```bash
+rclone copy pocket-editor/photos/<album>/done kenny:Editor/Done/<album> --progress
+```
+
+(`kenny` is the rclone remote. It can only reach what rclone itself uploaded, so it cannot
+fetch photos from Drive; that is why photos come in as a zip.)
+
+## Overrules
+
+The owner replies by number, as on the contact sheet. Edit that recipe and render one photo:
+
+```bash
+uv run pocket-editor/engine.py render pocket-editor/photos/<album> --only 20261114_115046.jpg
+```
+
+| They say | You change |
+|---|---|
+| "keep 7" | verdict `drop` to `fine`, take out `duplicate_of`; then a full render |
+| "drop 12" | verdict to `drop`, with their reason; then a full render |
+| "warmer on 3" | `adjust.temp` +0.03 |
+| "3 is too dark" | `adjust.ev` +0.2, or `shadows` +0.15 if only part of it is |
+| "his face is red" | a `faces` box with `calm` 0.3 |
+| "crop tighter on 5" | the crop, keeping hands and feet whole |
+| "too much" / "flat" | halve what you did / look again at `highlights` and `shadows` |
+
+A change to a verdict needs a full render (without `--only`), which rebuilds `edited/` cleanly.
+Do not argue with an overrule, and do not re-judge photos they did not mention.
+
+## When the sliders cannot fix it: the generative arm
+
+Rare, and never the default. For a photo whose problem is light that no slider reaches (a sky
+the camera blew out, a face lost in deep shadow, ugly mixed light) and that is worth the effort:
+
+```bash
+uv run pocket-editor/engine.py generate pocket-editor/photos/<album> <file> --via codex
+```
+
+This sends a 1536 px copy to an image model (Codex, on the owner's ChatGPT subscription; about
+a minute) and saves its picture in `gen/`. **That picture is never the output.** It has been
+redrawn: it is small, and faces in it are no longer the real faces. The engine takes only its
+colour and light and lays them over the original's own pixels ("tone transfer"). Use it by
+adding to the recipe:
+
+```json
+"generative": { "file": "gen/<stem>/codex.png", "strength": 0.8 }
+```
+
+- `generate` prints an **alignment** score. Below 0.6 the model reframed or redrew the photo
+  and its light would land in the wrong places: do not use it.
+- With `generative` set, drop most of `adjust` (the model already balanced the light), render,
+  and compare with the plain engine render. Keep whichever is better; say which in `notes.md`.
+- `--via agy` (Google) exists but is not recommended: it reframes to 16:9 and takes minutes.
+- `--look "..."` changes the brief sent to the model. The default is the owner's own: Leica
+  colouring, gentle HDR, skies a little richer than life.
+
+## The style
+
+`pocket-editor/style.json` is the album style (Punch and olive). The owner changes it by saying
+so ("less contrast overall"); it is data, with no look built into the engine. `--style
+style-muted-bronze.json` or `style-gentle-punch.json` renders another, and
+`engine.py compare <album> --styles A.json B.json` puts them side by side.

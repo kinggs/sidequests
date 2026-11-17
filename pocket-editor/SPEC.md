@@ -5,7 +5,8 @@ same album culled, cropped and colour-corrected, the way a hired editor would re
 alternative it has to beat is paying someone on Fiverr about £15–50 an album and waiting a day
 or two.
 
-Status: **the engine is built and has rendered one real album; the skill is not.** Decisions
+Status: **built: the engine, the `/editalbum` skill and the generative arm, and one real album
+edited with them.** Not yet done: a cold run of the skill on a second album (PLAN, Session 3). Decisions
 below were made on 2026-11-17, with a taste test on seven real photos. `PLAN.md` holds the
 build sessions.
 
@@ -35,17 +36,18 @@ synthetic images only.
 
 ## The flow
 
-1. **Phone:** select photos (and videos) in Google Photos, share them to a Google Drive folder
-   `Editor/Inbox/<album>/`.
-2. **Trigger:** from the phone, tell the Claude Code session on the desktop "edit `<album>`"
-   (the `/editalbum <album>` skill).
-3. **Fetch:** the skill pulls that Drive folder down with `rclone copy`. No sync daemon, no
-   Tailscale for the files.
+1. **In:** select the photos and videos in Google Photos and download them; they arrive on the
+   desktop as a zip. (Decided 2026-11-17: start with the zip. Reading an Inbox from Drive
+   needs a wider rclone scope and can come later.)
+2. **Trigger:** tell the Claude Code session on the desktop "edit `<album>`" (the
+   `/editalbum` skill), from the phone or at the desk.
+3. **Fetch:** `engine.py inbox <zip> <album>` copies the photos and videos into the album's
+   `inbox/`. The zip is left where it was.
 4. **Judge:** Claude looks at every photo (a downscaled copy) and writes one recipe per photo:
    a verdict, a crop, and the corrections.
 5. **Render:** the engine applies each recipe to the full-resolution original.
-6. **Return:** the skill pushes `Editor/Done/<album>/` back to Drive with `rclone copy`. The
-   owner opens it on the phone.
+6. **Return:** when the owner says so, the skill pushes `done/` to `Editor/Done/<album>/` on
+   Drive with `rclone copy`. The owner opens it on the phone.
 7. **Overrule:** the owner replies in the same chat ("keep number 7", "that one's too warm");
    the skill edits the recipe and re-renders that photo.
 
@@ -71,7 +73,7 @@ pixels.
 **1. Judgment plus engine (the default).** A vision model decides; a deterministic script
 applies. Faces and resolution are untouched. Proven in the taste test.
 
-**2. Light-touch generative (to be proven in Session 2).** The owner wants this tested from the
+**2. Light-touch generative (proven on five photos, 2026-11-17; findings below).** The owner wants this tested from the
 start, with the emphasis on *light touch*. It is for what sliders cannot do: a sky the camera
 blew out, a face lost in shadow, mixed light. Guardrails, all of them:
 
@@ -86,6 +88,36 @@ blew out, a face lost in shadow, mixed light. Guardrails, all of them:
   the problem.
 
 Removing people or objects, replacing skies and stylised looks are out of scope.
+
+### What the proof showed
+
+Five photos with a real light problem, each sent to Codex with the owner's own brief (Leica
+colouring, gentle HDR, skies a little richer than life; light and colour only, same framing).
+The sheets are in the album's `fourway/`: original, engine, as generated, tone-transferred.
+
+- **Codex keeps the frame.** Every result had the original's shape and an alignment score of
+  0.89 to 0.94. 63 to 94 seconds a photo. It costs Codex usage allowance and no money.
+- **Its taste is good.** It balanced hard dappled sun better than the engine's sliders, and
+  warmed a flat evening sky toward sunset.
+- **It redraws, as feared.** On the night mirror selfie it replaced the UV-lit faces with
+  invented, evenly lit ones and threw away the coloured light. On the landscape it cleared the
+  haze and redrew clouds and grass. The generated image must never be the output.
+- **Tone transfer works.** It carried the generated light onto the original pixels with no
+  halos and the real faces. On the two daylight photos with people it was as good as or better
+  than the engine. On the night photo it was worse: muddy, the colour half removed.
+- **Antigravity (`agy`) is not used.** On a wide photo it returned 16:9 (its widest shape),
+  reframed and partly redrawn: alignment 0.22, which the check caught. On a 3:4 photo it held
+  the frame (0.96) with a moodier, darker edit. It took 3 to 3.5 minutes each. Headless it
+  needs an allow-rule for the one folder, which `engine.py` passes for that run only.
+
+**The rule that follows:** generative is for daylight photos with hard or flat light, by tone
+transfer, through Codex, and only when alignment is 0.6 or more. Never for night or coloured
+light. The "faces drift" check the plan asked for became the alignment check: tone transfer
+cannot change a face's shape, because no detail comes from the generated image; what it can do
+is put light in the wrong place if the picture was reframed, and alignment measures that.
+
+**Still the owner's call:** whether tone transfer should be used more freely than "only when
+sliders cannot fix it", since on people in hard light it beat the engine.
 
 ## The recipe
 
@@ -108,6 +140,10 @@ session settles the exact fields:
   "cover": false
 }
 ```
+
+`faces` marks faces the judge wants brightened (`lift`) or made less red (`calm`), each with a
+`box` in fractions of the whole upright photo. The engine has no face detector and needs none:
+the judge is already looking. `generative` names a generated image to take light from.
 
 `engine.py`'s `ADJUST` table is the full list of `adjust` fields and their limits, and
 `validate()` checks a recipes file before anything renders. Beyond the sketch: `tint`,
@@ -216,10 +252,13 @@ Muted bronze the green band (olive, darker), the calibration, the calmer purple 
 and the channel S-curve at 0.6 for deeper darks. It leaves out what dulled the sky: the blue
 and aqua desaturation, the matte whites and the added warmth.
 
-**Red faces** had two causes and one fix so far. Vibrance boosted skin as much as anything
-else; the engine now gives hues between red and orange a quarter of the boost, in every style.
-Punch and olive also takes red and orange saturation down a little. What is still missing is
-knowing where the faces are (Later: face-aware brightening).
+**Red faces** had two causes. Vibrance boosted skin as much as anything else; the engine now
+gives hues between red and orange half the boost, in every style (a quarter at first; the
+owner asked for half). Punch and olive also takes red and orange saturation down a little. For
+a face that is still flushed or too dark, the judge marks it (`faces`, in The recipe).
+
+The owner confirmed Punch and olive on 2026-11-17. It is `style.json`, the default; Gentle
+punch is kept as `style-gentle-punch.json`.
 
 ## Night: the same preset, treated differently
 
@@ -290,10 +329,11 @@ deliberate practice; these notes are the passing remark from the editor, and may
 | Cull | Yes, firm, three verdicts, nothing deleted. |
 | Review | The cull, on a contact sheet. No per-photo approval of edits. |
 | Crops | The judge's crops were approved as they were. |
-| Input | A Drive folder. No Google Photos link (the API no longer allows reading an album). |
-| Style | Punch and olive is the candidate to confirm: Gentle punch with Muted bronze's trees, darks and purples. `style.json` (Gentle punch) stays the default until the owner says. |
+| Style | Punch and olive (`style.json`): Gentle punch with Muted bronze's trees, darks and purples. |
+| Faces | The judge marks them in the recipe; the engine lifts and calms those areas. No face detector. |
+| Input | A zip downloaded from Google Photos. Drive is for delivery only, for now. |
 | Drive access | rclone's remote is `kenny`, on its own client ID, with the `drive.file` scope: it reaches only what rclone itself put there. So it can deliver `Done/`, and cannot read an Inbox filled from the phone. |
-| Generative model | Codex on the ChatGPT subscription first; Antigravity as the comparison. |
+| Generative model | Codex on the ChatGPT subscription. Antigravity was tried and dropped. |
 | Where it runs | The office desktop, Arch Linux, Claude Code. |
 | Engine | Python, one file (`engine.py`), run with `uv run`: uv reads the dependencies from the top of the file and fetches Pillow and numpy itself. Nothing to install with pacman. |
 | Non-photos | Verdict `as-is`: in the album, untouched. The judge spots them. |
@@ -306,8 +346,7 @@ deliberate practice; these notes are the passing remark from the editor, and may
 1. Does sharing from Google Photos to Drive send the full-quality original? Untested: the
    first album came as a zip downloaded from Google Photos, which was full quality (4000×1848
    and 4000×3000 from a Galaxy S25 FE, EXIF intact). A zip in Downloads works as an input today.
-2. Which image model for the generative arm: Codex works on the subscription (see Models and
-   cost). Still open: whether it holds faces on real photos, and whether Google's does better.
+2. Answered: Codex, by tone transfer (The two engines, "What the proof showed").
 3. Phone photo formats: the engine reads HEIC through `pillow-heif`, but no HEIC file has been
    through it yet. The owner's phone saves JPEG.
 5. **How photos get in.** With `drive.file` (see Decisions) rclone cannot see files the phone
@@ -318,6 +357,5 @@ deliberate practice; these notes are the passing remark from the editor, and may
 
 ## Later
 
-Face-aware brightening (the biggest gap between the taste test and a human editor),
-auto-straighten, best-of-burst, the video tidy, a phone page for swiping through the cull,
+Auto-straighten, best-of-burst, the video tidy, a phone page for swiping through the cull,
 publishing the skill for use outside this repo.

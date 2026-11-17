@@ -1,0 +1,7 @@
+{
+  "name": "Gentle punch",
+  "adjust": { "contrast": 0.25, "vibrance": 0.22, "clarity": 0.20, "highlights": 0.15, "shadows": 0.10 },
+  "night": {
+    "adjust": { "contrast": 0.15, "vibrance": 0.12, "clarity": 0.10, "highlights": 0, "glow": 0.25, "grain": 0.25 }
+  }
+}

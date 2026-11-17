@@ -114,10 +114,44 @@ class Grade(unittest.TestCase):
             px = np.full((4, 4, 3), colour, np.float32)
             sat = lambda v: float(engine.hue_sat(v)[1][0, 0])
             return sat(engine.grade(px, {"vibrance": 0.5})) / sat(px)
-        self.assertGreater(gain((0.3, 0.45, 0.7)), gain((0.75, 0.55, 0.45)) + 0.05)  # sky, then skin
+        self.assertGreater(gain((0.45, 0.55, 0.75)), gain((0.75, 0.55, 0.45)) + 0.03)  # sky, then skin, equally saturated
+
+    def test_a_face_is_lifted_and_calmed_and_the_rest_is_not(self):
+        a = np.full((100, 100, 3), (0.5, 0.3, 0.25), np.float32)
+        out = engine.grade(a, faces=[{"box": [0.4, 0.4, 0.6, 0.6], "lift": 0.3, "calm": 0.5}])
+        self.assertGreater(out[50, 50].mean(), a[50, 50].mean() * 1.05)
+        sat = lambda v: float(engine.hue_sat(v[None, None])[1][0, 0])
+        self.assertLess(sat(out[50, 50]), sat(a[50, 50]) * 0.8)
+        np.testing.assert_array_equal(out[5, 5], a[5, 5])
+
+    def test_faces_follow_the_crop(self):
+        got = engine.faces_in_crop([{"box": [0.5, 0.5, 0.75, 0.75], "lift": 0.2}], [0.5, 0.0, 1.0, 1.0])
+        np.testing.assert_allclose(got[0]["box"], [0.0, 0.5, 0.5, 0.75])
+
+    def test_tone_transfer_takes_the_light_and_keeps_the_detail(self):
+        rng = np.random.default_rng(1)
+        a = np.clip(scene(480, 320) + rng.normal(0, 0.03, (320, 480, 3)).astype(np.float32), 0, 1)
+        orig = Image.fromarray((a * 255).astype(np.uint8))
+        # The "generated" image: a small, blurred copy with the dark half lifted. No fine detail.
+        g = a.copy(); g[:, :240] *= 2.0
+        gen = Image.fromarray((np.clip(g, 0, 1) * 255).astype(np.uint8)).resize((120, 80)).resize((240, 160))
+        out = engine.tone_transfer(a, orig, gen)
+        self.assertGreater(out[200:300, 60:200].mean(), a[200:300, 60:200].mean() * 1.6)   # light came across
+        self.assertAlmostEqual(float(out[200:300, 300:440].mean()), float(a[200:300, 300:440].mean()), delta=0.03)
+        grain = lambda v: float(np.abs(np.diff(v[200:300, 300:440, 1], axis=1)).mean())
+        self.assertAlmostEqual(grain(out), grain(a), delta=grain(a) * 0.15)                # detail is the original's
+
+    def test_alignment_tells_the_same_picture_from_a_reframed_one(self):
+        rng = np.random.default_rng(2)
+        tex = rng.random((40, 60, 3)).astype(np.float32)
+        orig = Image.fromarray((tex * 255).astype(np.uint8)).resize((600, 400), Image.BICUBIC)
+        same = orig.resize((300, 200)).point(lambda v: min(255, int(v * 1.2)))
+        moved = orig.crop((120, 80, 600, 400)).resize((300, 200))
+        self.assertGreater(engine.alignment(orig, same), 0.8)
+        self.assertLess(engine.alignment(orig, moved), 0.4)
 
     def test_shipped_styles_run_and_stay_in_range(self):
-        for name in ("style.json", "style-muted-bronze.json"):
+        for name in ("style.json", "style-gentle-punch.json", "style-muted-bronze.json"):
             for light in ("day", "night"):
                 out = engine.grade(scene(), {}, json.loads((HERE / name).read_text()), light=light)
                 self.assertTrue(np.isfinite(out).all() and out.min() >= 0 and out.max() <= 1, name)
@@ -181,6 +215,24 @@ class Files(unittest.TestCase):
         self.assertTrue((done / "videos" / "clip.mp4").exists())
         self.assertTrue((done / "contact-sheet.jpg").exists())
         self.assertTrue((done / "recipes.json").exists())
+
+
+class Inbox(unittest.TestCase):
+    def test_a_zip_comes_in_flat_and_only_media(self):
+        import zipfile
+        with tempfile.TemporaryDirectory() as t:
+            t = Path(t)
+            with zipfile.ZipFile(t / "Photos-1-001.zip", "w") as z:
+                z.writestr("Photos/a.jpg", b"jpeg")
+                z.writestr("Photos/clip.mp4", b"video")
+                z.writestr("Photos/notes.txt", b"no")
+                z.writestr("../../escape.jpg", b"jpeg")
+            sys.argv = ["engine", "inbox", str(t / "Photos-1-001.zip"), str(t / "album")]
+            engine.main()
+            self.assertEqual(sorted(p.name for p in (t / "album" / "inbox").iterdir()), ["a.jpg", "clip.mp4", "escape.jpg"])
+            self.assertFalse((t.parent / "escape.jpg").exists())
+            engine.main()  # again: nothing is overwritten
+            self.assertEqual((t / "album" / "inbox" / "a.jpg").read_bytes(), b"jpeg")
 
 
 class Validate(unittest.TestCase):

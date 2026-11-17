@@ -4,9 +4,12 @@
 # ///
 """Pocket Editor's engine: applies recipes to photos. No model calls, nothing built in.
 
+    uv run pocket-editor/engine.py inbox   <zip or folder> <album>  copy photos and videos into <album>/inbox
     uv run pocket-editor/engine.py small   <album>                 downscaled copies for judging
     uv run pocket-editor/engine.py render  <album> [--style S] [--out done] [--only FILE]
     uv run pocket-editor/engine.py compare <album> --styles A.json B.json [--only FILE]
+    uv run pocket-editor/engine.py generate <album> FILE [--via codex agy]   an image model's edit, kept in gen/
+    uv run pocket-editor/engine.py fourway <album>                 original, engine, generated, tone transfer
 
 An album is a folder holding `inbox/` (the originals, never written to) and `recipes.json`.
 SPEC.md says what each recipe field and style field means.
@@ -64,6 +67,15 @@ def validate(recipes):
         s = r.get("straighten_deg", 0)
         if not isinstance(s, (int, float)) or abs(s) > 15: bad("straighten_deg must be within ±15")
         if r.get("light", "day") not in ("day", "night"): bad("light must be 'day' or 'night'")
+        for f in r.get("faces") or []:
+            b = f.get("box") if isinstance(f, dict) else None
+            if not (isinstance(b, list) and len(b) == 4 and 0 <= b[0] < b[2] <= 1 and 0 <= b[1] < b[3] <= 1):
+                bad("each face needs a box [x0, y0, x1, y1] as fractions of the whole photo")
+            elif not (0 <= f.get("lift", 0) <= 1 and 0 <= f.get("calm", 0) <= 1):
+                bad("face lift and calm must be within 0..1")
+        g = r.get("generative")
+        if g is not None and not (isinstance(g, dict) and isinstance(g.get("file"), str)):
+            bad("generative must be null or {file, strength}")
         for k, v in (r.get("adjust") or {}).items():
             if k not in ADJUST: bad(f"unknown adjust field '{k}'")
             elif not isinstance(v, (int, float)) or not ADJUST[k][0] <= v <= ADJUST[k][1]:
@@ -100,16 +112,61 @@ def smooth_base(lum, radius_frac=0.04, eps=0.01):
     one: the mask is flat inside a region and steps at its border.
     """
     h, w = lum.shape
-    f = max(1, round(max(h, w) / 480))
-    sw, sh = max(8, w // f), max(8, h // f)
+    sw, sh = small_size(w, h)
     small = resize_f(lum, (sw, sh))
-    r = max(2, round(max(sw, sh) * radius_frac))
-    m = box(small, r)
-    var = box(small * small, r) - m * m
-    a = var / (var + eps)
-    b = m - a * m
-    a_full, b_full = resize_f(box(a, r), (w, h)), resize_f(box(b, r), (w, h))
-    return np.clip(a_full * lum + b_full, 0, 1)
+    return np.clip(guided(lum, small, small, radius_frac, eps), 0, 1)
+
+
+def small_size(w, h, long_side=480):
+    f = max(1, round(max(w, h) / long_side))
+    return max(8, w // f), max(8, h // f)
+
+
+def guided(guide_full, guide_small, p_small, radius_frac=0.04, eps=0.01):
+    """Smooth `p_small` so that it follows the edges of the guide, at the guide's full size."""
+    h, w = guide_full.shape
+    r = max(2, round(max(guide_small.shape) * radius_frac))
+    mi, mp = box(guide_small, r), box(p_small, r)
+    a = (box(guide_small * p_small, r) - mi * mp) / (box(guide_small * guide_small, r) - mi * mi + eps)
+    b = mp - a * mi
+    return resize_f(box(a, r), (w, h)) * guide_full + resize_f(box(b, r), (w, h))
+
+
+def to_small(im, size):
+    return np.asarray(im.convert("RGB").resize(size, Image.LANCZOS), dtype=np.float32) / 255
+
+
+def alignment(orig_im, gen_im):
+    """How well the generated picture's shapes sit on the original's: 1 is the same picture, 0 unrelated.
+
+    Tone transfer lays the generated light over the original's detail, so a generated image that
+    was reframed, stretched or redrawn would paint its light in the wrong places.
+    """
+    size = small_size(*orig_im.size, long_side=256)
+    def detail(im):
+        y = luma(to_small(im, size))
+        d = y - box(y, 5)
+        return d - d.mean()
+    a, b = detail(orig_im), detail(gen_im)
+    return float((a * b).sum() / (np.sqrt((a * a).sum() * (b * b).sum()) + 1e-9))
+
+
+def tone_transfer(rgb, orig_im, gen_im, strength=1.0):
+    """The generated image's colour and light, on the original's own pixels.
+
+    Per channel, how much brighter the generated image is than the original is measured on small
+    copies, smoothed along the original's edges, and multiplied into the full-size original. No
+    detail comes from the generated image, so faces and resolution are the original's.
+    """
+    size = small_size(*orig_im.size)
+    o, g = to_small(orig_im, size), to_small(gen_im, size)
+    guide_small, guide_full = luma(o), luma(rgb)
+    out = np.empty_like(rgb)
+    for i in range(3):
+        ratio = np.clip((box(g[..., i], 2) + 0.03) / (box(o[..., i], 2) + 0.03), 0.4, 2.5)
+        full = np.clip(guided(guide_full, guide_small, ratio, 0.03, 0.005), 0.4, 2.5)
+        out[..., i] = rgb[..., i] * (1 + strength * (full - 1))
+    return np.clip(out, 0, 1)
 
 
 def scale_chroma(rgb, k):
@@ -124,6 +181,29 @@ def hue_sat(rgb):
     safe = np.where(d > 1e-6, d, 1)
     h = np.where(mx == r, ((g - b) / safe) % 6, np.where(mx == g, (b - r) / safe + 2, (r - g) / safe + 4))
     return np.where(d > 1e-6, h * 60.0, 0.0), d / np.maximum(mx, 1e-6)
+
+
+def skin_weight(hue):
+    """1 for hues between red and orange, where skin of every tone sits; fading out by 20 degrees."""
+    d = np.abs((hue - 22 + 180) % 360 - 180)
+    return np.clip(1 - (d - 22) / 20, 0, 1).astype(np.float32)
+
+
+def face_mask(shape, faces, key):
+    """A soft oval over each face box (fractions of this frame), weighted by that face's setting."""
+    h, w = shape[:2]
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+    m = np.zeros((h, w), np.float32)
+    for f in faces or []:
+        amount = f.get(key, 0)
+        if not amount:
+            continue
+        x0, y0, x1, y1 = f["box"]
+        cx, cy = (x0 + x1) / 2 * w, (y0 + y1) / 2 * h
+        rx, ry = max((x1 - x0) * w * 0.75, 1), max((y1 - y0) * h * 0.75, 1)  # a little past the box
+        d = np.sqrt(((xx - cx) / rx) ** 2 + ((yy - cy) / ry) ** 2)
+        m = np.maximum(m, amount * np.clip((1 - d) / 0.45, 0, 1) ** 2 * (3 - 2 * np.clip((1 - d) / 0.45, 0, 1)))
+    return m
 
 
 def band_weights(hue, centres):
@@ -205,7 +285,7 @@ def for_light(style, light):
     return out
 
 
-def grade(rgb, adjust=None, style=None, keep_colour=False, light="day", seed=0):
+def grade(rgb, adjust=None, style=None, keep_colour=False, light="day", seed=0, faces=None):
     """rgb is float32 0..1, sRGB. Returns the same shape. A neutral call returns its input."""
     style = for_light(style, light)
     a = {k: 0.0 for k in ADJUST}
@@ -228,6 +308,10 @@ def grade(rgb, adjust=None, style=None, keep_colour=False, light="day", seed=0):
         gain = 1 + 1.5 * a["shadows"] * (1 - base) ** 3 - 0.6 * a["highlights"] * base ** 3
         out = out * gain[..., None]
 
+    lift = face_mask(out.shape, faces, "lift")
+    if lift.any():  # brighten the faces themselves, where a region-wide shadow lift cannot tell
+        out = out * (1 + lift)[..., None]
+
     if a["contrast"]:
         x = np.clip(out, 0, 1)
         out = x + a["contrast"] * (x * x * (3 - 2 * x) - x)
@@ -245,11 +329,14 @@ def grade(rgb, adjust=None, style=None, keep_colour=False, light="day", seed=0):
         out = scale_chroma(out, 1 + a["saturation"])
     if a["vibrance"]:
         hue, sat = hue_sat(np.clip(out, 0, 1))
-        # Skin sits between red and orange. Boosting it like everything else turns faces red,
-        # so those hues get a quarter of the boost (Lightroom's vibrance protects skin the same way).
-        d = np.abs((hue - 22 + 180) % 360 - 180)
-        skin = np.clip(1 - (d - 22) / 20, 0, 1)
-        out = scale_chroma(out, 1 + a["vibrance"] * (1 - sat) * (1 - 0.75 * skin))
+        # Boosting skin like everything else turns faces red, so it gets half the boost
+        # (the owner's setting; a quarter looked too held back).
+        out = scale_chroma(out, 1 + a["vibrance"] * (1 - sat) * (1 - 0.5 * skin_weight(hue)))
+
+    calm = face_mask(out.shape, faces, "calm")
+    if calm.any():  # take the red out of a flushed or sunburnt face, and nothing else
+        hue, _ = hue_sat(np.clip(out, 0, 1))
+        out = scale_chroma(out, 1 - calm * skin_weight(hue))
 
     out = np.clip(out, 0, 1)
     curves = style.get("curves") or {}
@@ -310,11 +397,28 @@ def frame(im, crop=None, straighten_deg=0):
 def edit(path, recipe, style):
     """Apply one recipe to one original. Returns (image, exif, icc); the original is not touched."""
     im, exif, icc = open_photo(path)
-    im = frame(im, recipe.get("crop"), recipe.get("straighten_deg", 0))
+    gen = recipe.get("generative")
+    if gen:  # before the crop, because the generated image is of the whole frame
+        gen_im = Image.open(path.parent.parent / gen["file"])
+        rgb = tone_transfer(np.asarray(im, dtype=np.float32) / 255, im, gen_im, gen.get("strength", 1.0))
+        im = Image.fromarray((rgb * 255 + 0.5).astype(np.uint8))
+    crop = recipe.get("crop")
+    im = frame(im, crop, recipe.get("straighten_deg", 0))
     rgb = np.asarray(im, dtype=np.float32) / 255
     seed = sum(path.name.encode())  # the same grain every time a photo is re-rendered
-    out = grade(rgb, recipe.get("adjust"), style, recipe.get("keep_colour", False), recipe.get("light", "day"), seed)
+    out = grade(rgb, recipe.get("adjust"), style, recipe.get("keep_colour", False), recipe.get("light", "day"),
+                seed, faces_in_crop(recipe.get("faces"), crop))
     return Image.fromarray((out * 255 + 0.5).astype(np.uint8)), exif, icc
+
+
+def faces_in_crop(faces, crop):
+    """Face boxes are given on the whole upright photo; move them into the cropped frame."""
+    if not faces or not crop:
+        return faces
+    cx0, cy0, cx1, cy1 = crop
+    w, h = cx1 - cx0, cy1 - cy0
+    return [{**f, "box": [(f["box"][0] - cx0) / w, (f["box"][1] - cy0) / h,
+                          (f["box"][2] - cx0) / w, (f["box"][3] - cy0) / h]} for f in faces]
 
 
 def save_jpeg(im, path, exif=None, icc=None, quality=93):
@@ -349,6 +453,123 @@ def load_style(path):
 
 def font(size):
     return ImageFont.load_default(size=size)
+
+
+def cmd_inbox(args):
+    """Bring photos into a new album from a zip (a Google Photos download) or a folder. Copies only."""
+    import zipfile
+    src, inbox = Path(args.source).expanduser(), Path(args.album) / "inbox"
+    inbox.mkdir(parents=True, exist_ok=True)
+    wanted = PHOTO_EXT | VIDEO_EXT
+    n = skipped = 0
+    def take(name, read):
+        nonlocal n, skipped
+        dst = inbox / Path(name).name  # flat, and never outside the inbox whatever the zip says
+        if Path(name).suffix.lower() not in wanted or Path(name).name.startswith("."):
+            return
+        if dst.exists():
+            skipped += 1
+            return
+        dst.write_bytes(read())
+        n += 1
+    if src.is_dir():
+        for p in sorted(src.rglob("*")):
+            if p.is_file():
+                take(p.name, p.read_bytes)
+                if (inbox / p.name).exists():
+                    shutil.copystat(p, inbox / p.name)
+    elif zipfile.is_zipfile(src):
+        with zipfile.ZipFile(src) as z:
+            for info in z.infolist():
+                if not info.is_dir():
+                    take(info.filename, lambda i=info: z.read(i))
+    else:
+        sys.exit(f"{src} is neither a folder nor a zip")
+    print(f"{n} files into {inbox}" + (f" ({skipped} already there)" if skipped else ""))
+
+
+GEN_PROMPT = """Do a professional photo edit of the attached photo, in.jpg, with your built-in image \
+generation tool (not with code, ImageMagick or Python).
+
+The look: {look}
+
+Change light and colour only. Keep the framing exactly: same crop, same shape, nothing moved, \
+added, removed or redrawn. The same people with the same faces, the same objects, the same text. \
+Do not sharpen, smooth skin or invent detail.
+
+Save the result as out.png in the current directory, and say in one line what you changed."""
+GEN_LOOK = ("Leica colouring. A gentle HDR balance: shadows opened, bright skies held, nothing flat or grey. "
+            "Sunsets and skies slightly richer than life. Natural skin.")
+GEN_TOOLS = {
+    "codex": lambda d, prompt: ["codex", "exec", "--skip-git-repo-check", "--ephemeral", "-s", "workspace-write",
+                                "-C", str(d), "-i", "in.jpg", "--", prompt],
+    # Headless agy denies every tool it cannot ask about, so it is allowed this one folder, for this run only.
+    "agy": lambda d, prompt: ["agy", "--print", prompt, "--print-timeout", "8m", "--settings", json.dumps(
+        {"permissions": {"allow": [f"read_file({d}/**)", f"write_file({d}/**)", f"list_dir({d})", "generate_image"]}})],
+}
+
+
+def cmd_generate(args):
+    """Ask an image model for its edit of one photo. Its picture is only ever a source of light and colour."""
+    import subprocess
+    import time
+    album, inbox, _ = load_album(args.album)
+    src = inbox / args.file
+    work = album / "gen" / src.stem
+    work.mkdir(parents=True, exist_ok=True)
+    im, _, _ = open_photo(src)
+    small = im.copy()
+    small.thumbnail((1536, 1536))  # the model returns about this size whatever it is sent
+    small.save(work / "in.jpg", quality=92)
+    look = args.look or GEN_LOOK
+    for tool in args.via:
+        out, kept = work / "out.png", work / f"{tool}.png"
+        out.unlink(missing_ok=True)
+        t = time.time()
+        r = subprocess.run(GEN_TOOLS[tool](work.resolve(), GEN_PROMPT.format(look=look)), cwd=work,
+                           stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=600)
+        (work / f"{tool}.log").write_text(r.stdout[-6000:] + "\n--- stderr\n" + r.stderr[-3000:])
+        if not out.exists():
+            print(f"  {tool}: no image after {time.time() - t:.0f}s (see {work / (tool + '.log')})")
+            continue
+        out.rename(kept)
+        g = Image.open(kept)
+        print(f"  {tool}: {g.size[0]}x{g.size[1]} in {time.time() - t:.0f}s, alignment {alignment(im, g):.2f}"
+              f" (sent {small.size[0]}x{small.size[1]})")
+
+
+def cmd_fourway(args):
+    """Original, engine, generated, tone-transferred: one sheet per photo and tool, in <album>/fourway/."""
+    album, inbox, recipes = load_album(args.album)
+    style = load_style(args.style)
+    out = album / "fourway"
+    out.mkdir(exist_ok=True)
+    for i, r in enumerate(recipes["photos"], 1):
+        stem = Path(r["file"]).stem
+        for gen in sorted((album / "gen" / stem).glob("*.png")) if (album / "gen" / stem).is_dir() else []:
+            src = inbox / r["file"]
+            crop, deg = r.get("crop"), r.get("straighten_deg", 0)
+            orig = open_photo(src)[0]
+            g = Image.open(gen).convert("RGB")
+            score = alignment(orig, g)
+            plain = {k: v for k, v in r.items() if k not in ("adjust", "faces", "generative")}
+            toned = {**plain, "generative": {"file": str(gen.relative_to(album)), "strength": args.strength}}
+            tiles = [("original", frame(orig, crop, deg)), ("engine", edit(src, r, style)[0]),
+                     (f"{gen.stem}, as generated", frame(g.resize(orig.size, Image.LANCZOS), crop, deg)),
+                     (f"{gen.stem}, tone transfer ({score:.2f})", edit(src, toned, {})[0])]
+            for _, t in tiles:
+                t.thumbnail((args.size, args.size))
+            w, h = tiles[0][1].size
+            cols = 2 if w > h * 1.3 else 4
+            rows = math.ceil(4 / cols)
+            sheet = Image.new("RGB", (cols * (w + 10) - 10, rows * (h + 44)), (18, 18, 20))
+            d = ImageDraw.Draw(sheet)
+            for k, (name, t) in enumerate(tiles):
+                x, y = (k % cols) * (w + 10), (k // cols) * (h + 44)
+                sheet.paste(t, (x, y + 44))
+                d.text((x + 6, y + 8), name, font=font(24), fill=(230, 230, 235))
+            sheet.save(out / f"{i:02d}_{stem}_{gen.stem}.jpg", quality=90)
+            print(f"  {i:02d} {stem} {gen.stem}: alignment {score:.2f}")
 
 
 def cmd_small(args):
@@ -408,6 +629,8 @@ def cmd_render(args):
                 if not (done / "videos" / v.name).exists():
                     shutil.copy2(v, done / "videos" / v.name)
         shutil.copy2(album / "recipes.json", done / "recipes.json")
+        if (album / "notes.md").exists():
+            shutil.copy2(album / "notes.md", done / "notes.md")
     contact_sheet(album, inbox, recipes, done)
     print(f"{n} photos in {edited}; contact sheet at {done / 'contact-sheet.jpg'}")
 
@@ -466,11 +689,18 @@ def cmd_compare(args):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
+    s = sub.add_parser("inbox"); s.add_argument("source"); s.add_argument("album"); s.set_defaults(fn=cmd_inbox)
     s = sub.add_parser("small"); s.add_argument("album"); s.add_argument("--size", type=int, default=1400); s.set_defaults(fn=cmd_small)
     s = sub.add_parser("render"); s.add_argument("album"); s.add_argument("--style", default="style.json")
     s.add_argument("--out", default="done"); s.add_argument("--only"); s.set_defaults(fn=cmd_render)
     s = sub.add_parser("compare"); s.add_argument("album"); s.add_argument("--styles", nargs="+", required=True)
     s.add_argument("--only"); s.add_argument("--size", type=int, default=1100); s.set_defaults(fn=cmd_compare)
+    s = sub.add_parser("generate"); s.add_argument("album"); s.add_argument("file")
+    s.add_argument("--via", nargs="+", default=["codex"], choices=sorted(GEN_TOOLS)); s.add_argument("--look")
+    s.set_defaults(fn=cmd_generate)
+    s = sub.add_parser("fourway"); s.add_argument("album"); s.add_argument("--style", default="style.json")
+    s.add_argument("--strength", type=float, default=1.0); s.add_argument("--size", type=int, default=900)
+    s.set_defaults(fn=cmd_fourway)
     args = ap.parse_args()
     args.fn(args)
 

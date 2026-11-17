@@ -52,41 +52,36 @@ cloud session, and is done.
       the session and rendered in both styles.
 - [x] The owner's verdict: mostly Gentle punch, with parts of Muted bronze. Built as
       `style-punch-olive.json` (SPEC has the reasoning), with skin held back in vibrance.
-- [ ] **The owner confirms Punch and olive** from `photos/elemental/compare/` (three styles
-      side by side); then it becomes `style.json`.
+- [x] The owner confirmed Punch and olive; it is `style.json`.
 - [ ] HEIC: read path written, never run on a real file.
 
-## Session 2 — the skill, and the generative proof
+## Session 2 — the skill, and the generative proof (done, 2026-11-17)
 
-- [ ] `.claude/skills/editalbum/SKILL.md`: fetch with rclone, judge every photo on a downscaled
-      copy, write `recipes.json`, render, write `notes.md`, fill `share-these/`, copy videos
-      through, push `Done/<album>/` back. Written to stand alone (no reliance on this repo's
-      other skills) so it can be published elsewhere later.
-- [ ] The judging prompt: the three verdicts, firm on drops, near-duplicates, the crop rules
-      the taste test approved (crop to the people, keep hands and gestures, don't correct
-      coloured light), the house style in words.
-- [ ] Overrules: "keep 7", "warmer on 3" edit the recipe and re-render one photo.
-- [ ] **Generative arm.** Start with Codex (the command is in SPEC, Models and cost). The
-      owner signs in to `agy` so the same photos can go through Google's model. Build the tone
-      transfer (generated image's low frequencies over the original's detail) and the face
-      drift check. On five photos with a real problem (blown sky, dark face, mixed light),
-      produce a four-way sheet: original, engine, generated, tone-transferred.
-- [ ] Record the per-photo cost of the generative arm in SPEC.
-
-**Done when:** the owner has looked at the four-way sheets on the phone and said whether the
-generative arm stays, and in which form.
+- [x] `.claude/skills/editalbum/SKILL.md`, standing alone: bring in, look, write recipes,
+      render, notes, hand back, overrules, the generative arm.
+- [x] The judging rules in the skill: verdicts, firm drops, near-duplicates, crop rules, night
+      and coloured light, faces, share and cover.
+- [x] Overrules: a table of what the owner says and what changes; `render --only`.
+- [x] `engine.py inbox`: a zip or a folder into an album.
+- [x] Faces: `faces` in the recipe, `lift` and `calm`. (Moved up from "after Session 3".)
+- [x] Generative arm: `generate` (Codex, or agy), `tone_transfer`, `alignment`, `fourway`.
+      Five photos; findings and the rule in SPEC.
+- [x] Cost recorded in SPEC: no money, 63 to 94 seconds a photo, Codex usage allowance.
+- [ ] **The owner looks at `photos/elemental/fourway/`** and says whether tone transfer stays
+      rare or is used more freely.
 
 ## Session 3 — the first real album: go or no-go
 
-- [ ] The owner shares a full-quality album of 30 or more photos, with some videos.
-- [ ] Run `/editalbum` end to end from the phone. Time it. Note every place it needed help.
+- [x] A first full-quality album (Elemental: 20 photos, a poster, 17 videos) edited, but by the
+      session that built the tools, so it proves the engine and not the skill.
+- [ ] A second album of 30 or more, with `/editalbum` run cold in a fresh session, from the
+      phone. Time it. Note every place it needed help, and fix the skill.
 - [ ] The owner judges the result against "would I have been happy paying a Fiverr editor for
       this?" Optionally send the same album to one for about £15 as a real comparison.
 - [ ] Write the verdict in SPEC: keep building, or stop and use Fiverr.
 
 ## After that, one per session, in the order the owner picks
 
-- [ ] Face-aware brightening.
 - [ ] Auto-straighten.
 - [ ] Best-of-burst.
 - [ ] Video: the mechanical tidy with ffmpeg.
@@ -142,3 +137,19 @@ generative arm stays, and in which form.
   colour bands mute coloured light at night; the videos are copied, which doubles their disk use.
 - Next: the owner picks the style, then Session 2 (the skill and the generative proof). `agy`
   is signed in now, so both Codex and Google can be tried.
+
+### Session 2 (the skill and the generative proof, desktop, 2026-11-17, on Fable)
+
+- Done in the same sitting as Session 1; see the ticked list. 24 engine tests.
+- The Elemental album is rendered in `photos/elemental/done/` in Punch and olive, with face
+  boxes on the three people photos and `notes.md`. **Not uploaded**: the owner asked for the
+  sessions first. To send it: `rclone copy pocket-editor/photos/elemental/done kenny:Editor/Done/elemental`.
+- The skill has not been run cold. Its rules are what worked here, written down; the first
+  fresh session to use it is the real test (Session 3).
+- Face boxes were placed by eye from 1100 px copies and were good enough, because the mask is a
+  soft oval reaching past the box. One lift was too strong at 0.2 and was eased to 0.12: start low.
+- `codex exec` can sit a short while after saving its picture; `generate` waits up to ten
+  minutes. A run of four is about five minutes.
+- Known gaps: `keep_colour` still lets the style's colour bands mute coloured light a little at
+  night; the videos are copied, which doubles their disk use; HEIC untested.
+

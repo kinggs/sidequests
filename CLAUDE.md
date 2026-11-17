@@ -8,7 +8,7 @@ The owner builds these from a phone. Optimise every decision for "works first ti
 ```
 sidequests/
   CLAUDE.md               ← you are here
-  .claude/skills/         ← /sidequest, /deployquest and /deletequest (committed so cloud sessions get them)
+  .claude/skills/         ← /sidequest, /deployquest, /deletequest and /editalbum (committed so cloud sessions get them)
   shared/
     cloud.js              ← the ONLY file that talks to Firebase (auth + Firestore + offline)
     cloud-memory.js       ← the fake cloud behind ?mock, for testing any app without Firebase
@@ -36,8 +36,9 @@ sidequests/
                             PLAN.md (the sessions), BRIEF.md, tools/ (the Node scripts that recover and
                             parse the archived site, with tests; never shipped) and data/ (gitignored: a clone
                             of the private data repo; no family data ever enters this repo)
-  pocket-editor/          ← not a web app yet: a desktop tool that edits a photo album (SPEC.md, PLAN.md for the
-                            build sessions). No index.html, so the smoke test skips it; photos/ is gitignored
+  pocket-editor/          ← not a web app yet: a desktop tool that edits a photo album with /editalbum (SPEC.md,
+                            PLAN.md for the build sessions). engine.py and its tests are Python, run with uv; the
+                            styles are JSON. No index.html, so the smoke test skips it; photos/ is gitignored
 ```
 
 Live URL pattern: `https://<owner>.github.io/sidequests/<app-id>/`
