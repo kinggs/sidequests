@@ -42,6 +42,10 @@ sidequests/
   pocket-editor/          ← not a web app yet: a desktop tool that edits a photo album with /editalbum (SPEC.md,
                             PLAN.md for the build sessions). engine.py and its tests are Python, run with uv; the
                             styles are JSON. No index.html, so the smoke test skips it; photos/ is gitignored
+  pocket-instruments/     ← an incubator, not a sidequest app: calculator-format instruments for VCV Rack and the
+                            browser from one shared engine (Rust, C++, web). Its README.md says which repo rules
+                            apply and maps its docs (the frozen brief, REVIEW, DECISIONS, PROOFS, PLAN). Leaves for
+                            its own repository once its proofs pass
 ```
 
 Live URL pattern: `https://<owner>.github.io/sidequests/<app-id>/`
