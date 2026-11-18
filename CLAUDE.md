@@ -8,6 +8,8 @@ The owner builds these from a phone. Optimise every decision for "works first ti
 ```
 sidequests/
   CLAUDE.md               ← you are here
+  SESSIONS-MIGRATION.md   ← the notebook for the Sessions app (its own repo, its own backend, soon):
+                            when the owner says "Sessions migration", add it there
   .claude/skills/         ← /sidequest, /deployquest, /deletequest and /editalbum (committed so cloud sessions get them)
   shared/
     cloud.js              ← the ONLY file that talks to Firebase (auth + Firestore + offline)
@@ -32,6 +34,7 @@ sidequests/
     index.html            ← the whole app, one file
     sw.js  manifest.json  icon.svg
     SPEC.md               ← the brief; read it before touching the app
+  rack-it/TOURNAMENT.md   ← tournaments in Rack It: the spec and its build sessions (planned, not built)
   family-tree/            ← also kin.js (its pure logic, tested: the tree layout, Markdown, Share as Markdown),
                             PLAN.md (the sessions), BRIEF.md, tools/ (the Node scripts that recover and
                             parse the archived site, with tests; never shipped) and data/ (gitignored: a clone
