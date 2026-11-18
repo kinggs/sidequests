@@ -12,7 +12,7 @@ is in [`design/DESIGN.md`](design/DESIGN.md).
 
 **Files.** `index.html` (the app), `zargo.js` (the rating engine, pure), `zargo.test.mjs` (its
 tests: `node --test` from the repo root), `bracket.js` and `bracket.test.mjs` (tournament brackets,
-pure and tested, not yet used on screen: [`TOURNAMENT.md`](TOURNAMENT.md) §4), `sw.js`, `manifest.json`, icons. The shared look,
+pure and tested: §5.1, [`TOURNAMENT.md`](TOURNAMENT.md) §4), `sw.js`, `manifest.json`, icons. The shared look,
 tokens and the Space Grotesk fonts (self-hosted so they work with no signal) come from
 `shared/theme.css` and `shared/fonts/`; `index.html` keeps only Rack It's own parts. `design/`
 is reference only.
@@ -325,6 +325,50 @@ runs · 3.4 a run"), and **Open** picks it up where it was.
 The handicap isn't remembered: each game starts at its default. A repeat of last night is Game,
 two names, Start, and the question. Play keeps your picks while you look at another tab and starts fresh after a
 match has begun.
+
+### 5.1 Tournaments (2.28.0, TOURNAMENT.md Session 2)
+
+The plan and the sessions still to come are in [`TOURNAMENT.md`](TOURNAMENT.md); this is what's
+built. The bracket is `bracket.js` (pure, tested): it works out who plays in every match from
+the draw and the results, the same way on every phone, so nothing about the bracket is stored.
+
+- **Play** has a **Tournaments** row under the cards, and a card for each tournament you're in
+  or running that's open or live ("Kenny's tournament · you're in", "Entries open · 7 in",
+  "Live · your match is ready"), two at most. The row opens the **Tournaments** page: every
+  tournament you run or are in (the owner: all of them), live first, and **Start a tournament**.
+- **Start a tournament** is one page, defaults first: a settings card (**Name** "Kenny's
+  tournament", **Game** Trad-Eight or Trad-Nine, **Format** single or double elimination,
+  **Race** to 3 with optional losers' side and final races, **Final** one or a decider (double),
+  **Third place** off or a play-off (single), **Draw** random or by rating), each row a sheet;
+  then **Who's in**: chips of you (in by default), whoever played lately, friends and guests,
+  **More players** and **+ Add a guest**, "7 in", up to 32. **Open for entries** saves it.
+- **The lobby** (entries open): the settings in one line, who's in as rows, and for the
+  organiser the settings card (editable until Start), **Show QR** (the Tournament QR, "Join
+  Kenny's tournament", `?g=t_<id>`, which says "Greg joined · 8 in"), **Add players**, a row's
+  `⋯` → **Hold to remove**, **Hold to discard** (deletes it), and **Draw and start** from three
+  players. That shows round 1 first, with **Redraw** and **Start**; someone joining while it's up
+  gets a fresh draw. An entrant sees "You're in. Waiting for Kenny to start." and may leave from
+  their row's `⋯` before the draw.
+- **Joining.** Scanning the Tournament QR makes the friendship (as My QR), then adds you and
+  shows the lobby. After the draw it says "This tournament has started. Ask Kenny."
+- **Live, round by round.** On top, **your match** when you're in it ("You v Greg", "Losers'
+  side, round 2 · race to 3"), or what you're waiting for, or "You're out · finished 5th–6th".
+  Then, in double elimination, **Winners' side | Losers' side**; then the rounds as a segmented
+  control (numbers past four rounds; the final and any decider close the winners' side), opening
+  on the round with a match to play. Each match is a row: both players with avatars, the score
+  in large figures once it's in (the winner's in the accent, with a tick and bold), and its state
+  ("to play · race to 3", "waiting", "bye · goes straight through", "walkover by Kenny",
+  "entered by Kenny"). An empty slot says where its player comes from ("Winner of Mel v Rolf").
+  Below, **Still in, and out**: places as soon as someone's out ("5th–6th"), then **Standings**.
+- **Results** (the organiser, in this version). Tap a match with both players: two steppers,
+  0 to the race, and **Save** once exactly one has reached it; or **Walkover to Kenny**. After a
+  save the page moves to the next match to play. Tap one with a result to change it or **Hold to
+  clear the result**, unless a later match that depends on it has a result ("Clear that one
+  first"). A stored result that no longer fits its match (its players changed) is ignored by
+  `bracket.js` and shown in amber for the organiser to clear. When the last match is in, the
+  tournament is done and leads with the winner; **Hold to end early** finishes it as it stands.
+- Players enter their own results from Session 3, which also rates every tournament result when
+  the tournament finishes (TOURNAMENT.md §3.7). Nothing here moves a rating yet.
 
 ## 6. The live screen
 
@@ -795,6 +839,15 @@ matches/<id>
   log: { "<n>": { by, at, say, key } }   // who made each change, and the echo strip's words
   phones: { "<uid>": { at } }      // when each phone was last seen (light presence)
 
+tournaments/<id>                 // 2.28.0 (§5.1, TOURNAMENT.md §5): one document a tournament
+  name, game: "eight" | "standard", format: "single" | "double", final: "one" | "reset", third
+  race: { w, l?, f? }              // racks; l and f only when they differ from w
+  seeding: "random" | "rating", by: uid, byName   // the organiser
+  status: "open" | "live" | "done", createdAt, startedAt, endedAt
+  players: [id, …], names: [name, …], uids: [uid, …]   // entrants, side by side; the accounts among them
+  seeds: [id, …] | null            // the draw, fixed at Start
+  results: { "<key>": { ids: [a, b], a, b, w: "a" | "b", wo?, by: uid, at } }   // "W1-1", "L2-3", "F", "F2", "T"
+
 drills/<id>                      // Spot 9 (2.27.0): one document a drill, written on every tap
   drill: "spot9"
   players: [id], names: [name]     // the one player (a uid, g_<id>, or a person id) and their name then
@@ -804,6 +857,13 @@ drills/<id>                      // Spot 9 (2.27.0): one document a drill, writt
   totals: { runs, points, avg, best }   // derived from runs, stored so lists don't add it up
 ```
 
+- **Tournaments** (`shared/firestore.rules`, its own block, cases in `shared/rules-check.mjs`): the
+  organiser (`by`) reads one and changes anything but `by`, and deletes it while it's open; an
+  entrant (in `uids`) reads it and lists with the uids filter, an organiser not playing with `by`.
+  Starting one holds only you as an account; each friend goes in with a write of its own, the last
+  in `uids`, someone the organiser is connected to. The organiser's friend gets an open one by id
+  (the Tournament QR) and joins or leaves as exactly themselves. Results are written with
+  `cloud.patch` on `results.<key>`, so two never clobber each other.
 - **Drills** (`shared/firestore.rules`, its own block): an account reads the drills with its uid in
   `uids`, lists them only with that filter, starts one only as itself (`by` and the one `players`
   and `uids` entry all its uid, live), writes a live one's runs and totals and ends it, never
@@ -839,12 +899,12 @@ drills/<id>                      // Spot 9 (2.27.0): one document a drill, writt
   `zargo.js`, `bracket.js`, `shared/theme.css` and the two fonts, manifest, icons), network first.
 
 **Export** downloads one JSON file: `app: "rack-it"`, `state` (the config), `people`, `ratings`,
-`starters`, `matches`, `drills` (2.27.0), and `account` (your profile, friends' cards and guests, `cloud.account.exportMe`). Import brings
+`starters`, `matches`, `drills` (2.27.0), `tournaments` (2.28.0), and `account` (your profile, friends' cards and guests, `cloud.account.exportMe`). Import brings
 `account` back only when it's yours, and never remakes a friendship.
 It holds email addresses, so it never goes in the repo. **Import** accepts `app` `"rack-it"` or
 `"fair-nine"` (1.x exports, whose matches sit under `sessions`), keeps document ids, and asks:
-**Merge** adds what's missing (matches and drills by id) and never overwrites; **Replace**
-(confirmed) wipes matches, drills, starters, ratings and `state/main` first. A file from before 2.7.0 carries its ratings in
+**Merge** adds what's missing (matches, drills and tournaments by id) and never overwrites; **Replace**
+(confirmed) wipes matches, drills, tournaments, starters, ratings and `state/main` first. A file from before 2.7.0 carries its ratings in
 `state.players`; they're read through `resolve` into `ratings/`. People go to the shared list
 by adoption, never removed.
 

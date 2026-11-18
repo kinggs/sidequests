@@ -177,8 +177,8 @@ function handleInvite({ app = "", appName = "", onDone } = {}){
       if (!cloud.user){
         const inv = await cloud.account.lookupInvite(code);
         if (!inv) return dead();
-        card(game ? `<h2>Join ${esc(inv.name)}'s match</h2>
-          <p class="cn-dim">Sign in${appName ? ` to ${esc(appName)}` : ""}, and you'll join the match and each other's Friends.</p>`
+        card(game ? `<h2>Join ${esc(inv.name)}'s ${gameNoun(game)}</h2>
+          <p class="cn-dim">Sign in${appName ? ` to ${esc(appName)}` : ""}, and you'll join the ${gameNoun(game)} and each other's Friends.</p>`
           : `<h2>Connect with ${esc(inv.name)}</h2>
           <p class="cn-dim">${appName ? `Sign in to ${esc(appName)}, and you'll be in each other's Friends.`
             : "Sign in, and you'll be in each other's Friends."}</p>`,
@@ -232,6 +232,8 @@ function iconOf(app){
     .catch(() => null));
   return icons.get(app);
 }
+// A Game QR's id says what it's for: Rack It's tournaments are "t_<id>" (rack-it/TOURNAMENT.md §3.2).
+const gameNoun = id => String(id || "").startsWith("t_") ? "tournament" : "match";
 function linkFor(app, code, game = ""){
   const url = new URL(`../${app}/`, import.meta.url);
   if (cloud.mock) url.search = "mock";   // so a test tab opens the fake cloud too
@@ -288,7 +290,7 @@ function showQR({ app = "", onFriend = null, onClose = null, game = null, icon =
     q("qr").classList.toggle("cn-look", icon !== false && !!frame);
     if (iconUrl){ q("badge").src = iconUrl; q("badge").hidden = false; }
     q("qr").hidden = false;
-    q("msg").textContent = game ? "Point their phone's camera at this. They join the match and your Friends in one go."
+    q("msg").textContent = game ? `Point their phone's camera at this. They join the ${gameNoun(game.id)} and your Friends in one go.`
       : "Point their phone's camera at this. Lasts a day.";
     q("copy").hidden = false;
     ov.dataset.link = link;

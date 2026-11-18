@@ -5,7 +5,7 @@ with a QR, and the bracket runs itself as results come in. The organiser can ent
 players can enter their own. It reuses what Rack It has: the same accounts, the same QR, the same
 players, the same matches and ratings.
 
-**Status:** Session 1 done (2.27.2, 2026-11-18): `bracket.js` is built and tested; nothing on screen yet.
+**Status:** Sessions 1 and 2 done (2.28.0, 2026-11-18): an organiser runs a tournament end to end. Next: Session 3.
 This is also pre-work for the Sessions app (`SESSIONS-MIGRATION.md` at the repo root): the
 bracket logic and the data shape are written to be lifted out.
 
@@ -259,7 +259,7 @@ tournaments/<id>
   race: { w, l?, f? }               // racks; l and f only when they differ
   seeding: "random" | "rating"
   by: uid, byName                   // the organiser
-  status: "open" | "live" | "done" | "discarded"
+  status: "open" | "live" | "done"  // Hold to discard deletes an open one (Session 2)
   createdAt, startedAt, endedAt
   players: [id, …]                  // entrants as shared/people.js gives them: a uid or g_<id>
   names: [name, …]                  // beside players, the names then (people.names)
@@ -346,12 +346,12 @@ spec updated, and a handover note below.
 
 ### Session 2 — a tournament the organiser runs (a minor version)
 
-- [ ] The rules block, its cases and the mock's copy, for create, read, join and the organiser.
-- [ ] Tournaments row on Play, the Tournaments page, Start a tournament, the lobby.
-- [ ] The Tournament QR (`?g=t_<id>`), joining, the "you're in" card on Play.
-- [ ] Draw and start; the round-by-round page; the organiser enters, corrects and clears
+- [x] The rules block, its cases and the mock's copy, for create, read, join and the organiser.
+- [x] Tournaments row on Play, the Tournaments page, Start a tournament, the lobby.
+- [x] The Tournament QR (`?g=t_<id>`), joining, the "you're in" card on Play.
+- [x] Draw and start; the round-by-round page; the organiser enters, corrects and clears
       results and walkovers; done and standings; end early; discard.
-- [ ] Export and Import; the `?mock` proof; `rack-it/SPEC.md` gains a Tournaments section.
+- [x] Export and Import; the `?mock` proof; `rack-it/SPEC.md` gains a Tournaments section.
 
 A club night can run on this session alone.
 
@@ -429,3 +429,51 @@ unavoidable. Later rounds aren't proven rematch-free, only "as late as the patte
 tournament result is rated, at the finish (§3.7, built in Session 3); no confirm step; guests
 from the known guests or added new. Session 2 is unchanged by them and starts with the rules
 cases (§6).
+
+### Session 2 — 2.28.0, 2026-11-18
+
+**Shipped.** A club night runs on it: Play's Tournaments row and cards, the Tournaments page,
+Start a tournament, the lobby, the Tournament QR and joining, Draw and start (with Redraw), the
+round-by-round page, the organiser entering, changing and clearing results and walkovers, done
+with standings, Hold to end early and Hold to discard. Export and Import carry `tournaments`.
+`rack-it/SPEC.md` §5.1 is the as-built description.
+
+**Rules** (`shared/firestore.rules`, cases in `shared/rules-check.mjs`, copy in
+`shared/cloud-memory.js`). All 284 cases pass on the emulator, run in this session (Java is in
+the cloud container: `npm i --no-save @firebase/rules-unit-testing firebase firebase-tools`,
+then the command at the top of `rules-check.mjs`). Two things differ from §6's table:
+
+- **A new tournament holds only its organiser as an account** (or nobody). A rule can't check
+  32 friendships in one write (it may make 10 lookups), so the app saves the tournament and then
+  adds each friend with a write of its own, in order; `tourOrganises()` lets an organiser's
+  write add one account at a time, the last in `uids`, someone they're connected to.
+- **Discard deletes it** instead of a `discarded` status: nothing is lost (it never started) and
+  nobody's lists fill with dead lobbies.
+
+**Choices made on the way** (change freely):
+
+- The final and a decider close the **winners' side's** rounds ("Round 1 · Side final · Final"),
+  so the side switch is two buttons that fit a 360px phone. Past four rounds the round buttons
+  are numbers, with the full name as the heading under them.
+- After the organiser saves a result, the page moves to the next match waiting to be played.
+  A side opens on its round with a match to play.
+- `bracket.js` gained `empty` on each fixture (which side is a bye's hole for good), so a row says
+  "bye" rather than "Winner of …" for a slot nobody will fill. Tested.
+- A Tournament QR is a Game QR with id `t_<id>`; `shared/connect.js` says "tournament" instead of
+  "match" for those ids.
+- The lobby puts **who's in** first (with Show QR and Add players), the settings card under it:
+  on a phone the six settings rows would otherwise hide the people. Play shows two tournament
+  cards at most, so match setup stays in reach.
+- Everyone sees **Your match** (or what they wait for, or where they finished). In this version
+  only the organiser has **Enter the result** on it; others read "Kenny enters the result".
+
+**Proof.** `node shared/proofs/rack-it-tournament.mjs`: 40 checks, a random draw each run (run
+ten times here, all green, about 30 seconds each). Screenshots go to `SHOTS`. A proof with several
+tabs must `bringToFront()` the one that acts: Chromium starves background tabs of animation
+frames, and every click there waits seconds for "stable" (this one took 3 minutes without it).
+Checked by eye at 360×640 and 390×844 with 32 players and two long names.
+
+**Left for Session 3** (players enter their own results, and ratings at the finish, §3.7):
+the entrant's result rule rows (§6), **Enter the result** on Your match for entrants, "entered by",
+**Not right**, and the rated matches written at the finish. `openResult()` in `index.html` is the
+sheet to reuse; `runsTour()` is where "may enter this result" widens.

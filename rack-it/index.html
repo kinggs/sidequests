@@ -376,6 +376,28 @@
     font-family:var(--grot);font-size:26px;font-weight:600;background:var(--ink-2);color:var(--text);
     box-shadow:inset 0 0 0 1px var(--line);border-radius:var(--r-ctl)}
   .doneextra .nums button.sel{background:var(--text);color:var(--ink-0);box-shadow:none}
+  /* ---- tournaments (2.28.0): Play's row, a match in the bracket, the stepper, a place ---- */
+  .tourcards{display:flex;flex-direction:column;gap:8px}
+  .foldhead.go::after{content:"›";font-size:1.4rem;line-height:1}
+  .fx{display:flex;flex-direction:column;gap:4px;width:100%;padding:10px 14px;text-align:left;background:var(--ink-1);border-radius:var(--r-card);min-height:var(--tap)}
+  .fxp{display:flex;align-items:center;gap:10px;min-height:44px;font-size:1rem;font-weight:400;color:var(--text-2)}
+  .fxp .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .fxp .nm.tbd{color:var(--dim)}
+  .fxp.won{color:var(--text);font-weight:700}
+  .fxs{flex:none;min-width:1.4em;text-align:right;font-family:var(--grot);font-size:1.6667rem;font-weight:600;color:var(--text-2)}
+  .fxp.won .fxs{color:var(--accent)}
+  .fxst{color:var(--dim)}
+  .fx.odd{box-shadow:inset 3px 0 0 var(--warn)}
+  .fx.odd .fxst{color:var(--warn)}
+  .tsheet{display:flex;flex-direction:column;gap:14px}
+  .tstep{display:flex;align-items:center;gap:12px;min-height:var(--tap)}
+  .tstep .who{flex:1;min-width:0;display:flex;align-items:center;gap:10px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tstep button{flex:none;width:var(--tap);min-width:var(--tap);min-height:var(--tap);padding:0;font-size:1.6rem;font-weight:700}
+  .tstep b{flex:none;min-width:1.6em;text-align:center;font-family:var(--grot);font-size:2.2222rem;font-weight:600}
+  .tstep.stack{flex-wrap:wrap;justify-content:flex-end;gap:8px 12px}
+  .tstep.stack .who{flex:1 1 100%}
+  .tplace{flex:none;min-width:4.4rem;font-family:var(--grot);font-weight:600;color:var(--text-2)}
+  .tplace.dim{color:var(--dim)}
 </style>
 </head>
 <body data-turn="a">
@@ -474,6 +496,10 @@
       <span class="t"><span id="drillCardWho"></span><small id="drillCardWhat"></small></span>
       <button id="drillCardOpen">Open</button>
     </div>
+    <div class="tourcards" id="tourCards"></div>
+    <div class="settings">
+      <button class="foldhead go" id="toursBtn"><span class="foldk lbl">Tournaments</span><span class="foldv" id="toursSum">Start one</span></button>
+    </div>
     <div class="settings">
       <div class="fold" id="foldGame">
         <button class="foldhead" id="gameHead"><span class="foldk lbl">Game</span><span class="foldv" id="gameName">&mdash;</span></button>
@@ -550,6 +576,35 @@
     <p class="thint warn hidden" id="setupWarn"></p>
     <button class="primary" id="startBtn" disabled>Start</button>
   </div>
+</section>
+
+<!-- ============ TOURNAMENTS (2.28.0, TOURNAMENT.md) ============ -->
+<section class="screen hidden" id="scrTours">
+  <header class="apphead"><h1>Tournaments</h1><button class="quiet back" id="toursBack">Back</button></header>
+  <div class="homebody">
+    <ul class="plist" id="tourList"></ul>
+    <p class="empty hidden" id="noTours">No tournaments yet. Start one, and pick who's in or show them the QR.</p>
+  </div>
+  <div class="setupfoot"><button class="primary" id="tourStartBtn">Start a tournament</button></div>
+</section>
+
+<section class="screen hidden" id="scrTourNew">
+  <header class="apphead"><h1>New tournament</h1><button class="quiet back" id="tnBack">Back</button></header>
+  <div class="setupbody">
+    <div class="settings" id="tnSettings"></div>
+    <div class="whobox">
+      <h3 class="lbl">Who's in · <span id="tnCount">0</span></h3>
+      <div class="chips" id="tnChips"></div>
+      <p class="thint">Tap to put someone in, tap again to take them out. You can add more, or show the QR, once it's open.</p>
+    </div>
+  </div>
+  <div class="setupfoot"><p class="thint" id="tnHint"></p><button class="primary" id="tnOpen">Open for entries</button></div>
+</section>
+
+<section class="screen hidden" id="scrTour">
+  <header class="apphead"><h1 id="tTitle">Tournament</h1><button class="quiet back" id="tBack">Back</button></header>
+  <div class="homebody" id="tBody"></div>
+  <div class="setupfoot hidden" id="tFoot"></div>
 </section>
 
 <!-- ============ MATCHES ============ -->
@@ -789,13 +844,14 @@
 <script type="module">
 import { cloud } from "../shared/cloud.js";
 import * as Z from "./zargo.js";
+import * as B from "./bracket.js";
 import { phone } from "../shared/phone.js";
 import { people } from "../shared/people.js";
 import { connect } from "../shared/connect.js";
 import { ui } from "../shared/ui.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "2.27.2";
+const APP_VERSION = "2.28.0";
 const APP_ID = "rack-it";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 document.getElementById("versionMore").textContent = "v" + APP_VERSION;
@@ -825,7 +881,9 @@ const el = {};
  "drillCard","drillCardWho","drillCardWhat","drillCardOpen","whoHint","pickALabel","pickColB","matchSettings","perSpotHead","perSpot",
  "scrDrill","drillHead","drillAvg","drillSoFar","drillRuns","drillAsk","spotGrid","drillUndo","drillEnd",
  "drillDone","drillDoneTitle","drillDoneAvg","drillDoneBody","drillAgain","drillDoneOk",
- "scrDrillSum","dsBack","dsHead","dsAvg","dsMeta","dsLine","dsRuns","dsDelete","dsDeleteNote"
+ "scrDrillSum","dsBack","dsHead","dsAvg","dsMeta","dsLine","dsRuns","dsDelete","dsDeleteNote",
+ "tourCards","toursBtn","toursSum","scrTours","toursBack","tourList","noTours","tourStartBtn",
+ "scrTourNew","tnBack","tnSettings","tnCount","tnChips","tnHint","tnOpen","scrTour","tTitle","tBack","tBody","tFoot"
 ].forEach(id => el[id] = $(id));
 
 function buzz(ms){ if(navigator.vibrate) navigator.vibrate(ms); }
@@ -1082,9 +1140,9 @@ const keepAwake = on => phone.keepAwake(on);
 // belong to none, so they hide the tab bar and the live strip.
 const SCREENS = { gate: "scrGate", ratings: "scrRatings", person: "scrPerson", setup: "scrSetup",
   matches: "scrMatches", summary: "scrSummary", more: "scrMore", about: "scrAbout",
-  live: "scrLive", drill: "scrDrill", drillsum: "scrDrillSum" };
+  live: "scrLive", drill: "scrDrill", drillsum: "scrDrillSum", tours: "scrTours", tournew: "scrTourNew", tour: "scrTour" };
 const TAB_OF = { ratings: "ratings", person: "ratings", setup: "play", matches: "matches", summary: "matches",
-  drillsum: "matches", more: "more", about: "more" };
+  drillsum: "matches", more: "more", about: "more", tours: "play", tournew: "play", tour: "play" };
 let current = "gate", lastPage = "ratings";
 function show(scr){
   current = scr;
@@ -1105,6 +1163,8 @@ function openPage(scr){
   if(scr === "matches") renderMatches();
   if(scr === "summary") return renderSummary() && show("summary");
   if(scr === "drillsum") return renderDrillSum() && show("drillsum");
+  if(scr === "tours") renderTours();
+  if(scr === "tour") return renderTour() && show("tour");
   show(scr);
 }
 // Whatever page is showing, drawn again: after a save, a rename, an import.
@@ -1115,6 +1175,8 @@ function rerender(){
   if(current === "matches") renderMatches();
   if(current === "summary" && !renderSummary()) openPage("matches");
   if(current === "drillsum" && !renderDrillSum()) openPage("matches");
+  if(current === "tours") renderTours();
+  if(current === "tour" && !renderTour()) openPage("tours");
 }
 
 let setupFresh = true;   // Play starts a new setup after a match; otherwise it keeps your picks
@@ -1197,6 +1259,7 @@ function openSetupTab(){ setupFresh = false; openSetup(); }
 // The slim bar above the tabs: the match that's on, with Resume and Watch.
 function paintLiveBar(){
   paintInCard();
+  paintTourCards();
   offerSeats();
   const on = !!liveDoc && !live && !watching && !!TAB_OF[current];
   el.liveBar.classList.toggle("hidden", !on);
@@ -1232,6 +1295,9 @@ let started = false;
 let friendMode = false;              // signed in but not on /members (friend mode, below)
 let drills = [], unsubDrills = null; // Spot 9 (2.27.0): every drill this phone may read, watched
 let drill = null;                    // the drill this phone is logging: { id, doc }
+let tours = [], unsubTours = null;   // Tournaments (2.28.0): every one this phone may list, watched
+let tourNew = null;                  // Start a tournament: what's been picked so far
+let tourId = null, tourDoc = null, tourGone = false, tourUnsub = null, tourView = { side: null, round: null }, tourStage = "";   // the open page
 let accountSig = "";                 // what the header's avatar last showed (mountAccount)
 const ratingWatches = new Map();     // friend mode's one listener a rating
 let seatOffers = [], offering = false;   // a Game QR seat taken from a guest, to ask about (offerSeats)
@@ -1263,6 +1329,7 @@ async function handleUser(user){
       watchRatings();
       watchMatches();
       watchDrills();
+      watchTours();
     } catch(e){
       el.gateErr.textContent = (e && e.code === "permission-denied")
         ? "This account couldn't reach the matches. Sign out and in again, and tell Kenny if it keeps happening."
@@ -1285,6 +1352,8 @@ async function handleUser(user){
     matches = []; liveDoc = null;
     if(unsubDrills){ unsubDrills(); unsubDrills = null; }
     drills = []; drill = null;
+    if(unsubTours){ unsubTours(); unsubTours = null; }
+    tours = []; closeTour();
     mountAccount();
     el.gateErr.classList.add("hidden");
     el.gate.classList.remove("hidden");
@@ -1379,6 +1448,7 @@ async function startFriendMode(){
   watchRatings();
   watchMatches();
   watchDrills();
+  watchTours();
 }
 function paintFriendMode(){
   mountAccount();
@@ -3685,6 +3755,7 @@ function openShared(id){ resumeMatch(id); }
 
 // Scanned a Game QR (?g=): you're in already, or you pick the guest seat that was you.
 async function joinMatch(id){
+  if(String(id).startsWith("t_")) return joinTour(String(id).slice(2));   // a Tournament QR (2.28.0)
   let m;
   try { m = await cloud.load("matches/" + id); }
   catch(e){ m = null; }
@@ -4680,6 +4751,722 @@ ui.hold(el.dsDelete, async () => {
 });
 ui.tap(el.drillCardOpen, () => { const d = liveDrillDoc(); if(d) resumeDrill(d.id); });
 
+// ---------- tournaments (2.28.0, TOURNAMENT.md) ----------
+// One document a tournament (tournaments/<id>): its settings, its entrants, the draw (seeds) and
+// the results by fixture key. Who plays in every later match is worked out from those by
+// bracket.js, the same way on every phone, so a result is one small write and correcting one
+// fixes everything after it. The organiser (`by`) runs it: the settings, who's in, the draw,
+// every result. In Session 2 only the organiser enters results; players do from Session 3.
+const FORMAT_WORD = { single: "single elimination", double: "double elimination" };
+const SIDE_WORD = { W: "Winners' side", L: "Losers' side" };
+const TOUR_MAX = 32;
+const safely = (fn, fallback) => { try { return fn(); } catch(e){ console.warn("[bracket]", e); return fallback; } };
+const ordinal = n => n + ((n % 100 >= 11 && n % 100 <= 13) ? "th" : ({ 1: "st", 2: "nd", 3: "rd" })[n % 10] || "th");
+const placeText = s => s.placeTo > s.place ? `${ordinal(s.place)}–${ordinal(s.placeTo)}` : ordinal(s.place);
+const tourPath = id => "tournaments/" + id;
+const meIn = t => { const ids = new Set([myUid(), people.meId()].filter(Boolean)); return (t.players || []).find(id => ids.has(id) || ids.has(people.resolve(id))) || null; };
+const isMineTour = t => t.by === myUid() || (t.uids || []).includes(myUid());
+const runsTour = t => !!t && (t.by === myUid() || owner);
+const organiserName = t => firstName(t.byName || people.nameOf(t.by, "Someone"));
+
+function watchTours(){
+  if(unsubTours) unsubTours();
+  const me = myUid();
+  let inThem = [], mine = [];
+  const got = () => {
+    const byId = new Map();
+    for(const t of [...inThem, ...mine]) byId.set(t.id, t);
+    tours = [...byId.values()].sort((x, y) => (y.createdAt || 0) - (x.createdAt || 0));
+    paintTourCards();
+    if(current === "tours") renderTours();
+  };
+  const warn = e => console.warn("[tournaments]", e);
+  // The owner lists every tournament; anyone else the ones they're in, and the ones they run
+  // without playing: the two queries the rules allow (TOURNAMENT.md §5).
+  if(!friendMode){
+    unsubTours = cloud.watchList("tournaments", rows => { inThem = rows; got(); }, { orderBy: "createdAt", desc: true, limit: 100 }, warn);
+    return;
+  }
+  const a = cloud.watchList("tournaments", rows => { inThem = rows; got(); }, { where: ["uids", "array-contains", me] }, warn);
+  const b = cloud.watchList("tournaments", rows => { mine = rows; got(); }, { where: ["by", "==", me] }, warn);
+  unsubTours = () => { a(); b(); };
+}
+async function listTours(){
+  if(!friendMode) return cloud.list("tournaments", { orderBy: "createdAt", desc: true });
+  const me = myUid();
+  const [a, b] = await Promise.all([cloud.list("tournaments", { where: ["uids", "array-contains", me] }),
+    cloud.list("tournaments", { where: ["by", "==", me] })]);
+  const byId = new Map([...a, ...b].map(t => [t.id, t]));
+  return [...byId.values()].sort((x, y) => (y.createdAt || 0) - (x.createdAt || 0));
+}
+
+// An entrant's name: who they are to this phone, or the name the tournament keeps for them.
+function tName(t, id){
+  if(!id) return "Someone";
+  const p = people.get(people.resolve(id));
+  if(p && p.name) return p.name;
+  const i = (t.players || []).indexOf(id);
+  return (i >= 0 && t.names && t.names[i]) || "Someone";
+}
+function tAvatar(t, id, size = 36){
+  const av = people.avatar(people.resolve(id), size);
+  if(!people.get(people.resolve(id))) av.textContent = ([...tName(t, id)][0] || "?").toUpperCase();
+  return av;
+}
+function raceText(t){
+  const r = t.race || {}, w = r.w || 3, bits = [];
+  if(t.format === "double" && r.l) bits.push(`losers' side ${r.l}`);
+  if(r.f) bits.push(`final ${r.f}`);
+  return `Race to ${w}` + (bits.length ? ` · ${bits.join(" · ")}` : "");
+}
+const tourLine = t => `${GAME_LABEL[t.game] || "Trad-Eight"} · ${FORMAT_WORD[t.format] || FORMAT_WORD.single} · ${raceText(t).toLowerCase()}`;
+const stateOf = t => t.seeds ? safely(() => B.state(t), []) : [];
+// The match this phone's player has next: ready, else the one they're waiting for.
+function myFixture(t, st = stateOf(t)){
+  const me = meIn(t);
+  if(!me) return null;
+  const mine = st.filter(f => (f.a === me || f.b === me) && f.status !== "bye");
+  return mine.find(f => f.status === "ready") || mine.find(f => f.status === "waiting") || null;
+}
+function tourWhat(t){
+  if(t.status === "open") return `Entries open · ${(t.players || []).length} in`;
+  if(t.status === "done"){
+    const top = safely(() => B.standings(t), []).find(s => s.place === 1);
+    return top ? `Won by ${tName(t, top.id)}` : "Ended early";
+  }
+  const st = stateOf(t), mine = myFixture(t, st);
+  if(mine && mine.status === "ready") return "Live · your match is ready";
+  const next = st.find(f => f.status === "ready");
+  return next ? `Live · ${next.side === "L" ? "Losers' side, " + next.name.toLowerCase() : next.name}` : "Live";
+}
+
+// ---- Play: a card for each tournament you're in or running, and the Tournaments row ----
+function paintTourCards(){
+  // Runs signed out too, before the rest of this script: nothing here until there are tournaments.
+  if(!tours.length){ el.tourCards.replaceChildren(); el.tourCards.classList.add("hidden"); el.toursSum.textContent = "Start one"; return; }
+  const me = myUid();
+  const on = tours.filter(t => (t.status === "open" || t.status === "live") && isMineTour(t));
+  el.toursSum.textContent = on.length ? `${on.length} on` : "Start one, or see yours";
+  const cards = on.slice(0, 2).map(t => {
+    const c = document.createElement("div"), tx = document.createElement("span"), who = document.createElement("span"),
+      what = document.createElement("small"), b = document.createElement("button");
+    c.className = "resume"; tx.className = "t";
+    who.textContent = t.by === me ? `${t.name} · you're running it` : `${organiserName(t)}'s tournament · you're in`;
+    what.textContent = tourWhat(t);
+    b.textContent = "Open";
+    ui.tap(b, () => openTour(t.id));
+    tx.append(who, what);
+    c.append(tx, b);
+    return c;
+  });
+  el.tourCards.replaceChildren(...cards);
+  el.tourCards.classList.toggle("hidden", !cards.length);
+}
+ui.tap(el.toursBtn, () => openPage("tours"), LOOSE);
+ui.tap(el.toursBack, () => openPage("setup"));
+ui.tap(el.tourStartBtn, () => openTourNew());
+
+// ---- the Tournaments page ----
+function renderTours(){
+  const rank = t => t.status === "live" ? 0 : t.status === "open" ? 1 : 2;
+  const list = tours.slice().sort((x, y) => rank(x) - rank(y) || (y.createdAt || 0) - (x.createdAt || 0));
+  el.noTours.classList.toggle("hidden", list.length > 0);
+  el.tourList.replaceChildren(...list.map(t => {
+    const li = document.createElement("li"), b = document.createElement("button"),
+      top = document.createElement("span"), meta = document.createElement("span");
+    b.className = "hrow" + (t.status === "done" ? "" : " live");
+    top.className = "hscore"; meta.className = "lbl hmeta";
+    top.textContent = t.name;
+    meta.textContent = `${tourWhat(t)} · ${whenText(t.createdAt)}` + (isMineTour(t) ? "" : ` · ${organiserName(t)}'s`);
+    b.append(top, meta);
+    ui.tap(b, () => openTour(t.id));
+    li.append(b);
+    return li;
+  }));
+}
+
+// ---- settings: one card of rows, each opening a sheet (start page and lobby alike) ----
+function tourSettingRows(t, change){
+  const row = (k, v, fn) => {
+    const b = document.createElement("button"), kk = document.createElement("span"), vv = document.createElement("span");
+    b.type = "button"; b.className = "foldhead";
+    kk.className = "foldk lbl"; kk.textContent = k;
+    vv.className = "foldv"; vv.textContent = v;
+    b.append(kk, vv);
+    ui.tap(b, fn, LOOSE);
+    return b;
+  };
+  const choose = async (title, field, options) => {
+    const v = await ui.sheet({ title, items: options.map(([value, label]) => ({ label, value, primary: t[field] === value })) });
+    if(v !== null && v !== undefined && v !== t[field]) change({ [field]: v });
+  };
+  const rows = [
+    row("Name", t.name, async () => { const v = await askTourName(t.name); if(v && v !== t.name) change({ name: v }); }),
+    row("Game", GAME_LABEL[t.game], () => choose("Game", "game", [["eight", "Trad-Eight"], ["standard", "Trad-Nine"]])),
+    row("Format", t.format === "double" ? "Double elimination" : "Single elimination",
+      () => choose("Format", "format", [["single", "Single elimination"], ["double", "Double elimination"]])),
+    row("Race", raceText(t), async () => { const r = await askRace(t); if(r) change({ race: r }); })
+  ];
+  if(t.format === "double") rows.push(row("Final", t.final === "reset" ? "Decider if the losers' side wins" : "One final",
+    () => choose("Final", "final", [["one", "One final"], ["reset", "Decider if the losers' side wins"]])));
+  else rows.push(row("Third place", t.third ? "Play-off" : "Off", () => choose("Third place", "third", [[false, "Off"], [true, "Play-off"]])));
+  rows.push(row("Draw", t.seeding === "rating" ? "By rating" : "Random",
+    () => choose("Draw", "seeding", [["random", "Random"], ["rating", "By rating · highest first, top two apart"]])));
+  return rows;
+}
+function askTourName(cur){
+  return ui.sheet({ title: "Name", body: close => {
+    const wrap = document.createElement("div"), inp = document.createElement("input"), ok = document.createElement("button");
+    wrap.className = "tsheet";
+    inp.type = "text"; inp.maxLength = 40; inp.value = cur; inp.autocomplete = "off";
+    ok.className = "primary"; ok.textContent = "Save";
+    ui.tap(ok, () => close(inp.value.trim() || null));
+    wrap.append(inp, ok);
+    setTimeout(() => inp.focus(), 60);
+    return wrap;
+  } });
+}
+// − n + : a number on a row, for a race or a score. Never typed, so the keyboard stays down.
+function stepper(label, value, min, max, onChange, { stack = false } = {}){
+  const row = document.createElement("div"), who = document.createElement("span"), minus = document.createElement("button"),
+    fig = document.createElement("b"), plus = document.createElement("button");
+  row.className = "tstep" + (stack ? " stack" : ""); who.className = "who";
+  if(typeof label === "string") who.textContent = label; else who.append(...label);
+  minus.type = plus.type = "button";
+  minus.textContent = "−"; plus.textContent = "+";
+  minus.setAttribute("aria-label", "One fewer"); plus.setAttribute("aria-label", "One more");
+  let v = value;
+  const paint = () => { fig.textContent = String(v); minus.disabled = v <= min; plus.disabled = v >= max; };
+  const set = n => { v = Math.max(min, Math.min(max, n)); paint(); onChange(v); };
+  ui.tap(minus, () => set(v - 1), LOOSE);
+  ui.tap(plus, () => set(v + 1), LOOSE);
+  paint();
+  row.append(who, minus, fig, plus);
+  return Object.assign(row, { set });
+}
+function askRace(t){
+  const r = t.race || {}, double = t.format === "double";
+  let w = r.w || 3, l = r.l || w, f = r.f || w, lMoved = !!r.l, fMoved = !!r.f;
+  return ui.sheet({ title: "Race", body: close => {
+    const wrap = document.createElement("div"), ok = document.createElement("button"), note = document.createElement("p");
+    wrap.className = "tsheet";
+    note.className = "thint";
+    note.textContent = "Racks to win a match. The losers' side is often one shorter, the final often longer.";
+    const lRow = stepper("Losers' side", l, 1, 15, n => { l = n; lMoved = true; });
+    const fRow = stepper("Final", f, 1, 15, n => { f = n; fMoved = true; });
+    const wRow = stepper("Every match", w, 1, 15, n => {
+      w = n;
+      if(!lMoved){ l = n; lRow.set(n); lMoved = false; }
+      if(!fMoved){ f = n; fRow.set(n); fMoved = false; }
+    });
+    ok.className = "primary"; ok.textContent = "Save";
+    ui.tap(ok, () => {
+      const out = { w };
+      if(double && l !== w) out.l = l;
+      if(f !== w) out.f = f;
+      close(out);
+    });
+    wrap.append(note, wRow, ...(double ? [lRow] : []), fRow, ok);
+    return wrap;
+  } });
+}
+
+// ---- Who's in: chips of you, whoever played lately, friends and guests ----
+function entrantChips(chosen, toggle){
+  const me = people.meId();
+  const order = [...new Set([me, ...chosen, ...recentFor(null)].filter(Boolean).map(people.resolve))];
+  const rank = id => { const i = order.indexOf(id); return i < 0 ? Infinity : i; };
+  const pool = people.players().filter(p => !p.deleted && (!friendMode || p.kind !== "household") && !(p.club && rank(p.id) === Infinity));
+  const list = pool.sort((x, y) => rank(x.id) - rank(y.id) || String(x.name).localeCompare(String(y.name))).slice(0, 12);
+  for(const id of chosen) if(!list.some(p => p.id === id) && people.get(id)) list.push(people.get(id));
+  const chips = list.map(p => {
+    const b = document.createElement("button"), n = document.createElement("span");
+    b.type = "button";
+    b.setAttribute("aria-pressed", String(chosen.includes(p.id)));
+    n.textContent = p.name + (people.isMe(p.id) ? " (you)" : "");
+    b.append(people.avatar(p.id, 36), n);
+    ui.tap(b, () => toggle(p.id), LOOSE);
+    return b;
+  });
+  const add = (label, fn) => { const b = document.createElement("button"); b.type = "button"; b.className = "add"; b.textContent = label; ui.tap(b, fn, LOOSE); return b; };
+  chips.push(add("More players", async () => { const id = await people.pick({ title: "Add a player", exclude: chosen, app: APP_ID }); if(id) toggle(people.resolve(id), true); }));
+  chips.push(add("+ Add a guest", async () => { const id = await people.addGuest(); if(id) toggle(people.resolve(id), true); }));
+  return chips;
+}
+
+// ---- Start a tournament: one page, defaults first ----
+function openTourNew(){
+  const me = people.meId();
+  tourNew = { name: `${firstName(people.nameOf(me, "My"))}'s tournament`, game: "eight", format: "single", final: "one", third: false,
+    race: { w: 3 }, seeding: "random", players: me && selfPlayable(me) ? [people.resolve(me)] : [] };
+  renderTourNew();
+  show("tournew");
+}
+function renderTourNew(){
+  const t = tourNew;
+  if(!t) return;
+  el.tnSettings.replaceChildren(...tourSettingRows(t, p => { Object.assign(t, p); renderTourNew(); }));
+  el.tnChips.replaceChildren(...entrantChips(t.players, (id, add) => {
+    if(t.players.includes(id)){ if(!add) t.players = t.players.filter(x => x !== id); }
+    else if(t.players.length >= TOUR_MAX) ui.toast(`${TOUR_MAX} is the most a tournament takes.`);
+    else t.players = [...t.players, id];
+    renderTourNew();
+  }));
+  const n = t.players.length;
+  el.tnCount.textContent = String(n);
+  el.tnHint.textContent = n >= 3 ? "Opening it lets people join with the QR. You draw and start when everyone's in."
+    : "You need three to draw. Open it now and the rest can join with the QR.";
+}
+ui.tap(el.tnBack, () => { tourNew = null; openPage("tours"); });
+ui.tap(el.tnOpen, () => openForEntries());
+function openForEntries(){
+  const t = tourNew;
+  if(!t) return;
+  const me = myUid(), meId = people.meId();
+  const ids = [...new Set(t.players.map(people.resolve))];
+  const accounts = new Set(people.uidsOf(ids));
+  // The rules let a new tournament hold only you as an account; each friend goes in with a write
+  // of their own after it (tourOrganises), in order, so nothing waits on anything.
+  const first = ids.filter(id => !accounts.has(id) || id === me);
+  const later = ids.filter(id => accounts.has(id) && id !== me);
+  const race = { w: t.race.w || 3 };
+  if(t.format === "double" && t.race.l) race.l = t.race.l;
+  if(t.race.f) race.f = t.race.f;
+  const doc = { name: t.name, game: t.game, format: t.format, final: t.format === "double" ? t.final : "one",
+    third: t.format === "single" && !!t.third, race, seeding: t.seeding,
+    by: me, byName: people.nameOf(meId, (cloud.user && cloud.user.displayName) || "Someone"),
+    status: "open", createdAt: Date.now(), startedAt: null, endedAt: null,
+    players: first, names: people.names(first).map((n, i) => n || tName(t, first[i])), uids: first.includes(me) ? [me] : [],
+    seeds: null, results: {} };
+  const id = cloud.newId();
+  let failed = false;
+  const oops = e => { console.warn("[tournament]", e); if(!failed){ failed = true; ui.toast("Couldn't save the tournament: " + (e.message || e)); } };
+  cloud.save(tourPath(id), doc).catch(oops);
+  const now = { players: [...doc.players], names: [...doc.names], uids: [...doc.uids] };
+  for(const x of later){
+    now.players.push(x); now.names.push(people.nameOf(x, "Player")); now.uids.push(x);
+    cloud.patch(tourPath(id), { players: [...now.players], names: [...now.names], uids: [...now.uids] }).catch(oops);
+  }
+  tours = [{ id, ...doc, ...now }, ...tours];
+  tourNew = null;
+  openTour(id);
+}
+
+// ---- the tournament's page: the lobby while entries are open, then round by round ----
+function openTour(id){
+  closeTour();
+  tourId = id;
+  const known = tours.find(t => t.id === id);
+  tourDoc = known ? { ...known } : null;
+  tourView = { side: null, round: null };
+  tourUnsub = cloud.watch(tourPath(id), doc => {
+    if(tourId !== id) return;
+    tourDoc = doc ? { id, ...doc } : null;
+    tourGone = !doc;
+    if(current === "tour" && !renderTour()){ ui.toast("That tournament has gone."); openPage("tours"); }
+  }, e => console.warn("[tournament]", e));
+  openPage("tour");
+  el.tBody.scrollTop = 0;   // only takes once the page shows: a hidden one keeps the last tournament's place
+}
+function closeTour(){
+  if(tourUnsub){ tourUnsub(); tourUnsub = null; }
+  tourId = null; tourDoc = null; tourGone = false;
+}
+ui.tap(el.tBack, () => { closeTour(); openPage("tours"); });
+
+const mk = (tag, cls, text) => { const n = document.createElement(tag); if(cls) n.className = cls; if(text !== undefined) n.textContent = text; return n; };
+function renderTour(){
+  if(!tourId) return false;
+  const t = tourDoc;
+  if(!t){
+    if(tourGone) return false;
+    el.tTitle.textContent = "Tournament";
+    el.tBody.replaceChildren(mk("p", "dim", "Loading…"));
+    el.tFoot.classList.add("hidden");
+    return true;
+  }
+  el.tTitle.textContent = t.name || "Tournament";
+  const body = [], foot = [];
+  if(t.status === "open") paintLobby(t, body, foot);
+  else paintBracket(t, body, foot);
+  el.tBody.replaceChildren(...body);
+  el.tFoot.replaceChildren(...foot);
+  el.tFoot.classList.toggle("hidden", !foot.length);
+  // A new tournament, or the next stage of one (the draw, the finish), starts at the top.
+  const stage = t.id + ":" + t.status;
+  if(stage !== tourStage){ tourStage = stage; el.tBody.scrollTop = 0; }
+  return true;
+}
+function saveTour(t, fields){
+  Object.assign(tourDoc, fields);
+  renderTour();
+  return cloud.patch(tourPath(t.id), fields).catch(e => {
+    console.warn("[tournament]", e);
+    ui.toast(e && e.code === "permission-denied" ? "That change wasn't allowed." : "Couldn't save: " + (e.message || e));
+  });
+}
+
+// ---- the lobby ----
+function paintLobby(t, body, foot){
+  const org = runsTour(t), me = myUid(), mine = meIn(t);
+  body.push(mk("p", "lbl dim", tourLine(t)));
+  const players = t.players || [];
+  body.push(mk("h3", "lbl sechead", `Who's in · ${players.length}`));
+  const list = mk("ul", "rows");
+  for(const id of players){
+    const li = mk("li"), who = mk("span", "who");
+    who.append(mk("div", "l1", tName(t, id) + (id === mine ? " (you)" : "")),
+      mk("div", "l2", id === t.by ? "running it" : String(id).startsWith("g_") ? "guest" : (t.uids || []).includes(id) ? "" : "no phone"));
+    li.append(tAvatar(t, id, 36), who);
+    if(org || id === mine){
+      const more = mk("button", "more", "⋯");
+      more.type = "button";
+      more.setAttribute("aria-label", "More for " + tName(t, id));
+      ui.menu(more, { title: tName(t, id), items: [{ label: !org ? "Hold to leave" : id === mine ? "Hold to take yourself out" : "Hold to remove",
+        value: "rm", hold: true, run: () => removeEntrant(t, id) }] });
+      li.append(more);
+    }
+    list.append(li);
+  }
+  if(!players.length) list.append(Object.assign(mk("li", "empty"), { textContent: "Nobody yet." }));
+  body.push(list);
+  if(org){
+    const qr = mk("button", "quiet", "Show QR"), add = mk("button", "quiet", "Add players");
+    ui.tap(qr, () => showTourQR(t));
+    ui.tap(add, () => addEntrant(t));
+    body.push(qr, add);
+    // The settings stay editable until Start.
+    const card = mk("div", "settings");
+    card.append(...tourSettingRows(t, p => {
+      // Switching format drops the setting that belongs only to the other one.
+      if(p.format === "single") p.final = "one";
+      if(p.format === "double") p.third = false;
+      saveTour(t, p);
+    }));
+    body.push(mk("h3", "lbl sechead", "Settings"), card);
+    const discard = mk("button", "quiet warnbtn", "Hold to discard");
+    ui.hold(discard, async () => {
+      await cloud.delete(tourPath(t.id)).catch(e => ui.toast("Couldn't discard it: " + (e.message || e)));
+      closeTour();
+      openPage("tours");
+    });
+    body.push(discard);
+    const start = mk("button", "primary", "Draw and start");
+    start.disabled = players.length < 3;
+    ui.tap(start, () => drawAndStart(t));
+    foot.push(mk("p", "thint", players.length < 3 ? "Three or more to draw. Show the QR, or add players." : "Shows the draw first. Settings stay editable until Start."), start);
+  } else if(mine){
+    body.push(mk("p", "note", `You're in. Waiting for ${organiserName(t)} to start.`));
+  }
+}
+function removeEntrant(t, id){
+  const i = (t.players || []).indexOf(id);
+  if(i < 0) return;
+  const players = t.players.filter((_, j) => j !== i), names = (t.names || []).filter((_, j) => j !== i), uids = (t.uids || []).filter(x => x !== id);
+  saveTour(t, { players, names, uids });
+  if(id === myUid() && !runsTour(t)){ closeTour(); openPage("setup"); ui.toast("You've left it."); }
+}
+async function addEntrant(t){
+  if((t.players || []).length >= TOUR_MAX) return ui.toast(`${TOUR_MAX} is the most a tournament takes.`);
+  const picked = await people.pick({ title: "Add a player", exclude: t.players || [], app: APP_ID });
+  if(!picked) return;
+  const id = people.resolve(picked);
+  if((t.players || []).includes(id)) return ui.toast(`${tName(t, id)} is in already.`);
+  const account = people.uidsOf([id]).length > 0;
+  saveTour(t, { players: [...(t.players || []), id], names: [...(t.names || []), people.nameOf(id, "Player")],
+    uids: account ? [...(t.uids || []), id] : [...(t.uids || [])] });
+}
+function showTourQR(t){
+  const qr = connect.showQR({ app: APP_ID, game: { id: "t_" + t.id, title: `Join ${organiserName(t)}'s tournament` } });
+  const seen = new Set(t.players || []);
+  const off = cloud.watch(tourPath(t.id), d => {
+    if(!d) return;
+    (d.players || []).forEach((x, i) => {
+      if(seen.has(x)) return;
+      seen.add(x);
+      qr.say(`${firstName((d.names && d.names[i]) || people.nameOf(x, "Someone"))} joined · ${d.players.length} in`);
+    });
+  }, e => console.warn("[tournament qr]", e));
+  const timer = setInterval(() => { if(!document.querySelector(".cn-ov")){ clearInterval(timer); off(); } }, 500);
+}
+async function drawAndStart(t){
+  if((t.players || []).length < 3) return;
+  const ratingsNow = {};
+  for(const id of t.players){ const st = statsOf(id); if(st) ratingsNow[id] = st.zargo; }
+  for(;;){
+    const seeds = B.draw(t.players, { seeding: t.seeding, ratings: ratingsNow });
+    const r1 = safely(() => B.state({ ...t, seeds, results: {} }).filter(f => f.side === "W" && f.round === 1), []);
+    const v = await ui.sheet({ title: "The draw", body: close => {
+      const wrap = mk("div", "tsheet"), ul = mk("ul", "reclist");
+      wrap.append(mk("p", "thint", `Round 1 · ${t.seeding === "rating" ? "by rating" : "drawn at random"}`));
+      for(const f of r1){
+        const li = mk("li");
+        li.append(mk("span", "", f.status === "bye" ? `${tName(t, f.winner)} has a bye` : `${tName(t, f.a)} v ${tName(t, f.b)}`));
+        ul.append(li);
+      }
+      const go = mk("button", "primary", "Start"), again = mk("button", "quiet", "Redraw");
+      ui.tap(go, () => close("start"));
+      ui.tap(again, () => close("redraw"));
+      wrap.append(ul, go, again);
+      return wrap;
+    } });
+    if(v === "redraw") continue;
+    if(v !== "start") return;
+    // Someone may have joined while the draw was up: draw again with them in it.
+    const fresh = tourDoc && tourDoc.id === t.id ? tourDoc : t;
+    if(fresh.status !== "open") return;
+    if((fresh.players || []).length !== t.players.length || fresh.players.some(x => !t.players.includes(x))){
+      ui.toast("Someone joined while the draw was up. Here it is again.");
+      return drawAndStart(fresh);
+    }
+    tourView = { side: null, round: null };
+    saveTour(t, { seeds, status: "live", startedAt: Date.now(), results: {} });
+    return;
+  }
+}
+
+// ---- live and done: round by round ----
+// The final (and a decider) close the winners' side's rounds, so the sides fit two to a row.
+const isFinal = f => f.key === "F" || f.key === "F2";
+function sideOf(f){ return f.side === "L" ? "L" : "W"; }
+const roundKey = f => f.key === "T" ? "T" : isFinal(f) ? "F" : String(f.round);
+const shortRound = name => ({ "Quarter-finals": "Quarters", "Semi-finals": "Semis", "Winners' side final": "Side final", "Losers' side final": "Side final" })[name] || name;
+function paintBracket(t, body, foot){
+  const org = runsTour(t), st = stateOf(t), me = meIn(t), double = t.format === "double";
+  const finished = safely(() => B.finished(t), false);
+  const places = safely(() => B.standings(t), []);
+  body.push(mk("p", "lbl dim", tourLine(t)));
+  if(t.status === "done"){
+    const top = places.find(s => s.place === 1);
+    body.push(mk("p", "sumwin", top ? `${tName(t, top.id)} won` : "Ended early"));
+    if(!finished) body.push(mk("p", "thint", `${organiserName(t)} ended it before the last match.`));
+  }
+  // Your match, on top, when you're in it.
+  if(me && t.status === "live"){
+    const f = myFixture(t, st), mineAt = places.find(s => s.id === me);
+    const card = mk("div", "resume"), tx = mk("span", "t");
+    let line = "", sub = "";
+    if(f && f.status === "ready"){
+      const opp = f.a === me ? f.b : f.a;
+      line = `You v ${tName(t, opp)}`;
+      sub = `${double && !isFinal(f) ? SIDE_WORD[sideOf(f)] + ", " : ""}${f.name.toLowerCase()} · race to ${f.race}`;
+    } else if(f){
+      const known = f.a === me ? f.b : f.a;
+      line = known ? `Next: you v ${tName(t, known)}` : "Next: waiting for the round before";
+      sub = `${double && !isFinal(f) ? SIDE_WORD[sideOf(f)] + ", " : ""}${f.name.toLowerCase()}`;
+    } else if(mineAt && mineAt.place){
+      line = `You're out · finished ${placeText(mineAt)}`;
+    }
+    if(line){
+      tx.append(mk("span", "", line), ...(sub ? [mk("small", "", sub)] : []));
+      card.append(tx);
+      if(f && f.status === "ready" && org){
+        const go = mk("button", "", "Enter the result");
+        ui.tap(go, () => openResult(t, f));
+        card.append(go);
+      } else if(f && f.status === "ready"){
+        tx.append(mk("small", "", `${organiserName(t)} enters the result`));
+      }
+      body.push(card);
+    }
+  }
+  const odd = safely(() => B.ignored(t), []);
+  if(org && odd.length) body.push(mk("p", "thint warn", `${odd.length === 1 ? "One result doesn't" : odd.length + " results don't"} fit the draw any more. Tap ${odd.length === 1 ? "it" : "them"} to clear.`));
+  // Sides (double elimination), then rounds.
+  const sides = double ? ["W", "L"] : ["W"];
+  const nowAt = st.find(f => f.status === "ready" && (f.a === me || f.b === me)) || st.find(f => f.status === "ready") || [...st].reverse().find(f => f.status === "done") || st[0];
+  if(!tourView.side || !sides.includes(tourView.side)) tourView.side = nowAt ? sideOf(nowAt) : "W";
+  if(double){
+    const seg = mk("div", "seg");
+    for(const s of sides){
+      const b = mk("button", "", SIDE_WORD[s]);
+      b.type = "button";
+      b.setAttribute("aria-pressed", String(tourView.side === s));
+      ui.tap(b, () => { tourView = { side: s, round: null }; renderTour(); });
+      seg.append(b);
+    }
+    body.push(seg);
+  }
+  const onSide = st.filter(f => sideOf(f) === tourView.side);
+  const groups = [];
+  for(const f of onSide){
+    const k = roundKey(f);
+    let g = groups.find(x => x.k === k);
+    if(!g) groups.push(g = { k, name: f.key === "T" ? "Third place" : isFinal(f) ? "Final" : f.name, list: [] });
+    g.list.push(f);
+  }
+  // A side opens on its match to play (yours first), else on the last round with a result.
+  if(!tourView.round || !groups.some(g => g.k === tourView.round)){
+    const here = (nowAt && sideOf(nowAt) === tourView.side && roundKey(nowAt))
+      || (groups.find(g => g.list.some(f => f.status === "ready")) || {}).k
+      || ([...groups].reverse().find(g => g.list.some(f => f.status === "done")) || groups[0] || {}).k;
+    tourView.round = here || null;
+  }
+  if(groups.length > 1){
+    const seg = mk("div", "seg"), many = groups.length > 4;
+    groups.forEach((g, i) => {
+      const b = mk("button", "", many ? String(i + 1) : shortRound(g.name));
+      b.type = "button";
+      b.setAttribute("aria-pressed", String(tourView.round === g.k));
+      b.setAttribute("aria-label", g.name);
+      ui.tap(b, () => { tourView.round = g.k; renderTour(); });
+      seg.append(b);
+    });
+    body.push(seg);
+  }
+  const g = groups.find(x => x.k === tourView.round);
+  if(g){
+    body.push(mk("h3", "lbl sechead", (double && g.k !== "F" ? SIDE_WORD[tourView.side] + " · " : "") + g.name));
+    const ul = mk("ul", "plist");
+    for(const f of g.list) ul.append(fixtureRow(t, f, st, org));
+    body.push(ul);
+  }
+  // Standings: everyone placed once it's done; before that, who's still in and who's out.
+  body.push(mk("h3", "lbl sechead", t.status === "done" ? "Standings" : "Still in, and out"));
+  const ul = mk("ul", "rows");
+  for(const s of places){
+    const li = mk("li"), who = mk("span", "who");
+    who.append(mk("div", "l1", tName(t, s.id) + (s.id === me ? " (you)" : "")));
+    li.append(mk("span", "tplace" + (s.place ? "" : " dim"), s.place ? placeText(s) : t.status === "done" ? "—" : "still in"), tAvatar(t, s.id, 36), who);
+    ul.append(li);
+  }
+  body.push(ul);
+  if(org && t.status === "live"){
+    const end = mk("button", "quiet warnbtn", "Hold to end early");
+    ui.hold(end, () => saveTour(t, { status: "done", endedAt: Date.now() }));
+    body.push(end);
+    body.push(mk("p", "thint", "Ends it as it stands. The matches left aren't played."));
+  }
+}
+// A slot with nobody in it yet says where they'll come from.
+function slotWords(f, i, st){
+  if(f.empty && f.empty[i]) return "bye";
+  const src = f.from[i] || {};
+  const key = src.winner || src.loser;
+  if(!key) return "to be drawn";
+  const g = st.find(x => x.key === key);
+  const what = !g ? "an earlier match" : g.a && g.b ? `${tName(tourDoc, g.a)} v ${tName(tourDoc, g.b)}` : `${g.name.toLowerCase()} match ${g.slot}`;
+  return `${src.winner ? "Winner" : "Loser"} of ${what}`;
+}
+function fixtureRow(t, f, st, org){
+  const li = mk("li"), b = mk("button", "fx" + (f.ignored ? " odd" : ""));
+  b.type = "button";
+  const r = f.status === "done" ? f.result : null;
+  const sides = f.status === "bye" ? [f.a ? 0 : 1] : [0, 1];
+  for(const i of sides){
+    const id = i ? f.b : f.a, line = mk("span", "fxp");
+    if(id){
+      line.append(tAvatar(t, id, 36), mk("span", "nm", tName(t, id) + (r && f.winner === id ? " ✓" : "")));
+      if(r && f.winner === id) line.classList.add("won");
+    } else line.append(mk("span", "nm tbd", slotWords(f, i, st)));
+    const sc = mk("b", "fxs");
+    if(r) sc.textContent = r.wo ? (f.winner === id ? "W" : "–") : String(i ? r.b : r.a);
+    line.append(sc);
+    b.append(line);
+  }
+  const words = f.status === "bye" ? "bye · goes straight through"
+    : f.status === "ready" ? `to play · race to ${f.race}`
+    : f.status === "waiting" ? "waiting"
+    : r && r.wo ? "walkover" + byWords(t, r)
+    : r ? "entered" + byWords(t, r) : "";
+  b.append(mk("span", "lbl fxst", words + (f.ignored ? " · a result here doesn't fit any more" : "")));
+  const tappable = org && (f.status === "ready" || f.status === "done" || f.ignored);
+  if(tappable) ui.tap(b, () => openResult(t, f));
+  li.append(b);
+  return li;
+}
+const byWords = (t, r) => r.by ? ` by ${r.by === t.by ? organiserName(t) : firstName(people.nameOf(r.by, "someone"))}` : "";
+
+// ---- entering a result: two steppers, Save when exactly one side has reached the race ----
+async function openResult(t, f){
+  const has = !!(t.results || {})[f.key];
+  if(f.ignored && f.status !== "ready" && f.status !== "done"){
+    const v = await ui.sheet({ title: "A result that doesn't fit", text: "The players in this match have changed since it was entered. Clear it, and enter it again once the match is played.",
+      items: [{ label: "Hold to clear", value: "clear", hold: true }] });
+    if(v === "clear") clearResult(t, f);
+    return;
+  }
+  if(!f.a || !f.b) return;
+  const clearable = has && safely(() => B.canClear(t, f.key), false);
+  if(f.status === "done" && !clearable){
+    return ui.sheet({ title: `${tName(t, f.a)} v ${tName(t, f.b)}`, text: "A later match that depends on this one has a result. Clear that one first, then change this.",
+      cancel: false, items: [{ label: "OK", value: null, primary: true }] });
+  }
+  const was = f.status === "done" && f.result && !f.result.wo ? f.result : null;
+  let a = was ? was.a : 0, bb = was ? was.b : 0;
+  const race = f.race;
+  const v = await ui.sheet({ title: `${f.name}${t.format === "double" && !isFinal(f) ? " · " + SIDE_WORD[sideOf(f)] : ""}`, body: close => {
+    const wrap = mk("div", "tsheet"), save = mk("button", "primary", "Save");
+    const fits = () => (a === race) !== (bb === race);
+    const paint = () => { save.disabled = !fits(); save.textContent = fits() ? `Save · ${a}–${bb}` : `First to ${race}`; };
+    const label = id => [tAvatar(t, id, 36), mk("span", "", tName(t, id))];
+    wrap.append(mk("p", "thint", `Race to ${race}. Racks each, then Save.`),
+      stepper(label(f.a), a, 0, race, n => { a = n; paint(); }, { stack: true }),
+      stepper(label(f.b), bb, 0, race, n => { bb = n; paint(); }, { stack: true }));
+    ui.tap(save, () => fits() && close({ kind: "score" }));
+    const same = firstName(tName(t, f.a)) === firstName(tName(t, f.b)), short = id => same ? tName(t, id) : firstName(tName(t, id));
+    const woA = mk("button", "quiet", `Walkover to ${short(f.a)}`), woB = mk("button", "quiet", `Walkover to ${short(f.b)}`);
+    ui.tap(woA, () => close({ kind: "wo", w: "a" }));
+    ui.tap(woB, () => close({ kind: "wo", w: "b" }));
+    wrap.append(save, woA, woB);
+    if(clearable){
+      const clear = mk("button", "quiet warnbtn", "Hold to clear the result");
+      ui.hold(clear, () => close({ kind: "clear" }));
+      wrap.append(clear);
+    }
+    paint();
+    return wrap;
+  } });
+  if(!v) return;
+  if(v.kind === "clear") return clearResult(t, f);
+  const res = v.kind === "wo"
+    ? { ids: [f.a, f.b], a: 0, b: 0, w: v.w, wo: true, by: myUid(), at: Date.now() }
+    : { ids: [f.a, f.b], a, b: bb, w: a === race ? "a" : "b", by: myUid(), at: Date.now() };
+  if(!B.validResult(t, f.key, res)) return ui.toast("That result doesn't fit this match.");
+  const next = { ...t, results: { ...(t.results || {}), [f.key]: res } };
+  const fields = { ["results." + f.key]: res };
+  if(t.status === "live" && safely(() => B.finished(next), false)) Object.assign(fields, { status: "done", endedAt: Date.now() });
+  tourDoc = { ...tourDoc, results: next.results, ...(fields.status ? { status: fields.status, endedAt: fields.endedAt } : {}) };
+  tourView = { side: null, round: null };   // on to the next match waiting to be played
+  renderTour();
+  cloud.patch(tourPath(t.id), fields).catch(e => { console.warn("[result]", e); ui.toast("Couldn't save the result: " + (e.message || e)); });
+  if(fields.status === "done"){
+    const top = safely(() => B.standings(next), []).find(s => s.place === 1);
+    if(top) ui.toast(`${tName(t, top.id)} wins ${t.name}`);
+  }
+}
+function clearResult(t, f){
+  const { [f.key]: _gone, ...rest } = t.results || {};
+  tourDoc = { ...tourDoc, results: rest, ...(t.status === "done" ? { status: "live", endedAt: null } : {}) };
+  renderTour();
+  cloud.deleteFields(tourPath(t.id), ["results." + f.key])
+    .then(() => t.status === "done" ? cloud.patch(tourPath(t.id), { status: "live", endedAt: null }) : null)
+    .catch(e => { console.warn("[result]", e); ui.toast("Couldn't clear it: " + (e.message || e)); });
+}
+
+// ---- joining by the Tournament QR (?g=t_<id>): the friendship is made first, then this ----
+async function joinTour(id){
+  let t = null;
+  try { t = await cloud.load(tourPath(id)); } catch(e){ t = null; }
+  const me = myUid();
+  if(t && (t.by === me || (t.uids || []).includes(me))) return openTour(id);
+  if(!t || t.status !== "open"){
+    return ui.sheet({ title: "This tournament has started", text: t ? `Ask ${organiserName(t)}.` : "Ask whoever's running it.", cancel: false,
+      items: [{ label: "OK", value: true, primary: true }] });
+  }
+  if((t.players || []).length >= TOUR_MAX) return ui.sheet({ title: `${organiserName(t)}'s tournament is full`, text: `${TOUR_MAX} is the most it takes.`,
+    cancel: false, items: [{ label: "OK", value: true, primary: true }] });
+  const myName = people.nameOf(people.meId(), (cloud.user && cloud.user.displayName) || "Player");
+  try {
+    await cloud.patch(tourPath(id), { players: [...(t.players || []), me], uids: [...(t.uids || []), me], names: [...(t.names || []), myName] });
+    ui.toast(`You're in. Waiting for ${organiserName(t)} to start.`);
+    openTour(id);
+  } catch(e){
+    console.warn("[join]", e);
+    ui.toast(e && e.code === "permission-denied" ? `Entries have closed. Ask ${organiserName(t)}.` : "Couldn't join: " + (e.message || e));
+  }
+}
+
 // ---------- export / import ----------
 async function exportAll(){
   // Friend mode exports your matches and the ratings it can read; starters are the household's.
@@ -4688,6 +5475,7 @@ async function exportAll(){
         .sort((x, y) => (y.startedAt || 0) - (x.startedAt || 0)), {}]
     : await Promise.all([cloud.list("matches", { orderBy: "startedAt", desc: true }), loadStarters()]);
   const drillRows = await listDrills();
+  const tourRows = await listTours().catch(e => { console.warn("[export] tournaments", e); return []; });
   const data = {
     app: APP_ID, appVersion: APP_VERSION, exportedAt: new Date().toISOString(),
     state: { config: cfg() },
@@ -4696,6 +5484,7 @@ async function exportAll(){
     starters,
     matches: all.map(withMatchFields),
     drills: drillRows,   // Spot 9 (2.27.0)
+    tournaments: tourRows,   // 2.28.0: the ones you run or are in (all of them, for the owner)
     // Your profile, friends' cards and guests (shared/connect.js); Import restores them.
     account: await cloud.account.exportMe().catch(e => { console.warn("[export] account", e); return null; })
   };
@@ -4722,11 +5511,13 @@ el.importFile.addEventListener("change", async () => {
     if((data.app && !IMPORT_APPS.includes(data.app)) || !data.state || !(data.ratings || data.state.players) || !Array.isArray(list))
       throw new Error("not a Rack It (or Fair Nine) export");
     const drillList = Array.isArray(data.drills) ? data.drills : [];
-    pendingImport = Object.assign({}, data, { matches: list, starters: data.starters || {}, drills: drillList });
+    const tourList = Array.isArray(data.tournaments) ? data.tournaments : [];
+    pendingImport = Object.assign({}, data, { matches: list, starters: data.starters || {}, drills: drillList, tournaments: tourList });
     const yours = data.account && cloud.user && data.account.uid === cloud.user.uid;
     el.impInfo.textContent =
       `${Object.keys(data.ratings || data.state.players).length} players, ${list.length} matches` +
       (drillList.length ? `, ${drillsWord(drillList.length)}` : "") +
+      (tourList.length ? `, ${tourList.length} ${tourList.length === 1 ? "tournament" : "tournaments"}` : "") +
       (data.exportedAt ? `, exported ${data.exportedAt.slice(0, 10)}` : "") +
       ". Merge adds what's missing (by match id) and never overwrites. Replace wipes the cloud data first." +
       (yours ? " Your profile and friends' cards come back too; friendships themselves can't." : "");
@@ -4770,6 +5561,10 @@ async function writeImportedDrill(d){
   const { id, _updatedAt, ...doc } = d;
   await cloud.save("drills/" + id, doc);
 }
+async function writeImportedTour(t){
+  const { id, _updatedAt, ...doc } = t;
+  await cloud.save(tourPath(id), doc);
+}
 
 ui.tap(el.impMerge, async () => {
   const imp = pendingImport;
@@ -4788,6 +5583,8 @@ ui.tap(el.impMerge, async () => {
   for(const s of imp.matches) if(s.id && !existing.has(s.id)) await writeImportedMatch(s);
   const haveDrills = new Set((await cloud.list("drills")).map(d => d.id));
   for(const d of imp.drills) if(d.id && !haveDrills.has(d.id)) await writeImportedDrill(d);
+  const haveTours = new Set((await cloud.list("tournaments")).map(t => t.id));
+  for(const t of imp.tournaments || []) if(t.id && !haveTours.has(t.id)) await writeImportedTour(t);
   await importAccount(imp);
   pendingImport = null;
   await loadState();
@@ -4802,6 +5599,7 @@ ui.hold(el.impReplace, async () => {
   el.impChoice.classList.add("hidden");
   for(const s of await cloud.list("matches")) await cloud.delete("matches/" + s.id);
   for(const d of await cloud.list("drills")) await cloud.delete("drills/" + d.id);
+  for(const t of await cloud.list("tournaments")) await cloud.delete(tourPath(t.id));
   for(const s of await cloud.list("starters")) await cloud.delete("starters/" + s.id);
   for(const s of await cloud.list("ratings")) await cloud.delete("ratings/" + s.id);
   await cloud.delete("state/main");
@@ -4814,6 +5612,7 @@ ui.hold(el.impReplace, async () => {
     if(st && Number.isFinite(st.zargo)) await cloud.save("starters/" + id, st);
   for(const s of imp.matches) if(s.id) await writeImportedMatch(s);
   for(const d of imp.drills) if(d.id) await writeImportedDrill(d);
+  for(const t of imp.tournaments || []) if(t.id) await writeImportedTour(t);
   await importAccount(imp);
   pendingImport = null;
   await loadState();

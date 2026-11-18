@@ -79,6 +79,7 @@ test("a bye fixture's missing loser leaves holes the losers' side skips", () => 
   const st = B.state(t);
   assert.equal(st.filter(x => x.side === "L" && x.round === 1).length, 1, "L1-1 waits on 4v5, L1-2 is two holes");
   assert.equal(st.find(x => x.key === "L1-1").status, "waiting");
+  assert.deepEqual(st.find(x => x.key === "L1-1").empty, [true, false], "the bye's side is empty for good; the other waits on 4 v 5");
   assert.ok(!st.some(x => x.key === "L1-2"), "both feeders were byes: skipped entirely");
   win(t, "W1-2", "p4");
   assert.equal(fx(t, "L1-1").status, "bye");

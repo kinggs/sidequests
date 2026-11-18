@@ -2,7 +2,7 @@
 //
 //   import * as B from "./bracket.js";
 //   B.build({ format, n, final, third })    // the fixtures for n entrants: [{ key, side, round, slot, name, from, when? }]
-//   B.state(t)                              // those fixtures with players: [{ …, race, a, b, result, status, winner, loser }]
+//   B.state(t)                              // those fixtures with players: [{ …, race, a, b, empty, result, status, winner, loser }]
 //   B.standings(t)                          // [{ id, place, placeTo }]; place null while still in
 //   B.finished(t)                           // every match played (or a bye)
 //   B.canClear(t, key)                      // false while a fixture fed by it has a result
@@ -140,6 +140,7 @@ function derive(t){
     const [a, b] = f.from.map(resolve);
     x.a = show(a); x.b = show(b); x.result = null; x.winner = null; x.loser = null;
     x.real = a !== EMPTY && b !== EMPTY;
+    x.empty = [a === EMPTY, b === EMPTY];        // nobody will ever come from that side (a bye's hole)
     if (a === EMPTY && b === EMPTY){
       x.status = "skip";
     } else if (a === EMPTY || b === EMPTY){
