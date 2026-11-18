@@ -161,7 +161,8 @@ many voices a mid-range phone runs before dropping out.
 **Experiment:** the owner plays the PO-12 and the prototype side by side and lists every
 difference in what a press does.
 
-**Pass bar:** a written list of differences, each marked deliberate or to fix.
+**Pass bar:** a written list of differences, each marked deliberate or to fix. Someone who
+learned a task on the prototype can do it on the hardware without being told how (D22).
 
 **Result:** —
 

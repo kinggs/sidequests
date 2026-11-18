@@ -66,6 +66,10 @@ and the first fixtures, not code.
 - [ ] The fixture format, and three fixtures written by hand with their expected traces:
       straight sixteenths, swing with a length change, probability with a fixed seed.
 - [ ] Decide D16, D17, D18 and D20 with the owner (now `proposed`).
+- [ ] Settle how combinations work with one pointer in Rack (O8). It is the largest gap
+      between the hardware's workflow and a mouse, and D22 makes the workflow the point.
+- [ ] Owner, in Claude Design: the look, from D21's three blocks and D20's avoid list. Export
+      to `pocket-instruments/design/`.
 - [ ] Re-check Phona's Library submission (R16a, O2).
 
 ## Session 2 — P1 and P2: one crate, same trace (build, Opus)

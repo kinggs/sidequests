@@ -142,6 +142,53 @@ Why proposed: a design patent is judged on the overall impression to an ordinary
 Where that line falls for a real mockup is the lawyer's question in O7 and Teenage
 Engineering's in D19.
 
+### D21 — The layout: three blocks, left to right
+**2026-11-18 · decided (owner) · applies D20, realises D11**
+
+A wider module, read left to right:
+
+1. **The grid.** Four by four keys, one to sixteen. The keys themselves glow; there is no
+   separate little LED beside a key.
+2. A divider.
+3. **Two sliders**, in place of the two knobs.
+4. A divider.
+5. **The function keys**, in two rows: sound, pattern, bpm above; function, fx, play, write
+   below. The first three in clearly different colours.
+
+The owner designs the look in Claude Design. The export goes in `pocket-instruments/design/`.
+Design work may run alongside the engine proofs; D15 still holds for building anything.
+
+Why: it keeps the flow of the original (the same keys, the same names, the same combinations)
+and gives up its appearance: a different outline, a different arrangement, sliders for knobs,
+lit keys for tact switches. Each of those is a point on D20's avoid list.
+
+Reviewer's notes, for the design:
+
+- **Width.** At a 12 mm key pitch the three blocks come to roughly 120 mm, about 24 HP ⚠
+  (estimate). The panel is 128.5 mm tall and the grid uses under half of it, so the display
+  can run across the top and the Rack jacks along the bottom (D16).
+- **The same three blocks should stack on a phone.** Side by side they do not fit a portrait
+  screen. Design them as blocks that sit in a row in Rack and in a column in the browser (O9).
+- **Sliders are better than knobs on a touch screen**, and Rack has lit sliders. They are
+  absolute controls, as the hardware's knobs are ⚠ (check on the PO-12).
+- **Glowing keys can carry more than the hardware's LEDs:** the playing step, the steps set
+  for the selected sound, a held or latched modifier. That last one matters for O8.
+
+### D22 — It teaches the workflow, so the workflow is the thing kept faithful
+**2026-11-18 · decided (owner) · promotes the brief's education goal; sharpens D11, D19**
+
+The instruments are *inspired by* the originals and meant to let someone *learn* how they are
+played. The look is ours; the workflow stays really close: the same key names, the same
+combinations, the same order of doing things, so that what is learned here carries over to
+the hardware.
+
+Why: it is the honest description of the project, it is what makes it worth showing Teenage
+Engineering (it sends people towards the real thing), and workflow is function, which is free
+to follow (D20).
+
+Consequence: P8 (it feels like the real thing) becomes a gate for the showpiece, not a
+nicety. Every deliberate difference from the hardware is listed and explained.
+
 ## Open
 
 | ID | Question | Needs |
@@ -153,3 +200,5 @@ Engineering's in D19.
 | O5 | Saved state: one readable format shared by both hosts, or a versioned binary snapshot each host wraps? | The engine interface session |
 | O6 | EU and UK registered designs and marks | A search of EUIPO and UKIPO |
 | O7 | A lawyer's view of the mockup before public release | P9 |
+| O8 | The hardware is played with two fingers: hold a function key, press a grid key or turn a knob. A mouse has one pointer. How are combinations made in Rack? Proposed: a click on a function key latches it (it glows) until the next grid press or a second click; computer keys held while hovering also work. The phone browser has real multi-touch and needs neither | Session 1, with D22 in mind; try it at P8 |
+| O9 | How do the three blocks stack on a phone, and does one instrument fill the screen or share it? | The Claude Design work; D18 |
