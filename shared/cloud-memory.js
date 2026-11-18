@@ -80,6 +80,15 @@ const ACCESS = [
   { path: /^sidequests\/rack-it\/drills\/([^/]+)$/,
     read: (m, u, d, was) => isOwner(u) || inUids(was, u),
     write: (m, u, d, was) => isOwner(u) || (!was ? !!d && drillStarts(u, d) : !d ? was.by === u.uid : inUids(was, u) && drillLogs(d, was)) },
+  // Tournaments (2.28.0, rack-it/TOURNAMENT.md §6): the organiser runs it, entrants read it, the
+  // organiser's friend gets an open one by id and joins or leaves it as exactly themselves.
+  { path: /^sidequests\/rack-it\/tournaments$/, read: (m, u, d, was, ctx) => isOwner(u) || uidsFilter(ctx, u) || byFilter(ctx, u) },
+  { path: /^sidequests\/rack-it\/tournaments\/([^/]+)$/,
+    read: (m, u, d, was) => isOwner(u) || inUids(was, u) || (!!was && was.by === u.uid)
+      || (!!was && was.status === "open" && connectedTo(u.uid, was.by)),
+    write: (m, u, d, was) => isOwner(u) || (!was ? !!d && tourStarts(u, d)
+      : !d ? was.by === u.uid && was.status === "open"
+      : tourOrganises(u, d, was) || tourJoins(u, d, was) || tourLeaves(u, d, was)) },
   { path: /^sidequests\/rack-it(\/|$)/, read: "owner", write: "owner" },   // starters, listing ratings
   // The open apps (Session 7): each record reached by the accounts in its uids, a list only with
   // the uids filter, and the rest of the app the owner's.
@@ -218,6 +227,32 @@ const drillStarts = (u, d) => d.by === u.uid && d.status === "live"
   && Array.isArray(d.players) && d.players.length === 1 && d.players[0] === u.uid;
 const drillLogs = (d, was) => was.status === "live" && ["live", "done"].includes(d.status)
   && !changed(was, d).some(k => ["uids", "by", "players", "names", "drill", "startedAt"].includes(k));
+// Tournaments (2.28.0): as tourStarts, tourOrganises, tourJoins and tourLeaves in firestore.rules.
+const byFilter = (ctx, u) => !!ctx.where && ctx.where[0] === "by" && ctx.where[1] === "==" && ctx.where[2] === u.uid;
+const listOf = x => Array.isArray(x) ? x : [];
+function tourStarts(u, d){
+  const uids = listOf(d.uids), players = listOf(d.players);
+  return d.by === u.uid && d.status === "open" && (d.seeds == null) && Object.keys(d.results || {}).length === 0
+    && Array.isArray(d.players) && players.length <= 32 && listOf(d.names).length === players.length
+    && Array.isArray(d.uids) && (uids.length === 0 || (uids.length === 1 && uids[0] === u.uid));
+}
+function tourOrganises(u, d, was){
+  const before = new Set(listOf(was.uids)), added = listOf(d.uids).filter(x => !before.has(x)), last = listOf(d.uids).at(-1);
+  return was.by === u.uid && d.by === was.by && Array.isArray(d.uids) && Array.isArray(d.players) && d.players.length <= 32
+    && (added.length === 0 || (new Set(added).size === 1 && added[0] === last && (last === u.uid || connectedTo(u.uid, last))));
+}
+const tourWho = (d, was) => changed(was, d).every(k => ["players", "uids", "names", "_updatedAt"].includes(k));
+function tourJoins(u, d, was){
+  const n = listOf(was.names).length;
+  return was.status === "open" && !listOf(was.uids).includes(u.uid) && listOf(was.players).length < 32 && tourWho(d, was)
+    && same(d.players, [...listOf(was.players), u.uid]) && same(d.uids, [...listOf(was.uids), u.uid])
+    && listOf(d.names).length === n + 1 && same(listOf(d.names).slice(0, n), listOf(was.names)) && connectedTo(u.uid, was.by);
+}
+function tourLeaves(u, d, was){
+  return was.status === "open" && listOf(was.uids).includes(u.uid) && tourWho(d, was)
+    && same(d.players, listOf(was.players).filter(x => x !== u.uid)) && same(d.uids, listOf(was.uids).filter(x => x !== u.uid))
+    && listOf(d.names).length === listOf(was.names).length - 1;
+}
 // Two phones, one match (Session 8 step 3): a live score write is the next link of the chain;
 // a presence write touches only your own phones entry.
 function nextLink(now, was){

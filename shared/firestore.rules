@@ -170,6 +170,22 @@ service cloud.firestore {
       allow update: if (signedIn() && request.auth.uid in resource.data.get('uids', []) && drillLogs()) || isOwner();
       allow delete: if (signedIn() && resource.data.get('by', '') == request.auth.uid) || isOwner();
     }
+    // Tournaments (Rack It 2.28.0, rack-it/TOURNAMENT.md §6). Whoever starts one is its organiser
+    // (`by`): they read it, change anything but `by`, and delete it while entries are open. An
+    // entrant (in `uids`) reads it and lists with the uids filter; an organiser who isn't playing
+    // lists with `by`. The organiser's friend gets it by id while it's open (the Tournament QR,
+    // never a list) and may join it, or leave again, as exactly themselves. The rules can't work
+    // the bracket out: rack-it/bracket.js ignores a result that doesn't fit its fixture.
+    match /sidequests/rack-it/tournaments/{id} {
+      allow read: if (signedIn() && (request.auth.uid in resource.data.get('uids', [])
+          || resource.data.get('by', '') == request.auth.uid)) || isOwner();
+      allow get: if signedIn() && resource.data.get('status', '') == 'open'
+        && connected(request.auth.uid, resource.data.get('by', ''));
+      allow create: if (signedIn() && tourStarts()) || isOwner();
+      allow update: if (signedIn() && (tourOrganises() || tourJoins() || tourLeaves())) || isOwner();
+      allow delete: if (signedIn() && resource.data.get('by', '') == request.auth.uid
+          && resource.data.get('status', '') == 'open') || isOwner();
+    }
     // Each player's rating, keyed by their resolved id (KIT-PLAN.md Session 3). A cache that
     // Rebuild ratings remakes from the matches. Anyone signed in gets one by its id; only the
     // owner lists them or writes one outside a confirmation.
@@ -486,6 +502,50 @@ service cloud.firestore {
     function drillLogs() {
       return resource.data.status == 'live' && request.resource.data.status in ['live', 'done']
         && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['uids', 'by', 'players', 'names', 'drill', 'startedAt']);
+    }
+    // A new tournament: yours, entries open, no draw and no results, at most 32 players. Its
+    // accounts are only you (or nobody, organising without playing): a rule can't check 32
+    // friendships, so friends go in one write each after it (tourOrganises).
+    function tourStarts() {
+      let t = request.resource.data;
+      return t.by == request.auth.uid && t.status == 'open' && t.get('seeds', null) == null
+        && t.get('results', {}).size() == 0
+        && t.players is list && t.players.size() <= 32 && t.names is list && t.names.size() == t.players.size()
+        && t.uids is list && (t.uids.size() == 0 || (t.uids.size() == 1 && t.uids[0] == request.auth.uid));
+    }
+    // The organiser changes anything but `by`. Accounts join one write at a time, each the last in
+    // `uids` and someone the organiser is connected to (or the organiser, stepping back in).
+    function tourOrganises() {
+      let was = resource.data;
+      let now = request.resource.data;
+      let added = now.get('uids', []).toSet().difference(was.get('uids', []).toSet());
+      let last = now.get('uids', []).size() > 0 ? now.uids[now.uids.size() - 1] : '';
+      return was.get('by', '') == request.auth.uid && now.get('by', '') == was.get('by', '')
+        && now.uids is list && now.players is list && now.players.size() <= 32
+        && (added.size() == 0 || (added.size() == 1 && added.hasOnly([last])
+          && (last == request.auth.uid || connected(request.auth.uid, last))));
+    }
+    // Joining by the Tournament QR: while entries are open, the organiser's friend adds exactly
+    // themselves to the end of `players` and `uids`, and one name to the end of `names`.
+    function tourJoins() {
+      let was = resource.data;
+      let now = request.resource.data;
+      let me = request.auth.uid;
+      return was.status == 'open' && !(me in was.uids) && was.players.size() < 32
+        && now.diff(was).affectedKeys().hasOnly(['players', 'uids', 'names', '_updatedAt'])
+        && now.players == was.players.concat([me]) && now.uids == was.uids.concat([me])
+        && now.names.size() == was.names.size() + 1 && now.names[0:was.names.size()] == was.names
+        && connected(me, was.by);
+    }
+    // Leaving before the draw: exactly yourself out of `players` and `uids`, and one name out.
+    function tourLeaves() {
+      let was = resource.data;
+      let now = request.resource.data;
+      let me = request.auth.uid;
+      return was.status == 'open' && me in was.uids
+        && now.diff(was).affectedKeys().hasOnly(['players', 'uids', 'names', '_updatedAt'])
+        && now.players == was.players.removeAll([me]) && now.uids == was.uids.removeAll([me])
+        && now.names.size() == was.names.size() - 1;
     }
     // A guest's starter estimate, written once by the account that made the guest.
     function guestStarter(pid) {

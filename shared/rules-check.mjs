@@ -2109,3 +2109,107 @@ describe("Spot 9: a solo drill", () => {
     await assertFails(getDoc(doc(signedOut(), D + "live")));
   });
 });
+
+// ---- Tournaments (Rack It 2.28.0, rack-it/TOURNAMENT.md §6) ----
+// Ann organises. Cat is her friend; Ben isn't. Cat joins by the Tournament QR while entries are
+// open, and may leave again; nobody else changes who's in it, and only Ann changes anything else.
+
+const T = "sidequests/rack-it/tournaments/";
+const annTour = (extra = {}) => ({ name: "Ann's tournament", game: "eight", format: "single", third: false,
+  race: { w: 3 }, seeding: "random", by: "ann", byName: "Ann", status: "open", createdAt: 1,
+  players: ["ann", "g_1"], names: ["Ann", "Dan"], uids: ["ann"], seeds: null, results: {}, ...extra });
+
+describe("tournaments", () => {
+  beforeEach(async () => {
+    await seed(T + "open", annTour());
+    await seed(T + "live", annTour({ status: "live", players: ["ann", "g_1", "cat"], names: ["Ann", "Dan", "Cat"],
+      uids: ["ann", "cat"], seeds: ["cat", "ann", "g_1"] }));
+    await seed(T + "lobbyCat", annTour({ players: ["ann", "cat"], names: ["Ann", "Cat"], uids: ["ann", "cat"] }));
+    await seed(T + "watching", annTour({ players: ["g_1"], names: ["Dan"], uids: [] }));
+    await seed(T + "started", annTour({ status: "live", seeds: ["ann", "g_1"] }));
+  });
+
+  test("anyone signed in starts one as organiser, playing or not, with guests", async () => {
+    const db = user("ben");
+    await assertSucceeds(setDoc(doc(db, T + "b1"), annTour({ by: "ben", byName: "Ben", players: ["ben"], names: ["Ben"], uids: ["ben"] })));
+    await assertSucceeds(setDoc(doc(db, T + "b2"), annTour({ by: "ben", byName: "Ben", players: ["g_9"], names: ["Eve"], uids: [] })));
+  });
+  test("the organiser adds a friend, a guest, themselves; draws, starts, enters and clears results, ends it, deletes it while open", async () => {
+    const db = user("ann");
+    await assertSucceeds(updateDoc(doc(db, T + "open"), { players: ["ann", "g_1", "cat"], names: ["Ann", "Dan", "Cat"], uids: ["ann", "cat"] }));
+    await assertSucceeds(updateDoc(doc(db, T + "watching"), { players: ["g_1", "g_2"], names: ["Dan", "Fay"] }));
+    await assertSucceeds(updateDoc(doc(db, T + "watching"), { players: ["g_1", "ann"], names: ["Dan", "Ann"], uids: ["ann"] }));
+    await assertSucceeds(updateDoc(doc(db, T + "lobbyCat"), { players: ["ann"], names: ["Ann"], uids: ["ann"] }));
+    await assertSucceeds(updateDoc(doc(db, T + "open"), { name: "Club night", race: { w: 5 } }));
+    await assertSucceeds(updateDoc(doc(db, T + "open"), { seeds: ["g_1", "ann"], status: "live", startedAt: 2 }));
+    await assertSucceeds(updateDoc(doc(db, T + "live"), { "results.W1-2": { ids: ["ann", "g_1"], a: 3, b: 1, w: "a", by: "ann", at: 3 } }));
+    await assertSucceeds(updateDoc(doc(db, T + "live"), { "results.W1-2": deleteField() }));
+    await assertSucceeds(updateDoc(doc(db, T + "live"), { status: "done", endedAt: 4 }));
+    await assertSucceeds(getDocs(query(collection(db, "sidequests/rack-it/tournaments"), where("by", "==", "ann"))));
+    await assertSucceeds(deleteDoc(doc(db, T + "watching")));
+  });
+  test("an entrant reads it and lists with the uids filter; an organiser who isn't playing lists with by", async () => {
+    const cat = user("cat");
+    await assertSucceeds(getDoc(doc(cat, T + "live")));
+    await assertSucceeds(getDocs(query(collection(cat, "sidequests/rack-it/tournaments"), where("uids", "array-contains", "cat"))));
+    await assertSucceeds(getDoc(doc(user("ann"), T + "watching")));
+  });
+  test("the organiser's friend gets an open one by id, joins it, and leaves again", async () => {
+    const cat = user("cat");
+    await assertSucceeds(getDoc(doc(cat, T + "open")));
+    await assertSucceeds(updateDoc(doc(cat, T + "open"), { players: ["ann", "g_1", "cat"], names: ["Ann", "Dan", "Cat"], uids: ["ann", "cat"] }));
+    await assertSucceeds(updateDoc(doc(cat, T + "lobbyCat"), { players: ["ann"], names: ["Ann"], uids: ["ann"] }));
+  });
+  test("the owner reaches every tournament", async () => {
+    const db = as(OWNER);
+    await assertSucceeds(getDocs(collection(db, "sidequests/rack-it/tournaments")));
+    await assertSucceeds(updateDoc(doc(db, T + "live"), { name: "Fixed" }));
+    await assertSucceeds(deleteDoc(doc(db, T + "live")));
+  });
+  test("refused: starting one in someone else's name, live, drawn, with results, with friends in it, or over 32", async () => {
+    const db = user("ann");
+    const many = Array.from({ length: 33 }, (_, i) => "g_" + i);
+    await assertFails(setDoc(doc(db, T + "x1"), annTour({ by: "ben" })));
+    await assertFails(setDoc(doc(db, T + "x2"), annTour({ status: "live" })));
+    await assertFails(setDoc(doc(db, T + "x3"), annTour({ seeds: ["ann", "g_1"] })));
+    await assertFails(setDoc(doc(db, T + "x4"), annTour({ results: { F: { ids: ["ann", "g_1"], a: 3, b: 0, w: "a" } } })));
+    await assertFails(setDoc(doc(db, T + "x5"), annTour({ players: ["ann", "cat"], names: ["Ann", "Cat"], uids: ["ann", "cat"] })));
+    await assertFails(setDoc(doc(db, T + "x6"), annTour({ players: many, names: many, uids: [] })));
+  });
+  test("refused: the organiser adding someone they aren't connected to, two at once, or giving it away", async () => {
+    const db = user("ann");
+    await assertFails(updateDoc(doc(db, T + "open"), { players: ["ann", "g_1", "ben"], names: ["Ann", "Dan", "Ben"], uids: ["ann", "ben"] }));
+    await assertFails(updateDoc(doc(db, T + "watching"), { players: ["g_1", "ann", "cat"], names: ["Dan", "Ann", "Cat"], uids: ["ann", "cat"] }));
+    await assertFails(updateDoc(doc(db, T + "open"), { by: "cat" }));
+  });
+  test("refused: joining a live one, adding someone else, a stranger joining, or joining twice", async () => {
+    const cat = user("cat"), ben = user("ben");
+    await assertFails(updateDoc(doc(cat, T + "live"), { players: ["ann", "g_1", "cat", "cat"], names: ["Ann", "Dan", "Cat", "Cat"], uids: ["ann", "cat", "cat"] }));
+    await assertFails(updateDoc(doc(cat, T + "open"), { players: ["ann", "g_1", "ben"], names: ["Ann", "Dan", "Ben"], uids: ["ann", "ben"] }));
+    await assertFails(updateDoc(doc(ben, T + "open"), { players: ["ann", "g_1", "ben"], names: ["Ann", "Dan", "Ben"], uids: ["ann", "ben"] }));
+    await assertFails(updateDoc(doc(cat, T + "lobbyCat"), { players: ["ann", "cat", "cat"], names: ["Ann", "Cat", "Cat"], uids: ["ann", "cat", "cat"] }));
+    await assertFails(updateDoc(doc(cat, T + "open"), { players: ["ann", "g_1", "cat"], names: ["Ann", "Dan", "Cat"], uids: ["ann", "cat"], name: "Mine" }));
+  });
+  test("refused: an entrant changing settings, the draw or a result, leaving after the draw, or taking someone else out", async () => {
+    const cat = user("cat");
+    await assertFails(updateDoc(doc(cat, T + "live"), { race: { w: 9 } }));
+    await assertFails(updateDoc(doc(cat, T + "live"), { seeds: ["ann", "cat", "g_1"] }));
+    await assertFails(updateDoc(doc(cat, T + "live"), { "results.W1-1": { ids: ["cat", "g_1"], a: 3, b: 0, w: "a", by: "cat", at: 1 } }));
+    await assertFails(updateDoc(doc(cat, T + "live"), { players: ["ann", "g_1"], names: ["Ann", "Dan"], uids: ["ann"] }));
+    await assertFails(updateDoc(doc(cat, T + "lobbyCat"), { players: ["cat"], names: ["Cat"], uids: ["cat"] }));
+  });
+  test("refused: a stranger reading or listing, an entrant listing without the filter, anyone but the organiser deleting, deleting a live one", async () => {
+    const ben = user("ben"), cat = user("cat");
+    await assertFails(getDoc(doc(ben, T + "open")));
+    await assertFails(getDocs(collection(cat, "sidequests/rack-it/tournaments")));
+    await assertFails(getDocs(query(collection(ben, "sidequests/rack-it/tournaments"), where("uids", "array-contains", "ann"))));
+    await assertFails(deleteDoc(doc(cat, T + "lobbyCat")));
+    await assertFails(deleteDoc(doc(user("ann"), T + "live")));
+    await assertFails(getDoc(doc(signedOut(), T + "open")));
+    await assertFails(setDoc(doc(signedOut(), T + "x9"), annTour()));
+  });
+  test("refused: a friend getting it once the draw is made", async () => {
+    await assertFails(getDoc(doc(user("cat"), T + "started")));
+    await assertFails(updateDoc(doc(user("cat"), T + "started"), { players: ["ann", "g_1", "cat"], names: ["Ann", "Dan", "Cat"], uids: ["ann", "cat"] }));
+  });
+});
