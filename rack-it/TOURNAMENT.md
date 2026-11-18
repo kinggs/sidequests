@@ -173,7 +173,12 @@ tournament rates nothing.
   see it with no new code. A result scored in Rack It (Session 4) already has its match: that
   match is marked rated instead of making a second one.
 - Ratings then move as a confirmation does (§6.1 of the spec), in the order the results were
-  entered, and the summary reads "rated as part of Kenny's tournament".
+  entered, from the ratings as they stand at the finish, and the summary reads "rated as part of
+  Kenny's tournament". Each of those matches gets `ratedAt` = the finish, so **Rebuild ratings
+  replays them at the finish too**, never back where they were played.
+- **Only the tournament's own games wait** (the owner, 2026-11-18). A match a player plays outside
+  the tournament while it's live moves ratings as usual, at once; the tournament's results then
+  start from those ratings when it finishes. Nothing about a rating is frozen during a tournament.
 - **The open question for Session 3:** who may write the ratings. Today the opponent's phone
   writes both `ratings/` documents on Confirm. For a tournament it would be the organiser's
   phone writing everyone's, which needs a rule (a ratings write that names a `done` tournament
