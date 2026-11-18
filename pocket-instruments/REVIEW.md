@@ -258,3 +258,17 @@ The education goal has no milestone; it is parked, not dropped.
   instrument exists.
 - A lawyer's view. Before any public release with a panel design, someone qualified looks at
   the mockup against R4 to R7.
+
+### Addendum, 2026-11-18 — the patent drawings, read
+
+Falsifier 2 above asked what the front-face drawings claim. They have now been read (R4, R5,
+R6). The answer is narrower than "any grid with knobs" and wider than F2 assumed:
+
+- D741,282 leaves out the display and the hanger and claims the board outline with its exact
+  key and knob arrangement. An instrument with a different display but that arrangement would
+  still be inside it.
+- D738,348 claims the complete object.
+- D789,955 claims the display artwork on its own, with the device unclaimed.
+
+F2's "an original look in the calculator format" therefore needs a sharper brief. It is in
+`DECISIONS.md` D20. F1 is unchanged: VCV's rule on "layout of components" points the same way.

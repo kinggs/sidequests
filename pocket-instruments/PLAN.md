@@ -54,8 +54,8 @@ pocket-instruments/
 The one piece of design the build cannot start without (`REVIEW.md` F7). Output is `ENGINE.md`
 and the first fixtures, not code.
 
-- [ ] Read the patent drawings (O1): fetch the figures of R4, R5 and R6 and write down what
-      the front face claims. If it changes D11, stop and say so.
+- [x] Read the patent drawings (O1). Done 2026-11-18, ahead of the session: R4, R5, R6 and
+      D20. It narrowed D11; it did not overturn it.
 - [ ] Owner: measure the PO-12 (width, height, key pitch, jack spacing) for D16.
 - [ ] Owner: list what a press does on the PO-12 in write mode and play mode, for the tiny
       rhythm machine's scope and for `REVIEW.md` F8. An hour with the hardware.
@@ -65,7 +65,7 @@ and the first fixtures, not code.
 - [ ] The C header, as the contract both hosts link. Design only.
 - [ ] The fixture format, and three fixtures written by hand with their expected traces:
       straight sixteenths, swing with a length change, probability with a fixed seed.
-- [ ] Decide D16, D17, D18 with the owner (now `proposed`).
+- [ ] Decide D16, D17, D18 and D20 with the owner (now `proposed`).
 - [ ] Re-check Phona's Library submission (R16a, O2).
 
 ## Session 2 — P1 and P2: one crate, same trace (build, Opus)
@@ -106,7 +106,10 @@ Phase 1's first critical step. No Rack, no browser, no sound.
 Decided when P1 to P4 are in, not before:
 
 - The tiny rhythm machine (D12): one voice in the core first (P7), then the instrument.
-- The look (D11) and its gate (P9); the approach to Teenage Engineering.
+- **The showpiece (D19):** the tiny rhythm machine, playable from a link on a phone, with its
+  own look inside D20's limits and its own display animation. This is what Teenage Engineering
+  is shown, with a Rack module beside it. It has to be good enough to be worth their time.
+- The look's gate (P9), then the approach to Teenage Engineering.
 - P5 (shipping) and P6 (editing while playing) before a second instrument.
 - Extraction to a standalone repository: licence file, name (O3), contribution rules.
 
@@ -120,7 +123,10 @@ Decided when P1 to P4 are in, not before:
 - The three findings that changed the plan: VCV's ethics rule and Teenage Engineering's
   registered rights ended the near-replica look (D11); Rust's shipping route is unproven, so it
   has kill criteria (D13); the first instrument became a tiny rhythm machine (D12).
-- Not verified, and worth an hour: the patent drawings (O1). Everything in D11 assumes an
-  original design in the same format is clear of them.
-- D16, D17 and D18 are the reviewer's proposals. The owner has not ruled on them.
+- The patent drawings were read the same day (O1 closed). They claim the board's key and knob
+  arrangement even without the display, and the display artwork separately. D20 turns that
+  into what the look must avoid.
+- The owner's stance is D19: open about the homage, ask permission, never commercial, and
+  show Teenage Engineering something good first.
+- D16, D17, D18 and D20 are the reviewer's proposals. The owner has not ruled on them.
 - Next: Session 1, on Fable.

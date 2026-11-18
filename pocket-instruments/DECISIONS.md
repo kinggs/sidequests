@@ -102,11 +102,51 @@ table. Phone and touch first.
 Why: F10, R19 to R21. Fewer dependencies for contributors; no cross-origin isolation needed on
 GitHub Pages.
 
+### D19 — Open about the intent; ask permission; never commercial
+**2026-11-18 · decided (owner) · confirms D7, D8, D14**
+
+The project says plainly what it is: an homage to instruments we admire. Nothing about the
+inspiration is hidden, permission is asked for, and nothing is ever sold. The owner was told
+that naming the patents in a public repo is evidence of knowing about them, and accepts that.
+
+Before asking Teenage Engineering, there must be something good to show them: the tiny rhythm
+machine (D12), playable from a link, with its own look (D11, D20). "The worst they can say is
+no."
+
+Reviewer's note: being free and credited shapes how a rights holder responds; it does not
+remove patent or trademark exposure. The realistic worst case for an open, non-commercial
+project that asks first is a request to change or stop.
+
+### D20 — What "our own look" must avoid, from the patent drawings
+**2026-11-18 · proposed (the reviewer's reading of the drawings, not a lawyer's) · narrows D11**
+
+The drawings (R4, R5, R6) claim three things. Our design stays clear of each:
+
+1. **The board and key arrangement** (R5, the broad one: display and hanger are not part of
+   it). A rounded portrait board carrying a top row of three keys and two knobs above a
+   five-by-four grid of exposed tact switches. So: not that arrangement, not that outline, not
+   bare tact switches as the key style.
+2. **The whole object** (R4): add the hanger, the pin-row display and the side battery clips.
+   No hanger tab, no pin rows, no clips, not even as decoration.
+3. **The display artwork** (R6 and its continuations): the cartoon scenes. All animation is
+   our own, in a style of our own.
+
+What stays free, because it is function and not appearance: sixteen steps as a four-by-four
+grid, two knobs, a small animated display, sound and pattern keys, the workflow.
+
+Consequence for D11: "the same format" was too loose. The design brief for the look is "a
+sixteen-step pocket instrument that could not be mistaken for the original at a glance". The
+Rack panel helps: it is a 128.5 mm strip with its own proportions, not a hanging card.
+
+Why proposed: a design patent is judged on the overall impression to an ordinary observer.
+Where that line falls for a real mockup is the lawyer's question in O7 and Teenage
+Engineering's in D19.
+
 ## Open
 
 | ID | Question | Needs |
 |---|---|---|
-| O1 | What do the front-face drawings of the design patents actually claim? | Read the figures of R4, R5, R6 |
+| O1 | ~~What do the front-face drawings of the design patents actually claim?~~ | Answered 2026-11-18: R4, R5, R6. Led to D20 |
 | O2 | Will the VCV Library build or accept a plugin with Rust in it? | Watch Phona (R16a); ask VCV at P5 |
 | O3 | Is the name "Pocket Instruments" free, and is it too close to POCKET OPERATOR? | A register search; a decision on a family name |
 | O4 | How does swing behave on an external clock? | The engine interface session (PLAN Session 1) |
