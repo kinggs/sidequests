@@ -19,15 +19,16 @@ into `rack-it/SPEC.md`.
 
 ## 0. Decisions for the owner
 
-Each has a default the build follows unless the owner says otherwise. The first two matter most.
+Each has a default the build follows unless the owner says otherwise. **The owner settled 1, 2 and 5
+on 2026-11-18** (the Answer column); the rest stand at their defaults.
 
-| # | Question | Default | Why |
+| # | Question | Answer | Why |
 |---|---|---|---|
-| 1 | Does a result typed in ("I won 3–1") move ratings? | **No.** Only a tournament match scored rack by rack in Rack It can be rated, and it confirms the usual way. | Zargo updates rack by rack and nobody else has signed a typed result. Typed results stay quick and friendly. |
-| 2 | Does the opponent have to confirm a typed result? | **No.** It stands at once, marked "entered by Kenny". The opponent gets **Not right**, which flags it for the organiser to settle. | A bracket that waits on confirmations stalls a club night. This is how Challonge and Cuescore work. |
+| 1 | Does a result typed in ("I won 3–1") move ratings? | **Yes: every tournament result is rated**, however it got in (the owner, 2026-11-18: "it is the one place where ratings really count"; subtler later). Not a walkover (no racks), not a match with a guest (guests play friendlies only). Ratings move **when the tournament finishes** (§3.7). | In the race games Zargo scores each rack 1 or 0 at weight 0.5 and sums them, so the order of the racks never matters: a typed 3–1 moves ratings exactly as four scored racks would. |
+| 2 | Does the opponent have to confirm a typed result? | **No** (confirmed). It stands at once, marked "entered by Kenny". The opponent gets **Not right**, which flags it for the organiser to settle. | A bracket that waits on confirmations stalls a club night. This is how Challonge and Cuescore work. |
 | 3 | Which formats first? | Single and double elimination. Round robin next (§9). | The ask. Round robin suits four to six players and is cheap to add after. |
 | 4 | Double elimination's final | **One final.** A toggle offers "play a decider if the losers' side wins" (the bracket reset). | Most club nights play one final; purists want the reset. |
-| 5 | Can guests (no phone) enter? | **Yes.** The organiser adds them by name and enters their results. | A club night always has someone without the app. |
+| 5 | Can guests (no phone) enter? | **Yes** (confirmed). The organiser picks them from their known guests or adds a new one, exactly as "Who's playing" does now, and enters their results. | A club night always has someone without the app. |
 | 6 | How many players? | 3 to 32. | A phone shows 32 comfortably round by round; the document stays small. |
 | 7 | Handicaps | **Off** in v1. Parked: Rack It's race chart per match (§9). | Keep the first version to a plain race. |
 
@@ -145,10 +146,10 @@ Three ways a result gets in. All three write the same thing (§5).
    their own entry until the next match that depends on it has a result.
 3. **Scored in Rack It** (Session 4). **Score it in Rack It** opens match setup with the game,
    both players and the race filled in and locked; the match carries `tournament` and `fixture`.
-   When it's saved, its racks become the fixture's result with a link to the summary. This is
-   the only kind that can be **rated** (decision 1): the Rated tick is offered as usual, and it
-   confirms as usual (§6.1 of the spec). The bracket moves on when the match is saved, not when
-   it's confirmed; a rated match that becomes a friendly still stands as the result.
+   When it's saved, its racks become the fixture's result with a link to the summary. The match
+   is saved as a friendly with no confirm step, and no Rated tick is shown: like every
+   tournament result it is rated when the tournament finishes (§3.7), so it must never be rated
+   twice. The bracket moves on when the match is saved.
 
 **Correcting.** The organiser may change or **Hold to clear** any result, unless a later fixture
 that depends on it already has a result: clear that one first. This keeps the bracket honest
@@ -157,6 +158,28 @@ without a confirm step.
 **Finishing.** When the last fixture has a result the tournament is `done` and the page leads
 with the winner. The organiser's `⋯` has **Hold to end early** (done as it stands) and, in the
 lobby, **Hold to discard**.
+
+### 3.7 Ratings (decision 1, Session 3)
+
+Every result between two accounts counts, typed or scored, apart from walkovers. They are
+rated **together when the tournament finishes** (the last result, or Hold to end early), not one
+by one as they come in. While it's live, results get changed, cleared and disputed (Not right);
+rating at the finish means none of that ever has to be unpicked from the ratings. A discarded
+tournament rates nothing.
+
+- At the finish, each counted result becomes an ordinary rated match in `matches/` (game, both
+  players, `racks` as `a` wins and `b` losses, `tournament`, `fixture`, `entered: true` when
+  typed, `playedAt` from the result's `at`), so the Matches tab, Rebuild ratings and Export all
+  see it with no new code. A result scored in Rack It (Session 4) already has its match: that
+  match is marked rated instead of making a second one.
+- Ratings then move as a confirmation does (§6.1 of the spec), in the order the results were
+  entered, and the summary reads "rated as part of Kenny's tournament".
+- **The open question for Session 3:** who may write the ratings. Today the opponent's phone
+  writes both `ratings/` documents on Confirm. For a tournament it would be the organiser's
+  phone writing everyone's, which needs a rule (a ratings write that names a `done` tournament
+  you organised, and a match in it). If that rule proves too loose, the fallback is that the
+  finish writes the rated matches and the ratings catch up at the owner's next **Rebuild
+  ratings** (§3.2 of the spec), which already replays every rated match correctly.
 
 ### 3.6 Leaving and removing
 
@@ -252,7 +275,8 @@ tournaments/<id>
 ```
 
 A match scored for a fixture is an ordinary `matches/<id>` with two more fields,
-`tournament: <id>` and `fixture: <key>`. Nothing else about a match changes.
+`tournament: <id>` and `fixture: <key>` (and `entered: true` for a typed result rated at the
+finish, §3.7). Nothing else about a match changes.
 
 - **Writes** are field-path patches (`cloud.patch`, `results.<key>`), so two results entered at
   once on two phones both land. No chain is needed: no write depends on another's value.
@@ -326,20 +350,23 @@ spec updated, and a handover note below.
 
 A club night can run on this session alone.
 
-### Session 3 — players enter their own results
+### Session 3 — players enter their own results, and ratings
 
+- [ ] Ratings at the finish (§3.7): the rated matches, the ratings write and its rule cases,
+      "rated as part of Kenny's tournament". Settle the open question there first.
 - [ ] The entrant's rule rows and cases; **Your match** with **Enter the result**; "entered by";
       **Not right** and the organiser settling it; a player correcting their own.
 - [ ] The proof grows: two players' phones, a dispute, a stale entry ignored.
 
-### Session 4 — score it in Rack It, and rated
+### Session 4 — score it in Rack It
 
 - [ ] `fixtureStarts()` and its cases; match setup opened from a fixture, filled and locked;
       a player who isn't a friend shown from the tournament's `names` (the setup and summary
       already read `names` from the match; the picker and `people.resolve` must not be needed).
 - [ ] The saved match's racks become the result, linked; the summary says "Kenny's tournament ·
       Winners' side, round 2" with **Back to the tournament**.
-- [ ] Rated as usual; a discarded match leaves the fixture to play.
+- [ ] No Rated tick and no confirm (it's rated at the finish, §3.7, by marking this match rated);
+      a discarded match leaves the fixture to play.
 
 This is the riskiest session: it touches the live screen's start and the match rules. Read
 `shared/proofs/table-session.mjs` first; the club match link (`?club=`) is the nearest thing
@@ -393,5 +420,7 @@ sides, then "Winners' side final", "Losers' side final", "Final", "Decider"; "Th
 proves the first drop never pairs you with the player who just beat you (8 and up); at 4 it's
 unavoidable. Later rounds aren't proven rematch-free, only "as late as the pattern allows".
 
-**Left for Session 2.** Decisions 1, 2 and 5 in §0 still stand at their defaults; nothing in
-Session 1 depended on them. Session 2 starts with the rules cases (§6).
+**Left for Session 2.** The owner settled decisions 1, 2 and 5 after this session (§0): every
+tournament result is rated, at the finish (§3.7, built in Session 3); no confirm step; guests
+from the known guests or added new. Session 2 is unchanged by them and starts with the rules
+cases (§6).
