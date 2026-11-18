@@ -5,7 +5,7 @@ with a QR, and the bracket runs itself as results come in. The organiser can ent
 players can enter their own. It reuses what Rack It has: the same accounts, the same QR, the same
 players, the same matches and ratings.
 
-**Status:** planned, not built (written 2026-11-18). Nothing in the app changes until Session 1.
+**Status:** Session 1 done (2.27.2, 2026-11-18): `bracket.js` is built and tested; nothing on screen yet.
 This is also pre-work for the Sessions app (`SESSIONS-MIGRATION.md` at the repo root): the
 bracket logic and the data shape are written to be lifted out.
 
@@ -310,10 +310,10 @@ spec updated, and a handover note below.
 
 ### Session 1 — the bracket module (no change on screen)
 
-- [ ] `rack-it/bracket.js` and `bracket.test.mjs` as §4; CLAUDE.md rule 1 amended; `sw.js` shell.
-- [ ] Single and double elimination, byes, both finals, third place, races, standings,
+- [x] `rack-it/bracket.js` and `bracket.test.mjs` as §4; CLAUDE.md rule 1 amended; `sw.js` shell.
+- [x] Single and double elimination, byes, both finals, third place, races, standings,
       `canClear`, `validResult`, `draw`.
-- [ ] The property test: every size 3–32, both formats, random results, everyone placed once.
+- [x] The property test: every size 3–32, both formats, random results, everyone placed once.
 
 ### Session 2 — a tournament the organiser runs (a minor version)
 
@@ -361,3 +361,37 @@ already built.
 ## 10. Handover
 
 (Each session writes its note here: what shipped, at which version, what it left.)
+
+### Session 1 — 2.27.2, 2026-11-18
+
+**Shipped.** `rack-it/bracket.js` and `rack-it/bracket.test.mjs` (18 tests; `make verify` green).
+Nothing on screen changes; `sw.js` caches the module so Session 2 works offline from day one.
+CLAUDE.md rule 1 now allows an app's pure logic in *modules* (each tested, each in the shell).
+
+**The API, as built** (§4, plus three small extras Session 2 will want):
+
+- `state(t)` leaves out fixtures that are skipped entirely (both feeders empty) and leaves out
+  `F2` until the losers' side winner takes `F`. Each fixture carries `name` (the round's words),
+  `race`, `a`, `b` (an id, or null while unknown or for a bye's missing side), `result`,
+  `status` (`bye` · `waiting` · `ready` · `done`), `winner`, `loser`, and `ignored` (the stored
+  result) when a result is there but doesn't fit. Before the draw (`seeds: null`) every fixture
+  is `waiting` with no players, so the lobby could show the shape.
+- Extras: `finished(t)` (every fixture done or a bye), `ignored(t)` (the keys being ignored,
+  including a decider nobody needs), `raceFor(t, fixture)`, `positions(size)`.
+- `standings(t)` lists every entrant: `place`/`placeTo` once they're out (known the moment they
+  lose, since byes depend only on n), `null` while still in, still-in first.
+- `canClear(t, key)` is false with no result to clear; true for an ignored result; otherwise
+  walks everything downstream (through byes) and refuses if any of it has a result. Use it for
+  **changing** a result as well as clearing one.
+- `validResult` wants `ids` in the derived order (`[a, b]`) and `w` to agree with the score.
+
+**Round names.** Single: Final, Semi-finals, Quarter-finals, Round N. Double: Round N on both
+sides, then "Winners' side final", "Losers' side final", "Final", "Decider"; "Third place" for
+`T`. Session 2 may rename; they're one function each.
+
+**Cross-seeding.** Drops come reversed, then halves swapped, then straight, repeating. A test
+proves the first drop never pairs you with the player who just beat you (8 and up); at 4 it's
+unavoidable. Later rounds aren't proven rematch-free, only "as late as the pattern allows".
+
+**Left for Session 2.** Decisions 1, 2 and 5 in §0 still stand at their defaults; nothing in
+Session 1 depended on them. Session 2 starts with the rules cases (§6).

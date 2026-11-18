@@ -11,7 +11,8 @@ build sessions and their handovers are in [`V3-PLAN.md`](V3-PLAN.md); the look (
 is in [`design/DESIGN.md`](design/DESIGN.md).
 
 **Files.** `index.html` (the app), `zargo.js` (the rating engine, pure), `zargo.test.mjs` (its
-tests: `node --test` from the repo root), `sw.js`, `manifest.json`, icons. The shared look,
+tests: `node --test` from the repo root), `bracket.js` and `bracket.test.mjs` (tournament brackets,
+pure and tested, not yet used on screen: [`TOURNAMENT.md`](TOURNAMENT.md) §4), `sw.js`, `manifest.json`, icons. The shared look,
 tokens and the Space Grotesk fonts (self-hosted so they work with no signal) come from
 `shared/theme.css` and `shared/fonts/`; `index.html` keeps only Rack It's own parts. `design/`
 is reference only.
@@ -835,7 +836,7 @@ drills/<id>                      // Spot 9 (2.27.0): one document a drill, writt
   It runs once per owner per phone (`localStorage` `rack-it.uids-backfill.<uid>`), and again after
   an Import. Without it a player would lose every match from before 2.8.0.
 - Offline: Firestore's persistent cache is on; `sw.js` caches the shell (`index.html`,
-  `zargo.js`, `shared/theme.css` and the two fonts, manifest, icons), network first.
+  `zargo.js`, `bracket.js`, `shared/theme.css` and the two fonts, manifest, icons), network first.
 
 **Export** downloads one JSON file: `app: "rack-it"`, `state` (the config), `people`, `ratings`,
 `starters`, `matches`, `drills` (2.27.0), and `account` (your profile, friends' cards and guests, `cloud.account.exportMe`). Import brings
