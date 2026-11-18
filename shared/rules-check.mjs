@@ -1189,6 +1189,24 @@ describe("Sessions Loyalty: a member", () => {
     await assertFails(setDoc(doc(db, SL + "staff/ann"), { name: "Ann" }));
     await assertFails(setDoc(doc(db, SL + "notes/ann"), { text: "hi" }));
   });
+  test("joining: your own empty card, once; never points, never someone else's, never changed after", async () => {
+    const empty = uid => ({ uid, name: "Ben", since: 5, memberNo: "", status: "casual", points: 0, xp: 0, lastAt: 0, by: uid });
+    const db = user("ben");
+    await assertFails(setDoc(doc(db, SL + "cards/ben"), { ...empty("ben"), points: 500 }));
+    await assertFails(setDoc(doc(db, SL + "cards/ben"), { ...empty("ben"), xp: 9000 }));
+    await assertFails(setDoc(doc(db, SL + "cards/ben"), { ...empty("ben"), status: "member" }));
+    await assertFails(setDoc(doc(db, SL + "cards/ben"), { ...empty("ben"), extra: 1 }));
+    await assertFails(setDoc(doc(db, SL + "cards/cat"), empty("cat")));
+    await assertFails(setDoc(doc(db, SL + "cards/cat"), { ...empty("cat"), by: "ben" }));
+    await assertSucceeds(setDoc(doc(db, SL + "cards/ben"), empty("ben")));
+    await assertSucceeds(getDoc(doc(db, SL + "cards/ben")));
+    await assertFails(updateDoc(doc(db, SL + "cards/ben"), { points: 500 }));
+    await assertFails(setDoc(doc(db, SL + "cards/ben"), { ...empty("ben"), since: 1 }));
+    await assertFails(deleteDoc(doc(db, SL + "cards/ben")));
+    // Ann has a card with points: she can't remake it empty or otherwise.
+    await assertFails(setDoc(doc(user("ann"), SL + "cards/ann"), empty("ann")));
+    await assertFails(setDoc(doc(signedOut(), SL + "cards/dan"), empty("dan")));
+  });
   test("a household member is a plain member here: their own card, nobody else's, and no writes", async () => {
     const db = as(MEMBER);
     await assertSucceeds(getDoc(doc(db, SL + "cards/member")));

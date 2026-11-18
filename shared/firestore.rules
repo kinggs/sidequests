@@ -210,6 +210,17 @@ service cloud.firestore {
       allow get: if me(uid) || isStaff();
       allow list: if isStaff();
       allow write: if isStaff();
+      // Joining (0.4.0): anyone signed in makes their own card, once, and only an empty one.
+      // Everything after that is staff's.
+      allow create: if me(uid) && joinsClub(uid);
+    }
+    function joinsClub(uid) {
+      let c = request.resource.data;
+      return c.keys().hasAll(['uid', 'name', 'since', 'memberNo', 'status', 'points', 'xp', 'lastAt', 'by'])
+        && c.keys().hasOnly(['uid', 'name', 'since', 'memberNo', 'status', 'points', 'xp', 'lastAt', 'by', '_updatedAt'])
+        && c.uid == uid && c.by == uid && c.points == 0 && c.xp == 0 && c.lastAt == 0
+        && c.memberNo == '' && c.status == 'casual'
+        && c.name is string && c.name.size() <= 60 && c.since is number;
     }
     match /sidequests/sessions-loyalty/notes/{uid} {
       allow read, write: if isStaff();

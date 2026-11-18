@@ -17,6 +17,7 @@ shares `pw.mjs` with them.
 | `connect-scan.mjs` | Session 10 step 2: My QR's Or scan theirs, from Rack It's Show QR and `people.pick`; your own QR and a dead code; Sessions Loyalty's scanner on `connect.scan` | Playwright |
 | `club-friends.mjs` | Session 10 step 3: club connections fold under Sessions in Friends and the picker; the staff tag stamped once a day, and taken off | Playwright |
 | `table-session.mjs` | Session 10 step 4: staff start a club match from the loyalty app, score it in Rack It; a spend beside it; both confirm; one earn entry each; Rebuilds change nothing | Playwright |
+| `loyalty-join.mjs` | Sessions Loyalty 0.4.0: scanning the staff QR makes your card and opens it on the staff phone, already friends or not; Join with no QR; made staff from Add staff's list, the new staff phone changes sides with no reload | Playwright |
 | `rack-it-expiry.mjs` | Session 10 step 5: a pending rated match expires after a week, on a player's phone or the scorer's; the strips count down | Playwright |
 | `rack-it-late-scorer.mjs` | Session 10 step 5: a scorer who joins a rated match under way by its Game QR; both players confirm | Playwright |
 | `rack-it-count-rated.mjs` | Rack It 2.24.0: the owner counts a finished friendly as rated from its summary; both ratings move, Mel's summary shows it, Rebuild changes nothing; no hold for Mel, a guest's friendly or a rated match | Playwright |

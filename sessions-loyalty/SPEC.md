@@ -6,7 +6,7 @@ notes. It replaces the paid, stand-alone loyalty app the club runs today (screen
 2026-10-02) with one that costs nothing and shares its QR with Rack It. The first sidequest built
 on the v3 look (`shared/DESIGN.md`) from the start.
 
-This spec is the app as it is (0.1.0). The points arithmetic is in `loyalty.js`, proved by
+This spec is the app as it is (0.4.0). The points arithmetic is in `loyalty.js`, proved by
 `loyalty.test.mjs` (`node --test` from the repo root).
 
 **Files.** `index.html` (the app), `loyalty.js` (points, tiers, totals, the starting list),
@@ -21,7 +21,7 @@ This spec is the app as it is (0.1.0). The points arithmetic is in `loyalty.js`,
 | **The club** | Sessions. One club per app; its name and rates are in **Settings**. |
 | **Staff** | An account on the club's staff list (`staff/<uid>`), or the repo's owner. Staff see the **staff side**. |
 | **Member** | Any other account. A member sees the **member side**: their card, their points, the rewards, the ways to earn, their history. A household member is a plain member here. |
-| **Card** | The club's record of one member: name, member number, status, points, XP, member since. Made the first time staff scan them. |
+| **Card** | The club's record of one member: name, member number, status, points, XP, member since. Made when they join (they scan a staff QR, or tap **Join**), or the first time staff scan them. |
 | **Points** | Spendable. 1 a rand by default (`pointsPerRand`), plus what tasks award; rewards cost them. |
 | **XP** | Never spent. 1 a rand by default (`xpPerRand`), plus what tasks award. It sets the tier. |
 | **Tier** | Bronze, Silver, Gold by XP, thresholds in Settings. Bronze always starts at 0. |
@@ -37,7 +37,9 @@ Words: **member**, never customer; **points** and **XP**; **log a spend**, **awa
 It is one app, not two, because the club side and the member side are one set of data and
 CLAUDE.md rule 3 keeps every app inside its own namespace. Which side you see is decided once
 after sign-in: staff (your `staff/<uid>` document exists, or `cloud.role()` is `"owner"`) get the
-staff side with its four tabs; everyone else gets the member side, which scrolls. Staff can
+staff side with its four tabs; everyone else gets the member side, which scrolls. The app watches
+your `staff/<uid>` document, so being made staff (or taken off) changes sides at once, with a
+toast and no reload (0.4.0). Staff can
 **View as a member** (More, and the account sheet) to see their own card; **View as staff**, at the
 top of that view and in the account sheet, brings them back.
 
@@ -67,15 +69,16 @@ pair's `app` is how every app's Friends and picker fold club connections under *
 and a member's phone tags a friend on `staff/` as **staff**: KIT-PLAN Session 10 step 3).
 A code that has expired says so; your own says so. The first scan of someone makes their card.
 
-**Sign up a new member** shows the staff member's own QR. The member scans it, signs in, and the
-staff phone opens their new card the moment the friendship lands. If they were already connected
-to that staff account, nothing lands: find them under **Members → From your friends** instead.
+**Sign up a new member** shows the staff member's own QR. The member scans it, signs in, and
+taps Done: their phone makes their own empty card (**joining**, 0.4.0), and the staff phone opens
+it, on the new friendship or, for someone already connected to that staff account, on the new
+card appearing while the QR is up. Anyone arriving in this app through a QR link joins this way.
 
 ## 4. The member side (Home scrolls)
 
 - **The card**: the club's name, your name, your tier, your points large, member since and your
-  member number. With no card yet: "Not a member yet. Show your QR at the bar and they'll sign
-  you up."
+  member number. With no card yet: "Not a member yet. Join now, then show your QR at the bar to
+  collect points." and **Join Sessions** (76px), which makes your empty card with no QR at all.
 - **Show my QR**, the one button you came for (76px).
 - **Your Rack It rating and matches** (0.3.0): a link to your page in Rack It (`../rack-it/?p=<uid>`).
   This app never reads Rack It's ratings (owner, 2026-10-04).
@@ -145,8 +148,8 @@ the Sessions list**: the club's eight rewards and eight ways to earn as they wer
 (`loyalty.js` `seedItems`).
 
 **More.** Settings (club name, points a rand, XP a rand, the three tier names and the Silver
-and Gold thresholds), Staff (the owner only: the list, **Add staff** by scanning their QR,
-`⋯` → **Hold to remove**), Export, Import (owner), **Hold to rebuild points** (every card
+and Gold thresholds), Staff (the owner only: the list, **Add staff** from a list of the newest members or by
+scanning their QR, `⋯` → **Hold to remove**), Export, Import (owner), **Hold to rebuild points** (every card
 recomputed from its entries), **View as a member**, and the version.
 
 ## 6. Data
@@ -170,7 +173,7 @@ entries/<id>    { kind, uid, name, by, byName, at, rands, points, xp, item, titl
 |---|---|---|---|
 | settings, rewards, earns | read | read, write | the same |
 | staff/ | get their own | get, list | write |
-| cards/ | get their own | get, list, write | the same |
+| cards/ | get their own; create their own, empty, once (joining) | get, list, write | the same |
 | notes/ | — | read, write | the same |
 | entries/ | their own: get, and list with `where uid == me` | all; create with `by` = me; void (only `voided*`) | also create in anyone's name (Import) and delete |
 
@@ -187,6 +190,9 @@ Ann becomes staff when the owner adds her under More → Staff with her QR link.
 ## 7. Decisions
 
 - **One app, two sides** (rule 3), not a club app and a member app.
+- **A member joins by themselves** (0.4.0, owner 2026-11-18: one scan of the staff QR must be
+  enough at the bar). The rules let an account create only its own card, only with 0 points and
+  XP, casual, no member number; every later write is staff's.
 - **Staff redeem after a scan.** No member-side claim or pending state. (Owner, 2026-10-02.)
 - **Points and XP with tiers**, as the old app. (Owner, 2026-10-02.)
 - **A scan makes a real friendship**, tagged by the pair's `app`. (Owner, 2026-10-02: "staff

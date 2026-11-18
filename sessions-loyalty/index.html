@@ -77,7 +77,7 @@
   import * as L from "./loyalty.js";
 
   // Bump on every change. The deploy skill checks this against the live site.
-  const APP_VERSION = "0.3.1";
+  const APP_VERSION = "0.4.0";
   const APP_ID = "sessions-loyalty";
   const APP_NAME = "Sessions Loyalty";
   document.getElementById("version").textContent = "v" + APP_VERSION;
@@ -94,6 +94,8 @@
   let member = null, memberEntries = null;      // the member page open on the staff side
   let tab = "scan", viewAsMember = false, find = "", itemsSeg = "rewards";
   let unsubs = [], pageUnsubs = [];
+  let wantJoin = false, joining = false;        // arrived through a loyalty QR: make my card
+  let signUpSeen = null, signUpClose = null;    // Sign up's QR is open: the cards there were then
   // ?member=<uid>: open that member's page once the staff side is in (Rack It's Back to Sessions).
   let askMember = (() => {
     try {
@@ -230,7 +232,7 @@
   // A scanned QR: connect, as in Rack It. Signed in as staff, Done opens that member's card.
   connect.handleInvite({ app: APP_ID, appName: APP_NAME, onDone: r => {
     if (staff && r && r.uid && !r.self) openMember(r.uid, r.name);
-    else render();
+    else { if (r && r.uid && !r.self){ wantJoin = true; maybeJoin(); } render(); }
   } });
   cloud.onUser(u => {
     stopAll();
@@ -262,6 +264,17 @@
     checked = true;
     mountAccount(u);
     const onErr = what => e => report(what, e);
+    maybeJoin();
+    // Made staff (or taken off) while the app is open: change sides at once, no reload.
+    unsubs.push(cloud.watch("staff/" + u.uid, d => {
+      if (cloud.user !== u || (owner || !!d) === staff) return;
+      const now = owner || !!d;
+      setTimeout(() => {
+        if (cloud.user !== u) return;
+        stopAll(); user = u; start(u);
+        ui.toast(now ? "You're staff now" : "You're no longer staff");
+      }, 0);
+    }, e => console.warn("[" + APP_ID + "] staff watch", e)));
     unsubs.push(cloud.watch("settings/main", d => { settings = L.withDefaults(d); settingsIn = true; render(); }, onErr("Couldn't read the settings")));
     unsubs.push(cloud.watchList("rewards", rows => { rewards = sortItems(rows); render(); }, {}, onErr("Couldn't read the rewards")));
     unsubs.push(cloud.watchList("earns", rows => { earns = sortItems(rows); render(); }, {}, onErr("Couldn't read the ways to earn")));
@@ -272,6 +285,11 @@
     if (staff){
       unsubs.push(cloud.watchList("cards", rows => {
         cards = rows; render();
+        // Sign up's QR is showing and a card just appeared: they joined from it. Open them.
+        if (signUpSeen){
+          const fresh = rows.find(c => !signUpSeen.has(c.uid || c.id));
+          if (fresh){ const close = signUpClose; signUpSeen = null; signUpClose = null; if (close) close(); openMember(fresh.uid || fresh.id, fresh.name); }
+        }
         // Back from Rack It's "Back to Sessions" (?member=): that member's page.
         if (askMember){ const m = askMember; askMember = null; openMember(m, ""); }
         checkTables();
@@ -280,6 +298,26 @@
       unsubs.push(cloud.watchList("staff", rows => { staffList = rows; render(); }, {}, onErr("Couldn't read the staff list")));
     }
     render();
+  }
+  // Joining: your own empty card (the rules let an account make exactly that, once). Through a
+  // loyalty QR it happens by itself; with no card, the member side offers Join.
+  async function maybeJoin(){
+    if (!wantJoin || !user || !checked) return;
+    wantJoin = false;
+    if (!staff) await join();
+  }
+  async function join(){
+    if (joining || !user) return;
+    joining = true;
+    const u = user;
+    try {
+      if (await cloud.load("cards/" + u.uid)) return;
+      const p = await profileOf(u.uid);
+      const name = String((p && p.name) || u.displayName || "Member").slice(0, 60);
+      await cloud.save("cards/" + u.uid, { uid: u.uid, name, since: Date.now(), memberNo: "", status: "casual", points: 0, xp: 0, lastAt: 0, by: u.uid });
+      ui.toast(`Welcome to ${settings.name}`);
+    } catch (e){ report("Couldn't join. Show your QR at the bar instead", e); }
+    finally { joining = false; }
   }
   const sortItems = rows => rows.sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || (a.createdAt || 0) - (b.createdAt || 0));
   const staffName = () => (profiles.get(user.uid) || {}).name || user.displayName || "Staff";
@@ -340,9 +378,10 @@
         page.push(h("p", { class: "note", style: "margin-top:12px", text: "You can afford every reward. Show your QR at the bar." }));
       }
     } else {
-      lc.append(h("p", { class: "note", style: "margin-top:6px", text: "Not a member yet. Show your QR at the bar and they'll sign you up." }));
+      lc.append(h("p", { class: "note", style: "margin-top:6px", text: "Not a member yet. Join now, then show your QR at the bar to collect points." }));
       page.push(lc);
-      page.push(btn("Show my QR", "primary big wide", () => { phone.fullscreen(); connect.showQR({ app: APP_ID }); }, { style: "margin-top:12px" }));
+      page.push(btn("Join " + settings.name, "primary big wide", join, { style: "margin-top:12px" }));
+      page.push(btn("Show my QR", "wide", () => { phone.fullscreen(); connect.showQR({ app: APP_ID }); }, { style: "margin-top:12px" }));
     }
 
     page.push(lbl("Rewards"));
@@ -483,7 +522,8 @@
   // Sign up: show this staff account's QR; whoever scans it becomes a card.
   function signUp(){
     phone.fullscreen();
-    connect.showQR({ app: APP_ID, onFriend: uid => openMember(uid, "") });
+    signUpSeen = new Set((cards || []).map(c => c.uid || c.id));
+    signUpClose = connect.showQR({ app: APP_ID, onFriend: uid => openMember(uid, ""), onClose: () => { signUpSeen = null; signUpClose = null; } });
   }
 
   // ---- a table session (KIT-PLAN Session 10 step 4) ----
@@ -836,7 +876,7 @@
       page.push(lbl("Staff"));
       const ul = h("ul", { class: "rows" });
       if (!staffList) ul.append(empty("Loading…"));
-      else if (!staffList.length) ul.append(empty("Only you. Add staff by scanning their QR."));
+      else if (!staffList.length) ul.append(empty("Only you. Add staff: pick a member, or scan their QR."));
       for (const s of (staffList || [])){
         const m = h("button", { type: "button", class: "more", text: "⋯", "aria-label": "More" });
         ui.menu(m, { title: s.name || s.id, items: [{ label: "Remove from staff", value: "rm", hold: true, run: () => cloud.delete("staff/" + s.id).then(() => ui.toast("Removed"), e => report("Couldn't remove", e)) }] });
@@ -876,6 +916,20 @@
     } catch (e){ report("Couldn't save", e); }
   }
   async function addStaff(){
+    // Pick a member who already has a card, or scan someone new.
+    const have = new Set((staffList || []).map(s => s.id));
+    const rows = (cards || []).filter(c => !have.has(c.uid || c.id) && (c.uid || c.id) !== user.uid)
+      .sort((a, b) => Math.max(b.lastAt || 0, b.since || 0) - Math.max(a.lastAt || 0, a.since || 0)).slice(0, 12);
+    let v = "scan";
+    if (rows.length) v = await ui.sheet({ title: "Add staff", text: "Pick a member, or scan the QR of someone new.",
+      items: [...rows.map(c => ({ label: c.name || "Someone", value: "u:" + (c.uid || c.id) })), { label: "Scan their QR", value: "scan" }] });
+    if (!v) return;
+    if (v !== "scan"){
+      const c = cardOf(v.slice(2));
+      try { await cloud.save("staff/" + v.slice(2), { name: (c && c.name) || "", addedAt: Date.now(), addedBy: user.uid }); ui.toast(`${(c && c.name) || "They"} ${c && c.name ? "is" : "are"} staff`); }
+      catch (e){ report("Couldn't add staff", e); }
+      return;
+    }
     const code = await connect.scan({ app: APP_ID, title: "Scan the new staff member's QR" });
     if (!code) return;
     const r = await codeToMember(code, { thenOpen: false });
