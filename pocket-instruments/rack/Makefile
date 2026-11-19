@@ -33,11 +33,20 @@ build/fixtures.inc: fixtures.jq $(wildcard ../fixtures/*.json)
 build/src/Probe.cpp.o: build/fixtures.inc
 
 # P3 ⚠ (PROOFS.md P1): the plugin must not need Rust's unwinder, and the core must be inside it.
+# On every target CI links (P5). Linux asks the dynamic table. A DLL has none to ask, but the
+# linked file keeps its COFF symbols until `dist` strips its copy. On macOS the plugin links
+# with -undefined dynamic_lookup, so a missing symbol links anyway and only this check sees
+# it; Mach-O names carry a leading underscore.
+ifdef ARCH_LIN
+PI_NM := nm -D
+else
+PI_NM := nm
+endif
 all: check-link
 .PHONY: check-link
 check-link: $(TARGET)
-	@if nm -D --undefined-only $(TARGET) | grep -E 'rust_eh_personality|_Unwind_Resume.*rust|__rust' ; then echo "P3: the plugin needs a Rust runtime symbol"; exit 1; fi
-	@nm -D --defined-only $(TARGET) | grep -q ' T pi_process$$' || { echo "P3: pi_process is not in the plugin"; exit 1; }
+	@if $(PI_NM) --undefined-only $(TARGET) | grep -E 'rust_eh_personality|_Unwind_Resume.*rust|__rust' ; then echo "P3: the plugin needs a Rust runtime symbol"; exit 1; fi
+	@$(PI_NM) --defined-only $(TARGET) | grep -qE ' T _?pi_process$$' || { echo "P3: pi_process is not in the plugin"; exit 1; }
 	@echo "P3: $(TARGET) holds the core and needs no Rust runtime symbol."
 
 # Rack itself, headless, on four probes at three sample rates. See selftest.sh.
