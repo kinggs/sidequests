@@ -404,6 +404,20 @@ browser host that ends by handing a decoded sound to the same loader.
 Open inside this: a shared link to a beat cannot carry the player's own samples. It would
 fall back to the default bank, and say so.
 
+### D35 — The starter pack: sixteen public-domain samples, chosen and committed
+**2026-11-19 · decided (owner asked for one pack to start from) · decides D32 · amends D31**
+
+`samples/` holds one sound for each key, all from Sonic Pi's CC0 set (R31), with a manifest
+of origin and author and a page to hear them on. D31's "nothing is sampled" is withdrawn;
+its other half stands: nothing from the hardware or a recording of it.
+
+Why one pack and not a choice: the owner looked at Freesound and found too much. A default
+that is good enough beats a catalogue. Any row can be swapped later by ear.
+
+Three things about this pack that are stand-ins, said plainly: key 9 is a finger snap (the
+set has no clap); keys 15 and 16 are single tones that slider A will have to tune; and the
+picks were made by measurement, not by listening.
+
 ## Open
 
 | ID | Question | Needs |

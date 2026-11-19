@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Starter drum pack</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; padding: 16px; background: #111; color: #eee; font: 18px/1.4 system-ui, sans-serif; max-width: 520px; margin-inline: auto; }
+  h1 { font-size: 22px; margin: 4px 0 4px; }
+  p { margin: 6px 0 14px; color: #bbb; }
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  button { font: inherit; color: #eee; background: #262626; border: 2px solid #444; border-radius: 12px; min-height: 84px; padding: 6px 2px; touch-action: manipulation; }
+  button b { display: block; font-size: 24px; }
+  button span { font-size: 15px; color: #ccc; }
+  button.hit { background: #e8c547; border-color: #e8c547; color: #111; }
+  button.hit span { color: #111; }
+  button.bad { border-color: #c44; }
+  #beat { width: 100%; min-height: 76px; margin-top: 14px; font-weight: 700; }
+  #status { min-height: 1.4em; }
+</style>
+</head>
+<body>
+<h1>Starter drum pack</h1>
+<p>Tap a key to hear its sound. Sixteen public-domain samples from Sonic Pi; the list and where each came from is in README.md beside this page.</p>
+<div class="grid" id="grid"></div>
+<button id="beat">Play a beat</button>
+<p id="status">Loading…</p>
+<script>
+const PACK = [
+  ["Bass drum", "bd_haus"], ["Snare", "sn_dolf"], ["Closed hat", "hat_bdu"], ["Open hat", "hat_cats"],
+  ["Synth snare", "elec_hi_snare"], ["Sticks", "elec_pop"], ["Cymbal", "elec_cymbal"], ["Noise", "hat_noiz"],
+  ["Clap", "perc_snap"], ["Click", "elec_tick"], ["Low tom", "drum_tom_lo_hard"], ["High tom", "drum_tom_hi_hard"],
+  ["Cow bell", "drum_cowbell"], ["Blip", "elec_blip"], ["Tone", "elec_ping"], ["Bass tone", "elec_bong"],
+];
+const ctx = new (window.AudioContext || window.webkitAudioContext)();
+const buffers = [], keys = [];
+const grid = document.getElementById("grid"), status = document.getElementById("status");
+
+function play(i, when) {
+  if (!buffers[i]) return;
+  const src = ctx.createBufferSource();
+  src.buffer = buffers[i];
+  src.connect(ctx.destination);
+  src.start(when || 0);
+  const wait = when ? Math.max(0, (when - ctx.currentTime) * 1000) : 0;
+  setTimeout(() => { keys[i].classList.add("hit"); setTimeout(() => keys[i].classList.remove("hit"), 90); }, wait);
+}
+
+PACK.forEach(([role, file], i) => {
+  const b = document.createElement("button");
+  b.innerHTML = "<b>" + (i + 1) + "</b><span>" + role + "</span>";
+  b.addEventListener("pointerdown", () => { ctx.resume(); play(i); });
+  grid.appendChild(b); keys.push(b);
+});
+
+Promise.all(PACK.map(([, file], i) =>
+  fetch(file + ".flac").then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
+    .then(a => new Promise((ok, no) => ctx.decodeAudioData(a, ok, no)))
+    .then(buf => { buffers[i] = buf; return 1; })
+    .catch(() => { keys[i].classList.add("bad"); return 0; })
+)).then(r => {
+  const n = r.reduce((a, b) => a + b, 0);
+  status.textContent = n === 16 ? "Ready." : n + " of 16 loaded. The keys with a red edge did not load in this browser.";
+  document.body.dataset.loaded = n;
+});
+
+// One bar, twice, at 120 bpm: kick, snare, hats, a clap and a cow bell. Steps are sixteenths.
+const BEAT = { 0: [0, 4, 8, 12], 1: [4, 12], 2: [0, 2, 4, 6, 8, 10, 12], 3: [14], 8: [12], 12: [7, 10] };
+document.getElementById("beat").addEventListener("pointerdown", () => {
+  ctx.resume();
+  const t0 = ctx.currentTime + 0.1, step = 60 / 120 / 4;
+  for (let bar = 0; bar < 2; bar++)
+    for (const [i, steps] of Object.entries(BEAT))
+      for (const s of steps) play(+i, t0 + (bar * 16 + s) * step);
+});
+</script>
+</body>
+</html>

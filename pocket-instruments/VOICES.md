@@ -95,8 +95,10 @@ and have been packaged by Debian, which checks licences. Candidates, to be chose
 | 14 | Blip | `elec_blip` | 16 KB | recipe |
 | 15, 16 | Tone, bass tone | none: they must play in tune across the slider | | recipe |
 
-To listen: `https://github.com/sonic-pi-net/sonic-pi/tree/dev/etc/samples`, then a file, then
-"View raw". Nothing has been downloaded into this repo yet.
+**The pack is chosen (D35): `samples/README.md` lists the sixteen files, and
+`samples/index.html` plays them.** The table above was the first shortlist; where the two
+differ, the pack is right. Measuring the candidates moved several picks to shorter, more
+electronic sounds, and found tones for keys 15 and 16 after all.
 
 What samples change:
 

@@ -23,6 +23,7 @@ into its own repository.
 | `core/include/pi_engine.h` | The same contract in C, for both hosts | Follows `ENGINE.md` |
 | `fixtures/` | Test vectors and the traces they must produce (`fixtures/README.md`) | A trace is never edited to make a build pass |
 | `VOICES.md` | The sixteen sounds: role, recipe, what the sliders do | Until each voice is built and passes by ear |
+| `samples/` | The starter drum pack: sixteen CC0 files, their origins, and a page to hear them | A swap is a new file and a new manifest row |
 | `WORKFLOW.md` | What each press does, in our words; the owner ticks each row on the hardware | Until P8 |
 | `design/DESIGN.md` | The look (Loom): tokens, key states, the panel in mm, the phone layout | Changed by a decision; `design/panel.svg` is redrawn by its script |
 | `PLAN.md` | The sessions, their checklists and the Handover note | Each session ticks its boxes and writes its Handover |

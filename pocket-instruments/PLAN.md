@@ -187,3 +187,7 @@ Decided when P1 to P4 are in, not before:
 - **Waiting on the owner:** O12, whether the display's weaving subject is far enough from the
   original's display art. It gates the animation only.
 - Not built: any widget, and the display animation. `DESIGN.md` lists what is not done.
+- D35: a starter pack of sixteen CC0 samples is in `samples/`, with a page to hear it. Voices
+  are samples first, recipes where a sample does not serve (D32). D33 (individual outputs on
+  sixteen-channel jacks) and D34 (the player's own file on any key) are proposed. None of this
+  is Session 2's work; it shapes P7.
