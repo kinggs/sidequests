@@ -6,6 +6,11 @@ Small calculator-format musical instruments, free and open source, playable as V
 and in a browser, from one shared engine. An affectionate, credited homage to Teenage
 Engineering's Pocket Operators. Not affiliated with Teenage Engineering.
 
+Also inspired by the Surge Synth Team's Surge XT modules for VCV Rack: how they show
+modulation on a control, and how their modules connect to their neighbours. No code or
+artwork of theirs is used; their MIT helper library will be, with thanks (D40, D41). Not
+affiliated with them either.
+
 This folder is an incubator. Once the proofs in `PROOFS.md` pass, it moves out of sidequests
 into its own repository.
 

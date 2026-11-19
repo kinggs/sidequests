@@ -466,6 +466,24 @@ source may be read for ideas; none of it is copied, and no panel of ours imitate
 
 Not yet: none of this before P3 passes (D15).
 
+### D41 — Stay MIT; D40 decided; credit the Surge Synth Team
+**2026-11-19 · decided (owner) · confirms D8 · decides D40**
+
+- **The licence stays MIT.** GPL-3 was considered because the Surge XT Rack modules are GPL-3
+  and their code could then be copied in. Not chosen: we want anyone, Teenage Engineering
+  included, to be able to take this with no strings; and MIT can become GPL later, where the
+  reverse is hard.
+- **D40 is decided:** adopt `sst-rackhelpers` for neighbour connection, borrow how their
+  modulation behaves, copy none of their code and none of their look.
+- **They are credited by name** in the README as an inspiration.
+
+The owner's reason, worth keeping in his words: "the fun thing about modular is that I never
+want to lift their filters. I will just plug a cable from us into their filter." In Rack,
+integration is a cable, not shared code. That is why the licence difference costs us nothing,
+and why good outputs (D33) matter more than borrowed DSP.
+
+When the helper library is adopted (after P3), tell its authors.
+
 ## Open
 
 | ID | Question | Needs |
