@@ -376,7 +376,7 @@ it is not, as the hardware runs alone.
 | ~~Audio out~~ | ~~no voice yet~~ | Done in Session 3: §11, ABI 2, D44 |
 | Eleven of the sixteen voices | P7 needed one; the minimum beat four more | each is a struct in `core/src/voice.rs` beside the others; no interface changes |
 | The sliders in the snapshot | version 1 has no room and the keys that set them are not built | snapshot version 2, with the instrument |
-| A master level, a limiter, a mute mask for D33's expander | nothing summed until the drums | the drums have come and the mix passes 1 (+6.6 dB); waits for a ruling (O14) |
+| A master level, a limiter, a mute mask for D33's expander | nothing summed until the drums | the level is done (D48). A master volume, a level per track and the mute mask: with the instrument |
 | Keys and sliders doing anything | the workflow is not confirmed on hardware | with the instrument, from `WORKFLOW.md` |
 | Sixteen patterns, chains | scope to decide | snapshot version 2 |
 | Parameter locks, step multiplier, effects | same | same |
@@ -400,8 +400,10 @@ the `TRIG` events they already make.
   the same with and without a buffer. A host that only sequences passes null and pays nothing.
 - **Sample-accurate.** A track that fires on frame `f`, from the clock or from a flushed
   edge, sounds from frame `f` of the same call. A full event buffer does not silence it.
-- **Level.** Floats of about −1 to 1 for one voice. The mix is a plain sum for now, so it
-  can pass 1: a host scales (Rack: 5 V at 1.0) and must not assume a ceiling.
+- **Level (D48).** Every voice leaves at a fixed 0.5 (−6 dB), so one alone is near 0.5 and
+  the four drums together near 1.0 (1.07 at the worst measured). The mix is the plain sum
+  of those, so it can still pass 1: a host scales (Rack: 5 V at 1.0), must not assume a
+  ceiling, and bends what passes its own (tanh: the browser at 1.0, Rack towards 10 V).
 - **The same bits on every host.** Voices use only `+ − × ÷` and conversions, each exactly
   rounded by IEEE 754, which WebAssembly and SSE2 both follow. There is no `sin` or `exp`
   from a maths library: the sine is a polynomial, the decay a multiply a frame, and pitch

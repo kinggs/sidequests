@@ -597,6 +597,43 @@ sounding voice) was not part of the interview and is still open.
 For P5: the owner has no Windows machine, Intel Mac or Apple Silicon Mac to load a plugin
 on yet, nor a friend with one. That half waits for one.
 
+### D47 — The hats do not cut each other off, for now; keep it a switch
+**2026-11-19 · decided (owner) · answers O13 for now**
+
+Neither hat cuts the other, as built. The owner does not know what the hardware does and
+wants it easy to change later. It is: a cut is a few lines in `Voices::trigger`, one voice
+silencing another on the same frame. When it is wanted it goes in as a setting (off; closed
+cuts open; open cuts closed), not a rewrite, and joins the snapshot with the sliders
+(version 2). Check the PO-12 when one is to hand (D29).
+
+### D48 — A fixed level in the core; each host softens past its own ceiling
+**2026-11-19 · decided (owner), provisionally: "happy with the recommendation for now" · answers O14 · settles D44's open item on limiting**
+
+Every voice leaves the core at a fixed level of 0.5 (−6 dB), in the mix and in the sixteen
+channels alike. The four drums together, sliders at their middles, then sit near 1.0; the
+worst case measured (`harness/render-beat.json`, every slider swept) peaks at 1.07. The core
+caps nothing. Each host bends what passes its own ceiling with tanh: the browser at 1.0, the
+Rack Probe at 10 V after scaling 5 V to 1.0.
+
+How others do it, which is why this shape:
+- **Hardware drum machines** sum their voices with headroom built into the mix, so one voice
+  alone is well under full scale, and let a master volume and an output stage that
+  saturates or clips take the rest. Loud is a character, not an error.
+- **DAWs** mix in floating point with no ceiling inside, and leave headroom to the person
+  (gain staging, a limiter on the master if they want one). Only the converter clips.
+- **Web Audio** is floats too, but the output hard-clips at ±1, so pages put a gain or a
+  compressor last.
+- **VCV Rack** works in volts: audio is about ±5 V, the rails ±12 V, and a module saturates
+  its own output. Mixers there offer soft clipping as an option.
+
+So: a fixed level in the core, so a phone and Rack sound alike (D22), and no limiter in the
+core, because a limiter would have to stay bit-identical (`+ − × ÷` only) and is a
+character choice better left until the instrument's own output is built. Why 0.5: a power
+of two, so it is exact and cannot cost the same bits.
+
+What would reopen it: the owner's ear at P8; a voice level per track (the hardware's
+volume key); a master volume, which the instrument will need anyway.
+
 ## Open
 
 | ID | Question | Needs |
@@ -612,6 +649,6 @@ on yet, nor a friend with one. That half waits for one.
 | O11 | ~~On the hardware each grid key is its own sound in play mode (R26, R27). Sixteen tracks from the start, or four and twelve dead keys?~~ | Answered 2026-11-19: D30 |
 | O12 | ~~Answered 2026-11-19: the owner is content with the textile theme ("I think"). It still goes to O7 and D19 at P9.~~ The chosen look, Loom, animates a loom weaving with a shuttle and thread. The original's protected display art (R6) shows a sewing machine and thread spools. Different drawing, neighbouring subject. Is a textile theme far enough away, or should the display's subject move? | The owner, before the look is built on; then O7 and D19 at P9 |
 | O10 | Probability and a short length are not on the hardware. What gesture sets them without colliding with its combinations? | `WORKFLOW.md`, after the hardware hour |
-| O13 | Do the hats cut each other off, and which way? `VOICES.md` says the open hat (4) cuts the closed (3) "as a real hat does"; on a real hat it is the closed that cuts the open. The hardware's behaviour is not known. Built 2026-11-19 with neither cutting the other. Recommended: closed cuts open, as a kit does, then checked on the PO-12 (D29). Cost either way: a few lines in `Voices::trigger`; the sixteen-channel layout (D33) shows the cut in track 3's channel | The owner; the hardware when to hand |
-| O14 | The mix now passes 1: the four drums together peak at 2.1 (+6.6 dB, `harness/render-beat.json`). Where is it kept in bounds: a level and a limiter in the core, or each host saturating (D44's open item; `ENGINE.md` §10 put it "with the second voice")? Meanwhile the Rack Probe bends its output with tanh towards 10 V, so it can be heard; the browser page does nothing. Recommended: a fixed master level in the core (so a phone and Rack sound alike, D22) and each host saturating at its own ceiling. A limiter in the core would have to stay bit-identical (`+ − × ÷` only) | The owner, before the instrument's own output is built |
+| O13 | ~~Answered 2026-11-19 for now: D47.~~ Do the hats cut each other off, and which way? `VOICES.md` says the open hat (4) cuts the closed (3) "as a real hat does"; on a real hat it is the closed that cuts the open. The hardware's behaviour is not known. Built 2026-11-19 with neither cutting the other. Recommended: closed cuts open, as a kit does, then checked on the PO-12 (D29). Cost either way: a few lines in `Voices::trigger`; the sixteen-channel layout (D33) shows the cut in track 3's channel | The owner; the hardware when to hand |
+| O14 | ~~Answered 2026-11-19, provisionally: D48.~~ The mix now passes 1: the four drums together peak at 2.1 (+6.6 dB, `harness/render-beat.json`). Where is it kept in bounds: a level and a limiter in the core, or each host saturating (D44's open item; `ENGINE.md` §10 put it "with the second voice")? Meanwhile the Rack Probe bends its output with tanh towards 10 V, so it can be heard; the browser page does nothing. Recommended: a fixed master level in the core (so a phone and Rack sound alike, D22) and each host saturating at its own ceiling. A limiter in the core would have to stay bit-identical (`+ − × ÷` only) | The owner, before the instrument's own output is built |
 | O9 | ~~How do the three blocks stack on a phone, and does one instrument fill the screen or share it?~~ | Answered 2026-11-19: D36 |

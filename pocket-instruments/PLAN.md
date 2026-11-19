@@ -430,3 +430,14 @@ Decided when P1 to P4 are in, not before:
 - **Not done:** samples (D32, D35): the per-key choice of sample or recipe still stands and
   no sample path exists; the sliders in a snapshot; any drum on the phone count.
 - **Next, from the last list:** CI for the four targets, so P5 has artefacts ready.
+
+### Later the same day: the rulings, and the beat heard (2026-11-19)
+
+- **The owner heard the beat in Rack** from `Sound.vcv` on the Scarlett: both cables as
+  meant, the Probe's light green, 0.2 % CPU for the probe. The patch's ⚠ above (never seen
+  on a screen) is closed.
+- **D47:** the hats stay independent; a cut is a setting for later, not a rewrite.
+- **D48 (provisional):** a fixed level of 0.5 in the core; each host bends past its own
+  ceiling (tanh). Built: `voice::LEVEL`, the worklet's output, the Probe's comment. The
+  Rack mix is now 6 dB quieter than the one heard: 3 to 4.8 V in the self-test, inside
+  Rack's ±5 V. Restart Rack to get it.

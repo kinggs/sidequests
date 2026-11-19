@@ -40,7 +40,8 @@ one-pole or two-pole filter and exponential envelopes.
 
 Hats 3 and 4 share a source, and 4 should cut 3 off when both fire, as a real hat does.
 ⚠ Whether the hardware does this is not known. ⚠ Not built: on a real hat it is the other
-way round (closing the hat cuts the open one off), so this line needs a ruling first (O13).
+way round (closing the hat cuts the open one off). The owner's ruling: neither, for now,
+and keep it a switch (D47).
 
 ## As built
 
@@ -63,9 +64,10 @@ Every one is held to the same bytes natively and in WebAssembly by a scenario in
 - **The filter** is a two-pole state-variable filter whose coefficient is made from the
   polynomial sine and one division: no maths library (D44).
 - **The six squares** are our own set, chosen to be uneven, not taken from any machine.
-- **Levels:** one hit peaks at about 0.8 to 1.0 (a hat a little lower, the open hat at its
-  darkest a little higher). The mix is a plain sum and passes 1: `harness/render-beat.json`
-  peaks at 2.1 (+6.6 dB). Who keeps that in bounds is open (O14).
+- **Levels:** inside the voice, one hit peaks at about 0.8 to 1.0 (a hat a little lower,
+  the open hat at its darkest a little higher). The core then halves every voice (D48), so
+  the four together sit near 1.0.
+- **The hats do not cut each other off** (D47); a switch for it later.
 
 ## How close, and how we judge it
 
