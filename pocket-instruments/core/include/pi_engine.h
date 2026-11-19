@@ -52,6 +52,8 @@ extern "C" {
 #define PI_CMD_LENGTH 19u   /* value: 1..PI_STEPS, clamped */
 #define PI_CMD_SOUND 20u    /* a: track, b: 0 slider A, 1 slider B; value: 0..65535, clamped.
                                Not in snapshot version 1 */
+#define PI_CMD_FIRE 21u     /* a: track. It fires on this frame, playing or stopped: one PI_EV_TRIG,
+                               and its voice. The pattern is untouched */
 #define PI_CMD_KEY_DOWN 32u /* a: PI_KEY_*. Reserved: ignored by ABI 1 */
 #define PI_CMD_KEY_UP 33u   /* a: PI_KEY_*. Reserved */
 #define PI_CMD_PARAM 34u    /* a: 0 slider A, 1 slider B; value: 0..65535. Reserved */

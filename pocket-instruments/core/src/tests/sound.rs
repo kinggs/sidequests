@@ -150,3 +150,26 @@ fn a_full_event_buffer_does_not_silence_a_voice() {
     unsafe { pi_process(h.e, 256, c.as_ptr(), c.len() as u32, core::ptr::null_mut(), 0, out.as_mut_ptr(), 1) };
     assert!(out.iter().any(|&s| s != 0.0));
 }
+
+#[test]
+fn fire_sounds_a_track_on_its_frame_stopped_or_playing_and_changes_nothing_else() {
+    let mut h = Host::new(48000, 1);
+    let before = h.save();
+    let (out, trigs) = render(&mut h, 4000, 128, 1, &[(1000, cmd(CMD_FIRE, CLICK, 0, 0)), (1001, cmd(CMD_FIRE, 16, 0, 0))]);
+    assert_eq!(trigs, [1000], "stopped: one TRIG, on the frame of the command; track 16 is ignored");
+    assert!(out[..=1000].iter().all(|&s| s == 0.0) && out[1001] != 0.0);
+    assert_eq!(h.save(), before, "the pattern is untouched");
+
+    // Playing: the fired TRIG sits among the pattern's own, and those are not disturbed.
+    let mut cmds = four_clicks();
+    let mut quiet = Host::new(48000, 1);
+    let want = trace(&quiet.run(30000, 128, &cmds));
+    cmds.push((9000, cmd(CMD_FIRE, 3, 0, 0)));
+    let mut tapped = Host::new(48000, 1);
+    let got = trace(&tapped.run(30000, 128, &cmds));
+    let extra: Vec<&str> = got.lines().filter(|l| !want.lines().any(|w| w == *l)).collect();
+    // Tick 144 falls on frame 9000, and I first expected 144 here. But a command lands before
+    // its frame's ticks (§3), so the latest tick when the tap lands is 143. The core was right.
+    assert_eq!(extra, ["143 trig 3 1"], "9000 frames in, the latest tick is 143, on pattern step 1");
+    assert_eq!(got.lines().filter(|l| *l != "143 trig 3 1").collect::<Vec<_>>(), want.lines().collect::<Vec<_>>());
+}

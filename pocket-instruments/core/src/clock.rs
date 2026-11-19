@@ -46,6 +46,11 @@ impl Clock {
 
     /// One frame, after that frame's commands. `thr` is `625 * sample_rate`.
     #[inline]
+    /// The tick most lately emitted; 0 before any.
+    pub fn now(&self) -> u32 {
+        self.e.saturating_sub(1)
+    }
+
     pub fn frame(&mut self, thr: u64, sink: &mut impl FnMut(u32)) {
         if self.source == SOURCE_TABLE {
             if !self.primed {

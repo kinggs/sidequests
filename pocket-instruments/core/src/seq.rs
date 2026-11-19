@@ -67,6 +67,11 @@ impl Seq {
         }
     }
 
+    /// The pattern step the playhead is on.
+    pub fn step(&self) -> u8 {
+        self.cur
+    }
+
     pub fn reset(&mut self) {
         self.fresh = true;
         self.pending = false;

@@ -17,6 +17,7 @@ pub const CMD_PROB: u8 = 17;
 pub const CMD_SWING: u8 = 18;
 pub const CMD_LENGTH: u8 = 19;
 pub const CMD_SOUND: u8 = 20;
+pub const CMD_FIRE: u8 = 21;
 
 pub const EV_STEP: u8 = 1;
 pub const EV_TRIG: u8 = 2;

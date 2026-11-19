@@ -558,6 +558,25 @@ is already sounding.
 Why proposed, not decided: it is a change to the ABI the owner decided (D17, D27).
 Evidence: `PROOFS.md` P7, `ENGINE.md` §11.
 
+### D45 — A tap fires a track: the `FIRE` command
+**2026-11-19 · proposed · built this way in Session 3 · ABI 2, with D44 · adds to D26, changes nothing in it**
+
+P4's phone half measures tap-to-sound, and nothing in the ABI could make a sound from a tap:
+the keys are reserved until the workflow is built (D26).
+
+`FIRE` (21), `a` a track: the track fires on the frame the command lands on, playing or
+stopped. One `TRIG` event, with the latest tick and the playhead's step, and the track's
+voice. It changes no pattern, takes no random draw and does not move `pi_generation`.
+
+Why an edit-family command and not `KEY_DOWN`: what a key does depends on the mode (D37),
+and that is the workflow's to settle. Whatever it settles, "play this sound now" is one of
+the things a key press will turn into inside the core, so both hosts get it now and the
+workflow uses it later. Why it emits `TRIG`: a tapped sound should pulse Rack's trigger
+output and light the key exactly as a sequenced one does.
+
+Why proposed: it is the builder's reading of what a tap in play mode means (R26, R27).
+No fixture sends it, so no trace moved.
+
 ## Open
 
 | ID | Question | Needs |

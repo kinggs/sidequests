@@ -141,6 +141,12 @@ impl Engine {
                 self.voices.params[a][b] = v.min(65_535) as u16;
                 false
             }
+            // A tap: the track fires now, playing or stopped, as if its step had come round.
+            // The pattern is not touched (D45).
+            CMD_FIRE if a < TRACKS => {
+                out.push(self.clock.now(), EV_TRIG, a as u8, self.seq.step());
+                false
+            }
             CMD_LENGTH => {
                 let l = v.clamp(1, STEPS as u32) as u8;
                 let old = core::mem::replace(&mut self.pat.length, l);

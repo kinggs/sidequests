@@ -85,6 +85,17 @@ All entries below were checked on **2026-11-18**.
 
 Patent drawings are read from the Google Patents pages and are not stored in this repo (README rule 6).
 
+## Measured on the laptop, 2026-11-19 (Session 3)
+
+| ID | Fact | Source |
+|---|---|---|
+| R38 | rustc 1.100.0 will not build for macOS below 10.12 on x64 or 11.0 on arm64: with `MACOSX_DEPLOYMENT_TARGET=10.9` it warns "the minimum supported by `rustc` is 10.12" and stamps the object 10.12. Confirms R16 by experiment. Rack's SDK builds plugins with `-mmacosx-version-min=10.9` | `make targets` here; `compile.mk` in the Rack SDK 2.6.6 |
+| R39 | The Rack SDK 2.6.6 builds a plugin with `-march=nehalem` on x64 and `-march=armv8-a+fp+simd` on arm64, links `-static-libstdc++ -static-libgcc` on Linux, and picks the target from `$(CC) -dumpmachine` or `CROSS_COMPILE` | `compile.mk`, `arch.mk`, `plugin.mk` in the SDK |
+| R40 | Rack 2.6.6 runs headless (`Rack -h -u <user folder>`), loads `autosave/patch.json` from that folder, and steps the engine in real time with no audio device, at `settings.json`'s `sampleRate`. It exits on a line of input | run here: `rack/selftest.sh` |
+| R41 | Fundamental 2.6.4 has no module named Clock. Its LFO's square is output 3 and its FREQ is param 2 (8.0 gave 256 Hz); SEQ 3 has its own clock ⚠ not tried | run here: `rack/selftest.sh` counts the steps |
+| R42 | A plugin built on this laptop (g++ 16, glibc 2.44) asks for glibc symbols up to `GLIBC_2.35`, all from the statically linked libstdc++ and libgcc, none from the Rust core. VCV's toolchain sysroot is glibc 2.23 (R16), so this build is not one to hand to other people | `objdump -T rack/plugin.so` |
+| R43 | Headless Chromium 155 and headless Firefox 158 both run an `AudioContext` at a requested 44 100, 48 000 and 96 000 Hz with no user gesture, given `--autoplay-policy=no-user-gesture-required` and the pref `media.autoplay.default = 0`. Both compile a `WebAssembly.Module` synchronously inside an `AudioWorkletGlobalScope` from bytes sent in `processorOptions` | `web/desktop.mjs` |
+
 ## Not yet checked
 
 - EUIPO and UK registered designs and trade marks for Teenage Engineering AB.

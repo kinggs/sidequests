@@ -224,6 +224,7 @@ One fixed record, 12 bytes, little-endian, no padding:
 | 18 | `SWING` | `value` 0 to 48 |
 | 19 | `LENGTH` | `value` 1 to 16 |
 | 20 | `SOUND` | `a` track, `b` slider (0 = A, 1 = B), `value` 0 to 65535, clamped. ABI 2. Not in snapshot version 1 (§11) |
+| 21 | `FIRE` | `a` track. ABI 2 (D45). The track fires on this frame, playing or stopped: one `TRIG` with the latest tick and the playhead's step, and its voice. Changes no pattern, takes no draw |
 | 32 | `KEY_DOWN` | `a` key. Reserved: ignored in ABI 1 |
 | 33 | `KEY_UP` | `a` key. Reserved |
 | 34 | `PARAM` | `a` slider (0 = A, 1 = B), `value` 0 to 65535. Reserved |

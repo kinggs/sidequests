@@ -6,7 +6,7 @@ WASM   := target/wasm32-unknown-unknown/release/pi_core.wasm
 REPORT := $(CURDIR)/target/report
 CXX    ?= c++
 
-.PHONY: build test check-toolchain check-p1 clean rack-lib race targets
+.PHONY: build test check-toolchain check-p1 clean rack-lib race targets web p4
 
 # Both targets from one crate, one crate type each: a static library for Rack and the C++
 # harness, a bare module for the browser and Node.
@@ -51,6 +51,7 @@ test: build check-p1
 	@echo "Pocket Instruments: three harnesses, $$(grep -c '^#' $(REPORT)-rust.txt) runs each, one report ($$(sha256sum < $(REPORT)-rust.txt | cut -c1-16))."
 	target/harness --render harness/render-click.json target/render-cpp
 	node harness/compare.mjs $(foreach s,table edges,$(foreach r,44100 48000 96000,target/render-cpp-$(s)-$(r).f32 target/render-node-$(s)-$(r).f32))
+	@cmp -s $(WASM) web/pi_core.wasm || { echo "web/pi_core.wasm is not the .wasm just built: run 'make web' and commit it"; exit 1; }
 	@if command -v clang++ >/dev/null; then $(MAKE) --no-print-directory race; else echo "P6's ThreadSanitizer run skipped: no clang++."; fi
 
 # P6, the ThreadSanitizer half: the core on one thread while another edits, loads and takes
@@ -89,3 +90,15 @@ check-p1:
 
 clean:
 	cargo clean
+
+# The browser page is served as plain files (GitHub Pages builds nothing), so the .wasm it
+# loads is committed beside it. The build is reproducible, and `make test` fails if the
+# committed copy is not the one just built.
+web: build
+	cp $(WASM) web/pi_core.wasm
+
+# P4, the desktop half: web/ in headless Chromium and Firefox, its worklet's traces held
+# against the Node report (web/desktop.mjs). Real time, about twenty seconds a browser, so
+# it is not part of `make test`. Needs `make test` first.
+p4:
+	node web/desktop.mjs $(REPORT)-node.txt
