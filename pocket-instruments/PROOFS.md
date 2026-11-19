@@ -16,10 +16,10 @@ engineering gate the brief asks for (its D2). Nothing visual is built before P3 
 | P1 | One crate, two targets | passed 2026-11-19 |
 | P2 | Same trace everywhere | passed 2026-11-19 |
 | P3 | It runs in Rack | passed 2026-11-19 |
-| P4 | It runs in a phone browser | running: both desktop browsers passed 2026-11-19; the phones are left |
+| P4 | It runs in a phone browser | running: both desktop browsers and Android Chrome passed 2026-11-19; iOS Safari, the ten minutes and the tap latency are left |
 | P5 | It ships to other people's machines | running: four libraries built and checked here 2026-11-19; one bar not met (macOS 10.9; the owner accepts 10.12, D46); no plugin linked or loaded elsewhere |
 | P6 | Editing while playing is safe | running: ThreadSanitizer half and the save in Rack passed 2026-11-19, with a finding (D43); the browser is left |
-| P7 | Shared sound is worth sharing | running: the render half passed 2026-11-19 (the same bytes); the phone's voice count is left |
+| P7 | Shared sound is worth sharing | passed 2026-11-19 |
 | P8 | It feels like the real thing | open |
 | P9 | The look is one we may publish | open |
 
@@ -219,11 +219,25 @@ step, and posts back what its worklet captured.
 
 ⚠ Chromium here is the Arch build, not Google Chrome, and both browsers ran headless.
 
+**The owner's phone, the same day: a Samsung Galaxy S25 FE.** As the owner reported it;
+no screenshot was kept, so the page's own figures are not here.
+
+| Bar | Reported |
+|---|---|
+| Trace identical to P2 on Android Chrome | Run the proof said PASSED, on the first page and again on the changed one: 24 of 24 runs gave their fixture's trace, by the page's own comparison with each fixture's `expect` |
+| … on iOS Safari | **Left.** No iPhone has run it |
+| Ten minutes with no dropout | **Left.** Play was heard to be clean, but ⚠ nobody reported a ten-minute run or its "fallen behind" figure |
+| Tap-to-sound latency | **Left.** Tap "behaves as expected" to the finger. Not measured with a second device |
+
+Also run by the owner: Chromium on the desktop with its window, not headless: PASSED.
+Firefox on the phone ran the voice count (P7); ⚠ whether it ran the proof was not said.
+
 **A first run on the owner's phone** (2026-11-19, before the page was changed) crackled
 during Run the proof, "like vinyl", with and without Bluetooth, while Play and Tap were
 clean. ⚠ Not yet explained for certain. The likely cause was the page's own doing: all
 eight runs ticked at once, at four tempos. Now only one run ticks, so anything else heard
-is a fault. The result text of that run was not recorded.
+is a fault. That run passed, the owner said afterwards. ⚠ Whether the crackle was gone on
+the changed page was not reported.
 
 The check can fail: a worklet made to skip the swing command gave 12 of 24 and a failed
 run; a stale `web/pi_core.wasm` fails `make test`.
@@ -365,8 +379,8 @@ many voices a mid-range phone runs before dropping out.
 
 **If it fails:** share sequencing only; write sound per host.
 
-**Result: running. The render half passed, 2026-11-19 (Session 3).** The phone's
-voice count is left.
+**Result: passed, 2026-11-19.** The render half in Session 3; the phone's voice count the
+same day, by the owner. The account below is as first written, with the count at its end.
 
 One voice in the core: the click (key 10, track 9), a sine with an exponential decay, the
 simplest recipe in `VOICES.md` that still has both things two platforms could disagree
@@ -375,7 +389,7 @@ about. Sound crosses the ABI as a buffer on `pi_process` (ABI 2; D44, proposed).
 | Bar | Measured |
 |---|---|
 | The two renders differ by less than −80 dB | **They do not differ.** The C++ harness on the native static library and Node on the `.wasm` render `harness/render-click.json` (64 steps at 300 bpm, sliders moved six times, clicks cut off by the next) to the same bytes: 141 120 samples at 44.1 kHz (sha256 `8edac8757c455952`), 153 600 at 48 kHz (`0a70450dc7aa5170`), 307 200 at 96 kHz (`1df3dc10a21b2b7c`), on the table clock and on edges. Peak −0.2 dB |
-| At least 16 voices on the phone | **Left for the owner**, and it needs more voices or sixteen copies of this one. Nothing was measured |
+| At least 16 voices on the phone | **1 024**, on a Samsung Galaxy S25 FE, in Chrome and again in Firefox: every stage of Count voices held, up to the most the page tries. Each is a whole engine, sequencing and sounding. See the end of this section |
 
 Why they are the same bits: the voice uses only add, subtract, multiply, divide and
 conversions, which IEEE 754 rounds one way everywhere. There is no library `sin` or `exp`:
@@ -400,8 +414,22 @@ low. Press it on the phone and write the number here.
 
 On this laptop, headless, as a check that the measure moves (a finding, not the bar):
 Chromium 155 and Firefox 158 both held all 1 024 copies at 48 kHz, spending 27 % of real
-time; the cost rose in step with the count (512 copies: 15 %). ⚠ No stage has yet been
-seen to fail, so the "did not hold" branch is untested on a real overload.
+time; the cost rose in step with the count (512 copies: 15 %).
+
+**On the phone** (the owner's report): 1 024 copies held in Chrome for Android and in
+Firefox for Android on a Samsung Galaxy S25 FE. The bar is 16, so it is met sixty-four
+times over, and since cost rises in step with the count, sixteen copies are about one
+sixtieth of whatever 1 024 cost.
+
+What this does not show, said plainly:
+- ⚠ The phone's "% of real time" figures were not recorded. If its worklet clock is coarse
+  the page's first guard (under 70 %) is weak there, and only the second (audio no more
+  than 50 ms behind) was really judging.
+- ⚠ The phone reached the page's ceiling, not its own limit. No stage has been seen to
+  fail on any device, so the "did not hold" branch has never run on a real overload.
+- ⚠ An S25 FE is the top of mid-range. A cheaper phone has not been tried.
+- These are sixteen-fold copies of the cheapest voice. A bass drum or a hat costs more;
+  the margin is what makes that safe to say, not a measurement of those voices.
 
 ### P8 — It feels like the real thing
 

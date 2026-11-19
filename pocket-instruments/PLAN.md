@@ -171,7 +171,8 @@ Was all of P4 until Session 3 was widened; the desktop half moved there.
 - [x] Owner, in Rack, ten minutes. Done 2026-11-19, the same afternoon as Session 3: P3 passed,
       and P6's Rack row is filled in.
 - [ ] Owner, on each phone: Run the proof; Play for ten minutes; film the Tap pad. Fill in P4.
-- [ ] P7's voice count on a phone: a page that runs N copies of the click.
+      Android Chrome's proof is done (2026-11-19). Left: iOS Safari, the ten minutes, the film.
+- [x] P7's voice count on a phone. Done 2026-11-19: 1 024 copies held on a Galaxy S25 FE.
 - [ ] P5: the four links and the question to VCV (`PROOFS.md` P5, "What the full proof
       still needs").
 
@@ -359,3 +360,17 @@ Decided when P1 to P4 are in, not before:
 - How a plugin gets into Rack, since it was asked: `make install` in `rack/` puts a
   `.vcvplugin` in `~/.local/share/Rack2/plugins-lin-x64/`, and Rack unpacks it at its next
   start. Restart Rack after every rebuild.
+
+### Later still: the rulings and the phone (2026-11-19)
+
+- **D46:** the owner accepted D42 to D45 and set macOS 10.12 as the floor on Intel Macs.
+  No decision now blocks a build session.
+- **P7 passed.** A Samsung Galaxy S25 FE held 1 024 copies of the engine and its voice, in
+  Chrome and in Firefox; the bar is 16. The caveats are in `PROOFS.md`.
+- **P4: Android Chrome passed the trace.** Left: iOS Safari (no iPhone yet), a reported
+  ten-minute Play, and tap latency filmed with a second device.
+- **Left of the whole ladder before instruments:** P5 (four links, four loads, VCV's
+  answer; the owner has no Windows machine or Mac yet) and P6's browser half, which comes
+  with the instrument.
+- The page changed after the first phone run: only one proof run ticks now, and it has a
+  Count voices button.
