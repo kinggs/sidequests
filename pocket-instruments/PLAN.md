@@ -66,8 +66,10 @@ and the first fixtures, not code.
 - [ ] The fixture format, and three fixtures written by hand with their expected traces:
       straight sixteenths, swing with a length change, probability with a fixed seed.
 - [ ] Decide D16, D17, D18 and D20 with the owner (now `proposed`).
-- [ ] Settle how combinations work with one pointer in Rack (O8). It is the largest gap
-      between the hardware's workflow and a mouse, and D22 makes the workflow the point.
+- [x] How combinations work with one pointer in Rack: function keys latch (D23).
+- [ ] Decide D23's proposal: keyboard and MIDI mapping for the keys, per host.
+- [ ] Read Teenage Engineering's published PO-12 guide for the workflow, then have the owner
+      confirm each step on the hardware. Write the workflow down in our own words.
 - [ ] Owner, in Claude Design: the look, from D21's three blocks and D20's avoid list. Export
       to `pocket-instruments/design/`.
 - [ ] Re-check Phona's Library submission (R16a, O2).

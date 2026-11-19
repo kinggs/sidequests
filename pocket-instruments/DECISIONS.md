@@ -189,6 +189,24 @@ to follow (D20).
 Consequence: P8 (it feels like the real thing) becomes a gate for the showpiece, not a
 nicety. Every deliberate difference from the hardware is listed and explained.
 
+### D23 — Combinations with one pointer: function keys latch
+**2026-11-19 · decided (owner) · answers O8**
+
+In Rack, a click on a function key latches it and it glows, until the next grid press or a
+second click. The phone browser uses real multi-touch and does not latch.
+
+Proposed alongside, not yet decided: the keys can also be driven from a computer keyboard and
+from MIDI, so combinations can be held for real.
+
+- Every key and slider is an ordinary Rack parameter, so Rack's own MIDI mapping reaches them
+  with no code of ours ⚠ (check what it maps: controllers only, or notes too).
+- Computer keys while the pointer is over the module: a four-by-four block of the keyboard
+  for the grid, a row for the function keys. Keyboards report several held keys at once.
+- In the browser: the same keyboard block; Web MIDI where the browser has it ⚠ (not on every
+  phone browser).
+- None of this touches the core. It only ever sees key-down and key-up commands (D17), so
+  mapping is each host's own business.
+
 ## Open
 
 | ID | Question | Needs |
@@ -200,5 +218,5 @@ nicety. Every deliberate difference from the hardware is listed and explained.
 | O5 | Saved state: one readable format shared by both hosts, or a versioned binary snapshot each host wraps? | The engine interface session |
 | O6 | EU and UK registered designs and marks | A search of EUIPO and UKIPO |
 | O7 | A lawyer's view of the mockup before public release | P9 |
-| O8 | The hardware is played with two fingers: hold a function key, press a grid key or turn a knob. A mouse has one pointer. How are combinations made in Rack? Proposed: a click on a function key latches it (it glows) until the next grid press or a second click; computer keys held while hovering also work. The phone browser has real multi-touch and needs neither | Session 1, with D22 in mind; try it at P8 |
+| O8 | ~~Answered by D23.~~ The hardware is played with two fingers: hold a function key, press a grid key or turn a knob. A mouse has one pointer. How are combinations made in Rack? Proposed: a click on a function key latches it (it glows) until the next grid press or a second click; computer keys held while hovering also work. The phone browser has real multi-touch and needs neither | Session 1, with D22 in mind; try it at P8 |
 | O9 | How do the three blocks stack on a phone, and does one instrument fill the screen or share it? | The Claude Design work; D18 |
