@@ -60,6 +60,41 @@ instrument must choose first, it takes the plainest reading and says so below.
 10. **The key positions.** Which key sits where, row by row, for the keyboard mapping (D23).
 11. **Sizes, for D16:** board width and height, key pitch, jack spacing.
 
+## What a search found (2026-11-19)
+
+Second-hand answers to the questions above, from R26 to R28. They replace a guess with a
+report; only the hardware replaces a report with a fact.
+
+| Question | Found | How sure |
+|---|---|---|
+| 1. A tap in play mode | **Key *n* plays sound *n*:** the sixteen keys are sixteen sounds. Choosing one to program still takes sound + key. Whether a plain tap also chooses it: not found | Two sources agree (R26, R27) |
+| Live record (a row above) | Hold write and tap: each key records **its own** sound, whichever sound is chosen | One review (R27). It changes the row above: live record is not "the chosen sound" |
+| 2. Removing a step | A second tap in write mode | One third-party sheet (R28) ⚠ |
+| 3. The lights | Write mode: the lit keys are the pattern. Playing: a light chases the steps and keys flash as their sounds fire. While sound or pattern is held: not found | R26, R27 |
+| 4. The knobs | A is pitch and B is length for the drums; each sound is shaped on its own. Absolute or not: not found | R27; R28 ⚠ |
+| A second way to lock | In write mode, hold a step and turn a knob: that step alone gets the value | R26, R28 |
+| 5. Swing range | Not found | |
+| 6, 7. Tempo at once; play from step 1 | Not found | |
+| 8. Step repeat | Hold the step + bpm, in write mode; bpm again to cycle | R28 agrees with the guide's text, not its diagram ⚠ |
+| 9. Effects nine and ten | Stutter 4, stutter 3 | R28, likely copied from the guide ⚠ |
+| 10. Positions | Top row: sound, pattern, bpm, then the two knobs. Right-hand column of four: function at the top (under knob B), write at the bottom; fx and play between, order not found | R26, R27 |
+| 11. Size | Retailers disagree: about 60 by 102 to 105 mm | ⚠ |
+| Clear the pattern (a row above) | R28 says fx + pattern; the guide says function + pattern | Conflict. The guide is the maker's |
+| Sync pulse | Two a quarter note, the Korg convention | One forum post ⚠. Not used (D24) |
+
+**The expensive one is question 1.** If each key is a sound, an instrument with four sounds
+has twelve dead keys in play mode, and the thing D22 wants learned (which key is which drum)
+is not there to learn. See O11.
+
+Two checks on the hardware, about three minutes, settle what the search could not:
+
+1. Write off. Tap keys 1, 2, 3: three different drums? Then hold sound + 1, let go, tap key
+   5, press write, tap a step. Which drum landed on the step: 1 or 5? Note which keys are lit
+   in write mode.
+2. Hold sound + 1 and turn A fully one way. Hold sound + 2 and turn A fully the other way.
+   Hold sound + 1 again and tap key 1 without touching the knob: is its pitch where you left
+   it? Now nudge A a hair: does the pitch jump?
+
 ## Deliberate differences from the hardware
 
 D22 asks for every one to be listed and explained. So far:

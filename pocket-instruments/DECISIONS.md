@@ -299,5 +299,6 @@ the design prompt says (`design/PROMPT.md`). It no longer waits on a measurement
 | O6 | EU and UK registered designs and marks | A search of EUIPO and UKIPO |
 | O7 | A lawyer's view of the mockup before public release | P9 |
 | O8 | ~~Answered by D23.~~ The hardware is played with two fingers: hold a function key, press a grid key or turn a knob. A mouse has one pointer. How are combinations made in Rack? Proposed: a click on a function key latches it (it glows) until the next grid press or a second click; computer keys held while hovering also work. The phone browser has real multi-touch and needs neither | Session 1, with D22 in mind; try it at P8 |
+| O11 | On the hardware each grid key is its own sound in play mode (R26, R27). D12 says two to four sounds. Sixteen tracks in the engine from the start, with sounds filled in as they are made, or four and twelve dead keys? | The owner. Cheap before Session 2 (a constant and the snapshot's size), dearer after |
 | O10 | Probability and a short length are not on the hardware. What gesture sets them without colliding with its combinations? | `WORKFLOW.md`, after the hardware hour |
 | O9 | How do the three blocks stack on a phone, and does one instrument fill the screen or share it? | The Claude Design work; D18 |

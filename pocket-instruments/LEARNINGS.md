@@ -55,3 +55,14 @@ belongs in `PROOFS.md`, a change of course in `DECISIONS.md`, an outside fact in
   The hour with the hardware is not optional; `WORKFLOW.md` lists what to look for.
 - **Rack's own MIDI mapping is controllers only, as far as the manual says.** D23 hoped notes
   would reach the keys for free. They do not (R24).
+
+## 2026-11-19 — searching for what the guide left out
+
+- **The dearest unknown turned out to be a scope question, not a detail.** Two sources say
+  each grid key plays its own sound. That makes "two to four sounds" (D12) a difference a
+  player meets on the first tap, and it changes what the keys must show (O11).
+- **A tidy cheat sheet was the guide again.** It looked like a second source and repeated the
+  guide's own inconsistency. Agreement between a document and its summary is not
+  corroboration (R28).
+- **A review answered what the manual did not.** Reviewers describe what happens when you
+  press things; manuals list combinations.

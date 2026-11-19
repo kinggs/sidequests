@@ -32,7 +32,9 @@ THE PARTS (the same in both places)
 KEY STATES TO DESIGN (show all on one sheet)
 
 A grid key can be: off; holding a step for the selected sound; the step
-playing right now; both at once; pressed. A function key can be: idle;
+playing right now; both at once; pressed. When the instrument is being
+played rather than programmed, each key is one drum sound and flashes
+when its sound fires. A function key can be: idle;
 pressed; latched (held down by a click, and glowing until released).
 These must be tellable apart at arm's length and by someone colour-blind.
 
