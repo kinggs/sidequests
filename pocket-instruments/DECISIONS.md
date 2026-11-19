@@ -270,6 +270,23 @@ and key-up. ⚠ Rack reports key presses and releases under the pointer (R25); w
 reports several held at once is to be tried at P8. The key positions wait on `WORKFLOW.md`,
 question 10.
 
+### D29 — The workflow is confirmed as we go, not up front
+**2026-11-19 · decided (owner) · changes how D22 is reached**
+
+The hour with the PO-12 is not happening before the build. `WORKFLOW.md` is built from as it
+stands, from the published guide (R23). Each mismatch the owner notices against the hardware
+goes into its differences table, marked deliberate or to fix. P8 still gates the showpiece.
+
+Why: the owner's time. D26 makes it cheap: the proofs and the sequencer use edits only, so a
+wrong guess about a key press costs a change in the workflow layer and no fixture.
+
+The cost, stated: the eleven questions in `WORKFLOW.md` are now guesses until someone trips
+on them. Where the instrument must pick one before then, it picks the plainest reading and
+marks it ⚠ in the table.
+
+Consequence for D16: the panel is taken as 24 HP with the jacks along the bottom (D21), as
+the design prompt says (`design/PROMPT.md`). It no longer waits on a measurement.
+
 ## Open
 
 | ID | Question | Needs |

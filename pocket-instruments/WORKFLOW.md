@@ -1,8 +1,8 @@
 # The workflow
 
-**Status:** a draft from the published guide (R23). Nothing here has been checked on the
-hardware yet. The owner confirms each row on the PO-12 and ticks it; then this file is what
-the instrument is built from, and P8 is judged against it (D22).
+**Status:** a draft from the published guide (R23), not checked on the hardware. By D29 it is
+built from as it stands: a row is ticked, or a mismatch added to the differences table, as
+the owner meets it. P8 is judged against this file (D22).
 
 Written in our own words. No text or pictures from the guide are in this repo (README rule 6).
 
@@ -40,7 +40,8 @@ hats, a cymbal, toms, a clap, sticks, a cowbell, noise, and three pitched tones.
 
 ## What the guide does not say
 
-The owner's hour with the hardware answers these. Each one changes something we build.
+Guesses until someone trips on them (D29). Each one changes something we build; where the
+instrument must choose first, it takes the plainest reading and says so below.
 
 1. **What a tap on a grid key does in play mode** (write off). Does it play the chosen sound?
    Does it play sound *n*? This decides whether the instrument can be drummed live.

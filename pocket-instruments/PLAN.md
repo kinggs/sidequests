@@ -158,8 +158,10 @@ Decided when P1 to P4 are in, not before:
   across both clock sources and three sample rates, and it found one fault in the first draft
   (`LEARNINGS.md`). It did not test block sizes, the snapshot, reset or a tempo change.
 - Phona has not been submitted to the Library (R16b). O2 is as open as it was.
-- **Waiting on the owner:** the hour with the PO-12 (`WORKFLOW.md`: tick the rows, answer the
-  eleven questions, take the measurements for D16), and the look in Claude Design, exported
-  to `pocket-instruments/design/`. Neither blocks Session 2.
+- **Waiting on the owner:** the look in Claude Design, from `design/PROMPT.md`, exported to
+  `pocket-instruments/design/`. It does not block Session 2.
+- **No longer waited for (D29):** the hour with the PO-12. `WORKFLOW.md` is built from as it
+  stands and corrected as mismatches turn up. The three unticked owner items in Session 1's
+  list stay open as things to do when there is time, not as gates.
 - New open question O10: how probability and a short length are set by hand.
 - Next: Session 2, on Opus, on the laptop. Rust is still not installed.
