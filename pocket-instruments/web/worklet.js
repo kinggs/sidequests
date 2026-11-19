@@ -22,12 +22,15 @@ class Engine extends AudioWorkletProcessor {
     this.pi = instance.exports;
     this.base = this.pi.memory.grow(1) * PAGE;
     this.e = this.pi.pi_init(this.base, this.pi.pi_size(), sampleRate, o.seed);
-    // The other copies, 512 bytes apart in pages of their own.
+    // The other copies, one engine's size apart (pi_size, rounded to its alignment) in pages
+    // of their own. It was a fixed 512 bytes until the drums took the engine past that.
     this.more = [];
     const extra = Math.max(0, (o.copies || 1) - 1);
     if (extra) {
-      const at = this.pi.memory.grow(Math.ceil((extra * 512) / PAGE)) * PAGE;
-      for (let i = 0; i < extra; i++) this.more.push(this.pi.pi_init(at + i * 512, 512, sampleRate, o.seed + 1 + i));
+      const align = this.pi.pi_align(), size = Math.ceil(this.pi.pi_size() / align) * align;
+      const at = this.pi.memory.grow(Math.ceil((extra * size) / PAGE)) * PAGE;
+      for (let i = 0; i < extra; i++) this.more.push(this.pi.pi_init(at + i * size, size, sampleRate, o.seed + 1 + i));
+      if (this.more.includes(0)) throw new Error("an engine copy was refused its memory");
     }
     this.every = o.every || 375; // blocks between reports while playing
     this.spent = 0;              // milliseconds inside process(), summed

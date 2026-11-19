@@ -39,8 +39,10 @@ targets:
 
 # The same fixtures through the core three ways. Each harness also writes every trace it
 # produced to a report; the three reports must be the same bytes.
-# Then P7: the click voice rendered by the C++ harness on the static library and by Node on
-# the .wasm, each pair held to the -80 dB bar by harness/compare.mjs.
+# Then every voice: each harness/render-*.json scenario rendered by the C++ harness on the
+# static library and by Node on the .wasm, each pair held to the same bytes by
+# harness/compare.mjs (--same: the rule D44 and D46 set, stricter than P7's -80 dB bar).
+SCENARIOS := $(patsubst harness/render-%.json,%,$(wildcard harness/render-*.json))
 test: build check-p1
 	PI_REPORT=$(REPORT)-rust.txt cargo test -p pi-core --locked -q
 	$(CXX) -std=c++17 -O2 -Wall -Wextra -Werror -Icore/include harness/harness.cpp $(NATIVE) -o target/harness
@@ -49,8 +51,8 @@ test: build check-p1
 	cmp $(REPORT)-rust.txt $(REPORT)-cpp.txt
 	cmp $(REPORT)-rust.txt $(REPORT)-node.txt
 	@echo "Pocket Instruments: three harnesses, $$(grep -c '^#' $(REPORT)-rust.txt) runs each, one report ($$(sha256sum < $(REPORT)-rust.txt | cut -c1-16))."
-	target/harness --render harness/render-click.json target/render-cpp
-	node harness/compare.mjs $(foreach s,table edges,$(foreach r,44100 48000 96000,target/render-cpp-$(s)-$(r).f32 target/render-node-$(s)-$(r).f32))
+	@for s in $(SCENARIOS); do target/harness --render harness/render-$$s.json target/render-cpp-$$s || exit 1; done
+	node harness/compare.mjs --same $(foreach n,$(SCENARIOS),$(foreach s,table edges,$(foreach r,44100 48000 96000,target/render-cpp-$(n)-$(s)-$(r).f32 target/render-node-$(n)-$(s)-$(r).f32)))
 	@cmp -s $(WASM) web/pi_core.wasm || { echo "web/pi_core.wasm is not the .wasm just built: run 'make web' and commit it"; exit 1; }
 	@if command -v clang++ >/dev/null; then $(MAKE) --no-print-directory race; else echo "P6's ThreadSanitizer run skipped: no clang++."; fi
 

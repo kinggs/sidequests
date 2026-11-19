@@ -1,7 +1,7 @@
 // P7's bar, written before any voice existed: two renders of the same thing must differ by
 // less than -80 dB.
 //
-//   node compare.mjs <a.f32> <b.f32> [...more pairs]      exits 0 only if every pair passes
+//   node compare.mjs [--same] <a.f32> <b.f32> [...more pairs]   exits 0 only if every pair passes
 //
 // A file is raw 32-bit little-endian floats. For each pair:
 //   - the lengths must match, and no sample may be NaN or infinite;
@@ -10,7 +10,9 @@
 //   - the difference, at its worst sample, measured against the render's own peak, must be
 //     under -80 dB. Worst sample against peak is stricter than RMS against RMS, so a render
 //     that passes here passes the bar however it is read.
-// It also says whether the two are the same bytes, which is the stronger result.
+// It also says whether the two are the same bytes, which is the stronger result. With
+// --same, anything less fails: that is the rule every voice is held to (D44, D46), and what
+// `make test` asks for. P7's own bar is the -80 dB above, and does not change.
 //
 // SPDX-License-Identifier: MIT
 import { readFileSync } from "node:fs";
@@ -24,9 +26,10 @@ const floats = (path) => {
   return { bytes: b, f: new Float32Array(b.buffer, b.byteOffset, b.length / 4) };
 };
 
-const args = process.argv.slice(2);
+const sameOnly = process.argv[2] === "--same";
+const args = process.argv.slice(sameOnly ? 3 : 2);
 if (args.length < 2 || args.length % 2) {
-  console.error("usage: compare.mjs <a.f32> <b.f32> [...]");
+  console.error("usage: compare.mjs [--same] <a.f32> <b.f32> [...]");
   process.exit(2);
 }
 let failed = 0;
@@ -60,6 +63,10 @@ for (let i = 0; i < args.length; i += 2) {
   const sha = createHash("sha256").update(a.bytes).digest("hex").slice(0, 16);
   if (!(diff < BAR_DB)) {
     fail(`they differ by ${diff.toFixed(1)} dB, and the bar is ${BAR_DB}`);
+    continue;
+  }
+  if (sameOnly && !same) {
+    fail(`they differ by ${diff.toFixed(1)} dB: inside P7's bar, but not the same bytes, and --same asks for them`);
     continue;
   }
   console.log(

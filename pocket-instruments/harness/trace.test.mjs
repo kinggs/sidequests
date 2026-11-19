@@ -168,20 +168,25 @@ test("every fixture gives its trace on both sources, at every rate and block siz
   if (process.env.PI_REPORT) writeFileSync(process.env.PI_REPORT, report);
 });
 
-// P7: the same scenario harness.cpp renders, from the .wasm. Written only when asked
-// (`make render` sets PI_RENDER); compare.mjs then holds each pair to the -80 dB bar.
-test("P7: the click renders from the .wasm", { skip }, () => {
-  const m = load();
-  const fx = JSON.parse(readFileSync(here("render-click.json"), "utf8"));
-  for (const [sourceName, source] of SOURCES) {
-    for (const rate of RATES) {
-      const { cmds, end } = schedule(fx, rate, source, false);
-      const audio = new Float32Array(end);
-      const quiet = run(m, engine(m, rate, fx.seed), cmds, end, 128);
-      const loud = run(m, engine(m, rate, fx.seed), cmds, end, 128, audio);
-      assert.equal(loud, quiet, "sound changes no event");
-      assert.ok(audio.some((s) => s !== 0) && audio.every(Number.isFinite), "it made a sound");
-      if (process.env.PI_RENDER) writeFileSync(`${process.env.PI_RENDER}-${sourceName}-${rate}.f32`, new Uint8Array(audio.buffer));
+// P7: the same scenarios harness.cpp renders (every harness/render-*.json), from the .wasm.
+// Written only when asked (`make test` sets PI_RENDER); compare.mjs then holds each pair to
+// the same bytes.
+const SCENARIOS = readdirSync(here(".")).filter((n) => /^render-.*\.json$/.test(n)).sort();
+for (const file of SCENARIOS) {
+  const name = file.replace(/^render-|\.json$/g, "");
+  test(`P7: ${name} renders from the .wasm`, { skip }, () => {
+    const m = load();
+    const fx = JSON.parse(readFileSync(here(file), "utf8"));
+    for (const [sourceName, source] of SOURCES) {
+      for (const rate of RATES) {
+        const { cmds, end } = schedule(fx, rate, source, false);
+        const audio = new Float32Array(end);
+        const quiet = run(m, engine(m, rate, fx.seed), cmds, end, 128);
+        const loud = run(m, engine(m, rate, fx.seed), cmds, end, 128, audio);
+        assert.equal(loud, quiet, "sound changes no event");
+        assert.ok(audio.some((s) => s !== 0) && audio.every(Number.isFinite), "it made a sound");
+        if (process.env.PI_RENDER) writeFileSync(`${process.env.PI_RENDER}-${name}-${sourceName}-${rate}.f32`, new Uint8Array(audio.buffer));
+      }
     }
-  }
-});
+  });
+}

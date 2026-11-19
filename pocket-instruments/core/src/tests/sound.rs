@@ -173,3 +173,190 @@ fn fire_sounds_a_track_on_its_frame_stopped_or_playing_and_changes_nothing_else(
     assert_eq!(extra, ["143 trig 3 1"], "9000 frames in, the latest tick is 143, on pattern step 1");
     assert_eq!(got.lines().filter(|l| *l != "143 trig 3 1").collect::<Vec<_>>(), want.lines().collect::<Vec<_>>());
 }
+
+// ---- the beat: bass drum, snare, closed hat, open hat (VOICES.md keys 1 to 4) ----
+
+const KICK: u8 = 0;
+const SNARE: u8 = 1;
+const CLOSED: u8 = 2;
+const OPEN: u8 = 3;
+const DRUMS: [u8; 4] = [KICK, SNARE, CLOSED, OPEN];
+
+/// One hit of `track` on frame 0 with its sliders at `a` and `b`, stopped, as a tap would.
+fn hit(track: u8, a: u32, b: u32, rate: u32, frames: usize) -> Vec<f32> {
+    let cmds = [(0, cmd(CMD_SOUND, track, 0, a)), (0, cmd(CMD_SOUND, track, 1, b)), (0, cmd(CMD_FIRE, track, 0, 0))];
+    render(&mut Host::new(rate, 1), frames, 128, 1, &cmds).0
+}
+
+/// The last frame that is not exactly zero.
+fn last_sound(out: &[f32]) -> usize {
+    out.iter().rposition(|&s| s != 0.0).unwrap()
+}
+
+fn peak(out: &[f32]) -> f32 {
+    out.iter().fold(0f32, |m, s| m.max(s.abs()))
+}
+
+fn crossings(out: &[f32]) -> usize {
+    out.windows(2).filter(|w| w[0] < 0.0 && w[1] >= 0.0).count()
+}
+
+/// How long each voice lasts, 60 dB down, in milliseconds: slider B's range (VOICES.md).
+/// The snare's B is its wires; its body falls 60 dB in 120 ms whatever B says.
+fn length_ms(track: u8, b: u32) -> f64 {
+    let (lo, hi) = match track {
+        KICK => (100.0, 600.0),
+        SNARE => (50.0, 250.0),
+        CLOSED => (10.0, 60.0),
+        _ => (100.0, 500.0),
+    };
+    let b = lo + b as f64 * (hi - lo) / 65535.0;
+    if track == SNARE { b.max(120.0) } else { b }
+}
+
+/// A sixteen-step beat: kick on the beat, snare on two and four, closed hats on the
+/// eighths, open hats on the last eighth of each half.
+fn beat() -> Vec<(u64, Cmd)> {
+    let mut c = Vec::new();
+    for s in 0..16u8 {
+        if s % 4 == 0 {
+            c.push((0, cmd(CMD_STEP, KICK, s, 1)));
+        }
+        if s % 8 == 4 {
+            c.push((0, cmd(CMD_STEP, SNARE, s, 1)));
+        }
+        if s % 2 == 0 && s % 8 != 6 {
+            c.push((0, cmd(CMD_STEP, CLOSED, s, 1)));
+        }
+        if s % 8 == 6 {
+            c.push((0, cmd(CMD_STEP, OPEN, s, 1)));
+        }
+    }
+    c.push((0, cmd(CMD_PLAY, 0, 0, 1)));
+    c
+}
+
+#[test]
+fn each_drum_is_loud_from_its_trigger_then_exactly_silent_within_its_length() {
+    for rate in [44100, 48000, 96000] {
+        for t in DRUMS {
+            let out = hit(t, 32768, 32768, rate, rate as usize);
+            let p = peak(&out);
+            assert!(p > 0.3 && p <= 1.0, "track {t} at {rate}: peak {p}");
+            assert!(out.iter().all(|s| s.is_finite()));
+            // Loud at the start; still sounding at 90 % of its 60 dB time; nothing at all by
+            // 150 %, however it is cut (the -80 dB cut comes a third later, or a little more
+            // for a voice that starts above 1).
+            let len = length_ms(t, 32768) * rate as f64 / 1000.0;
+            assert!(peak(&out[..(len * 0.2) as usize]) == p, "track {t}: the peak is at the start");
+            let last = last_sound(&out);
+            assert!(last as f64 > len * 0.9 && (last as f64) < len * 1.5, "track {t} at {rate}: last sound at {last}, length {len}");
+        }
+    }
+}
+
+#[test]
+fn slider_b_sets_each_drum_s_length() {
+    for t in DRUMS {
+        for b in [0, 65535] {
+            let out = hit(t, 32768, b, 48000, 48000);
+            let len = length_ms(t, b) * 48.0;
+            let last = last_sound(&out) as f64;
+            assert!(last > len * 0.9 && last < len * 1.5, "track {t} b {b}: last sound at {last}, length {len}");
+        }
+    }
+}
+
+#[test]
+fn slider_a_sets_the_kick_s_base_pitch() {
+    // After the sweep has died (by 150 ms it is 1 part in 2 000), count cycles over 200 ms:
+    // 40 Hz and 90 Hz give 8 and 18.
+    let cycles = |a| crossings(&hit(KICK, a, 65535, 48000, 48000)[7200..16800]);
+    let (low, high) = (cycles(0), cycles(65535));
+    assert!((7..=9).contains(&low) && (17..=19).contains(&high), "{low} and {high} cycles");
+    // And it starts high: three times the base. The first 10 ms at 40 Hz hold more than the
+    // 0.4 of a cycle a steady 40 Hz would.
+    let start = crossings(&hit(KICK, 0, 65535, 48000, 4800));
+    assert!(start >= 1, "the sweep starts above the base: {start} cycles in 100 ms");
+}
+
+#[test]
+fn slider_a_sets_the_snare_s_body_pitch() {
+    // With the wires at their shortest (50 ms, cut by 70), only the body sounds from 75 ms
+    // to its own cut near 140. Its two sines are 130 and 238 Hz at A = 0, 230 and 422 at the
+    // top: the counts scale by 230 / 130.
+    let cycles = |a| crossings(&hit(SNARE, a, 0, 48000, 48000)[3600..6480]);
+    let (low, high) = (cycles(0) as f64, cycles(65535) as f64);
+    assert!(low > 0.0 && (1.5..2.1).contains(&(high / low)), "{low} and {high} cycles");
+}
+
+#[test]
+fn slider_a_moves_the_hats_filter() {
+    // A higher corner keeps less of the low partials: more crossings, a brighter hat.
+    for t in [CLOSED, OPEN] {
+        let (dark, bright) = (crossings(&hit(t, 0, 65535, 48000, 2400)), crossings(&hit(t, 65535, 65535, 48000, 2400)));
+        assert!(bright > dark, "track {t}: {dark} crossings at 5 kHz, {bright} at 10 kHz");
+    }
+}
+
+#[test]
+fn the_beat_s_mix_is_the_sum_of_its_tracks_and_each_track_is_alone_in_its_channel() {
+    let cmds = beat();
+    let (mix, _) = render(&mut Host::new(48000, 1), 48000, 128, 1, &cmds);
+    let (tracks, _) = render(&mut Host::new(48000, 1), 48000, 128, 16, &cmds);
+    for f in 0..48000 {
+        let ch = |t: usize| tracks[f * 16 + t];
+        let sum = ch(0) + ch(1) + ch(2) + ch(3) + ch(9);
+        assert_eq!(mix[f].to_bits(), sum.to_bits(), "frame {f}");
+        for t in (4..16).filter(|&t| t != 9) {
+            assert_eq!(ch(t).to_bits(), 0, "frame {f} track {t}");
+        }
+    }
+    for t in DRUMS {
+        let solo: Vec<f32> = (0..48000).map(|f| tracks[f * 16 + t as usize]).collect();
+        assert!(peak(&solo) > 0.3, "track {t} sounds in its own channel");
+    }
+}
+
+#[test]
+fn the_block_size_does_not_change_a_sample_of_the_beat() {
+    let cmds = beat();
+    let (want, _) = render(&mut Host::new(44100, 1), 44100, 1, 1, &cmds);
+    for block in [128, 512, 4096] {
+        let (got, _) = render(&mut Host::new(44100, 1), 44100, block, 1, &cmds);
+        assert!(got.iter().zip(&want).all(|(a, b)| a.to_bits() == b.to_bits()), "block {block}");
+    }
+}
+
+#[test]
+fn a_drum_sounding_across_a_rate_change_keeps_its_length_in_seconds() {
+    for t in DRUMS {
+        let whole = last_sound(&hit(t, 32768, 65535, 48000, 48000)) as f64 / 48000.0;
+        // The same hit, with the rate doubled 20 ms in.
+        let mut h = Host::new(48000, 1);
+        let fire = [(0, cmd(CMD_SOUND, t, 1, 65535)), (0, cmd(CMD_FIRE, t, 0, 0))];
+        let (first, _) = render(&mut h, 960, 128, 1, &fire);
+        assert!(first.iter().any(|&s| s != 0.0));
+        unsafe { pi_set_sample_rate(h.e, 96000) };
+        let (rest, _) = render(&mut h, 96000, 128, 1, &[]);
+        let split = 0.02 + last_sound(&rest) as f64 / 96000.0;
+        assert!((split - whole).abs() < 0.002, "track {t}: {whole} s at one rate, {split} s across the change");
+    }
+}
+
+#[test]
+fn a_slider_moved_while_a_drum_sounds_waits_for_its_next_hit() {
+    // §11: a value is read when the voice is next triggered, and a rate change does not
+    // read it either.
+    for t in DRUMS {
+        let fire = [(0, cmd(CMD_SOUND, t, 1, 0)), (0, cmd(CMD_FIRE, t, 0, 0))];
+        let mut moved = Host::new(48000, 1);
+        let (a, _) = render(&mut moved, 240, 128, 1, &fire);
+        let (b, _) = render(&mut moved, 24000, 128, 1, &[(0, cmd(CMD_SOUND, t, 1, 65535))]);
+        unsafe { pi_set_sample_rate(moved.e, 44100) };
+        let mut still = Host::new(48000, 1);
+        let (c, _) = render(&mut still, 240, 128, 1, &fire);
+        let (d, _) = render(&mut still, 24000, 128, 1, &[]);
+        assert_eq!([a, b].concat().iter().map(|s| s.to_bits()).collect::<Vec<_>>(), [c, d].concat().iter().map(|s| s.to_bits()).collect::<Vec<_>>(), "track {t}");
+    }
+}

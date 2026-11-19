@@ -28,7 +28,9 @@ fn the_records_and_the_engine_have_the_sizes_the_header_says() {
     assert_eq!(pi_abi_version(), 2);
     assert_eq!(size_of::<Cmd>(), 12);
     assert_eq!(size_of::<Event>(), 12);
-    assert!(pi_size() >= 316 - 16 && pi_size() <= 512, "pi_size is {}", pi_size());
+    // The upper bound is the hosts' fixed room for one engine: 1 KiB before the snapshot in
+    // harness/trace.test.mjs, and Probe.cpp's buffer. It was 512 until the drums (752 bytes).
+    assert!(pi_size() >= 316 - 16 && pi_size() <= 1024, "pi_size is {}", pi_size());
     assert!(pi_align() <= 8);
 }
 
