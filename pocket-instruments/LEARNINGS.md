@@ -80,3 +80,53 @@ belongs in `PROOFS.md`, a change of course in `DECISIONS.md`, an outside fact in
 - **The same repo is the clearest picture of what our look must not be**: the original's
   display scene, wording and outline, redrawn. Useful to know before any of it reaches a
   design tool by accident.
+
+## 2026-11-19 — Session 2, the core (P1 and P2)
+
+- **The specification held.** The core was written from `ENGINE.md` without looking at the
+  traces, and all four matched on the first run, on both clock sources, at every rate and
+  block size. The reset trace had been written by hand and committed before any engine code.
+  No trace was edited; no fault was found in `ENGINE.md`'s rules.
+- **What was wrong was my own tests, four of them, and `ENGINE.md` settled each.** I expected
+  a tempo change halfway through a step to land the next step on frame 15 000; the core said
+  15 001. The rule says a command lands before its frame's advance, and that advance is the
+  stretch from the frame before. So the core was right and a tempo change costs up to one
+  frame of phase, once. The same slip in the sample-rate test, a miscounted tick in the
+  source-switch test, and one malformed assertion. Each wrong expectation is kept as a
+  comment beside the right one. Lesson: when the test and the code disagree, read the rule
+  before touching either.
+- **The text was ambiguous in seven places a model never meets.** A model's author knows what
+  they meant; a second implementer has only the words. The sharpest: does `SOURCE table` on a
+  clock already on the table count as "switching"? If it did, every fixture run would lose
+  tick 0's frame. All seven are D42.
+- **A harness that passes is not evidence until it has failed.** Three faults were put into
+  the core on purpose. My first check of the C++ harness reported "0 failed" on a broken
+  core: the script had rebuilt the library and not relinked the program. Second lesson from
+  the same hour: no fixture catches an edge clock that stops interpolating at tick 47,
+  because no fixture swings past 47 and the flush at the next edge repairs the trace. The
+  trace proves order, not timing; timing needs tests that look at frames, and the Rust ones
+  now do.
+- **"No allocator" is better checked on the object than promised in the source.** The static
+  library's own object asks for `memcpy` and `memset` and nothing else: not even `abort`, so
+  no panic path survived. `make test` checks that list on every run.
+- **The static library is 5 MB and 9 KB of it is ours.** The rest is Rust's precompiled
+  `compiler_builtins`. A linker takes only what is asked for, so it costs nothing, but
+  thirteen of those members want `rust_eh_personality`. ⚠ If the core ever uses 128-bit
+  arithmetic, Rack's link will meet that symbol. `Clock::rescale` avoids a 128-bit product
+  for this reason as much as for the WebAssembly size.
+- **A `no_std` crate cannot have integration tests of the usual kind.** The library carries
+  the panic handler, and a test program that links it beside `std` gets two. The tests live
+  inside the crate (`core/src/tests/`), where `cfg(test)` leaves the handler out, and call
+  the C functions as a host would.
+- **mise and `rust-toolchain.toml` are two pins, and mise's wins.** mise sets
+  `RUSTUP_TOOLCHAIN`, which rustup obeys over the file, so the file's `targets` line is not
+  acted on either. The Makefile checks the two agree and adds the wasm target itself.
+- **Options on a mise tool line cost a `mise trust` in every fresh clone.**
+  `rust = { version = …, targets = … }` made a new clone refuse to run until trusted;
+  `rust = "1.100.0"` does not. Trust is once per folder per machine, so it is survivable,
+  but the bare line needs nothing. Found only because the clean-checkout bar was run in a
+  real second clone rather than with `cargo clean`.
+- **Testing a version mismatch by editing `mise.toml` installs that version.** mise fetched
+  Rust 1.99.0 the moment a shim ran. It was removed. Test such a check on a copy.
+- **The build is reproducible across folders**: the same `.wasm` bytes from a clone in
+  another path. Worth knowing before P5.

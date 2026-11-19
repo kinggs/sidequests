@@ -62,9 +62,16 @@ Session 1 had no engine. The traces were produced by a throwaway model of `ENGIN
 both runs at all three sample rates, and the entries below were worked by hand.
 
 That model already found one fault in the specification (the table clock's starting phase;
-`ENGINE.md` §4). If Session 2's core disagrees with a trace, the specification decides, and
-either the core or the trace gets fixed, with a note in `LEARNINGS.md`. A trace is never
-edited just to make a build pass.
+`ENGINE.md` §4). If a core disagrees with a trace, the specification decides, and either the
+core or the trace gets fixed, with a note in `LEARNINGS.md`. A trace is never edited just to
+make a build pass.
+
+Session 2 built the core from `ENGINE.md` and it reproduced all three, and the fourth
+(written by hand that session, before the core), with no trace edited (`PROOFS.md` P2).
+
+The harnesses also run each fixture **from a snapshot**: one engine takes the tempo and the
+step-0 edits and saves; a fresh engine with a different seed loads that and is sent
+everything else. The trace must be the same.
 
 ### Checks by hand
 

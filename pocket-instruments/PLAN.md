@@ -38,7 +38,9 @@ pocket-instruments/
 
 - Present: g++ 16, clang 23, make, node 26, mise, VCV Rack Free 2.6.6
   (`~/.local/opt/Rack2Free-2.6.6`, user folder `~/.local/share/Rack2`).
-- Missing: Rust (rustc, cargo, the `wasm32-unknown-unknown` target), the Rack SDK 2.6.6, cmake.
+- Since Session 2 (2026-11-19): Rust 1.100.0 through mise, with `wasm32-unknown-unknown`.
+  It resolves only inside this folder (`mise.toml`); there is no global Rust.
+- Missing: the Rack SDK 2.6.6, cmake.
 
 ---
 
@@ -78,36 +80,38 @@ and the first fixtures, not code.
       to `pocket-instruments/design/`. Done 2026-11-19: Loom (D36), `design/DESIGN.md`.
 - [x] Re-check Phona's Library submission (R16a, O2). Not submitted yet: R16b.
 
-## Session 2 — P1 and P2: one crate, same trace (build, Opus)
+## Session 2 — P1 and P2: one crate, same trace (build; done 2026-11-19)
 
 Phase 1's first critical step. No Rack, no browser, no sound.
 
-- [ ] Install Rust through mise, pinned by a `rust-toolchain.toml` in this folder (stable, with
+- [x] Install Rust through mise, pinned by a `rust-toolchain.toml` in this folder (stable, with
       the `wasm32-unknown-unknown` target). Add `target/` to `.gitignore`.
-- [ ] `core/`: `no_std`, no `alloc`, `panic = "abort"`, the C ABI in `core/include/pi_engine.h`.
+- [x] `core/`: `no_std`, no `alloc`, `panic = "abort"`, the C ABI in `core/include/pi_engine.h`.
       Build it from `ENGINE.md`: a clock module and a sequencer module, the snapshot, and the
       CRC. Sequencing only. Keys and sliders are ignored (D26).
-- [ ] Build both targets with one command. Record sizes. **P1.**
-- [ ] Add a fourth fixture, a reset in the middle of a bar, with `fixtures/README.md`'s rule
+- [x] Build both targets with one command. Record sizes. **P1.** `make build`.
+- [x] Add a fourth fixture, a reset in the middle of a bar, with `fixtures/README.md`'s rule
       for it. Work its trace out from `ENGINE.md` before running the core, not after.
-- [ ] A snapshot test: save, load into a fresh engine, same trace; a corrupted byte is refused.
-- [ ] `harness/`: run every fixture three ways: `cargo test`; the `.wasm` in Node with
+- [x] A snapshot test: save, load into a fresh engine, same trace; a corrupted byte is refused.
+- [x] `harness/`: run every fixture three ways: `cargo test`; the `.wasm` in Node with
       `node --test`; a C++ program linking the static library. Compare traces byte for byte,
       at three sample rates and three block sizes, on the table clock and on edges
       (`fixtures/README.md` says how). **P2.** If the core and a trace disagree, `ENGINE.md`
       decides which is wrong; never edit a trace to make the build pass.
-- [ ] Check the browser memory plan (`ENGINE.md` §8 ⚠): the Node harness grows the module's
+- [x] Check the browser memory plan (`ENGINE.md` §8 ⚠): the Node harness grows the module's
       memory by a page and puts the engine and buffers there, with no glue.
-- [ ] Wire it into the repo's `make verify`, skipped with a message when cargo is missing (the
+- [x] Wire it into the repo's `make verify`, skipped with a message when cargo is missing (the
       Pocket Editor line is the pattern). The Node test must skip, not fail, when the `.wasm`
       has not been built.
-- [ ] Fill in P1 and P2 in `PROOFS.md`; write `LEARNINGS.md`; Handover.
+- [x] Fill in P1 and P2 in `PROOFS.md`; write `LEARNINGS.md`; Handover.
 
 ## Session 3 — P3: it runs in Rack (build, Opus)
 
 - [ ] Download the Rack SDK 2.6.6 for Linux outside the repo; set `RACK_DIR`.
 - [ ] `rack/`: a blank-panel module, CLOCK in, RESET in, GATE out, calling the core once per
       sample. The Makefile builds the Rust library first, with Rack's CPU flags (R16).
+      Link `target/release/libpi_core.a` as `harness/harness.cpp` does. Watch for
+      `rust_eh_personality` at link time (`PROOFS.md` P1 ⚠).
 - [ ] Run P3's pass bar in Rack on this machine. The owner watches the scope.
 - [ ] Fill in P3. If it fails, D13's fallback applies: stop and write it up.
 
@@ -191,3 +195,25 @@ Decided when P1 to P4 are in, not before:
   are samples first, recipes where a sample does not serve (D32). D33 (individual outputs on
   sixteen-channel jacks) and D34 (the player's own file on any key) are proposed. None of this
   is Session 2's work; it shapes P7.
+
+### After Session 2 (2026-11-19)
+
+- **P1 and P2 passed.** Numbers in `PROOFS.md`. The `.wasm` is 5 076 bytes; three harnesses
+  give one report over 96 runs each. D13's third trigger has used one build session of two.
+- Built: `core/` (clock, sequencer, snapshot, CRC, the C ABI), `harness/` (Node on the raw
+  `.wasm`, C++ on the static library), a `Makefile`, a fourth fixture (`reset-mid-bar`).
+  Sequencing only. Nothing in `design/`, `samples/` or `VOICES.md` was touched.
+- To run it: `mise install` once, then `make test` here, or `make verify` at the repo root.
+- The specification held: no trace was edited and no rule changed. Seven things it did not
+  say are written into `ENGINE.md` and listed in **D42, which is proposed and waits for the
+  owner.** The one to look at is item 7 (the tick counter's wrap).
+- This session ran on Fable, not Opus, because the owner started it there.
+- Not done, on purpose: a fixture with a tempo change (format 1 cannot hold one; the Rust
+  rule tests cover it), ThreadSanitizer (P6), anything for Rack or the browser.
+- The repo's smoke test was skipped on this machine (no Playwright). Nothing in `shared/` or
+  any app changed.
+- For Session 3: the C++ harness is the template for linking. Rack calls with one frame a
+  block, which is the block size the fixtures already run at. The host must do two things
+  the core does not: turn a voltage into an edge, and ignore clock edges for 1 ms after a
+  reset (`ENGINE.md` §4). The gate out is the host's job too: a `TRIG` event is an instant.
+- Next: Session 3, P3, in Rack. It needs the Rack SDK 2.6.6, which is still not downloaded.

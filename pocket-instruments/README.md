@@ -1,6 +1,7 @@
 # Pocket Instruments
 
-**Status:** the engine interface is designed; no code yet. Started 2026-11-18.
+**Status:** P1 and P2 passed (2026-11-19): the core sequences, on both targets, and makes no
+sound yet. Next is P3, in Rack. Started 2026-11-18.
 
 Small calculator-format musical instruments, free and open source, playable as VCV Rack modules
 and in a browser, from one shared engine. An affectionate, credited homage to Teenage
@@ -26,7 +27,11 @@ into its own repository.
 | `LEARNINGS.md` | Dated notebook: what surprised us, what broke, why | Append only |
 | `ENGINE.md` | The engine interface: time, the clock, commands, events, the snapshot | Changed by a decision; the header and fixtures change with it |
 | `core/include/pi_engine.h` | The same contract in C, for both hosts | Follows `ENGINE.md` |
+| `core/` | The engine: one Rust crate, `no_std`, no allocator, no dependencies. Its tests are in `core/src/tests/` | Built from `ENGINE.md`; a disagreement is settled there first |
 | `fixtures/` | Test vectors and the traces they must produce (`fixtures/README.md`) | A trace is never edited to make a build pass |
+| `harness/` | The same fixtures through the `.wasm` in Node and through C++ on the static library | Follows `fixtures/README.md` |
+| `Makefile` | `make build`: both targets. `make test`: the three harnesses, compared. The repo's `make verify` runs it | |
+| `rust-toolchain.toml`, `mise.toml` | The Rust this folder builds with. `mise install` once | The two must name one version; `make check-toolchain` fails if not |
 | `VOICES.md` | The sixteen sounds: role, recipe, what the sliders do | Until each voice is built and passes by ear |
 | `samples/` | The starter drum pack: sixteen CC0 files, their origins, and a page to hear them | A swap is a new file and a new manifest row |
 | `WORKFLOW.md` | What each press does, in our words; the owner ticks each row on the hardware | Until P8 |

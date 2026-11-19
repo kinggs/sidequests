@@ -13,8 +13,8 @@ engineering gate the brief asks for (its D2). Nothing visual is built before P3 
 
 | # | Proof | State |
 |---|---|---|
-| P1 | One crate, two targets | open |
-| P2 | Same trace everywhere | open |
+| P1 | One crate, two targets | passed 2026-11-19 |
+| P2 | Same trace everywhere | passed 2026-11-19 |
 | P3 | It runs in Rack | open |
 | P4 | It runs in a phone browser | open |
 | P5 | It ships to other people's machines | open |
@@ -41,7 +41,25 @@ for `x86_64-unknown-linux-gnu` (`staticlib`) and `wasm32-unknown-unknown`.
 
 **If it fails:** nothing dies; the constraint that failed gets relaxed and recorded.
 
-**Result:** —
+**Result: passed, 2026-11-19 (Session 2).** Rust 1.100.0 stable, no nightly feature. Every
+bar is checked by `make test` on what was built (`check-p1` in the Makefile), not read off
+the source.
+
+| Bar | Measured |
+|---|---|
+| One command builds both from a clean checkout | `make build`, after `mise install` once. Run in a fresh clone in another folder: both built, and the `.wasm` came out the same bytes (sha256 `cde2db28…`) |
+| The crate does not link `alloc` | `#![no_std]`, no dependencies (`cargo tree` is one line). The static library holds our object and `compiler_builtins`, no `alloc`, no `std` |
+| `panic = "abort"`; no unwinding reaches C | Set for both profiles. Stronger than asked: our object's only undefined symbols are `memcpy` and `memset`. It does not even ask for `abort`, so no panic path survived the optimiser |
+| The `.wasm` is under 50 KB | **5 076 bytes** (opt-level 3, LTO, stripped). It imports nothing and exports `memory` and the ten `pi_` functions |
+
+Other sizes: the engine is 352 bytes, aligned to 8 (`pi_size`, `pi_align`). The static
+library is 5 054 228 bytes, of which our object is 9 168; the rest is `compiler_builtins`,
+which a linker takes members from only if asked. The module asks for 16 pages (1 MiB, almost
+all its own stack) and the host adds one.
+
+⚠ For P3: thirteen `compiler_builtins` members refer to `rust_eh_personality`. Nothing
+pulls them in today. If a later change does (128-bit arithmetic would), the Rack link will
+ask for that symbol (`LEARNINGS.md`).
 
 ### P2 — Same trace everywhere
 
@@ -64,7 +82,30 @@ this is the cheapest moment to find out.
 **Why the fixture is language-neutral:** if Rust is later dropped (P3, P5), the fixtures carry
 over unchanged and the core is re-implemented against them.
 
-**Result:** —
+**Result: passed, 2026-11-19 (Session 2).** No trace was edited and the time base stands.
+
+| Bar | Measured |
+|---|---|
+| The three traces are byte-identical | Each harness runs 96 runs and writes every trace it produced to a report. The three reports are the same 103 656 bytes (`cmp`; sha256 `07eb64b2aa545335…`), and every trace equals its fixture's `expect` |
+| Same at 44.1, 48 and 96 kHz, in blocks of 1, 128 and 512 | 4 fixtures × 2 clock sources (table, edges) × 3 rates × 3 block sizes = 72 runs a harness, plus 24 that load the pattern from a snapshot into an engine with a different seed. `pi_dropped` is 0 in all |
+| Integers only | No float type anywhere in the core's source. The ABI carries none |
+
+The harnesses: `cargo test` (30 tests, through the C functions), the raw `.wasm` in Node
+(`harness/trace.test.mjs`, no glue, memory grown by one page: `ENGINE.md` §8's plan works),
+and C++ linking the static library (`harness/harness.cpp`).
+
+What Session 1's model had not run, now run: block sizes (above); the snapshot (layout byte
+for byte, all 316 bytes × 2 bit flips refused with nothing changed, a newer version refused);
+a reset (the fourth fixture, its trace written by hand and committed before the core
+existed, matched first time; and a reset inside a step); a tempo change and a sample-rate
+change mid-step.
+
+The gate can fail: three faults put into the core on purpose (swing following the pattern
+step, a reset that reseeds, an edge clock that holds at tick 47) were each caught. The third
+only by the rule tests: no fixture swings past tick 47, and the flush hides it from a trace.
+
+Beyond the bar, in the Rust run: on both sources every `STEP` leaves in the exact frame
+`fixtures/README.md`'s `F` gives. No drift on the table, no latency on edges.
 
 ### P3 — It runs in Rack
 
