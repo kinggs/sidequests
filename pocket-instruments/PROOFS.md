@@ -236,8 +236,8 @@ Firefox on the phone ran the voice count (P7); ⚠ whether it ran the proof was 
 during Run the proof, "like vinyl", with and without Bluetooth, while Play and Tap were
 clean. ⚠ Not yet explained for certain. The likely cause was the page's own doing: all
 eight runs ticked at once, at four tempos. Now only one run ticks, so anything else heard
-is a fault. That run passed, the owner said afterwards. ⚠ Whether the crackle was gone on
-the changed page was not reported.
+is a fault. That run passed, the owner said afterwards. On the changed page the crackle was
+gone (the owner, the same day), so it was the eight tick trains and not a dropout.
 
 The check can fail: a worklet made to skip the swing command gave 12 of 24 and a failed
 run; a stale `web/pi_core.wasm` fails `make test`.
