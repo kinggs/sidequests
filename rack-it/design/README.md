@@ -16,3 +16,10 @@ Artboards for the Rack It dark system v2. Drop this folder in at `rack-it/design
 Screens are drawn at 390×844 (iPhone 14/15 logical size), exported at 2x. `01` and `02` carry the
 legibility pass; `04`–`08` still show the earlier grey ramp and 13px labels. `DESIGN.md` wins
 over the PNGs everywhere.
+
+## bracket/
+
+The tournament bracket view (designed 2026-11-19): three options, and the recommended one's
+mockups at 390×844 and 360×640. `rack-it/TOURNAMENT.md` §3.8 is the spec and wins over these.
+`00-overview.png` first; `01` to `06` are the recommended option; `07` to `09` are the options
+at 8 and 32 players, single and double elimination. Exported at 1x.

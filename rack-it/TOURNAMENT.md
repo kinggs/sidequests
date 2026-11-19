@@ -119,6 +119,9 @@ Joining after the draw says "This tournament has started. Ask Kenny." (Late entr
 
 On a phone a bracket tree is unreadable, so the page is **round by round**:
 
+(Session 5 replaces the round list with **Your path** and **Whole draw**, §3.8. This section
+stays as the record of what Sessions 2 to 4 ship, and of why a tree was ruled out.)
+
 - **Your match**, on top, when you're an entrant with a fixture ready: "You v Greg · Winners'
   side, round 2 · race to 3", with **Enter the result** (76px) and **Score it in Rack It**. With
   nothing ready: "Waiting for Mel v Rolf", or "You're out · finished 5th", or "You won".
@@ -191,6 +194,102 @@ tournament rates nothing.
 Before the draw an entrant may leave (**Leave**), and the organiser may remove anyone. After the
 draw nobody leaves the document: a player who goes home is walked over, match by match, by the
 organiser.
+
+### 3.8 The bracket view: Your path, then the whole draw (designed 2026-11-19, Session 5)
+
+**Why.** §3.4's round list says who plays whom, but not who goes where next: you can't follow
+a winner into the next round, and "the whole tournament at a glance" is missing. Three ways to
+fit a tree on a phone were drawn at 8 and 32 players, single and double:
+
+| Option | Verdict |
+| --- | --- |
+| A. One canvas, drag and pinch, Jump to my match | Fine at 8. At 32, fit-to-screen is 24%, so a 17px name is 4px; zoomed in you see five matches of 31. Pinching needs two hands; one holds a cue. Double elimination needs a mini-map. |
+| B. Landscape full draw | Only 8 players, single elimination, fits. The manifest is portrait (rule 6), 360px of height drops the state words, and 32 still scrolls both ways. |
+| **C. Your path, then the draw** | **Chosen.** The same size and words at 3 players or 32, single or double. Costs: you never see every match at once, and round 1 of 32 is 16 cards down. |
+
+The drawings are in `rack-it/design/bracket/` (`00-overview.png` first; `07` to `09` are the
+option boards). This section wins over the PNGs. The live canvas is the owner's, at
+`claude.ai/artifact/Vd6j2FbbH5FPREU8Th6FBK` (private).
+
+**Two views.** A `.seg` under the tournament's line: **Your path | Whole draw**. It opens on
+Your path when you're an entrant, on Whole draw otherwise, and remembers the choice in
+`tourView`. The standings list stays under both.
+
+**Your path** (`01`, `05`) replaces the **Your match** card. It answers the first question a
+player has: who do I play, and who's next?
+
+- One step for each match you've been in, top to bottom, then the one you're in, then **one**
+  step ahead, labelled "if you win". No "if you lose" branch: the sheet says where the loser
+  goes, and a second line would make the path a tree again.
+- A step is a caps title ("Quarter-final", or "Losers' side · round 2" in double elimination)
+  over the match card. Its dot is filled for played, the accent for now, hollow for ahead.
+- The step you're in carries **Enter the result** (76px) for whoever may enter it
+  (`runsTour()` today, wider in Session 3); otherwise "Kenny enters the result".
+- Dropping to the losers' side is just the next step. Nothing announces it.
+- It ends "You're out · finished 5th–6th" or "You won". It opens scrolled to the step you're in.
+
+**Whole draw** (`02`, `06`) replaces the round buttons.
+
+- **One round across the screen, the next peeking in** by about 90px from the right, joined to
+  it by lines. That peek and its lines are what say who goes where.
+- A round row replaces the round `.seg`: `‹` and `›` (60px each) either side of "Round 1 of 4"
+  with "then the quarter-finals" under it. Swiping sideways does the same. (This retires
+  Session 2's number buttons past four rounds; the row names the round in full instead.)
+- In double elimination the side `.seg` stays as it is, two buttons, with the Final and the
+  Decider closing the Winners' side. The Decider's card reads "decider · if needed".
+- A next-round card sits midway between its two feeders where the round halves, and level
+  with its one feeder where it doesn't (the losers' side rounds that take a drop-in).
+- Lines are 2px in a quiet grey. The line from your match to your next one is the accent:
+  your route is the app's data.
+- **Your match**, a floating button with your avatar, shows whenever your match is off screen
+  and brings the draw back to it. After a result is saved the draw moves to the next match to
+  play, as now.
+- A third-place match is a last column after the Final, with no lines into it.
+
+**The match card** is the same in both views (`00-overview.png` shows every state):
+
+- A caps label, then a row a player: `people.avatar`, the name, and the score in Grotesk.
+- Words: "played", "to play" (the accent), "waiting", "bye", "walkover". Your own match to
+  play reads "to play · you" and is the only card with an accent outline.
+- The winner is bold with a tick; the winning score is the accent, the losing score dim.
+- An unknown player is `slotWords()` as now ("Winner of Mel v Rolf") beside a dashed circle.
+  A bye's empty row reads "No opponent".
+- "Waiting" is dim, not `--warn`: most of a draw is waiting, and amber on all of it would be
+  noise. `--warn` stays for "Greg says not right" and a result that no longer fits.
+- "entered by Greg" moves off the card into the sheet; the card is narrower than the old row.
+
+**Tapping a match** (`03`, `04`). Today only the organiser can tap a row. Now anyone can:
+
+- A sheet rises: the round and race, both players with how each got here ("beat Greg 3–1"),
+  the score or the state, then two lines: **The winner plays** … and **The loser** … ("is out,
+  3rd–4th", or "drops to the Losers' side, round 2").
+- **The winner plays** is a row. Tapping it closes the sheet, moves the draw to that match and
+  pulses it once. Tapping a "Winner of Mel v Rolf" name on a card goes back to that match the
+  same way.
+- Whoever may enter the result gets **Enter the result** and **Score it in Rack It** (Session
+  4); on a played match, the score large, "entered by Greg", **Change** and **Hold to clear**.
+  Everyone else reads.
+- A waiting match says what it waits for ("Waiting for Lisa v Bev", one tap away). A bye has
+  no sheet.
+- ⚠ **Open, for the build session:** the drawing puts **Enter the result** as a button in this
+  sheet, which is one tap more for the organiser than today's row that opens the steppers
+  directly. Recommended: for someone who may enter a match that's ready, open the steppers
+  sheet as now, with the two where-next lines added at its top.
+
+**Pure logic first.** `bracket.js` gains, with tests:
+
+- `B.next(t, key)` → `{ winner, loser }`: the keys this match feeds (or `null`), read from the
+  fixtures' `from`. The sheet's two lines and the draw's connectors both come from it.
+- `B.path(t, id)` → that player's fixtures in order: played, the one they're in, and the one
+  `next().winner` leads to. Cases: a bye first, double elimination after a loss, out, won.
+
+**Building it.** Columns sit in one horizontal scroll-snap row, each the page's width less the
+peek; the page still scrolls down. Card height is fixed in `rem` (about 5.4rem), so line
+positions are worked out, not measured, and a phone set to huge text still lines up. Lines are
+plain positioned elements. CSS only for the card, the lines, the path's rail and the round row
+(§7). The pulse and the smooth scroll are off under `prefers-reduced-motion`.
+
+**Not doing:** pinch-zoom, a landscape layout, a mini-map. The table above is why.
 
 ## 4. The bracket (pure logic)
 
@@ -376,6 +475,25 @@ A club night can run on this session alone.
 This is the riskiest session: it touches the live screen's start and the match rules. Read
 `shared/proofs/table-session.mjs` first; the club match link (`?club=`) is the nearest thing
 already built.
+
+### Session 5 — the bracket view: Your path and the whole draw (a minor version)
+
+The design is §3.8; read it and look at `rack-it/design/bracket/` first. It depends only on
+Session 2, so it can come before Sessions 3 and 4.
+
+- [ ] `B.next` and `B.path` in `bracket.js`, with their tests.
+- [ ] The match card, replacing `fixtureRow()`'s `.fx` row; every state in §3.8.
+- [ ] **Your path | Whole draw**; Your path replacing the **Your match** card in
+      `paintBracket()`.
+- [ ] Whole draw: the round row, the swipe, the peeking column, the lines, your route in the
+      accent, the **Your match** button. The round `.seg` goes.
+- [ ] The match sheet for everyone, with the where-next lines and the jump. Settle §3.8's open
+      point on the organiser's extra tap first.
+- [ ] Check at 360×640 and 390×844: 3, 8, 13 and 32 players, both formats, two long names, the
+      phone's text size at its largest, reduced motion.
+- [ ] The `?mock` proof grows: an entrant opens on Your path, an organiser who isn't playing
+      on Whole draw; the winner-plays jump; the draw moving on after a save.
+- [ ] `rack-it/SPEC.md`'s Tournaments section updated; §3.4 here left as the record.
 
 ## 9. Parked (in rough order of wanting)
 
