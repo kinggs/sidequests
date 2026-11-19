@@ -17,12 +17,16 @@
 <h1>Pocket Instruments: P4</h1>
 <p>The engine in an AudioWorklet, from the raw <code>.wasm</code>.</p>
 <p><button id="run">Run the proof</button> plays the four P2 fixtures on both clocks at three sample
-rates, ticking on every step, and checks each trace. About twenty seconds.</p>
+rates, and checks each trace. About twenty seconds. You hear one of them: a steady tick, in three
+bursts of four seconds. Anything else you hear is a fault.</p>
 <pre id="result">Not run yet.</pre>
 <p><button id="play">Play</button><button id="stop" disabled>Stop</button> a click on every step, from the
 engine's own voice, until stopped. Tap fires the same voice at once.</p>
 <p><button id="tap" disabled>Tap</button></p>
 <pre id="playing"></pre>
+<p><button id="count">Count voices</button> runs more and more copies of the engine, each playing its own
+click, four seconds a step, until audio cannot keep up. About a minute. Loud phones: turn it down first.</p>
+<pre id="voices">Not run yet.</pre>
 
 <script type="module">
 // The same numbers and the same schedule as harness/trace.test.mjs. fixtures/README.md is the rule.
@@ -83,7 +87,10 @@ async function proof() {
           const { cmds, end } = schedule(fx, ctx.sampleRate, source);
           const node = new AudioWorkletNode(ctx, "pi-engine", {
             numberOfInputs: 0, outputChannelCount: [1],
-            processorOptions: { wasm, seed: fx.seed, cmds, end, tick: true },
+            // All eight runs play at once, at four tempos. Only one of them ticks: with all
+            // eight ticking the sum sounded like crackle, and a real dropout could not be
+            // told from it (found on the owner's phone).
+            processorOptions: { wasm, seed: fx.seed, cmds, end, tick: name === "straight-sixteenths" && source === 0 },
           });
           node.connect(gain);
           waits.push(new Promise((done, fail) => {
@@ -148,12 +155,71 @@ async function stop() {
   $("play").disabled = false;
   $("stop").disabled = $("tap").disabled = true;
 }
+// P7's count: N whole engines in one worklet, each sequencing and sounding a long click on
+// every step at 300 bpm, so a voice is sounding nearly all the time. A copy costs more than a
+// voice alone would (it also runs a clock and a sequencer), so the count errs low.
+// A stage holds if the worklet spent under 70 % of real time rendering and audio did not
+// fall more than 50 ms behind the page's clock during it.
+const STAGES = [1, 2, 4, 8, 16, 24, 32, 48, 64, 96, 128, 192, 256, 384, 512, 768, 1024];
+async function countVoices() {
+  $("count").disabled = true;
+  const show = (s) => ($("voices").textContent = s);
+  const out = { agent: navigator.userAgent, voices: true, stages: [], held: 0, notes: [] };
+  try {
+    const { wasm } = await load();
+    const ctx = new AudioContext({ latencyHint: "interactive" });
+    await ctx.audioWorklet.addModule("worklet.js");
+    await ctx.resume();
+    out.rate = ctx.sampleRate;
+    const gain = new GainNode(ctx, { gain: auto ? 0 : 0.2 });
+    gain.connect(ctx.destination);
+    const cmds = [[0, CMD.tempo, 0, 0, 300000], [0, CMD.sound, 9, 1, 65535]];
+    for (let s = 0; s < 16; s++) cmds.push([0, CMD.step, 9, s, 1]);
+    cmds.push([0, CMD.reset, 0, 0, 0], [0, CMD.play, 0, 0, 1]);
+    for (const n of STAGES) {
+      show(`Running ${n}… (held so far: ${out.held})`);
+      const node = new AudioWorkletNode(ctx, "pi-engine", { numberOfInputs: 0, outputChannelCount: [1], processorOptions: { wasm, seed: 1, cmds, copies: n, every: 47 } });
+      node.connect(gain);
+      const stage = await new Promise((done) => {
+        let first = null, last = null;
+        node.port.onmessage = (m) => {
+          const sample = { t: performance.now(), frames: m.data.frames, spent: m.data.spent };
+          // Skip the first half second: starting a node is not the steady state.
+          if (sample.frames < ctx.sampleRate / 2) return;
+          if (!first) first = sample;
+          last = sample;
+        };
+        setTimeout(() => {
+          node.port.postMessage({ stop: true });
+          node.disconnect();
+          if (!first || last === first) return done({ n, load: Infinity, behind: Infinity });
+          const audioMs = ((last.frames - first.frames) / ctx.sampleRate) * 1000;
+          done({ n, load: (last.spent - first.spent) / audioMs, behind: last.t - first.t - audioMs });
+        }, 4000);
+      });
+      stage.ok = stage.load < 0.7 && stage.behind < 50;
+      out.stages.push(stage);
+      if (!stage.ok) break;
+      out.held = n;
+    }
+    await ctx.close();
+  } catch (e) {
+    out.notes.push(String(e));
+  }
+  show(`${out.held} copies held at ${out.rate} Hz` + (out.held === STAGES[STAGES.length - 1] ? " (the most this page tries)" : "") + `. P7's bar is 16.
+` +
+    out.stages.map((s) => `${s.ok ? "ok  " : "NO  "} ${String(s.n).padStart(4)} copies: ${(s.load * 100).toFixed(1)} % of real time spent rendering, audio ${s.behind.toFixed(0)} ms behind`).join("\n") +
+    (out.notes.length ? "\n\nNotes:\n" + out.notes.join("\n") : "") + `\n\n${out.agent}`);
+  $("count").disabled = false;
+  if (auto) await fetch("/result", { method: "POST", body: JSON.stringify(out) });
+}
+$("count").onclick = countVoices;
 $("run").onclick = proof;
 $("play").onclick = play;
 $("stop").onclick = stop;
 // pointerdown, not click: a click waits for the finger to lift.
 $("tap").onpointerdown = () => playing && playing.node.port.postMessage({ cmds: [[CMD.fire, 9, 0, 0]] });
-if (auto) proof();
+if (auto) (new URLSearchParams(location.search).get("auto") === "voices" ? countVoices : proof)();
 </script>
 </body>
 </html>

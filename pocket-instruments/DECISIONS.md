@@ -577,6 +577,26 @@ output and light the key exactly as a sequenced one does.
 Why proposed: it is the builder's reading of what a tap in play mode means (R26, R27).
 No fixture sends it, so no trace moved.
 
+### D46 — The owner's rulings on D42, D43, D44 and D45, and the macOS floor
+**2026-11-19 · decided (owner), by interview after Session 3**
+
+- **D42 accepted, all seven.** The tick counter's wrap (item 7) stays as it is.
+- **D43 accepted.** Three buffers and one ordered queue are the rule for any host.
+- **D44 accepted, with its rule:** sound crosses as a buffer on `pi_process`, and every
+  voice uses only `+ − × ÷`, so the hosts stay bit-identical. The option to let a voice use
+  a maths library inside the −80 dB bar was offered and not taken.
+- **D45 accepted.** `FIRE` stays. What a key press means in each mode is still the
+  workflow's.
+- **The plugin needs macOS 10.12 on Intel Macs.** Rack asks for 10.9 and rustc will not go
+  below 10.12 (R38). P5's bar stays as written and is recorded as not met on that line,
+  with this ruling beside it. It does not count against Rust under D13.
+
+D44's own open list (a limiter, the sliders in snapshot version 2, a slider moving a
+sounding voice) was not part of the interview and is still open.
+
+For P5: the owner has no Windows machine, Intel Mac or Apple Silicon Mac to load a plugin
+on yet, nor a friend with one. That half waits for one.
+
 ## Open
 
 | ID | Question | Needs |

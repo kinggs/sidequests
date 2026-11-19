@@ -2,6 +2,7 @@
 // P2 fixtures in real time, and hold what it captured against the Node harness's report.
 //
 //   node web/desktop.mjs <node report> [chromium] [firefox]     exits 0 only if every browser passed
+//   PI_VOICES=1 node web/desktop.mjs <node report> [...]        P7's count instead: printed, not judged
 //
 // No Playwright and no debugging protocol: this serves the folder, the page (opened with
 // ?auto) posts its result back, and that is all. Each browser gets a throwaway profile.
@@ -57,7 +58,8 @@ const server = createServer((req, res) => {
   res.writeHead(200, { "content-type": TYPES[extname(path)], "cache-control": "no-store" }).end(readFileSync(path));
 });
 await new Promise((r) => server.listen(0, "127.0.0.1", r));
-const url = `http://127.0.0.1:${server.address().port}/web/index.html?auto`;
+const voices = !!process.env.PI_VOICES;
+const url = `http://127.0.0.1:${server.address().port}/web/index.html?auto${voices ? "=voices" : ""}`;
 
 function launch(name, profile) {
   if (name === "chromium")
@@ -106,15 +108,20 @@ for (const name of browsers) {
   const child = launch(name, profile);
   const result = await new Promise((done) => {
     waiting = done;
-    setTimeout(() => done(null), 90000);
+    setTimeout(() => done(null), 120000);
   });
   waiting = null;
   child.kill();
   await new Promise((r) => setTimeout(r, 500));
   rmSync(profile, { recursive: true, force: true });
   if (!result) {
-    console.log(`P4 ${name} FAILED: the page never reported (90 s)`);
+    console.log(`P4 ${name} FAILED: the page never reported (120 s)`);
     failed++;
+  } else if (voices) {
+    // A finding on a desktop, not a bar: the bar is the phone's.
+    console.log(`P7 ${name}: ${result.held} copies held at ${result.rate} Hz\n` +
+      result.stages.map((s) => `   ${s.ok ? "ok" : "NO"} ${s.n}: ${(s.load * 100).toFixed(1)} % of real time, ${s.behind.toFixed(0)} ms behind`).join("\n") +
+      (result.notes.length ? `\n   notes: ${result.notes.join("; ")}` : ""));
   } else if (!judge(name, result)) failed++;
 }
 server.close();

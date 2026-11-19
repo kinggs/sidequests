@@ -1,8 +1,8 @@
 # The engine interface
 
 **Status:** decided by the owner 2026-11-19 (D17, D24, D25, D26). P2 passed on it in Session 2;
-P6's ThreadSanitizer half ran on it in Session 3 and changed §8's hand-over (D43, proposed);
-P7 added sound as ABI 2 (§11; D44, proposed). A failed proof reopens it. Written in Session 1. Building it found seven
+P6's ThreadSanitizer half ran on it in Session 3 and changed §8's hand-over (D43);
+P7 added sound as ABI 2 (§11; D44). The owner accepted D42 to D45 the same day (D46). A failed proof reopens it. Written in Session 1. Building it found seven
 places where the text did not say what happens; they are marked (D42) below.
 
 The contract between the core and its two hosts. `core/include/pi_engine.h` is the same
@@ -12,7 +12,7 @@ contract in C; where the two disagree, this file is right and the header gets fi
 Scope of ABI 1: sequencing only. Sixteen tracks (D30) of sixteen trigger steps, swing, probability,
 length, reset, the table clock and external clock edges. No sound, no keys, no patterns bank.
 
-**ABI 2 (Session 3, D44, proposed)** adds sound and changes nothing else: two arguments on
+**ABI 2 (Session 3, D44; accepted, D46)** adds sound and changes nothing else: two arguments on
 `pi_process`, one command (`SOUND`) and §11. Every trace, record and snapshot is as it was.
 
 ## 1. The shape
@@ -224,7 +224,7 @@ One fixed record, 12 bytes, little-endian, no padding:
 | 18 | `SWING` | `value` 0 to 48 |
 | 19 | `LENGTH` | `value` 1 to 16 |
 | 20 | `SOUND` | `a` track, `b` slider (0 = A, 1 = B), `value` 0 to 65535, clamped. ABI 2. Not in snapshot version 1 (§11) |
-| 21 | `FIRE` | `a` track. ABI 2 (D45). The track fires on this frame, playing or stopped: one `TRIG` with the latest tick and the playhead's step, and its voice. Changes no pattern, takes no draw |
+| 21 | `FIRE` | `a` track. ABI 2 (D45; accepted, D46). The track fires on this frame, playing or stopped: one `TRIG` with the latest tick and the playhead's step, and its voice. Changes no pattern, takes no draw |
 | 32 | `KEY_DOWN` | `a` key. Reserved: ignored in ABI 1 |
 | 33 | `KEY_UP` | `a` key. Reserved |
 | 34 | `PARAM` | `a` slider (0 = A, 1 = B), `value` 0 to 65535. Reserved |
@@ -327,7 +327,7 @@ would hold. The host's audio thread compares it after a block; when it has moved
 `pi_save` into a buffer of its own and hands that buffer to the other thread. The saving
 thread only ever reads a copy that was handed over; it never calls the core.
 
-How it is handed over, and how a load comes back (D43, proposed; P6 ran it under
+How it is handed over, and how a load comes back (D43; accepted, D46; P6 ran it under
 ThreadSanitizer, `harness/race.cpp`). `rack/src/handoff.hpp` is this in C++:
 
 - **Snapshots out: three buffers, not two.** The first draft said "two buffers and an atomic
@@ -372,7 +372,7 @@ it is not, as the hardware runs alone.
 
 | Not here | Because | When |
 |---|---|---|
-| ~~Audio out~~ | ~~no voice yet~~ | Done in Session 3: §11, ABI 2, D44 (proposed) |
+| ~~Audio out~~ | ~~no voice yet~~ | Done in Session 3: §11, ABI 2, D44 |
 | Fifteen of the sixteen voices | P7 needed one | each is a struct in `core/src/voice.rs` beside the click; no interface changes |
 | The sliders in the snapshot | version 1 has no room and the keys that set them are not built | snapshot version 2, with the instrument |
 | A master level, a limiter, a mute mask for D33's expander | nothing sums yet: there is one voice | with the second voice |
@@ -382,7 +382,7 @@ it is not, as the hardware runs alone.
 | A command in the middle of a step, in a fixture | on edges, a flush is one indivisible burst, so the position cannot be matched | fixture format 2, with live recording |
 | A tempo change inside a fixture | the harness would need to re-anchor its step frames, as it now does for a reset (`fixtures/README.md`) | when a fixture needs one. Until then the Rust rule tests cover it (`core/src/tests/rules.rs`) |
 
-## 11. Sound (ABI 2; D44, proposed)
+## 11. Sound (ABI 2; D44; accepted, D46)
 
 Added in Session 3 for P7. The sequencer and the clock above are untouched: sound hangs off
 the `TRIG` events they already make.

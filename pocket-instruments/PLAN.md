@@ -327,7 +327,8 @@ Decided when P1 to P4 are in, not before:
 
 **What still needs a decision first (do not build past these):**
 
-- D42, D43, D44, D45: the owner's ruling. Each is cheap to overrule today.
+- ~~D42, D43, D44, D45: the owner's ruling.~~ All accepted the same day (D46), with
+  macOS 10.12 as the floor on Intel Macs. Nothing here blocks a build now.
 - Where the sliders live in snapshot version 2, and whether moving a slider changes a
   voice that is already sounding (D44's open list).
 - Whether the mix is limited in the core or each host saturates (D44's open list).

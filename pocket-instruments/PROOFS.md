@@ -17,7 +17,7 @@ engineering gate the brief asks for (its D2). Nothing visual is built before P3 
 | P2 | Same trace everywhere | passed 2026-11-19 |
 | P3 | It runs in Rack | passed 2026-11-19 |
 | P4 | It runs in a phone browser | running: both desktop browsers passed 2026-11-19; the phones are left |
-| P5 | It ships to other people's machines | running: four libraries built and checked here 2026-11-19; one bar not met (macOS 10.9); no plugin linked or loaded elsewhere |
+| P5 | It ships to other people's machines | running: four libraries built and checked here 2026-11-19; one bar not met (macOS 10.9; the owner accepts 10.12, D46); no plugin linked or loaded elsewhere |
 | P6 | Editing while playing is safe | running: ThreadSanitizer half and the save in Rack passed 2026-11-19, with a finding (D43); the browser is left |
 | P7 | Shared sound is worth sharing | running: the render half passed 2026-11-19 (the same bytes); the phone's voice count is left |
 | P8 | It feels like the real thing | open |
@@ -219,6 +219,12 @@ step, and posts back what its worklet captured.
 
 ⚠ Chromium here is the Arch build, not Google Chrome, and both browsers ran headless.
 
+**A first run on the owner's phone** (2026-11-19, before the page was changed) crackled
+during Run the proof, "like vinyl", with and without Bluetooth, while Play and Tap were
+clean. ⚠ Not yet explained for certain. The likely cause was the page's own doing: all
+eight runs ticked at once, at four tempos. Now only one run ticks, so anything else heard
+is a fault. The result text of that run was not recorded.
+
 The check can fail: a worklet made to skip the swing command gave 12 of 24 and a failed
 run; a stale `web/pi_core.wasm` fails `make test`.
 
@@ -261,6 +267,9 @@ not stamp an object below 10.12. ⚠ Unverified, but likely harmless: the core c
 memory routines that every macOS has, so nothing in it can need 10.12. A real macOS linker
 will probably warn and link. Nobody has seen it do so.
 
+**The owner's ruling (D46):** the plugin needs macOS 10.12 on Intel Macs. The bar above is
+not changed and is not met on this line; the ruling is why that does not stop the work.
+
 The Linux plugin built on this laptop is not an artefact for other people: it asks for
 glibc 2.35 through the statically linked C++ runtime (R42). VCV's toolchain exists to
 avoid exactly that.
@@ -277,7 +286,8 @@ library offered as the Windows one failed on its format; 128-bit arithmetic fail
    handed to that link.
 2. On the macOS link: what the linker says about the 10.12 stamp (item above).
 3. Each of the four artefacts loaded once in Rack on its platform. The Probe's light going
-   green is the test: it is in the plugin already.
+   green is the test: it is in the plugin already. ⚠ The owner has no Windows machine or
+   Mac to do this on yet (D46).
 4. A written answer from VCV on the Library: will its build server take a plugin with a
    Rust part, or a prebuilt static library, or neither (O2).
 
@@ -381,8 +391,17 @@ Also checked, in `cargo test`: the block size changes no sample; a voice starts 
 trigger's frame; it decays to exact zeros; sound changes no event and no snapshot; a full
 event buffer does not silence a voice.
 
-**To finish it:** a page that runs N copies of a voice in the worklet and raises N until
-audio falls behind. `web/` has the worklet and the falling-behind measure; it needs the N.
+**To finish it:** the page now has it (added after Session 3, the same day): **Count
+voices** runs 1, 2, 4 … up to 1 024 whole engines in one worklet, each sequencing and
+sounding a long click on every step at 300 bpm, four seconds a stage. A stage holds if
+rendering took under 70 % of real time and audio fell no more than 50 ms behind. A copy
+costs more than a voice alone (it also runs a clock and a sequencer), so the count errs
+low. Press it on the phone and write the number here.
+
+On this laptop, headless, as a check that the measure moves (a finding, not the bar):
+Chromium 155 and Firefox 158 both held all 1 024 copies at 48 kHz, spending 27 % of real
+time; the cost rose in step with the count (512 copies: 15 %). ⚠ No stage has yet been
+seen to fail, so the "did not hold" branch is untested on a real overload.
 
 ### P8 — It feels like the real thing
 

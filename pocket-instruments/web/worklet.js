@@ -7,6 +7,8 @@
 //             the events it captured are posted back and the node stops.
 //   playing   no `end`: it runs until told to stop. Commands arrive as messages and land on
 //             the next block's first frame.
+// With `copies` (P7's count) that many whole engines run side by side on the same commands,
+// each sequencing and sounding its own voice, and the block's cost is timed.
 //
 // SPDX-License-Identifier: MIT
 const PAGE = 65536;
@@ -20,6 +22,16 @@ class Engine extends AudioWorkletProcessor {
     this.pi = instance.exports;
     this.base = this.pi.memory.grow(1) * PAGE;
     this.e = this.pi.pi_init(this.base, this.pi.pi_size(), sampleRate, o.seed);
+    // The other copies, 512 bytes apart in pages of their own.
+    this.more = [];
+    const extra = Math.max(0, (o.copies || 1) - 1);
+    if (extra) {
+      const at = this.pi.memory.grow(Math.ceil((extra * 512) / PAGE)) * PAGE;
+      for (let i = 0; i < extra; i++) this.more.push(this.pi.pi_init(at + i * 512, 512, sampleRate, o.seed + 1 + i));
+    }
+    this.every = o.every || 375; // blocks between reports while playing
+    this.spent = 0;              // milliseconds inside process(), summed
+    this.clock = globalThis.performance && performance.now ? () => performance.now() : () => Date.now();
     this.abi = this.pi.pi_abi_version();
     this.cmds = o.cmds || []; // [frame, type, a, b, value], in order
     this.next = 0;
@@ -53,6 +65,7 @@ class Engine extends AudioWorkletProcessor {
     if (this.done || !this.e || !out) return false;
     const frames = this.end ? Math.min(out.length, this.end - this.now) : out.length;
     if (out.length !== 128) this.oddBlocks++;
+    const began = this.clock();
     const v = new DataView(this.pi.memory.buffer);
     let count = 0;
     for (const c of this.inbox.splice(0, CMDS_MAX / 2)) this.put(v, count++, [0, c[0], c[1], c[2], c[3]]);
@@ -61,7 +74,17 @@ class Engine extends AudioWorkletProcessor {
       this.put(v, count++, [c[0] - this.now, c[1], c[2], c[3], c[4]]);
     }
     const got = this.pi.pi_process(this.e, frames, this.base + CMDS, count, this.base + EVENTS, CAP, this.base + AUDIO, 1);
-    out.set(new Float32Array(this.pi.memory.buffer, this.base + AUDIO, frames));
+    const audio = new Float32Array(this.pi.memory.buffer, this.base + AUDIO, frames);
+    out.set(audio);
+    if (this.more.length) {
+      // Every copy really renders; the sum is scaled back so the level does not climb.
+      for (const e of this.more) {
+        this.pi.pi_process(e, frames, this.base + CMDS, count, this.base + EVENTS, CAP, this.base + AUDIO, 1);
+        for (let f = 0; f < frames; f++) out[f] += audio[f];
+      }
+      const scale = 1 / (this.more.length + 1);
+      for (let f = 0; f < frames; f++) out[f] *= scale;
+    }
     const steps = [];
     for (let i = 0; i < got; i++) {
       const p = this.base + EVENTS + 12 * i;
@@ -89,7 +112,8 @@ class Engine extends AudioWorkletProcessor {
     }
     // While playing: where the audio clock has got to, once a second or so, for the page to
     // hold against its own clock. If audio stalls, frames fall behind time.
-    if (!this.end && this.blocks % 375 === 0) this.port.postMessage({ frames: this.now, at: currentTime });
+    this.spent += this.clock() - began;
+    if (!this.end && this.blocks % this.every === 0) this.port.postMessage({ frames: this.now, at: currentTime, spent: this.spent });
     return true;
   }
 }
