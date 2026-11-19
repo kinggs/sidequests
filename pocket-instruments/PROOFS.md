@@ -229,8 +229,16 @@ no screenshot was kept, so the page's own figures are not here.
 | Ten minutes with no dropout | **Left.** Play was heard to be clean, but ⚠ nobody reported a ten-minute run or its "fallen behind" figure |
 | Tap-to-sound latency | **Left.** Tap "behaves as expected" to the finger. Not measured with a second device |
 
-Also run by the owner: Chromium on the desktop with its window, not headless: PASSED.
-Firefox on the phone ran the voice count (P7); ⚠ whether it ran the proof was not said.
+Also run by the owner, with the page's result text pasted back:
+
+- **Firefox 160 for Android, the same phone:** PASSED, 24 of 24, each context at the rate
+  asked for (44.1, 48 and 96 kHz). The bar does not name this browser; it is a fourth.
+- **Chromium 155 on the desktop with its window, not headless:** PASSED, 24 of 24. Play
+  there: 48 kHz, base latency 10.7 ms, output latency 32.0 ms, audio at most 5 ms behind
+  the clock after 10 s. A soak, not the bar's ten minutes: the bar is the phone's.
+
+Block counts were the same on the phone and the desktop, run for run (1 379 blocks for
+straight-sixteenths at 44.1 kHz on both): the worklet saw 128-frame blocks everywhere.
 
 **A first run on the owner's phone** (2026-11-19, before the page was changed) crackled
 during Run the proof, "like vinyl", with and without Bluetooth, while Play and Tap were
