@@ -373,6 +373,37 @@ the main panel (TRIGGERS, VOICES); later an expander with a jack per sound, wher
 audio jack takes that sound out of the mix. The core already emits what triggers need; for
 audio, P7 must render per track. Detail: `VOICES.md`.
 
+### D34 — Any key can take the player's own sample; browsing Freesound inside the instrument is parked
+**2026-11-19 · proposed · extends D32 · the owner raised it**
+
+Each of the sixteen keys can be given a sound file by the player: a file picker in the
+browser, the module's menu in Rack. Where the file comes from is the player's business;
+Freesound is one click away in another tab. The instrument ships with a good default bank
+(D32) so nobody has to.
+
+Parked, not refused: searching and auditioning Freesound from inside the interface.
+
+Why the first is cheap: D32 already has the host loading samples and handing them to the
+core. A player's file is the same path with a different source. The new work is in each
+host: decoding, and remembering which file is on which key.
+
+Why the second is parked:
+
+- Freesound's API needs a credential for every search and preview, and a signed-in user
+  (OAuth2) to download an original file (R32). A page on GitHub Pages cannot keep a
+  credential secret, and this project has no server.
+- It is a second product: search, audition, licence filter, attribution, rate limits, and
+  what to do offline. None of it teaches the workflow (D22).
+- In Rack, a module that calls the network is unusual; a file from disk is what players expect.
+- Licences vary by sound. A beat shared from a link would carry sounds that need credit, or
+  that may not be shared at all.
+
+What it costs to keep the door open: nothing. If it is ever built, it is a panel in the
+browser host that ends by handing a decoded sound to the same loader.
+
+Open inside this: a shared link to a beat cannot carry the player's own samples. It would
+fall back to the default bank, and say so.
+
 ## Open
 
 | ID | Question | Needs |

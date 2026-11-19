@@ -71,6 +71,8 @@ All entries below were checked on **2026-11-18**.
 
 | R31 | Sonic Pi's bundled samples (206 FLAC files): its own README says those prefixed `arovane_` were donated under CC0 and all others are from Freesound and "placed in the public domain via the Creative Commons 0 License", and links each to its original. Debian's copyright file for the package lists them as CC0 file by file. No hand clap in the set. ⚠ Individual Freesound pages not opened | https://github.com/sonic-pi-net/sonic-pi/blob/dev/etc/samples/README.md · https://metadata.ftp-master.debian.org/changelogs/main/s/sonic-pi/sonic-pi_3.2.2~repack-8_copyright |
 
+| R32 | Freesound's API: every call needs an API credential (token); previews can be fetched with a token; downloading an original file needs OAuth2, a signed-in user. Requests are throttled. ⚠ Read from a search summary of the official pages, not the pages themselves; the limits were not confirmed | https://freesound.org/docs/api/authentication.html · https://www.freesound.org/docs/api/overview.html |
+
 Patent drawings are read from the Google Patents pages and are not stored in this repo (README rule 6).
 
 ## Not yet checked
