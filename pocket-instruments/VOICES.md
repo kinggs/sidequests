@@ -1,6 +1,8 @@
 # The sixteen voices
 
-**Status:** a starting sheet for P7. No voice exists yet. Written 2026-11-19 (D30, D31).
+**Status:** written 2026-11-19 (D30, D31) as a starting sheet. Five voices are built in
+`core/src/voice.rs`: keys 1 to 4 (2026-11-19, the minimum beat) and 10 (P7). What each
+became is under **As built**. The other eleven tracks are silent.
 
 Key *n* plays track *n*. The roles and their order follow the hardware, so that what a
 player learns here (which key is which drum) carries over (D22). The sounds are synthesised
@@ -37,7 +39,33 @@ one-pole or two-pole filter and exponential envelopes.
 | 16 | Bass tone | the same as 15, two octaves down, low-passed | pitch, in semitones ⚠ | 50 to 500 ms |
 
 Hats 3 and 4 share a source, and 4 should cut 3 off when both fire, as a real hat does.
-⚠ Whether the hardware does this is not known.
+⚠ Whether the hardware does this is not known. ⚠ Not built: on a real hat it is the other
+way round (closing the hat cuts the open one off), so this line needs a ruling first (O13).
+
+## As built
+
+Every number below is the builder's first setting, chosen to sit inside the recipe and
+the rough measurements, not by ear. The owner's ear moves them at P8 (D31). Slider B is
+always the time to fall 60 dB; a voice is cut to exact zeros at -80 dB (`ENGINE.md` §11).
+Every one is held to the same bytes natively and in WebAssembly by a scenario in
+`harness/render-<name>.json`.
+
+| Key | Built as | A | B | Fixed inside it |
+|---|---|---|---|---|
+| 1 | Sine, pitch from 3× the base falling by e every 20 ms; a click of white noise, 3 ms | base 40 to 90 Hz | 100 to 600 ms | body level 0.85, click 0.2 |
+| 2 | Two sines, the upper 11/6 of the lower (180 and 330 Hz at the middle), and white noise through a band-pass | lower sine 130 to 230 Hz | the noise, 50 to 250 ms | the body falls 60 dB in 120 ms; band 4.5 kHz, Q 1; body 0.35 a sine, noise 0.8 |
+| 3 | Six squares at 263, 333, 401, 487, 571 and 827 Hz, half starting low, through a two-pole high-pass | corner 5 to 10 kHz | 10 to 60 ms | Q 1.4; level 0.4 |
+| 4 | The same as 3, as a second voice of its own | corner 5 to 10 kHz | 100 to 500 ms | the same |
+| 10 | Sine (P7) | 500 Hz to 2 kHz | 5 to 40 ms | |
+
+- **Noise** is a xorshift generator of each voice's own, restarted on every hit, so a hit
+  depends only on its sliders and the rate. It never touches the sequencer's generator.
+- **The filter** is a two-pole state-variable filter whose coefficient is made from the
+  polynomial sine and one division: no maths library (D44).
+- **The six squares** are our own set, chosen to be uneven, not taken from any machine.
+- **Levels:** one hit peaks at about 0.8 to 1.0 (a hat a little lower, the open hat at its
+  darkest a little higher). The mix is a plain sum and passes 1: `harness/render-beat.json`
+  peaks at 2.1 (+6.6 dB). Who keeps that in bounds is open (O14).
 
 ## How close, and how we judge it
 

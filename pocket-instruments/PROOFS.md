@@ -441,6 +441,23 @@ What this does not show, said plainly:
 - These are sixteen-fold copies of the cheapest voice. A bass drum or a hat costs more;
   the margin is what makes that safe to say, not a measurement of those voices.
 
+**Later, 2026-11-19: the minimum beat.** Four more voices (`VOICES.md`, "As built") are each
+in a render scenario beside the click's, and `make test` now holds every pair to the same
+bytes (`compare.mjs --same`), stricter than this bar, which does not change. All six
+scenarios, at three rates on both clocks, came out the same bytes natively and from the
+`.wasm`. Annotations to the record above, which stands as measured:
+- **The click's hashes above no longer reproduce from `render-click.json`,** because the
+  scenario also steps track 2, which was silent then and is the closed hat now. Rendered
+  without that step, the click is still `8edac8757c455952`, `0a70450dc7aa5170` and
+  `1df3dc10a21b2b7c`: the voice did not change.
+- **Cost, natively, as a pointer and not a bar:** the whole beat (four drums and the click,
+  sequenced) renders at about 13 ns a frame on this laptop, the click scenario at about
+  9 ns, both including the file write. The phone count above still runs click copies; the
+  drums have not been counted on a phone.
+- The engine grew from 352 to 752 bytes. The page's Count voices packed copies 512 bytes
+  apart and would have had every copy refused; it now steps by `pi_size` and still held
+  1 024 copies headless in Chromium and in Firefox.
+
 ### P8 — It feels like the real thing
 
 **Claim:** the workflow is recognisably the hardware's.

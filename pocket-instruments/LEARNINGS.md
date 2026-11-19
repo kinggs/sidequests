@@ -187,3 +187,24 @@ belongs in `PROOFS.md`, a change of course in `DECISIONS.md`, an outside fact in
 - **Tools assumed, not present:** `/usr/bin/time` and `xxd`. Each failed silently inside a
   pipe and the output looked like a result. The repo's hook that refuses a gate piped into
   `tail` caught a third. Read exit codes, not tails.
+
+## 2026-11-19 — Session 5, the minimum beat
+
+- **The rule held without effort.** Two filters, three noise sources, a pitch sweep and a
+  float-to-integer step a frame, and native and WebAssembly still gave the same bytes the
+  first time. `+ − × ÷` and nothing else is not a burden for drum synthesis: a filter's
+  tangent is two calls to the polynomial sine and a division.
+- **Six squares starting together are a step, and a high-pass passes a step whole.** The
+  first hats peaked at 1.8, from one tick at the trigger louder than the hat. Starting half
+  of them low makes the sum start at 0. Measure peaks per voice, rate and slider before
+  trusting a level.
+- **The engine outgrew a number nobody had written down as a limit.** At 752 bytes it
+  broke the browser's voice count, which packed copies 512 bytes apart, and a test's sanity
+  bound of 512. Neither was in `ENGINE.md`; both were the hosts' guesses. Hosts should ask
+  `pi_size`, and the ones with fixed room are now named in the test.
+- **A recipe's own words can disagree with the thing it names.** `VOICES.md` says the open
+  hat cuts the closed one "as a real hat does"; a real hat does the reverse. Built neither
+  way, written up (O13).
+- **A scenario written for one voice silently became a test of two.** `render-click.json`
+  stepped track 2 when it was silent. Its recorded hashes changed the day track 2 got a
+  hat. A scenario should name only the tracks it means to sound.

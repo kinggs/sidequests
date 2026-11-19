@@ -176,6 +176,25 @@ Was all of P4 until Session 3 was widened; the desktop half moved there.
 - [ ] P5: the four links and the question to VCV (`PROOFS.md` P5, "What the full proof
       still needs").
 
+## Session 5 — the minimum beat (build, Opus; done 2026-11-19)
+
+The first job the last Handover named. Decide nothing; stop and write up what needs a ruling.
+
+- [x] Bass drum, snare, closed hat and open hat in `core/src/voice.rs` under `ENGINE.md`
+      §11. What each became: `VOICES.md`, "As built".
+- [x] Each in a render scenario (`harness/render-{kick,snare,closed-hat,open-hat,beat}.json`);
+      `make test` renders every `render-*.json` natively and from the `.wasm` and holds each
+      pair to the same bytes (`compare.mjs --same`). All 36 pairs are the same bytes.
+- [x] Rust tests for each drum: silent until its frame, exact zeros after its length,
+      sliders A and B, the mix as the sum of the sixteen channels, block size, a rate change
+      while sounding, a slider moved while sounding. Each new check failed once on a planted
+      fault.
+- [x] The Rack Probe plays the mix from a new AUDIO jack. `make selftest` now also fails a
+      probe that is silent or sends a non-finite sample; it failed on a planted silent probe.
+      `make -C rack sound` builds a patch to hear it.
+- [x] Not built, written up instead: the hats cutting each other off (O13); keeping the mix
+      in bounds (O14).
+
 ## After the gate
 
 Decided when P1 to P4 are in, not before:
@@ -385,3 +404,29 @@ Decided when P1 to P4 are in, not before:
   `core/src/voice.rs` under `ENGINE.md` §11, each in a render scenario; then the Rack Probe
   playing the mix. After that, CI for the four targets, so P5 has artefacts ready for
   whoever has a Mac or a Windows machine.
+
+### After Session 5: the minimum beat (2026-11-19)
+
+- **Built:** the bass drum, snare, closed hat and open hat (tracks 0 to 3), and the Probe
+  playing the mix from an AUDIO jack. `make test`, `make p4` (Chromium and Firefox) and
+  `make -C rack selftest` (three rates) pass; `make verify` passes with its smoke test
+  skipped (no Playwright).
+- **The same bytes, everywhere it was checked:** six scenarios × two clocks × three rates,
+  native against `.wasm`. The click alone is unchanged from P7's record (`PROOFS.md` P7).
+- **Two things wait for the owner, neither blocking the next build session:**
+  - **O13:** do the hats cut each other off, and which way? Recommended: closed cuts open.
+  - **O14:** the mix passes 1 (+6.6 dB). A level and limiter in the core, or each host?
+    Recommended: a fixed master level in the core, each host saturating. The Probe uses
+    tanh towards 10 V meanwhile, as its own stand-in.
+- **Hear it:** restart Rack (the plugin is installed), open
+  `pocket-instruments/rack/build/Sound.vcv`, choose PulseAudio on the Audio module. One
+  probe plays straight-sixteenths: kick, snare on two and four, closed hats. ⚠ It cuts
+  any drum still sounding at the end of each pass (a fresh engine a pass), and the patch's
+  layout was checked headless (both cables kept), never on a screen. The sounds are first
+  settings, not tuned by ear.
+- **Changed beside the voices, because they broke:** the engine is 752 bytes (was 352).
+  The page's Count voices now steps copies by `pi_size`; a test's 512-byte bound is now the
+  hosts' 1 KiB.
+- **Not done:** samples (D32, D35): the per-key choice of sample or recipe still stands and
+  no sample path exists; the sliders in a snapshot; any drum on the phone count.
+- **Next, from the last list:** CI for the four targets, so P5 has artefacts ready.

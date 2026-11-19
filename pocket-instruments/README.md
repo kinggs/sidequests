@@ -31,7 +31,7 @@ into its own repository.
 | `core/` | The engine: one Rust crate, `no_std`, no allocator, no dependencies. Its tests are in `core/src/tests/` | Built from `ENGINE.md`; a disagreement is settled there first |
 | `fixtures/` | Test vectors and the traces they must produce (`fixtures/README.md`) | A trace is never edited to make a build pass |
 | `harness/` | The same fixtures through the `.wasm` in Node and through C++ on the static library; the ThreadSanitizer harness (`race.cpp`, P6); the render comparison (`compare.mjs`, P7); the four-target check (`targets.sh`, P5) | Follows `fixtures/README.md` |
-| `rack/` | The Rack plugin: one module, the Probe, which plays the fixtures and checks itself (P3). `handoff.hpp` is how a host moves things between its threads | `make install`; `make selftest` runs Rack headless |
+| `rack/` | The Rack plugin: one module, the Probe, which plays the fixtures and checks itself (P3), and plays their drums from its AUDIO jack. `handoff.hpp` is how a host moves things between its threads | `make install`; `make selftest` runs Rack headless; `make sound` is a patch to hear it |
 | `web/` | The bare page and worklet on the raw `.wasm` (P4). `pi_core.wasm` is committed so Pages can serve it | `make web` after the core changes; `make p4` runs both desktop browsers |
 | `Makefile` | `make build`: both targets. `make test`: the three harnesses compared, the render comparison, the race harness. The repo's `make verify` runs it. `make targets`, `make p4`: the slower checks | |
 | `rust-toolchain.toml`, `mise.toml` | The Rust this folder builds with. `mise install` once | The two must name one version; `make check-toolchain` fails if not |

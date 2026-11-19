@@ -273,7 +273,8 @@ Two runs agree when their traces are the same bytes.
   module's memory and the module imports nothing.
   In the browser and Node the host grows the module's memory by one page and puts the engine
   and both buffers there. Checked in Session 2: it works with no glue, the module imports
-  nothing, and the engine (352 bytes), a snapshot, 256 events and 4 778 commands fit the page.
+  nothing, and the engine (352 bytes), a snapshot, 256 events and 4 778 commands fit the page. With the
+  drums the engine is 752 bytes; it still fits the 1 KiB the harness gives it.
 - **One thread.** Every function on an engine is called from the audio thread only. That
   includes the ones that only read: `pi_save` on another thread while `pi_process` runs is a
   data race (P6 planted it and the sanitizer found it).
@@ -373,9 +374,9 @@ it is not, as the hardware runs alone.
 | Not here | Because | When |
 |---|---|---|
 | ~~Audio out~~ | ~~no voice yet~~ | Done in Session 3: §11, ABI 2, D44 |
-| Fifteen of the sixteen voices | P7 needed one | each is a struct in `core/src/voice.rs` beside the click; no interface changes |
+| Eleven of the sixteen voices | P7 needed one; the minimum beat four more | each is a struct in `core/src/voice.rs` beside the others; no interface changes |
 | The sliders in the snapshot | version 1 has no room and the keys that set them are not built | snapshot version 2, with the instrument |
-| A master level, a limiter, a mute mask for D33's expander | nothing sums yet: there is one voice | with the second voice |
+| A master level, a limiter, a mute mask for D33's expander | nothing summed until the drums | the drums have come and the mix passes 1 (+6.6 dB); waits for a ruling (O14) |
 | Keys and sliders doing anything | the workflow is not confirmed on hardware | with the instrument, from `WORKFLOW.md` |
 | Sixteen patterns, chains | scope to decide | snapshot version 2 |
 | Parameter locks, step multiplier, effects | same | same |
@@ -415,4 +416,10 @@ the `TRIG` events they already make.
 - **Not saved yet.** Slider values are in the engine but not in snapshot version 1, and
   `SOUND` does not move `pi_generation`. They join the snapshot in version 2.
 - **The first voice** is the click (key 10, track 9): a sine from 500 Hz to 2 kHz by slider
-  A, falling 60 dB in 5 to 40 ms by slider B. The other fifteen tracks are silent.
+  A, falling 60 dB in 5 to 40 ms by slider B.
+- **Then the minimum beat** (2026-11-19): the bass drum, snare, closed hat and open hat on
+  tracks 0 to 3. What each is built as: `VOICES.md`, "As built". The other eleven tracks
+  are silent. A voice keeps the slider values it was triggered with, so a rate change
+  retunes it from those, never from sliders moved since.
+- **Filters and noise** follow the same rule: a filter's coefficient is the polynomial sine
+  and one division; noise is a generator of the voice's own, never the sequencer's.
