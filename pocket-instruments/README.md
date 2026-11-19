@@ -1,8 +1,9 @@
 # Pocket Instruments
 
 **Status:** P1, P2, P3 and P7 passed. P4, P5 and P6 are part-run (2026-11-19): the core runs in
-Rack and in an AudioWorklet, on a phone too, and makes its first sound; what is left needs an
-iPhone, other machines and the instrument itself (`PROOFS.md`). Started 2026-11-18.
+Rack and in an AudioWorklet, on a phone too, and makes its first sound; CI builds the plugin
+for all four Rack platforms. What is left needs an iPhone, other machines and the instrument
+itself (`PROOFS.md`). Started 2026-11-18.
 
 Small calculator-format musical instruments, free and open source, playable as VCV Rack modules
 and in a browser, from one shared engine. An affectionate, credited homage to Teenage
@@ -31,7 +32,7 @@ into its own repository.
 | `core/` | The engine: one Rust crate, `no_std`, no allocator, no dependencies. Its tests are in `core/src/tests/` | Built from `ENGINE.md`; a disagreement is settled there first |
 | `fixtures/` | Test vectors and the traces they must produce (`fixtures/README.md`) | A trace is never edited to make a build pass |
 | `harness/` | The same fixtures through the `.wasm` in Node and through C++ on the static library; the ThreadSanitizer harness (`race.cpp`, P6); the render comparison (`compare.mjs`, P7); the four-target check (`targets.sh`, P5) | Follows `fixtures/README.md` |
-| `rack/` | The Rack plugin: one module, the Probe, which plays the fixtures and checks itself (P3), and plays their drums from its AUDIO jack. `handoff.hpp` is how a host moves things between its threads | `make install`; `make selftest` runs Rack headless; `make sound` is a patch to hear it |
+| `rack/` | The Rack plugin: one module, the Probe, which plays the fixtures and checks itself (P3), and plays their drums from its AUDIO jack. `handoff.hpp` is how a host moves things between its threads. `check-dist.sh` holds a finished `.vcvplugin` to Rack's rules (P5); `ci-linux.sh` is CI's Linux build | `make install`; `make selftest` runs Rack headless; `make sound` is a patch to hear it. CI (`.github/workflows/pocket-instruments-rack.yml`) builds all four platforms on every push that touches the core or `rack/` |
 | `web/` | The bare page and worklet on the raw `.wasm` (P4). `pi_core.wasm` is committed so Pages can serve it | `make web` after the core changes; `make p4` runs both desktop browsers |
 | `Makefile` | `make build`: both targets. `make test`: the three harnesses compared, the render comparison, the race harness. The repo's `make verify` runs it. `make targets`, `make p4`: the slower checks | |
 | `rust-toolchain.toml`, `mise.toml` | The Rust this folder builds with. `mise install` once | The two must name one version; `make check-toolchain` fails if not |

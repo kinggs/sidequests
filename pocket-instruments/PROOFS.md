@@ -17,7 +17,7 @@ engineering gate the brief asks for (its D2). Nothing visual is built before P3 
 | P2 | Same trace everywhere | passed 2026-11-19 |
 | P3 | It runs in Rack | passed 2026-11-19 |
 | P4 | It runs in a phone browser | running: both desktop browsers, Android Chrome and the ten minutes passed 2026-11-19; iOS Safari and the tap latency are left |
-| P5 | It ships to other people's machines | running: four libraries built and checked here 2026-11-19; one bar not met (macOS 10.9; the owner accepts 10.12, D46); no plugin linked or loaded elsewhere |
+| P5 | It ships to other people's machines | running: CI builds and checks all four plugins (2026-11-19, Session 6); none loaded in Rack off this laptop yet; no answer from VCV; macOS 10.9 not met (the owner accepts 10.12, D46) |
 | P6 | Editing while playing is safe | running: ThreadSanitizer half and the save in Rack passed 2026-11-19, with a finding (D43); the browser is left |
 | P7 | Shared sound is worth sharing | passed 2026-11-19 |
 | P8 | It feels like the real thing | open |
@@ -302,11 +302,10 @@ library offered as the Windows one failed on its format; 128-bit arithmetic fail
 
 **What the full proof still needs:**
 
-1. A plugin linked for each of the four targets by a real toolchain: VCV's
-   `rack-plugin-toolchain` (Docker) with a Rust toolchain added, or CI on native runners as
-   Phona does (R16a). The static libraries can be built anywhere, including here, and
-   handed to that link.
-2. On the macOS link: what the linker says about the 10.12 stamp (item above).
+1. ~~A plugin linked for each of the four targets by a real toolchain.~~ Done by CI on
+   native runners, Session 6 (below).
+2. ~~On the macOS link: what the linker says about the 10.12 stamp.~~ It warns and links
+   (below).
 3. Each of the four artefacts loaded once in Rack on its platform. The Probe's light going
    green is the test: it is in the plugin already. ⚠ The owner has no Windows machine or
    Mac to do this on yet (D46).
@@ -314,6 +313,40 @@ library offered as the Windows one failed on its format; 128-bit arithmetic fail
    Rust part, or a prebuilt static library, or neither (O2). **Asked 2026-11-19** by the
    owner, by email to support@vcvrack.com, the one address VCV's support page gives for
    Library questions. No reply yet. The forum's Development category is the fallback.
+
+**Session 6, 2026-11-19: four artefacts from CI.** Item 1 above is done; item 2 is
+answered. Still not passed: none of the four has been loaded in Rack on its platform, and
+VCV has not answered.
+
+`.github/workflows/pocket-instruments-rack.yml` links the plugin on each platform's own
+toolchain, checks the finished `.vcvplugin` with `rack/check-dist.sh`, and uploads it. It
+runs on every push that touches the core, the fixtures or `rack/`, and by hand from the
+Actions tab. First green run:
+[44540561514](https://github.com/kinggs/sidequests/actions/runs/44540561514) (commit
+`d16ee89`); its artefacts expire 2027-02-17.
+
+| Platform | Built on | What the check found | Size | sha256 (first 16) |
+|---|---|---|---|---|
+| lin-x64 | Ubuntu 16.04 in Docker: gcc 5.4, glibc 2.23, rustc 1.100.0 | glibc symbols up to 2.14 (2.23 allowed); needs `libRack.so`, `libm`, `libc` only | 43 717 | `67ad4376c3a8a488` |
+| win-x64 | MSYS2 MINGW64 on `windows-latest` | needs `libRack.dll`, `KERNEL32`, `msvcrt`, `libgcc_s_seh-1`, `libwinpthread-1`: the last two ship beside `Rack.exe` (R44) | 101 802 | `b725ceb5e30a03e1` |
+| mac-x64 | Apple clang on `macos-latest` (Apple Silicon), cross to x86_64 | x86_64 only; finds libRack in `/tmp/Rack2`; stamped macOS 10.9 | 31 538 | `625d6251fa99a02a` |
+| mac-arm64 | Apple clang on `macos-latest` | arm64 only; finds libRack in `/tmp/Rack2`; stamped macOS 11.0 | 28 716 | `232ddc336d18f6af` |
+
+On every platform the plugin holds `pi_process` and needs no Rust runtime symbol
+(`check-link` in `rack/Makefile`, now per platform).
+
+**Item 2, the macOS link:** the linker warns and links. `ld: warning: object file
+(…libpi_core.a…) was built for newer 'macOS' version (10.12) than being linked (10.9)`.
+The plugin is stamped 10.9 because the SDK links it for 10.9, but its core was built for
+10.12. ⚠ Whether it runs on 10.9 to 10.11 is unknown and, under D46, does not matter.
+
+The check can fail: the laptop's own Linux plugin failed on `GLIBC_2.35` (R42); the first
+Windows run failed on `libgcc_s_seh-1.dll`, before R44 showed Rack ships it; each artefact
+renamed as another platform failed, and so did a DLL renamed as a `.so` and the reverse.
+
+⚠ Not checked: whether macOS lets Rack load a plugin that was downloaded from GitHub. The
+dylibs are signed ad hoc, as the SDK's `dist` does, not with a developer identity. Phona's
+author signs his Mac build (R16b).
 
 ### P6 — Editing while playing is safe
 

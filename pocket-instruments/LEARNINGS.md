@@ -208,3 +208,24 @@ belongs in `PROOFS.md`, a change of course in `DECISIONS.md`, an outside fact in
 - **A scenario written for one voice silently became a test of two.** `render-click.json`
   stepped track 2 when it was silent. Its recorded hashes changed the day track 2 got a
   hat. A scenario should name only the tracks it means to sound.
+
+## 2026-11-19 — Session 6, CI for the four Rack targets
+
+- **The Macs passed first time; the two platforms that looked simplest did not.** Linux
+  failed on my own script (a `rustc` asked outside the folder that pins it: with rustup's
+  `--default-toolchain none` there is no Rust anywhere else). Windows failed on a check
+  that was stricter than Rack.
+- **Check what the host ships before calling a dependency missing.** The SDK links Windows
+  plugins with `-static-libstdc++` only, so every one imports `libgcc_s_seh-1.dll`. That
+  looked fatal until Rack's own Makefile showed it copies that DLL beside `Rack.exe`. The
+  first version of the check refused it; the record of why it now allows it is R44.
+- **An object's stamp is not the plugin's.** The core is built for macOS 10.12, the plugin
+  is stamped 10.9, and the linker only warns. A version check on the finished file says
+  10.9 and is wrong about what it contains.
+- **Small tool differences break portable scripts.** LLVM's `lipo -archs` ends its line
+  with a space and Apple's does not; macOS's `tar` and `sed` are BSD. Running the check
+  here on the downloaded artefacts, with LLVM's tools standing in for Apple's, found the
+  first; reading for BSD forms found the others before they ran.
+- **Docker was installed but not usable** (no `docker` group), so CI was the only place to
+  test the Linux build. Two runs of about two minutes each was cheaper than changing the
+  machine.

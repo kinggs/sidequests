@@ -66,7 +66,7 @@ win-x64)
 mac-*)
     want=x86_64
     [ "$platform" = mac-arm64 ] && want=arm64
-    archs=$(lipo -archs "$bin")
+    archs=$(lipo -archs "$bin" | xargs) # LLVM's lipo ends the line with a space; Apple's does not
     [ "$archs" = "$want" ] || fail "built for '$archs', not $want"
     otool -L "$bin" | grep -q '/tmp/Rack2/libRack.dylib' || fail "does not look for libRack in /tmp/Rack2"
     min=$(otool -l "$bin" | awk '/LC_VERSION_MIN_MACOSX|LC_BUILD_VERSION/ {f=1} f && ($1 == "version" || $1 == "minos") {print $2; exit}')

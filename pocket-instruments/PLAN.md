@@ -55,6 +55,8 @@ pocket-instruments/
   Scarlett whole and the desktop loses it until its profile is switched off and on again
   (it happened during P3's ten minutes; the fix is in `~/.dotfiles/docs/kenny-archy.md`).
   `rack/patch/patch.json` names no driver, so Rack picks; choose by hand.
+- Found in Session 6: Docker is installed but the user is not in the `docker` group, so
+  `rack/ci-linux.sh` cannot be rehearsed here. CI runs it; nothing local needs it.
 
 ---
 
@@ -173,8 +175,8 @@ Was all of P4 until Session 3 was widened; the desktop half moved there.
 - [ ] Owner, on each phone: Run the proof; Play for ten minutes; film the Tap pad. Fill in P4.
       Android Chrome's proof is done (2026-11-19). Left: iOS Safari, the ten minutes, the film.
 - [x] P7's voice count on a phone. Done 2026-11-19: 1 024 copies held on a Galaxy S25 FE.
-- [ ] P5: the four links and the question to VCV (`PROOFS.md` P5, "What the full proof
-      still needs").
+- [ ] P5: the four loads in Rack and VCV's answer (`PROOFS.md` P5, "What the full proof
+      still needs"). The four links are CI's since Session 6.
 
 ## Session 5 — the minimum beat (build, Opus; done 2026-11-19)
 
@@ -194,6 +196,21 @@ The first job the last Handover named. Decide nothing; stop and write up what ne
       `make -C rack sound` builds a patch to hear it.
 - [x] Not built, written up instead: the hats cutting each other off (O13); keeping the mix
       in bounds (O14).
+
+## Session 6 — CI for the four Rack targets (build, Opus; done 2026-11-19)
+
+The job the last two Handovers named, so P5 has artefacts for whoever has a Mac or a
+Windows machine.
+
+- [x] `.github/workflows/pocket-instruments-rack.yml`: one job a platform, each linking the
+      plugin with `make dist` on that platform's own toolchain, as Phona does (R16a). Linux
+      inside Ubuntu 16.04 for glibc 2.23 (`rack/ci-linux.sh`); Windows on MSYS2's MinGW;
+      both Macs on GitHub's Apple Silicon runner, Intel by `CROSS_COMPILE`. Each Rack SDK
+      zip is pinned by its sha256.
+- [x] `rack/check-dist.sh`: each finished `.vcvplugin` held to R16 for its platform. Each
+      check failed once on a planted fault.
+- [x] `check-link` in `rack/Makefile` works on all three systems, not only Linux.
+- [x] The four artefacts, green, and `PROOFS.md` P5's items 1 and 2 answered.
 
 ## After the gate
 
@@ -441,3 +458,28 @@ Decided when P1 to P4 are in, not before:
   ceiling (tanh). Built: `voice::LEVEL`, the worklet's output, the Probe's comment. The
   Rack mix is now 6 dB quieter than the one heard: 3 to 4.8 V in the self-test, inside
   Rack's ±5 V. Restart Rack to get it.
+
+### After Session 6: CI for the four Rack targets (2026-11-19)
+
+- **Four plugins, built and checked by CI** on every push that touches the core, the
+  fixtures or `rack/`: lin-x64, win-x64, mac-x64, mac-arm64. Run
+  [44540561514](https://github.com/kinggs/sidequests/actions/runs/44540561514), Artifacts
+  at the bottom of its page. Numbers in `PROOFS.md` P5. `make verify` and
+  `make -C rack selftest` pass here; the smoke test skipped (no Playwright).
+- **What the first run found:** Windows plugins import `libgcc_s_seh-1.dll`, which Rack
+  ships beside `Rack.exe` (R44), so it is allowed. The macOS linker warns about the core's
+  10.12 stamp and links (P5 item 2).
+- **For the owner, when there is a Mac or a Windows machine:** download that platform's
+  artefact (a zip holding the `.vcvplugin`), unzip it, put the `.vcvplugin` in Rack's
+  user folder under `plugins-<platform>/`, restart Rack, add the Probe, and see its light
+  go green. That is P5 item 3. ⚠ On a Mac, macOS may refuse a plugin downloaded from the
+  web; it is signed ad hoc. If it does, that is a finding for `PROOFS.md`, not a fault in
+  the build.
+- **Not done:** a release on a tag (nothing to release yet); a headless load of each
+  artefact in Rack on its runner, as Phona's CI does. The second would be the closest CI
+  can come to item 3; whether it counts as the bar's "loaded once in Rack on its platform"
+  is the owner's ruling, so it was not built.
+- **Next build, from Session 3's list ("What Opus can now build"):** the other twelve
+  voices, or edits from a UI. Both stay inside what is decided. The owner's open items are
+  P4 on iOS, P5's loads and VCV's reply, a ruling on a headless load in CI, and the
+  workflow's rows (`WORKFLOW.md`).
