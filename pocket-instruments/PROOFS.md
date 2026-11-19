@@ -16,7 +16,7 @@ engineering gate the brief asks for (its D2). Nothing visual is built before P3 
 | P1 | One crate, two targets | passed 2026-11-19 |
 | P2 | Same trace everywhere | passed 2026-11-19 |
 | P3 | It runs in Rack | passed 2026-11-19 |
-| P4 | It runs in a phone browser | running: both desktop browsers and Android Chrome passed 2026-11-19; iOS Safari, the ten minutes and the tap latency are left |
+| P4 | It runs in a phone browser | running: both desktop browsers and Android Chrome passed 2026-11-19; Play ran 400 s clean on the phone, short of the ten minutes; iOS Safari and the tap latency are left |
 | P5 | It ships to other people's machines | running: four libraries built and checked here 2026-11-19; one bar not met (macOS 10.9; the owner accepts 10.12, D46); no plugin linked or loaded elsewhere |
 | P6 | Editing while playing is safe | running: ThreadSanitizer half and the save in Rack passed 2026-11-19, with a finding (D43); the browser is left |
 | P7 | Shared sound is worth sharing | passed 2026-11-19 |
@@ -226,7 +226,7 @@ no screenshot was kept, so the page's own figures are not here.
 |---|---|
 | Trace identical to P2 on Android Chrome | Run the proof said PASSED, on the first page and again on the changed one: 24 of 24 runs gave their fixture's trace, by the page's own comparison with each fixture's `expect` |
 | … on iOS Safari | **Left.** No iPhone has run it |
-| Ten minutes with no dropout | **Left.** Play was heard to be clean, but ⚠ nobody reported a ten-minute run or its "fallen behind" figure |
+| Ten minutes with no dropout | **Not met as written: 400 s, not 600.** Play ran 400 s at 44.1 kHz and the owner stopped it because the phone was needed. Audio was at most 18 ms behind the clock at 163 s and still 18 ms at 400 s: it did not grow, so nothing stalled in that time. No gap was reported. ⚠ Which of the phone's two browsers it was, and its latency figures, were not said. The remaining 200 s are left |
 | Tap-to-sound latency | **Left.** Tap "behaves as expected" to the finger. Not measured with a second device |
 
 Also run by the owner, with the page's result text pasted back:
