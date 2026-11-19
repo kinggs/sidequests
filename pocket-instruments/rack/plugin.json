@@ -1,0 +1,23 @@
+{
+  "slug": "PocketInstruments",
+  "name": "Pocket Instruments",
+  "version": "2.0.0",
+  "license": "MIT",
+  "brand": "Pocket Instruments",
+  "author": "Kenny Inggs",
+  "authorEmail": "",
+  "authorUrl": "",
+  "pluginUrl": "",
+  "manualUrl": "",
+  "sourceUrl": "https://github.com/kinggs/sidequests",
+  "donateUrl": "",
+  "changelogUrl": "",
+  "modules": [
+    {
+      "slug": "Probe",
+      "name": "Probe (P3)",
+      "description": "Not an instrument. Plays the engine's test fixtures and checks itself: clock in, reset in, gate out",
+      "tags": ["Utility"]
+    }
+  ]
+}

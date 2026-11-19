@@ -6,13 +6,25 @@ WASM   := target/wasm32-unknown-unknown/release/pi_core.wasm
 REPORT := $(CURDIR)/target/report
 CXX    ?= c++
 
-.PHONY: build test check-toolchain check-p1 clean
+.PHONY: build test check-toolchain check-p1 clean rack-lib
 
 # Both targets from one crate, one crate type each: a static library for Rack and the C++
 # harness, a bare module for the browser and Node.
 build: check-toolchain
 	cargo rustc -p pi-core --release --locked --crate-type staticlib
 	cargo rustc -p pi-core --release --locked --target wasm32-unknown-unknown --crate-type cdylib
+
+# The static library for one Rack target, with Rack's own CPU flags (R16; the SDK's
+# compile.mk: -march=nehalem on x64, plain armv8-a on arm64, macOS 10.9 as the floor).
+# `make rack-lib T=<rust triple>`. rack/Makefile calls this before it links. It lands in
+# target/<triple>/release, apart from the host build above, so the two never rebuild each other.
+T ?= x86_64-unknown-linux-gnu
+RACK_RUSTFLAGS_x86_64  := -C target-cpu=nehalem
+RACK_RUSTFLAGS_aarch64 :=
+rack-lib: check-toolchain
+	@rustup target list --installed | grep -qx $(T) || rustup target add $(T)
+	RUSTFLAGS="$(RACK_RUSTFLAGS_$(firstword $(subst -, ,$(T))))" MACOSX_DEPLOYMENT_TARGET=10.9 \
+	  cargo rustc -p pi-core --release --locked --target $(T) --crate-type staticlib
 
 # The same fixtures through the core three ways. Each harness also writes every trace it
 # produced to a report; the three reports must be the same bytes.
