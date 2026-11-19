@@ -6,7 +6,7 @@ WASM   := target/wasm32-unknown-unknown/release/pi_core.wasm
 REPORT := $(CURDIR)/target/report
 CXX    ?= c++
 
-.PHONY: build test check-toolchain check-p1 clean rack-lib race
+.PHONY: build test check-toolchain check-p1 clean rack-lib race targets
 
 # Both targets from one crate, one crate type each: a static library for Rack and the C++
 # harness, a bare module for the browser and Node.
@@ -20,11 +20,22 @@ build: check-toolchain
 # target/<triple>/release, apart from the host build above, so the two never rebuild each other.
 T ?= x86_64-unknown-linux-gnu
 RACK_RUSTFLAGS_x86_64  := -C target-cpu=nehalem
-RACK_RUSTFLAGS_aarch64 :=
+RACK_RUSTFLAGS_aarch64 := -C target-cpu=generic
 rack-lib: check-toolchain
 	@rustup target list --installed | grep -qx $(T) || rustup target add $(T)
 	RUSTFLAGS="$(RACK_RUSTFLAGS_$(firstword $(subst -, ,$(T))))" MACOSX_DEPLOYMENT_TARGET=10.9 \
 	  cargo rustc -p pi-core --release --locked --target $(T) --crate-type staticlib
+
+# P5, the local half: the library for all four Rack targets from this machine, each checked
+# against R16 (harness/targets.sh). A staticlib needs no linker and no SDK, only rustup's
+# copy of each target's core library, so this runs anywhere `make build` does. Not part of
+# `make test`: the first run downloads three targets.
+RACK_TARGETS := x86_64-unknown-linux-gnu x86_64-pc-windows-gnu x86_64-apple-darwin aarch64-apple-darwin
+targets:
+	@for t in $(RACK_TARGETS); do \
+	  $(MAKE) --no-print-directory rack-lib T=$$t >/dev/null 2>&1 || { echo "P5 $$t: did not build"; exit 1; }; \
+	  sh harness/targets.sh $$t $(CURDIR)/target/$$t/release/libpi_core.a || exit 1; \
+	done
 
 # The same fixtures through the core three ways. Each harness also writes every trace it
 # produced to a report; the three reports must be the same bytes.
