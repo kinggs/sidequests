@@ -484,6 +484,27 @@ and why good outputs (D33) matter more than borrowed DSP.
 
 When the helper library is adopted (after P3), tell its authors.
 
+### D42 — What `ENGINE.md` did not say, as the core was built
+**2026-11-19 · proposed · built this way in Session 2 · sharpens D24 and D25, changes neither**
+
+Building the core found seven places where the text allowed two readings. Each was settled
+the plainest way and written into `ENGINE.md`, marked (D42). No fixture and no pass bar moved.
+
+1. `SOURCE` naming the source already in use changes nothing. Only a real switch clears state.
+2. A `SOURCE` value that is neither source is ignored, like an index out of range.
+3. `pi_process` with 0 frames does nothing: its commands are not applied.
+4. The snapshot's seed is the one the generator last started from, after a 0 is replaced.
+5. `pi_load`: the order of its checks; a version of 0 is `PI_ERR_VERSION`; bytes past 316
+   are not read; values no core writes are clamped; a successful load moves `pi_generation`.
+6. A tempo or sample-rate change can leave the table clock's phase up to one frame from
+   where a stopwatch would put it. Not changed: it follows from "a command lands before its
+   frame's ticks", which the fixtures depend on.
+7. ⚠ When the tick counter wraps (26 days at 300 bpm, 65 at 120) one step is 64 ticks long.
+   Left alone. The cure would be to wrap at a multiple of 192; cheap, but a change to D24.
+
+Why proposed, not decided: these are the builder's readings. The owner can overrule any of
+them cheaply now; after P3 and P4 two hosts will lean on them.
+
 ## Open
 
 | ID | Question | Needs |

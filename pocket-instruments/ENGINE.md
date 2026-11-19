@@ -1,7 +1,8 @@
 # The engine interface
 
-**Status:** decided by the owner 2026-11-19 (D17, D24, D25, D26). P2 and P6 test it; a failed
-proof reopens it. Written in Session 1.
+**Status:** decided by the owner 2026-11-19 (D17, D24, D25, D26). P2 passed on it in Session 2;
+P6 still tests it; a failed proof reopens it. Written in Session 1. Building it found seven
+places where the text did not say what happens; they are marked (D42) below.
 
 The contract between the core and its two hosts. `core/include/pi_engine.h` is the same
 contract in C; where the two disagree, this file is right and the header gets fixed.
@@ -34,6 +35,9 @@ one small layer leaves nothing below it for the hosts to disagree about.
   longer than a frame at 44.1 kHz.
 - Ticks are numbered from 0 at reset, in a `uint32_t` that wraps (about 26 days at 300 bpm).
   Tick `k` is tick `k % 96` of **grid step** `k / 96`.
+  ⚠ 2³² is not a multiple of 96, so at the wrap one step is 64 ticks long and the swing's
+  odd and even start again. Once in 26 days of unbroken play at the fastest tempo; left as it
+  is (D42).
 - The **grid** is the clock's count of steps since reset. It runs whether or not the sequencer
   is playing. The **pattern step** (0 to 15) is the sequencer's playhead.
 - Musical time is the tick number. A frame number never appears in a trace.
@@ -59,7 +63,8 @@ Splitting the same frames and commands into different blocks must not change the
 
 Total behaviour, no undefined cases:
 
-- `frames` is at least 1. A command with `frame >= frames` is applied at the last frame.
+- `frames` is at least 1. A call with 0 does nothing at all: its commands are not applied
+  (D42). A command with `frame >= frames` is applied at the last frame.
 - A command whose `frame` is lower than the one before it is applied at that earlier
   command's frame.
 - An unknown command type is ignored. An index out of range (track, step) makes the command
@@ -93,7 +98,10 @@ frame `ceil(n * sample_rate * 15000 / mbpm)`. There is no drift: the remainder s
 setting the tempo after a reset left the phase wrong by the difference. Tick 0 now fires on
 the first frame whatever the tempo is.
 
-- `TEMPO` changes `mbpm` (clamped to 30 000 to 300 000) and keeps `acc`.
+- `TEMPO` changes `mbpm` (clamped to 30 000 to 300 000) and keeps `acc`. A command at frame
+  `f` lands before the advance for `f`, so the new tempo already covers the stretch from
+  `f - 1` to `f`: the phase can sit up to one frame from where a stopwatch would put it,
+  once for each change. The same goes for `pi_set_sample_rate`. The trace cannot see it.
 - `pi_set_sample_rate` rescales: `acc = acc * new_rate / old_rate`, rounded down.
 
 ### External edges (`source = PI_SOURCE_EDGES`)
@@ -129,6 +137,9 @@ What this means (it answers O4):
   second edge. Step 0 is never swung, so the first swung trigger (grid step 1) is on time.
 - `CLOCK` is ignored while the source is the table. Switching source keeps `E`; switching to
   edges clears `have_edge` and `period`; switching to the table clears `acc` and sets `primed`.
+  `SOURCE` naming the source already in use is not a switch and changes nothing; a value
+  that is neither source is ignored (D42). Why it matters: every fixture run sends `SOURCE`
+  at frame 0, and a table clock that set `primed` there would lose tick 0's frame.
 
 The host, not the core, turns a voltage into an edge (a Schmitt trigger) and ignores clock
 edges for 1 ms after a reset, as Rack's guide asks.
@@ -249,8 +260,9 @@ Two runs agree when their traces are the same bytes.
 - **The ABI is plain.** Only `uint32_t`, `int32_t` and pointers cross it: no floats, no 64-bit
   values, no structs by value, no callbacks. In WebAssembly a pointer is an offset into the
   module's memory and the module imports nothing.
-  ⚠ Proposed for the browser and Node: the host grows the module's memory by one page and
-  puts the engine and both buffers there. Session 2 checks this works with no glue (P1, P2).
+  In the browser and Node the host grows the module's memory by one page and puts the engine
+  and both buffers there. Checked in Session 2: it works with no glue, the module imports
+  nothing, and the engine (352 bytes), a snapshot, 256 events and 4 778 commands fit the page.
 - **One thread.** Every function on an engine is called from the audio thread only.
 
 ### The snapshot (answers O5)
@@ -280,6 +292,14 @@ had been built, so the number stays 1.)
 
 - **Saved:** the pattern, length, swing, tempo, seed. **Not saved:** the playhead, the tick
   count, whether it is playing, the clock source. Those belong to the moment and the host.
+- **The seed** saved is the one the generator last started from: `pi_init`'s, or the last
+  loaded snapshot's, after a 0 has been replaced (D42).
+- **Load, in detail (D42).** The checks run in this order: under 12 bytes, `PI_ERR_SIZE`;
+  magic, `PI_ERR_MAGIC`; any version but one this core has written (a newer one, or 0),
+  `PI_ERR_VERSION`; under 316 bytes, `PI_ERR_SIZE`; kind, `PI_ERR_MAGIC`; payload size,
+  `PI_ERR_SIZE`; CRC, `PI_ERR_CRC`. Bytes after the first 316 are the host's and are not
+  read. A value no core writes but whose CRC is right (a length of 0, a probability of 200)
+  is clamped, as it would be in a command. A load that succeeds moves `pi_generation`.
 - **Load** checks magic, kind, size and CRC, and changes nothing if any is wrong. It replaces
   the pattern and settings, reseeds the random generator from the seed, and leaves the
   playhead and clock alone. So a snapshot loaded into a fresh engine gives the same trace as
@@ -323,4 +343,4 @@ it is not, as the hardware runs alone.
 | Sixteen patterns, chains | scope to decide | snapshot version 2 |
 | Parameter locks, step multiplier, effects | same | same |
 | A command in the middle of a step, in a fixture | on edges, a flush is one indivisible burst, so the position cannot be matched | fixture format 2, with live recording |
-| Tempo changes and resets inside a fixture | the harness would need to re-anchor its step frames | a fourth fixture in Session 2, rule in `fixtures/README.md` |
+| A tempo change inside a fixture | the harness would need to re-anchor its step frames, as it now does for a reset (`fixtures/README.md`) | when a fixture needs one. Until then the Rust rule tests cover it (`core/src/tests/rules.rs`) |

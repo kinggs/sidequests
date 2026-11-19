@@ -37,7 +37,7 @@ extern "C" {
 /* Command types. Unknown types are ignored. */
 #define PI_CMD_CLOCK 1u     /* an edge */
 #define PI_CMD_RESET 2u
-#define PI_CMD_SOURCE 3u    /* value: PI_SOURCE_* */
+#define PI_CMD_SOURCE 3u    /* value: PI_SOURCE_*. The source already in use: nothing happens */
 #define PI_CMD_TEMPO 4u     /* value: thousandths of a bpm, clamped */
 #define PI_CMD_PLAY 5u      /* value: 0 stop, 1 play from the next step boundary */
 #define PI_CMD_STEP 16u     /* a: track, b: step, value: 0 or 1 */
@@ -65,7 +65,7 @@ extern "C" {
 #define PI_OK 0
 #define PI_ERR_SIZE (-1)    /* too short, or the size field is wrong */
 #define PI_ERR_MAGIC (-2)   /* not a snapshot, or another instrument's */
-#define PI_ERR_VERSION (-3) /* written by a newer core */
+#define PI_ERR_VERSION (-3) /* a version this core never wrote: a newer one, or 0 */
 #define PI_ERR_CRC (-4)
 
 /* An input, timestamped inside the block. 12 bytes, little-endian, no padding. */
@@ -105,7 +105,7 @@ pi_engine *pi_init(void *mem, uint32_t size, uint32_t sample_rate, uint32_t seed
 /* Between blocks only. Keeps the table clock's phase. */
 void pi_set_sample_rate(pi_engine *engine, uint32_t sample_rate);
 
-/* Run `frames` frames (at least 1). Applies each command at its frame, then advances the
+/* Run `frames` frames (at least 1; 0 does nothing). Applies each command at its frame, then advances the
  * clock by that frame. Writes at most `cap` events and returns how many. Events that do not
  * fit are dropped and counted. Never allocates, never blocks. */
 uint32_t pi_process(pi_engine *engine, uint32_t frames,
@@ -122,7 +122,8 @@ uint32_t pi_generation(const pi_engine *engine);
 uint32_t pi_save(const pi_engine *engine, uint8_t *buf, uint32_t cap);
 
 /* Read a snapshot of this or any older version. On any error nothing changes. Replaces the
- * pattern and settings and reseeds the random generator; leaves the playhead and clock. */
+ * pattern and settings and reseeds the random generator; leaves the playhead and clock.
+ * Bytes past PI_SNAPSHOT_SIZE are not read. Moves pi_generation. */
 int32_t pi_load(pi_engine *engine, const uint8_t *buf, uint32_t len);
 
 #ifdef __cplusplus
