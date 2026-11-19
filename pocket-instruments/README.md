@@ -22,6 +22,7 @@ into its own repository.
 | `ENGINE.md` | The engine interface: time, the clock, commands, events, the snapshot | Changed by a decision; the header and fixtures change with it |
 | `core/include/pi_engine.h` | The same contract in C, for both hosts | Follows `ENGINE.md` |
 | `fixtures/` | Test vectors and the traces they must produce (`fixtures/README.md`) | A trace is never edited to make a build pass |
+| `VOICES.md` | The sixteen sounds: role, recipe, what the sliders do | Until each voice is built and passes by ear |
 | `WORKFLOW.md` | What each press does, in our words; the owner ticks each row on the hardware | Until P8 |
 | `PLAN.md` | The sessions, their checklists and the Handover note | Each session ticks its boxes and writes its Handover |
 

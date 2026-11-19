@@ -287,6 +287,37 @@ marks it ⚠ in the table.
 Consequence for D16: the panel is taken as 24 HP with the jacks along the bottom (D21), as
 the design prompt says (`design/PROMPT.md`). It no longer waits on a measurement.
 
+### D30 — Sixteen tracks from the start
+**2026-11-19 · decided (owner) · answers O11 · supersedes the "two to four sounds" in D12 and the size in D26**
+
+The engine has sixteen tracks, one for each grid key: key *n* plays track *n*. Voices are
+filled in a few at a time; a track without a voice sequences and lights but is silent.
+
+Why: on the hardware each key is its own sound (R26, R27, R30). Four sounds would leave
+twelve dead keys and nothing to learn about which key is which drum (D22). Sequencing sixteen
+tracks costs a constant and 216 bytes of snapshot; the three fixtures are unchanged. The cost
+is in the voices, and those can arrive one by one.
+
+What stays from D12: it is still a tiny rhythm machine first: one pattern, no chains, no
+effects, built after the headless proofs.
+
+### D31 — Our own sixteen sounds, in the hardware's roles
+**2026-11-19 · decided (owner) · applies D22 and README rule 6**
+
+The sixteen voices take the same roles in the same key order as the hardware (bass drum on 1,
+snare on 2, and so on), and aim to be close in character. They are synthesised by us from
+the recipes in `VOICES.md`. Nothing is sampled, from the hardware or from anyone's recording
+of it. The judge of "close enough" is the owner's ear at P8.
+
+Why: the role on each key is workflow, which D22 keeps faithful; a recording is material,
+which rule 6 keeps out. Open-source emulations were read for behaviour and their samples
+measured for rough starting values, outside the repo (R30). ⚠ Those samples' origin is not
+stated; nothing of them is here but a few rounded numbers.
+
+Reviewer's note: "close in character" is a judgment, like the look. Sound-alike synthesis of
+ordinary drum types is common practice; it is still worth letting Teenage Engineering hear it
+when they are shown the showpiece (D19).
+
 ## Open
 
 | ID | Question | Needs |
@@ -299,6 +330,6 @@ the design prompt says (`design/PROMPT.md`). It no longer waits on a measurement
 | O6 | EU and UK registered designs and marks | A search of EUIPO and UKIPO |
 | O7 | A lawyer's view of the mockup before public release | P9 |
 | O8 | ~~Answered by D23.~~ The hardware is played with two fingers: hold a function key, press a grid key or turn a knob. A mouse has one pointer. How are combinations made in Rack? Proposed: a click on a function key latches it (it glows) until the next grid press or a second click; computer keys held while hovering also work. The phone browser has real multi-touch and needs neither | Session 1, with D22 in mind; try it at P8 |
-| O11 | On the hardware each grid key is its own sound in play mode (R26, R27). D12 says two to four sounds. Sixteen tracks in the engine from the start, with sounds filled in as they are made, or four and twelve dead keys? | The owner. Cheap before Session 2 (a constant and the snapshot's size), dearer after |
+| O11 | ~~On the hardware each grid key is its own sound in play mode (R26, R27). Sixteen tracks from the start, or four and twelve dead keys?~~ | Answered 2026-11-19: D30 |
 | O10 | Probability and a short length are not on the hardware. What gesture sets them without colliding with its combinations? | `WORKFLOW.md`, after the hardware hour |
 | O9 | How do the three blocks stack on a phone, and does one instrument fill the screen or share it? | The Claude Design work; D18 |

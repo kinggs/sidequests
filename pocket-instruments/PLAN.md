@@ -165,3 +165,13 @@ Decided when P1 to P4 are in, not before:
   list stay open as things to do when there is time, not as gates.
 - New open question O10: how probability and a short length are set by hand.
 - Next: Session 2, on Opus, on the laptop. Rust is still not installed.
+
+### Later the same day (2026-11-19)
+
+- D29: the workflow is confirmed as mismatches are found, not in one sitting first.
+- D30: **sixteen tracks**, not four. `ENGINE.md`, the header and the snapshot (now 316 bytes)
+  are updated; the three fixtures did not change. Session 2 builds sixteen.
+- D31 and `VOICES.md`: our own sixteen sounds in the hardware's roles. For P7, not Session 2.
+- `WORKFLOW.md` now carries what a search (R26 to R29) and an open-source emulation (R30)
+  answered. Still unknown: the swing range, whether the knobs are absolute, whether a tempo
+  change is immediate. Two three-minute checks for the owner are written there.

@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Loom Rack panel, write off, sound latched</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700;800&display=swap">
+<style>
+body{margin:0}
+button{border:0;padding:0;margin:0;font:inherit;cursor:pointer}
+.k{height:70.5px;box-sizing:border-box;background:#2B2942;color:#F2E8D0;font-weight:800;font-size:23px}
+.k.play{box-shadow:inset 0 0 0 6px #F0B429}
+.k.fire{background:#FFFFFF;color:#14131F}
+.k.pick{border-bottom:10px solid #F0654A}
+.f{height:142px;box-sizing:border-box;background:#2B2942;color:#F2E8D0;border-top:10px solid #F2E8D0;font-weight:800;font-size:17px;display:flex;align-items:center;justify-content:center}
+.f span{writing-mode:vertical-rl;transform:rotate(180deg)}
+.f.latch{background:#F2E8D0;color:#14131F}
+.s{height:6px;background:#6E6A92;align-self:end}
+.s.q{height:10px}
+.s.now{height:16px;background:#F0B429}
+.sc{position:absolute;width:20px;height:11px;border-radius:6px;background:#07060C}
+.j{display:flex;flex-direction:column;align-items:center;gap:9px;font-size:13px;font-weight:800;letter-spacing:.08em}
+.jn{width:48px;height:48px;border-radius:50%;background:#F2E8D0;display:flex;align-items:center;justify-content:center}
+.jh{width:21px;height:21px;border-radius:50%;background:#07060C}
+.sl{width:30px;display:flex;flex-direction:column;align-items:center;gap:8px;font-size:18px;font-weight:800}
+.tr{position:relative;flex:1;width:4px;background:#F2E8D0}
+.cap{position:absolute;left:-13px;width:30px;height:18px;box-sizing:border-box;background-color:#14131F;border-top:7px solid #F2E8D0;border-bottom:7px solid #F2E8D0}
+</style>
+</head>
+<body style="background: #07060C">
+<div style="position: relative; width: 732px; height: 771px; box-sizing: border-box; padding: 42px 30px; background: #14131F; color: #F2E8D0; font-family: 'JetBrains Mono', ui-monospace, monospace; display: flex; flex-direction: column; gap: 36px">
+<span class="sc" aria-hidden="true" style="left: 22px; top: 12px"></span>
+<span class="sc" aria-hidden="true" style="right: 22px; top: 12px"></span>
+<span class="sc" aria-hidden="true" style="left: 22px; bottom: 12px"></span>
+<span class="sc" aria-hidden="true" style="right: 22px; bottom: 12px"></span>
+
+<div style="height: 150px; box-sizing: border-box; background: #0B0A12; border: 2px solid #F2E8D0; padding: 12px 16px; display: flex; gap: 18px">
+<div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px">
+<svg role="img" aria-label="A cloth being woven: two finished diamonds, the shuttle half way across" viewBox="0 0 468 92" preserveAspectRatio="none" style="width: 100%; height: 92px">
+<defs><pattern id="wvS" width="6" height="6" patternUnits="userSpaceOnUse"><path d="M0 0H6M0 0V6" stroke="#0B0A12" stroke-width="1.6" fill="none"/></pattern></defs>
+<rect x="0" y="0" width="234" height="92" fill="#2B2942"/>
+<g fill="#F0654A"><polygon points="48,4 90,46 48,88 6,46"/><polygon points="138,4 180,46 138,88 96,46"/><polygon points="228,4 270,46 228,88 186,46"/></g>
+<g fill="#F0B429"><polygon points="48,22 72,46 48,70 24,46"/><polygon points="138,22 162,46 138,70 114,46"/><polygon points="228,22 252,46 228,70 204,46"/></g>
+<g fill="#F2E8D0"><polygon points="48,34 60,46 48,58 36,46"/><polygon points="138,34 150,46 138,58 126,46"/></g>
+<rect x="0" y="0" width="234" height="92" fill="url(#wvS)"/>
+<rect x="228" y="0" width="240" height="92" fill="#0B0A12"/>
+<path d="M236 6H468M236 16H468M236 26H468M236 36H468M236 46H468M236 56H468M236 66H468M236 76H468M236 86H468" stroke="#6E6A92" stroke-width="1.4" fill="none"/>
+<rect x="228" y="0" width="8" height="92" fill="#F0B429"/>
+<rect x="246" y="0" width="3" height="44" fill="#F2E8D0"/>
+<rect x="242" y="38" width="11" height="22" fill="#F2E8D0"/>
+</svg>
+<div aria-hidden="true" style="display: grid; grid-template-columns: repeat(16, minmax(0, 1fr)); gap: 5px; height: 16px">
+<span class="s q"></span><span class="s"></span><span class="s"></span><span class="s"></span><span class="s q"></span><span class="s"></span><span class="s now"></span><span class="s"></span><span class="s q"></span><span class="s"></span><span class="s"></span><span class="s"></span><span class="s q"></span><span class="s"></span><span class="s"></span><span class="s"></span>
+</div>
+</div>
+<div style="width: 150px; display: flex; flex-direction: column; justify-content: space-between">
+<div style="display: flex; align-items: baseline; justify-content: space-between">
+<span style="font-size: 60px; font-weight: 800; line-height: .9">120</span>
+<span style="font-size: 15px; font-weight: 800; color: #C9C2DD">bpm</span>
+</div>
+<div style="display: flex; align-items: center; justify-content: flex-end; font-size: 16px; font-weight: 800">
+<span>step 07</span>
+</div>
+</div>
+</div>
+
+<div style="height: 288px; display: flex; justify-content: space-between">
+<div style="width: 288px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2px; align-content: space-between">
+<button class="k pick fire">1</button><button class="k">2</button><button class="k fire">3</button><button class="k">4</button>
+<button class="k">5</button><button class="k">6</button><button class="k play">7</button><button class="k">8</button>
+<button class="k">9</button><button class="k">10</button><button class="k">11</button><button class="k">12</button>
+<button class="k">13</button><button class="k">14</button><button class="k">15</button><button class="k">16</button>
+</div>
+<span aria-hidden="true" style="width: 0; border-left: 3px dashed #F2E8D0"></span>
+<div style="width: 72px; display: flex; justify-content: space-between">
+<div class="sl"><div class="tr"><span class="cap" style="top: 62px"></span></div><span>A</span></div>
+<div class="sl"><div class="tr"><span class="cap" style="top: 168px"></span></div><span>B</span></div>
+</div>
+<span aria-hidden="true" style="width: 0; border-left: 3px dashed #F2E8D0"></span>
+<div style="width: 240px; display: flex; flex-direction: column; gap: 4px">
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px">
+<button class="f latch" style="background: #F0654A; border-top-color: #F0654A"><span>sound</span></button>
+<button class="f" style="border-top-color: #F0B429"><span>pattern</span></button>
+<button class="f" style="border-top-color: #8FAAF7"><span>bpm</span></button>
+</div>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px">
+<button class="f"><span>function</span></button>
+<button class="f"><span>fx</span></button>
+<button class="f latch"><span>play</span></button>
+<button class="f"><span>write</span></button>
+</div>
+</div>
+</div>
+
+<div style="flex: 1; display: flex; align-items: flex-end; justify-content: space-between; padding: 0 10px">
+<div style="display: flex; gap: 22px">
+<div class="j"><span>CLOCK</span><span class="jn"><span class="jh"></span></span></div>
+<div class="j"><span>RESET</span><span class="jn"><span class="jh"></span></span></div>
+</div>
+<span style="font-size: 21px; font-weight: 800; padding-bottom: 12px">Pocket Instruments</span>
+<div class="j" style="background: #F2E8D0; color: #14131F; padding: 9px 10px; margin-bottom: -9px"><span>AUDIO</span><span class="jn" style="background: #14131F"><span class="jh" style="background: #F2E8D0"></span></span></div>
+</div>
+</div>
+</body>
+</html>

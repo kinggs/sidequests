@@ -67,6 +67,8 @@ All entries below were checked on **2026-11-18**.
 | R28 | A third-party PO-12 cheat sheet (dated 2026-04-09). Adds: a key in write mode enters or removes a step; hold key + bpm in write mode for the step repeat; "knobs A+B shape each sound independently". ⚠ It says it is condensed from the guide, repeats one of the guide's two versions of effects 9 and 10, and gives fx + pattern for clearing a pattern where the guide gives function + pattern. Treat as a reading of R23, not a second witness | https://dbroesch.github.io/cheat-sheets/po12-cheatsheet.pdf |
 | R29 | The Pocket Operator sync pulse is reported as two per quarter note, the Korg convention. ⚠ One forum post; nothing from the maker | https://forum.conductivelabs.com/printthread.php?tid=1282 |
 
+| R30 | `ulnd/po-12` (MIT, commit f269d7f of 2026-07-06) cloned and read outside this repo. It implements: sixteen sample players, one per key; tap to play in play mode without selecting; write mode toggling the chosen sound on a step; sound and pattern keys that latch on a click; a pattern change that waits for the bar's end; three tempo presets; a keyboard block for the grid. It does not implement: any effect of the knobs on sound (its own tour says so), swing, fine tempo, effects, chains, locks. Its sixteen WAV files carry no statement of origin. Its face reproduces the original's display scene, wording and outline: it is an example of what D20 rules out, and must not be given to a design tool as reference | https://github.com/ulnd/po-12 |
+
 Patent drawings are read from the Google Patents pages and are not stored in this repo (README rule 6).
 
 ## Not yet checked

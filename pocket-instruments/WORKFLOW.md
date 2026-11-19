@@ -35,7 +35,7 @@ hardware business with no meaning in software.
 | ☐ | Change the sync mode | hold function + bpm | never (Rack has cables) |
 | ☐ | Clock, alarm, battery, power off, factory reset | various | never |
 
-The sixteen sounds, by kind only, for choosing our two to four: two bass and snare drums, two
+The sixteen sounds, by kind only (ours are in `VOICES.md`): two bass and snare drums, two
 hats, a cymbal, toms, a clap, sticks, a cowbell, noise, and three pitched tones.
 
 ## What the guide does not say
@@ -84,7 +84,26 @@ report; only the hardware replaces a report with a fact.
 
 **The expensive one is question 1.** If each key is a sound, an instrument with four sounds
 has twelve dead keys in play mode, and the thing D22 wants learned (which key is which drum)
-is not there to learn. See O11.
+is not there to learn. Settled by D30: sixteen tracks from the start.
+
+### What an open-source emulation does (R30)
+
+Read on 2026-11-19, outside this repo. It is one fan's reading of the hardware, and it leaves
+out the knobs' effect on sound, swing, fine tempo, effects, chains and locks, so it is silent
+on questions 4 to 6, 8 and 9. Where it speaks:
+
+| Question | What it does | Agrees with |
+|---|---|---|
+| 1. A tap in play mode | Plays sound *n*. Does **not** change the chosen sound | R26, R27 on the first half; the second half is new |
+| 2. Write mode | A tap puts the chosen sound on that step; a second tap takes it off | R28 |
+| 3. The lights | Write: the chosen sound's steps are lit. Playing: the current step is brightest, and keys whose sounds are firing flash for half a step. Sound held: every key lit, the chosen one brighter. Pattern held: non-empty patterns lit, the chosen one brighter | R26, R27 |
+| 7. Play and stop | Stop returns to step 1; play always starts there | new |
+| Changing pattern while playing | Waits for the end of the bar | new |
+| 10. Positions | Right-hand column, top to bottom: function, fx, play, write | R26, R27; settles the middle two |
+
+It also latches the sound and pattern keys on a click, as D23 does, and maps the grid to a
+four-by-four block of the keyboard (1234, qwer, asdf, zxcv), as D28 proposes. Both are
+evidence the idea works, from someone who has shipped it.
 
 Two checks on the hardware, about three minutes, settle what the search could not:
 
@@ -105,5 +124,6 @@ D22 asks for every one to be listed and explained. So far:
 | In Rack, a click on a function key latches it | D23: a mouse is one finger |
 | Probability on a step | not on the hardware; the brief asks for it. It needs a gesture that does not collide with anything above. Open |
 | A length under sixteen | same |
-| Two to four sounds, one pattern, at first | D12: the tiny rhythm machine is the first quarter of the homage |
+| One pattern at first | D12: the tiny rhythm machine comes first. Sixteen sounds from the start (D30) |
+| Our own sixteen sounds, in the same roles on the same keys | D31: synthesised by us, close in character, never sampled |
 | No sync modes, clock, alarm or battery | hardware business |

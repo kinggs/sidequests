@@ -21,14 +21,14 @@ extern "C" {
 #define PI_ABI_VERSION 1u
 
 #define PI_TICKS_PER_STEP 96u /* a step is a sixteenth note */
-#define PI_TRACKS 4u
+#define PI_TRACKS 16u         /* one per grid key: key n plays track n (D30) */
 #define PI_STEPS 16u
 #define PI_SWING_MAX 48u      /* ticks an odd grid step is late by, at most */
 #define PI_MBPM_MIN 30000u    /* tempo is in thousandths of a bpm */
 #define PI_MBPM_MAX 300000u
 #define PI_EVENTS_MIN 64u     /* the least room a host gives pi_process for events */
 #define PI_SNAPSHOT_VERSION 1u
-#define PI_SNAPSHOT_SIZE 100u /* bytes, for PI_SNAPSHOT_VERSION */
+#define PI_SNAPSHOT_SIZE 316u /* bytes, for PI_SNAPSHOT_VERSION */
 
 /* Clock sources (PI_CMD_SOURCE). */
 #define PI_SOURCE_TABLE 0u /* the engine counts frames at its tempo */

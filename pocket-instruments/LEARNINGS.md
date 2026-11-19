@@ -66,3 +66,17 @@ belongs in `PROOFS.md`, a change of course in `DECISIONS.md`, an outside fact in
   corroboration (R28).
 - **A review answered what the manual did not.** Reviewers describe what happens when you
   press things; manuals list combinations.
+
+## 2026-11-19 — reading an open-source emulation
+
+- **Source code answers "what happens when" better than any document,** but only for what
+  its author built. This one settled four workflow questions and was silent on every question
+  about the knobs, because its knobs do nothing.
+- **An emulation is a witness, not the hardware.** It agrees with the reviews where they
+  overlap, which raises confidence; where it stands alone (a tap does not change the chosen
+  sound, stop returns to step 1) it is still one person's reading.
+- **Its samples were worse evidence than its code.** Several are cut off at 25 to 60 ms and
+  do not match the roles the guide gives. Measured for rough numbers, trusted for little.
+- **The same repo is the clearest picture of what our look must not be**: the original's
+  display scene, wording and outline, redrawn. Useful to know before any of it reaches a
+  design tool by accident.

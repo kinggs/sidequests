@@ -7,7 +7,7 @@ The contract between the core and its two hosts. `core/include/pi_engine.h` is t
 contract in C; where the two disagree, this file is right and the header gets fixed.
 `fixtures/` holds the traces an implementation must reproduce.
 
-Scope of ABI 1: sequencing only. Four tracks of sixteen trigger steps, swing, probability,
+Scope of ABI 1: sequencing only. Sixteen tracks (D30) of sixteen trigger steps, swing, probability,
 length, reset, the table clock and external clock edges. No sound, no keys, no patterns bank.
 
 ## 1. The shape
@@ -141,7 +141,7 @@ tick 0 is the next edge. Reset does not touch the pattern, the tempo or the rand
 
 ## 5. The sequencer
 
-Pattern: for each of 4 tracks, 16 steps, each `on` or off with a probability 0 to 100
+Pattern: for each of 16 tracks, 16 steps, each `on` or off with a probability 0 to 100
 (default 100). Plus `length` (1 to 16, default 16) and `swing` (0 to 48 ticks, default 0).
 
 State: `playing`, `fresh`, `cur` (pattern step), `pending`, `offset`.
@@ -158,7 +158,7 @@ tick k:   g = k / 96;  t = k % 96
 
   if playing and pending and t == offset:
     pending = false
-    for track 0..3:
+    for track 0..15:
       if on[track][cur]:
         p = prob[track][cur]
         if p >= 100 or draw() % 100 < p:  emit TRIG(track, cur)
@@ -260,22 +260,23 @@ it saves: Rack as a base64 string in the patch's JSON, the browser the same in i
 Why not one readable format: the core has no allocator and should not carry a JSON parser,
 and one writer with one reader cannot drift. A readable export is a tool for later.
 
-Version 1, 100 bytes, little-endian:
+Version 1, 316 bytes, little-endian. (It was 100 bytes for four tracks until D30; nothing
+had been built, so the number stays 1.)
 
 | Offset | Size | Field |
 |---|---|---|
 | 0 | 4 | magic: the bytes `P K I N` |
 | 4 | 2 | version: 1 |
 | 6 | 2 | kind: 1 (the rhythm instrument) |
-| 8 | 4 | payload size: 84 |
+| 8 | 4 | payload size: 300 |
 | 12 | 4 | seed |
 | 16 | 4 | tempo, thousandths of a bpm |
 | 20 | 1 | length |
 | 21 | 1 | swing |
 | 22 | 2 | zero |
-| 24 | 8 | steps: one u16 per track, bit `s` is step `s` |
-| 32 | 64 | probability: track by track, one byte a step |
-| 96 | 4 | CRC-32 (the zip one) of bytes 0 to 95 |
+| 24 | 32 | steps: one u16 per track, bit `s` is step `s` |
+| 56 | 256 | probability: track by track, one byte a step |
+| 312 | 4 | CRC-32 (the zip one) of bytes 0 to 311 |
 
 - **Saved:** the pattern, length, swing, tempo, seed. **Not saved:** the playhead, the tick
   count, whether it is playing, the clock source. Those belong to the moment and the host.
@@ -318,7 +319,8 @@ it is not, as the hardware runs alone.
 |---|---|---|
 | Audio out | no voice yet | P7 adds a `float *` to `pi_process`; ABI 2 |
 | Keys and sliders doing anything | the workflow is not confirmed on hardware | with the instrument, from `WORKFLOW.md` |
-| Sixteen sounds, sixteen patterns, chains | D12 says two to four sounds; the rest is scope to decide | snapshot version 2 |
+| The sixteen sounds themselves | no voice yet; the tracks are there (D30), the roles are in `VOICES.md` | P7 onwards, a few at a time |
+| Sixteen patterns, chains | scope to decide | snapshot version 2 |
 | Parameter locks, step multiplier, effects | same | same |
 | A command in the middle of a step, in a fixture | on edges, a flush is one indivisible burst, so the position cannot be matched | fixture format 2, with live recording |
 | Tempo changes and resets inside a fixture | the harness would need to re-anchor its step frames | a fourth fixture in Session 2, rule in `fixtures/README.md` |
