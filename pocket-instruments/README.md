@@ -1,8 +1,8 @@
 # Pocket Instruments
 
-**Status:** P1 and P2 passed. P3 to P7 are each half-run (2026-11-19, Session 3): the core runs
-in Rack and in an AudioWorklet and makes its first sound; what is left of each needs the
-owner's ears, a phone or another machine (`PROOFS.md`). Started 2026-11-18.
+**Status:** P1, P2 and P3 passed. P4 to P7 are each half-run (2026-11-19, Session 3): the core
+runs in Rack and in an AudioWorklet and makes its first sound; what is left of each needs a
+phone or another machine (`PROOFS.md`). Started 2026-11-18.
 
 Small calculator-format musical instruments, free and open source, playable as VCV Rack modules
 and in a browser, from one shared engine. An affectionate, credited homage to Teenage

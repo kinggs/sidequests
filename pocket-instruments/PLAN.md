@@ -131,7 +131,7 @@ purpose; stable Rust only; nothing visual (no panel art, nothing in `design/` or
 
 - [x] Download the Rack SDK 2.6.6 for Linux outside the repo. Done 2026-11-19, ahead of the
       session: see Machine state.
-- [ ] **1. P3 in full.** The machine's half is done and measured. **Not ticked: the owner's ten minutes are left.**
+- [x] **1. P3 in full.** Passed: the machine's half, then the owner's ten minutes the same afternoon.
       `rack/`: a blank-panel module, CLOCK in, RESET in, GATE out, the core
       called once per sample. `RACK_DIR` defaults to `~/.local/opt/Rack-SDK-2.6.6` in the
       Makefile. The Makefile builds the Rust library first, with Rack's CPU flags (R16), and
@@ -164,8 +164,8 @@ Was all of P4 until Session 3 was widened; the desktop half moved there.
 
 - [x] Serve `web/` from GitHub Pages. Nothing to do: it is plain files and the `.wasm` is
       committed (Session 3).
-- [ ] Owner, in Rack, ten minutes: the list under "After Session 3" below. Then fill in P3 and
-      P6's Rack row.
+- [x] Owner, in Rack, ten minutes. Done 2026-11-19, the same afternoon as Session 3: P3 passed,
+      and P6's Rack row is filled in.
 - [ ] Owner, on each phone: Run the proof; Play for ten minutes; film the Tap pad. Fill in P4.
 - [ ] P7's voice count on a phone: a page that runs N copies of the click.
 - [ ] P5: the four links and the question to VCV (`PROOFS.md` P5, "What the full proof
@@ -339,3 +339,18 @@ Decided when P1 to P4 are in, not before:
   or any app changed.
 - Next: Session 4, which is mostly the owner's hands. Then a build session on Opus from
   the list above.
+
+### Later the same day: the ten minutes in Rack (2026-11-19)
+
+- **P3 passed.** The owner ran the patch for about fifteen minutes with a sound card: no
+  click heard, 0.1 % CPU a probe, a change from 96 to 48 kHz while playing, 271 passes
+  matched and none mismatched. Numbers in `PROOFS.md`. D13's first trigger is closed; its
+  second (P5) is still open.
+- **P6's Rack row is done** from Rack's own autosave, read while it played. P6 stays
+  `running` for the browser.
+- The list above headed "The owner's ten minutes in Rack" is kept as what was asked. What
+  was needed in the end was less: leave it playing, listen, change the rate once. The
+  autosave and the log carry the rest.
+- How a plugin gets into Rack, since it was asked: `make install` in `rack/` puts a
+  `.vcvplugin` in `~/.local/share/Rack2/plugins-lin-x64/`, and Rack unpacks it at its next
+  start. Restart Rack after every rebuild.

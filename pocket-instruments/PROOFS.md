@@ -15,10 +15,10 @@ engineering gate the brief asks for (its D2). Nothing visual is built before P3 
 |---|---|---|
 | P1 | One crate, two targets | passed 2026-11-19 |
 | P2 | Same trace everywhere | passed 2026-11-19 |
-| P3 | It runs in Rack | running: the machine's half passed 2026-11-19; the owner's ten minutes are left |
+| P3 | It runs in Rack | passed 2026-11-19 |
 | P4 | It runs in a phone browser | running: both desktop browsers passed 2026-11-19; the phones are left |
 | P5 | It ships to other people's machines | running: four libraries built and checked here 2026-11-19; one bar not met (macOS 10.9); no plugin linked or loaded elsewhere |
-| P6 | Editing while playing is safe | running: ThreadSanitizer half passed 2026-11-19, with a finding (D43); the save in Rack and the browser are left |
+| P6 | Editing while playing is safe | running: ThreadSanitizer half and the save in Rack passed 2026-11-19, with a finding (D43); the browser is left |
 | P7 | Shared sound is worth sharing | running: the render half passed 2026-11-19 (the same bytes); the phone's voice count is left |
 | P8 | It feels like the real thing | open |
 | P9 | The look is one we may publish | open |
@@ -135,9 +135,9 @@ clock in and a scope on the output.
 **If it fails:** Rust-in-Rack is not worth the friction. Fall back to a C++ core compiled to
 WASM with Emscripten, re-implemented against the P2 fixtures.
 
-**Result: running. The machine's half passed, 2026-11-19 (Session 3).** D13's kill
-criterion is not met: Rust links into a Rack plugin and runs there. What is left needs
-ears, eyes and a sound card.
+**Result: passed, 2026-11-19 (Session 3).** D13's kill criterion is not met: Rust links
+into a Rack plugin and runs there. The machine's half ran first and is the table below as
+first written; the owner's half ran the same afternoon and is the table after it.
 
 What was built: `rack/`, a plugin with one module, the Probe. It plays a P2 fixture round
 and round on the core, one `pi_process` call a sample, and checks every pass against that
@@ -163,9 +163,23 @@ The checks can fail: swing made to follow the pattern step in the core gave "0 p
 matched, 42 did not" on the swing fixture and a failed self-test; a planted reference to
 `rust_eh_personality` failed `check-link`.
 
-**To finish it:** open `rack/build/P3.vcv` (`make -C rack patch`) and follow the list in
-`PLAN.md`'s Handover. The probes' counts are in each one's right-click menu, in Rack's
-`log.txt`, and in any patch saved while they play.
+**The owner's half, the same afternoon.** Rack Free 2.6.6 with its window and a sound card
+(a Scarlett), on `rack/build/P3.vcv`: two probes, a Scope, and a quiet sine to the output
+so that a dropout would be heard. It ran about fifteen minutes. The counts were read from
+Rack's log and its autosave while it was still playing.
+
+| Bar left above | Measured |
+|---|---|
+| Ten minutes with no audio dropout | The owner listened for ten minutes and heard no click. The log runs to 897 s with no warning in it |
+| Survives a sample-rate change | Changed from 96 kHz to 48 kHz while playing, at about 650 s. The probe on the LFO's clock was mid-pass and that pass still matched: 0 cut short, 0 mismatched. The probe on its own clock started its pass again, as built: 1 cut short. Both went on matching at 48 kHz |
+| Two instances side by side | Clocked probe (swing-length-change): 39 passes matched. Own-clock probe (straight-sixteenths): 232 matched. 0 mismatched and 0 events dropped in either |
+| CPU meter under 1 % | 0.1 % for each probe, on Rack's meter (the owner's screenshot) |
+| The gate pattern on the scope matches the P2 fixture | By count: every one of the 271 passes above is its fixture's trace, event for event. By eye: the owner saw both gates firing with the clock, 0 to 10 V on both Scope inputs, both lights green. ⚠ Nobody measured the swing on the Scope's screen; the count is the evidence that it is right |
+
+Rack was also closed and started again at 96 kHz before this run: each probe loaded the
+snapshot Rack had saved for it ("1 loaded, 0 refused").
+
+The patch's wiring, which had never been seen on a screen when it was written, was right.
 
 ### P4 — It runs in a phone browser
 
@@ -295,8 +309,8 @@ reordered (a model engine given the same messages must end each round with the s
 | Bar | Measured |
 |---|---|
 | ThreadSanitizer clean | Clean, twice: flat out (about 100 000 blocks, 19 000 publishes, 28 000 snapshots taken) and with an idle audio thread (10 884 blocks, 1.1 million snapshots taken). 3 804 rounds, 19 862 edits and 760 loads each time; 0 torn, 0 rounds where the snapshot was not the model's; 0 events dropped |
-| No dropout | **Left**: needs Rack with a sound card, and the browser |
-| A saved pattern reloads to the same P2 trace on the other host | From the harness, yes: each fixture's pattern was entered as edits while the core played, the snapshot taken, and those exact 316 bytes are ones the wasm host loaded in `make test` and got that fixture's trace from (four of four). From a patch saved in Rack: **left for the owner**; `rack/check-patch.mjs` makes the same comparison on the saved file |
+| No dropout | In Rack: none heard in ten minutes, while Rack autosaved the patch every 15 s and the probes published 313 snapshots between them. **Left**: the browser |
+| A saved pattern reloads to the same P2 trace on the other host | From the harness, yes: each fixture's pattern was entered as edits while the core played, the snapshot taken, and those exact 316 bytes are ones the wasm host loaded in `make test` and got that fixture's trace from (four of four). From a patch saved in Rack while it played: yes. `rack/check-patch.mjs` on Rack's own autosave, taken at 14:37 with Rack still playing: both probes' snapshots are whole, and each is byte for byte one the wasm host loaded and got that fixture's trace from. ⚠ It was Rack's autosave, not File › Save As; both call the module's same `dataToJson` on Rack's thread |
 
 **The findings** (`ENGINE.md` §8 now says all of this):
 
@@ -324,9 +338,10 @@ In Rack so far: the Probe publishes a snapshot whenever the pattern changes and 
 thread saves the latest. Headless Rack loaded a good snapshot from a patch ("1 loaded") and
 refused one with a flipped bit ("1 refused").
 
-**To finish it:** save the patch while the probes play (File › Save As) and run
-`node rack/check-patch.mjs <the file> target/report-node.txt`. The browser's half comes
-with the instrument: the worklet posts a copy, so there is no shared memory to race on.
+**To finish it:** the browser's half, which comes with the instrument: the worklet posts
+a copy, so there is no shared memory to race on. (To repeat the Rack row:
+`node rack/check-patch.mjs ~/.local/share/Rack2/autosave/patch.json target/report-node.txt`
+while Rack plays.)
 
 ### P7 — Shared sound is worth sharing
 
