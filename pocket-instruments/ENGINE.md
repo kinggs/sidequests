@@ -1,7 +1,8 @@
 # The engine interface
 
 **Status:** decided by the owner 2026-11-19 (D17, D24, D25, D26). P2 passed on it in Session 2;
-P6 still tests it; a failed proof reopens it. Written in Session 1. Building it found seven
+P6's ThreadSanitizer half ran on it in Session 3 and changed §8's hand-over (D43, proposed); a
+failed proof reopens it. Written in Session 1. Building it found seven
 places where the text did not say what happens; they are marked (D42) below.
 
 The contract between the core and its two hosts. `core/include/pi_engine.h` is the same
@@ -263,7 +264,9 @@ Two runs agree when their traces are the same bytes.
   In the browser and Node the host grows the module's memory by one page and puts the engine
   and both buffers there. Checked in Session 2: it works with no glue, the module imports
   nothing, and the engine (352 bytes), a snapshot, 256 events and 4 778 commands fit the page.
-- **One thread.** Every function on an engine is called from the audio thread only.
+- **One thread.** Every function on an engine is called from the audio thread only. That
+  includes the ones that only read: `pi_save` on another thread while `pi_process` runs is a
+  data race (P6 planted it and the sanitizer found it).
 
 ### The snapshot (answers O5)
 
@@ -311,10 +314,32 @@ had been built, so the number stays 1.)
 
 `pi_generation()` returns a counter that changes whenever a command changes what a snapshot
 would hold. The host's audio thread compares it after a block; when it has moved, it calls
-`pi_save` into a spare buffer and publishes that buffer to the other thread (in Rack: two
-buffers and an atomic index; in the browser: a message from the worklet, at most a few a
-second). The saving thread only ever reads a published copy. Loading goes the other way: the
-bytes are queued to the audio thread, which calls `pi_load` between blocks.
+`pi_save` into a buffer of its own and hands that buffer to the other thread. The saving
+thread only ever reads a copy that was handed over; it never calls the core.
+
+How it is handed over, and how a load comes back (D43, proposed; P6 ran it under
+ThreadSanitizer, `harness/race.cpp`). `rack/src/handoff.hpp` is this in C++:
+
+- **Snapshots out: three buffers, not two.** The first draft said "two buffers and an atomic
+  index". That is a data race: a reader still copying buffer A can have A written again by
+  the second publish after the one it saw. ThreadSanitizer reports it at once. No torn
+  snapshot was seen in ordinary runs, because the copy is 316 bytes and the reader would
+  have to stall across two publishes; it is still wrong. With three buffers each thread
+  owns one outright and they swap through the third with one atomic exchange.
+- **Edits in: one queue, every edit, in order.** The other thread never calls `pi_process`.
+  It queues commands; the audio thread gives them to its next block.
+- **A load travels in that same queue,** as a marker among the edits, its bytes in a short
+  queue beside it. On a channel of its own a load and an edit sent in one breath can arrive
+  in the other order, and the edit is then loaded over. `pi_load` runs between blocks, so a
+  load that finds edits ahead of it in the block waits for the next block: `pi_process`
+  with no frames applies nothing (§3), so they cannot be flushed first.
+- **A save can miss the last block's edits.** A snapshot holds what the audio thread had
+  taken when it saved. A host that must know (an export, a test) publishes a count of the
+  messages taken beside each snapshot and waits for it. A host whose audio thread is not
+  running, such as a browser page before its first tap, has no snapshot newer than its last
+  block and must not offer a save as if it had.
+- In the browser the worklet posts the bytes in a message, at most a few a second. A
+  message is a copy, so nothing is shared and none of the above can go wrong there.
 
 ## 9. The table, in the browser
 

@@ -505,6 +505,27 @@ the plainest way and written into `ENGINE.md`, marked (D42). No fixture and no p
 Why proposed, not decided: these are the builder's readings. The owner can overrule any of
 them cheaply now; after P3 and P4 two hosts will lean on them.
 
+### D43 — How a host hands snapshots, edits and loads between its threads
+**2026-11-19 · proposed · built this way in Session 3 · corrects `ENGINE.md` §8; the core and the ABI do not change**
+
+P6's ThreadSanitizer half ran the core on one thread while another edited, loaded and took
+snapshots. The core's rule (one thread calls it) held. The host recipe beside it did not.
+
+1. **Snapshots out go through three buffers and one atomic exchange,** not "two buffers and
+   an atomic index". The two-buffer scheme is a data race; the sanitizer reports it.
+2. **Edits go in through one queue,** single writer, single reader, in order.
+3. **A load goes in through the same queue as the edits,** as a marker with its bytes
+   beside it. On its own channel a load and the edit after it can swap.
+4. **The audio thread publishes a count of messages taken with each snapshot** where the
+   host needs to know a save holds its last edit. A save otherwise may miss one block.
+5. All of it is host code, in `rack/src/handoff.hpp`, and the browser needs none of it:
+   a worklet message is a copy.
+
+Why proposed, not decided: it changes a paragraph the owner decided (D25's "saving while
+playing"). Why it is cheap: no fixture, no trace, no core function and no pass bar moved.
+What it rules out: a second thread calling `pi_save` or `pi_generation` "because they only
+read". Evidence: `PROOFS.md` P6.
+
 ## Open
 
 | ID | Question | Needs |

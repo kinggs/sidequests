@@ -6,7 +6,7 @@ WASM   := target/wasm32-unknown-unknown/release/pi_core.wasm
 REPORT := $(CURDIR)/target/report
 CXX    ?= c++
 
-.PHONY: build test check-toolchain check-p1 clean rack-lib
+.PHONY: build test check-toolchain check-p1 clean rack-lib race
 
 # Both targets from one crate, one crate type each: a static library for Rack and the C++
 # harness, a bare module for the browser and Node.
@@ -36,6 +36,14 @@ test: build check-p1
 	cmp $(REPORT)-rust.txt $(REPORT)-cpp.txt
 	cmp $(REPORT)-rust.txt $(REPORT)-node.txt
 	@echo "Pocket Instruments: three harnesses, $$(grep -c '^#' $(REPORT)-rust.txt) runs each, one report ($$(sha256sum < $(REPORT)-rust.txt | cut -c1-16))."
+	@if command -v clang++ >/dev/null; then $(MAKE) --no-print-directory race; else echo "P6's ThreadSanitizer run skipped: no clang++."; fi
+
+# P6, the ThreadSanitizer half: the core on one thread while another edits, loads and takes
+# snapshots. harness/race.cpp says what is checked and harness/race.sh what must come out.
+# Needs `make test` first, for the Node report.
+race:
+	clang++ -std=c++17 -O1 -g -fsanitize=thread -Wall -Wextra -Werror -Icore/include harness/race.cpp $(NATIVE) -o target/race
+	sh harness/race.sh target/race fixtures $(REPORT)-node.txt
 
 # rust-toolchain.toml is the pin. mise.toml must name the same version, and so must the
 # compiler that actually runs: mise sets RUSTUP_TOOLCHAIN, which wins over the file. For the
