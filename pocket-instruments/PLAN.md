@@ -40,7 +40,12 @@ pocket-instruments/
   (`~/.local/opt/Rack2Free-2.6.6`, user folder `~/.local/share/Rack2`).
 - Since Session 2 (2026-11-19): Rust 1.100.0 through mise, with `wasm32-unknown-unknown`.
   It resolves only inside this folder (`mise.toml`); there is no global Rust.
-- Missing: the Rack SDK 2.6.6, cmake.
+- Since 2026-11-19, after Session 2: the Rack SDK 2.6.6 for Linux, at
+  `~/.local/opt/Rack-SDK-2.6.6` (from vcvrack.com; the zip's sha256 began `420da245`). A blank
+  plugin built against it with g++ in one `make`. `RACK_DIR` is not set in any shell file:
+  give the plugin's Makefile that path as its default. clang's ThreadSanitizer reports a
+  planted race, so P6's harness can run here.
+- Missing: cmake (the SDK does not need it), Firefox, Playwright. Chromium is present.
 
 ---
 
@@ -107,7 +112,8 @@ Phase 1's first critical step. No Rack, no browser, no sound.
 
 ## Session 3 — P3: it runs in Rack (build, Opus)
 
-- [ ] Download the Rack SDK 2.6.6 for Linux outside the repo; set `RACK_DIR`.
+- [x] Download the Rack SDK 2.6.6 for Linux outside the repo. Done 2026-11-19, ahead of the
+      session: see Machine state. `RACK_DIR` is the Makefile's default, not a shell setting.
 - [ ] `rack/`: a blank-panel module, CLOCK in, RESET in, GATE out, calling the core once per
       sample. The Makefile builds the Rust library first, with Rack's CPU flags (R16).
       Link `target/release/libpi_core.a` as `harness/harness.cpp` does. Watch for
