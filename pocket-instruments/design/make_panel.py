@@ -38,8 +38,11 @@ FRAME = 0.35
 MID_Y, MID_H = 38.0, 48.0  # the band the grid, sliders and function keys share
 
 GRID_X, PITCH, KEY = 5.0, 12.0, 11.7  # 4 x 4 at 12 mm pitch
-DIVIDERS = (56.0, 74.0)
-SLIDERS = {"A": 61.5, "B": 68.5}  # centre lines
+# The sliders were 7 mm apart, at 61.5 and 68.5, with the dividers at 56 and 74. The owner
+# widened them to 10 mm (2026-11-19) for the guide's thumb room (R33). The space came from the
+# clearances beside the dividers, so the grid and the function keys did not move.
+DIVIDERS = (55.25, 74.75)
+SLIDERS = {"A": 60.0, "B": 70.0}  # centre lines
 SLIDER_TOP, SLIDER_BOTTOM = 38.0, 81.0
 THREAD = 0.67
 LETTER_Y = 84.2  # centre of the A and B under the threads

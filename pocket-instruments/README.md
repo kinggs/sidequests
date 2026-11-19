@@ -25,6 +25,7 @@ into its own repository.
 | `VOICES.md` | The sixteen sounds: role, recipe, what the sliders do | Until each voice is built and passes by ear |
 | `samples/` | The starter drum pack: sixteen CC0 files, their origins, and a page to hear them | A swap is a new file and a new manifest row |
 | `WORKFLOW.md` | What each press does, in our words; the owner ticks each row on the hardware | Until P8 |
+| `RACK-RULES.md` | What any module of ours for VCV Rack is held to: the panel, the voltages, the code | Re-read VCV's manual (R33 to R35) before leaning on an old line |
 | `design/DESIGN.md` | The look (Loom): tokens, key states, the panel in mm, the phone layout | Changed by a decision; `design/panel.svg` is redrawn by its script |
 | `PLAN.md` | The sessions, their checklists and the Handover note | Each session ticks its boxes and writes its Handover |
 

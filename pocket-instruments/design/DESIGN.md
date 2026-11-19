@@ -169,8 +169,8 @@ Positions in mm from the top-left corner (`uv run pocket-instruments/design/make
 |---|---|---|---|---|
 | display (inside the frame) | 61.00 | 19.50 | 111.30 | 24.30 |
 | key *n*, column *c* and row *r* from 0 | 11 + 12*c* | 44 + 12*r* | 11.70 | 11.70 |
-| slider A (travel) | 61.50 | 59.50 | 5.00 | 43.00 |
-| slider B (travel) | 68.50 | 59.50 | 5.00 | 43.00 |
+| slider A (travel) | 60.00 | 59.50 | 5.00 | 43.00 |
+| slider B (travel) | 70.00 | 59.50 | 5.00 | 43.00 |
 | sound | 83.47 | 49.85 | 12.93 | 23.70 |
 | pattern | 97.00 | 49.85 | 12.93 | 23.70 |
 | bpm | 110.53 | 49.85 | 12.93 | 23.70 |
@@ -211,7 +211,7 @@ for 800. Pass an ExtraBold file to `make_panel.py` to redo it.
 
 ## What VCV's manual asks, and where this stands
 
-From R33 to R35. The manual gives no numbers for type size, spacing or colour.
+The rules themselves are in `../RACK-RULES.md`. This is Loom against them.
 
 | The manual asks | Here |
 |---|---|
@@ -220,7 +220,7 @@ From R33 to R35. The manual gives no numbers for type size, spacing or colour.
 | No complex gradients, no CSS | Yes: flat fills only |
 | Component graphics off the panel, on a hidden `components` layer | Partly: the panel is static only, but it has no `components` layer. The positions table above stands in; the builder adds the layer if Rack's helper script is used |
 | An inverted background for output ports | Yes, since the jack row was redrawn |
-| Room for thumbs between knobs and ports | Sockets are 11.67 mm apart or more; keys are at 12 mm. ⚠ The sliders are 7 mm apart, which is close |
+| Room for thumbs between knobs and ports | Sockets are 11.67 mm apart or more; keys are at 12 mm; the sliders are 10 mm apart (they were 7; the owner widened them, and the dividers closed in to make the room) |
 | Text readable at 100% on an ordinary monitor | ⚠ Jack labels were raised to 2.6 mm for this, about 5.6 px of capital height at 100%. Rendered and read at that size here, not in Rack |
 | Roughly the density and text sizes of VCV's own modules | ⚠ Not compared against one |
 | Do not use others' intellectual property | D20's avoid list; O7 at P9 |
