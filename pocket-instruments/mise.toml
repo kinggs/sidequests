@@ -1,4 +1,6 @@
-# mise installs Rust (through rustup) for this folder. The version is pinned in
-# rust-toolchain.toml, which rustup and every other tool reads; this line must match it.
+# mise installs Rust (through rustup) for this folder: `mise install`, once.
+# The pin is rust-toolchain.toml; this line must match it (`make check-toolchain`).
+# Kept to a bare version on purpose: with options on the line (targets, profile) mise asks
+# for `mise trust` in every fresh clone. The Makefile adds the wasm target instead.
 [tools]
-rust = { version = "1.100.0", profile = "minimal", targets = "wasm32-unknown-unknown" }
+rust = "1.100.0"

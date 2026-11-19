@@ -26,15 +26,17 @@ test: build check-p1
 	@echo "Pocket Instruments: three harnesses, $$(grep -c '^#' $(REPORT)-rust.txt) runs each, one report ($$(sha256sum < $(REPORT)-rust.txt | cut -c1-16))."
 
 # rust-toolchain.toml is the pin. mise.toml must name the same version, and so must the
-# compiler that actually runs: mise sets RUSTUP_TOOLCHAIN, which would win over the file.
+# compiler that actually runs: mise sets RUSTUP_TOOLCHAIN, which wins over the file. For the
+# same reason rustup does not fetch the file's targets by itself, so the wasm one is added
+# here the first time.
 check-toolchain:
 	@pin="$$(sed -n 's/^channel = "\(.*\)"/\1/p' rust-toolchain.toml)"; \
-	mise_pin="$$(sed -n 's/^rust = .*version = "\([^"]*\)".*/\1/p' mise.toml)"; \
+	mise_pin="$$(sed -n 's/^rust = "\(.*\)"/\1/p' mise.toml)"; \
 	run="$$(rustc --version | cut -d' ' -f2)"; \
 	[ -n "$$pin" ] || { echo "no channel in rust-toolchain.toml"; exit 1; }; \
 	[ "$$pin" = "$$mise_pin" ] || { echo "rust-toolchain.toml pins $$pin but mise.toml says $$mise_pin"; exit 1; }; \
 	[ "$$pin" = "$$run" ] || { echo "rust-toolchain.toml pins $$pin but rustc is $$run (run: mise install)"; exit 1; }; \
-	rustup target list --installed | grep -qx wasm32-unknown-unknown || { echo "the wasm32-unknown-unknown target is missing (run: mise install)"; exit 1; }
+	rustup target list --installed | grep -qx wasm32-unknown-unknown || rustup target add wasm32-unknown-unknown
 
 # P1's pass bar, checked on what was built rather than on what the source says.
 # The static library is our one object plus Rust's precompiled compiler_builtins, which a
