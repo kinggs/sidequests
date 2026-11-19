@@ -51,6 +51,10 @@ pocket-instruments/
 - Since Session 3: rustup also holds `x86_64-pc-windows-gnu`, `x86_64-apple-darwin` and
   `aarch64-apple-darwin` (for `make targets`). The plugin is installed in
   `~/.local/share/Rack2/plugins-lin-x64/`. Rack runs headless: `rack/selftest.sh` (R40).
+- ⚠ In Rack's Audio module use the PulseAudio driver, not ALSA. On ALSA Rack takes the
+  Scarlett whole and the desktop loses it until its profile is switched off and on again
+  (it happened during P3's ten minutes; the fix is in `~/.dotfiles/docs/kenny-archy.md`).
+  `rack/patch/patch.json` names no driver, so Rack picks; choose by hand.
 
 ---
 
