@@ -1,0 +1,4 @@
+# mise installs Rust (through rustup) for this folder. The version is pinned in
+# rust-toolchain.toml, which rustup and every other tool reads; this line must match it.
+[tools]
+rust = { version = "1.100.0", profile = "minimal", targets = "wasm32-unknown-unknown" }

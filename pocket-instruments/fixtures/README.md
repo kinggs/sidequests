@@ -21,7 +21,11 @@ Only objects, arrays, strings and whole numbers.
 
 A command is `{"at": n, "cmd": name, ...}` with the arguments its type takes:
 `play` (`value`), `step` (`track`, `step`, `value`), `prob` (`track`, `step`, `value`),
-`swing` (`value`), `length` (`value`). Commands with the same `at` are sent in file order.
+`swing` (`value`), `length` (`value`), `reset` (none). Commands with the same `at` are sent
+in file order.
+
+`at` and `steps` count **run steps**: grid steps since the run began, not since the last
+reset. Only a `reset` makes the two differ (below).
 
 ## How a harness runs one
 
@@ -40,9 +44,16 @@ frame grid step `n` falls on.
 P2's pass bar is every fixture, on both runs, at 44 100, 48 000 and 96 000, in blocks of 1,
 128 and 512, through all three harnesses: the same bytes each time, and `pi_dropped` at zero.
 
-Format 1 leaves two things out, because each would need the harness to re-anchor `F`:
-a `reset` or `tempo` command after step 0, and a command placed inside a step. When a fixture
-needs a reset, the rule is: steps after it are counted from the frame the reset landed on.
+### A reset (added in Session 2, for `reset-mid-bar`)
+
+Steps after a reset are counted from the frame the reset landed on. The harness keeps an
+anchor: a frame `A` and a run step `a`, both 0 at the start. Run step `m` falls on frame
+`A + F(m - a)`. A `reset` at run step `m` is sent at that frame, and then `A` becomes that
+frame and `a` becomes `m`. On the edges run the `CLOCK` for run step `m` follows the `RESET`
+in the same frame, as it follows every other command. In the trace, ticks start again from 0.
+
+Format 1 still leaves two things out: a `tempo` command after step 0 (the harness would have
+to re-anchor `F` in the same way; no fixture needs it yet) and a command placed inside a step.
 
 ## Where the expected traces came from
 
@@ -77,3 +88,10 @@ edited just to make a build pass.
   | 6 | 0 | 435756210 | 10 | yes |
 
   Track 2 takes a draw on step 4 in each bar, so each bar uses 17 draws.
+- **reset-mid-bar.** Written by hand in Session 2 before any engine ran it. A draw fires when
+  `draw % 100 < 70`. Track 5 draws on pattern steps 1, 2 and 5. Before the reset: 69 fires
+  (tick 120, swung), 89 does not, 61 fires (tick 504). The reset lands on run step 7; ticks
+  restart at 0 and that step is grid step 0, so track 3 fires on time. After it the draws
+  carry on from the table above: 95 does not fire, 33 fires (tick 192), 4 fires (tick 504).
+  Had the reset reseeded the generator, the second half would repeat the first. 18 lines
+  before the reset, 21 after (nine steps): 39 lines.
