@@ -394,10 +394,20 @@ the draw and the results, the same way on every phone, so nothing about the brac
   may change their own entry until it's disputed or a later match depends on it. The opponent
   may say **Not right** to a result they didn't enter: it turns amber, and only the organiser
   then changes it, clears it or lets it stand (**It stands**).
+- **Score it in Rack It** (2.31.0): from a ready match's sheet, or under **Enter the result** on
+  Your path, for whoever may enter it and plays in it (or the organiser). Match setup opens locked
+  to the fixture: a card on top with **Not now**, both players (an opponent this phone doesn't
+  know reads the tournament's name), the game and race fixed, handicap off, no Rated tick. The
+  match is a friendly carrying `tournament`, `fixture`, `tournamentName` and `round`; saved, its
+  racks become the result (`match` names it), with no confirm. Its summary names the tournament
+  and round, says it's rated when the tournament finishes, and has **Back to the tournament**.
+  Discarded, the fixture is still to play. A result entered meanwhile wins; a match nobody won
+  isn't a result.
 - **The finish, and ratings** (2.29.0, TOURNAMENT.md §3.7). When the last match is in and no
   result is disputed, the organiser's phone finishes it (the next time it sees it, if a player
   entered the last one); **Hold to end early** finishes it as it stands. Finishing rates it:
-  every result between two accounts that isn't a walkover becomes a rated match in Matches
+  every result between two accounts that isn't a walkover becomes a rated match in Matches (one
+  scored in Rack It is that match, marked rated)
   (`tour_<tournament>_<key>`, `entered: true`, `tournament`, `tournamentName`, `fixture`,
   `round`), in the order the results were entered, each from the ratings as they stand then,
   with its two ratings in the same batch. Its summary says "rated as part of Kenny's tournament,
@@ -905,7 +915,10 @@ drills/<id>                      // Spot 9 (2.27.0): one document a drill, writt
   organiser claims the finish once (live to done, `ratedAt` within the hour, `ratedBy`
   themselves); after it only `name` and the growing `rated` note change. The claimer then
   creates each rated match (`tourRated`: id `tour_<id>_<key>`, the result's two accounts in
-  order, no walkover) and writes its two ratings (`tourRating`), within a day of the claim.
+  order, no walkover) and writes its two ratings (`tourRating`), within a day of the claim. A
+  fixture's match scored in Rack It (2.31.0): an entrant starts it against another account in the
+  live tournament without being connected (`fixtureStarts`), always a friendly; at the finish the
+  claimer marks it rated (`tourMarks`), touching only its rating fields.
 - **Drills** (`shared/firestore.rules`, its own block): an account reads the drills with its uid in
   `uids`, lists them only with that filter, starts one only as itself (`by` and the one `players`
   and `uids` entry all its uid, live), writes a live one's runs and totals and ends it, never

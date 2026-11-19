@@ -15,8 +15,12 @@
 // they aren't playing; a ready match's sheet says where the winner goes, and that row jumps the
 // draw there with a pulse; the draw moves on after a save; Ann's Your match button brings her back.
 //
+// 2.31.0, Session 4 (§3.5 item 3): Ann scores the final against Ben, whom she isn't connected to,
+// in Rack It: setup filled and locked; a discarded go leaves it to play; the saved one is the
+// result, with no confirm; the finish marks that match rated and writes no second one.
+//
 //   node shared/proofs/rack-it-tournament.mjs
-import { ok, summary, serve, browser, tab, C, tryC, text, store, hold, shot, matchesOf, ratingsOf } from "./h.mjs";
+import { ok, summary, serve, browser, tab, C, tryC, text, store, hold, shot, matchesOf, ratingsOf, answerBreak } from "./h.mjs";
 import * as B from "../../rack-it/bracket.js";
 const srv = await serve();
 const { b, ctx } = await browser();
@@ -326,7 +330,7 @@ ok(/Rated: 2 matches/.test(await text(owner, "#tBody")), "the page says it's rat
 await shot(owner, "tournament-rated");
 // Not twice: seeing it again rates nothing more.
 await owner.reload(); await owner.waitForTimeout(1200);
-ok((await matchesOf(owner)).filter(m => m.tournament === t3.id).length === 2 && (await ratingsOf(owner))["mock-ann"].sessions === afterR["mock-ann"].sessions, "rated once only");
+ok((await matchesOf(owner)).filter(m => m.tournament === t3.id).length === 2 && (await ratingsOf(owner))["mock-ann"].sessions === afterR["mock-ann"].sessions, "rated once only: " + JSON.stringify([(await matchesOf(owner)).filter(m => m.tournament === t3.id).map(m => m.id), (await ratingsOf(owner))["mock-ann"], afterR["mock-ann"]]));
 // A rated result can't change, even for the organiser in the rules (the owner's role aside).
 ok(await tryC(ben, (c, a) => c.patch("tournaments/" + a.id, { ["results." + a.k + ".wrongBy"]: "mock-ben", entry: a.k }), { id: t3.id, k: FK }) === "permission-denied", "nobody disputes a rated result");
 // Ann's summary of the final.
@@ -392,7 +396,70 @@ ok(/^Final/i.test((await text(ann, "#tBody .tround b")).trim()) && await ann.loc
 await ann.locator('#tBody .tround button[aria-label="The round before"]').click(); await ann.waitForTimeout(300);
 await curCard(ann, "played").first().click(); await ann.waitForTimeout(300);
 ok(/beat|drawn/.test(await text(ann, last)) && !(await ann.locator(last + " button", { hasText: "Change" }).count()), "ann reads Ben v Dan's sheet: " + (await text(ann, last)).replace(/\s+/g, " ").slice(0, 160));
-await ann.keyboard.press("Escape");
+await ann.keyboard.press("Escape"); await ann.waitForTimeout(300);
+
+// ---- Session 4: score it in Rack It ----
+// The final is Ann v Ben, who aren't connected. Ann scores it in Rack It: a first go discarded
+// leaves it to play; the second, saved, is the result; the finish marks that match rated.
+const FK4 = B.state((await tours(owner)).find(x => x.id === t4.id)).find(f => f.name === "Final").key;
+const winRack = async (p, side) => {
+  await p.locator(`.wincol[data-p="${side}"] .win[data-i="0"]`).click(); await p.waitForTimeout(400);
+  if(await p.locator("#done").isVisible() && !/Save match/.test(await p.locator("#doneNext").innerText())){ await p.click("#doneNext"); await p.waitForTimeout(400); }
+};
+async function scoreFromPath(){
+  await front(ann);
+  await ann.locator("#tBody .seg button", { hasText: "Your path" }).click(); await ann.waitForTimeout(200);
+  await ann.locator("#tBody .tpath button", { hasText: "Score it in Rack It" }).click(); await ann.waitForTimeout(900);
+}
+await scoreFromPath();
+ok(await ann.locator("#setupTour").isVisible() && /Final/.test(await text(ann, "#setupTour")) && /race to 3/.test(await text(ann, "#setupTour")),
+  "setup opens for the fixture: " + (await text(ann, "#setupTour")).replace(/\s+/g, " "));
+ok(/Ben/.test(await text(ann, "#pickB")) && /Ann/.test(await text(ann, "#pickA")), "both players filled in, Ben from the tournament's names");
+ok(!(await ann.locator("#foldGame").isVisible()) && !(await ann.locator("#whoChips").isVisible()) && !(await ann.locator("#ratedBtn").isVisible())
+  && !(await ann.locator("#foldHcp").isVisible()), "game, players, length, handicap and Rated are locked away");
+await shot(ann, "tournament-score-setup");
+await ann.click("#startBtn"); await ann.waitForTimeout(400);
+await answerBreak(ann, "a");
+let fm = (await matchesOf(ann)).find(m => m.tournament === t4.id && m.status === "live");
+ok(fm && fm.fixture === FK4 && fm.rated === false && JSON.stringify(fm.uids) === JSON.stringify(["mock-ann", "mock-ben"]) && !fm.scorer,
+  "a live friendly carrying the fixture, Ann and Ben its accounts, though they aren't connected: " + JSON.stringify(fm && { f: fm.fixture, u: fm.uids, r: fm.rated }));
+// The first go: a rack, then Discard.
+await winRack(ann, "a");
+await hold(ann, "#end"); await ann.waitForTimeout(500);
+await ann.click("#doneNext"); await ann.waitForTimeout(500);          // End the match?
+ok(/Discard/.test(await text(ann, "#doneBack")), "the result card offers Discard");
+await ann.click("#doneBack"); await ann.waitForTimeout(800);
+t4 = (await tours(owner)).find(x => x.id === t4.id);
+ok(!t4.results[FK4] && B.state(t4).find(f => f.key === FK4).status === "ready", "a discarded match leaves the final to play");
+// The second go, played out and saved: its racks are the result. (The owner's phone, open in
+// another tab, finishes and rates it as soon as the result lands, so the checks allow for that.)
+const beforeAnn = (await ratingsOf(owner))["mock-ann"];
+await ann.click('.tabbar button[data-tab="play"]'); await ann.waitForTimeout(200);
+await ann.locator("#tourCards button").first().click(); await ann.waitForTimeout(600);
+await scoreFromPath();
+await ann.click("#startBtn"); await ann.waitForTimeout(400);
+await answerBreak(ann, "a");
+await winRack(ann, "a"); await winRack(ann, "b"); await winRack(ann, "a"); await winRack(ann, "a");
+await ann.click("#doneNext"); await ann.waitForTimeout(1500);
+fm = (await matchesOf(ann)).find(m => m.tournament === t4.id && m.status === "done");
+t4 = (await tours(owner)).find(x => x.id === t4.id);
+const r4 = t4.results[FK4];
+ok(fm && !fm.endedBy && !fm.confirmedBy && r4 && r4.match === fm.id && r4.by === "mock-ann" && r4.a === 3 && r4.b === 1 && r4.w === "a",
+  "saved with no confirm, and its racks are the final's result: " + JSON.stringify(r4));
+ok(/Mock's tournament · Final/i.test(await text(ann, "#sumMeta")) && /rated when it finishes|rated as part of/.test(await text(ann, "#sumZargo")) && await ann.locator("#sumTour").isVisible(),
+  "the summary: " + await text(ann, "#sumMeta") + " · " + await text(ann, "#sumZargo"));
+// The owner's phone finishes it and marks that match rated: no second match.
+await front(owner); await owner.waitForTimeout(1500);
+t4 = (await tours(owner)).find(x => x.id === t4.id);
+const t4m = (await matchesOf(owner)).filter(m => m.tournament === t4.id && m.status !== "discarded");
+ok(t4.status === "done" && t4.rated && t4.rated[FK4] === fm.id && t4m.length === 1 && t4m[0].rated === true && t4m[0].ratedAt >= t4.ratedAt,
+  "the finish marks the scored match rated, and writes no second one: " + JSON.stringify(t4m.map(m => [m.id, m.rated])));
+ok((await ratingsOf(owner))["mock-ann"].sessions === ((beforeAnn && beforeAnn.sessions) || 0) + 1 && (await ratingsOf(owner))["mock-ann"].match === fm.id,
+  "Ann's rating moved once, naming that match");
+await front(ann); await ann.waitForTimeout(500);
+ok(/rated as part of Mock's tournament/.test(await text(ann, "#sumZargo")), "her summary now: " + await text(ann, "#sumZargo"));
+await ann.click("#sumTour"); await ann.waitForTimeout(500);
+ok(await ann.locator("#scrTour").isVisible() && /Ann won/.test(await text(ann, "#tBody")), "Back to the tournament");
 
 await b.close(); srv.close();
 summary();

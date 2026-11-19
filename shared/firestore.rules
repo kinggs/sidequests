@@ -150,10 +150,11 @@ service cloud.firestore {
       // A Game QR (Session 8): someone connected to the starter gets a live match, never a list.
       allow get: if signedIn() && resource.data.get('status', '') == 'live'
         && connected(request.auth.uid, resource.data.get('by', ''));
-      allow create: if (signedIn() && (outsiderStarts() || scorerStarts() || tourRated(id))) || isOwner();
+      allow create: if (signedIn() && (outsiderStarts() || scorerStarts() || fixtureStarts() || tourRated(id))) || isOwner();
       allow update: if (signedIn() && request.auth.uid in resource.data.get('uids', []) && playerScores())
         || (signedIn() && resource.data.get('scorer', '') == request.auth.uid && scorerScores())
         || (signedIn() && (rackClaim() || takesSeat() || takesScorer()))
+        || (signedIn() && tourMarks(id))
         || (isOwner() && ownerKeepsChain());
       allow delete: if isOwner();
     }
@@ -568,7 +569,7 @@ service cloud.firestore {
         && r != null && (tourOwnEntry(r, old, me) || tourNotRight(r, old, me));
     }
     function tourOwnEntry(r, old, me) {
-      return r.keys().hasOnly(['ids', 'a', 'b', 'w', 'by', 'at']) && r.by == me && r.ids is list && me in r.ids
+      return r.keys().hasOnly(['ids', 'a', 'b', 'w', 'by', 'at', 'match']) && r.by == me && r.ids is list && me in r.ids
         && (old == null || (old.get('by', '') == me && !('wrongBy' in old)));
     }
     function tourNotRight(r, old, me) {
@@ -600,6 +601,31 @@ service cloud.firestore {
         && t.status == 'done' && t.get('ratedBy', '') == request.auth.uid && request.time.toMillis() < t.ratedAt + 86400000
         && r.ids == [m.playerA, m.playerB] && !r.get('wo', false) && m.uids == [m.playerA, m.playerB]
         && m.playerA != m.playerB && m.playerA in t.uids && m.playerB in t.uids;
+    }
+    // Score it in Rack It (Session 4): an entrant starts their fixture's match as an ordinary
+    // live friendly, playing in it, against another account in that live tournament, without
+    // being connected to them. It can never turn rated (ratedOnlyTurnsOff); the finish does that.
+    function fixtureStarts() {
+      let m = request.resource.data;
+      let t = get(/databases/$(database)/documents/sidequests/rack-it/tournaments/$(m.tournament)).data;
+      return m.by == request.auth.uid && request.auth.uid in m.uids && m.status == 'live' && m.get('rated', true) == false
+        && m.fixture is string
+        && !m.keys().hasAny(['endedBy', 'confirmedBy', 'ratedAt', 'declinedBy', 'withdrawnBy', 'scorer', 'confirms', 'venue'])
+        && t.status == 'live' && m.uids is list && m.uids.size() == 2 && m.uids[0] in t.uids && m.uids[1] in t.uids;
+    }
+    // At the finish, a fixture's scored match is marked rated instead of a second one written:
+    // done and a friendly before, rated after, only the rating fields changing; its result names
+    // it, between the same two accounts; by whoever claimed the finish, within a day of it.
+    function tourMarks(id) {
+      let was = resource.data;
+      let now = request.resource.data;
+      let t = get(/databases/$(database)/documents/sidequests/rack-it/tournaments/$(was.tournament)).data;
+      let r = t.results[was.fixture];
+      return was.status == 'done' && !rated(was) && rated(now)
+        && now.diff(was).affectedKeys().hasOnly(['rated', 'ratedAt', 'zargoBefore', 'zargoAfter', '_updatedAt'])
+        && r.get('match', '') == id && r.ids == [was.playerA, was.playerB] && !r.get('wo', false)
+        && was.playerA in t.uids && was.playerB in t.uids
+        && t.status == 'done' && t.get('ratedBy', '') == request.auth.uid && request.time.toMillis() < t.ratedAt + 86400000;
     }
     // Its two ratings, in the same batch: a player in that match, by whoever claimed the finish,
     // within a day of it. The rules can't check the arithmetic, as with a confirmation.

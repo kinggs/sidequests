@@ -2336,3 +2336,67 @@ describe("tournaments: players' results and ratings at the finish", () => {
     await assertFails(setDoc(doc(ann, "sidequests/rack-it/ratings/cat"), { zargo: 900, robustness: 1, sessions: 1, match: "done1" }));
   });
 });
+
+// ---- Tournaments, Session 4 (Rack It 2.31.0, rack-it/TOURNAMENT.md §3.5 item 3, §6) ----
+// Score it in Rack It: Cat and Eve, entrants who aren't connected, play their match in Rack It.
+// Either starts it as an ordinary friendly carrying `tournament` and `fixture`; the saved
+// match's result names it (`match`); at the finish the organiser marks that match rated
+// instead of writing a second one.
+
+const fixtureMatch = (extra = {}) => ({ game: "eight", handicap: "off", playerA: "cat", playerB: "eve", names: { a: "Cat", b: "Eve" },
+  uids: ["cat", "eve"], by: "cat", rated: false, tournament: "play", fixture: "W1-1", tournamentName: "Ann's tournament",
+  mode: "race", targets: { a: 3, b: 3 }, startedAt: 1, endedAt: null, status: "live", zargoBefore: { a: 500, b: 500 },
+  zargoAfter: null, racks: {}, totals: { a: 0, b: 0, racksA: 0, racksB: 0, dead: 0, lead: 0, winner: null }, ...extra });
+const fourRacks = { 1: { winner: "a" }, 2: { winner: "a" }, 3: { winner: "b" }, 4: { winner: "a" } };
+
+describe("tournaments: a fixture scored in Rack It", () => {
+  beforeEach(async () => {
+    await seed(T + "play", playTour());
+    await seed(T + "over", playTour({ status: "done", endedAt: 2 }));
+    await seed(M + "tm1", fixtureMatch({ tournament: "ratedM", status: "done", endedAt: 2, racks: fourRacks }));
+    await seed(M + "tm2", fixtureMatch({ tournament: "staleM", status: "done", endedAt: 2, racks: fourRacks }));
+    await seed(M + "tm3", fixtureMatch({ tournament: "otherM", status: "done", endedAt: 2, racks: fourRacks }));
+    const withMatch = (id, extra) => playTour({ status: "done", endedAt: 2, ratedBy: "ann", rated: {}, ...extra,
+      results: { "W1-1": res(["cat", "eve"], "cat", { match: id }), "W1-2": res(["ann", "g_1"], "ann") } });
+    await seed(T + "ratedM", withMatch("tm1", { ratedAt: Date.now() }));
+    await seed(T + "staleM", withMatch("tm2", { ratedAt: Date.now() - 25 * 3600 * 1000 }));
+    await seed(T + "otherM", withMatch("tm9", { ratedAt: Date.now() }));
+  });
+  // The organiser's batch at the finish: the scored match marked rated, both ratings, the note.
+  function markBatch(db, t, id, { patch = {}, ratingFor = ["cat", "eve"] } = {}){
+    const w = writeBatch(db);
+    w.update(doc(db, M + id), { rated: true, ratedAt: Date.now(), zargoBefore: { a: 500, b: 500 }, zargoAfter: { a: 510, b: 490 }, ...patch });
+    for(const p of ratingFor) w.set(doc(db, "sidequests/rack-it/ratings/" + p), { zargo: 505, robustness: 2, sessions: 1, match: id });
+    w.update(doc(db, T + t), { "rated.W1-1": id });
+    return w.commit();
+  }
+
+  test("an entrant starts their fixture's match against another entrant they aren't connected to", async () => {
+    await assertSucceeds(setDoc(doc(user("cat"), M + "f1"), fixtureMatch()));
+    await assertSucceeds(setDoc(doc(user("eve"), M + "f2"), fixtureMatch({ by: "eve" })));
+  });
+  test("the saved match's result names it; the organiser marks it rated at the finish", async () => {
+    await assertSucceeds(updateDoc(doc(user("eve"), T + "play"), { "results.L1-1": res(["eve", "g_1"], "eve", { match: "f9" }), entry: "L1-1" }));
+    await assertSucceeds(markBatch(user("ann"), "ratedM", "tm1"));
+  });
+  test("refused: a fixture's match against someone not in it, in a finished one, rated, or in someone else's name", async () => {
+    await assertFails(setDoc(doc(user("cat"), M + "x1"), fixtureMatch({ playerB: "ben", uids: ["cat", "ben"] })));
+    await assertFails(setDoc(doc(user("cat"), M + "x2"), fixtureMatch({ tournament: "over" })));
+    await assertFails(setDoc(doc(user("cat"), M + "x3"), fixtureMatch({ rated: true })));
+    await assertFails(setDoc(doc(user("cat"), M + "x4"), fixtureMatch({ by: "eve" })));
+    await assertFails(setDoc(doc(user("ben"), M + "x5"), fixtureMatch({ by: "ben", playerA: "ben", uids: ["ben", "eve"] })));
+    await assertFails(setDoc(doc(user("cat"), M + "x6"), fixtureMatch({ tournament: "nope" })));
+    await assertFails(setDoc(doc(user("cat"), M + "x7"), fixtureMatch({ endedBy: "cat", status: "pending" })));
+  });
+  test("refused: a player turning a fixture's match rated", async () => {
+    await seed(M + "f3", fixtureMatch());
+    await assertFails(updateDoc(doc(user("cat"), M + "f3"), { status: "pending", rated: true, endedBy: "cat", endedAt: 3 }));
+  });
+  test("refused: marking as an entrant, a match the result doesn't name, a day late, or with its racks changed", async () => {
+    await assertFails(markBatch(user("cat"), "ratedM", "tm1"));
+    await assertFails(markBatch(user("ann"), "otherM", "tm3"));
+    await assertFails(markBatch(user("ann"), "staleM", "tm2"));
+    await assertFails(markBatch(user("ann"), "ratedM", "tm1", { patch: { racks: { 1: { winner: "b" } } } }));
+    await assertFails(markBatch(user("ann"), "ratedM", "tm1", { ratingFor: ["cat", "ann"] }));
+  });
+});

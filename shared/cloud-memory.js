@@ -68,9 +68,10 @@ const ACCESS = [
     // A Game QR (Session 8): a live match is got by anyone connected to its starter.
     read: (m, u, d, was) => isOwner(u) || inUids(was, u) || (!!was && was.scorer === u.uid)
       || (!!was && was.status === "live" && connectedTo(u.uid, was.by)),
-    write: (m, u, d, was) => !was ? !!d && (isOwner(u) || outsiderStarts(u, d) || scorerStarts(u, d) || tourRated(m[1], u, d))
+    write: (m, u, d, was) => !was ? !!d && (isOwner(u) || outsiderStarts(u, d) || scorerStarts(u, d) || fixtureStarts(u, d) || tourRated(m[1], u, d))
       : (!!d && inUids(was, u) && playerScores(u, d, was)) || (!!d && was.scorer === u.uid && scorerScores(u, d, was))
         || (!!d && (rackClaim(u, d, was) || takesSeat(u, d, was) || takesScorer(u, d, was)))
+        || (!!d && tourMarks(m[1], u, d, was))
         || (isOwner(u) && (!d || ownerKeepsChain(u, d, was))) },
   { path: /^sidequests\/rack-it\/ratings\/([^/]+)$/, read: "account",
     write: (m, u, d, was, ctx) => isOwner(u) || (!!d && (confirming(m[1], d, ctx.after) || (!was && !!store.docs[`profiles/${u.uid}/guests/${m[1]}`])
@@ -264,7 +265,7 @@ function tourEnters(u, d, was){
     && changed(mapOf(was.results), mapOf(d.results)).every(x => x === k)
     && isMap(r) && (tourOwnEntry(r, old, u.uid) || tourNotRight(r, old, u.uid));
 }
-const tourOwnEntry = (r, old, me) => Object.keys(r).every(x => ["ids", "a", "b", "w", "by", "at"].includes(x))
+const tourOwnEntry = (r, old, me) => Object.keys(r).every(x => ["ids", "a", "b", "w", "by", "at", "match"].includes(x))
   && r.by === me && listOf(r.ids).includes(me) && (!old || (old.by === me && !("wrongBy" in old)));
 const tourNotRight = (r, old, me) => !!old && old.by !== me && listOf(old.ids).includes(me) && !("wrongBy" in old)
   && changed(old, r).every(x => x === "wrongBy") && r.wrongBy === me;
@@ -281,6 +282,20 @@ function tourRated(id, u, d){
     && !["scorer", "venue", "confirms", "endedBy"].some(k => k in d)
     && tourWithin(t, u) && isMap(r) && same(r.ids, [d.playerA, d.playerB]) && !r.wo && same(d.uids, [d.playerA, d.playerB])
     && d.playerA !== d.playerB && listOf(t.uids).includes(d.playerA) && listOf(t.uids).includes(d.playerB);
+}
+// Session 4 (2.31.0): a fixture's match scored in Rack It, and marking it rated at the finish.
+function fixtureStarts(u, d){
+  const t = store.docs["sidequests/rack-it/tournaments/" + d.tournament], uids = listOf(d.uids);
+  return d.by === u.uid && uids.includes(u.uid) && d.status === "live" && d.rated === false && typeof d.fixture === "string"
+    && !["endedBy", "confirmedBy", "ratedAt", "declinedBy", "withdrawnBy", "scorer", "confirms", "venue"].some(k => k in d)
+    && !!t && t.status === "live" && uids.length === 2 && uids.every(x => listOf(t.uids).includes(x));
+}
+function tourMarks(id, u, d, was){
+  const t = store.docs["sidequests/rack-it/tournaments/" + was.tournament], r = t && mapOf(t.results)[was.fixture];
+  return was.status === "done" && !rated(was) && rated(d)
+    && changed(was, d).every(k => ["rated", "ratedAt", "zargoBefore", "zargoAfter", "_updatedAt"].includes(k))
+    && isMap(r) && r.match === id && same(r.ids, [was.playerA, was.playerB]) && !r.wo
+    && listOf(t.uids).includes(was.playerA) && listOf(t.uids).includes(was.playerB) && tourWithin(t, u);
 }
 function tourRating(pid, u, d, after){
   const m = d.match && after && after["sidequests/rack-it/matches/" + d.match];

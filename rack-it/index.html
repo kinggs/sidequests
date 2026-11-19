@@ -551,6 +551,10 @@
       <button id="drillCardOpen">Open</button>
     </div>
     <div class="tourcards" id="tourCards"></div>
+    <div class="resume hidden" id="setupTour">
+      <span class="t"><span id="setupTourWho"></span><small id="setupTourWhat"></small></span>
+      <button id="setupTourOff">Not now</button>
+    </div>
     <div class="settings">
       <button class="foldhead go" id="toursBtn"><span class="foldk lbl">Tournaments</span><span class="foldv" id="toursSum">Start one</span></button>
     </div>
@@ -680,6 +684,7 @@
     <p id="sumScore"></p>
     <a class="linkbtn hidden" id="sumClub" href="../sessions-loyalty/">Back to Sessions</a>
     <p class="dim" id="sumZargo"></p>
+    <button class="quiet hidden" id="sumTour">Back to the tournament</button>
     <button class="quiet hold hidden" id="sumRate">Hold to count it as rated</button>
     <p class="note hidden" id="sumRateNote">Makes this friendly a rated match, as if it had been confirmed when it was played,
       and rebuilds every rating straight away. Nobody is asked to confirm.</p>
@@ -906,7 +911,7 @@ import { connect } from "../shared/connect.js";
 import { ui } from "../shared/ui.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "2.30.0";
+const APP_VERSION = "2.31.0";
 const APP_ID = "rack-it";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 document.getElementById("versionMore").textContent = "v" + APP_VERSION;
@@ -916,7 +921,7 @@ const el = {};
 ["gate","gateErr","playerList","noPlayers","addPlayerBtn",
  "scrGate","scrRatings","scrPerson","scrMatches","scrSummary","scrMore","scrAbout","tabbar",
  "perHead","perAbout","perEdit","perCue","perCueEdit","perRecord","perMatches","perBack",
- "tFab","sumBack","sumWinner","sumMeta","sumClub","sumScore","sumZargo","sumRacks","sumCopyText","sumCopy",
+ "tFab","setupTour","setupTourWho","setupTourWhat","setupTourOff","sumTour","sumBack","sumWinner","sumMeta","sumClub","sumScore","sumZargo","sumRacks","sumCopyText","sumCopy",
  "aboutBtn","aboutBack","versionMore",
  "pform","pfTitle","pfFields","pfName","pfColours","pfZargoRow","pfZargo","pfNote","pfSave","pfCancel","pfOwnerNote",
  "scrSetup","scrLive","pickA","pickB","modes","lenRow","lenLabel","racksIn",
@@ -1735,8 +1740,13 @@ const GAME_KEY = "rack-it.game";   // the last game picked, per phone
 //   raceOther the race length is typed in rather than a chip.
 //   handicap  off | scoring | racks.  form: a Racks handicap as unequal targets, or a head start.
 //   rated     the Rated tick: off (a friendly) unless both players have an account and it's ticked.
+//   tour      Score it in Rack It (2.31.0): { id, key, name, round, race, names: { a, b }, uids } while
+//             setup plays a tournament's match. Game, players, race and handicap are then locked.
 const setup = { game:"league", a:null, b:null, mode:"race", breaker:"a", breakHow:null, breakPair:"", raceTo:5, raceOther:false,
-  handicap:"scoring", form:"targets", rated:false };
+  handicap:"scoring", form:"targets", rated:false, tour:null };
+// A side's player, as P() gives it: a tournament's opponent this phone doesn't know reads the
+// name the tournament keeps (TOURNAMENT.md Session 4), so the picker is never needed.
+const SP = side => P(setup[side], setup.tour ? setup.tour.names[side] : undefined);
 const HCP_LABEL = { off: "Off", scoring: "Scoring", racks: "Racks" };
 const RACK_RACE_MAX = 15;     // the race chart's range
 const GOLD_RACE = 35;         // the Golden-Nine points race chip
@@ -1802,6 +1812,7 @@ function recentFor(of){
 // You, as a player: on the household list, or in friend mode your own account.
 const selfPlayable = me => !!me && (friendMode ? people.players().some(p => p.id === me) : activePlayers().includes(me));
 function openSetup(){
+  setup.tour = null;
   setup.game = storedGame();
   const me = people.meId();
   setup.a = selfPlayable(me) ? me : null;   // you, on the teal side
@@ -1905,7 +1916,7 @@ const readTarget = inp => { const n = parseInt(inp.value, 10); return n >= 1 ? n
 // Fill the target boxes from the length, the handicap and the ratings. Only called when one
 // of those changes, so a target typed in by hand stays put otherwise.
 function proposeTargets(){
-  const a = P(setup.a), b = P(setup.b);
+  const a = SP("a"), b = SP("b");
   if(!a || !b) return;
   const eA = expectedShareA(a.zargo, b.zargo);
   let t = null;
@@ -1986,12 +1997,18 @@ function renderSetup(){
     const id = setup[side], slot = el[box], n = document.createElement("span");
     slot.innerHTML = "";
     slot.classList.toggle("set", !!id);
-    n.textContent = id ? nameOf(id) : "Pick a player";
-    if(id) slot.append(people.avatar(id, 40));
+    const known = !!(id && people.get(id)), tn = setup.tour && setup.tour.names[side];
+    n.textContent = id ? (known || !tn ? nameOf(id) : tn) : "Pick a player";
+    if(id){
+      const av = people.avatar(id, 40);
+      if(!known && tn) av.textContent = ([...tn][0] || "?").toUpperCase();
+      slot.append(av);
+    }
     slot.append(n);
   });
 
   paintWhoChips();
+  paintSetupTour();
   if(drill) return renderDrillSetup();
 
   // ---- length ----
@@ -2025,7 +2042,7 @@ function renderSetup(){
     b.classList.toggle("sel", b.dataset.h === setup.handicap);
     b.disabled = !hcpAllowed(b.dataset.h);
   });
-  const a = P(setup.a), b = P(setup.b);
+  const a = SP("a"), b = SP("b");
   const plan = a && b ? plannedMatch() : null;
   const showTargets = !!(a && b) && (racksLever || (setup.handicap === "scoring" && setup.mode === "race"));
   el.targetsRow.classList.toggle("hidden", !showTargets);
@@ -2085,7 +2102,8 @@ function renderSetup(){
     } else if(setup.mode === "race"){
       more = " Targets share the points out on that basis.";
     }
-    el.setupHint.textContent = (setup.club ? "At Sessions: you score it for the club. " : "") + odds + more;
+    el.setupHint.textContent = (setup.club ? "At Sessions: you score it for the club. " : "")
+      + (setup.tour ? `For ${setup.tour.name}: when it's saved, its racks are the result. ` : "") + odds + more;
     // Who breaks first is lagged for or flipped (2.25.0): the row shows the call, and a new pair
     // of players starts over. A swap keeps it: the break stays with the person who had it.
     if(setup.breakHow && setup.breakPair !== pairKey()) setup.breakHow = null;
@@ -2099,7 +2117,7 @@ function renderSetup(){
     el.breakWho.textContent = "—";
   }
   // ---- rated: offered only when both players have an account (KIT-PLAN.md Session 5) ----
-  const offered = ratedOffered(a, b);
+  const offered = ratedOffered(a, b) && !setup.tour;
   if(!offered) setup.rated = false;
   el.ratedBtn.classList.toggle("hidden", !offered);
   el.ratedBtn.classList.toggle("on", setup.rated);
@@ -2150,6 +2168,7 @@ function paintWhoChips(){
   el.whoChips.replaceChildren(...chips);
 }
 function chipTap(id, fresh){
+  if(setup.tour) return;
   id = people.resolve(id);
   setup.touched = true;
   if(isDrill(setup.game)){ setup.a = !fresh && setup.a === id ? null : id; return renderSetup(); }
@@ -2161,6 +2180,7 @@ function chipTap(id, fresh){
   pickSide(!setup.a ? "a" : "b", id);
 }
 async function chooseSide(side){
+  if(setup.tour) return;
   const recent = side === "a" ? [people.meId(), ...recentFor(null)] : recentFor(setup.a);
   const id = await people.pick({ title: isDrill(setup.game) ? "Who's drilling" : side === "a" ? "Teal side" : "Lilac side", recent, app: APP_ID });
   if(id && id !== setup[side]) pickSide(side, id);
@@ -2206,7 +2226,7 @@ el.modes.querySelectorAll("button").forEach(b =>
 ui.tap(el.breakBtn, () => { if(setup.a && setup.b) chooseBreak(); });
 ui.tap(el.startBtn, async () => {
   if(isDrill(setup.game)) return startDrill();
-  const a = P(setup.a), b = P(setup.b);
+  const a = SP("a"), b = SP("b");
   if(!(a && b && plannedMatch())) return;
   if(!setup.breakHow && !(await chooseBreak())) return;
   startMatch();
@@ -2238,7 +2258,7 @@ function overviewOf(a, b){
   return ul;
 }
 async function chooseBreak(){
-  const a = P(setup.a), b = P(setup.b);
+  const a = SP("a"), b = SP("b");
   if(!(a && b)) return false;
   const picked = await ui.sheet({
     title: `${a.name} v ${b.name}`,
@@ -2303,7 +2323,7 @@ ui.tap(el.ratedBtn, () => { setup.rated = !setup.rated; renderSetup(); }, LOOSE)
 let live = null;
 
 async function startMatch(){
-  const a = P(setup.a), b = P(setup.b);
+  const a = SP("a"), b = SP("b");
   const plan = a && b ? plannedMatch() : null;
   if(!plan) return;
   // Not playing: you're its scorer. uids stays the players only, as the ratings rule trusts it.
@@ -2322,6 +2342,10 @@ async function startMatch(){
   // venue, which the rules let only the club's staff set, and only as its scorer.
   const club = setup.club && scorer ? setup.club : null;
   setup.club = null;
+  const fixture = setup.tour;
+  setup.tour = null;
+  // A fixture's accounts are the tournament's: this phone may not know the opponent.
+  const uids = fixture ? ids.filter(x => fixture.uids.includes(x)) : people.uidsOf(ids);
   const id = (club && club.m) || cloud.newId();
   live = {
     id,
@@ -2337,7 +2361,7 @@ async function startMatch(){
     rackNo: 1, rackAt: Date.now(),
     balls: {}, rack: newRack(), history: [],
     banked: newBanked(),
-    rated: !!(setup.rated && ratedOffered(a, b)), uids: people.uidsOf(ids),
+    rated: !!(setup.rated && ratedOffered(a, b)), uids,
     by: myUid(), scorer,
     rev: { n: 0, key: "" }, sent: [], phones: {}, log: {},
     autoShown: false
@@ -2347,9 +2371,11 @@ async function startMatch(){
     game: live.game, handicap: live.handicap,
     playerA: ids[0], playerB: ids[1],
     names: { a: nameA || a.name, b: nameB || b.name },
-    uids: people.uidsOf(ids),
+    uids,
     by: (cloud.user && cloud.user.uid) || null,
     rated: live.rated,
+    // Score it in Rack It (2.31.0): the fixture it plays, read back when it's saved.
+    ...(fixture ? { tournament: fixture.id, fixture: fixture.key, tournamentName: fixture.name, round: fixture.round } : {}),
     ...(scorer ? { scorer } : {}),
     ...(club ? { venue: "sessions" } : {}),
     mode,
@@ -3483,6 +3509,7 @@ async function finish(status, t, lead, winner, z, weight){
   }
   const id = live.id;
   dropLive();
+  if(status === "done") resultFromMatch(id);
   el.done.classList.add("hidden");
   el.doneZargo.classList.add("hidden");
   el.doneAnyway.classList.add("hidden");
@@ -4085,7 +4112,7 @@ function matchRow(s, { from = "matches" } = {}){
   b.querySelector(".hmeta").textContent = on
     ? `Live · ${GAME_LABEL[gameOf(s)]} · rack ${Math.max(1, ...Object.keys(s.racks || {}).map(Number).filter(n => n > 0))}`
     : `${GAME_LABEL[gameOf(s)]} · ${lengthText(s)} · ${whenText(s.startedAt)}` + (t.winner ? "" : " · tied") +
-      (s.status === "pending" ? " · waiting to confirm" : s.rated === false ? " · friendly" : "") + (s.venue === "sessions" ? " · at Sessions" : "");
+      (s.status === "pending" ? " · waiting to confirm" : s.rated === false ? (s.tournament ? " · tournament" : " · friendly") : "") + (s.venue === "sessions" ? " · at Sessions" : "");
   b.setAttribute("aria-label", `${nA.textContent} ${sc.a}, ${nB.textContent} ${sc.b}. ` +
     (on ? "Live, tap to resume." : t.winner ? `${(t.winner === "a" ? nA : nB).textContent} won.` : "Tied."));
   ui.tap(b, () => on ? resumeMatch(s.id) : openSummary(s.id, from));
@@ -4140,14 +4167,19 @@ function renderSummary(){
   const nA = sideName(s, "a"), nB = sideName(s, "b"), t = s.totals || {}, game = gameOf(s);
   el.sumWinner.textContent = s.status === "live" ? "Still being played"
     : t.winner ? `${t.winner === "a" ? nA : nB} won` : "Tied";
-  el.sumMeta.textContent = `${GAME_LABEL[game]} · ${lengthText(s)} · ${whenText(s.startedAt)}` + (s.venue === "sessions" ? " · Logged at Sessions" : "");
+  el.sumMeta.textContent = `${GAME_LABEL[game]} · ${lengthText(s)} · ${whenText(s.startedAt)}` + (s.venue === "sessions" ? " · Logged at Sessions" : "")
+    + (s.tournament ? ` · ${s.tournamentName || "a tournament"}${s.round ? " · " + s.round : ""}` : "");
+  el.sumTour.classList.toggle("hidden", !s.tournament);
+  el.sumTour.onclick = s.tournament ? () => openTour(s.tournament) : null;
   // The club's scorer goes back to the member's page in the loyalty app (KIT-PLAN Session 10 step 4).
   const clubBack = s.venue === "sessions" && s.scorer && s.scorer === myUid();
   el.sumClub.classList.toggle("hidden", !clubBack);
   if(clubBack) el.sumClub.href = `../sessions-loyalty/?member=${encodeURIComponent(people.resolve(s.playerA))}${cloud.mock ? "&mock" : ""}`;
   el.sumScore.textContent = scoreLine(s, nA, nB, t);
   const zb = s.zargoBefore, za = s.zargoAfter;
-  el.sumZargo.textContent = s.status === "pending"
+  el.sumZargo.textContent = s.tournament && s.rated === false && s.status === "done"
+    ? `Counts for ${s.tournamentName || "the tournament"}: rated when it finishes.`
+    : s.status === "pending"
     ? `Rated · waiting for ${namesOr(confirmers(s).map(u => uidName(s, u)))} to confirm. Ratings move once they do.`
     : s.rated === false
     ? s.expired ? "Nobody confirmed in a week, so it counts as a friendly. Ratings unchanged."
@@ -4198,7 +4230,7 @@ ui.hold(el.sumDelete, async () => {
 // ratings are rebuilt straight away, like a delete. A declined, withdrawn or expired match
 // loses those marks: it stands as rated now.
 function canMakeRated(s){
-  if(!owner || !s || s.status !== "done" || s.rated !== false) return false;
+  if(!owner || !s || s.status !== "done" || s.rated !== false || s.tournament) return false;
   const a = people.resolve(s.playerA), b = people.resolve(s.playerB), uids = s.uids || [];
   return a !== b && uids.includes(a) && uids.includes(b) && countedRacks(s).length > 0;
 }
@@ -5491,6 +5523,11 @@ function paintPath(t, st, me, places, body){
         const go = mk("button", "primary", "Enter the result");
         ui.tap(go, () => openResult(t, s));
         li.append(go);
+        if(mayScore(t, s)){
+          const sc = mk("button", "", liveFixtureMatch(t, s) ? "Being scored in Rack It" : "Score it in Rack It");
+          ui.tap(sc, () => liveFixtureMatch(t, s) ? openShared(liveFixtureMatch(t, s).id) : scoreFixture(t, s));
+          li.append(sc);
+        }
       } else if(s.status === "ready"){
         li.append(mk("p", "thint", `${organiserName(t)} enters the result`));
       }
@@ -5824,6 +5861,11 @@ async function openResult(t, f){
       stepper(label(f.b), bb, 0, race, n => { bb = n; paint(); }, { stack: true }));
     ui.tap(save, () => fits() && close({ kind: "score" }));
     wrap.append(save);
+    if(mayScore(t, f) && !was){
+      const sc = mk("button", "", "Score it in Rack It");
+      ui.tap(sc, () => close({ kind: "rackit" }));
+      wrap.append(sc);
+    }
     // Walkovers and clearing are the organiser's.
     if(org){
       const same = firstName(tName(t, f.a)) === firstName(tName(t, f.b)), short = id => same ? tName(t, id) : firstName(tName(t, id));
@@ -5842,6 +5884,7 @@ async function openResult(t, f){
   } });
   if(!v) return;
   if(v.kind === "jump") return jumpTo(t, v.key);
+  if(v.kind === "rackit") return scoreFixture(t, f);
   if(v.kind === "clear") return clearResult(t, f);
   if(v.kind === "stands"){
     const { wrongBy: _w, ...kept } = r0;
@@ -5914,6 +5957,72 @@ function clearResult(t, f){
   cloud.deleteFields(tourPath(t.id), ["results." + f.key])
     .then(() => t.status === "done" ? cloud.patch(tourPath(t.id), { status: "live", endedAt: null }) : null)
     .catch(e => { console.warn("[result]", e); ui.toast("Couldn't clear it: " + (e.message || e)); });
+}
+
+// ---- Score it in Rack It (2.31.0, TOURNAMENT.md §3.5 item 3, Session 4) ----
+// A ready match opens match setup with the game, both players and the race filled in and
+// locked, handicap off, no Rated tick. The match is an ordinary friendly carrying `tournament`,
+// `fixture`, `tournamentName` and `round` (fixtureStarts in the rules lets two entrants who
+// aren't connected start it). When it's saved its racks become the fixture's result, with
+// `match` naming it; at the finish that match is marked rated instead of a second one written.
+// Discarded, it leaves the fixture to play.
+const mayScore = (t, f) => !!t && t.status === "live" && !t.ratedAt && f.status === "ready" && !f.ignored && !!f.a && !!f.b
+  && (inFixture(f, myUid()) || runsTour(t)) && mayEnter(t, f);
+const liveFixtureMatch = (t, f) => matches.find(m => m.status === "live" && m.tournament === t.id && m.fixture === f.key);
+async function scoreFixture(t, f){
+  if(!mayScore(t, f)) return;
+  const going = liveFixtureMatch(t, f);
+  if(going) return ui.toast("It's being scored already: open it from Play.");
+  // Each account's rating, by id, so the match starts from it (an opponent may be no friend).
+  for(const id of [f.a, f.b]){
+    if(!(t.uids || []).includes(id) || statsOf(id)) continue;
+    const doc = await cloud.load("ratings/" + id).catch(() => null);
+    if(doc){ const { _updatedAt, ...st } = doc; ratings[id] = st; }
+  }
+  closeTour();
+  openSetup();
+  setup.game = t.game;
+  setup.a = f.a; setup.b = f.b; setup.touched = true;
+  setup.tour = { id: t.id, key: f.key, name: t.name || "the tournament", race: f.race,
+    round: roundTitle(t, f), names: { a: tName(t, f.a), b: tName(t, f.b) }, uids: (t.uids || []).filter(x => x === f.a || x === f.b) };
+  applyGameDefaults();
+  setup.handicap = "off"; setup.mode = "race"; setup.raceTo = f.race; setup.raceOther = false; setup.rated = false;
+  renderSetup();
+}
+// While setup plays a fixture: its card on top, and everything the tournament fixed set aside.
+function paintSetupTour(){
+  const tr = setup.tour;
+  el.setupTour.classList.toggle("hidden", !tr);
+  for(const n of [el.foldGame.parentElement, el.whoChips.parentElement, el.foldLen, el.foldHcp, el.tourCards, el.toursBtn.parentElement])
+    n.classList.toggle("hidden", !!tr || (n === el.tourCards && !el.tourCards.children.length));
+  if(!tr) return;
+  el.setupTourWho.textContent = `${tr.name} · ${tr.round}`;
+  el.setupTourWhat.textContent = `${GAME_LABEL[setup.game]} · race to ${tr.race} · no handicap · rated when it finishes`;
+}
+ui.tap(el.setupTourOff, () => { const id = setup.tour && setup.tour.id; setup.tour = null; if(id) openTour(id); else openSetup(); });
+// A saved match that plays a fixture: its racks become the result, unless one is in already.
+async function resultFromMatch(id){
+  try {
+    const m = await cloud.load("matches/" + id);
+    if(!m || !m.tournament || !m.fixture || m.status !== "done") return;
+    const doc = await cloud.load(tourPath(m.tournament));
+    const t = doc && { id: m.tournament, ...doc };
+    if(!t || t.status !== "live") return ui.toast("The tournament has finished, so this match stays a friendly.");
+    const f = stateOf(t).find(x => x.key === m.fixture);
+    const was = (t.results || {})[m.fixture];
+    if(was && was.match === id) return;
+    if(!f || was) return ui.toast(`A result was in already for this match, so ${t.name} keeps that one.`);
+    const won = side => countedRacks(m).filter(r => r.rec.winner === side).length;
+    const swap = people.resolve(m.playerA) === f.b;
+    const a = swap ? won("b") : won("a"), b = swap ? won("a") : won("b");
+    const res = { ids: [f.a, f.b], a, b, w: a > b ? "a" : "b", by: myUid(), at: Date.now(), match: id };
+    if(!B.validResult(t, f.key, res)) return ui.toast(`Nobody reached ${f.race}, so it isn't the result. Enter it on the tournament's page.`);
+    await cloud.patch(tourPath(t.id), { ["results." + f.key]: res, entry: f.key });
+    ui.toast(`${t.name}: ${resultWords(t, f, res)}, in.`);
+  } catch(e){
+    console.warn("[fixture result]", e);
+    ui.toast("Couldn't put the result in the tournament: " + (e.message || e));
+  }
 }
 
 // ---- the finish, and its ratings (TOURNAMENT.md §3.7) ----
@@ -5995,17 +6104,21 @@ async function rateResult(t, f, ratedAt){
     robustnessA: a.robustness, robustnessB: b.robustness }, results, cfg());
   const w = weightOf(results);
   Object.assign(m, { zargoBefore: { a: z.a.from, b: z.b.from }, zargoAfter: { a: z.a.to, b: z.b.to }, ratedAt });
-  const ra = { zargo: z.a.to, robustness: a.robustness + w, sessions: a.sessions + 1, match: id };
-  const rb = { zargo: z.b.to, robustness: b.robustness + w, sessions: b.sessions + 1, match: id };
+  // Scored in Rack It (Session 4): that match is marked rated, never a second one written. Its
+  // racks were a and b, so the numbers are the same as for the typed result.
+  const scoredId = r.match || null, mid = scoredId || id;
+  const ra = { zargo: z.a.to, robustness: a.robustness + w, sessions: a.sessions + 1, match: mid };
+  const rb = { zargo: z.b.to, robustness: b.robustness + w, sessions: b.sessions + 1, match: mid };
   await cloud.batch([
-    { save: "matches/" + id, data: m },
+    scoredId ? { patch: "matches/" + scoredId, data: { rated: true, ratedAt, zargoBefore: m.zargoBefore, zargoAfter: m.zargoAfter } }
+      : { save: "matches/" + id, data: m },
     { save: "ratings/" + A, data: ra },
     { save: "ratings/" + Bp, data: rb },
-    { patch: tourPath(t.id), data: { ["rated." + f.key]: id } }
+    { patch: tourPath(t.id), data: { ["rated." + f.key]: mid } }
   ]);
   ratings[A] = Object.assign({}, ratings[A], ra);
   ratings[Bp] = Object.assign({}, ratings[Bp], rb);
-  t.rated = { ...(t.rated || {}), [f.key]: id };
+  t.rated = { ...(t.rated || {}), [f.key]: mid };
 }
 // What the page says while it waits to finish, or once it's rated.
 function finishWords(t, st){

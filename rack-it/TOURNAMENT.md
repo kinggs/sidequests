@@ -5,8 +5,8 @@ with a QR, and the bracket runs itself as results come in. The organiser can ent
 players can enter their own. It reuses what Rack It has: the same accounts, the same QR, the same
 players, the same matches and ratings.
 
-**Status:** Sessions 1, 2, 3 and 5 done (2.30.0, 2026-11-19): players enter their own results, the
-finish rates the tournament, and the page is Your path and the whole draw. Next: Session 4.
+**Status:** Sessions 1 to 5 done (2.31.0, 2026-11-19): every session in §8 is built. What's next
+is §9 (Parked), round robin first.
 This is also pre-work for the Sessions app (`SESSIONS-MIGRATION.md` at the repo root): the
 bracket logic and the data shape are written to be lifted out.
 
@@ -406,6 +406,7 @@ The owner reaches everything, as in the rest of Rack It.
 | The organiser's friend | **Get** it by id while `open` (never list): the Tournament QR, as a live match's Game QR. |
 | The organiser's friend, joining | While `open`: add exactly their own uid to `players` and `uids` and one name to `names`, nothing else. Or take exactly themselves out again. |
 | An entrant, entering a result (Session 3) | While `live`: change exactly one key of `results`, the one the write names in `entry` (a rule can't list a map's changed keys), and only to an entry with `by` themselves and themselves in its `ids`, no walkover; over nothing, or over an entry that was their own with no `wrongBy`. Or add only `wrongBy: <themselves>` to an entry they're in and didn't enter. |
+| The organiser, marking a scored match (Session 4) | Within a day of their claim: turn a done friendly carrying `tournament` and `fixture` rated, changing only `rated`, `ratedAt`, `zargoBefore` and `zargoAfter`, when that fixture's result names it (`match`) between the same two accounts (`tourMarks()`). |
 | The organiser, at the finish (Session 3) | Claim it once: `live` to `done` with `ratedAt` (within an hour of now) and `ratedBy` themselves. After that only `name` and the `rated` note change, and `rated` only grows. Within a day of the claim, the claimer creates `matches/tour_<id>_<key>` for a counted result and writes the two players' `ratings/` naming it. |
 | A player starting a fixture's match (Session 4) | Start a match carrying `tournament`, against another account in that tournament's `uids`, without being connected to them (`fixtureStarts()`, beside `outsiderStarts()`), and read the opponent's rating by id as now. |
 
@@ -468,12 +469,12 @@ A club night can run on this session alone.
 
 ### Session 4 — score it in Rack It
 
-- [ ] `fixtureStarts()` and its cases; match setup opened from a fixture, filled and locked;
+- [x] `fixtureStarts()` and its cases; match setup opened from a fixture, filled and locked;
       a player who isn't a friend shown from the tournament's `names` (the setup and summary
       already read `names` from the match; the picker and `people.resolve` must not be needed).
-- [ ] The saved match's racks become the result, linked; the summary says "Kenny's tournament ·
+- [x] The saved match's racks become the result, linked; the summary says "Kenny's tournament ·
       Winners' side, round 2" with **Back to the tournament**.
-- [ ] No Rated tick and no confirm (it's rated at the finish, §3.7, by marking this match rated);
+- [x] No Rated tick and no confirm (it's rated at the finish, §3.7, by marking this match rated);
       a discarded match leaves the fixture to play.
 
 This is the riskiest session: it touches the live screen's start and the match rules. Read
@@ -701,4 +702,52 @@ Screens checked by eye at 360 and 390, normal and largest text.
 
 **Left for Session 4**: **Score it in Rack It** in the steppers sheet and the read sheet, beside
 **Enter the result** (`openResult()` and `openMatch()`); everything else in Session 4 as written.
+
+### Session 4 — 2.31.0, 2026-11-19
+
+**Shipped.** **Score it in Rack It**, on the steppers sheet and under **Enter the result** on Your
+path, for whoever may enter a ready match they play in (or the organiser). It closes the
+tournament and opens match setup locked to the fixture: a card on top ("Kenny's tournament ·
+Final · Trad-Eight · race to 3 · no handicap · rated when it finishes", with **Not now**), both
+players filled in, and the game, Who's playing, Length, Handicap and the Rated tick set aside.
+The match is an ordinary friendly carrying `tournament`, `fixture`, `tournamentName` and `round`.
+Saved, its racks become the fixture's result with `match` naming it, entered by whoever saved
+it, with no confirm. Its summary reads "… · Kenny's tournament · Final", "Counts for Kenny's
+tournament: rated when it finishes", and has **Back to the tournament**. At the finish that
+match is marked rated (one batch with the two ratings, as for a typed result); no second match is
+written. Discarded, it leaves the fixture to play.
+
+**Rules** (300 cases on the emulator, 5 new): `fixtureStarts()` (§6), `tourMarks()` (§6), and
+`match` allowed in an entrant's own result. `fixtureStarts` asks `rated: false` outright, and
+`ratedOnlyTurnsOff` already stops a player turning it rated later, so the finish is the only way
+it's ever rated.
+
+**Choices made on the way** (change freely):
+
+- **The opponent's name** comes from the tournament (`setup.tour.names`, read by `SP()` wherever
+  setup asks for a side's player), and its accounts from the tournament's `uids`: this phone may
+  not know them. Their rating is read by id before setup opens.
+- **The organiser not playing** scores as an ordinary scorer (`scorerStarts`), since everyone
+  they added or who joined by QR is connected to them. Guests are never accounts, so a match
+  with a guest needs nothing new.
+- **A result that's already in wins.** If someone entered the result while the match was played,
+  the saved match stays a friendly and says so; the tournament keeps the typed result. A match
+  ended before anyone reached the race isn't a result either: "Nobody reached 3 … enter it on
+  the tournament's page."
+- **One scored match at a time:** a live match for the fixture turns the path's button into
+  **Being scored in Rack It**, which opens it.
+- Not offered on a match holding a stale result (`ignored`): clear that first.
+- The numbers at the finish come from the result's racks (a and b), not from reading the match:
+  in the race games they're the same (§0, decision 1), and an organiser not playing can't read it.
+
+**Proof.** `rack-it-tournament.mjs`: 94 checks, 12 new. Ann scores the final against Ben (not
+connected): setup filled and locked, a first go discarded leaves it to play, the second saved is
+the result with no confirm, the finish marks that match rated with no second one, her rating moves
+once, Back to the tournament. The proof's owner tab rates it almost at once, so its checks accept
+either side of that. Also green: the match proofs this touches (`rack-it-outsiders`, `-scorer`,
+`-two-phones`, `-count-rated`), the bracket sizes, the smoke test, 160 node tests. ⚠ Not tried:
+Ben's own phone watching the live match, or a real Firestore start between two unconnected
+accounts (the emulator cases cover the rule).
+
+**What's left** is §9: round robin first, then handicapped races and the points games.
 
