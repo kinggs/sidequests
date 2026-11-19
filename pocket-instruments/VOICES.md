@@ -4,8 +4,9 @@
 
 Key *n* plays track *n*. The roles and their order follow the hardware, so that what a
 player learns here (which key is which drum) carries over (D22). The sounds are synthesised
-by us, in the core, from the recipes below. Nothing is sampled, from the hardware or from
-anyone's recordings of it (README rule 6).
+by us, in the core, from the recipes below, or played from public-domain samples where that
+sounds better (D32, proposed). Nothing comes from the hardware or from anyone's recordings
+of it (README rule 6).
 
 Slider A is pitch and slider B is length for the drums (R27). ⚠ What they do for the three
 tones is not confirmed.
@@ -69,6 +70,65 @@ starting point for the sliders' middle, and nothing more.
 | 14 | 60 ms | none clear | 9.2 kHz | |
 | 15 | 110 ms | 171 Hz | 4.7 kHz | |
 | 16 | 95 ms | 154 Hz, strong partial at 615 | 0.8 kHz | |
+
+## Samples instead of recipes, for some voices (D32, proposed)
+
+Sonic Pi ships about two hundred drum and percussion samples, every one public domain (CC0),
+each traced to its Freesound original (R31). They are heard by a very large number of people
+and have been packaged by Debian, which checks licences. Candidates, to be chosen by ear:
+
+| Key | Role | Candidate | Size (FLAC) | Otherwise |
+|---|---|---|---|---|
+| 1 | Bass drum | `bd_haus` (the Sonic Pi kick), or `bd_tek` | 19 KB | recipe |
+| 2 | Snare drum | `drum_snare_hard`, or `sn_dolf` | 30 KB | recipe |
+| 3 | Closed hat | `drum_cymbal_closed` | 21 KB | recipe |
+| 4 | Open hat | `drum_cymbal_open` | 119 KB | recipe |
+| 5 | Synth snare | `elec_snare` | 18 KB | recipe |
+| 6 | Sticks | `elec_wood` | 25 KB | recipe |
+| 7 | Cymbal | `drum_cymbal_hard` | 92 KB | recipe |
+| 8 | Noise | none: noise is one line of code | | recipe |
+| 9 | Hand clap | none in the set ⚠. Synthesise, or find a CC0 clap | | recipe |
+| 10 | Click | `elec_tick` | 9 KB | recipe |
+| 11 | Low tom | `drum_tom_lo_hard` | 44 KB | recipe |
+| 12 | High tom | `drum_tom_hi_hard` | 35 KB | recipe |
+| 13 | Cow bell | `drum_cowbell` | 18 KB | recipe |
+| 14 | Blip | `elec_blip` | 16 KB | recipe |
+| 15, 16 | Tone, bass tone | none: they must play in tune across the slider | | recipe |
+
+To listen: `https://github.com/sonic-pi-net/sonic-pi/tree/dev/etc/samples`, then a file, then
+"View raw". Nothing has been downloaded into this repo yet.
+
+What samples change:
+
+- **The sliders still work.** A is playback speed, B is the length of a fade.
+- **Both hosts can be bit-identical.** Playing a sample back needs only adding and
+  multiplying, which give the same answer everywhere (`REVIEW.md` F12). Synthesis needs sine
+  and exponent, which do not. P7's bar gets easier for sampled voices.
+- **The samples are data, not code.** The host loads them and hands the core a pointer, so
+  the core stays small and allocation-free. About half a megabyte for the set, decoded.
+- **Every file gets a line in a manifest**: its name, its Freesound page, its author, CC0.
+  ⚠ CC0 is the uploader's word. `bd_808` is named after a machine; names like that are
+  avoided here, whatever the licence says.
+- **They move us away from the hardware's sound**, which is synthetic. The `drum_` files are
+  an acoustic kit; the `bd_`, `elec_` and `hat_` files are electronic. D31's "close in
+  character" is still the aim, and the owner's ear still decides.
+
+## Individual outputs in Rack (D33, proposed)
+
+Each sound can leave on its own, so key 1 can drive a dedicated kick module.
+
+- **Triggers out need nothing new in the core.** It already reports every firing as a `TRIG`
+  event with its track (`ENGINE.md` §7). The Rack module turns each into a pulse.
+- **No expander is needed to start.** A Rack cable carries up to sixteen channels, and we
+  have sixteen tracks. One TRIGGERS jack on the main panel carries all sixteen; Rack's own
+  Split module fans them out. The same for one VOICES jack carrying each sound's audio.
+- **The expander, when it comes, is sixteen plain jacks** for people who want one cable per
+  drum, and one rule borrowed from classic drum machines: a sound whose own audio jack is
+  patched leaves the main mix.
+- **One thing to design in at P7:** the core must render each track to its own buffer, or
+  take a mute mask, so the host can route or silence a voice. Cheap if planned, awkward if
+  bolted on.
+- In the browser none of this applies: there is one output.
 
 ## Order of building
 

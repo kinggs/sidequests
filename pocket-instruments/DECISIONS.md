@@ -353,6 +353,26 @@ the chosen sound while sound is held. The playhead frame runs in both. The table
 Why: it is what a search says the hardware does (R26, R27), so it serves D22. ⚠ It is a
 report, not a check on the hardware. D30 gives every key a track, so every key can flash.
 
+### D32 — Voices may be public-domain samples, one manifest line each
+**2026-11-19 · proposed (the owner asked for it; the choices are not made) · would supersede "nothing is sampled" in D31**
+
+A voice is either a CC0 sample or a recipe, chosen per key by ear. The first source is Sonic
+Pi's bundled set (R31). Each file used is listed with its origin and author. Samples are data
+the host loads and hands to the core. Nothing from the hardware, and nothing whose licence or
+origin is unstated (so nothing from R30). Detail and candidates: `VOICES.md`.
+
+Why: a good known kick is better than a first-attempt synthesised one, and sample playback is
+exactly repeatable across hosts. Cost: half a megabyte of assets, and a sound further from
+the hardware's synthetic character.
+
+### D33 — Individual outputs: sixteen channels on one jack first, an expander later
+**2026-11-19 · proposed · extends D16 · the owner raised it**
+
+In Rack every track has a trigger out and an audio out. First as two sixteen-channel jacks on
+the main panel (TRIGGERS, VOICES); later an expander with a jack per sound, where a patched
+audio jack takes that sound out of the mix. The core already emits what triggers need; for
+audio, P7 must render per track. Detail: `VOICES.md`.
+
 ## Open
 
 | ID | Question | Needs |
@@ -366,6 +386,6 @@ report, not a check on the hardware. D30 gives every key a track, so every key c
 | O7 | A lawyer's view of the mockup before public release | P9 |
 | O8 | ~~Answered by D23.~~ The hardware is played with two fingers: hold a function key, press a grid key or turn a knob. A mouse has one pointer. How are combinations made in Rack? Proposed: a click on a function key latches it (it glows) until the next grid press or a second click; computer keys held while hovering also work. The phone browser has real multi-touch and needs neither | Session 1, with D22 in mind; try it at P8 |
 | O11 | ~~On the hardware each grid key is its own sound in play mode (R26, R27). Sixteen tracks from the start, or four and twelve dead keys?~~ | Answered 2026-11-19: D30 |
-| O12 | The chosen look, Loom, animates a loom weaving with a shuttle and thread. The original's protected display art (R6) shows a sewing machine and thread spools. Different drawing, neighbouring subject. Is a textile theme far enough away, or should the display's subject move? | The owner, before the look is built on; then O7 and D19 at P9 |
+| O12 | ~~Answered 2026-11-19: the owner is content with the textile theme ("I think"). It still goes to O7 and D19 at P9.~~ The chosen look, Loom, animates a loom weaving with a shuttle and thread. The original's protected display art (R6) shows a sewing machine and thread spools. Different drawing, neighbouring subject. Is a textile theme far enough away, or should the display's subject move? | The owner, before the look is built on; then O7 and D19 at P9 |
 | O10 | Probability and a short length are not on the hardware. What gesture sets them without colliding with its combinations? | `WORKFLOW.md`, after the hardware hour |
 | O9 | ~~How do the three blocks stack on a phone, and does one instrument fill the screen or share it?~~ | Answered 2026-11-19: D32 |

@@ -69,6 +69,8 @@ All entries below were checked on **2026-11-18**.
 
 | R30 | `ulnd/po-12` (MIT, commit f269d7f of 2026-07-06) cloned and read outside this repo. It implements: sixteen sample players, one per key; tap to play in play mode without selecting; write mode toggling the chosen sound on a step; sound and pattern keys that latch on a click; a pattern change that waits for the bar's end; three tempo presets; a keyboard block for the grid. It does not implement: any effect of the knobs on sound (its own tour says so), swing, fine tempo, effects, chains, locks. Its sixteen WAV files carry no statement of origin. Its face reproduces the original's display scene, wording and outline: it is an example of what D20 rules out, and must not be given to a design tool as reference | https://github.com/ulnd/po-12 |
 
+| R31 | Sonic Pi's bundled samples (206 FLAC files): its own README says those prefixed `arovane_` were donated under CC0 and all others are from Freesound and "placed in the public domain via the Creative Commons 0 License", and links each to its original. Debian's copyright file for the package lists them as CC0 file by file. No hand clap in the set. ⚠ Individual Freesound pages not opened | https://github.com/sonic-pi-net/sonic-pi/blob/dev/etc/samples/README.md · https://metadata.ftp-master.debian.org/changelogs/main/s/sonic-pi/sonic-pi_3.2.2~repack-8_copyright |
+
 Patent drawings are read from the Google Patents pages and are not stored in this repo (README rule 6).
 
 ## Not yet checked
