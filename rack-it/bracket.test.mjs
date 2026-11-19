@@ -340,3 +340,71 @@ test("draw: random with an injected random, and by rating", () => {
   assert.ok(orders.size > 1);
   assert.deepEqual(ids(3), ["p1", "p2", "p3"], "draw doesn't touch its input");
 });
+
+test("next: where a match's winner and loser go, and the places it settles", () => {
+  const s8 = tour(8);
+  assert.deepEqual(B.next(s8, "W1-1"), { winner: "W2-1", loser: null, out: { place: 5, placeTo: 8 }, top: null, decider: null });
+  assert.deepEqual(B.next(s8, "W2-2"), { winner: "W3-1", loser: null, out: { place: 3, placeTo: 4 }, top: null, decider: null });
+  assert.deepEqual(B.next(s8, "W3-1"), { winner: null, loser: null, out: { place: 2, placeTo: 2 }, top: 1, decider: null });
+  const t8 = tour(8, { third: true });
+  assert.equal(B.next(t8, "W2-1").loser, "T");
+  assert.equal(B.next(t8, "W2-1").out, null);
+  assert.deepEqual(B.next(t8, "T"), { winner: null, loser: null, out: { place: 4, placeTo: 4 }, top: 3, decider: null });
+  const d4 = tour(4, { format: "double", final: "reset" });
+  assert.deepEqual(B.next(d4, "W1-1"), { winner: "W2-1", loser: "L1-1", out: null, top: null, decider: null });
+  assert.deepEqual(B.next(d4, "W2-1"), { winner: "F", loser: "L2-1", out: null, top: null, decider: null });
+  assert.deepEqual(B.next(d4, "L1-1"), { winner: "L2-1", loser: null, out: { place: 4, placeTo: 4 }, top: null, decider: null });
+  assert.deepEqual(B.next(d4, "L2-1"), { winner: "F", loser: null, out: { place: 3, placeTo: 3 }, top: null, decider: null });
+  assert.equal(B.next(d4, "F").decider, "F2");
+  assert.equal(B.next({ ...d4, final: "one" }, "F").decider, null);
+  assert.equal(B.next(s8, "nope"), null);
+  // Its places agree with standings once the match is played.
+  const p = tour(6); win(p, "W1-2", "p4");
+  assert.deepEqual(B.next(p, "W1-2").out, (({ place, placeTo }) => ({ place, placeTo }))(B.standings(p).find(x => x.id === "p5")));
+});
+
+test("path: a bye first, then now, then one ahead", () => {
+  const t = tour(3);                                       // p1 has the bye; p2 v p3
+  const steps = f => f.map(x => x.key + ":" + x.step);
+  assert.deepEqual(steps(B.path(t, "p1")), ["W1-1:played", "W2-1:now"]);
+  assert.equal(B.path(t, "p1")[0].status, "bye");
+  assert.deepEqual(steps(B.path(t, "p2")), ["W1-2:now", "W2-1:ahead"]);
+  assert.deepEqual(B.path({ ...t, seeds: null }, "p1"), []);
+  assert.deepEqual(B.path(t, "nobody"), []);
+});
+
+test("path: double elimination after a loss, out, and won", () => {
+  const steps = f => f.map(x => x.key + ":" + x.step);
+  const d = tour(4, { format: "double" });
+  win(d, "W1-1", "p1"); win(d, "W1-2", "p2");
+  assert.deepEqual(steps(B.path(d, "p4")), ["W1-1:played", "L1-1:now", "L2-1:ahead"]);
+  assert.deepEqual(steps(B.path(d, "p1")), ["W1-1:played", "W2-1:now", "F:ahead"]);
+  win(d, "L1-1", "p3");
+  assert.deepEqual(steps(B.path(d, "p4")), ["W1-1:played", "L1-1:played"]);        // out
+  const s = chalk(tour(4));
+  assert.deepEqual(steps(B.path(s, "p1")), ["W1-1:played", "W2-1:played"]);        // won
+  assert.deepEqual(steps(B.path(s, "p2")), ["W1-2:played", "W2-1:played"]);        // lost the final
+  // The decider: the losers' side winner takes the final, so both play on.
+  const r = tour(4, { format: "double", final: "reset" });
+  win(r, "W1-1", "p1"); win(r, "W1-2", "p2"); win(r, "W2-1", "p1"); win(r, "L1-1", "p3"); win(r, "L2-1", "p3"); win(r, "F", "p3");
+  assert.deepEqual(steps(B.path(r, "p1")), ["W1-1:played", "W2-1:played", "F:played", "F2:now"]);
+  assert.deepEqual(steps(B.path(r, "p3")).slice(-2), ["F:played", "F2:now"]);
+});
+
+test("property: every player's path ends where standings says, at every size", () => {
+  for (const format of ["single", "double"]) for (let n = 3; n <= 32; n++){
+    const r = rng(n * 7 + (format === "double" ? 1 : 0)), t = tour(n, { format });
+    for (;;){
+      const ready = B.state(t).find(x => x.status === "ready");
+      if (!ready) break;
+      win(t, ready.key, r() < 0.5 ? ready.a : ready.b);
+    }
+    const places = B.standings(t);
+    for (const id of t.seeds){
+      const p = B.path(t, id), last = p[p.length - 1];
+      assert.ok(p.length && p.every(x => x.step === "played"), `${format} ${n} ${id}: all played`);
+      assert.ok(last.winner === id ? places.find(s => s.id === id).place === 1 || B.next(t, last.key).winner == null
+        : B.next(t, last.key).loser == null, `${format} ${n} ${id}: the path stops where they went out`);
+    }
+  }
+});

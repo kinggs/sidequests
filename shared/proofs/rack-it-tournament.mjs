@@ -11,6 +11,10 @@
 // clears; Ann enters the final; the owner's phone finishes it and rates the two matches between
 // accounts (not the guest's), once; a rated result can't change.
 //
+// 2.30.0, Session 5 (§3.8): an entrant opens on Your path, the organiser on the whole draw once
+// they aren't playing; a ready match's sheet says where the winner goes, and that row jumps the
+// draw there with a pulse; the draw moves on after a save; Ann's Your match button brings her back.
+//
 //   node shared/proofs/rack-it-tournament.mjs
 import { ok, summary, serve, browser, tab, C, tryC, text, store, hold, shot, matchesOf, ratingsOf } from "./h.mjs";
 import * as B from "../../rack-it/bracket.js";
@@ -100,7 +104,8 @@ ok(/The draw/.test(await text(owner, last + " h2")), "Redraw shows it again");
 await sheetButton(owner, "Start").click(); await owner.waitForTimeout(500);
 t = (await tours(owner))[0];
 ok(t.status === "live" && t.seeds.length === 4 && t.startedAt > 0, "live, drawn: " + JSON.stringify(t.seeds));
-ok(/Winners' side/i.test(await text(owner, "#tBody")) && /to play · race to 4/i.test(await text(owner, "#tBody")), "the round-by-round page");
+ok(/Your path/.test(await text(owner, "#tBody .seg button[aria-pressed=true]")) && /Round 1 · now/i.test(await text(owner, "#tBody .tpath")),
+  "an entrant opens on Your path: " + (await text(owner, "#tBody .tpath")).replace(/\s+/g, " ").slice(0, 120));
 await shot(owner, "tournament-live");
 
 // Eve connects with the owner after the draw: it has started.
@@ -112,9 +117,12 @@ ok(/This tournament has started/.test(await text(eve, last + " h2")), "eve: " + 
 await sheetButton(eve, "OK").click();
 await front(owner);
 
-// The organiser enters results: the first match waiting to be played, each time.
+// The organiser enters results: the first match waiting to be played, each time, in the draw.
+const toDraw = async p => { const b = p.locator("#tBody .seg button", { hasText: "Whole draw" }); if(await b.count()){ await b.click(); await p.waitForTimeout(200); } };
+const curCard = (p, words) => p.locator("#tBody .tcol.cur .mc", { hasText: words });
 async function enter(p, { wo = false, loser = 1 } = {}){
-  const row = p.locator("#tBody .fx", { hasText: "to play" }).first();
+  await toDraw(p);
+  const row = curCard(p, "to play").first();
   if(!(await row.count())){ await shot(p, "tournament-stuck"); throw new Error("no match to play on screen: " + (await text(p, "#tBody")).replace(/\s+/g, " ").slice(0, 400)); }
   await row.click({ timeout: 5000 }); await p.waitForTimeout(250);
   if(!(await p.locator(last + " .tstep").count())){ await shot(p, "tournament-nosheet"); throw new Error("the match's sheet didn't open: " + (await text(p, "#tBody")).replace(/\s+/g, " ").slice(0, 500)); }
@@ -135,7 +143,8 @@ const first = Object.keys(t.results)[0];
 ok(Object.keys(t.results).length === 1 && t.results[first].a === 4 && t.results[first].b === 1 && t.results[first].by === "mock-uid", "a result: " + first + " " + JSON.stringify(t.results[first]));
 // Clear it again: nothing depends on it yet.
 await owner.locator("#tBody .seg button", { hasText: "Winners' side" }).click(); await owner.waitForTimeout(200);
-await owner.locator("#tBody .fx", { hasText: "entered by" }).first().click(); await owner.waitForTimeout(250);
+await curCard(owner, "played").first().click(); await owner.waitForTimeout(250);
+ok(/Entered by/.test(await text(owner, last)) && await owner.locator(last + " .twn").count() === 1, "a played match's sheet: entered by, and where next");
 await hold(owner, last + " button.hold"); await owner.waitForTimeout(500);
 t = (await tours(owner))[0];
 ok(!t.results[first], "cleared: " + JSON.stringify(Object.keys(t.results)));
@@ -147,8 +156,9 @@ await enter(owner);                       // the winners' side final
 t = (await tours(owner))[0];
 // Round 1 can't be changed now: a later match depends on it.
 await owner.locator("#tBody .seg button", { hasText: "Winners' side" }).click(); await owner.waitForTimeout(200);
-await owner.locator("#tBody .seg button", { hasText: "Round 1" }).click(); await owner.waitForTimeout(200);
-await owner.locator("#tBody .fx", { hasText: "entered by" }).first().click(); await owner.waitForTimeout(250);
+while(await owner.locator('#tBody .tround button[aria-label="The round before"]').isEnabled()){ await owner.locator('#tBody .tround button[aria-label="The round before"]').click(); await owner.waitForTimeout(200); }
+await curCard(owner, "played").first().click(); await owner.waitForTimeout(250);
+await sheetButton(owner, "Change").click(); await owner.waitForTimeout(250);
 ok(/Clear that one first/.test(await text(owner, last)), "a result a later match depends on can't change");
 await sheetButton(owner, "OK").click(); await owner.waitForTimeout(200);
 
@@ -158,10 +168,11 @@ ok(await tryC(ben, (c, id) => c.patch("tournaments/" + id, { "results.L1-1": { i
 
 // Play it out: losers' side, then the final (and a decider if the losers' side wins).
 for(let i = 0; i < 4 && (await tours(owner))[0].status === "live"; i++){
-  if(!(await owner.locator("#tBody .fx", { hasText: "to play" }).count())){
+  await toDraw(owner);
+  if(!(await curCard(owner, "to play").count())){
     for(const s of ["Losers' side", "Winners' side"]){
       await owner.locator("#tBody .seg button", { hasText: s }).first().click(); await owner.waitForTimeout(200);
-      if(await owner.locator("#tBody .fx", { hasText: "to play" }).count()) break;
+      if(await curCard(owner, "to play").count()) break;
     }
   }
   await enter(owner);
@@ -232,8 +243,8 @@ const openT3 = async p => { await front(p); await p.click('.tabbar button[data-t
 await front(ann);
 await ann.goto(R + "?mock&as=ann"); await ann.waitForTimeout(900);
 await openT3(ann);
-ok(/You v Ben/.test(await text(ann, "#tBody .resume")), "ann's Your match: " + (await text(ann, "#tBody .resume >> nth=0")).replace(/\s+/g, " "));
-await ann.locator("#tBody .resume button", { hasText: "Enter the result" }).click(); await ann.waitForTimeout(300);
+ok(/Semi-final · now/i.test(await text(ann, "#tBody .tpath")) && /Ben/.test(await text(ann, "#tBody .tps.now")), "ann's path: " + (await text(ann, "#tBody .tpath")).replace(/\s+/g, " "));
+await ann.locator("#tBody .tpath button", { hasText: "Enter the result" }).click(); await ann.waitForTimeout(300);
 ok(!(await ann.locator(last + " button", { hasText: "Walkover" }).count()), "a player's sheet has no walkovers");
 await fill(ann, 3, 1, annIsA);
 t3 = (await tours(owner)).find(x => x.id === t3.id);
@@ -245,7 +256,7 @@ ok(/You entered 3–1 to you/.test(await text(ann, "#tBody")), "ann's card says 
 await front(ben);
 await ben.goto(R + "?mock&as=ben"); await ben.waitForTimeout(900);
 await openT3(ben);
-ok(/Ann entered 3–1 to Ann/.test(await text(ben, "#tBody")) && /entered by Ann/i.test(await text(ben, "#tBody")), "ben's card, and the row names who entered it: " + (await text(ben, "#tBody")).replace(/\s+/g, " "));
+ok(/Ann entered 3–1 to Ann/.test(await text(ben, "#tBody")), "ben's card: " + (await text(ben, "#tBody")).replace(/\s+/g, " "));
 await ben.locator("#tBody .resume button", { hasText: "Not right" }).click(); await ben.waitForTimeout(250);
 await sheetButton(ben, "Not right").click(); await ben.waitForTimeout(500);
 t3 = (await tours(owner)).find(x => x.id === t3.id);
@@ -274,7 +285,8 @@ ok(Math.min(t3.results[annMatch.key].a, t3.results[annMatch.key].b) === 2, "ann 
 
 // The owner beats Dan; the final is the owner v Ann.
 await front(owner); await owner.waitForTimeout(300);
-await owner.locator("#tBody .resume button", { hasText: "Enter the result" }).click(); await owner.waitForTimeout(300);
+await owner.locator("#tBody .seg button", { hasText: "Your path" }).click(); await owner.waitForTimeout(200);
+await owner.locator("#tBody .tpath button", { hasText: "Enter the result" }).click(); await owner.waitForTimeout(300);
 const ownerMatch = B.state(t3).find(f => f.a === "mock-uid" || f.b === "mock-uid");
 await fill(owner, 3, 0, ownerMatch.a === "mock-uid");
 t3 = (await tours(owner)).find(x => x.id === t3.id);
@@ -288,7 +300,8 @@ await front(owner); await owner.waitForTimeout(500);
 t3 = (await tours(owner)).find(x => x.id === t3.id);
 ok(B.ignored(t3).includes(FK) && t3.status === "live", "the draw ignores it, and it doesn't finish");
 ok(/doesn't fit the draw/.test(await text(owner, "#tBody")), "the owner is told: " + (await text(owner, "#tBody .warn >> nth=0")).replace(/\s+/g, " "));
-await owner.locator("#tBody .fx", { hasText: "doesn't fit" }).first().click(); await owner.waitForTimeout(300);
+await toDraw(owner);
+await curCard(owner, "doesn't fit").first().click(); await owner.waitForTimeout(300);
 await hold(owner, last + " button.hold"); await owner.waitForTimeout(500);
 t3 = (await tours(owner)).find(x => x.id === t3.id);
 ok(!t3.results[FK], "the owner cleared it");
@@ -296,7 +309,7 @@ ok(!t3.results[FK], "the owner cleared it");
 // Ann enters the final; the owner's phone finishes it and rates it.
 const before = await ratingsOf(owner);
 await front(ann); await ann.waitForTimeout(400);
-await ann.locator("#tBody .resume button", { hasText: "Enter the result" }).click(); await ann.waitForTimeout(300);
+await ann.locator("#tBody .tpath button", { hasText: "Enter the result" }).click(); await ann.waitForTimeout(300);
 const fin = B.state(t3).find(f => f.key === FK);
 await fill(ann, 3, 0, fin.a === "mock-ann");
 await front(owner); await owner.waitForTimeout(1500);
@@ -323,6 +336,63 @@ const rowCount = await ann.locator("#matchList button, .hrow").count();
 ok(rowCount > 0, "ann's Matches list has rows");
 await ann.locator(".hrow").first().click(); await ann.waitForTimeout(400);
 ok(/rated as part of/.test(await text(ann, "#sumZargo")), "the summary: " + await text(ann, "#sumZargo"));
+
+// ---- Session 5: the bracket view ----
+// The owner runs one without playing: Ann has the bye; Ben plays Dan.
+await front(owner);
+await owner.click('.tabbar button[data-tab="play"]'); await owner.waitForTimeout(200);
+await owner.click("#toursBtn"); await owner.waitForTimeout(200);
+await owner.click("#tourStartBtn"); await owner.waitForTimeout(200);
+await owner.locator("#tnChips button", { hasText: "(you)" }).first().click(); await owner.waitForTimeout(150);
+for(const n of ["Ann", "Ben", "Dan"]){ await owner.locator("#tnChips button", { hasText: n }).first().click(); await owner.waitForTimeout(150); }
+await owner.click("#tnOpen"); await owner.waitForTimeout(600);
+let t4 = (await tours(owner)).find(x => x.status === "open");
+ok(t4 && t4.players.length === 3 && !t4.players.includes("mock-uid"), "a fourth, run without playing: " + JSON.stringify(t4 && t4.players));
+await owner.locator("#tFoot button.primary").click(); await owner.waitForTimeout(300);
+await sheetButton(owner, "Start").click(); await owner.waitForTimeout(500);
+const dan4 = t4.players.find(x => x.startsWith("g_"));
+await C(owner, (c, a) => c.patch("tournaments/" + a.id, { seeds: a.seeds }), { id: t4.id, seeds: ["mock-ann", "mock-ben", dan4] });
+await owner.waitForTimeout(500);
+ok(!(await owner.locator("#tBody .seg button", { hasText: "Your path" }).count()) && await owner.locator("#tBody .tdraw").count() === 1,
+  "an organiser who isn't playing opens on the whole draw");
+ok(/Semi-finals · 1 of 2/i.test(await text(owner, "#tBody .tround")) && /then the final/.test(await text(owner, "#tBody .tround")), "the round row: " + (await text(owner, "#tBody .tround")).replace(/\s+/g, " "));
+ok(await owner.locator("#tBody .tcol.peek .mc").count() === 1 && await owner.locator("#tBody .tl").count() >= 3, "the final peeks in, joined by lines");
+ok(/bye/i.test(await text(owner, "#tBody .tcol.cur")) && /No opponent/.test(await text(owner, "#tBody .tcol.cur")), "Ann's bye card");
+await shot(owner, "tournament-draw");
+// A ready match: the steppers, with where the winner goes; that row jumps the draw there.
+await curCard(owner, "to play").first().click(); await owner.waitForTimeout(300);
+ok(await owner.locator(last + " .tstep").count() === 2 && /The winner plays\s*Ann, in the final/.test(await text(owner, last + " .twn")) && /is out, 2nd–3rd|is out, 3rd/.test(await text(owner, last + " .twn")),
+  "the sheet says where next: " + (await text(owner, last + " .twn")).replace(/\s+/g, " "));
+await shot(owner, "tournament-sheet");
+await owner.locator(last + " .twnr.go", { hasText: "The winner plays" }).click(); await owner.waitForTimeout(400);
+ok(/^Final/i.test((await text(owner, "#tBody .tround b")).trim()) && await owner.locator("#tBody .mc.pulse").count() === 1, "the jump: the draw moves to the final and pulses it");
+// Back, enter Ben's win, and the draw moves on to the final.
+await owner.locator('#tBody .tround button[aria-label="The round before"]').click(); await owner.waitForTimeout(250);
+await curCard(owner, "to play").first().click(); await owner.waitForTimeout(300);
+const semi = B.state((await tours(owner)).find(x => x.id === t4.id)).find(f => f.status === "ready");
+await fill(owner, 3, 1, semi.a === "mock-ben");
+ok(/^Final/i.test((await text(owner, "#tBody .tround b")).trim()) && /to play/i.test(await text(owner, "#tBody .tcol.cur")), "after a save the draw moves to the next match to play: " + (await text(owner, "#tBody .tround")).replace(/\s+/g, " ") + " / " + (await text(owner, "#tBody .tcol.cur")).replace(/\s+/g, " "));
+// Ann's path: her bye, then the final now; the whole draw; the Your match button.
+await front(ann); await ann.goto(R + "?mock&as=ann"); await ann.waitForTimeout(900);
+await ann.click('.tabbar button[data-tab="play"]'); await ann.waitForTimeout(200);
+await ann.locator("#tourCards button").first().click(); await ann.waitForTimeout(600);
+const annSteps = await ann.locator("#tBody .tps").allInnerTexts();
+ok(annSteps.length === 2 && /bye/i.test(annSteps[0]) && /Final · now/i.test(annSteps[1]) && /to play · you/i.test(annSteps[1]),
+  "ann's path: " + annSteps.map(x => x.replace(/\s+/g, " ")).join(" | "));
+ok(await ann.locator("#tBody .tpath .mc.you").count() === 1, "her match to play is the one card with the accent outline");
+await shot(ann, "tournament-path");
+await toDraw(ann);
+ok(/^Final/i.test((await text(ann, "#tBody .tround b")).trim()) && await ann.locator("#tFab.hidden").count() === 1, "the draw opens on her match; no button needed: " + (await text(ann, "#tBody .tround")).replace(/\s+/g, " ") + " fab hidden " + await ann.locator("#tFab.hidden").count());
+await ann.locator('#tBody .tround button[aria-label="The round before"]').click(); await ann.waitForTimeout(300);
+ok(await ann.locator("#tFab:not(.hidden)").count() === 1, "her match off screen: the Your match button shows");
+await shot(ann, "tournament-your-match");
+await ann.locator("#tFab").click(); await ann.waitForTimeout(400);
+ok(/^Final/i.test((await text(ann, "#tBody .tround b")).trim()) && await ann.locator("#tBody .mc.pulse").count() === 1, "it brings the draw back to her match");
+// Anyone can open a played match's sheet; a reader gets no buttons to change it.
+await ann.locator('#tBody .tround button[aria-label="The round before"]').click(); await ann.waitForTimeout(300);
+await curCard(ann, "played").first().click(); await ann.waitForTimeout(300);
+ok(/beat|drawn/.test(await text(ann, last)) && !(await ann.locator(last + " button", { hasText: "Change" }).count()), "ann reads Ben v Dan's sheet: " + (await text(ann, last)).replace(/\s+/g, " ").slice(0, 160));
+await ann.keyboard.press("Escape");
 
 await b.close(); srv.close();
 summary();

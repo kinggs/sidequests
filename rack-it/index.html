@@ -379,16 +379,69 @@
   /* ---- tournaments (2.28.0): Play's row, a match in the bracket, the stepper, a place ---- */
   .tourcards{display:flex;flex-direction:column;gap:8px}
   .foldhead.go::after{content:"›";font-size:1.4rem;line-height:1}
-  .fx{display:flex;flex-direction:column;gap:4px;width:100%;padding:10px 14px;text-align:left;background:var(--ink-1);border-radius:var(--r-card);min-height:var(--tap)}
-  .fxp{display:flex;align-items:center;gap:10px;min-height:44px;font-size:1rem;font-weight:400;color:var(--text-2)}
-  .fxp .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .fxp .nm.tbd{color:var(--dim)}
-  .fxp.won{color:var(--text);font-weight:700}
-  .fxs{flex:none;min-width:1.4em;text-align:right;font-family:var(--grot);font-size:1.6667rem;font-weight:600;color:var(--text-2)}
-  .fxp.won .fxs{color:var(--accent)}
-  .fxst{color:var(--dim)}
-  .fx.odd{box-shadow:inset 3px 0 0 var(--warn)}
-  .fx.odd .fxst{color:var(--warn)}
+  /* the bracket view (2.30.0, TOURNAMENT.md §3.8): the match card, Your path, the whole draw */
+  #scrTour{position:relative}
+  .mc{display:flex;flex-direction:column;justify-content:center;gap:.1rem;width:100%;height:6rem;min-height:0;padding:.4rem .75rem;
+    text-align:left;background:var(--ink-1);color:var(--text-2);border-radius:var(--r-card);font-weight:400;overflow:hidden}
+  .mcst{color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mcst.go{color:var(--accent)}
+  .mc.you{background:var(--ink-2);box-shadow:inset 0 0 0 2px var(--accent)}
+  .mc.odd{box-shadow:inset 3px 0 0 var(--warn)}
+  .mc.odd .mcst{color:var(--warn)}
+  .mcp{display:flex;align-items:center;gap:.5rem;height:1.9rem;font-size:1rem;color:var(--text-2)}
+  .mcp .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .mcp .nm.tbd{color:var(--dim);font-size:.8889rem}
+  .mcp.won{color:var(--text);font-weight:700}
+  .mcs{flex:none;font-family:var(--grot);font-size:1.4rem;font-weight:600;color:var(--faint)}
+  .mcp.won .mcs{color:var(--accent)}
+  .ghost{flex:none;width:28px;height:28px;border-radius:50%;border:2px dashed var(--faint)}
+  .ghost.big{width:48px;height:48px}
+  @keyframes mcpulse{from{box-shadow:0 0 0 0 var(--accent)}to{box-shadow:0 0 0 16px transparent}}
+  .mc.pulse{animation:mcpulse .9s ease-out 1}
+  .tpath{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:18px}
+  .tps{position:relative;display:flex;flex-direction:column;gap:8px;padding-left:30px}
+  .tps::before{content:"";position:absolute;left:7px;top:24px;bottom:-18px;width:2px;background:var(--faint)}
+  .tps:last-child::before{display:none}
+  .tdot{position:absolute;left:0;top:3px;width:16px;height:16px;border-radius:50%;background:var(--text-2)}
+  .tps.now .tdot{background:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
+  .tps.ahead .tdot{background:var(--ink-0);box-shadow:inset 0 0 0 2px var(--faint)}
+  .tpt{margin:0}
+  .tps.now .tpt{color:var(--text)}
+  .tpend{margin:0;text-align:center;color:var(--dim)}
+  .tround{display:flex;align-items:center;gap:8px}
+  .tround button{flex:none;width:var(--tap);min-width:var(--tap);min-height:var(--tap);padding:0;font-size:1.8rem}
+  .trm{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;text-align:center}
+  .trm small{color:var(--dim);font-size:.8889rem}
+  .tdraw{position:relative;overflow:hidden;touch-action:pan-y}
+  .tcol{position:absolute;top:0;bottom:0;width:calc(100% - 118px)}
+  .tcol.cur{left:0}
+  .tcol.peek{left:calc(100% - 90px)}
+  .tdraw.solo .tcol.cur{width:100%}
+  .tcol .mc{position:absolute;left:0;right:0}
+  .tl{position:absolute;background:var(--faint);opacity:.7}
+  .tl.acc{background:var(--accent);opacity:1;z-index:1}
+  .tl.h{height:2px;width:14px;margin-top:-1px}
+  .tl.h.a{left:calc(100% - 118px)}
+  .tl.h.b{left:calc(100% - 104px)}
+  .tl.v{width:2px;left:calc(100% - 105px)}
+  .tfab{position:absolute;left:50%;transform:translateX(-50%);bottom:16px;z-index:5;display:flex;align-items:center;gap:10px;
+    width:auto;min-height:var(--tap);padding:0 20px 0 10px;border-radius:999px;background:var(--text);color:var(--ink-0);font-weight:600;
+    white-space:nowrap;box-shadow:0 6px 24px rgba(0,0,0,.55)}
+  .tfab .chev{font-size:1.4rem}
+  .tsp{display:flex;align-items:center;gap:12px}
+  .tspn{flex:1;min-width:0;display:flex;flex-direction:column}
+  .tspn b{font-size:1.2rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tspn small{color:var(--dim);font-size:.8889rem}
+  .tsps{flex:none;font-family:var(--grot);font-size:2rem;color:var(--faint)}
+  .tsps.won{color:var(--accent)}
+  .twn{display:flex;flex-direction:column;background:var(--ink-2);border-radius:var(--r-card)}
+  .twnr,.sheet .twnr{position:relative;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;width:100%;min-height:var(--tap);
+    padding:10px 14px;text-align:left;background:none;color:var(--text);border-radius:0;font-weight:400}
+  .twnr+.twnr{box-shadow:inset 0 1px 0 var(--line)}
+  .twnr .k{color:var(--dim);font-size:.8889rem}
+  .twnr.go,.sheet .twnr.go{padding-right:40px}
+  .twnr.go::after{content:"›";position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:1.4rem;color:var(--dim)}
+  .tsheet>.twnr{background:var(--ink-2);border-radius:var(--r-card)}
   .resume.tdispute{box-shadow:inset 3px 0 0 var(--warn)}
   .tsheet{display:flex;flex-direction:column;gap:14px}
   .tstep{display:flex;align-items:center;gap:12px;min-height:var(--tap)}
@@ -606,6 +659,7 @@
   <header class="apphead"><h1 id="tTitle">Tournament</h1><button class="quiet back" id="tBack">Back</button></header>
   <div class="homebody" id="tBody"></div>
   <div class="setupfoot hidden" id="tFoot"></div>
+  <button class="tfab hidden" id="tFab" type="button" aria-label="Your match"></button>
 </section>
 
 <!-- ============ MATCHES ============ -->
@@ -852,7 +906,7 @@ import { connect } from "../shared/connect.js";
 import { ui } from "../shared/ui.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "2.29.0";
+const APP_VERSION = "2.30.0";
 const APP_ID = "rack-it";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 document.getElementById("versionMore").textContent = "v" + APP_VERSION;
@@ -862,7 +916,7 @@ const el = {};
 ["gate","gateErr","playerList","noPlayers","addPlayerBtn",
  "scrGate","scrRatings","scrPerson","scrMatches","scrSummary","scrMore","scrAbout","tabbar",
  "perHead","perAbout","perEdit","perCue","perCueEdit","perRecord","perMatches","perBack",
- "sumBack","sumWinner","sumMeta","sumClub","sumScore","sumZargo","sumRacks","sumCopyText","sumCopy",
+ "tFab","sumBack","sumWinner","sumMeta","sumClub","sumScore","sumZargo","sumRacks","sumCopyText","sumCopy",
  "aboutBtn","aboutBack","versionMore",
  "pform","pfTitle","pfFields","pfName","pfColours","pfZargoRow","pfZargo","pfNote","pfSave","pfCancel","pfOwnerNote",
  "scrSetup","scrLive","pickA","pickB","modes","lenRow","lenLabel","racksIn",
@@ -1301,7 +1355,9 @@ let tours = [], unsubTours = null;   // Tournaments (2.28.0): every one this pho
 // before the rest of this script has run.
 const DAY = 24 * 3600 * 1000, finishing = new Set();
 let tourNew = null;                  // Start a tournament: what's been picked so far
+// tourView: { mode: "path" | "draw", side, round (a column key), scrolled } — the page's place.
 let tourId = null, tourDoc = null, tourGone = false, tourUnsub = null, tourView = { side: null, round: null }, tourStage = "";   // the open page
+let fabSeen = null;   // the IntersectionObserver behind the Your match button (watchMyCard)
 let accountSig = "";                 // what the header's avatar last showed (mountAccount)
 const ratingWatches = new Map();     // friend mode's one listener a rating
 let seatOffers = [], offering = false;   // a Game QR seat taken from a guest, to ask about (offerSeats)
@@ -5105,6 +5161,7 @@ function openTour(id){
 }
 function closeTour(){
   if(tourUnsub){ tourUnsub(); tourUnsub = null; }
+  hideFab();
   tourId = null; tourDoc = null; tourGone = false;
 }
 ui.tap(el.tBack, () => { closeTour(); openPage("tours"); });
@@ -5122,6 +5179,7 @@ function renderTour(){
   }
   el.tTitle.textContent = t.name || "Tournament";
   const body = [], foot = [];
+  hideFab();
   if(t.status === "open") paintLobby(t, body, foot);
   else paintBracket(t, body, foot);
   el.tBody.replaceChildren(...body);
@@ -5260,14 +5318,53 @@ async function drawAndStart(t){
   }
 }
 
-// ---- live and done: round by round ----
-// The final (and a decider) close the winners' side's rounds, so the sides fit two to a row.
+// ---- live and done: Your path, then the whole draw (2.30.0, TOURNAMENT.md §3.8) ----
+// Two views under one .seg. Your path (an entrant's default) is your matches top to bottom:
+// played, the one you're in, one ahead "if you win". The whole draw shows one round across the
+// screen with the next peeking in from the right, joined by lines, so who goes where is on
+// screen without a tree. Both use one match card; tapping any card opens one match sheet.
+// The final (and a decider) close the winners' side's rounds; third place is a last column.
 const isFinal = f => f.key === "F" || f.key === "F2";
 function sideOf(f){ return f.side === "L" ? "L" : "W"; }
-const roundKey = f => f.key === "T" ? "T" : isFinal(f) ? "F" : String(f.round);
-const shortRound = name => ({ "Quarter-finals": "Quarters", "Semi-finals": "Semis", "Winners' side final": "Side final", "Losers' side final": "Side final" })[name] || name;
-function paintBracket(t, body, foot){
-  const org = runsTour(t), st = stateOf(t), me = meIn(t), double = t.format === "double";
+const roundKey = f => f.key === "T" ? "T" : f.key === "F2" ? "F2" : f.key === "F" ? "F" : sideOf(f) + f.round;
+const oneRound = name => ({ "Quarter-finals": "Quarter-final", "Semi-finals": "Semi-final" })[name] || name;
+// "Quarter-final", "Losers' side · Round 2", "Winners' side final", "Final", "Third place".
+function roundTitle(t, f){
+  if(f.key === "T" || isFinal(f) || / side final$/.test(f.name)) return f.name;
+  return (t.format === "double" ? SIDE_WORD[sideOf(f)] + " · " : "") + oneRound(f.name);
+}
+// Card geometry, in rem so a phone at its largest text still lines up: worked out, not measured.
+const MC_H = 6, MC_GAP = .75, PEEK = 90, GUTTER = 28;
+const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// The decider before anyone knows it's needed: a card that says so, never a sheet.
+function deciderPlaceholder(t, st){
+  if(t.format !== "double" || t.final !== "reset" || st.some(f => f.key === "F2")) return null;
+  const F = st.find(f => f.key === "F");
+  return F ? { key: "F2", side: "F", round: 2, slot: 1, name: "Decider", from: F.from, race: F.race, a: null, b: null,
+    empty: [false, false], status: "waiting", phantom: true } : null;
+}
+// The rounds of one side, as columns: [{ k, name, list }].
+function columnsOf(t, st, side){
+  const cols = [];
+  const list = st.filter(f => sideOf(f) === side && f.key !== "T");
+  const dec = side === "W" ? deciderPlaceholder(t, st) : null;
+  if(dec) list.push(dec);
+  for(const f of list){
+    const k = roundKey(f);
+    let c = cols.find(x => x.k === k);
+    if(!c) cols.push(c = { k, name: f.name, list: [] });
+    c.list.push(f);
+  }
+  const T = side === "W" && st.find(f => f.key === "T");
+  if(T) cols.push({ k: "T", name: "Third place", list: [T] });
+  return cols;
+}
+// The match this phone's player is in now (ready, or waiting for an opponent), from their path.
+const myNow = (t, me) => me ? (safely(() => B.path(t, me), []).find(s => s.step === "now") || null) : null;
+
+function paintBracket(t, body){
+  const org = runsTour(t), st = stateOf(t), me = meIn(t);
   const finished = safely(() => B.finished(t), false);
   const places = safely(() => B.standings(t), []);
   body.push(mk("p", "lbl dim", tourLine(t)));
@@ -5276,32 +5373,7 @@ function paintBracket(t, body, foot){
     body.push(mk("p", "sumwin", top ? `${tName(t, top.id)} won` : "Ended early"));
     if(!finished) body.push(mk("p", "thint", `${organiserName(t)} ended it before the last match.`));
   }
-  // Your match, on top, when you're in it.
   if(me && t.status === "live"){
-    const f = myFixture(t, st), mineAt = places.find(s => s.id === me);
-    const card = mk("div", "resume"), tx = mk("span", "t");
-    let line = "", sub = "";
-    if(f && f.status === "ready"){
-      const opp = f.a === me ? f.b : f.a;
-      line = `You v ${tName(t, opp)}`;
-      sub = `${double && !isFinal(f) ? SIDE_WORD[sideOf(f)] + ", " : ""}${f.name.toLowerCase()} · race to ${f.race}`;
-    } else if(f){
-      const known = f.a === me ? f.b : f.a;
-      line = known ? `Next: you v ${tName(t, known)}` : "Next: waiting for the round before";
-      sub = `${double && !isFinal(f) ? SIDE_WORD[sideOf(f)] + ", " : ""}${f.name.toLowerCase()}`;
-    } else if(mineAt && mineAt.place){
-      line = `You're out · finished ${placeText(mineAt)}`;
-    }
-    if(line){
-      tx.append(mk("span", "", line), ...(sub ? [mk("small", "", sub)] : []));
-      card.append(tx);
-      if(f && f.status === "ready" && mayEnter(t, f)){
-        const go = mk("button", "", "Enter the result");
-        ui.tap(go, () => openResult(t, f));
-        card.append(go);
-      }
-      body.push(card);
-    }
     const last = lastResultCard(t, st, me);
     if(last) body.push(last);
   }
@@ -5320,57 +5392,23 @@ function paintBracket(t, body, foot){
   }
   const pending = finishWords(t, st);
   if(pending) body.push(mk("p", "thint" + (pending.warn ? " warn" : ""), pending.text));
-  const odd = safely(() => B.ignored(t), []);
-  if(org && odd.length) body.push(mk("p", "thint warn", `${odd.length === 1 ? "One result doesn't" : odd.length + " results don't"} fit the draw any more. Tap ${odd.length === 1 ? "it" : "them"} to clear.`));
-  // Sides (double elimination), then rounds.
-  const sides = double ? ["W", "L"] : ["W"];
-  const nowAt = st.find(f => f.status === "ready" && (f.a === me || f.b === me)) || st.find(f => f.status === "ready") || [...st].reverse().find(f => f.status === "done") || st[0];
-  if(!tourView.side || !sides.includes(tourView.side)) tourView.side = nowAt ? sideOf(nowAt) : "W";
-  if(double){
+  const odd = safely(() => B.ignored(t), []).filter(k => k !== "F2" || st.some(f => f.key === "F2"));
+  if(org && odd.length) body.push(mk("p", "thint warn", `${odd.length === 1 ? "One result doesn't" : odd.length + " results don't"} fit the draw any more. Tap ${odd.length === 1 ? "it" : "them"} in the draw to clear.`));
+  // Your path | Whole draw: an entrant opens on their path, anyone else on the draw.
+  if(!tourView.mode || (tourView.mode === "path" && !me)) tourView.mode = me ? "path" : "draw";
+  if(me){
     const seg = mk("div", "seg");
-    for(const s of sides){
-      const b = mk("button", "", SIDE_WORD[s]);
+    for(const [m, label] of [["path", "Your path"], ["draw", "Whole draw"]]){
+      const b = mk("button", "", label);
       b.type = "button";
-      b.setAttribute("aria-pressed", String(tourView.side === s));
-      ui.tap(b, () => { tourView = { side: s, round: null }; renderTour(); });
+      b.setAttribute("aria-pressed", String(tourView.mode === m));
+      ui.tap(b, () => { if(tourView.mode !== m){ tourView = { ...tourView, mode: m, scrolled: false }; renderTour(); } });
       seg.append(b);
     }
     body.push(seg);
   }
-  const onSide = st.filter(f => sideOf(f) === tourView.side);
-  const groups = [];
-  for(const f of onSide){
-    const k = roundKey(f);
-    let g = groups.find(x => x.k === k);
-    if(!g) groups.push(g = { k, name: f.key === "T" ? "Third place" : isFinal(f) ? "Final" : f.name, list: [] });
-    g.list.push(f);
-  }
-  // A side opens on its match to play (yours first), else on the last round with a result.
-  if(!tourView.round || !groups.some(g => g.k === tourView.round)){
-    const here = (nowAt && sideOf(nowAt) === tourView.side && roundKey(nowAt))
-      || (groups.find(g => g.list.some(f => f.status === "ready")) || {}).k
-      || ([...groups].reverse().find(g => g.list.some(f => f.status === "done")) || groups[0] || {}).k;
-    tourView.round = here || null;
-  }
-  if(groups.length > 1){
-    const seg = mk("div", "seg"), many = groups.length > 4;
-    groups.forEach((g, i) => {
-      const b = mk("button", "", many ? String(i + 1) : shortRound(g.name));
-      b.type = "button";
-      b.setAttribute("aria-pressed", String(tourView.round === g.k));
-      b.setAttribute("aria-label", g.name);
-      ui.tap(b, () => { tourView.round = g.k; renderTour(); });
-      seg.append(b);
-    });
-    body.push(seg);
-  }
-  const g = groups.find(x => x.k === tourView.round);
-  if(g){
-    body.push(mk("h3", "lbl sechead", (double && g.k !== "F" ? SIDE_WORD[tourView.side] + " · " : "") + g.name));
-    const ul = mk("ul", "plist");
-    for(const f of g.list) ul.append(fixtureRow(t, f, st, org));
-    body.push(ul);
-  }
+  if(tourView.mode === "path") paintPath(t, st, me, places, body);
+  else paintDraw(t, st, me, body);
   // Standings: everyone placed once it's done; before that, who's still in and who's out.
   body.push(mk("h3", "lbl sechead", t.status === "done" ? "Standings" : "Still in, and out"));
   const ul = mk("ul", "rows");
@@ -5388,6 +5426,224 @@ function paintBracket(t, body, foot){
     body.push(mk("p", "thint", "Ends it as it stands and moves the ratings. The matches left aren't played."));
   }
 }
+
+// ---- the match card: the same in both views ----
+// opts: { ahead } for Your path's "if you win" step, with this phone's player put in the slot
+// their match feeds; { now } marks the step you're in.
+function matchCard(t, f, st, { ahead = null } = {}){
+  const me = meIn(t), b = mk("button", "mc");
+  b.type = "button";
+  b.dataset.key = f.key;
+  const r = f.status === "done" ? f.result : null;
+  const yours = f.status === "ready" && !!me && (f.a === me || f.b === me);
+  const wrong = r && r.wrongBy;
+  let label = f.phantom ? "decider · if needed" : ahead ? "if you win"
+    : f.ignored ? "doesn't fit" : wrong ? `${firstName(tNameOfUid(t, r.wrongBy))} says not right`
+    : f.status === "bye" ? "bye" : r && r.wo ? "walkover" : r ? "played"
+    : f.status === "ready" ? (yours ? "to play · you" : "to play") : "waiting";
+  const lab = mk("span", "lbl mcst", label);
+  if(f.status === "ready" && !f.ignored && !ahead) lab.classList.add("go");
+  if(f.ignored || wrong) b.classList.add("odd");
+  if(yours) b.classList.add("you");
+  b.append(lab);
+  for(const i of [0, 1]){
+    let id = i ? f.b : f.a;
+    if(!id && ahead && (f.from[i] || {}).winner === ahead) id = me;
+    const row = mk("span", "mcp");
+    if(id){
+      row.append(tAvatar(t, id, 28), mk("span", "nm", tName(t, id)));
+      if(f.winner === id && (r || f.status === "bye")){ row.classList.add("won"); row.querySelector(".nm").textContent += " ✓"; }
+    } else {
+      const src = f.from[i] || {}, key = src.winner || src.loser;
+      const words = f.empty && f.empty[i] ? "No opponent" : slotWords(f, i, st);
+      const nm = mk("span", "nm tbd" + (key && !(f.empty && f.empty[i]) ? " src" : ""), words);
+      if(key) nm.dataset.src = key;
+      row.append(mk("span", "ghost"), nm);
+    }
+    const sc = mk("b", "mcs");
+    if(r && !r.wo) sc.textContent = String(i ? r.b : r.a);
+    row.append(sc);
+    b.append(row);
+  }
+  if(f.status === "bye" || f.phantom) b.classList.add("still");
+  else ui.tap(b, e => {
+    // A "Winner of Mel v Rolf" name goes back to that match; anywhere else opens this one.
+    const src = e && e.target && e.target.closest && e.target.closest(".src");
+    if(src && src.dataset.src) return jumpTo(t, src.dataset.src);
+    openMatch(t, f);
+  });
+  return b;
+}
+
+// ---- Your path ----
+function paintPath(t, st, me, places, body){
+  const steps = safely(() => B.path(t, me), []);
+  const ol = mk("ol", "tpath");
+  let nowLi = null;
+  const nowKey = (steps.find(s => s.step === "now") || {}).key || null;
+  for(const s of steps){
+    const li = mk("li", "tps " + s.step);
+    li.append(mk("span", "tdot"), mk("h3", "lbl tpt", roundTitle(t, s) + (s.step === "now" ? " · now" : "")));
+    li.append(matchCard(t, s, st, s.step === "ahead" ? { ahead: nowKey } : {}));
+    if(s.step === "now"){
+      nowLi = li;
+      if(s.status === "ready" && mayEnter(t, s)){
+        const go = mk("button", "primary", "Enter the result");
+        ui.tap(go, () => openResult(t, s));
+        li.append(go);
+      } else if(s.status === "ready"){
+        li.append(mk("p", "thint", `${organiserName(t)} enters the result`));
+      }
+    }
+    ol.append(li);
+  }
+  body.push(ol);
+  const mine = places.find(p => p.id === me);
+  if(mine && mine.place) body.push(mk("p", "tpend", mine.place === 1 ? "You won" : `You're out · finished ${placeText(mine)}`));
+  // It opens scrolled to the step you're in.
+  if(nowLi && !tourView.scrolled){
+    tourView.scrolled = true;
+    requestAnimationFrame(() => nowLi.isConnected && nowLi.scrollIntoView({ block: "center", behavior: "auto" }));
+  }
+}
+
+// ---- the whole draw: one round across, the next peeking in ----
+function paintDraw(t, st, me, body){
+  const double = t.format === "double", sides = double ? ["W", "L"] : ["W"];
+  const now = myNow(t, me);
+  const nowAt = (now && st.find(f => f.key === now.key && f.status === "ready")) || st.find(f => f.status === "ready")
+    || [...st].reverse().find(f => f.status === "done") || st[0];
+  if(!tourView.side || !sides.includes(tourView.side)) tourView.side = nowAt ? (nowAt.key === "T" ? "W" : sideOf(nowAt)) : "W";
+  if(double){
+    const seg = mk("div", "seg");
+    for(const s of sides){
+      const b = mk("button", "", SIDE_WORD[s]);
+      b.type = "button";
+      b.setAttribute("aria-pressed", String(tourView.side === s));
+      ui.tap(b, () => { tourView = { ...tourView, side: s, round: null }; renderTour(); });
+      seg.append(b);
+    }
+    body.push(seg);
+  }
+  const cols = columnsOf(t, st, tourView.side);
+  if(!cols.length) return;
+  // A side opens on its match to play (yours first), else on the last round with a result.
+  if(!tourView.round || !cols.some(c => c.k === tourView.round)){
+    const here = (nowAt && cols.some(c => c.k === roundKey(nowAt)) && roundKey(nowAt))
+      || (cols.find(c => c.list.some(f => f.status === "ready")) || {}).k
+      || ([...cols].reverse().find(c => c.list.some(f => f.status === "done")) || cols[0]).k;
+    tourView.round = here;
+  }
+  const ci = cols.findIndex(c => c.k === tourView.round), cur = cols[ci], nxt = cols[ci + 1] || null;
+  const go = d => { const c = cols[ci + d]; if(c){ tourView = { ...tourView, round: c.k }; renderTour(); } };
+  // The round row: ‹ Round 1 of 4 · then the quarter-finals ›
+  const row = mk("div", "tround"), prev = mk("button", "quiet", "‹"), fwd = mk("button", "quiet", "›"), mid = mk("div", "trm");
+  prev.type = fwd.type = "button";
+  prev.setAttribute("aria-label", "The round before"); fwd.setAttribute("aria-label", "The next round");
+  prev.disabled = ci <= 0; fwd.disabled = !nxt;
+  ui.tap(prev, () => go(-1)); ui.tap(fwd, () => go(1));
+  const m = /^Round (\d+)$/.exec(cur.name);
+  mid.append(mk("b", "lbl", m ? `Round ${m[1]} of ${cols.length}` : `${cur.name} · ${ci + 1} of ${cols.length}`),
+    mk("small", "", !nxt ? "the last round" : nxt.k === "F2" ? "then the decider, if needed"
+      : nxt.k === "T" ? "then the third-place match" : `then the ${/^Round /.test(nxt.name) ? nxt.name.toLowerCase() : nxt.name.toLowerCase()}`));
+  row.append(prev, mid, fwd);
+  body.push(row);
+
+  // Positions, in rem, relative to the round on screen: it stacks from the top; a next-round card
+  // sits midway between its two feeders, level with its one feeder, or below the one before it.
+  const step = MC_H + MC_GAP, y = new Map();
+  cur.list.forEach((f, i) => y.set(f.key, i * step));
+  const feedersOf = f => (f.from || []).map(s => s.winner).filter(k => k && y.has(k) && cur.list.some(g => g.key === k));
+  const placed = [];
+  if(nxt){
+    let floor = 0;
+    for(const f of nxt.list){
+      const fd = feedersOf(f);
+      let at = fd.length ? fd.reduce((s, k) => s + y.get(k), 0) / fd.length : floor;
+      at = Math.max(at, floor);
+      placed.push({ f, at, fd });
+      floor = at + step;
+    }
+  }
+  const height = Math.max(cur.list.length * step, ...placed.map(p => p.at + step)) - MC_GAP;
+  const wrap = mk("div", "tdraw" + (nxt ? "" : " solo"));
+  wrap.style.height = height + "rem";
+  const colCur = mk("div", "tcol cur"), colNext = nxt ? mk("div", "tcol peek") : null;
+  for(const f of cur.list){ const c = matchCard(t, f, st); c.style.top = y.get(f.key) + "rem"; colCur.append(c); }
+  wrap.append(colCur);
+  if(nxt){
+    const myKey = now ? now.key : null;
+    for(const p of placed){
+      const c = matchCard(t, p.f, st);
+      c.style.top = p.at + "rem";
+      colNext.append(c);
+      // The lines: out of each feeder, along to the middle, into the card. Yours in the accent.
+      const mid = p.at + MC_H / 2;
+      for(const k of p.fd){
+        const from = y.get(k) + MC_H / 2, acc = k === myKey ? " acc" : "";
+        wrap.append(line("h a" + acc, from, 0), line("v" + acc, Math.min(from, mid), Math.abs(from - mid)));
+      }
+      if(p.fd.length) wrap.append(line("h b" + (p.fd.includes(myKey) ? " acc" : ""), mid, 0));
+    }
+    wrap.append(colNext);
+  }
+  // Swiping sideways does what the arrows do.
+  let sx = null, sy = 0;
+  wrap.addEventListener("pointerdown", e => { sx = e.clientX; sy = e.clientY; });
+  wrap.addEventListener("pointerup", e => {
+    if(sx === null) return;
+    const dx = e.clientX - sx, dy = e.clientY - sy;
+    sx = null;
+    if(Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) go(dx < 0 ? 1 : -1);
+  });
+  wrap.addEventListener("pointercancel", () => { sx = null; });
+  body.push(wrap);
+  watchMyCard(t, now, cols, cur);
+}
+// A 2px line in the gutter between the two columns: `top` and `len` in rem.
+function line(kind, top, len){
+  const n = mk("i", "tl " + kind);
+  n.style.top = top + "rem";
+  if(len) n.style.height = len + "rem";
+  return n;
+}
+
+// ---- Your match: a button that brings the draw back to your match when it's off screen ----
+function watchMyCard(t, now, cols, cur){
+  const fab = el.tFab;
+  if(fabSeen){ fabSeen.disconnect(); fabSeen = null; }
+  if(!now || t.status !== "live"){ fab.classList.add("hidden"); return; }
+  fab.replaceChildren(tAvatar(t, meIn(t), 36), mk("span", "", "Your match"), mk("span", "chev", "›"));
+  fab.onclick = null;
+  if(!fab.dataset.wired){ fab.dataset.wired = "1"; ui.tap(fab, () => { const n = myNow(tourDoc, meIn(tourDoc)); if(n) jumpTo(tourDoc, n.key); }); }
+  // After this render's nodes are on the page (renderTour attaches them once painting is done).
+  queueMicrotask(() => {
+    if(!el.tBody.querySelector(".tdraw")) return;
+    const card = cur.list.some(f => f.key === now.key) && el.tBody.querySelector(`.tcol.cur .mc[data-key="${now.key}"]`);
+    if(!card){ fab.classList.remove("hidden"); return; }
+    fab.classList.add("hidden");
+    if(fabSeen) fabSeen.disconnect();
+    fabSeen = new IntersectionObserver(es => { for(const e of es) fab.classList.toggle("hidden", e.isIntersecting); }, { root: el.tBody });
+    fabSeen.observe(card);
+  });
+}
+function hideFab(){ if(fabSeen){ fabSeen.disconnect(); fabSeen = null; } el.tFab.classList.add("hidden"); }
+
+// Move the draw to a match and pulse it once: from the sheet's "The winner plays", a card's
+// "Winner of …" name, or the Your match button.
+function jumpTo(t, key){
+  const st = stateOf(t), f = st.find(x => x.key === key) || (key === "F2" ? deciderPlaceholder(t, st) : null);
+  if(!f) return;
+  tourView = { ...tourView, mode: "draw", side: f.key === "T" || isFinal(f) ? "W" : sideOf(f), round: roundKey(f) };
+  renderTour();
+  const card = el.tBody.querySelector(`.tcol.cur .mc[data-key="${key}"]`);
+  if(!card) return;
+  card.scrollIntoView({ block: "center", behavior: reduced() ? "auto" : "smooth" });
+  card.classList.remove("pulse");
+  void card.offsetWidth;
+  card.classList.add("pulse");
+}
+
 // A slot with nobody in it yet says where they'll come from.
 function slotWords(f, i, st){
   if(f.empty && f.empty[i]) return "bye";
@@ -5395,39 +5651,117 @@ function slotWords(f, i, st){
   const key = src.winner || src.loser;
   if(!key) return "to be drawn";
   const g = st.find(x => x.key === key);
-  const what = !g ? "an earlier match" : g.a && g.b ? `${tName(tourDoc, g.a)} v ${tName(tourDoc, g.b)}` : `${g.name.toLowerCase()} match ${g.slot}`;
+  const what = !g ? "an earlier match" : g.a && g.b ? `${tName(tourDoc, g.a)} v ${tName(tourDoc, g.b)}` : matchName(g, st);
   return `${src.winner ? "Winner" : "Loser"} of ${what}`;
 }
-function fixtureRow(t, f, st, org){
-  const li = mk("li"), b = mk("button", "fx" + (f.ignored ? " odd" : ""));
-  b.type = "button";
-  const r = f.status === "done" ? f.result : null;
-  const sides = f.status === "bye" ? [f.a ? 0 : 1] : [0, 1];
-  for(const i of sides){
-    const id = i ? f.b : f.a, line = mk("span", "fxp");
-    if(id){
-      line.append(tAvatar(t, id, 36), mk("span", "nm", tName(t, id) + (r && f.winner === id ? " ✓" : "")));
-      if(r && f.winner === id) line.classList.add("won");
-    } else line.append(mk("span", "nm tbd", slotWords(f, i, st)));
-    const sc = mk("b", "fxs");
-    if(r) sc.textContent = r.wo ? (f.winner === id ? "W" : "–") : String(i ? r.b : r.a);
-    line.append(sc);
-    b.append(line);
-  }
-  const words = f.status === "bye" ? "bye · goes straight through"
-    : f.status === "ready" ? `to play · race to ${f.race}`
-    : f.status === "waiting" ? "waiting"
-    : r && r.wo ? "walkover" + byWords(t, r)
-    : r ? "entered" + byWords(t, r) : "";
-  const wrong = r && r.wrongBy ? ` · ${firstName(tNameOfUid(t, r.wrongBy))} says not right` : "";
-  if(wrong) b.classList.add("odd");
-  b.append(mk("span", "lbl fxst", words + wrong + (f.ignored ? " · a result here doesn't fit any more" : "")));
-  const tappable = mayEnter(t, f) || mayDispute(t, f) || (org && f.status === "done");
-  if(tappable) ui.tap(b, () => openResult(t, f));
-  li.append(b);
-  return li;
+// An unplayed match by name: "semi-final 2", "round 3, match 1", "the winners' side final".
+function matchName(g, st){
+  const alone = st.filter(x => roundKey(x) === roundKey(g)).length <= 1, name = oneRound(g.name).toLowerCase();
+  if(alone) return "the " + name;
+  return /^round \d+$/.test(name) ? `${name}, match ${g.slot}` : `${name} ${g.slot}`;
 }
 const byWords = (t, r) => r.by ? ` by ${r.by === t.by ? organiserName(t) : firstName(people.nameOf(r.by, tNameOfUid(t, r.by)))}` : "";
+
+// ---- the match sheet: for everyone ----
+// How a player got to this match: "beat Greg 3–1", "lost to Mel 1–3", "had a bye", "drawn 3rd".
+function gotHere(t, st, f, i){
+  const src = f.from[i] || {}, id = i ? f.b : f.a;
+  if(!id) return "";
+  if(src.seed) return `drawn ${ordinal(src.seed)}`;
+  const g = st.find(x => x.key === (src.winner || src.loser));
+  if(!g) return "";
+  if(g.status === "bye") return "had a bye";
+  const r = g.result;
+  if(!r) return "";
+  const other = src.winner ? g.loser : g.winner;
+  if(r.wo) return src.winner ? `walkover against ${tName(t, other)}` : `walked over by ${tName(t, other)}`;
+  const hi = Math.max(r.a, r.b), lo = Math.min(r.a, r.b);
+  return src.winner ? `beat ${tName(t, other)} ${hi}–${lo}` : `lost to ${tName(t, other)} ${lo}–${hi}`;
+}
+// "the final", "the Losers' side, round 2", "the semi-final".
+function roundWords(t, g){
+  if(g.key === "T") return "the third-place match";
+  if(isFinal(g) || / side final$/.test(g.name)) return "the " + g.name.toLowerCase().replace("winners'", "Winners'").replace("losers'", "Losers'");
+  return t.format === "double" ? `the ${SIDE_WORD[sideOf(g)]}, ${g.name.toLowerCase()}` : "the " + oneRound(g.name).toLowerCase();
+}
+// The two where-next lines: The winner plays …, The loser … . A line that leads to a match is a
+// row: tapping it closes the sheet and moves the draw there.
+function whereNext(t, st, f, close){
+  const nx = safely(() => B.next(t, f.key), null);
+  if(!nx) return null;
+  const box = mk("div", "twn");
+  const find = k => st.find(x => x.key === k) || (k === "F2" ? deciderPlaceholder(t, st) : null);
+  const other = (g) => {
+    const i = (g.from || []).findIndex(s => s.winner === f.key || s.loser === f.key);
+    const j = i === 0 ? 1 : 0, id = j ? g.b : g.a;
+    return id ? tName(t, id) : g.empty && g.empty[j] ? "nobody: a bye" : slotWords(g, j, st);
+  };
+  const add = (k, v, key) => {
+    const r = mk(key ? "button" : "div", "twnr" + (key ? " go" : ""));
+    if(key){ r.type = "button"; ui.tap(r, () => close({ kind: "jump", key })); }
+    r.append(mk("span", "k", k), mk("span", "v", v));
+    box.append(r);
+  };
+  const lsw = f.b ? firstName(tName(t, f.b)) : "the losers' side winner", wsw = f.a ? firstName(tName(t, f.a)) : "the winners' side winner";
+  const g = nx.winner && find(nx.winner);
+  if(g) add("The winner plays", `${other(g)}, in ${roundWords(t, g)}`, g.key);
+  else if(nx.decider) add("The winner", `wins it, unless it's ${lsw}: then there's a decider`, null);
+  else add("The winner", nx.top === 3 ? "finishes 3rd" : "wins the tournament", null);
+  const l = nx.loser && find(nx.loser);
+  if(l) add("The loser", l.key === "T" ? "plays for third place" : `drops to ${roundWords(t, l)}`, l.key);
+  else if(nx.decider) add("The loser", `is 2nd, unless it's ${wsw}: then there's a decider`, null);
+  else if(nx.out) add("The loser", `is out, ${placeText(nx.out)}`, null);
+  return box;
+}
+async function openMatch(t, f){
+  if(f.status === "bye" || f.phantom) return;
+  // Whoever may enter a match that's ready goes straight to the steppers (§3.8's open point):
+  // one tap, as before, with the where-next lines on top.
+  if((f.status === "ready" && mayEnter(t, f)) || (f.ignored && runsTour(t))) return openResult(t, f);
+  const st = stateOf(t), org = runsTour(t), r = f.status === "done" ? f.result : null;
+  const clearable = org && !t.ratedAt && r && safely(() => B.canClear(t, f.key), false);
+  const v = await ui.sheet({ title: roundTitle(t, f) + (f.key.includes("-") ? " · match " + f.slot : ""), body: close => {
+    const wrap = mk("div", "tsheet");
+    const state = r ? (r.wo ? "walkover" : "played") : f.status === "ready" ? "to play" : "waiting";
+    wrap.append(mk("p", "lbl dim", `Race to ${f.race} · ${state}`));
+    for(const i of [0, 1]){
+      const id = i ? f.b : f.a, p = mk("div", "tsp");
+      if(id){
+        const nm = mk("div", "tspn"), how = gotHere(t, st, f, i);
+        nm.append(mk("b", "", tName(t, id) + (f.winner === id && r ? " ✓" : "")), ...(how ? [mk("small", "", how)] : []));
+        p.append(tAvatar(t, id, 48), nm);
+        if(r && !r.wo) p.append(mk("b", "tsps" + (f.winner === id ? " won" : ""), String(i ? r.b : r.a)));
+      } else p.append(mk("span", "ghost big"), mk("span", "dim", slotWords(f, i, st)));
+      wrap.append(p);
+    }
+    if(r && r.by) wrap.append(mk("p", "thint", (r.wo ? "Walkover" : "Entered") + byWords(t, r) + (r.wrongBy ? ` · ${firstName(tNameOfUid(t, r.wrongBy))} says not right` : "")));
+    // A waiting match says what it waits for, one tap away.
+    if(f.status === "waiting"){
+      const w = (f.from || []).map((s, i) => (!(i ? f.b : f.a) && (s.winner || s.loser)) || null).filter(Boolean)
+        .map(k => st.find(x => x.key === k)).filter(g => g && g.status !== "done" && g.status !== "bye");
+      for(const g of w){
+        const row = mk("button", "twnr go");
+        row.type = "button";
+        row.append(mk("span", "k", "Waiting for"), mk("span", "v", g.a && g.b ? `${tName(t, g.a)} v ${tName(t, g.b)}` : roundTitle(t, g)));
+        ui.tap(row, () => close({ kind: "jump", key: g.key }));
+        wrap.append(row);
+      }
+    }
+    const wn = whereNext(t, st, f, close);
+    if(wn) wrap.append(wn);
+    if(t.ratedAt && r) wrap.append(mk("p", "thint", "The tournament is rated, so its results stay as they are. The owner can put one right under Matches."));
+    // The organiser's Change also settles a Not right (It stands) and explains a locked one.
+    if(mayEnter(t, f) && r){ const b = mk("button", "", "Change"); ui.tap(b, () => close({ kind: "change" })); wrap.append(b); }
+    if(clearable){ const b = mk("button", "quiet warnbtn", "Hold to clear the result"); ui.hold(b, () => close({ kind: "clear" })); wrap.append(b); }
+    if(mayDispute(t, f)){ const b = mk("button", "quiet", "Not right"); ui.tap(b, () => close({ kind: "wrong" })); wrap.append(b); }
+    return wrap;
+  } });
+  if(!v) return;
+  if(v.kind === "jump") return jumpTo(t, v.key);
+  if(v.kind === "change") return openResult(t, f);
+  if(v.kind === "clear") return clearResult(t, f);
+  if(v.kind === "wrong") return askNotRight(t, f);
+}
 
 // ---- entering a result: two steppers, Save when exactly one side has reached the race ----
 async function openResult(t, f){
@@ -5471,6 +5805,8 @@ async function openResult(t, f){
   const race = f.race;
   const v = await ui.sheet({ title: `${f.name}${t.format === "double" && !isFinal(f) ? " · " + SIDE_WORD[sideOf(f)] : ""}`, body: close => {
     const wrap = mk("div", "tsheet"), save = mk("button", "primary", "Save");
+    const wn = whereNext(t, stateOf(t), f, close);
+    if(wn) wrap.append(wn);
     // A Not right to settle: say whose it is, and let it stand as it is.
     if(org && r0 && r0.wrongBy){
       wrap.append(mk("p", "thint warn", `${firstName(tNameOfUid(t, r0.wrongBy))} says not right. ${whoEntered(t, r0)} entered ${resultWords(t, f, r0)}. Let it stand, or change it.`));
@@ -5505,6 +5841,7 @@ async function openResult(t, f){
     return wrap;
   } });
   if(!v) return;
+  if(v.kind === "jump") return jumpTo(t, v.key);
   if(v.kind === "clear") return clearResult(t, f);
   if(v.kind === "stands"){
     const { wrongBy: _w, ...kept } = r0;
@@ -5523,7 +5860,7 @@ async function openResult(t, f){
   // The tournament finishes on the organiser's phone, never in this write (maybeFinish).
   const fields = { ["results." + f.key]: res, entry: f.key };
   tourDoc = { ...tourDoc, results: next.results, entry: f.key };
-  tourView = { side: null, round: null };   // on to the next match waiting to be played
+  tourView = { ...tourView, side: null, round: null };   // on to the next match waiting to be played
   renderTour();
   cloud.patch(tourPath(t.id), fields)
     .then(() => maybeFinish(tourDoc && tourDoc.id === t.id ? tourDoc : next))

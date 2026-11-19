@@ -351,17 +351,37 @@ the draw and the results, the same way on every phone, so nothing about the brac
   their row's `⋯` before the draw.
 - **Joining.** Scanning the Tournament QR makes the friendship (as My QR), then adds you and
   shows the lobby. After the draw it says "This tournament has started. Ask Kenny."
-- **Live, round by round.** On top, **your match** when you're in it ("You v Greg", "Losers'
-  side, round 2 · race to 3", with **Enter the result**), or what you're waiting for, or "You're
-  out · finished 5th–6th". Under it, your last result while it can still change: "Greg entered
-  3–1 to Greg" with **Not right**, "You entered 3–1 to you" with **Change**, or "You said not
-  right · Kenny settles it". The organiser gets a **Settle** card for each Not right.
-  Then, in double elimination, **Winners' side | Losers' side**; then the rounds as a segmented
-  control (numbers past four rounds; the final and any decider close the winners' side), opening
-  on the round with a match to play. Each match is a row: both players with avatars, the score
-  in large figures once it's in (the winner's in the accent, with a tick and bold), and its state
-  ("to play · race to 3", "waiting", "bye · goes straight through", "walkover by Kenny",
-  "entered by Kenny", in amber "Greg says not right"). An empty slot says where its player comes from ("Winner of Mel v Rolf").
+- **Live: Your path | Whole draw** (2.30.0, TOURNAMENT.md §3.8). On top, the Session 3 cards:
+  your last result while it can still change ("Greg entered 3–1 to Greg" with **Not right**,
+  "You entered 3–1 to you" with **Change**, "You said not right · Kenny settles it"), and the
+  organiser's **Settle** card for each Not right. Then a `.seg`, for an entrant only: **Your
+  path | Whole draw**, opening on Your path; anyone else sees the draw. The choice holds while
+  the page is open.
+  - **Your path**: one step a match you've been in (a bye counts), then the one you're in
+    ("Semi-final · now", with **Enter the result** when you may, else "Kenny enters the
+    result"), then one ahead, "if you win". Steps hang off a rail: a filled dot for played, the
+    accent for now, hollow ahead. It ends "You're out · finished 5th–6th" or "You won", and
+    opens scrolled to the step you're in.
+  - **Whole draw**: in double elimination **Winners' side | Losers' side** (the final and any
+    decider close the winners' side; third place is a last column). A round row, `‹` "Round 1
+    of 4 · then the quarter-finals" `›`; a sideways swipe does the same. The round on screen
+    fills the width less 90px, where the next round peeks in, each card joined to its feeders
+    by 2px lines, the one from your match in the accent. After a save it moves to the next
+    match to play. **Your match**, a button with your avatar, shows while your match is off
+    screen and brings the draw back to it, with a pulse (none under reduced motion).
+  - **The match card**, the same in both: a caps state ("played", "to play", "to play · you"
+    with the only accent outline, "waiting", "bye", "walkover", "decider · if needed", in amber
+    "Greg says not right" or "doesn't fit"), then a row a player: avatar, name, score. The winner
+    is bold with a tick, the winning score in the accent. An unknown player is a dashed circle
+    and where they come from ("Winner of Mel v Rolf", "Winner of semi-final 2"), which is a
+    link back to that match; a bye's empty row is "No opponent". Long names ellipsise.
+  - **The match sheet**, for anyone, on any card but a bye: the round and race, both players
+    and how each got here ("beat Greg 3–1", "drawn 3rd"), the score, "entered by Greg", and
+    two lines: **The winner plays** … and **The loser** … ("is out, 3rd–4th", "drops to the
+    Losers' side, round 2"). A line that leads to a match is a row that jumps the draw there. A
+    waiting match says what it waits for, one tap away. **Change**, **Hold to clear** and **Not
+    right** appear for whoever may use them; everyone else reads. Whoever may enter a match
+    that's ready goes straight to the steppers, with the two lines on top.
   Below, **Still in, and out**: places as soon as someone's out ("5th–6th"), then **Standings**.
 - **Results.** The organiser taps any match with both players: two steppers, 0 to the race, and
   **Save** once exactly one has reached it; or **Walkover to Kenny**. After a save the page moves

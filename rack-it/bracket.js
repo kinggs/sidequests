@@ -10,6 +10,8 @@
 //   B.ignored(t)                            // keys whose stored result doesn't fit and is being ignored
 //   B.draw(ids, { seeding, ratings, rand }) // → seeds
 //   B.raceFor(t, fixture)                   // racks needed in that fixture
+//   B.next(t, key)                          // where its players go: { winner, loser, out, top, decider }
+//   B.path(t, id)                           // one player's matches in order: played, now, one ahead
 //
 // `t` is a tournament document (rack-it/TOURNAMENT.md §5): format, final, third, race, players,
 // seeds and results. The bracket is DERIVED, never stored: who plays in every later fixture comes
@@ -207,6 +209,63 @@ export function canClear(t, key){
   return true;
 }
 
+// How many real matches (two players, ever) each elimination stage has, and the places a stage's
+// losers share: place = n − (everyone out in that stage or earlier) + 1. Depends only on n.
+const stageOf = (t, x) => t.format === "double" ? (x.side === "L" ? x.round : null) : (x.side === "W" ? x.round : null);
+function stagePlaces(t, d){
+  const realIn = new Map();
+  for (const x of d.all){ const s = stageOf(t, x); if (s != null && x.real) realIn.set(s, (realIn.get(s) || 0) + 1); }
+  const through = s => { let c = 0; for (const [k, v] of realIn) if (k <= s) c += v; return c; };
+  return s => { const p = d.n - through(s) + 1; return { place: p, placeTo: p + (realIn.get(s) || 1) - 1 }; };
+}
+
+// Where a match's players go next, read from the fixtures' `from`: `winner` and `loser` are the
+// keys they play next, or null. A loser with nowhere to go is out, in `out`'s places; a winner
+// with nowhere to go has finished `top` (1st from a final, 3rd from the third-place match). In
+// double elimination with a decider, the final's `decider` is "F2": played only if the losers'
+// side winner takes the final, so `loser` stays null there and the sheet says so.
+export function next(t, key){
+  const d = derive(t);
+  const x = d.byKey.get(key);
+  if (!x) return null;
+  const fed = (kind) => (d.all.find(y => !y.when && y.from.some(src => src[kind] === key)) || {}).key || null;
+  const out = { winner: fed("winner"), loser: fed("loser"), out: null, top: null, decider: null };
+  if (key === "T"){ out.top = 3; out.out = { place: 4, placeTo: 4 }; return out; }
+  if (key === "F" || key === "F2"){
+    out.winner = out.loser = null; out.top = 1; out.out = { place: 2, placeTo: 2 };
+    if (key === "F" && t.final === "reset") out.decider = "F2";
+    return out;
+  }
+  if (!out.winner) out.top = 1;
+  if (!out.loser){ const s = stageOf(t, x); if (s != null) out.out = stagePlaces(t, d)(s); }
+  return out;
+}
+
+// One player's matches, in the order they play them: each played one (a bye counts), then the
+// one they're in now (ready, or waiting for an opponent), then the one a win leads to. The walk
+// follows next(): the winner's way after a win, the loser's after a loss, and stops when they're
+// out or have won. Before the draw, and for someone not in it, it's empty.
+export function path(t, id){
+  if (!t.seeds || !id) return [];
+  const st = state(t), by = new Map(st.map(f => [f.key, f])), out = [], seen = new Set();
+  let cur = st.find(f => f.side === "W" && f.round === 1 && (f.a === id || f.b === id));
+  while (cur && !seen.has(cur.key)){
+    seen.add(cur.key);
+    if (cur.status !== "done" && cur.status !== "bye"){
+      out.push({ ...cur, step: "now" });
+      const ahead = next(t, cur.key).winner;
+      if (ahead && by.has(ahead)) out.push({ ...by.get(ahead), step: "ahead" });
+      break;
+    }
+    out.push({ ...cur, step: "played" });
+    const nx = next(t, cur.key);
+    let k = cur.winner === id ? nx.winner : nx.loser;
+    if (!k && cur.key === "F" && by.has("F2")) k = "F2";
+    cur = k ? by.get(k) : null;
+  }
+  return out;
+}
+
 // Places by the round a player went out in. Who is in which round's real matches depends only on
 // n (byes are fixed by the draw's size), so a player's place is known the moment they're out:
 // place = n − (everyone out in that round or earlier) + 1, shared with the rest of that round.
@@ -214,17 +273,14 @@ export function standings(t){
   const ids = entrants(t);
   const place = new Map(ids.map(id => [id, { id, place: null, placeTo: null }]));
   if (!t.seeds) return [...place.values()];
-  const { all, byKey, n } = derive(t);
+  const d = derive(t), { all, byKey, n } = d;
   const set = (id, p, to = p) => { const e = place.get(id); if (e){ e.place = p; e.placeTo = to; } };
-  const stageOf = x => t.format === "double" ? (x.side === "L" ? x.round : null) : (x.side === "W" ? x.round : null);
-  const realIn = new Map();
-  for (const x of all){ const s = stageOf(x); if (s != null && x.real) realIn.set(s, (realIn.get(s) || 0) + 1); }
-  const through = s => { let c = 0; for (const [k, v] of realIn) if (k <= s) c += v; return c; };
+  const placesOf = stagePlaces(t, d);
   for (const x of all){
-    const s = stageOf(x);
+    const s = stageOf(t, x);
     if (s == null || x.status !== "done") continue;
-    const p = n - through(s) + 1;
-    set(x.loser, p, p + realIn.get(s) - 1);
+    const { place: p, placeTo } = placesOf(s);
+    set(x.loser, p, placeTo);
   }
   const done = key => { const x = byKey.get(key); return x && !x.absent && x.status === "done" ? x : null; };
   if (t.format === "double"){

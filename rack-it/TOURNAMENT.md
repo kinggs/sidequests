@@ -5,8 +5,8 @@ with a QR, and the bracket runs itself as results come in. The organiser can ent
 players can enter their own. It reuses what Rack It has: the same accounts, the same QR, the same
 players, the same matches and ratings.
 
-**Status:** Sessions 1 to 3 done (2.29.0, 2026-11-19): players enter their own results, and the
-finish rates the tournament. Next: Session 4 or Session 5 (either order).
+**Status:** Sessions 1, 2, 3 and 5 done (2.30.0, 2026-11-19): players enter their own results, the
+finish rates the tournament, and the page is Your path and the whole draw. Next: Session 4.
 This is also pre-work for the Sessions app (`SESSIONS-MIGRATION.md` at the repo root): the
 bracket logic and the data shape are written to be lifted out.
 
@@ -274,10 +274,10 @@ player has: who do I play, and who's next?
   Everyone else reads.
 - A waiting match says what it waits for ("Waiting for Lisa v Bev", one tap away). A bye has
   no sheet.
-- ⚠ **Open, for the build session:** the drawing puts **Enter the result** as a button in this
-  sheet, which is one tap more for the organiser than today's row that opens the steppers
-  directly. Recommended: for someone who may enter a match that's ready, open the steppers
-  sheet as now, with the two where-next lines added at its top.
+- **Settled in Session 5, as recommended:** for someone who may enter a match that's ready,
+  tapping it opens the steppers sheet directly, with the two where-next lines at its top. Every
+  other tap opens the read sheet, which carries **Change**, **Hold to clear** and **Not right**
+  for whoever may use them.
 
 **Pure logic first.** `bracket.js` gains, with tests:
 
@@ -485,19 +485,19 @@ already built.
 The design is §3.8; read it and look at `rack-it/design/bracket/` first. It depends only on
 Session 2, so it can come before Sessions 3 and 4.
 
-- [ ] `B.next` and `B.path` in `bracket.js`, with their tests.
-- [ ] The match card, replacing `fixtureRow()`'s `.fx` row; every state in §3.8.
-- [ ] **Your path | Whole draw**; Your path replacing the **Your match** card in
+- [x] `B.next` and `B.path` in `bracket.js`, with their tests.
+- [x] The match card, replacing `fixtureRow()`'s `.fx` row; every state in §3.8.
+- [x] **Your path | Whole draw**; Your path replacing the **Your match** card in
       `paintBracket()`.
-- [ ] Whole draw: the round row, the swipe, the peeking column, the lines, your route in the
+- [x] Whole draw: the round row, the swipe, the peeking column, the lines, your route in the
       accent, the **Your match** button. The round `.seg` goes.
-- [ ] The match sheet for everyone, with the where-next lines and the jump. Settle §3.8's open
+- [x] The match sheet for everyone, with the where-next lines and the jump. Settle §3.8's open
       point on the organiser's extra tap first.
-- [ ] Check at 360×640 and 390×844: 3, 8, 13 and 32 players, both formats, two long names, the
+- [x] Check at 360×640 and 390×844: 3, 8, 13 and 32 players, both formats, two long names, the
       phone's text size at its largest, reduced motion.
-- [ ] The `?mock` proof grows: an entrant opens on Your path, an organiser who isn't playing
+- [x] The `?mock` proof grows: an entrant opens on Your path, an organiser who isn't playing
       on Whole draw; the winner-plays jump; the draw moving on after a save.
-- [ ] `rack-it/SPEC.md`'s Tournaments section updated; §3.4 here left as the record.
+- [x] `rack-it/SPEC.md`'s Tournaments section updated; §3.4 here left as the record.
 
 ## 9. Parked (in rough order of wanting)
 
@@ -657,3 +657,48 @@ here; a copy in a scratch folder works with the cached Chromium), and the emulat
 so at the finish `rateResult()` must mark it rated instead of writing a second one; `tourRated`
 then needs a sibling rule for that update. Results entered with `match` will need `match` added to
 `tourOwnEntry`'s allowed keys. Session 5 (the bracket view) is independent of both.
+
+### Session 5 — 2.30.0, 2026-11-19
+
+**Shipped.** The tournament page is **Your path | Whole draw** (§3.8), with one match card and
+one match sheet for everyone. Session 4 hadn't been built, so there is no **Score it in Rack It**
+yet; Session 4 adds it to both sheets. `rack-it/SPEC.md` §5.1 is the as-built description.
+
+- `bracket.js`: `B.next(t, key)` → `{ winner, loser, out, top, decider }` (where the players go,
+  the places a loser out of it shares, 1st or 3rd for a winner with nowhere to go, and `"F2"` on
+  a final with a decider) and `B.path(t, id)`. Both are structural: `next` doesn't skip through
+  byes, so a path shows a bye as its own step, as the drawing does. `standings` now shares its
+  place sums with `next` (`stagePlaces`). 4 new tests, one a property: every player's path, at
+  every size 3 to 32 in both formats, ends where the standings put them.
+- The open point (the organiser's extra tap) is settled as recommended, above.
+
+**How the draw is built** (change freely):
+
+- **Two columns, re-laid on each round change.** The round on screen stacks from the top; the
+  next one sits beside it, each card midway between its two feeders, level with one, or below
+  the card before. A swipe or an arrow re-renders with the next round on screen, so cards never
+  drift down the page as rounds go on. Swipes are pointer events on the draw (`touch-action:
+  pan-y`); `ui.tap` already ignores a moved finger, so a swipe never opens a card.
+- **Geometry in rem** (cards 6rem, gaps .75rem), the lines plain positioned elements in a 28px
+  gutter; the peek is 90px. `rack-it-bracket-sizes.mjs` measures it: every line meets a card's
+  middle, at every round of both sides, at 3, 8, 13 and 32 players, at 360 and 390 wide, at
+  normal and the largest text.
+- **The decider before it's needed** is a placeholder card, "decider · if needed", with no sheet.
+- **Your match** is a button over the page (`#tFab`), shown while your match is off screen (its
+  column isn't the one on screen, or an IntersectionObserver says it's scrolled away). It's
+  checked after the page attaches its new nodes: checked during painting, it never finds the card.
+- The route accent is the line from the match you're in to the next one, when both are on screen.
+- Unknown slots name the match: "Winner of semi-final 2", "Winner of round 3, match 1", "Loser of
+  the winners' side final".
+- The Session 3 cards (your last result's Not right or Change, the organiser's Settle) stay above
+  the two views.
+
+**Proof.** `rack-it-tournament.mjs`: 82 checks, 15 new for Session 5 (Your path for an entrant,
+the whole draw for an organiser not playing, the round row and peek, the sheet's where-next and its
+jump with a pulse, the draw moving on after a save, Ann's path, her Your match button, a reader's
+sheet without Change). `rack-it-bracket-sizes.mjs`: 98 checks, new. Both green, no page errors.
+Screens checked by eye at 360 and 390, normal and largest text.
+
+**Left for Session 4**: **Score it in Rack It** in the steppers sheet and the read sheet, beside
+**Enter the result** (`openResult()` and `openMatch()`); everything else in Session 4 as written.
+
