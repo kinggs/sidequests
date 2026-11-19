@@ -31,7 +31,7 @@ pocket-instruments/
   fixtures/     language-neutral test vectors (JSON) and their expected traces
   harness/      the C++ harness and the Node test that run the fixtures
   rack/         the VCV Rack plugin (Session 3)
-  web/          the browser page and worklet (Session 4)
+  web/          the browser page and worklet (Session 3; the phones in Session 4)
 ```
 
 ## Machine state (checked 2026-11-18)
@@ -45,7 +45,8 @@ pocket-instruments/
   plugin built against it with g++ in one `make`. `RACK_DIR` is not set in any shell file:
   give the plugin's Makefile that path as its default. clang's ThreadSanitizer reports a
   planted race, so P6's harness can run here.
-- Missing: cmake (the SDK does not need it), Firefox, Playwright. Chromium is present.
+- Missing: cmake (the SDK does not need it), Playwright, MinGW, lld, any macOS SDK. Chromium is
+  present, and Firefox (found at the start of Session 3; the line above said it was missing).
 
 ---
 
@@ -110,23 +111,51 @@ Phase 1's first critical step. No Rack, no browser, no sound.
       has not been built.
 - [x] Fill in P1 and P2 in `PROOFS.md`; write `LEARNINGS.md`; Handover.
 
-## Session 3 — P3: it runs in Rack (build, Opus)
+## Session 3 — every proof that can still change the architecture (build, Fable)
+
+Widened by the owner on 2026-11-19, before it started. It was P3 alone, on Opus, and
+Session 4 was all of P4. Why widened: P3 to P7 can each still change the engine interface,
+so they are front-loaded into one session and the sessions after it build without deciding.
+In this order, which is by how much of the plan dies if one fails. If time runs short, drop
+from the bottom, never the top, and say what was dropped. A failed proof is a result: write
+it up and carry on, except P3 (D13: stop).
+
+Rules that stand: each pass bar's check is written before it runs; no bar in `PROOFS.md`
+changes; no trace is edited; every new check is shown to fail once on a fault put in on
+purpose; stable Rust only; nothing visual (no panel art, nothing in `design/` or
+`samples/`). Built on D42 as written, though it is still proposed.
 
 - [x] Download the Rack SDK 2.6.6 for Linux outside the repo. Done 2026-11-19, ahead of the
-      session: see Machine state. `RACK_DIR` is the Makefile's default, not a shell setting.
-- [ ] `rack/`: a blank-panel module, CLOCK in, RESET in, GATE out, calling the core once per
-      sample. The Makefile builds the Rust library first, with Rack's CPU flags (R16).
-      Link `target/release/libpi_core.a` as `harness/harness.cpp` does. Watch for
-      `rust_eh_personality` at link time (`PROOFS.md` P1 ⚠).
-- [ ] Run P3's pass bar in Rack on this machine. The owner watches the scope.
-- [ ] Fill in P3. If it fails, D13's fallback applies: stop and write it up.
+      session: see Machine state.
+- [ ] **1. P3 in full.** `rack/`: a blank-panel module, CLOCK in, RESET in, GATE out, the core
+      called once per sample. `RACK_DIR` defaults to `~/.local/opt/Rack-SDK-2.6.6` in the
+      Makefile. The Makefile builds the Rust library first, with Rack's CPU flags (R16), and
+      links it as `harness/harness.cpp` does. Watch for `rust_eh_personality` at link
+      (`PROOFS.md` P1 ⚠). The owner watches the scope for the ten minutes.
+- [ ] **2. P6, the ThreadSanitizer half.** The C++ harness runs the core on one thread while
+      another edits steps and takes snapshots, the way a host really would (`ENGINE.md` §8).
+      If the interface cannot be used safely as written, that is the finding: propose the
+      change. Then, in Rack: save a patch while it plays.
+- [ ] **3. P5, the half that needs no VCV.** Cross-compile the static library for the four Rack
+      targets from this machine and check each against R16 (glibc 2.23, macOS 10.9, nehalem,
+      MinGW). Write down exactly what the full proof still needs. P5 is not ticked.
+- [ ] **4. P7, the render half.** One drum voice in the core, the simplest in `VOICES.md`,
+      rendered natively and in wasm, compared against the −80 dB bar. How sound crosses the
+      ABI is a decision: the next free D number, proposed.
+- [ ] **5. P4, the desktop half.** `web/`: a bare page and worklet, the raw `.wasm`, no
+      generated glue, the trace captured in the worklet and compared with P2. Chromium, and
+      Firefox if present. P4 is not ticked.
+- [ ] Fill in `PROOFS.md` with measured numbers; half-run proofs are `running`, with what is
+      left. Write `LEARNINGS.md`. The Handover lists what Opus can now build without deciding
+      anything.
 
-## Session 4 — P4: it runs in a phone browser (build, Opus)
+## Session 4 — what Session 3 leaves of P4 and P5 (the owner's hands)
 
-- [ ] `web/`: a bare page and worklet, raw `.wasm`, a click per step, the trace captured in
-      the worklet. Served from GitHub Pages so the owner can open it on a phone.
-- [ ] Run P4's pass bar on the browsers listed. Measure tap-to-sound latency.
-- [ ] Fill in P4.
+Was all of P4 until Session 3 was widened; the desktop half moved there.
+
+- [ ] Serve `web/` from GitHub Pages so the owner can open it on a phone. Android Chrome and
+      iOS Safari: the trace, ten minutes with no dropout, tap-to-sound latency per device.
+- [ ] Fill in P4. Whatever Session 3's Handover lists as left of P5, P6 and P7.
 
 ## After the gate
 
