@@ -450,6 +450,7 @@
   .tstep b{flex:none;min-width:1.6em;text-align:center;font-family:var(--grot);font-size:2.2222rem;font-weight:600}
   .tstep.stack{flex-wrap:wrap;justify-content:flex-end;gap:8px 12px}
   .tstep.stack .who{flex:1 1 100%}
+  .trec.thru{color:var(--accent)}
   .tplace{flex:none;min-width:4.4rem;font-family:var(--grot);font-weight:600;color:var(--text-2)}
   .tplace.dim{color:var(--dim)}
 </style>
@@ -911,7 +912,7 @@ import { connect } from "../shared/connect.js";
 import { ui } from "../shared/ui.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "2.32.0";
+const APP_VERSION = "2.33.0";
 const APP_ID = "rack-it";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 document.getElementById("versionMore").textContent = "v" + APP_VERSION;
@@ -4851,12 +4852,22 @@ ui.tap(el.drillCardOpen, () => { const d = liveDrillDoc(); if(d) resumeDrill(d.i
 // fixes everything after it. The organiser (`by`) runs it: the settings, who's in, the draw,
 // every result. From Session 3 (2.29.0) players enter their own and say Not right to one they
 // didn't enter, and the organiser's phone rates the tournament when it finishes (§3.7).
-const FORMAT_WORD = { single: "single elimination", double: "double elimination", robin: "round robin" };
-const SIDE_WORD = { W: "Winners' side", L: "Losers' side" };
+const FORMAT_WORD = { single: "single elimination", double: "double elimination", robin: "round robin", groups: "groups, then a knockout" };
+const SIDE_WORD = { W: "Winners' side", L: "Losers' side", G: "Groups" };
+// The two halves of a groups tournament: the groups, then the knockout (side "W" in bracket.js).
+const sideWord = (t, s) => t && t.format === "groups" ? (s === "G" ? "Groups" : "Knockout") : SIDE_WORD[s];
 const TOUR_MAX = 32;
 // A round robin takes 12 at most (66 matches); elimination 32.
 const tourMax = t => t && t.format === "robin" ? B.ROBIN_MAX : TOUR_MAX;
 const isRobin = t => !!t && t.format === "robin";
+const isGroups = t => !!t && t.format === "groups";
+// The fewest a format draws with: three, or six for groups (two groups of three).
+const tourMin = t => isGroups(t) ? B.GROUPS_MIN : 3;
+// "2 groups of 4, then a knockout of 4", for n in a groups tournament.
+function groupsWords(n){
+  const G = B.groupCount(n), lo = Math.floor(n / G), hi = Math.ceil(n / G);
+  return `${G} groups of ${lo === hi ? lo : lo + " or " + hi}, then a knockout of ${2 * G}`;
+}
 // "Ann won", "Ann and Ben share first", or null while nobody has.
 function winnerWords(t, places){
   const top = places.filter(s => s.place === 1);
@@ -5036,9 +5047,10 @@ function tourSettingRows(t, change){
   const rows = [
     row("Name", t.name, async () => { const v = await askTourName(t.name); if(v && v !== t.name) change({ name: v }); }),
     row("Game", GAME_LABEL[t.game], () => choose("Game", "game", [["eight", "Trad-Eight"], ["standard", "Trad-Nine"]])),
-    row("Format", t.format === "double" ? "Double elimination" : isRobin(t) ? "Round robin" : "Single elimination",
+    row("Format", t.format === "double" ? "Double elimination" : isRobin(t) ? "Round robin" : isGroups(t) ? "Groups, then a knockout" : "Single elimination",
       () => choose("Format", "format", [["single", "Single elimination"], ["double", "Double elimination"],
-        ["robin", `Round robin · everyone plays everyone, ${B.ROBIN_MAX} at most`]])),
+        ["robin", `Round robin · everyone plays everyone, ${B.ROBIN_MAX} at most`],
+        ["groups", `Groups, then a knockout · the top two of each group go through, ${B.GROUPS_MIN} to ${B.GROUPS_MAX}`]])),
     row("Race", raceText(t), async () => { const r = await askRace(t); if(r) change({ race: r }); })
   ];
   if(t.format === "double") rows.push(row("Final", t.final === "reset" ? "Decider if the losers' side wins" : "One final",
@@ -5148,7 +5160,9 @@ function renderTourNew(){
   }));
   const n = t.players.length;
   el.tnCount.textContent = String(n);
-  el.tnHint.textContent = n > tourMax(t) ? `A round robin takes ${B.ROBIN_MAX} at most: take ${n - tourMax(t)} out, or pick an elimination format.`
+  el.tnHint.textContent = isGroups(t) && n >= B.GROUPS_MIN ? `${groupsWords(n)}. Opening it lets people join with the QR.`
+    : isGroups(t) ? `Groups need ${B.GROUPS_MIN}. Open it now and the rest can join with the QR.`
+    : n > tourMax(t) ? `A round robin takes ${B.ROBIN_MAX} at most: take ${n - tourMax(t)} out, or pick an elimination format.`
     : n >= 3 ? "Opening it lets people join with the QR. You draw and start when everyone's in."
     : "You need three to draw. Open it now and the rest can join with the QR.";
 }
@@ -5277,7 +5291,7 @@ function paintLobby(t, body, foot){
     const card = mk("div", "settings");
     card.append(...tourSettingRows(t, p => {
       // Switching format drops the setting that belongs only to the other one.
-      if(p.format === "single" || p.format === "robin") p.final = "one";
+      if(p.format !== "double") p.final = "one";
       if(p.format === "double" || p.format === "robin") p.third = false;
       saveTour(t, p);
     }));
@@ -5290,10 +5304,12 @@ function paintLobby(t, body, foot){
     });
     body.push(discard);
     const start = mk("button", "primary", "Draw and start");
-    const over = players.length > tourMax(t);
-    start.disabled = players.length < 3 || over;
+    const over = players.length > tourMax(t), few = players.length < tourMin(t);
+    start.disabled = few || over;
     ui.tap(start, () => drawAndStart(t));
-    foot.push(mk("p", "thint", players.length < 3 ? "Three or more to draw. Show the QR, or add players."
+    foot.push(mk("p", "thint", few && isGroups(t) ? `Groups need ${B.GROUPS_MIN} or more. Show the QR, or add players.`
+      : few ? "Three or more to draw. Show the QR, or add players."
+      : isGroups(t) ? `${groupsWords(players.length)}. Shows the groups first.`
       : over ? `A round robin takes ${B.ROBIN_MAX} at most: take ${players.length - tourMax(t)} out, or pick an elimination format.`
       : isRobin(t) ? `Everyone plays everyone: ${players.length * (players.length - 1) / 2} matches. Shows round 1 first.`
       : "Shows the draw first. Settings stay editable until Start."), start);
@@ -5332,7 +5348,7 @@ function showTourQR(t){
   const timer = setInterval(() => { if(!document.querySelector(".cn-ov")){ clearInterval(timer); off(); } }, 500);
 }
 async function drawAndStart(t){
-  if((t.players || []).length < 3) return;
+  if((t.players || []).length < tourMin(t)) return;
   const ratingsNow = {};
   for(const id of t.players){ const st = statsOf(id); if(st) ratingsNow[id] = st.zargo; }
   for(;;){
@@ -5348,6 +5364,12 @@ async function drawAndStart(t){
         ul.append(li);
       }
       if(out1) ul.append(Object.assign(mk("li"), { textContent: `${tName(t, seeds[out1 - 1])} sits this round out` }));
+      // Groups: who's in each, rather than the first round.
+      if(isGroups(t)){
+        ul.replaceChildren(...safely(() => B.groups({ ...t, seeds, results: {} }), []).map(g =>
+          Object.assign(mk("li"), { textContent: `Group ${g.group}: ${g.ids.map(id => tName(t, id)).join(", ")}` })));
+        wrap.firstChild.textContent = `${groupsWords(seeds.length)} · ${t.seeding === "rating" ? "by rating" : "drawn at random"}`;
+      }
       const go = mk("button", "primary", "Start"), again = mk("button", "quiet", "Redraw");
       ui.tap(go, () => close("start"));
       ui.tap(again, () => close("redraw"));
@@ -5376,8 +5398,9 @@ async function drawAndStart(t){
 // screen without a tree. Both use one match card; tapping any card opens one match sheet.
 // The final (and a decider) close the winners' side's rounds; third place is a last column.
 const isFinal = f => f.key === "F" || f.key === "F2";
-function sideOf(f){ return f.side === "L" ? "L" : "W"; }
-const roundKey = f => f.key === "T" ? "T" : f.key === "F2" ? "F2" : f.key === "F" ? "F" : sideOf(f) + f.round;
+function sideOf(f){ return f.side === "L" ? "L" : f.side === "G" ? "G" : "W"; }
+// A column of the draw: a round, a final, third place, or (groups) a whole group.
+const roundKey = f => f.key === "T" ? "T" : f.key === "F2" ? "F2" : f.key === "F" ? "F" : f.side === "G" ? "G" + f.group : sideOf(f) + f.round;
 const oneRound = name => ({ "Quarter-finals": "Quarter-final", "Semi-finals": "Semi-final" })[name] || name;
 // "Quarter-final", "Losers' side · Round 2", "Winners' side final", "Final", "Third place".
 function roundTitle(t, f){
@@ -5404,7 +5427,7 @@ function columnsOf(t, st, side){
   for(const f of list){
     const k = roundKey(f);
     let c = cols.find(x => x.k === k);
-    if(!c) cols.push(c = { k, name: f.name, list: [] });
+    if(!c) cols.push(c = { k, name: f.side === "G" ? "Group " + f.group : f.name, list: [] });
     c.list.push(f);
   }
   const T = side === "W" && st.find(f => f.key === "T");
@@ -5459,6 +5482,20 @@ function paintBracket(t, body){
   }
   if(tourView.mode === "path") paintPath(t, st, me, places, body);
   else paintDraw(t, st, me, body);
+  // Groups: each group's table, the two going through marked once it's finished.
+  if(isGroups(t)) for(const g of safely(() => B.groups(t), [])){
+    const played = g.rows.some(r => r.played);
+    body.push(mk("h3", "lbl sechead", `Group ${g.group}` + (g.finished ? " · done" : "")));
+    const gl = mk("ul", "rows");
+    for(const r of g.rows){
+      const li = mk("li"), who = mk("span", "who"), d = r.rf - r.ra;
+      who.append(mk("div", "l1", tName(t, r.id) + (r.id === me ? " (you)" : "")),
+        mk("div", "l2 trec" + (r.through ? " thru" : ""), `${r.won}–${r.lost} · ${d > 0 ? "+" + d : d} ${Math.abs(d) === 1 ? "rack" : "racks"}` + (r.through ? " · through" : "")));
+      li.append(mk("span", "tplace" + (played ? "" : " dim"), played ? placeText(r) : "—"), tAvatar(t, r.id, 36), who);
+      gl.append(li);
+    }
+    body.push(gl);
+  }
   // Standings: everyone placed once it's done; before that, who's still in and who's out.
   // A round robin's is a table from the first result: won–lost and rack difference a row.
   const robinT = isRobin(t), anyPlayed = robinT && places.some(s => s.played);
@@ -5494,7 +5531,7 @@ function matchCard(t, f, st, { ahead = null } = {}){
   const r = f.status === "done" ? f.result : null;
   const yours = f.status === "ready" && !!me && (f.a === me || f.b === me);
   const wrong = r && r.wrongBy;
-  let label = f.phantom ? "decider · if needed" : ahead ? (isRobin(t) ? "next" : "if you win")
+  let label = f.phantom ? "decider · if needed" : ahead ? (isRobin(t) || f.side === "G" ? "next" : "if you win")
     : f.ignored ? "doesn't fit" : wrong ? `${firstName(tNameOfUid(t, r.wrongBy))} says not right`
     : f.status === "bye" ? "bye" : r && r.wo ? "walkover" : r ? "played"
     : f.status === "ready" ? (yours ? "to play · you" : "to play") : "waiting";
@@ -5572,15 +5609,15 @@ function paintPath(t, st, me, places, body){
 
 // ---- the whole draw: one round across, the next peeking in ----
 function paintDraw(t, st, me, body){
-  const double = t.format === "double", sides = double ? ["W", "L"] : ["W"];
+  const double = t.format === "double", sides = double ? ["W", "L"] : isGroups(t) ? ["G", "W"] : ["W"];
   const now = myNow(t, me);
   const nowAt = (now && st.find(f => f.key === now.key && f.status === "ready")) || st.find(f => f.status === "ready")
     || [...st].reverse().find(f => f.status === "done") || st[0];
   if(!tourView.side || !sides.includes(tourView.side)) tourView.side = nowAt ? (nowAt.key === "T" ? "W" : sideOf(nowAt)) : "W";
-  if(double){
+  if(sides.length > 1){
     const seg = mk("div", "seg");
     for(const s of sides){
-      const b = mk("button", "", SIDE_WORD[s]);
+      const b = mk("button", "", sideWord(t, s));
       b.type = "button";
       b.setAttribute("aria-pressed", String(tourView.side === s));
       ui.tap(b, () => { tourView = { ...tourView, side: s, round: null }; renderTour(); });
@@ -5607,7 +5644,8 @@ function paintDraw(t, st, me, body){
   ui.tap(prev, () => go(-1)); ui.tap(fwd, () => go(1));
   const m = /^Round (\d+)$/.exec(cur.name);
   mid.append(mk("b", "lbl", m ? `Round ${m[1]} of ${cols.length}` : `${cur.name} · ${ci + 1} of ${cols.length}`),
-    mk("small", "", !nxt ? "the last round" : nxt.k === "F2" ? "then the decider, if needed"
+    mk("small", "", !nxt ? (cur.k[0] === "G" ? "then the knockout" : "the last round") : nxt.k === "F2" ? "then the decider, if needed"
+      : nxt.k[0] === "G" ? `then group ${nxt.k.slice(1)}`
       : nxt.k === "T" ? "then the third-place match" : /^Round /.test(nxt.name) ? `then ${nxt.name.toLowerCase()}` : `then the ${nxt.name.toLowerCase()}`));
   row.append(prev, mid, fwd);
   body.push(row);
@@ -5711,6 +5749,7 @@ function jumpTo(t, key){
 function slotWords(f, i, st){
   if(f.empty && f.empty[i]) return "bye";
   const src = f.from[i] || {};
+  if(src.qual) return `${src.qual.place === 1 ? "Winner" : "Runner-up"} of group ${src.qual.group}`;
   const key = src.winner || src.loser;
   if(!key) return "to be drawn";
   const g = st.find(x => x.key === key);
@@ -5731,6 +5770,7 @@ function gotHere(t, st, f, i){
   const src = f.from[i] || {}, id = i ? f.b : f.a;
   if(!id) return "";
   if(src.seed) return `drawn ${ordinal(src.seed)}`;
+  if(src.qual) return src.qual.place === 1 ? `won group ${src.qual.group}` : `2nd in group ${src.qual.group}`;
   const g = st.find(x => x.key === (src.winner || src.loser));
   if(!g) return "";
   if(g.status === "bye") return "had a bye";
@@ -5750,7 +5790,7 @@ function roundWords(t, g){
 // The two where-next lines: The winner plays …, The loser … . A line that leads to a match is a
 // row: tapping it closes the sheet and moves the draw there.
 function whereNext(t, st, f, close){
-  if(isRobin(t)) return null;   // every match counts in the table; none leads anywhere
+  if(isRobin(t) || f.side === "G") return null;   // every match counts in the table; none leads anywhere
   const nx = safely(() => B.next(t, f.key), null);
   if(!nx) return null;
   const box = mk("div", "twn");

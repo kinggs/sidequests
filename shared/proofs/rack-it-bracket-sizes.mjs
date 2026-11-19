@@ -1,6 +1,6 @@
 // Rack It 2.30.0, Tournaments Session 5 (rack-it/TOURNAMENT.md §3.8): the bracket view at every
 // size it promises. For 3, 8, 13 and 32 players, single and double elimination, and a round robin
-// of 3, 8 and 12 (2.32.0), half played, at
+// of 3, 8 and 12 (2.32.0), and groups into a knockout at 6, 13 and 32 (2.33.0), half played, at
 // 360×640 and 390×844, at the normal text size and the largest, it opens the whole draw on every
 // round of both sides and checks the geometry: each line meets a card's middle, no two cards in a
 // column overlap, and no card is cut off. Also: Your path at each size, two long names that
@@ -36,7 +36,7 @@ async function make(n, format){
 const open = async id => {
   await p.click('.tabbar button[data-tab="play"]'); await p.waitForTimeout(150);
   await p.click("#toursBtn"); await p.waitForTimeout(200);
-  await p.locator("#tourList button", { hasText: id.replace("size", "").replace(/(single|double|robin)/, " $1") }).first().click();
+  await p.locator("#tourList button", { hasText: id.replace("size", "").replace(/(single|double|robin|groups)/, " $1") }).first().click();
   await p.waitForTimeout(400);
 };
 // Geometry of the draw as it stands: lines against card middles, overlaps, cards cut off.
@@ -61,7 +61,7 @@ const SIZES = [[360, 640], [390, 844]];
 for(const [w, h] of SIZES) for(const big of [false, true]){
   await p.setViewportSize({ width: w, height: h });
   await p.evaluate(on => { document.documentElement.style.fontSize = on ? "26px" : ""; }, big);
-  for(const [n, format] of [3, 8, 13, 32].flatMap(n => [[n, "single"], [n, "double"]]).concat([[3, "robin"], [8, "robin"], [12, "robin"]])){
+  for(const [n, format] of [3, 8, 13, 32].flatMap(n => [[n, "single"], [n, "double"]]).concat([[3, "robin"], [8, "robin"], [12, "robin"], [6, "groups"], [13, "groups"], [32, "groups"]])){
     const id = await make(n, format);
     await open(id);
     const tag = `${n} ${format} ${w}×${h}${big ? " big text" : ""}`;
@@ -70,7 +70,7 @@ for(const [w, h] of SIZES) for(const big of [false, true]){
     ok(steps >= 1 && await p.locator("#tBody .tps.now").count() <= 1, `${tag}: Your path, ${steps} steps`);
     if(n === 13 && !big) await shot(p, `sizes-path-${n}-${format}-${w}`);
     await p.locator("#tBody .seg button", { hasText: "Whole draw" }).click(); await p.waitForTimeout(150);
-    const sides = format === "double" ? ["Winners' side", "Losers' side"] : [null];
+    const sides = format === "double" ? ["Winners' side", "Losers' side"] : format === "groups" ? ["Groups", "Knockout"] : [null];
     let rounds = 0, problems = [];
     for(const side of sides){
       if(side){ await p.locator("#tBody .seg button", { hasText: side }).first().click(); await p.waitForTimeout(120); }

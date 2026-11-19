@@ -5,8 +5,8 @@ with a QR, and the bracket runs itself as results come in. The organiser can ent
 players can enter their own. It reuses what Rack It has: the same accounts, the same QR, the same
 players, the same matches and ratings.
 
-**Status:** Sessions 1 to 6 done (2.32.0, 2026-11-19): every session in §8, and round robin
-(§3.9, Session 6). What's next is §9 (Parked): groups into a knockout, then handicapped races.
+**Status:** Sessions 1 to 7 done (2.33.0, 2026-11-19): every session in §8, round robin (§3.9) and
+groups into a knockout (§3.10). What's next is §9 (Parked): handicapped races.
 This is also pre-work for the Sessions app (`SESSIONS-MIGRATION.md` at the repo root): the
 bracket logic and the data shape are written to be lifted out.
 
@@ -59,7 +59,7 @@ Standard options, from what pool tournaments usually ask, and what v1 does with 
 | Option | v1 | Notes |
 |---|---|---|
 | **Game** | Trad-Eight or Trad-Nine | The two games where one rack is one rack, so a result is a race. The points games wait (§9). |
-| **Format** | Single elimination · Double elimination · Round robin (3 to 12, §3.9) | Groups then knockout, and Swiss, are §9. |
+| **Format** | Single elimination · Double elimination · Round robin (3 to 12, §3.9) · Groups, then a knockout (6 to 32, §3.10) | Swiss is §9. |
 | **Race** | Race to 1–15, default 3 | One number for the whole tournament, plus two optional overrides: **Losers' side** (often one shorter) and **Final** (often longer). |
 | **Final** (double only) | One final · Decider if the losers' side wins | Decision 4. |
 | **Third place** (single only) | Off · Play-off | Off by default. |
@@ -314,7 +314,39 @@ Everyone plays everyone once. The defaults the build took, each easy to change:
   column with no lines, since no match feeds another. The match sheet has no where-next lines.
   It finishes, and rates, like the others; "Ann and Ben share first" if the top is level.
 
-Not done: groups into a knockout (the table's top two going through) and Swiss, both §9.
+Not done: Swiss (§9).
+
+### 3.10 Groups, then a knockout (Session 7, 2.33.0)
+
+Round robin groups, whose top two go into a single elimination knockout. Defaults the build took:
+
+- **6 to 32 players; 2, 4 or 8 groups** (`B.groupCount`): 2 up to 12 players, 4 up to 24, 8
+  beyond, so a group is 3 to 6 and the knockout is 4, 8 or 16 with no byes. Start and the lobby
+  say "2 groups of 3, then a knockout of 4".
+- **The groups come from the draw in a snake** (A B C D D C B A …), so by rating the top of the
+  draw is spread across them. The draw sheet lists each group rather than round 1.
+- **Two go through from each group**, by its table (§3.9's order). A tie the table can't split
+  goes to whoever is higher in the draw: deterministic, and easy to change to a lag or a
+  play-off. A group's qualifiers are known only once every match in it is played.
+- **The knockout's first round** puts each group's winner against another group's runner-up,
+  and a group's two in opposite halves, so they can meet only in the final. Its matches name
+  where their players come from ("Winner of group A", "Runner-up of group B").
+- **Settings:** Third place (in the knockout) and the Final's race apply; the Final's race is
+  the knockout's final. ⚠ That last part exposed a bug in single elimination, below.
+- **Changing a group result** is blocked once a knockout match it decides has a result (clear
+  that first), as `canClear` does for any later match.
+- **Places:** the knockout's as single elimination, then everyone out in the groups by where
+  they finished in their group (all the groups' 3rds sharing the next places, then the 4ths).
+- **The page:** the whole draw gets **Groups | Knockout** (a group a column, then the knockout's
+  rounds); each group's table sits above the standings, with "through" in the accent once it's
+  done. Your path is your group's matches (now, next), then the knockout once you're through.
+
+⚠ **Found on the way, for the owner:** in single elimination the Final's race override is
+offered in settings but never used: `raceFor` gives `race.f` only to `F`, `F2` and `T`, and a
+single elimination final is `W<k>-1`. The groups knockout uses it; single elimination is left as
+it was, because fixing it would make an already-entered single elimination final "not fit" if
+its race differed. Fixing it is one line in `raceFor` (`f.name === "Final"`), safest with a
+check that no live single elimination has `race.f` set.
 
 ## 4. The bracket (pure logic)
 
@@ -532,10 +564,17 @@ Not in the first plan: §9's first item, asked for on 2026-11-19. Design in §3.
 - [x] The table, Your path's "next", the draw without lines, no where-next lines.
 - [x] The proofs grow: a 4-player round robin played out; round robin at 3, 8 and 12 in the sizes.
 
+### Session 7 — groups, then a knockout (a minor version)
+
+§9's next item, asked for on 2026-11-19. Design in §3.10.
+
+- [x] `build({ format: "groups" })`, `groupCount`, `groups(t)`, qualifiers as a `{ qual }`
+      source, the knockout's crossover, places, `canClear`, `next` and `path` for it, with tests.
+- [x] Start, the lobby and the draw sheet offer it; **Groups | Knockout**; the group tables.
+- [x] The proofs grow: six players through two groups and a knockout; groups at 6, 13 and 32.
+
 ## 9. Parked (in rough order of wanting)
 
-- **Groups into a knockout**: round robin groups (§3.9) whose top two go into a single
-  elimination draw.
 - **Handicapped races**: Rack It's race chart per fixture from the two ratings (spec §4).
 - **The points games** (11-Point-Nine, Golden-Nine, Ten-Point-Eight): a fixture decided by a
   match in Rack It only, since their results aren't a race in racks.
@@ -804,4 +843,29 @@ a 360px phone at the largest text, so the record moved under the name. Node test
 
 **Left:** groups into a knockout (§9) builds on this: groups are round robins, and the table's
 top two seed a single elimination draw.
+
+### Session 7 — groups, then a knockout, 2.33.0, 2026-11-19
+
+**Shipped.** Groups, then a knockout (§3.10). No rules change, as for round robin.
+
+- `bracket.js`: `groupCount`, `groupSeeds` (the snake), `groupsBuild` (each group a `robin`, then
+  `build({ format: "single", n: 2G })` with keys `W` → `K` and its seeds turned into
+  `{ qual: { group, place } }`), `derive` resolving a qualifier once its group is done, `rank`
+  (the table, now shared by round robin and groups), `groups(t)`, places for groups, `canClear`
+  seeing that a group's results feed its qualifiers, `next` and `path` for group matches.
+  7 new tests (35 in all), one a property: every size 6 to 32 played at random to the end, every
+  place from 1 to n held, shared ranges held by as many as they span. Writing it caught the
+  first crossover rule ("the group half-way round") putting a group's two in the same half at 8
+  groups; the rule now pairs each group with one whose winner is in the other half.
+- `index.html`: `isGroups`, `tourMin` (6), `groupsWords`, `sideWord` (Groups, Knockout), group
+  columns in the draw, the group tables (record "2–0 · +3 racks · through", short enough for a
+  390px phone), qualifier slots and "won group A" in the match sheet.
+
+**Proof.** `rack-it-tournament.mjs`: 115 checks, 11 new (six players: the groups in the draw
+sheet, Groups | Knockout, both groups done with two through each, the draw moving to the
+knockout, each semi-final a winner against the other group's runner-up, done, the groups' 3rds
+sharing 5th–6th). `rack-it-bracket-sizes.mjs`: 170 checks, groups at 6, 13 and 32 added. Node
+tests (173) and smoke green.
+
+**For the owner:** the single elimination Final race bug in §3.10.
 

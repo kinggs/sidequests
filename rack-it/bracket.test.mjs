@@ -491,3 +491,116 @@ test("robin: a path is played, then now, then the next", () => {
   assert.deepEqual(B.path(t, "p1").map(x => x.key + ":" + x.step), [mine[0].key + ":played", mine[1].key + ":now", mine[2].key + ":ahead"]);
   assert.equal(B.path(t, "p1").length, 3);
 });
+
+// ---- groups into a knockout (2.33.0) ----
+const groupsTour = (n, opts = {}) => tour(n, { format: "groups", ...opts });
+// Plays every ready match, the earlier in the draw always winning, until none is ready.
+function chalkAll(t){
+  for (;;){
+    const ready = B.state(t).find(x => x.status === "ready");
+    if (!ready) return t;
+    const n = id => +id.slice(1);
+    win(t, ready.key, n(ready.a) < n(ready.b) ? ready.a : ready.b);
+  }
+}
+
+test("groups: how many, their sizes, and a round robin each", () => {
+  for (let n = 6; n <= 32; n++){
+    const G = B.groupCount(n), t = groupsTour(n), gs = B.groups(t);
+    assert.equal(gs.length, G, `${n}: groups`);
+    const sizes = gs.map(g => g.ids.length);
+    assert.ok(sizes.every(x => x >= 3 && x <= 6) && Math.max(...sizes) - Math.min(...sizes) <= 1, `${n}: sizes ${sizes}`);
+    assert.deepEqual(gs.flatMap(g => g.ids).sort(), t.seeds.slice().sort(), `${n}: everyone in one group`);
+    const st = B.state(t), inGroups = st.filter(f => f.side === "G");
+    assert.equal(inGroups.length, sizes.reduce((s, k) => s + k * (k - 1) / 2, 0), `${n}: group matches`);
+    assert.ok(inGroups.every(f => f.status === "ready" && gs.find(g => g.group === f.group).ids.includes(f.a)));
+    const ko = st.filter(f => f.side !== "G");
+    assert.equal(ko.filter(f => f.round === 1).length, G, `${n}: a knockout of ${2 * G}`);
+    assert.ok(ko.every(f => f.status === "waiting"), `${n}: the knockout waits for the groups`);
+  }
+  assert.throws(() => B.groupCount(5), RangeError);
+  assert.throws(() => B.groupCount(33), RangeError);
+});
+
+test("groups: the snake spreads the top of the draw", () => {
+  const gs = B.groups(groupsTour(8));
+  assert.deepEqual(gs.map(g => g.ids), [["p1", "p4", "p5", "p8"], ["p2", "p3", "p6", "p7"]]);
+});
+
+test("groups: winners meet other groups' runners-up, a group's two in opposite halves", () => {
+  for (const n of [8, 16, 32]){
+    const t = chalkAll(groupsTour(n));
+    const gs = B.groups(t), G = gs.length;
+    const r1 = B.state(t).filter(f => f.side === "W" && f.round === 1);
+    const groupOf = id => gs.find(g => g.ids.includes(id)).group;
+    for (const f of r1) assert.notEqual(groupOf(f.a), groupOf(f.b), `${n}: ${f.key} is two groups`);
+    // Halves: the first G/2 first-round matches feed one semi-final side, the rest the other.
+    const top = new Set(r1.slice(0, G / 2).flatMap(f => [f.a, f.b]).map(groupOf).map(String));
+    for (const g of gs){
+      const [w, r] = g.rows.filter(x => x.through).map(x => x.id);
+      const half = id => r1.slice(0, G / 2).some(f => f.a === id || f.b === id);
+      assert.notEqual(half(w), half(r), `${n}: group ${g.group}'s two are in opposite halves`);
+    }
+    assert.ok(top.size >= 1);
+  }
+});
+
+test("groups: qualifiers wait for their group; a tie goes to the draw; the knockout's final takes race.f", () => {
+  const t = groupsTour(6, { race: { w: 3, f: 5 } });             // A: p1 p4 p5   B: p2 p3 p6
+  const gA = () => B.groups(t)[0];
+  const sA = B.state(t).filter(f => f.group === "A");
+  const beat = (w, l) => { const f = sA.find(x => [x.a, x.b].includes(w) && [x.a, x.b].includes(l));
+    t.results[f.key] = { ids: [f.a, f.b], a: f.a === w ? 3 : 1, b: f.a === w ? 1 : 3, w: f.a === w ? "a" : "b", by: "u", at: 1 }; };
+  beat("p1", "p4"); beat("p4", "p5");
+  assert.equal(B.state(t).find(f => f.key === "K1-1").a, null, "not through until the group is done");
+  beat("p5", "p1");                                              // a cycle: all level, 1–1, +0
+  assert.ok(gA().finished);
+  assert.deepEqual(gA().rows.map(r => [r.id, r.place, r.placeTo, !!r.through]), [["p1", 1, 3, true], ["p4", 1, 3, true], ["p5", 1, 3, false]]);
+  assert.equal(B.state(t).find(f => f.key === "K1-1").a, "p1", "group A's winner, by the draw");
+  assert.equal(B.state(t).find(f => f.key === "K1-2").b, "p4", "group A's runner-up meets group B's winner");
+  const fin = B.state(t).find(f => f.name === "Final");
+  assert.equal(fin.race, 5);
+  assert.equal(B.state({ ...tour(4), race: { w: 3, f: 5 } }).find(f => f.name === "Final").race, 3, "single elimination's final unchanged");
+});
+
+test("groups: a group's result can't change once the knockout it feeds has a result", () => {
+  const t = groupsTour(6);
+  chalkAll(t);
+  const gKey = B.state(t).find(f => f.group === "A").key;
+  assert.equal(B.canClear(t, gKey), false);
+  const u = groupsTour(6);
+  for (const f of B.state(u).filter(x => x.side === "G")) win(u, f.key, +f.a.slice(1) < +f.b.slice(1) ? f.a : f.b);
+  assert.equal(B.canClear(u, B.state(u).find(f => f.group === "A").key), true, "nothing played in the knockout yet");
+  assert.deepEqual(B.next(u, gKey), { winner: null, loser: null, out: null, top: null, decider: null });
+});
+
+test("groups: a path is the group's matches, then the knockout once through", () => {
+  const t = groupsTour(6);
+  const steps = id => B.path(t, id).map(x => x.step + ":" + (x.side === "G" ? "G" : x.key));
+  assert.deepEqual(steps("p1"), ["now:G", "ahead:G"]);
+  for (const f of B.state(t).filter(x => x.side === "G")) win(t, f.key, +f.a.slice(1) < +f.b.slice(1) ? f.a : f.b);
+  assert.deepEqual(steps("p1"), ["played:G", "played:G", "now:K1-1", "ahead:K2-1"]);
+  assert.deepEqual(steps("p5"), ["played:G", "played:G"], "out in the groups");
+});
+
+test("property: groups at every size 6–32, random results, everyone placed once", () => {
+  for (let n = 6; n <= 32; n++){
+    const r = rng(n * 13), t = groupsTour(n, { third: n % 2 === 0 });
+    for (;;){
+      const ready = B.state(t).find(x => x.status === "ready");
+      if (!ready) break;
+      win(t, ready.key, r() < 0.5 ? ready.a : ready.b);
+    }
+    assert.ok(B.finished(t), `${n}: finished`);
+    const s = B.standings(t);
+    assert.ok(s.every(x => x.place != null), `${n}: everyone placed`);
+    const counts = new Map();
+    for (const x of s) for (let p = x.place; p <= x.placeTo; p++) counts.set(p, (counts.get(p) || 0) + 1);
+    // Each place from 1 to n is held, and a shared range by exactly as many as it spans.
+    const spans = new Map();
+    for (const x of s) spans.set(x.place + "-" + x.placeTo, (spans.get(x.place + "-" + x.placeTo) || 0) + 1);
+    for (const [k, c] of spans){ const [a, b] = k.split("-").map(Number); assert.equal(c, b - a + 1, `${n}: ${k} held by ${c}`); }
+    assert.equal(Math.max(...s.map(x => x.placeTo)), n, `${n}: places run to ${n}`);
+    assert.equal(s.filter(x => x.place === 1).length, 1);
+  }
+});

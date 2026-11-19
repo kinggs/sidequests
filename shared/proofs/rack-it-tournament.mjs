@@ -20,6 +20,7 @@
 // result, with no confirm; the finish marks that match rated and writes no second one.
 //
 // 2.32.0, round robin (§3.9): four players, everyone plays everyone; the table; the finish.
+// 2.33.0, groups into a knockout (§3.10): six players, two groups of three, a knockout of four.
 //
 //   node shared/proofs/rack-it-tournament.mjs
 import { ok, summary, serve, browser, tab, C, tryC, text, store, hold, shot, matchesOf, ratingsOf, answerBreak } from "./h.mjs";
@@ -502,6 +503,67 @@ ok(/won|share first/.test(await text(owner, "#tBody .sumwin")), "it leads with t
 const recs = await owner.locator("#tBody .rows .trec").allInnerTexts();
 ok(recs.length === 4 && recs.every(x => /^\d won · \d lost · [+-]?\d+ racks?$/.test(x.trim())), "the table's records: " + recs.join(", "));
 await shot(owner, "tournament-robin");
+
+// ---- Groups, then a knockout (2.33.0, §3.10) ----
+// Six players: the owner, Ann, Ben, Dan and two new guests. Two groups of three, then a
+// knockout of four. The owner enters every result.
+await front(owner);
+for(const g of ["Fay", "Gus"]) await C(owner, (c, name) => c.account.addGuest(name), g);
+await owner.reload(); await owner.waitForTimeout(900);
+await owner.click('.tabbar button[data-tab="play"]'); await owner.waitForTimeout(200);
+await owner.click("#toursBtn"); await owner.waitForTimeout(200);
+await owner.click("#tourStartBtn"); await owner.waitForTimeout(200);
+await owner.locator("#tnSettings button", { hasText: "Format" }).click(); await owner.waitForTimeout(250);
+await sheetButton(owner, "Groups, then a knockout").click(); await owner.waitForTimeout(250);
+for(const n of ["Ann", "Ben", "Dan", "Fay", "Gus"]){ await owner.locator("#tnChips button", { hasText: n }).first().click(); await owner.waitForTimeout(150); }
+ok(/2 groups of 3, then a knockout of 4/.test(await text(owner, "#tnHint")), "Start says how it'll go: " + await text(owner, "#tnHint"));
+await owner.click("#tnOpen"); await owner.waitForTimeout(600);
+let t7 = (await tours(owner)).find(x => x.status === "open");
+ok(t7 && t7.format === "groups" && t7.players.length === 6, "saved: groups, six in");
+await owner.locator("#tFoot button.primary").click(); await owner.waitForTimeout(300);
+const groupLines = await owner.locator(last + " .reclist li").allInnerTexts();
+ok(groupLines.length === 2 && groupLines.every(x => /^Group [AB]: .+, .+, .+$/.test(x)), "the draw shows the groups: " + groupLines.join(" | "));
+await sheetButton(owner, "Start").click(); await owner.waitForTimeout(500);
+t7 = (await tours(owner)).find(x => x.id === t7.id);
+ok(t7.status === "live" && B.state(t7).filter(f => f.side === "G").length === 6 && B.state(t7).filter(f => f.side === "W" && f.round === 1).every(f => f.status === "waiting"),
+  "live: six group matches, the knockout waiting");
+await toDraw(owner);
+ok(await owner.locator("#tBody .seg button", { hasText: "Groups" }).count() === 1 && await owner.locator("#tBody .seg button", { hasText: "Knockout" }).count() === 1 && /Group [AB] · [12] of 2/i.test(await text(owner, "#tBody .tround")),
+  "the draw: Groups | Knockout, a group a column: " + (await text(owner, "#tBody .tround")).replace(/\s+/g, " "));
+ok(/Group A/i.test(await text(owner, "#tBody")) && /Group B/i.test(await text(owner, "#tBody")), "each group's table");
+// Play the groups out, then the knockout.
+for(let i = 0; i < 9 && (await tours(owner)).find(x => x.id === t7.id).status === "live"; i++){
+  await toDraw(owner);
+  if(!(await curCard(owner, "to play").count())){
+    for(const side of ["Groups", "Knockout"]){
+      const b = owner.locator("#tBody .seg button", { hasText: side });
+      if(await b.count()){ await b.first().click(); await owner.waitForTimeout(150); }
+      const back = owner.locator('#tBody .tround button[aria-label="The round before"]');
+      while(await back.isEnabled()){ await back.click(); await owner.waitForTimeout(80); }
+      const fwd = owner.locator('#tBody .tround button[aria-label="The next round"]');
+      while(!(await curCard(owner, "to play").count()) && await fwd.isEnabled()){ await fwd.click(); await owner.waitForTimeout(80); }
+      if(await curCard(owner, "to play").count()) break;
+    }
+  }
+  if(i === 6){
+    t7 = (await tours(owner)).find(x => x.id === t7.id);
+    const gs = B.groups(t7);
+    ok(gs.every(g => g.finished && g.rows.filter(r => r.through).length === 2), "both groups done, two through each");
+    ok(/through/.test(await text(owner, "#tBody")) && await owner.locator("#tBody .seg button[aria-pressed=true]", { hasText: "Knockout" }).count() === 1,
+      "the draw moves to the knockout; the tables mark who's through");
+    const k1 = B.state(t7).filter(f => f.side === "W" && f.round === 1);
+    const groupOf = id => gs.find(g => g.ids.includes(id)).group;
+    ok(k1.every(f => f.a && f.b && groupOf(f.a) !== groupOf(f.b)), "each semi-final is a winner against the other group's runner-up");
+    await shot(owner, "tournament-groups-knockout");
+  }
+  await enter(owner, { loser: i % 3, wins: 3 });
+}
+await owner.waitForTimeout(1200);
+t7 = (await tours(owner)).find(x => x.id === t7.id);
+const st7 = B.standings(t7);
+ok(t7.status === "done" && t7.ratedBy === "mock-uid" && Object.keys(t7.results).length === 9, "done after six group matches and the knockout's two semis and final");
+ok(st7.filter(s => s.place === 1).length === 1 && st7.filter(s => s.place === 5 && s.placeTo === 6).length === 2,
+  "standings: one winner, the groups' 3rds share 5th–6th: " + st7.map(s => s.place + "-" + s.placeTo).join(", "));
 
 await b.close(); srv.close();
 summary();
