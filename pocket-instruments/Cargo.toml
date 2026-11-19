@@ -1,0 +1,16 @@
+# One crate for now (README rule 5). The workspace exists so target/ and the profiles sit
+# at the top of the folder, beside rust-toolchain.toml.
+[workspace]
+members = ["core"]
+resolver = "3"
+
+# P1: no unwinding can reach C. `cargo test` ignores this and unwinds, as it must.
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
