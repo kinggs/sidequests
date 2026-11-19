@@ -911,7 +911,7 @@ import { connect } from "../shared/connect.js";
 import { ui } from "../shared/ui.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "2.31.0";
+const APP_VERSION = "2.32.0";
 const APP_ID = "rack-it";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 document.getElementById("versionMore").textContent = "v" + APP_VERSION;
@@ -4851,9 +4851,19 @@ ui.tap(el.drillCardOpen, () => { const d = liveDrillDoc(); if(d) resumeDrill(d.i
 // fixes everything after it. The organiser (`by`) runs it: the settings, who's in, the draw,
 // every result. From Session 3 (2.29.0) players enter their own and say Not right to one they
 // didn't enter, and the organiser's phone rates the tournament when it finishes (§3.7).
-const FORMAT_WORD = { single: "single elimination", double: "double elimination" };
+const FORMAT_WORD = { single: "single elimination", double: "double elimination", robin: "round robin" };
 const SIDE_WORD = { W: "Winners' side", L: "Losers' side" };
 const TOUR_MAX = 32;
+// A round robin takes 12 at most (66 matches); elimination 32.
+const tourMax = t => t && t.format === "robin" ? B.ROBIN_MAX : TOUR_MAX;
+const isRobin = t => !!t && t.format === "robin";
+// "Ann won", "Ann and Ben share first", or null while nobody has.
+function winnerWords(t, places){
+  const top = places.filter(s => s.place === 1);
+  if(!top.length) return null;
+  if(top.length === 1 || !isRobin(t)) return `${tName(t, top[0].id)} won`;
+  return `${top.map(s => firstName(tName(t, s.id))).join(" and ").replace(/ and (?=.* and )/g, ", ")} share first`;
+}
 const safely = (fn, fallback) => { try { return fn(); } catch(e){ console.warn("[bracket]", e); return fallback; } };
 const ordinal = n => n + ((n % 100 >= 11 && n % 100 <= 13) ? "th" : ({ 1: "st", 2: "nd", 3: "rd" })[n % 10] || "th");
 const placeText = s => s.placeTo > s.place ? `${ordinal(s.place)}–${ordinal(s.placeTo)}` : ordinal(s.place);
@@ -4938,7 +4948,7 @@ function tAvatar(t, id, size = 36){
 function raceText(t){
   const r = t.race || {}, w = r.w || 3, bits = [];
   if(t.format === "double" && r.l) bits.push(`losers' side ${r.l}`);
-  if(r.f) bits.push(`final ${r.f}`);
+  if(r.f && !isRobin(t)) bits.push(`final ${r.f}`);
   return `Race to ${w}` + (bits.length ? ` · ${bits.join(" · ")}` : "");
 }
 const tourLine = t => `${GAME_LABEL[t.game] || "Trad-Eight"} · ${FORMAT_WORD[t.format] || FORMAT_WORD.single} · ${raceText(t).toLowerCase()}`;
@@ -4954,7 +4964,8 @@ function tourWhat(t){
   if(t.status === "open") return `Entries open · ${(t.players || []).length} in`;
   if(t.status === "done"){
     const top = safely(() => B.standings(t), []).find(s => s.place === 1);
-    return top ? `Won by ${tName(t, top.id)}` : "Ended early";
+    const w = winnerWords(t, safely(() => B.standings(t), []));
+    return top ? (w && / share first$/.test(w) ? w.replace(/ share first$/, " shared first") : `Won by ${tName(t, top.id)}`) : "Ended early";
   }
   const st = stateOf(t), mine = myFixture(t, st);
   if(mine && mine.status === "ready") return "Live · your match is ready";
@@ -5025,13 +5036,14 @@ function tourSettingRows(t, change){
   const rows = [
     row("Name", t.name, async () => { const v = await askTourName(t.name); if(v && v !== t.name) change({ name: v }); }),
     row("Game", GAME_LABEL[t.game], () => choose("Game", "game", [["eight", "Trad-Eight"], ["standard", "Trad-Nine"]])),
-    row("Format", t.format === "double" ? "Double elimination" : "Single elimination",
-      () => choose("Format", "format", [["single", "Single elimination"], ["double", "Double elimination"]])),
+    row("Format", t.format === "double" ? "Double elimination" : isRobin(t) ? "Round robin" : "Single elimination",
+      () => choose("Format", "format", [["single", "Single elimination"], ["double", "Double elimination"],
+        ["robin", `Round robin · everyone plays everyone, ${B.ROBIN_MAX} at most`]])),
     row("Race", raceText(t), async () => { const r = await askRace(t); if(r) change({ race: r }); })
   ];
   if(t.format === "double") rows.push(row("Final", t.final === "reset" ? "Decider if the losers' side wins" : "One final",
     () => choose("Final", "final", [["one", "One final"], ["reset", "Decider if the losers' side wins"]])));
-  else rows.push(row("Third place", t.third ? "Play-off" : "Off", () => choose("Third place", "third", [[false, "Off"], [true, "Play-off"]])));
+  else if(!isRobin(t)) rows.push(row("Third place", t.third ? "Play-off" : "Off", () => choose("Third place", "third", [[false, "Off"], [true, "Play-off"]])));
   rows.push(row("Draw", t.seeding === "rating" ? "By rating" : "Random",
     () => choose("Draw", "seeding", [["random", "Random"], ["rating", "By rating · highest first, top two apart"]])));
   return rows;
@@ -5085,10 +5097,10 @@ function askRace(t){
     ui.tap(ok, () => {
       const out = { w };
       if(double && l !== w) out.l = l;
-      if(f !== w) out.f = f;
+      if(f !== w && !isRobin(t)) out.f = f;
       close(out);
     });
-    wrap.append(note, wRow, ...(double ? [lRow] : []), fRow, ok);
+    wrap.append(note, wRow, ...(double ? [lRow] : []), ...(isRobin(t) ? [] : [fRow]), ok);
     return wrap;
   } });
 }
@@ -5130,13 +5142,14 @@ function renderTourNew(){
   el.tnSettings.replaceChildren(...tourSettingRows(t, p => { Object.assign(t, p); renderTourNew(); }));
   el.tnChips.replaceChildren(...entrantChips(t.players, (id, add) => {
     if(t.players.includes(id)){ if(!add) t.players = t.players.filter(x => x !== id); }
-    else if(t.players.length >= TOUR_MAX) ui.toast(`${TOUR_MAX} is the most a tournament takes.`);
+    else if(t.players.length >= tourMax(t)) ui.toast(`${tourMax(t)} is the most ${isRobin(t) ? "a round robin" : "a tournament"} takes.`);
     else t.players = [...t.players, id];
     renderTourNew();
   }));
   const n = t.players.length;
   el.tnCount.textContent = String(n);
-  el.tnHint.textContent = n >= 3 ? "Opening it lets people join with the QR. You draw and start when everyone's in."
+  el.tnHint.textContent = n > tourMax(t) ? `A round robin takes ${B.ROBIN_MAX} at most: take ${n - tourMax(t)} out, or pick an elimination format.`
+    : n >= 3 ? "Opening it lets people join with the QR. You draw and start when everyone's in."
     : "You need three to draw. Open it now and the rest can join with the QR.";
 }
 ui.tap(el.tnBack, () => { tourNew = null; openPage("tours"); });
@@ -5264,8 +5277,8 @@ function paintLobby(t, body, foot){
     const card = mk("div", "settings");
     card.append(...tourSettingRows(t, p => {
       // Switching format drops the setting that belongs only to the other one.
-      if(p.format === "single") p.final = "one";
-      if(p.format === "double") p.third = false;
+      if(p.format === "single" || p.format === "robin") p.final = "one";
+      if(p.format === "double" || p.format === "robin") p.third = false;
       saveTour(t, p);
     }));
     body.push(mk("h3", "lbl sechead", "Settings"), card);
@@ -5277,9 +5290,13 @@ function paintLobby(t, body, foot){
     });
     body.push(discard);
     const start = mk("button", "primary", "Draw and start");
-    start.disabled = players.length < 3;
+    const over = players.length > tourMax(t);
+    start.disabled = players.length < 3 || over;
     ui.tap(start, () => drawAndStart(t));
-    foot.push(mk("p", "thint", players.length < 3 ? "Three or more to draw. Show the QR, or add players." : "Shows the draw first. Settings stay editable until Start."), start);
+    foot.push(mk("p", "thint", players.length < 3 ? "Three or more to draw. Show the QR, or add players."
+      : over ? `A round robin takes ${B.ROBIN_MAX} at most: take ${players.length - tourMax(t)} out, or pick an elimination format.`
+      : isRobin(t) ? `Everyone plays everyone: ${players.length * (players.length - 1) / 2} matches. Shows round 1 first.`
+      : "Shows the draw first. Settings stay editable until Start."), start);
   } else if(mine){
     body.push(mk("p", "note", `You're in. Waiting for ${organiserName(t)} to start.`));
   }
@@ -5292,7 +5309,7 @@ function removeEntrant(t, id){
   if(id === myUid() && !runsTour(t)){ closeTour(); openPage("setup"); ui.toast("You've left it."); }
 }
 async function addEntrant(t){
-  if((t.players || []).length >= TOUR_MAX) return ui.toast(`${TOUR_MAX} is the most a tournament takes.`);
+  if((t.players || []).length >= tourMax(t)) return ui.toast(`${tourMax(t)} is the most ${isRobin(t) ? "a round robin" : "a tournament"} takes.`);
   const picked = await people.pick({ title: "Add a player", exclude: t.players || [], app: APP_ID });
   if(!picked) return;
   const id = people.resolve(picked);
@@ -5320,7 +5337,8 @@ async function drawAndStart(t){
   for(const id of t.players){ const st = statsOf(id); if(st) ratingsNow[id] = st.zargo; }
   for(;;){
     const seeds = B.draw(t.players, { seeding: t.seeding, ratings: ratingsNow });
-    const r1 = safely(() => B.state({ ...t, seeds, results: {} }).filter(f => f.side === "W" && f.round === 1), []);
+    const r1 = safely(() => B.state({ ...t, seeds, results: {} }).filter(f => (f.side === "W" || f.side === "R") && f.round === 1), []);
+    const out1 = isRobin(t) ? B.sitsOut(seeds.length)[1] : null;
     const v = await ui.sheet({ title: "The draw", body: close => {
       const wrap = mk("div", "tsheet"), ul = mk("ul", "reclist");
       wrap.append(mk("p", "thint", `Round 1 · ${t.seeding === "rating" ? "by rating" : "drawn at random"}`));
@@ -5329,6 +5347,7 @@ async function drawAndStart(t){
         li.append(mk("span", "", f.status === "bye" ? `${tName(t, f.winner)} has a bye` : `${tName(t, f.a)} v ${tName(t, f.b)}`));
         ul.append(li);
       }
+      if(out1) ul.append(Object.assign(mk("li"), { textContent: `${tName(t, seeds[out1 - 1])} sits this round out` }));
       const go = mk("button", "primary", "Start"), again = mk("button", "quiet", "Redraw");
       ui.tap(go, () => close("start"));
       ui.tap(again, () => close("redraw"));
@@ -5401,8 +5420,7 @@ function paintBracket(t, body){
   const places = safely(() => B.standings(t), []);
   body.push(mk("p", "lbl dim", tourLine(t)));
   if(t.status === "done"){
-    const top = places.find(s => s.place === 1);
-    body.push(mk("p", "sumwin", top ? `${tName(t, top.id)} won` : "Ended early"));
+    body.push(mk("p", "sumwin", winnerWords(t, places) || "Ended early"));
     if(!finished) body.push(mk("p", "thint", `${organiserName(t)} ended it before the last match.`));
   }
   if(me && t.status === "live"){
@@ -5442,12 +5460,19 @@ function paintBracket(t, body){
   if(tourView.mode === "path") paintPath(t, st, me, places, body);
   else paintDraw(t, st, me, body);
   // Standings: everyone placed once it's done; before that, who's still in and who's out.
-  body.push(mk("h3", "lbl sechead", t.status === "done" ? "Standings" : "Still in, and out"));
+  // A round robin's is a table from the first result: won–lost and rack difference a row.
+  const robinT = isRobin(t), anyPlayed = robinT && places.some(s => s.played);
+  body.push(mk("h3", "lbl sechead", robinT ? "Table" : t.status === "done" ? "Standings" : "Still in, and out"));
   const ul = mk("ul", "rows");
   for(const s of places){
     const li = mk("li"), who = mk("span", "who");
     who.append(mk("div", "l1", tName(t, s.id) + (s.id === me ? " (you)" : "")));
-    li.append(mk("span", "tplace" + (s.place ? "" : " dim"), s.place ? placeText(s) : t.status === "done" ? "—" : "still in"), tAvatar(t, s.id, 36), who);
+    if(robinT){
+      // The record under the name, so a phone at its largest text never runs out of width.
+      const d = s.rf - s.ra;
+      who.append(mk("div", "l2 trec", `${s.won} won · ${s.lost} lost · ${d > 0 ? "+" + d : d} ${Math.abs(d) === 1 ? "rack" : "racks"}`));
+      li.append(mk("span", "tplace" + (anyPlayed ? "" : " dim"), anyPlayed ? placeText(s) : "—"), tAvatar(t, s.id, 36), who);
+    } else li.append(mk("span", "tplace" + (s.place ? "" : " dim"), s.place ? placeText(s) : t.status === "done" ? "—" : "still in"), tAvatar(t, s.id, 36), who);
     ul.append(li);
   }
   body.push(ul);
@@ -5469,7 +5494,7 @@ function matchCard(t, f, st, { ahead = null } = {}){
   const r = f.status === "done" ? f.result : null;
   const yours = f.status === "ready" && !!me && (f.a === me || f.b === me);
   const wrong = r && r.wrongBy;
-  let label = f.phantom ? "decider · if needed" : ahead ? "if you win"
+  let label = f.phantom ? "decider · if needed" : ahead ? (isRobin(t) ? "next" : "if you win")
     : f.ignored ? "doesn't fit" : wrong ? `${firstName(tNameOfUid(t, r.wrongBy))} says not right`
     : f.status === "bye" ? "bye" : r && r.wo ? "walkover" : r ? "played"
     : f.status === "ready" ? (yours ? "to play · you" : "to play") : "waiting";
@@ -5536,7 +5561,8 @@ function paintPath(t, st, me, places, body){
   }
   body.push(ol);
   const mine = places.find(p => p.id === me);
-  if(mine && mine.place) body.push(mk("p", "tpend", mine.place === 1 ? "You won" : `You're out · finished ${placeText(mine)}`));
+  if(isRobin(t)){ if(mine && t.status === "done") body.push(mk("p", "tpend", mine.place === 1 && mine.placeTo === 1 ? "You won" : `You finished ${placeText(mine)}`)); }
+  else if(mine && mine.place) body.push(mk("p", "tpend", mine.place === 1 ? "You won" : `You're out · finished ${placeText(mine)}`));
   // It opens scrolled to the step you're in.
   if(nowLi && !tourView.scrolled){
     tourView.scrolled = true;
@@ -5582,7 +5608,7 @@ function paintDraw(t, st, me, body){
   const m = /^Round (\d+)$/.exec(cur.name);
   mid.append(mk("b", "lbl", m ? `Round ${m[1]} of ${cols.length}` : `${cur.name} · ${ci + 1} of ${cols.length}`),
     mk("small", "", !nxt ? "the last round" : nxt.k === "F2" ? "then the decider, if needed"
-      : nxt.k === "T" ? "then the third-place match" : `then the ${/^Round /.test(nxt.name) ? nxt.name.toLowerCase() : nxt.name.toLowerCase()}`));
+      : nxt.k === "T" ? "then the third-place match" : /^Round /.test(nxt.name) ? `then ${nxt.name.toLowerCase()}` : `then the ${nxt.name.toLowerCase()}`));
   row.append(prev, mid, fwd);
   body.push(row);
 
@@ -5724,6 +5750,7 @@ function roundWords(t, g){
 // The two where-next lines: The winner plays …, The loser … . A line that leads to a match is a
 // row: tapping it closes the sheet and moves the draw there.
 function whereNext(t, st, f, close){
+  if(isRobin(t)) return null;   // every match counts in the table; none leads anywhere
   const nx = safely(() => B.next(t, f.key), null);
   if(!nx) return null;
   const box = mk("div", "twn");
@@ -6146,7 +6173,7 @@ async function joinTour(id){
     return ui.sheet({ title: "This tournament has started", text: t ? `Ask ${organiserName(t)}.` : "Ask whoever's running it.", cancel: false,
       items: [{ label: "OK", value: true, primary: true }] });
   }
-  if((t.players || []).length >= TOUR_MAX) return ui.sheet({ title: `${organiserName(t)}'s tournament is full`, text: `${TOUR_MAX} is the most it takes.`,
+  if((t.players || []).length >= tourMax(t)) return ui.sheet({ title: `${organiserName(t)}'s tournament is full`, text: `${tourMax(t)} is the most it takes.`,
     cancel: false, items: [{ label: "OK", value: true, primary: true }] });
   const myName = people.nameOf(people.meId(), (cloud.user && cloud.user.displayName) || "Player");
   try {

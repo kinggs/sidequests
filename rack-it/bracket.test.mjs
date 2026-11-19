@@ -408,3 +408,86 @@ test("property: every player's path ends where standings says, at every size", (
     }
   }
 });
+
+// ---- round robin (2.32.0) ----
+const robinTour = (n, opts = {}) => tour(n, { format: "robin", ...opts });
+
+test("robin: everyone plays everyone once, nobody twice in a round", () => {
+  for (let n = 3; n <= B.ROBIN_MAX; n++){
+    const st = B.state(robinTour(n));
+    assert.equal(st.length, n * (n - 1) / 2, `${n}: matches`);
+    const pairs = new Set(st.map(f => [f.a, f.b].sort().join("|")));
+    assert.equal(pairs.size, st.length, `${n}: each pair once`);
+    const rounds = new Set(st.map(f => f.round));
+    assert.equal(rounds.size, n % 2 ? n : n - 1, `${n}: rounds`);
+    for (const r of rounds){
+      const ids = st.filter(f => f.round === r).flatMap(f => [f.a, f.b]);
+      assert.equal(new Set(ids).size, ids.length, `${n} round ${r}: nobody twice`);
+      assert.equal(ids.length, n % 2 ? n - 1 : n, `${n} round ${r}: everyone but one plays when odd`);
+    }
+    assert.ok(st.every(f => f.status === "ready" && f.side === "R" && /^R\d+-\d+$/.test(f.key)));
+    if (n % 2) assert.equal(Object.keys(B.sitsOut(n)).length, n);
+    else assert.deepEqual(B.sitsOut(n), {});
+  }
+  assert.throws(() => B.build({ format: "robin", n: 13 }), RangeError);
+});
+
+test("robin: sits out each round, once each when odd", () => {
+  const out = Object.values(B.sitsOut(5));
+  assert.deepEqual(out.slice().sort(), [1, 2, 3, 4, 5]);
+});
+
+test("robin: the table by wins, then rack difference, then the match between two", () => {
+  const t = robinTour(4);
+  const res = (a, b, wa, wb) => { const f = B.state(t).find(x => [x.a, x.b].sort().join() === [a, b].sort().join());
+    const flip = f.a !== a; t.results[f.key] = { ids: [f.a, f.b], a: flip ? wb : wa, b: flip ? wa : wb, w: (flip ? wb : wa) === 3 ? "a" : "b", by: "u", at: 1 }; };
+  // p1 beats everyone; p2 and p3 both 1 win, level on racks, p2 beat p3; p4 nothing.
+  res("p1", "p2", 3, 1); res("p1", "p3", 3, 1); res("p1", "p4", 3, 1);
+  res("p2", "p3", 3, 2); res("p3", "p4", 3, 0); res("p2", "p4", 2, 3);
+  // p2: won 1 (v p3), lost 2 (v p1, v p4) → racks 1+3+2 = 6 for, 3+2+3 = 8 against: −2
+  // p3: won 1 (v p4), lost 2 → 1+2+3 = 6 for, 3+3+0 = 6 against: 0
+  // p4: won 1 (v p2), lost 2 → 1+0+3 = 4 for, 3+3+2 = 8 against: −4
+  assert.ok(B.finished(t));
+  const s = B.standings(t);
+  assert.deepEqual(s.map(x => [x.id, x.place, x.won]), [["p1", 1, 3], ["p3", 2, 1], ["p2", 3, 1], ["p4", 4, 1]]);
+  assert.deepEqual(s.map(x => x.rf - x.ra), [6, 0, -2, -4]);
+});
+
+test("robin: two level on wins and racks are split by their match; three share", () => {
+  const t = robinTour(3);
+  const st = B.state(t);
+  // A cycle: each wins one 3–1. All level: they share 1st–3rd.
+  const beat = (w, l) => { const f = st.find(x => [x.a, x.b].includes(w) && [x.a, x.b].includes(l));
+    t.results[f.key] = { ids: [f.a, f.b], a: f.a === w ? 3 : 1, b: f.a === w ? 1 : 3, w: f.a === w ? "a" : "b", by: "u", at: 1 }; };
+  beat("p1", "p2"); beat("p2", "p3"); beat("p3", "p1");
+  assert.deepEqual(B.standings(t).map(x => [x.place, x.placeTo]), [[1, 3], [1, 3], [1, 3]]);
+  // Two level: p1 and p2 each 1–0 so far, same racks, but they haven't met: shared.
+  const u = robinTour(4), su = B.state(u);
+  const win = (w, l) => { const f = su.find(x => [x.a, x.b].includes(w) && [x.a, x.b].includes(l));
+    u.results[f.key] = { ids: [f.a, f.b], a: f.a === w ? 3 : 0, b: f.a === w ? 0 : 3, w: f.a === w ? "a" : "b", by: "u", at: 1 }; };
+  win("p1", "p3"); win("p2", "p4");
+  const top = B.standings(u).slice(0, 2);
+  assert.deepEqual(top.map(x => [x.place, x.placeTo]), [[1, 2], [1, 2]]);
+  win("p1", "p2");
+  assert.deepEqual(B.standings(u)[0].id, "p1");
+});
+
+test("robin: a walkover is a win with no racks; next leads nowhere; anything can be cleared", () => {
+  const t = robinTour(4), f = B.state(t)[0];
+  t.results[f.key] = { ids: [f.a, f.b], a: 0, b: 0, w: "a", wo: true, by: "u", at: 1 };
+  const row = B.standings(t).find(x => x.id === f.a);
+  assert.deepEqual([row.won, row.rf, row.ra], [1, 0, 0]);
+  assert.deepEqual(B.next(t, f.key), { winner: null, loser: null, out: null, top: null, decider: null });
+  const g = B.state(t)[1];
+  t.results[g.key] = { ids: [g.a, g.b], a: 3, b: 0, w: "a", by: "u", at: 2 };
+  assert.ok(B.canClear(t, f.key) && B.canClear(t, g.key));
+});
+
+test("robin: a path is played, then now, then the next", () => {
+  const t = robinTour(4);
+  const mine = B.state(t).filter(f => f.a === "p1" || f.b === "p1");
+  const f = mine[0];
+  t.results[f.key] = { ids: [f.a, f.b], a: 3, b: 1, w: "a", by: "u", at: 1 };
+  assert.deepEqual(B.path(t, "p1").map(x => x.key + ":" + x.step), [mine[0].key + ":played", mine[1].key + ":now", mine[2].key + ":ahead"]);
+  assert.equal(B.path(t, "p1").length, 3);
+});

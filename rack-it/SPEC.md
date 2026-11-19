@@ -337,7 +337,9 @@ the draw and the results, the same way on every phone, so nothing about the brac
   "Live · your match is ready"), two at most. The row opens the **Tournaments** page: every
   tournament you run or are in (the owner: all of them), live first, and **Start a tournament**.
 - **Start a tournament** is one page, defaults first: a settings card (**Name** "Kenny's
-  tournament", **Game** Trad-Eight or Trad-Nine, **Format** single or double elimination,
+  tournament", **Game** Trad-Eight or Trad-Nine, **Format** single or double elimination, or round
+  robin (2.32.0: 3 to 12, everyone plays everyone; a table by wins, rack difference, then the
+  match between two level, under each name "2 won · 1 lost · +3 racks"; TOURNAMENT.md §3.9),
   **Race** to 3 with optional losers' side and final races, **Final** one or a decider (double),
   **Third place** off or a play-off (single), **Draw** random or by rating), each row a sheet;
   then **Who's in**: chips of you (in by default), whoever played lately, friends and guests,

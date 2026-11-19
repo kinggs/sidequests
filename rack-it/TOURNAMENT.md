@@ -5,8 +5,8 @@ with a QR, and the bracket runs itself as results come in. The organiser can ent
 players can enter their own. It reuses what Rack It has: the same accounts, the same QR, the same
 players, the same matches and ratings.
 
-**Status:** Sessions 1 to 5 done (2.31.0, 2026-11-19): every session in §8 is built. What's next
-is §9 (Parked), round robin first.
+**Status:** Sessions 1 to 6 done (2.32.0, 2026-11-19): every session in §8, and round robin
+(§3.9, Session 6). What's next is §9 (Parked): groups into a knockout, then handicapped races.
 This is also pre-work for the Sessions app (`SESSIONS-MIGRATION.md` at the repo root): the
 bracket logic and the data shape are written to be lifted out.
 
@@ -27,7 +27,7 @@ on 2026-11-18** (the Answer column); the rest stand at their defaults.
 |---|---|---|---|
 | 1 | Does a result typed in ("I won 3–1") move ratings? | **Yes: every tournament result is rated**, however it got in (the owner, 2026-11-18: "it is the one place where ratings really count"; subtler later). Not a walkover (no racks), not a match with a guest (guests play friendlies only). Ratings move **when the tournament finishes** (§3.7). | In the race games Zargo scores each rack 1 or 0 at weight 0.5 and sums them, so the order of the racks never matters: a typed 3–1 moves ratings exactly as four scored racks would. |
 | 2 | Does the opponent have to confirm a typed result? | **No** (confirmed). It stands at once, marked "entered by Kenny". The opponent gets **Not right**, which flags it for the organiser to settle. | A bracket that waits on confirmations stalls a club night. This is how Challonge and Cuescore work. |
-| 3 | Which formats first? | Single and double elimination. Round robin next (§9). | The ask. Round robin suits four to six players and is cheap to add after. |
+| 3 | Which formats first? | Single and double elimination; round robin added in Session 6 (§3.9). | The ask. Round robin suits four to six players and is cheap to add after. |
 | 4 | Double elimination's final | **One final.** A toggle offers "play a decider if the losers' side wins" (the bracket reset). | Most club nights play one final; purists want the reset. |
 | 5 | Can guests (no phone) enter? | **Yes** (confirmed). The organiser picks them from their known guests or adds a new one, exactly as "Who's playing" does now, and enters their results. | A club night always has someone without the app. |
 | 6 | How many players? | 3 to 32. | A phone shows 32 comfortably round by round; the document stays small. |
@@ -59,7 +59,7 @@ Standard options, from what pool tournaments usually ask, and what v1 does with 
 | Option | v1 | Notes |
 |---|---|---|
 | **Game** | Trad-Eight or Trad-Nine | The two games where one rack is one rack, so a result is a race. The points games wait (§9). |
-| **Format** | Single elimination · Double elimination | Round robin, groups then knockout, and Swiss are §9. |
+| **Format** | Single elimination · Double elimination · Round robin (3 to 12, §3.9) | Groups then knockout, and Swiss, are §9. |
 | **Race** | Race to 1–15, default 3 | One number for the whole tournament, plus two optional overrides: **Losers' side** (often one shorter) and **Final** (often longer). |
 | **Final** (double only) | One final · Decider if the losers' side wins | Decision 4. |
 | **Third place** (single only) | Off · Play-off | Off by default. |
@@ -294,6 +294,28 @@ plain positioned elements. CSS only for the card, the lines, the path's rail and
 
 **Not doing:** pinch-zoom, a landscape layout, a mini-map. The table above is why.
 
+### 3.9 Round robin (Session 6, 2.32.0)
+
+Everyone plays everyone once. The defaults the build took, each easy to change:
+
+- **3 to 12 players** (`B.ROBIN_MAX`): 12 is 66 matches, a long club night already. Start and
+  the lobby say so and offer an elimination format past it; joining by QR stops at 12.
+- **The schedule** is fixed by the draw with the circle method: the first in the draw stays put,
+  the rest turn a place a round, so nobody plays twice in a round. An odd number means one player
+  sits out each round, once each; the draw sheet says who sits out round 1. There are no bye
+  matches. Keys `R<round>-<slot>`, side `"R"`, all ready from the start.
+- **The table**, from the first result: wins, then rack difference (a walkover is a win with no
+  racks), then the match between exactly two still level. Three or more level, or two who
+  haven't met, share the place ("2nd–3rd"). Each row reads "2 won · 1 lost · +3 racks".
+- **Settings** lose Final, Third place and the final's race: none of them apply. Draw by rating
+  still orders the schedule.
+- **The page** is the same two views: Your path lists your played matches, then the first still
+  to play ("now") and the one after ("next", not "if you win"). The whole draw is a round a
+  column with no lines, since no match feeds another. The match sheet has no where-next lines.
+  It finishes, and rates, like the others; "Ann and Ben share first" if the top is level.
+
+Not done: groups into a knockout (the table's top two going through) and Swiss, both §9.
+
 ## 4. The bracket (pure logic)
 
 All of it lives in one browser-free module, `rack-it/bracket.js`, with `rack-it/bracket.test.mjs`
@@ -500,10 +522,20 @@ Session 2, so it can come before Sessions 3 and 4.
       on Whole draw; the winner-plays jump; the draw moving on after a save.
 - [x] `rack-it/SPEC.md`'s Tournaments section updated; §3.4 here left as the record.
 
+### Session 6 — round robin (a minor version)
+
+Not in the first plan: §9's first item, asked for on 2026-11-19. Design in §3.9.
+
+- [x] `build({ format: "robin" })`, `sitsOut`, the table in `standings`, `next` and `path` for
+      it, with tests; `ROBIN_MAX`.
+- [x] Start and the lobby offer it, cap it at 12, and drop the elimination rows; the draw sheet.
+- [x] The table, Your path's "next", the draw without lines, no where-next lines.
+- [x] The proofs grow: a 4-player round robin played out; round robin at 3, 8 and 12 in the sizes.
+
 ## 9. Parked (in rough order of wanting)
 
-- **Round robin**, then **groups into a knockout**: `build` gains a format; standings by wins,
-  then rack difference, then the match between them.
+- **Groups into a knockout**: round robin groups (§3.9) whose top two go into a single
+  elimination draw.
 - **Handicapped races**: Rack It's race chart per fixture from the two ratings (spec §4).
 - **The points games** (11-Point-Nine, Golden-Nine, Ten-Point-Eight): a fixture decided by a
   match in Rack It only, since their results aren't a race in racks.
@@ -750,4 +782,26 @@ Ben's own phone watching the live match, or a real Firestore start between two u
 accounts (the emulator cases cover the rule).
 
 **What's left** is §9: round robin first, then handicapped races and the points games.
+
+### Session 6 — round robin, 2.32.0, 2026-11-19
+
+**Shipped.** Round robin (§3.9), from Start's Format row. No rules change: the rules never read
+`format`, and `bracket.js` ignores a result that doesn't fit its match, as before.
+
+- `bracket.js`: `robin(n)` by the circle method, `sitsOut(n)`, `table(t)` behind `standings` for
+  a round robin (rows carry `played`, `won`, `lost`, `rf`, `ra`), `next` returning nothing for
+  it, `path` as played, now, next. 6 new tests (28 in all): the schedule at every size 3 to 12
+  (each pair once, nobody twice a round, one sitting out when odd), the table's three tie-breaks
+  and a shared place, a walkover, `next`, `canClear`, the path.
+- `index.html`: `isRobin`, `tourMax`, `winnerWords` (a shared first); the elimination-only rows
+  and race fold hidden; the lobby counts the matches; the table's record sits under each name.
+  A round row now says "then round 2" rather than "then the round 2", for elimination too.
+
+**Proof.** `rack-it-tournament.mjs`: 104 checks, 10 new (a 4-player round robin set up, drawn,
+played out by the organiser, the table, done and rated). `rack-it-bracket-sizes.mjs`: 134 checks,
+round robin at 3, 8 and 12 added; it found the table's first layout (a record column) running off
+a 360px phone at the largest text, so the record moved under the name. Node tests, smoke green.
+
+**Left:** groups into a knockout (§9) builds on this: groups are round robins, and the table's
+top two seed a single elimination draw.
 

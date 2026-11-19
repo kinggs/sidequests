@@ -11,6 +11,7 @@
 //   B.draw(ids, { seeding, ratings, rand }) // → seeds
 //   B.raceFor(t, fixture)                   // racks needed in that fixture
 //   B.next(t, key)                          // where its players go: { winner, loser, out, top, decider }
+//   B.ROBIN_MAX                             // the most players a round robin takes (12)
 //   B.path(t, id)                           // one player's matches in order: played, now, one ahead
 //
 // `t` is a tournament document (rack-it/TOURNAMENT.md §5): format, final, third, race, players,
@@ -48,7 +49,44 @@ function singleName(round, k){
   return fromEnd === 0 ? "Final" : fromEnd === 1 ? "Semi-finals" : fromEnd === 2 ? "Quarter-finals" : `Round ${round}`;
 }
 
+// Round robin (2.32.0, TOURNAMENT.md §3.9): everyone plays everyone once. The circle method
+// fixes the schedule from the draw: the first in the draw stays put and the rest turn one place
+// a round, so nobody plays twice in a round. An odd number gets an empty seat, so one player
+// sits out each round; there are no bye fixtures. Keys R<round>-<slot>, side "R".
+export const ROBIN_MAX = 12;
+function robin(n){
+  const seats = Array.from({ length: n }, (_, i) => i + 1);
+  if (n % 2) seats.push(null);
+  const m = seats.length, fx = [];
+  for (let r = 1; r < m; r++){
+    let slot = 0;
+    for (let i = 0; i < m / 2; i++){
+      const a = seats[i], b = seats[m - 1 - i];
+      if (a === null || b === null) continue;
+      slot++;
+      fx.push({ key: `R${r}-${slot}`, side: "R", round: r, slot, name: `Round ${r}`, from: [{ seed: Math.min(a, b) }, { seed: Math.max(a, b) }] });
+    }
+    seats.splice(1, 0, seats.pop());
+  }
+  return fx;
+}
+// Who sits out each round of an odd round robin: { round: seed }. Empty for an even number.
+export function sitsOut(n){
+  const out = {};
+  if (n % 2 === 0) return out;
+  const fx = robin(n);
+  for (let r = 1; r <= n; r++){
+    const playing = new Set(fx.filter(f => f.round === r).flatMap(f => f.from.map(x => x.seed)));
+    out[r] = Array.from({ length: n }, (_, i) => i + 1).find(x => !playing.has(x));
+  }
+  return out;
+}
+
 export function build({ format = "single", n, final = "one", third = false } = {}){
+  if (format === "robin"){
+    if (!Number.isInteger(n) || n < 2 || n > ROBIN_MAX) throw new RangeError(`a round robin takes 2 to ${ROBIN_MAX} players, not ${n}`);
+    return robin(n);
+  }
   if (!Number.isInteger(n) || n < 2 || n > 64) throw new RangeError(`a bracket needs 2 to 64 players, not ${n}`);
   if (format !== "single" && format !== "double") throw new RangeError(`unknown format ${format}`);
   const double = format === "double";
@@ -228,6 +266,8 @@ export function next(t, key){
   const d = derive(t);
   const x = d.byKey.get(key);
   if (!x) return null;
+  // A round robin's matches lead nowhere: every one counts in the table.
+  if (t.format === "robin") return { winner: null, loser: null, out: null, top: null, decider: null };
   const fed = (kind) => (d.all.find(y => !y.when && y.from.some(src => src[kind] === key)) || {}).key || null;
   const out = { winner: fed("winner"), loser: fed("loser"), out: null, top: null, decider: null };
   if (key === "T"){ out.top = 3; out.out = { place: 4, placeTo: 4 }; return out; }
@@ -247,6 +287,15 @@ export function next(t, key){
 // out or have won. Before the draw, and for someone not in it, it's empty.
 export function path(t, id){
   if (!t.seeds || !id) return [];
+  // A round robin: played first, then the first still to play is now and the next is ahead.
+  if (t.format === "robin"){
+    const mine = state(t).filter(f => f.a === id || f.b === id), out = [];
+    for (const f of mine) if (f.status === "done") out.push({ ...f, step: "played" });
+    const left = mine.filter(f => f.status !== "done");
+    if (left[0]) out.push({ ...left[0], step: "now" });
+    if (left[1]) out.push({ ...left[1], step: "ahead" });
+    return out;
+  }
   const st = state(t), by = new Map(st.map(f => [f.key, f])), out = [], seen = new Set();
   let cur = st.find(f => f.side === "W" && f.round === 1 && (f.a === id || f.b === id));
   while (cur && !seen.has(cur.key)){
@@ -269,7 +318,47 @@ export function path(t, id){
 // Places by the round a player went out in. Who is in which round's real matches depends only on
 // n (byes are fixed by the draw's size), so a player's place is known the moment they're out:
 // place = n − (everyone out in that round or earlier) + 1, shared with the rest of that round.
+// A round robin's table: everyone ranked from the first result on, by wins, then rack
+// difference (a walkover is a win with no racks), then, between exactly two still level, the
+// match they played. Anyone still level shares the place ("3rd–4th"). Each row carries
+// played, won, lost, racks for and against.
+function table(t){
+  const ids = entrants(t);
+  const row = new Map(ids.map(id => [id, { id, place: null, placeTo: null, played: 0, won: 0, lost: 0, rf: 0, ra: 0 }]));
+  if (!t.seeds) return [...row.values()];
+  const st = state(t), done = st.filter(f => f.status === "done");
+  for (const f of done){
+    const r = f.result, A = row.get(f.a), Bz = row.get(f.b);
+    if (!A || !Bz) continue;
+    A.played++; Bz.played++;
+    row.get(f.winner).won++; row.get(f.loser).lost++;
+    if (!r.wo){ A.rf += r.a; A.ra += r.b; Bz.rf += r.b; Bz.ra += r.a; }
+  }
+  const diff = x => x.rf - x.ra;
+  const list = [...row.values()].sort((x, y) => y.won - x.won || diff(y) - diff(x));
+  // Groups level on wins and difference; two of them settled by their own match.
+  const out = [];
+  for (let i = 0; i < list.length;){
+    let j = i + 1;
+    while (j < list.length && list[j].won === list[i].won && diff(list[j]) === diff(list[i])) j++;
+    let group = list.slice(i, j);
+    if (group.length === 2){
+      const h2h = done.find(f => (f.a === group[0].id && f.b === group[1].id) || (f.a === group[1].id && f.b === group[0].id));
+      if (h2h){
+        const [w, l] = h2h.winner === group[0].id ? group : [group[1], group[0]];
+        w.place = w.placeTo = i + 1; l.place = l.placeTo = i + 2;
+        out.push(w, l); i = j; continue;
+      }
+    }
+    for (const g of group){ g.place = i + 1; g.placeTo = j; }
+    out.push(...group);
+    i = j;
+  }
+  return out;
+}
+
 export function standings(t){
+  if (t.format === "robin") return table(t);
   const ids = entrants(t);
   const place = new Map(ids.map(id => [id, { id, place: null, placeTo: null }]));
   if (!t.seeds) return [...place.values()];

@@ -19,6 +19,8 @@
 // in Rack It: setup filled and locked; a discarded go leaves it to play; the saved one is the
 // result, with no confirm; the finish marks that match rated and writes no second one.
 //
+// 2.32.0, round robin (§3.9): four players, everyone plays everyone; the table; the finish.
+//
 //   node shared/proofs/rack-it-tournament.mjs
 import { ok, summary, serve, browser, tab, C, tryC, text, store, hold, shot, matchesOf, ratingsOf, answerBreak } from "./h.mjs";
 import * as B from "../../rack-it/bracket.js";
@@ -124,7 +126,7 @@ await front(owner);
 // The organiser enters results: the first match waiting to be played, each time, in the draw.
 const toDraw = async p => { const b = p.locator("#tBody .seg button", { hasText: "Whole draw" }); if(await b.count()){ await b.click(); await p.waitForTimeout(200); } };
 const curCard = (p, words) => p.locator("#tBody .tcol.cur .mc", { hasText: words });
-async function enter(p, { wo = false, loser = 1 } = {}){
+async function enter(p, { wo = false, loser = 1, wins = 4 } = {}){
   await toDraw(p);
   const row = curCard(p, "to play").first();
   if(!(await row.count())){ await shot(p, "tournament-stuck"); throw new Error("no match to play on screen: " + (await text(p, "#tBody")).replace(/\s+/g, " ").slice(0, 400)); }
@@ -133,7 +135,7 @@ async function enter(p, { wo = false, loser = 1 } = {}){
   if(wo){ await sheetButton(p, "Walkover to").click(); await p.waitForTimeout(400); return; }
   const steps = p.locator(last + " .tstep");
   const sheets = await p.locator("body > .scrim").count();
-  for(let i = 0; i < 4; i++) await steps.nth(0).locator("button", { hasText: "+" }).click({ timeout: 4000 }).catch(async e => {
+  for(let i = 0; i < wins; i++) await steps.nth(0).locator("button", { hasText: "+" }).click({ timeout: 4000 }).catch(async e => {
     throw new Error(`the winner's + wouldn't click (${sheets} scrims; row: ${await row.innerText().catch(() => "?")}): ` + (await p.locator(last).evaluate(n => n.outerHTML)).slice(0, 2500));
   });
   for(let i = 0; i < loser; i++) await steps.nth(1).locator("button", { hasText: "+" }).click({ timeout: 4000 }).catch(async e => {
@@ -460,6 +462,46 @@ await front(ann); await ann.waitForTimeout(500);
 ok(/rated as part of Mock's tournament/.test(await text(ann, "#sumZargo")), "her summary now: " + await text(ann, "#sumZargo"));
 await ann.click("#sumTour"); await ann.waitForTimeout(500);
 ok(await ann.locator("#scrTour").isVisible() && /Ann won/.test(await text(ann, "#tBody")), "Back to the tournament");
+
+// ---- Round robin (2.32.0, §3.9) ----
+// The owner, Ann, Ben and Dan: everyone plays everyone, six matches, all entered by the owner.
+await front(owner);
+await owner.click('.tabbar button[data-tab="play"]'); await owner.waitForTimeout(200);
+await owner.click("#toursBtn"); await owner.waitForTimeout(200);
+await owner.click("#tourStartBtn"); await owner.waitForTimeout(200);
+await owner.locator("#tnSettings button", { hasText: "Format" }).click(); await owner.waitForTimeout(250);
+await sheetButton(owner, "Round robin").click(); await owner.waitForTimeout(250);
+ok(/Round robin/.test(await text(owner, "#tnSettings")) && !/Third place|Final/.test(await text(owner, "#tnSettings")), "format: round robin, without the elimination rows");
+for(const n of ["Ann", "Ben", "Dan"]){ await owner.locator("#tnChips button", { hasText: n }).first().click(); await owner.waitForTimeout(150); }
+await owner.click("#tnOpen"); await owner.waitForTimeout(600);
+let t6 = (await tours(owner)).find(x => x.status === "open");
+ok(t6 && t6.format === "robin" && t6.players.length === 4, "saved as a round robin, four in");
+ok(/6 matches/.test(await text(owner, "#tFoot")), "the lobby says how many matches: " + await text(owner, "#tFoot .thint"));
+await owner.locator("#tFoot button.primary").click(); await owner.waitForTimeout(300);
+ok((await owner.locator(last + " .reclist li").count()) === 2, "the draw shows round 1's two matches");
+await sheetButton(owner, "Start").click(); await owner.waitForTimeout(500);
+t6 = (await tours(owner)).find(x => x.id === t6.id);
+ok(t6.status === "live" && B.state(t6).length === 6 && B.state(t6).every(f => f.status === "ready"), "live: six matches, all ready at once");
+ok(/Table/i.test(await text(owner, "#tBody")) && /next/i.test(await text(owner, "#tBody .tps.ahead")), "the table, and Your path's next match");
+for(let i = 0; i < 6; i++){
+  await toDraw(owner);
+  if(!(await curCard(owner, "to play").count())){
+    const back = owner.locator('#tBody .tround button[aria-label="The round before"]');
+    while(await back.isEnabled()){ await back.click(); await owner.waitForTimeout(80); }
+    const fwd = owner.locator('#tBody .tround button[aria-label="The next round"]');
+    while(!(await curCard(owner, "to play").count()) && await fwd.isEnabled()){ await fwd.click(); await owner.waitForTimeout(80); }
+  }
+  await enter(owner, { loser: i % 3, wins: 3 });
+}
+await owner.waitForTimeout(1200);
+t6 = (await tours(owner)).find(x => x.id === t6.id);
+const table6 = B.standings(t6);
+ok(t6.status === "done" && t6.ratedBy === "mock-uid", "done when the sixth is in, and claimed for ratings");
+ok(table6.reduce((s, r) => s + r.won, 0) === 6 && table6.every(r => r.played === 3), "everyone played three, six wins in all");
+ok(/won|share first/.test(await text(owner, "#tBody .sumwin")), "it leads with the winner: " + await text(owner, "#tBody .sumwin"));
+const recs = await owner.locator("#tBody .rows .trec").allInnerTexts();
+ok(recs.length === 4 && recs.every(x => /^\d won · \d lost · [+-]?\d+ racks?$/.test(x.trim())), "the table's records: " + recs.join(", "));
+await shot(owner, "tournament-robin");
 
 await b.close(); srv.close();
 summary();
