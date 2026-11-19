@@ -1,6 +1,6 @@
 # Pocket Instruments
 
-**Status:** design review. No code yet. Started 2026-11-18.
+**Status:** the engine interface is designed; no code yet. Started 2026-11-18.
 
 Small calculator-format musical instruments, free and open source, playable as VCV Rack modules
 and in a browser, from one shared engine. An affectionate, credited homage to Teenage
@@ -19,6 +19,10 @@ into its own repository.
 | `PROOFS.md` | What must be proven, the pass bar, the result | Pass bar written before the experiment; result after |
 | `REFERENCES.md` | Outside facts we rely on, with source and date checked | Re-check before relying on an old entry |
 | `LEARNINGS.md` | Dated notebook: what surprised us, what broke, why | Append only |
+| `ENGINE.md` | The engine interface: time, the clock, commands, events, the snapshot | Changed by a decision; the header and fixtures change with it |
+| `core/include/pi_engine.h` | The same contract in C, for both hosts | Follows `ENGINE.md` |
+| `fixtures/` | Test vectors and the traces they must produce (`fixtures/README.md`) | A trace is never edited to make a build pass |
+| `WORKFLOW.md` | What each press does, in our words; the owner ticks each row on the hardware | Until P8 |
 | `PLAN.md` | The sessions, their checklists and the Handover note | Each session ticks its boxes and writes its Handover |
 
 ## Rules of this folder

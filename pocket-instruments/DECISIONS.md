@@ -207,16 +207,80 @@ from MIDI, so combinations can be held for real.
 - None of this touches the core. It only ever sees key-down and key-up commands (D17), so
   mapping is each host's own business.
 
+### D24 — The time base, and swing on an external clock
+**2026-11-19 · decided (owner) · answers O4 · applies D17**
+
+A step is a sixteenth note of 96 ticks. In Rack one clock edge is one step. The clock layer
+turns frames into ticks; the sequencer sees only ticks. On an external clock, tick 0 is the
+edge and the rest are interpolated from the gap between the last two edges; an early edge
+flushes the ticks not yet reached, a late one holds. Swing delays odd steps of the grid, not
+of the pattern. The full rules are `ENGINE.md` §2 to §5.
+
+Why: every tick is emitted once and in order whatever the host does, so the trace cannot
+differ between hosts, sample rates or block sizes. A model of the rules gave one trace across
+both clock sources at three sample rates before any engine existed (`fixtures/README.md`).
+
+Not chosen: following the hardware's sync pulse (its rate is not published, R23, and Rack
+clocks send one edge a step); dropping unreached ticks (a clock that speeds up would lose
+notes); swing by pattern step (it would leave the beat when the length is odd).
+
+### D25 — Saved state is a versioned binary snapshot each host wraps
+**2026-11-19 · decided (owner) · answers O5 · applies D17**
+
+The core writes and reads a 100-byte block with a version, a kind and a checksum. Rack stores
+it as text inside the patch; the browser the same in its storage. It holds the pattern,
+length, swing, tempo and seed, and not the playhead. Layout: `ENGINE.md` §8.
+
+Why: one writer and one reader cannot drift, and the core stays free of an allocator and a
+JSON parser. Not chosen: a readable format both hosts write (two writers, and a parser in the
+audio code). A readable export can be a tool later.
+
+### D26 — Two families of command: edits now, keys with the instrument
+**2026-11-19 · decided (owner) · applies D17, D22, D23**
+
+The core takes edits (set a step, a probability, the swing, the length) and, later, keys
+(key down, key up, slider). The workflow inside the core will turn keys into edits. The proofs
+P1 to P4 use edits only. Key numbers are fixed now; they do nothing in ABI 1.
+
+Why: the workflow is not confirmed on the hardware (`WORKFLOW.md`), and the sequencer's
+fixtures should not move when it is. ABI 1 is sized for the tiny rhythm machine: four tracks,
+sixteen steps, one pattern. More is a new snapshot version, not a redesign.
+
+### D27 — The owner's rulings on D17, D18 and D20
+**2026-11-19 · decided (owner)**
+
+- **D17 is decided**, as written out in `ENGINE.md`. P2 and P6 still test it; a failed proof
+  reopens it.
+- **D18 is decided**: plain web code, raw WebAssembly, one worklet, messages, phone first.
+- **D20 is decided** as the brief for the look. It remains the reviewer's reading of the
+  drawings; O7 and D19 still have the last word at P9.
+- **D16 stays proposed.** It waits for the measurements (`WORKFLOW.md`, question 11). D21
+  already puts the Rack jacks along the bottom of a wider panel, so no expander is planned.
+
+### D28 — Computer keys in both hosts; no MIDI code of ours
+**2026-11-19 · decided (owner) · settles D23's proposal**
+
+Beside the latch, the keys answer to the computer keyboard: a four-by-four block for the grid
+and a row for the function keys, in Rack while the pointer is over the module and in the
+browser. MIDI is whatever Rack's own mapping gives: controllers reach every key and slider,
+notes do not (R24). No MIDI input of our own and no Web MIDI until someone asks.
+
+Why: it lets combinations be held for real at no cost to the core, which only sees key-down
+and key-up. ⚠ Rack reports key presses and releases under the pointer (R25); whether it
+reports several held at once is to be tried at P8. The key positions wait on `WORKFLOW.md`,
+question 10.
+
 ## Open
 
 | ID | Question | Needs |
 |---|---|---|
 | O1 | ~~What do the front-face drawings of the design patents actually claim?~~ | Answered 2026-11-18: R4, R5, R6. Led to D20 |
-| O2 | Will the VCV Library build or accept a plugin with Rust in it? | Watch Phona (R16a); ask VCV at P5 |
+| O2 | Will the VCV Library build or accept a plugin with Rust in it? | Watch Phona (R16a, R16b: not submitted yet, 2026-11-19); ask VCV at P5 |
 | O3 | Is the name "Pocket Instruments" free, and is it too close to POCKET OPERATOR? | A register search; a decision on a family name |
-| O4 | How does swing behave on an external clock? | The engine interface session (PLAN Session 1) |
-| O5 | Saved state: one readable format shared by both hosts, or a versioned binary snapshot each host wraps? | The engine interface session |
+| O4 | ~~How does swing behave on an external clock?~~ | Answered 2026-11-19: D24 |
+| O5 | ~~Saved state: one readable format shared by both hosts, or a versioned binary snapshot each host wraps?~~ | Answered 2026-11-19: D25 |
 | O6 | EU and UK registered designs and marks | A search of EUIPO and UKIPO |
 | O7 | A lawyer's view of the mockup before public release | P9 |
 | O8 | ~~Answered by D23.~~ The hardware is played with two fingers: hold a function key, press a grid key or turn a knob. A mouse has one pointer. How are combinations made in Rack? Proposed: a click on a function key latches it (it glows) until the next grid press or a second click; computer keys held while hovering also work. The phone browser has real multi-touch and needs neither | Session 1, with D22 in mind; try it at P8 |
+| O10 | Probability and a short length are not on the hardware. What gesture sets them without colliding with its combinations? | `WORKFLOW.md`, after the hardware hour |
 | O9 | How do the three blocks stack on a phone, and does one instrument fill the screen or share it? | The Claude Design work; D18 |

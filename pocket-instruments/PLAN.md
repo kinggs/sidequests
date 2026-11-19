@@ -59,20 +59,24 @@ and the first fixtures, not code.
 - [ ] Owner: measure the PO-12 (width, height, key pitch, jack spacing) for D16.
 - [ ] Owner: list what a press does on the PO-12 in write mode and play mode, for the tiny
       rhythm machine's scope and for `REVIEW.md` F8. An hour with the hardware.
-- [ ] `ENGINE.md`: the tick resolution; what a clock edge means; swing on an external clock
+- [x] `ENGINE.md`: the tick resolution; what a clock edge means; swing on an external clock
       (O4); the command records; the event records; reset; pattern length; the snapshot
       layout and versioning (O5); what the "table" clock owns in the browser.
-- [ ] The C header, as the contract both hosts link. Design only.
-- [ ] The fixture format, and three fixtures written by hand with their expected traces:
+- [x] The C header, as the contract both hosts link. Design only. `core/include/pi_engine.h`;
+      it compiles as C and C++, natively and for wasm32, with the record sizes asserted.
+- [x] The fixture format, and three fixtures written by hand with their expected traces:
       straight sixteenths, swing with a length change, probability with a fixed seed.
-- [ ] Decide D16, D17, D18 and D20 with the owner (now `proposed`).
+- [x] Decide D16, D17, D18 and D20 with the owner. D17, D18, D20 decided (D27); D16 waits for
+      the measurements.
 - [x] How combinations work with one pointer in Rack: function keys latch (D23).
-- [ ] Decide D23's proposal: keyboard and MIDI mapping for the keys, per host.
-- [ ] Read Teenage Engineering's published PO-12 guide for the workflow, then have the owner
-      confirm each step on the hardware. Write the workflow down in our own words.
+- [x] Decide D23's proposal: keyboard and MIDI mapping for the keys, per host. D28.
+- [x] Read Teenage Engineering's published PO-12 guide for the workflow and write it down in
+      our own words: `WORKFLOW.md` (R23).
+- [ ] Owner: confirm each row of `WORKFLOW.md` on the hardware and answer its eleven
+      questions. This replaces the two owner items above; it is the same hour.
 - [ ] Owner, in Claude Design: the look, from D21's three blocks and D20's avoid list. Export
       to `pocket-instruments/design/`.
-- [ ] Re-check Phona's Library submission (R16a, O2).
+- [x] Re-check Phona's Library submission (R16a, O2). Not submitted yet: R16b.
 
 ## Session 2 — P1 and P2: one crate, same trace (build, Opus)
 
@@ -80,13 +84,20 @@ Phase 1's first critical step. No Rack, no browser, no sound.
 
 - [ ] Install Rust through mise, pinned by a `rust-toolchain.toml` in this folder (stable, with
       the `wasm32-unknown-unknown` target). Add `target/` to `.gitignore`.
-- [ ] `core/`: `no_std`, no `alloc`, `panic = "abort"`, the C ABI from `ENGINE.md`. Sequencing
-      only: tracks of sixteen trigger steps, swing, probability, length, reset, external clock
-      edges and the table clock.
+- [ ] `core/`: `no_std`, no `alloc`, `panic = "abort"`, the C ABI in `core/include/pi_engine.h`.
+      Build it from `ENGINE.md`: a clock module and a sequencer module, the snapshot, and the
+      CRC. Sequencing only. Keys and sliders are ignored (D26).
 - [ ] Build both targets with one command. Record sizes. **P1.**
+- [ ] Add a fourth fixture, a reset in the middle of a bar, with `fixtures/README.md`'s rule
+      for it. Work its trace out from `ENGINE.md` before running the core, not after.
+- [ ] A snapshot test: save, load into a fresh engine, same trace; a corrupted byte is refused.
 - [ ] `harness/`: run every fixture three ways: `cargo test`; the `.wasm` in Node with
       `node --test`; a C++ program linking the static library. Compare traces byte for byte,
-      at three sample rates and three block sizes. **P2.**
+      at three sample rates and three block sizes, on the table clock and on edges
+      (`fixtures/README.md` says how). **P2.** If the core and a trace disagree, `ENGINE.md`
+      decides which is wrong; never edit a trace to make the build pass.
+- [ ] Check the browser memory plan (`ENGINE.md` §8 ⚠): the Node harness grows the module's
+      memory by a page and puts the engine and buffers there, with no glue.
 - [ ] Wire it into the repo's `make verify`, skipped with a message when cargo is missing (the
       Pocket Editor line is the pattern). The Node test must skip, not fail, when the `.wasm`
       has not been built.
@@ -136,3 +147,19 @@ Decided when P1 to P4 are in, not before:
   show Teenage Engineering something good first.
 - D16, D17, D18 and D20 are the reviewer's proposals. The owner has not ruled on them.
 - Next: Session 1, on Fable.
+
+### After Session 1 (2026-11-19)
+
+- Done: `ENGINE.md`, the C header, the fixture format and three fixtures, `WORKFLOW.md` as a
+  draft from the guide. Decided with the owner: D17, D18, D20, and new D24 to D28. No code.
+- The design in one line: a clock layer turns frames into ticks (96 a step) and the sequencer
+  sees only ticks, so the trace cannot depend on the host. O4 and O5 are closed.
+- The expected traces came from a throwaway model, not from an engine. It agreed with itself
+  across both clock sources and three sample rates, and it found one fault in the first draft
+  (`LEARNINGS.md`). It did not test block sizes, the snapshot, reset or a tempo change.
+- Phona has not been submitted to the Library (R16b). O2 is as open as it was.
+- **Waiting on the owner:** the hour with the PO-12 (`WORKFLOW.md`: tick the rows, answer the
+  eleven questions, take the measurements for D16), and the look in Claude Design, exported
+  to `pocket-instruments/design/`. Neither blocks Session 2.
+- New open question O10: how probability and a short length are set by hand.
+- Next: Session 2, on Opus, on the laptop. Rust is still not installed.

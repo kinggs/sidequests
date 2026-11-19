@@ -53,6 +53,15 @@ All entries below were checked on **2026-11-18**.
 | R21 | SharedArrayBuffer needs a cross-origin-isolated page. GitHub Pages cannot set the headers; the `coi-serviceworker` workaround is reported to conflict with an app's own service worker | https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer · https://github.com/orgs/community/discussions/13309 |
 | R22 | ⚠ No credible measured figure for Web Audio output latency on Android Chrome was found. One open WebKit bug (Oct 2026) reports crackle on iOS 27 with an echo-cancelled microphone open | https://bugs.webkit.org/show_bug.cgi?id=326286 |
 
+## Checked 2026-11-19 (Session 1)
+
+| # | Fact | Source |
+|---|---|---|
+| R16b | **Re-check of R16a: Phona has not been submitted.** The author's posts (14 to 16 Nov 2026) say the Library toolchain does not build Rust, that he builds each platform himself (Mac signed, others not), and that he must be identity-verified by VCV before he can submit. The README says "not in the VCV Library yet"; the Library search lists no Phona. R16a's "submitted on 2026-11-17" was wrong: it was an intention. ⚠ Only the thread's first page was read. Still the one live test of O2 | https://community.vcvrack.com/t/phona-voice-simulation-using-chimera-engine-prototype/26377 · https://github.com/millxing/Phona |
+| R23 | Teenage Engineering's PO-12 guide: the key names (sound, pattern, bpm, function, fx, play, write, knobs A and B), the combinations, three tempo presets (80, 120, 140), fine tempo 60 to 240, sixteen patterns, chains of up to sixteen, sixteen effects, six sync modes. Our own summary is `WORKFLOW.md`. Silent on: the swing range, the sync pulse rate, what a grid key does in play mode, what the lights show, what the knobs do per sound. It contradicts itself on effects 9 and 10 and on the step-repeat keys. ⚠ Read through a text extraction; key positions did not survive it | https://teenage.engineering/guides/po-12/en |
+| R24 | Rack's MIDI-Map module "controls parameters of other Rack modules via a hardware MIDI CC controller". The manual does not mention notes for it. MIDI-Gate turns held notes into gates on ports, not parameters. The computer keyboard is offered only as a MIDI note driver | https://vcvrack.com/manual/Core |
+| R25 | A Rack widget gets `onHoverKey`, which "occurs when a key is pressed, released, or repeated while the mouse is hovering a Widget". ⚠ Whether several held keys are all reported is not stated; try it at P8 | https://vcvrack.com/docs-v2/structrack_1_1widget_1_1Widget |
+
 Patent drawings are read from the Google Patents pages and are not stored in this repo (README rule 6).
 
 ## Not yet checked
