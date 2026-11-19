@@ -101,7 +101,7 @@ Function key:
 Play is latched while the sequencer runs. Write is latched while write mode is on. In Rack a
 click latches any function key until the next grid press or a second click (D23).
 
-### What the grid shows, by mode ⚠ (D37, proposed)
+### What the grid shows, by mode (D37, accepted by D38)
 
 | | Write on | Write off |
 |---|---|---|

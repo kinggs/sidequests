@@ -421,6 +421,16 @@ the chosen sound while sound is held. The playhead frame runs in both. The table
 Why: it is what a search says the hardware does (R26, R27), so it serves D22. ⚠ It is a
 report, not a check on the hardware. D30 gives every key a track, so every key can flash.
 
+### D38 — The owner accepts D37
+**2026-11-19 · decided (owner) · settles D37's proposal**
+
+The grid shows steps when write is on and sounds when it is off, as D37 sets out and
+`design/DESIGN.md` tabulates.
+
+Why: it is what the hardware is reported to do (D22), and D30 gives every key a sound to show.
+⚠ Still a report and not a check on the hardware (D29): a mismatch the owner meets goes in
+`WORKFLOW.md`'s differences table.
+
 ## Open
 
 | ID | Question | Needs |

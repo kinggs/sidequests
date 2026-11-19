@@ -183,7 +183,7 @@ Decided when P1 to P4 are in, not before:
   the static Rack panel. O9 is closed.
 - **No longer waiting on the owner for the look.** It never blocked Session 2 and still does
   not: nothing in the engine changed.
-- Proposed, for the owner: D37, what the grid shows with write on and off.
+- Decided: D37, what the grid shows with write on and off (accepted, D38).
 - O12 is answered: the owner keeps weaving as the display's subject. The animation is no
   longer held.
 - Not built: any widget, and the display animation. `DESIGN.md` lists what is not done.
