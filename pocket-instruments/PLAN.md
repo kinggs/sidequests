@@ -212,6 +212,21 @@ Windows machine.
 - [x] `check-link` in `rack/Makefile` works on all three systems, not only Linux.
 - [x] The four artefacts, green, and `PROOFS.md` P5's items 1 and 2 answered.
 
+## Session 7 — the other eleven voices (build, Opus; done 2026-11-19)
+
+The first item of Session 3's "What Opus can now build". Recipes, as Session 5 built keys 1
+to 4; D35's samples can still replace any of them by ear.
+
+- [x] Keys 5 to 9 and 11 to 16 in `core/src/voice.rs`, from `VOICES.md`'s recipes. What
+      each became: `VOICES.md`, "As built". The cymbal is the hats' source in a third
+      setting; the toms and the tones share a struct each.
+- [x] A scenario each (`harness/render-<name>.json`), and `render-all.json` with all
+      sixteen. 108 pairs, all the same bytes. The five older voices did not change a bit.
+- [x] Every generic rule test now runs on all sixteen; slider A is tested per voice (pitch,
+      brightness, the clap's bursts, the tones' semitones). Each new check failed once on a
+      planted fault.
+- [x] The engine passed the hosts' 1 KiB (now 1 416 bytes): every fixed room is 2 KiB.
+
 ## After the gate
 
 Decided when P1 to P4 are in, not before:
@@ -483,3 +498,23 @@ Decided when P1 to P4 are in, not before:
   voices, or edits from a UI. Both stay inside what is decided. The owner's open items are
   P4 on iOS, P5's loads and VCV's reply, a ruling on a headless load in CI, and the
   workflow's rows (`WORKFLOW.md`).
+
+### After Session 7: all sixteen voices (2026-11-19)
+
+- **Every track has a voice.** Built as recipes from `VOICES.md`; numbers in its "As
+  built". `make test` (108 render pairs, all the same bytes), `make p4` (both browsers,
+  24 of 24) and `make -C rack selftest` (three rates) pass.
+- **Changed beside the voices, because they broke:** the engine is 1 416 bytes, past the
+  hosts' 1 KiB. Probe's buffer, the Node harness's layout and the test's bound are 2 KiB;
+  the worklet now refuses an engine that does not fit before its events. A test gave the
+  engine a 1 KiB buffer and would have written past it: it now sizes from `pi_size`.
+- **Built inside the recipes, without a ruling:** key 5's noise is shorter than its body
+  ("short noise"); key 15 is a triangle and key 16 a low-passed square ("a square or
+  triangle"). Every number is a first setting, for the owner's ear at P8.
+- **Waits for the owner, blocking nothing:** whether slider A on the tones is in semitones
+  (⚠ the recipe's guess, built as one); which keys become samples (D35), which needs a
+  sample path the core does not have.
+- **Hear it:** no patch plays all sixteen yet. Rack's Probe plays whatever its fixture
+  steps, so `Sound.vcv` is still the beat.
+- **Next build, from Session 3's list:** edits from a UI, once the workflow's rows say
+  what a press does; or a patch and a page to hear all sixteen.

@@ -229,3 +229,21 @@ belongs in `PROOFS.md`, a change of course in `DECISIONS.md`, an outside fact in
 - **Docker was installed but not usable** (no `docker` group), so CI was the only place to
   test the Linux build. Two runs of about two minutes each was cheaper than changing the
   machine.
+
+## 2026-11-19 — Session 7, the other eleven voices
+
+- **A test that sized its own buffer was one engine away from writing past it.** It gave
+  `pi_init` a fixed 1 KiB and the engine became 1 416 bytes. It refused nothing wrong only
+  because the refusals ran first, each for being too small rather than for the reason it
+  named. Size test memory from `pi_size`, and give each refusal enough room that only its
+  own reason applies.
+- **A recipe's adjective mattered.** "Plus short noise": built with one envelope, the synth
+  snare's noise lasted as long as its body and buried the pitch the test was counting.
+  The test was right and the voice was wrong.
+- **A planted fault has to be a fault.** Moving the noise's corner over a narrower range
+  still made it brighter, and the brightness test rightly passed. A plant that ignores the
+  slider is the fair one. A malformed plant (a reversed range) told me nothing either way.
+- **The refactor was proven, not assumed:** the previous commit, built in a scratch
+  worktree, rendered the five older voices and the beat to the same bytes as this one.
+  Adding exact zeros to a sum leaves it alone, except `-0.0 + 0.0`, which is why the old
+  test's partial sum became the full one.

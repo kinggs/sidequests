@@ -491,6 +491,17 @@ scenarios, at three rates on both clocks, came out the same bytes natively and f
   apart and would have had every copy refused; it now steps by `pi_size` and still held
   1 024 copies headless in Chromium and in Firefox.
 
+**All sixteen voices, 2026-11-19 (Session 7).** The other eleven, each in its own scenario,
+and `harness/render-all.json` with all sixteen together: 18 scenarios, 108 pairs at three
+rates on both clocks, every one the same bytes natively and from the `.wasm`. Annotations:
+- **The five voices already built did not change.** The previous commit's core renders the
+  click, kick, snare, both hats and the beat to the same bytes as this one: 36 of 36 files.
+- **Cost, natively, as a pointer:** all sixteen sequenced at about 47 ns a frame on this
+  laptop, the beat at about 29 ns measured the same way the same afternoon (Session 5's
+  13 ns was another day's load; compare within a row, not across). Not counted on a phone.
+- The engine is 1 416 bytes and the `.wasm` 19 478 (P1's bar is 50 KB). Every host's fixed
+  room moved from 1 to 2 KiB together.
+
 ### P8 — It feels like the real thing
 
 **Claim:** the workflow is recognisably the hardware's.

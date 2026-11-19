@@ -1,8 +1,9 @@
 # The sixteen voices
 
-**Status:** written 2026-11-19 (D30, D31) as a starting sheet. Five voices are built in
-`core/src/voice.rs`: keys 1 to 4 (2026-11-19, the minimum beat) and 10 (P7). What each
-became is under **As built**. The other eleven tracks are silent.
+**Status:** written 2026-11-19 (D30, D31) as a starting sheet. All sixteen voices are built
+in `core/src/voice.rs` as recipes: key 10 (P7), keys 1 to 4 (the minimum beat), and the
+other eleven (Session 7), all 2026-11-19. What each became is under **As built**. D35's
+samples can still replace any of them, key by key, by ear; no sample path exists yet.
 
 Key *n* plays track *n*. The roles and their order follow the hardware, so that what a
 player learns here (which key is which drum) carries over (D22). The sounds are synthesised
@@ -57,7 +58,18 @@ Every one is held to the same bytes natively and in WebAssembly by a scenario in
 | 2 | Two sines, the upper 11/6 of the lower (180 and 330 Hz at the middle), and white noise through a band-pass | lower sine 130 to 230 Hz | the noise, 50 to 250 ms | the body falls 60 dB in 120 ms; band 4.5 kHz, Q 1; body 0.35 a sine, noise 0.8 |
 | 3 | Six squares at 263, 333, 401, 487, 571 and 827 Hz, half starting low, through a two-pole high-pass | corner 5 to 10 kHz | 10 to 60 ms | Q 1.4; level 0.4 |
 | 4 | The same as 3, as a second voice of its own | corner 5 to 10 kHz | 100 to 500 ms | the same |
+| 5 | Sine falling from 2× its pitch (by e in 8 ms), plus white noise high-passed at 2 kHz with its own, shorter envelope | 200 to 460 Hz | the body, 20 to 150 ms; the noise a third of it | body 0.6, noise 0.5 |
+| 6 | Sine, with a click of white noise, 2 ms | 500 Hz to 1 kHz | 10 to 40 ms | body 0.75, click 0.25 |
+| 7 | The hats' six squares, high-passed lower and without the ring | corner 3 to 7 kHz | 200 to 1200 ms | Q 0.7; level 0.3 |
+| 8 | White noise through a two-pole low-pass | corner 500 Hz to 8.5 kHz | 50 to 600 ms | Q 0.7; level 0.9 |
+| 9 | White noise through a band-pass; three bursts 10 ms apart, each 60 dB down in 10 ms; a tail from the third | band 1 to 3 kHz | the tail, 50 to 300 ms | Q 1.5; tail 0.6; gain 1.2 |
 | 10 | Sine (P7) | 500 Hz to 2 kHz | 5 to 40 ms | |
+| 11 | Sine falling from 1.5× its base (by e in 40 ms) | base 60 to 120 Hz | 150 to 600 ms | level 0.9 |
+| 12 | The same as 11 | base 120 to 250 Hz | 100 to 400 ms | the same |
+| 13 | Two squares, the upper 40/27 of the lower (540 and 800 Hz at the middle), through a band-pass an octave above the lower | lower 400 to 680 Hz | 30 to 300 ms | Q 1; level 0.45 |
+| 14 | Sine rising to an octave above its start (by e in 10 ms) | start 1 to 3 kHz | 20 to 100 ms | level 0.8 |
+| 15 | Triangle, from 0 and rising: no step at the start | A2 to A4 in 25 semitones, A3 (220 Hz) at the middle ⚠ | 50 to 500 ms | level 0.8 |
+| 16 | Square two octaves below 15, low-passed two octaves above its own pitch | A0 to A2 in semitones, A1 (55 Hz) at the middle ⚠ | 50 to 500 ms | Q 0.7; level 0.7 |
 
 - **Noise** is a xorshift generator of each voice's own, restarted on every hit, so a hit
   depends only on its sliders and the rate. It never touches the sequencer's generator.
@@ -68,6 +80,16 @@ Every one is held to the same bytes natively and in WebAssembly by a scenario in
   the open hat at its darkest a little higher). The core then halves every voice (D48), so
   the four together sit near 1.0.
 - **The hats do not cut each other off** (D47); a switch for it later.
+- **The tones are in tune by integers:** a table of the twelve semitones from A2 in
+  thousandths of a hertz, shifted by octaves, so a note is exact and the same everywhere.
+  ⚠ Slider A in semitones for 15 and 16 is the recipe's own guess, still unconfirmed.
+- **Key 5's noise is shorter than its body,** as the recipe's "short noise" says; a first
+  build with one envelope for both sounded as long as it was bright, and its pitch could
+  not be measured under the noise.
+- **The clap's three bursts and its tail overlap,** so its envelope reaches 1.6; the gain
+  keeps a hit under 1 at every rate (band-passed noise peaks differently at each).
+- **All sixteen at once** peak at 1.7 with every slider moved (`harness/render-all.json`):
+  past 1, as D48 allows; each host softens past its own ceiling.
 
 ## How close, and how we judge it
 
@@ -166,4 +188,5 @@ Each sound can leave on its own, so key 1 can drive a dedicated kick module.
 
 Not all sixteen at once. P7 needs one voice (the bass drum: it tests pitch sweep and the
 envelope). The showpiece (D19) wants at least keys 1 to 4 and 9 to make a beat worth hearing.
-A track with no voice yet is silent; its key still sequences and lights.
+A track with no voice yet is silent; its key still sequences and lights. (Every track has
+one since Session 7.)

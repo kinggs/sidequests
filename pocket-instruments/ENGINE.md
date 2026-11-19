@@ -274,7 +274,10 @@ Two runs agree when their traces are the same bytes.
   In the browser and Node the host grows the module's memory by one page and puts the engine
   and both buffers there. Checked in Session 2: it works with no glue, the module imports
   nothing, and the engine (352 bytes), a snapshot, 256 events and 4 778 commands fit the page. With the
-  drums the engine is 752 bytes; it still fits the 1 KiB the harness gives it.
+  drums the engine is 752 bytes; it still fits the 1 KiB the harness gives it. With all
+  sixteen voices it is 1 416 bytes, and every host's fixed room for it is now 2 KiB (the
+  harness, the worklet and the Rack Probe; `core/src/tests/rules.rs` holds `pi_size` to it).
+  A host that can should ask `pi_size` instead.
 - **One thread.** Every function on an engine is called from the audio thread only. That
   includes the ones that only read: `pi_save` on another thread while `pi_process` runs is a
   data race (P6 planted it and the sanitizer found it).
@@ -420,8 +423,9 @@ the `TRIG` events they already make.
 - **The first voice** is the click (key 10, track 9): a sine from 500 Hz to 2 kHz by slider
   A, falling 60 dB in 5 to 40 ms by slider B.
 - **Then the minimum beat** (2026-11-19): the bass drum, snare, closed hat and open hat on
-  tracks 0 to 3. What each is built as: `VOICES.md`, "As built". The other eleven tracks
-  are silent. A voice keeps the slider values it was triggered with, so a rate change
+  tracks 0 to 3. What each is built as: `VOICES.md`, "As built". **Then the other eleven**
+  (2026-11-19, Session 7): every track has a voice. All sixteen at once, every slider moved,
+  peak at 1.7 (+4.6 dB, `harness/render-all.json`): past 1, as D48 allows. A voice keeps the slider values it was triggered with, so a rate change
   retunes it from those, never from sliders moved since.
 - **Filters and noise** follow the same rule: a filter's coefficient is the polynomial sine
   and one division; noise is a generator of the voice's own, never the sequencer's.

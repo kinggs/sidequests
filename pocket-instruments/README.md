@@ -1,7 +1,7 @@
 # Pocket Instruments
 
 **Status:** P1, P2, P3 and P7 passed. P4, P5 and P6 are part-run (2026-11-19): the core runs in
-Rack and in an AudioWorklet, on a phone too, and makes its first sound; CI builds the plugin
+Rack and in an AudioWorklet, on a phone too, and plays all sixteen voices; CI builds the plugin
 for all four Rack platforms. What is left needs an iPhone, other machines and the instrument
 itself (`PROOFS.md`). Started 2026-11-18.
 
@@ -36,7 +36,7 @@ into its own repository.
 | `web/` | The bare page and worklet on the raw `.wasm` (P4). `pi_core.wasm` is committed so Pages can serve it | `make web` after the core changes; `make p4` runs both desktop browsers |
 | `Makefile` | `make build`: both targets. `make test`: the three harnesses compared, the render comparison, the race harness. The repo's `make verify` runs it. `make targets`, `make p4`: the slower checks | |
 | `rust-toolchain.toml`, `mise.toml` | The Rust this folder builds with. `mise install` once | The two must name one version; `make check-toolchain` fails if not |
-| `VOICES.md` | The sixteen sounds: role, recipe, what the sliders do | Until each voice is built and passes by ear |
+| `VOICES.md` | The sixteen sounds: role, recipe, what the sliders do, and what each was built as | Until each voice passes by ear |
 | `samples/` | The starter drum pack: sixteen CC0 files, their origins, and a page to hear them | A swap is a new file and a new manifest row |
 | `WORKFLOW.md` | What each press does, in our words; the owner ticks each row on the hardware | Until P8 |
 | `RACK-RULES.md` | What any module of ours for VCV Rack is held to: the panel, the voltages, the code | Re-read VCV's manual (R33 to R35) before leaning on an old line |
