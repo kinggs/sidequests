@@ -431,7 +431,7 @@ Why: it is what the hardware is reported to do (D22), and D30 gives every key a 
 ⚠ Still a report and not a check on the hardware (D29): a mismatch the owner meets goes in
 `WORKFLOW.md`'s differences table.
 
-### D36 — The owner's rulings on D33 and D34
+### D39 — The owner's rulings on D33 and D34
 **2026-11-19 · decided (owner)**
 
 - **D33 is decided**: individual outputs in Rack, first as two sixteen-channel jacks on the
@@ -443,10 +443,10 @@ Why: it is what the hardware is reported to do (D22), and D30 gives every key a 
 Carried to P7: the core renders each track separately, or takes a mute mask (D33), and the
 host can replace any track's sample (D34).
 
-### D37 — What to take from the Surge XT Rack modules
+### D40 — What to take from the Surge XT Rack modules
 **2026-11-19 · proposed · the owner admires them; for the Rack host, from Session 3 on**
 
-1. **Join their neighbour connection.** `sst-rackhelpers` is MIT (R33), header-only, and made
+1. **Join their neighbour connection.** `sst-rackhelpers` is MIT (R37), header-only, and made
    for other plugins to adopt. Advertising our AUDIO output through it gives a right-click
    "connect to" for neighbouring Surge, Airwindows and BaconPlugs modules and for MindMeld's
    MixMaster, with no cables dragged. Small, and it is the real integration on offer.
@@ -460,7 +460,7 @@ host can replace any track's sample (D34).
    once; a display that can have its animation turned off; real-value tooltips and typed
    entry on every control.
 
-The line not to cross: `surge-rack` itself is GPL-3 (R33) and this project is MIT (D8). Its
+The line not to cross: `surge-rack` itself is GPL-3 (R37) and this project is MIT (D8). Its
 source may be read for ideas; none of it is copied, and no panel of ours imitates theirs
 (R1 applies to them as it does to Teenage Engineering).
 
