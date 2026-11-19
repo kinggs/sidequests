@@ -103,6 +103,10 @@ class Engine extends AudioWorkletProcessor {
         if (this.ticking) out[f] += 0.4 * (this.ticking-- / 32) * (this.ticking & 1 ? 1 : -1);
       }
     }
+    // The core's mix is near 1.0 with every drum at once and is not capped (D48). The output
+    // clips hard at 1.0, so bend it there instead: tanh, which leaves a quiet mix almost as
+    // it is. Host-side, so the same-bytes rule does not apply here.
+    for (let f = 0; f < frames; f++) out[f] = Math.tanh(out[f]);
     this.now += frames;
     this.blocks++;
     if (this.end && this.now >= this.end) {

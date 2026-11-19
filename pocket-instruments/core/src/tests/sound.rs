@@ -2,6 +2,7 @@
 //! WebAssembly) is `make render`; these are the rules a render obeys on one machine.
 
 use super::*;
+use crate::voice::LEVEL;
 
 const CLICK: u8 = 9;
 
@@ -65,8 +66,8 @@ fn silent_until_a_trigger_and_it_starts_on_the_trigger_s_frame() {
 fn a_click_is_loud_then_decays_to_exactly_nothing() {
     let mut h = Host::new(48000, 1);
     let (out, _) = render(&mut h, 20000, 128, 1, &four_clicks());
-    let peak = out[..2000].iter().fold(0f32, |m, s| m.max(s.abs()));
-    assert!(peak > 0.5 && peak <= 1.0, "peak {peak}");
+    let peak = out[..2000].iter().fold(0f32, |m, s| m.max(s.abs())) / LEVEL;
+    assert!(peak > 0.5 && peak <= 1.0, "peak {peak}, before the core's level");
     // Default length: 22.5 ms to fall 60 dB, 30 ms to the -80 dB cut. Well before 40 ms.
     assert!(out[1920..24000 / 4].iter().all(|&s| s == 0.0), "silent, not merely quiet, after 40 ms");
 }
@@ -242,7 +243,7 @@ fn each_drum_is_loud_from_its_trigger_then_exactly_silent_within_its_length() {
         for t in DRUMS {
             let out = hit(t, 32768, 32768, rate, rate as usize);
             let p = peak(&out);
-            assert!(p > 0.3 && p <= 1.0, "track {t} at {rate}: peak {p}");
+            assert!(p > 0.3 * LEVEL && p <= LEVEL, "track {t} at {rate}: peak {p}, at the core's level");
             assert!(out.iter().all(|s| s.is_finite()));
             // Loud at the start; still sounding at 90 % of its 60 dB time; nothing at all by
             // 150 %, however it is cut (the -80 dB cut comes a third later, or a little more
@@ -314,8 +315,17 @@ fn the_beat_s_mix_is_the_sum_of_its_tracks_and_each_track_is_alone_in_its_channe
     }
     for t in DRUMS {
         let solo: Vec<f32> = (0..48000).map(|f| tracks[f * 16 + t as usize]).collect();
-        assert!(peak(&solo) > 0.3, "track {t} sounds in its own channel");
+        assert!(peak(&solo) > 0.3 * LEVEL, "track {t} sounds in its own channel");
     }
+}
+
+#[test]
+fn the_core_s_level_keeps_the_whole_beat_near_full_scale() {
+    // D48: the four drums together, every slider at its middle, sit near 1.0. Not a ceiling:
+    // a host still softens what passes its own.
+    let (mix, _) = render(&mut Host::new(48000, 1), 96000, 128, 1, &beat());
+    let p = peak(&mix);
+    assert!(p > 0.5 && p < 1.2, "the beat peaks at {p}");
 }
 
 #[test]

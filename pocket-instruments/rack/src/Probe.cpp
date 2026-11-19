@@ -7,8 +7,8 @@
 //                  edges run does. Unpatched: its own table clock at the fixture's tempo.
 //   RESET:         starts the fixture again. CLOCK is ignored for 1 ms after it (R34).
 //   GATE:          10 V from each firing of one track, for half a step.
-//   AUDIO:         the core's mix (ENGINE.md §11): every voice the fixture fires, 5 V to 1.0,
-//                  saturated so a loud mix bends towards 10 V and never passes it (RACK-RULES.md).
+//   AUDIO:         the core's mix (ENGINE.md §11; its level, D48): 5 V to 1.0, bent by tanh
+//                  towards 10 V so it never passes it (RACK-RULES.md).
 //                  The fixtures fire tracks 0 to 3, so it plays the bass drum, snare and hats.
 //                  ⚠ Each pass starts a fresh engine, so a drum still sounding is cut there.
 //   The light:     green while every pass so far has matched, red once one has not.
@@ -245,9 +245,8 @@ struct Probe : Module {
         outputs[GATE_OUTPUT].setVoltage(gate ? 10.f : 0.f);
         if (gate) gate--;
 
-        // The mix can pass 1.0 (§11: a plain sum; the core sets no ceiling). 5 V to 1.0, then
-        // bent by tanh towards 10 V. This is the Probe's, so it can be heard; whether the
-        // instrument limits in the core or in each host is still open (D44).
+        // The core's level puts the whole beat near 1.0 but sets no ceiling (D48). 5 V to 1.0,
+        // Rack's audio level, then bent by tanh towards 10 V, so nothing passes it (RACK-RULES).
         float v = 5.f * audio;
         if (!std::isfinite(v)) {
             v = 0.f; // never NaN or infinity down a cable (RACK-RULES.md)

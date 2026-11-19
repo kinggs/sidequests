@@ -24,6 +24,11 @@ pub const CLICK_TRACK: usize = 9;
 /// A slider's middle.
 pub const PARAM_DEFAULT: u16 = 32768;
 
+/// The core's fixed level on every voice, in both layouts (D48): -6 dB, so the four drums
+/// together sit near 1.0 and one alone near 0.5. A host softens anything past its own
+/// ceiling. A power of two, so it is exact: it cannot cost the same bits.
+pub const LEVEL: f32 = 0.5;
+
 /// Below this (-80 dB) an envelope stops. It also keeps the decay away from denormals.
 const SILENT: f32 = 0.0001;
 
@@ -511,11 +516,11 @@ impl Voices {
     /// The mix is the plain sum, in track order.
     #[inline]
     pub fn render(&mut self, frame: &mut [f32]) {
-        let kick = self.kick.next();
-        let snare = self.snare.next();
-        let closed = self.closed_hat.next();
-        let open = self.open_hat.next();
-        let click = self.click.next();
+        let kick = self.kick.next() * LEVEL;
+        let snare = self.snare.next() * LEVEL;
+        let closed = self.closed_hat.next() * LEVEL;
+        let open = self.open_hat.next() * LEVEL;
+        let click = self.click.next() * LEVEL;
         match frame {
             [mix] => *mix = kick + snare + closed + open + click,
             tracks => {
