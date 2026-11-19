@@ -311,7 +311,9 @@ library offered as the Windows one failed on its format; 128-bit arithmetic fail
    green is the test: it is in the plugin already. ⚠ The owner has no Windows machine or
    Mac to do this on yet (D46).
 4. A written answer from VCV on the Library: will its build server take a plugin with a
-   Rust part, or a prebuilt static library, or neither (O2).
+   Rust part, or a prebuilt static library, or neither (O2). **Asked 2026-11-19** by the
+   owner, by email to support@vcvrack.com, the one address VCV's support page gives for
+   Library questions. No reply yet. The forum's Development category is the fallback.
 
 ### P6 — Editing while playing is safe
 

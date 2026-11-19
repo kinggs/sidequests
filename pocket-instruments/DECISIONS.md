@@ -602,7 +602,7 @@ on yet, nor a friend with one. That half waits for one.
 | ID | Question | Needs |
 |---|---|---|
 | O1 | ~~What do the front-face drawings of the design patents actually claim?~~ | Answered 2026-11-18: R4, R5, R6. Led to D20 |
-| O2 | Will the VCV Library build or accept a plugin with Rust in it? | Watch Phona (R16a, R16b: not submitted yet, 2026-11-19); ask VCV at P5 |
+| O2 | Will the VCV Library build or accept a plugin with Rust in it? | Watch Phona (R16a, R16b: not submitted yet, 2026-11-19). **Asked 2026-11-19:** the owner emailed support@vcvrack.com with four questions (can the Library build a Rust part; would prebuilt static libraries do; is macOS 10.12 a problem; is self-hosting the route) and P3's results. No reply yet |
 | O3 | Is the name "Pocket Instruments" free, and is it too close to POCKET OPERATOR? | A register search; a decision on a family name |
 | O4 | ~~How does swing behave on an external clock?~~ | Answered 2026-11-19: D24 |
 | O5 | ~~Saved state: one readable format shared by both hosts, or a versioned binary snapshot each host wraps?~~ | Answered 2026-11-19: D25 |

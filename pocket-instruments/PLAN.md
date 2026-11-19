@@ -374,3 +374,14 @@ Decided when P1 to P4 are in, not before:
   with the instrument.
 - The page changed after the first phone run: only one proof run ticks now, and it has a
   Count voices button.
+
+### The end of the day (2026-11-19)
+
+- **P4's ten minutes ran on the phone** (700 s). P4 is left with iOS Safari and tap latency.
+- **VCV has been asked** (O2, P5's fourth item): the owner's email to support@vcvrack.com.
+  When the reply comes, record it in `PROOFS.md` P5 and close or re-word O2.
+- **Next: a build session on Opus.** Nothing waits on the owner. The first job is the
+  showpiece's minimum beat (D19): bass drum, snare, closed hat and open hat in
+  `core/src/voice.rs` under `ENGINE.md` §11, each in a render scenario; then the Rack Probe
+  playing the mix. After that, CI for the four targets, so P5 has artefacts ready for
+  whoever has a Mac or a Windows machine.
