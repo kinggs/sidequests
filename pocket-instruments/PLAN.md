@@ -75,7 +75,7 @@ and the first fixtures, not code.
 - [ ] Owner: confirm each row of `WORKFLOW.md` on the hardware and answer its eleven
       questions. This replaces the two owner items above; it is the same hour.
 - [x] Owner, in Claude Design: the look, from D21's three blocks and D20's avoid list. Export
-      to `pocket-instruments/design/`. Done 2026-11-19: Loom (D32), `design/DESIGN.md`.
+      to `pocket-instruments/design/`. Done 2026-11-19: Loom (D36), `design/DESIGN.md`.
 - [x] Re-check Phona's Library submission (R16a, O2). Not submitted yet: R16b.
 
 ## Session 2 — P1 and P2: one crate, same trace (build, Opus)
@@ -178,14 +178,14 @@ Decided when P1 to P4 are in, not before:
 
 ### After the design session (2026-11-19)
 
-- Done: the look. The owner chose Loom (D32). `design/DESIGN.md` holds the tokens, the key
+- Done: the look. The owner chose Loom (D36). `design/DESIGN.md` holds the tokens, the key
   states, the panel in mm, the phone layout and the animation's rules; `design/panel.svg` is
   the static Rack panel. O9 is closed.
 - **No longer waiting on the owner for the look.** It never blocked Session 2 and still does
   not: nothing in the engine changed.
-- Proposed, for the owner: D33, what the grid shows with write on and off.
-- **Waiting on the owner:** O12, whether the display's weaving subject is far enough from the
-  original's display art. It gates the animation only.
+- Proposed, for the owner: D37, what the grid shows with write on and off.
+- O12 is answered: the owner keeps weaving as the display's subject. The animation is no
+  longer held.
 - Not built: any widget, and the display animation. `DESIGN.md` lists what is not done.
 - D35: a starter pack of sixteen CC0 samples is in `samples/`, with a page to hear it. Voices
   are samples first, recipes where a sample does not serve (D32). D33 (individual outputs on

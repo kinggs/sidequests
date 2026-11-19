@@ -318,41 +318,6 @@ Reviewer's note: "close in character" is a judgment, like the look. Sound-alike 
 ordinary drum types is common practice; it is still worth letting Teenage Engineering hear it
 when they are shown the showpiece (D19).
 
-### D32 — The look is Loom: dark, high contrast, two lights to a key
-**2026-11-19 · decided (owner) · carries out D21; answers O9**
-
-The owner chose direction B, Loom, from three drawn in Claude Design to `design/PROMPT.md`,
-and asked for it to be dark, high contrast and easy to read with weak eyes. The record is
-`design/DESIGN.md`: the tokens, the key states, the panel in mm and the phone layout.
-
-Each key has two lights. The field (the whole face) means something is here; the frame (a
-band round the edge) means the playhead is here; white means the key is sounding. No state
-depends on hue. The owner kept three grid states the prompt did not ask for: other sound,
-chosen and queued.
-
-Why Loom: the owner prefers dark designs. Why two lights: D21 put more on a glowing key than
-one lamp can say, and shape survives colour blindness where a second hue does not.
-
-It departs from the prompt in three places, each listed with its reason in `DESIGN.md`:
-function keys at 10 mm pitch, labels running up tall keys, and both phone sliders on the left.
-
-O9 is answered: the blocks stack as display, grid, then sliders beside function keys, and one
-instrument fills the screen.
-
-Still open on the look: O12, whether the display's weaving subject sits too near the
-original's display art. The body, keys and lighting do not depend on the answer.
-
-### D33 — The grid shows steps when write is on and sounds when it is off
-**2026-11-19 · proposed (reviewer) · builds on D30; follows `WORKFLOW.md` question 3**
-
-Write on: a lit field is a step of the chosen sound, and a corner stitch is a step of another.
-Write off: the fields are dark, each key flashes white as its own sound fires, and a bar marks
-the chosen sound while sound is held. The playhead frame runs in both. The table is in
-`design/DESIGN.md`.
-
-Why: it is what a search says the hardware does (R26, R27), so it serves D22. ⚠ It is a
-report, not a check on the hardware. D30 gives every key a track, so every key can flash.
-
 ### D32 — Voices may be public-domain samples, one manifest line each
 **2026-11-19 · proposed (the owner asked for it; the choices are not made) · would supersede "nothing is sampled" in D31**
 
@@ -418,6 +383,44 @@ Three things about this pack that are stand-ins, said plainly: key 9 is a finger
 set has no clap); keys 15 and 16 are single tones that slider A will have to tune; and the
 picks were made by measurement, not by listening.
 
+### D36 — The look is Loom: dark, high contrast, two lights to a key
+**2026-11-19 · decided (owner) · carries out D21; answers O9**
+
+The owner chose direction B, Loom, from three drawn in Claude Design to `design/PROMPT.md`,
+and asked for it to be dark, high contrast and easy to read with weak eyes. The record is
+`design/DESIGN.md`: the tokens, the key states, the panel in mm and the phone layout.
+
+Each key has two lights. The field (the whole face) means something is here; the frame (a
+band round the edge) means the playhead is here; white means the key is sounding. No state
+depends on hue. The owner kept three grid states the prompt did not ask for: other sound,
+chosen and queued.
+
+Why Loom: the owner prefers dark designs. Why two lights: D21 put more on a glowing key than
+one lamp can say, and shape survives colour blindness where a second hue does not.
+
+It departs from the prompt in three places, each listed with its reason in `DESIGN.md`:
+function keys at 10 mm pitch, labels running up tall keys, and both phone sliders on the left.
+
+O9 is answered: the blocks stack as display, grid, then sliders beside function keys, and one
+instrument fills the screen.
+
+O12 is answered: the owner keeps weaving as the display's subject (2026-11-19). O7 and D19
+still have the last word on it at P9.
+
+Numbering: first committed as D32, with D37 as D33. Another session took those two numbers
+in the same hour, and its files refer to them, so these two moved.
+
+### D37 — The grid shows steps when write is on and sounds when it is off
+**2026-11-19 · proposed (reviewer) · builds on D30; follows `WORKFLOW.md` question 3**
+
+Write on: a lit field is a step of the chosen sound, and a corner stitch is a step of another.
+Write off: the fields are dark, each key flashes white as its own sound fires, and a bar marks
+the chosen sound while sound is held. The playhead frame runs in both. The table is in
+`design/DESIGN.md`.
+
+Why: it is what a search says the hardware does (R26, R27), so it serves D22. ⚠ It is a
+report, not a check on the hardware. D30 gives every key a track, so every key can flash.
+
 ## Open
 
 | ID | Question | Needs |
@@ -433,4 +436,4 @@ picks were made by measurement, not by listening.
 | O11 | ~~On the hardware each grid key is its own sound in play mode (R26, R27). Sixteen tracks from the start, or four and twelve dead keys?~~ | Answered 2026-11-19: D30 |
 | O12 | ~~Answered 2026-11-19: the owner is content with the textile theme ("I think"). It still goes to O7 and D19 at P9.~~ The chosen look, Loom, animates a loom weaving with a shuttle and thread. The original's protected display art (R6) shows a sewing machine and thread spools. Different drawing, neighbouring subject. Is a textile theme far enough away, or should the display's subject move? | The owner, before the look is built on; then O7 and D19 at P9 |
 | O10 | Probability and a short length are not on the hardware. What gesture sets them without colliding with its combinations? | `WORKFLOW.md`, after the hardware hour |
-| O9 | ~~How do the three blocks stack on a phone, and does one instrument fill the screen or share it?~~ | Answered 2026-11-19: D32 |
+| O9 | ~~How do the three blocks stack on a phone, and does one instrument fill the screen or share it?~~ | Answered 2026-11-19: D36 |

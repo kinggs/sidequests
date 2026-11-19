@@ -1,6 +1,6 @@
 # The look: Loom
 
-**Status:** chosen by the owner on 2026-11-19 (D32) from three directions drawn in Claude
+**Status:** chosen by the owner on 2026-11-19 (D36) from three directions drawn in Claude
 Design to `PROMPT.md`. Nothing here is built. ⚠ marks a proposal the owner has not ruled on.
 
 The idea in one line: a pattern is a cloth. The grid is a tight woven swatch, the dividers are
@@ -101,7 +101,7 @@ Function key:
 Play is latched while the sequencer runs. Write is latched while write mode is on. In Rack a
 click latches any function key until the next grid press or a second click (D23).
 
-### What the grid shows, by mode ⚠ (D33, proposed)
+### What the grid shows, by mode ⚠ (D37, proposed)
 
 | | Write on | Write off |
 |---|---|---|
@@ -128,11 +128,11 @@ is off, so its presence does not depend on colour.
 
 The subject is a cloth being woven. Flat colour on a 1 mm weave grid: no gradients.
 
-⚠ **The subject is under question (O12).** The original's protected display art shows a
-sewing machine and thread spools (R6): a different drawing, a neighbouring subject. The rules
-below are about a beat, a density and a loudness, so they carry over to another subject; the
-shuttle and thread are the parts that would go. Do not build the animation until O12 is
-answered.
+The owner keeps weaving as the subject (O12, answered 2026-11-19). The original's protected
+display art shows a sewing machine and thread spools (R6): a different drawing, a
+neighbouring subject, so it still goes to O7 and D19 at P9. If it has to move then, the rules
+below are about a beat, a density and a loudness and carry over; the shuttle and thread are
+the parts that would go.
 
 1. **A diamond is a beat.** Four steps weave one diamond, a quarter of it per step. Four
    diamonds are a bar.
@@ -219,6 +219,4 @@ the function keys side by side.
 - The animation is seven rules and three frames, not a running thing. Nobody has seen it move.
 - Contrast is by arithmetic. Nobody has looked at it on a phone in daylight or in Rack at
   normal zoom.
-- O12: whether weaving is far enough from the original's display art. It gates the
-  animation, and it bears on the stitched dividers and the name Loom.
 - O3 (the name) and O7 (a lawyer's view of the mock-up) are as open as they were.
