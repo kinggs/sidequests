@@ -1,9 +1,11 @@
-//! §6 to §8: the records and the C functions. Only `u32`, `i32` and pointers cross.
+//! §6 to §8 and §11: the records and the C functions. Only `u32`, `i32` and pointers cross.
+//! Sound crosses as a pointer to the host's floats, never as a float argument (D44).
 
 use crate::engine::Engine;
+use crate::seq::TRACKS;
 use crate::snapshot;
 
-pub const ABI_VERSION: u32 = 1;
+pub const ABI_VERSION: u32 = 2;
 
 pub const CMD_CLOCK: u8 = 1;
 pub const CMD_RESET: u8 = 2;
@@ -14,6 +16,7 @@ pub const CMD_STEP: u8 = 16;
 pub const CMD_PROB: u8 = 17;
 pub const CMD_SWING: u8 = 18;
 pub const CMD_LENGTH: u8 = 19;
+pub const CMD_SOUND: u8 = 20;
 
 pub const EV_STEP: u8 = 1;
 pub const EV_TRIG: u8 = 2;
@@ -57,15 +60,21 @@ pub struct Out<'a> {
     n: usize,
     pub frame: u32,
     pub dropped: u32,
+    /// Bit `t`: track `t` fired since this was last cleared. Set even when the event itself
+    /// found no room: a full event buffer must not silence a voice.
+    pub fired: u16,
 }
 
 impl<'a> Out<'a> {
     pub fn new(buf: &'a mut [Event]) -> Self {
-        Out { buf, n: 0, frame: 0, dropped: 0 }
+        Out { buf, n: 0, frame: 0, dropped: 0, fired: 0 }
     }
 
     #[inline]
     pub fn push(&mut self, tick: u32, kind: u8, track: u8, step: u8) {
+        if kind == EV_TRIG {
+            self.fired |= 1 << (track & 15);
+        }
         match self.buf.get_mut(self.n) {
             Some(slot) => {
                 *slot = Event { frame: self.frame, tick, kind, track, step, slot: 0 };
@@ -120,7 +129,8 @@ pub unsafe extern "C" fn pi_set_sample_rate(engine: *mut Engine, sample_rate: u3
 
 /// # Safety
 /// `cmds` is null or points to `ncmds` commands; `events` is null or points to room for
-/// `cap` events. Neither overlaps the engine.
+/// `cap` events; `audio` is null or points to room for `frames * channels` floats. None
+/// overlaps the engine or another.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn pi_process(
     engine: *mut Engine,
@@ -129,6 +139,8 @@ pub unsafe extern "C" fn pi_process(
     ncmds: u32,
     events: *mut Event,
     cap: u32,
+    audio: *mut f32,
+    channels: u32,
 ) -> u32 {
     // SAFETY: as pi_set_sample_rate.
     let Some(e) = (unsafe { engine.as_mut() }) else {
@@ -146,7 +158,17 @@ pub unsafe extern "C" fn pi_process(
         // SAFETY: non-null, aligned, and `cap` long by the contract.
         unsafe { core::slice::from_raw_parts_mut(events, cap as usize) }
     };
-    e.process(frames, cmds, events)
+    // Sound is asked for with a buffer and a layout this core knows: 1 (the mix) or one
+    // channel a track. Anything else is no sound at all, and the voices do not run.
+    let len = (frames as usize).checked_mul(channels as usize);
+    let audio: Option<&mut [f32]> = match len {
+        Some(len) if !audio.is_null() && audio.is_aligned() && (channels == 1 || channels == TRACKS as u32) => {
+            // SAFETY: non-null, aligned, and `frames * channels` long by the contract.
+            Some(unsafe { core::slice::from_raw_parts_mut(audio, len) })
+        }
+        _ => None,
+    };
+    e.process(frames, cmds, events, audio, channels as usize)
 }
 
 /// # Safety

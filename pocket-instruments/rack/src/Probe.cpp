@@ -188,7 +188,7 @@ struct Probe : Module {
         if (running) {
             const Fixture &fx = FIXTURES[fixture];
             pi_event ev[PI_EVENTS_MIN];
-            uint32_t count = pi_process(e, 1, cmds, n, ev, PI_EVENTS_MIN);
+            uint32_t count = pi_process(e, 1, cmds, n, ev, PI_EVENTS_MIN, nullptr, PI_AUDIO_NONE);
             int gateTrack = track.load(std::memory_order_relaxed);
             for (uint32_t i = 0; i < count; i++) {
                 const pi_event &x = ev[i];

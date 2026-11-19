@@ -18,11 +18,11 @@ const skip = built || process.env.PI_REQUIRE_WASM ? false : "pi_core.wasm is not
 const RATES = [44100, 48000, 96000];
 const BLOCKS = [1, 128, 512];
 const SOURCES = [["table", 0], ["edges", 1]];
-const CMD = { clock: 1, reset: 2, source: 3, tempo: 4, play: 5, step: 16, prob: 17, swing: 18, length: 19 };
+const CMD = { clock: 1, reset: 2, source: 3, tempo: 4, play: 5, step: 16, prob: 17, swing: 18, length: 19, sound: 20 };
 const EDITS = new Set(["step", "prob", "swing", "length"]);
 const PAGE = 65536;
 // Where things sit in the one page the host adds (ENGINE.md §8).
-const SNAP = 1024, EVENTS = 2048, CAP = 256, CMDS = 8192, CMDS_MAX = (PAGE - CMDS) / 12;
+const SNAP = 1024, EVENTS = 2048, CAP = 256, AUDIO = 5120, AUDIO_MAX = 768, CMDS = 8192, CMDS_MAX = (PAGE - CMDS) / 12;
 
 function load() {
   const module = new WebAssembly.Module(readFileSync(WASM));
@@ -46,7 +46,7 @@ function engine(m, rate, seed) {
 function toCmd(c) {
   const type = CMD[c.cmd];
   assert.ok(type && c.cmd !== "clock" && c.cmd !== "source" && c.cmd !== "tempo", `fixture command ${c.cmd}`);
-  return { type, a: c.track ?? 0, b: c.step ?? 0, value: c.value ?? 0 };
+  return { type, a: c.track ?? 0, b: c.step ?? c.param ?? 0, value: c.value ?? 0 };
 }
 
 // What to send and when: [absolute frame, command] in order, and the frame the run ends before.
@@ -69,8 +69,10 @@ function schedule(fx, rate, source, fromSnapshot) {
   return { cmds, end: anchor + F(fx.steps - anchorStep) };
 }
 
-function run(m, e, cmds, end, block) {
+// With `audio` (a Float32Array of `end` samples) the mix is rendered into it as well.
+function run(m, e, cmds, end, block, audio) {
   const lines = [];
+  assert.ok(!audio || block <= AUDIO_MAX);
   let next = 0;
   for (let start = 0; start < end; ) {
     const n = Math.min(block, end - start);
@@ -87,7 +89,8 @@ function run(m, e, cmds, end, block) {
       v.setUint8(p + 7, 0);
       v.setUint32(p + 8, c.value, true);
     }
-    const got = m.pi.pi_process(e, n, m.base + CMDS, count, m.base + EVENTS, CAP);
+    const got = m.pi.pi_process(e, n, m.base + CMDS, count, m.base + EVENTS, CAP, audio ? m.base + AUDIO : 0, audio ? 1 : 0);
+    if (audio) audio.set(new Float32Array(m.pi.memory.buffer, m.base + AUDIO, n), start);
     for (let i = 0; i < got; i++) {
       const p = m.base + EVENTS + 12 * i;
       const tick = v.getUint32(p + 4, true), type = v.getUint8(p + 8);
@@ -117,7 +120,7 @@ const hex = (bytes) => Array.from(bytes, (b) => b.toString(16).padStart(2, "0"))
 test("the module imports nothing and its memory grows by a page for the host", { skip }, () => {
   const m = load();
   assert.deepEqual(m.imports, [], "no imports: no glue to write");
-  assert.equal(m.pi.pi_abi_version(), 1);
+  assert.equal(m.pi.pi_abi_version(), 2);
   assert.equal(m.pi.memory.buffer.byteLength, m.base + PAGE);
   // Memory the module was not given is refused, not written.
   assert.equal(m.pi.pi_init(0, 1024, 48000, 1), 0, "null");
@@ -163,4 +166,22 @@ test("every fixture gives its trace on both sources, at every rate and block siz
   }
   assert.equal(runs, names.length * 2 * 3 * 4);
   if (process.env.PI_REPORT) writeFileSync(process.env.PI_REPORT, report);
+});
+
+// P7: the same scenario harness.cpp renders, from the .wasm. Written only when asked
+// (`make render` sets PI_RENDER); compare.mjs then holds each pair to the -80 dB bar.
+test("P7: the click renders from the .wasm", { skip }, () => {
+  const m = load();
+  const fx = JSON.parse(readFileSync(here("render-click.json"), "utf8"));
+  for (const [sourceName, source] of SOURCES) {
+    for (const rate of RATES) {
+      const { cmds, end } = schedule(fx, rate, source, false);
+      const audio = new Float32Array(end);
+      const quiet = run(m, engine(m, rate, fx.seed), cmds, end, 128);
+      const loud = run(m, engine(m, rate, fx.seed), cmds, end, 128, audio);
+      assert.equal(loud, quiet, "sound changes no event");
+      assert.ok(audio.some((s) => s !== 0) && audio.every(Number.isFinite), "it made a sound");
+      if (process.env.PI_RENDER) writeFileSync(`${process.env.PI_RENDER}-${sourceName}-${rate}.f32`, new Uint8Array(audio.buffer));
+    }
+  }
 });

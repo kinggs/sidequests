@@ -3,6 +3,7 @@
 use crate::abi::*;
 use crate::clock::Clock;
 use crate::seq::{Pattern, Rng, SWING_MAX, STEPS, Seq, TRACKS};
+use crate::voice::Voices;
 
 /// A seed of 0 would leave xorshift stuck on 0.
 pub const SEED_FOR_ZERO: u32 = 0x9E37_79B9;
@@ -17,6 +18,7 @@ pub struct Engine {
     pub(crate) sample_rate: u32,
     pub(crate) dropped: u32,
     pub(crate) generation: u32,
+    pub(crate) voices: Voices,
 }
 
 impl Engine {
@@ -31,6 +33,7 @@ impl Engine {
             sample_rate,
             dropped: 0,
             generation: 0,
+            voices: Voices::new(),
         }
     }
 
@@ -45,9 +48,17 @@ impl Engine {
         }
         self.clock.rescale(self.sample_rate, sample_rate);
         self.sample_rate = sample_rate;
+        self.voices.set_sample_rate(sample_rate);
     }
 
-    pub fn process(&mut self, frames: u32, cmds: &[Cmd], events: &mut [Event]) -> u32 {
+    pub fn process(
+        &mut self,
+        frames: u32,
+        cmds: &[Cmd],
+        events: &mut [Event],
+        mut audio: Option<&mut [f32]>,
+        channels: usize,
+    ) -> u32 {
         if frames == 0 {
             return 0;
         }
@@ -69,6 +80,17 @@ impl Engine {
             }
             let Engine { clock, seq, pat, rng, .. } = self;
             clock.frame(thr, &mut |k| seq.tick(k, pat, rng, &mut out));
+
+            // §11: whatever fired on this frame, by an edge or by the clock, sounds from this
+            // frame. With no audio buffer the voices do not run at all.
+            if let Some(audio) = audio.as_deref_mut() {
+                let at = f as usize * channels;
+                self.voices.trigger(out.fired, self.sample_rate);
+                if let Some(frame) = audio.get_mut(at..at + channels) {
+                    self.voices.render(frame);
+                }
+            }
+            out.fired = 0;
         }
 
         self.dropped = self.dropped.saturating_add(out.dropped);
@@ -112,6 +134,12 @@ impl Engine {
                 let s = v.min(SWING_MAX) as u8;
                 let old = core::mem::replace(&mut self.pat.swing, s);
                 old != s
+            }
+            // A track's two sliders. Held by the engine; not in snapshot version 1, so it does
+            // not move the generation (D44: version 2, with the instrument).
+            CMD_SOUND if a < TRACKS && b < 2 => {
+                self.voices.params[a][b] = v.min(65_535) as u16;
+                false
             }
             CMD_LENGTH => {
                 let l = v.clamp(1, STEPS as u32) as u8;

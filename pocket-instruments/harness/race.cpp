@@ -76,7 +76,7 @@ struct Core {
     }
     uint32_t process(uint32_t frames, const pi_cmd *cmds, uint32_t n, pi_event *ev, uint32_t cap) {
         changes();
-        return pi_process(e, frames, cmds, n, ev, cap);
+        return pi_process(e, frames, cmds, n, ev, cap, nullptr, PI_AUDIO_NONE);
     }
     int32_t load(const Snap &s) {
         changes();

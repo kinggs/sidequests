@@ -120,6 +120,7 @@ static pi_cmd to_cmd(const Json &c) {
     if (name == "prob") return cmd(PI_CMD_PROB, track, step, value);
     if (name == "swing") return cmd(PI_CMD_SWING, 0, 0, value);
     if (name == "length") return cmd(PI_CMD_LENGTH, 0, 0, value);
+    if (name == "sound") return cmd(PI_CMD_SOUND, track, uint8_t(c.n_or("param", 0)), value); // P7 only
     die("unknown fixture command " + name);
 }
 

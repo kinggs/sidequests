@@ -39,14 +39,18 @@ targets:
 
 # The same fixtures through the core three ways. Each harness also writes every trace it
 # produced to a report; the three reports must be the same bytes.
+# Then P7: the click voice rendered by the C++ harness on the static library and by Node on
+# the .wasm, each pair held to the -80 dB bar by harness/compare.mjs.
 test: build check-p1
 	PI_REPORT=$(REPORT)-rust.txt cargo test -p pi-core --locked -q
 	$(CXX) -std=c++17 -O2 -Wall -Wextra -Werror -Icore/include harness/harness.cpp $(NATIVE) -o target/harness
 	target/harness fixtures $(REPORT)-cpp.txt
-	PI_REQUIRE_WASM=1 PI_REPORT=$(REPORT)-node.txt node --test harness/
+	PI_REQUIRE_WASM=1 PI_REPORT=$(REPORT)-node.txt PI_RENDER=$(CURDIR)/target/render-node node --test harness/
 	cmp $(REPORT)-rust.txt $(REPORT)-cpp.txt
 	cmp $(REPORT)-rust.txt $(REPORT)-node.txt
 	@echo "Pocket Instruments: three harnesses, $$(grep -c '^#' $(REPORT)-rust.txt) runs each, one report ($$(sha256sum < $(REPORT)-rust.txt | cut -c1-16))."
+	target/harness --render harness/render-click.json target/render-cpp
+	node harness/compare.mjs $(foreach s,table edges,$(foreach r,44100 48000 96000,target/render-cpp-$(s)-$(r).f32 target/render-node-$(s)-$(r).f32))
 	@if command -v clang++ >/dev/null; then $(MAKE) --no-print-directory race; else echo "P6's ThreadSanitizer run skipped: no clang++."; fi
 
 # P6, the ThreadSanitizer half: the core on one thread while another edits, loads and takes

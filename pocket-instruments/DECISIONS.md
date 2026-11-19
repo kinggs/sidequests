@@ -526,6 +526,38 @@ playing"). Why it is cheap: no fixture, no trace, no core function and no pass b
 What it rules out: a second thread calling `pi_save` or `pi_generation` "because they only
 read". Evidence: `PROOFS.md` P6.
 
+### D44 — How sound crosses the ABI
+**2026-11-19 · proposed · built this way in Session 3 · ABI 2 · sharpens D17; changes no trace, record or snapshot**
+
+Until now the ABI carried no floats and no audio. P7 needed one voice in the core.
+
+1. **Sound leaves through a buffer the host passes to `pi_process`:** `float *audio` and
+   `uint32_t channels`, two more arguments on the one call. Not a second function: sound and
+   sequencing share one frame loop, and two calls could be made out of step.
+2. **32-bit floats, about −1 to 1, frame by frame.** The pointer is the host's and is not
+   kept. No float is an argument or a return value, so D17's "plain data only" holds.
+3. **`channels` is 1 (the mix) or 16 (each track alone).** Sixteen is D33's cable and
+   expander, designed in now as `VOICES.md` asked. Anything else is no sound.
+4. **Null means no sound and no cost.** Events are identical either way.
+5. **Voices use only `+ − × ÷`.** No maths library. That is what makes the two hosts
+   bit-identical, and it is a rule on every later voice, not a property of this one.
+6. **One new edit, `SOUND` (20):** a track's slider A or B, 0 to 65535. Held by the engine,
+   not in snapshot version 1.
+7. `PI_ABI_VERSION` is 2. A host refuses a core whose number is not its header's.
+
+Considered and not taken: a separate `pi_render` (two calls to keep in step); the core
+keeping an output pointer set once (a dangling pointer when WebAssembly memory grows);
+integer samples (no gain in exactness, since the float operations used are already exact
+in the same way on both hosts, and a cost in every voice).
+
+Open inside it, for the owner or the next design session, none of which blocks a build:
+whether the mix gets a limiter in the core or each host saturates (`RACK-RULES.md` says
+saturate); where the sliders sit in snapshot version 2; whether a slider moves a voice that
+is already sounding.
+
+Why proposed, not decided: it is a change to the ABI the owner decided (D17, D27).
+Evidence: `PROOFS.md` P7, `ENGINE.md` §11.
+
 ## Open
 
 | ID | Question | Needs |

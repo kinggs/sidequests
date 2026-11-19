@@ -1,8 +1,8 @@
 # The engine interface
 
 **Status:** decided by the owner 2026-11-19 (D17, D24, D25, D26). P2 passed on it in Session 2;
-P6's ThreadSanitizer half ran on it in Session 3 and changed §8's hand-over (D43, proposed); a
-failed proof reopens it. Written in Session 1. Building it found seven
+P6's ThreadSanitizer half ran on it in Session 3 and changed §8's hand-over (D43, proposed);
+P7 added sound as ABI 2 (§11; D44, proposed). A failed proof reopens it. Written in Session 1. Building it found seven
 places where the text did not say what happens; they are marked (D42) below.
 
 The contract between the core and its two hosts. `core/include/pi_engine.h` is the same
@@ -11,6 +11,9 @@ contract in C; where the two disagree, this file is right and the header gets fi
 
 Scope of ABI 1: sequencing only. Sixteen tracks (D30) of sixteen trigger steps, swing, probability,
 length, reset, the table clock and external clock edges. No sound, no keys, no patterns bank.
+
+**ABI 2 (Session 3, D44, proposed)** adds sound and changes nothing else: two arguments on
+`pi_process`, one command (`SOUND`) and §11. Every trace, record and snapshot is as it was.
 
 ## 1. The shape
 
@@ -49,13 +52,17 @@ products that can pass 32 bits are done in 64.
 ## 3. One call
 
 ```
-events_written = pi_process(engine, frames, cmds, ncmds, events, cap)
+events_written = pi_process(engine, frames, cmds, ncmds, events, cap, audio, channels)
 ```
+
+`audio` and `channels` are ABI 2's (§11). With `audio` null the call is ABI 1's.
 
 For each frame `f` from 0 to `frames - 1`, in this order:
 
 1. Apply every command whose `frame` is `f`, in array order.
 2. Advance the clock by one frame (§4). Each tick it emits goes to the sequencer (§5) at once.
+3. If sound was asked for: start the voice of every track that fired in 1 or 2, then write
+   this frame's samples (§11).
 
 So a command at frame `f` lands before any tick the clock produces at `f`. A `CLOCK` edge is
 itself a command: its ticks are emitted when it is applied, in its place in the array.
@@ -216,6 +223,7 @@ One fixed record, 12 bytes, little-endian, no padding:
 | 17 | `PROB` | `a` track, `b` step, `value` 0 to 100 |
 | 18 | `SWING` | `value` 0 to 48 |
 | 19 | `LENGTH` | `value` 1 to 16 |
+| 20 | `SOUND` | `a` track, `b` slider (0 = A, 1 = B), `value` 0 to 65535, clamped. ABI 2. Not in snapshot version 1 (§11) |
 | 32 | `KEY_DOWN` | `a` key. Reserved: ignored in ABI 1 |
 | 33 | `KEY_UP` | `a` key. Reserved |
 | 34 | `PARAM` | `a` slider (0 = A, 1 = B), `value` 0 to 65535. Reserved |
@@ -258,8 +266,9 @@ Two runs agree when their traces are the same bytes.
 
 - **The caller owns the memory.** `pi_size()` and `pi_align()` say what to provide;
   `pi_init` builds an engine in it. No allocator, no globals, any number of engines.
-- **The ABI is plain.** Only `uint32_t`, `int32_t` and pointers cross it: no floats, no 64-bit
-  values, no structs by value, no callbacks. In WebAssembly a pointer is an offset into the
+- **The ABI is plain.** Only `uint32_t`, `int32_t` and pointers cross it: no float arguments,
+  no 64-bit values, no structs by value, no callbacks. Sound crosses as a pointer to the
+  host's own floats (§11); the core keeps no pointer after a call returns. In WebAssembly a pointer is an offset into the
   module's memory and the module imports nothing.
   In the browser and Node the host grows the module's memory by one page and puts the engine
   and both buffers there. Checked in Session 2: it works with no glue, the module imports
@@ -362,10 +371,47 @@ it is not, as the hardware runs alone.
 
 | Not here | Because | When |
 |---|---|---|
-| Audio out | no voice yet | P7 adds a `float *` to `pi_process`; ABI 2 |
+| ~~Audio out~~ | ~~no voice yet~~ | Done in Session 3: §11, ABI 2, D44 (proposed) |
+| Fifteen of the sixteen voices | P7 needed one | each is a struct in `core/src/voice.rs` beside the click; no interface changes |
+| The sliders in the snapshot | version 1 has no room and the keys that set them are not built | snapshot version 2, with the instrument |
+| A master level, a limiter, a mute mask for D33's expander | nothing sums yet: there is one voice | with the second voice |
 | Keys and sliders doing anything | the workflow is not confirmed on hardware | with the instrument, from `WORKFLOW.md` |
-| The sixteen sounds themselves | no voice yet; the tracks are there (D30), the roles are in `VOICES.md` | P7 onwards, a few at a time |
 | Sixteen patterns, chains | scope to decide | snapshot version 2 |
 | Parameter locks, step multiplier, effects | same | same |
 | A command in the middle of a step, in a fixture | on edges, a flush is one indivisible burst, so the position cannot be matched | fixture format 2, with live recording |
 | A tempo change inside a fixture | the harness would need to re-anchor its step frames, as it now does for a reset (`fixtures/README.md`) | when a fixture needs one. Until then the Rust rule tests cover it (`core/src/tests/rules.rs`) |
+
+## 11. Sound (ABI 2; D44, proposed)
+
+Added in Session 3 for P7. The sequencer and the clock above are untouched: sound hangs off
+the `TRIG` events they already make.
+
+- **How it crosses.** `pi_process` takes `float *audio` and `uint32_t channels`. The host
+  owns the buffer, `frames * channels` floats, frame by frame. The core writes it during the
+  call and keeps no pointer. No float is passed as an argument or returned, so §8's rule
+  stands and the WebAssembly side still needs no glue: the buffer is a `Float32Array` over
+  the module's memory.
+- **Layouts.** `channels` is 1 for the mix, or 16 for each track alone in its own channel
+  (D33: Rack's sixteen-channel cable, and later the expander). Any other value, or a null
+  buffer, is no sound: nothing is written and no voice runs.
+- **Sound changes no event.** The trace, `pi_dropped`, the snapshot and `pi_generation` are
+  the same with and without a buffer. A host that only sequences passes null and pays nothing.
+- **Sample-accurate.** A track that fires on frame `f`, from the clock or from a flushed
+  edge, sounds from frame `f` of the same call. A full event buffer does not silence it.
+- **Level.** Floats of about −1 to 1 for one voice. The mix is a plain sum for now, so it
+  can pass 1: a host scales (Rack: 5 V at 1.0) and must not assume a ceiling.
+- **The same bits on every host.** Voices use only `+ − × ÷` and conversions, each exactly
+  rounded by IEEE 754, which WebAssembly and SSE2 both follow. There is no `sin` or `exp`
+  from a maths library: the sine is a polynomial, the decay a multiply a frame, and pitch
+  and length are integers until the last step. P7 measured it: the native render and the
+  `.wasm` render are the same bytes. A voice that needs a library call gives this up.
+- **A voice stops.** Below −80 dB its envelope is set to exactly 0 and it writes exact
+  zeros: no denormals, and a silent voice costs one comparison.
+- **The sliders.** `SOUND` sets slider A or B of a track, 0 to 65535 (the reserved `PARAM`
+  command will become this, for the selected sound, when the keys are built: D26). A value
+  is read when the voice is next triggered. A sounding voice keeps its pitch and length, in
+  hertz and seconds, across `pi_set_sample_rate`.
+- **Not saved yet.** Slider values are in the engine but not in snapshot version 1, and
+  `SOUND` does not move `pi_generation`. They join the snapshot in version 2.
+- **The first voice** is the click (key 10, track 9): a sine from 500 Hz to 2 kHz by slider
+  A, falling 60 dB in 5 to 40 ms by slider B. The other fifteen tracks are silent.

@@ -25,7 +25,7 @@ fn trigs(ev: &[(u64, Event)]) -> Vec<(u64, u32, u8)> {
 
 #[test]
 fn the_records_and_the_engine_have_the_sizes_the_header_says() {
-    assert_eq!(pi_abi_version(), 1);
+    assert_eq!(pi_abi_version(), 2);
     assert_eq!(size_of::<Cmd>(), 12);
     assert_eq!(size_of::<Event>(), 12);
     assert!(pi_size() >= 316 - 16 && pi_size() <= 512, "pi_size is {}", pi_size());
@@ -235,12 +235,12 @@ fn a_full_event_buffer_drops_and_counts() {
     let mut cmds: Vec<Cmd> = (0..16).map(|t| cmd(CMD_STEP, t, 0, 1)).collect();
     cmds.push(cmd(CMD_PLAY, 0, 0, 1));
     let mut ev = [Event::default(); 4];
-    let n = unsafe { pi_process(h.e, 1, cmds.as_ptr(), cmds.len() as u32, ev.as_mut_ptr(), 4) };
+    let n = unsafe { pi_process(h.e, 1, cmds.as_ptr(), cmds.len() as u32, ev.as_mut_ptr(), 4, core::ptr::null_mut(), 0) };
     assert_eq!(n, 4); // STEP and three of the sixteen triggers
     assert_eq!((ev[0].kind, ev[3].kind, ev[3].track), (EV_STEP, EV_TRIG, 2));
     assert_eq!(h.dropped(), 13);
     // No buffer at all is the same thing with room for none.
-    let n = unsafe { pi_process(h.e, 6000, core::ptr::null(), 0, core::ptr::null_mut(), 64) };
+    let n = unsafe { pi_process(h.e, 6000, core::ptr::null(), 0, core::ptr::null_mut(), 64, core::ptr::null_mut(), 0) };
     assert_eq!((n, h.dropped()), (0, 14));
 }
 

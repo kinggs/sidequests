@@ -4,6 +4,7 @@
 // same and write the same report.
 //
 //   harness <fixtures dir> [report file]        exits 0 only if every trace matched
+//   harness --render <scenario.json> <prefix>   P7: writes <prefix>-<source>-<rate>.f32, the mix
 //
 // SPDX-License-Identifier: MIT
 #include "fixture.hpp"
@@ -45,7 +46,8 @@ static uint64_t schedule(const Json &fx, uint32_t rate, uint32_t source, bool fr
     return anchor + F(steps - anchor_step);
 }
 
-static std::string run(Host &h, const std::vector<Timed> &cmds, uint64_t end, uint32_t block) {
+static std::string run(Host &h, const std::vector<Timed> &cmds, uint64_t end, uint32_t block, std::vector<float> *audio = nullptr) {
+    if (audio) audio->assign(end, 0.f);
     std::string out;
     std::vector<pi_cmd> these;
     pi_event ev[256];
@@ -58,7 +60,8 @@ static std::string run(Host &h, const std::vector<Timed> &cmds, uint64_t end, ui
             c.frame = uint32_t(cmds[next].first - start);
             these.push_back(c);
         }
-        uint32_t got = pi_process(h.e, n, these.data(), uint32_t(these.size()), ev, 256);
+        uint32_t got = pi_process(h.e, n, these.data(), uint32_t(these.size()), ev, 256,
+                                  audio ? audio->data() + start : nullptr, audio ? PI_AUDIO_MIX : PI_AUDIO_NONE);
         for (uint32_t i = 0; i < got; i++) {
             char line[64];
             if (ev[i].type == PI_EV_STEP) std::snprintf(line, sizeof line, "%u step %u\n", ev[i].tick, ev[i].step);
@@ -72,9 +75,29 @@ static std::string run(Host &h, const std::vector<Timed> &cmds, uint64_t end, ui
     return out;
 }
 
+// P7: the scenario's mix on both clock sources at three rates, as raw little-endian floats.
+// trace.test.mjs writes the same from the .wasm and compare.mjs holds the two to the bar.
+static int render(const std::string &scenario, const std::string &prefix) {
+    Json fx = read_fixture(scenario);
+    const std::pair<const char *, uint32_t> sources[] = {{"table", PI_SOURCE_TABLE}, {"edges", PI_SOURCE_EDGES}};
+    for (auto &[source_name, source] : sources)
+        for (uint32_t rate : {44100u, 48000u, 96000u}) {
+            std::vector<Timed> cmds;
+            uint64_t end = schedule(fx, rate, source, false, cmds);
+            Host h(rate, uint32_t(fx.n("seed")));
+            std::vector<float> audio;
+            run(h, cmds, end, 128, &audio);
+            std::ofstream out(prefix + "-" + source_name + "-" + std::to_string(rate) + ".f32", std::ios::binary);
+            out.write(reinterpret_cast<const char *>(audio.data()), std::streamsize(audio.size() * sizeof(float)));
+            if (!out) die("cannot write the render");
+        }
+    return 0;
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) die("usage: harness <fixtures dir> [report file]");
     if (pi_abi_version() != PI_ABI_VERSION) die("the library's ABI is not the header's");
+    if (std::string(argv[1]) == "--render") return argc == 4 ? render(argv[2], argv[3]) : (die("usage: harness --render <scenario.json> <prefix>"), 1);
 
     std::vector<std::filesystem::path> files;
     for (auto &entry : std::filesystem::directory_iterator(argv[1]))

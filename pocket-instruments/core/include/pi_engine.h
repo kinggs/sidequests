@@ -1,10 +1,11 @@
-/* Pocket Instruments: the engine's C ABI, version 1.
+/* Pocket Instruments: the engine's C ABI, version 2 (1 plus sound: D44).
  *
  * The contract both hosts link. ENGINE.md beside the crate is the specification; this file is
  * the same thing in C. Where they disagree, ENGINE.md is right.
  *
- * Rules of the ABI: only uint32_t, int32_t and pointers cross it. No floats, no 64-bit
- * values, no structs by value, no callbacks, no globals. The caller owns all memory.
+ * Rules of the ABI: only uint32_t, int32_t and pointers cross it. No float arguments, no
+ * 64-bit values, no structs by value, no callbacks, no globals. The caller owns all memory.
+ * Sound leaves through a pointer to the caller's floats; the core keeps no pointer.
  * Every function on an engine is called from one thread, the audio thread.
  *
  * SPDX-License-Identifier: MIT
@@ -18,7 +19,7 @@
 extern "C" {
 #endif
 
-#define PI_ABI_VERSION 1u
+#define PI_ABI_VERSION 2u
 
 #define PI_TICKS_PER_STEP 96u /* a step is a sixteenth note */
 #define PI_TRACKS 16u         /* one per grid key: key n plays track n (D30) */
@@ -29,6 +30,11 @@ extern "C" {
 #define PI_EVENTS_MIN 64u     /* the least room a host gives pi_process for events */
 #define PI_SNAPSHOT_VERSION 1u
 #define PI_SNAPSHOT_SIZE 316u /* bytes, for PI_SNAPSHOT_VERSION */
+
+/* What pi_process writes to `audio`, by its `channels` argument. Any other value: no sound. */
+#define PI_AUDIO_NONE 0u    /* the voices do not run at all */
+#define PI_AUDIO_MIX 1u     /* one float a frame: every voice, summed */
+#define PI_AUDIO_TRACKS 16u /* PI_TRACKS floats a frame: track n alone in channel n */
 
 /* Clock sources (PI_CMD_SOURCE). */
 #define PI_SOURCE_TABLE 0u /* the engine counts frames at its tempo */
@@ -44,6 +50,8 @@ extern "C" {
 #define PI_CMD_PROB 17u     /* a: track, b: step, value: 0..100 */
 #define PI_CMD_SWING 18u    /* value: 0..PI_SWING_MAX, clamped */
 #define PI_CMD_LENGTH 19u   /* value: 1..PI_STEPS, clamped */
+#define PI_CMD_SOUND 20u    /* a: track, b: 0 slider A, 1 slider B; value: 0..65535, clamped.
+                               Not in snapshot version 1 */
 #define PI_CMD_KEY_DOWN 32u /* a: PI_KEY_*. Reserved: ignored by ABI 1 */
 #define PI_CMD_KEY_UP 33u   /* a: PI_KEY_*. Reserved */
 #define PI_CMD_PARAM 34u    /* a: 0 slider A, 1 slider B; value: 0..65535. Reserved */
@@ -107,10 +115,16 @@ void pi_set_sample_rate(pi_engine *engine, uint32_t sample_rate);
 
 /* Run `frames` frames (at least 1; 0 does nothing). Applies each command at its frame, then advances the
  * clock by that frame. Writes at most `cap` events and returns how many. Events that do not
- * fit are dropped and counted. Never allocates, never blocks. */
+ * fit are dropped and counted. Never allocates, never blocks.
+ *
+ * Sound: `audio` has room for frames * channels floats, frame by frame, about -1 to 1 (it is
+ * a sum, so a host must not assume it stays inside). A track that fires on a frame sounds
+ * from that frame. With `audio` null or `channels` PI_AUDIO_NONE nothing is written and no
+ * voice runs: the events are the same either way. */
 uint32_t pi_process(pi_engine *engine, uint32_t frames,
                     const pi_cmd *cmds, uint32_t ncmds,
-                    pi_event *events, uint32_t cap);
+                    pi_event *events, uint32_t cap,
+                    float *audio, uint32_t channels);
 
 /* Events dropped since pi_init, saturating. Zero in any correct host. */
 uint32_t pi_dropped(const pi_engine *engine);

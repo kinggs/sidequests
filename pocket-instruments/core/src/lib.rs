@@ -1,8 +1,9 @@
 //! Pocket Instruments: the engine. `ENGINE.md` beside this crate is the specification and
 //! `include/pi_engine.h` is the same contract in C. Section numbers below are ENGINE.md's.
 //!
-//! One engine is one clock feeding one sequencer, in memory the host provides. No standard
-//! library, no allocator, no floats, no globals. SPDX-License-Identifier: MIT
+//! One engine is one clock feeding one sequencer, in memory the host provides, and since
+//! ABI 2 the voices it plays. No standard library, no allocator, no globals. Floats are in
+//! `voice.rs` only: they shape a sample and never decide when one starts. SPDX-License-Identifier: MIT
 #![cfg_attr(not(test), no_std)]
 #![deny(unsafe_op_in_unsafe_fn)]
 
@@ -12,6 +13,7 @@ mod crc;
 mod engine;
 mod seq;
 mod snapshot;
+mod voice;
 
 #[cfg(test)]
 mod tests;

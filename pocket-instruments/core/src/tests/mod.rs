@@ -4,6 +4,7 @@
 mod fixtures;
 mod json;
 mod rules;
+mod sound;
 
 use crate::abi::*;
 use crate::engine::Engine;
@@ -31,7 +32,7 @@ impl Host {
     pub fn block(&mut self, frames: u32, cmds: &[Cmd]) -> Vec<Event> {
         let mut ev = [Event::default(); CAP];
         let n = unsafe {
-            pi_process(self.e, frames, cmds.as_ptr(), cmds.len() as u32, ev.as_mut_ptr(), CAP as u32)
+            pi_process(self.e, frames, cmds.as_ptr(), cmds.len() as u32, ev.as_mut_ptr(), CAP as u32, core::ptr::null_mut(), 0)
         };
         let out = ev[..n as usize].iter().map(|x| Event { frame: x.frame, ..*x }).collect();
         self.now += frames as u64;

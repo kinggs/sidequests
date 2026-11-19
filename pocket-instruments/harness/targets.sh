@@ -8,7 +8,7 @@
 # compiler_builtins, which a linker takes members from only if asked (PROOFS.md P1).
 #   - the object is the right kind for the target (ELF, COFF for MinGW, Mach-O);
 #   - it asks the platform for nothing but libc's memory routines, which every glibc since
-#     2.2.5, every msvcrt and every libSystem has;
+#     2.2.5, every msvcrt and every libSystem has (the list is below, by platform);
 #   - on x64, no instruction newer than Nehalem (Rack's -march=nehalem);
 #   - on macOS, the version the object says it needs. Rack asks for 10.9. rustc will not go
 #     below 10.12 (11.0 on Apple Silicon), so this prints the gap and fails only if the
@@ -40,7 +40,12 @@ case $kind in "$want"*) ;; *) fail "the object is '$kind', not $want" ;; esac
 
 needs=$(llvm-nm --undefined-only "$obj" | awk '{print $NF}' | sed 's/^_//' | sort -u | tr '\n' ' ')
 for sym in $needs; do
-    case $sym in memcpy | memset | memmove | memcmp | bcmp | __bzero | abort) ;;
+    case $triple:$sym in
+    *:memcpy | *:memset | *:memmove | *:memcmp | *:bcmp | *:abort) ;;
+    # macOS only: the compiler's own spellings of memset. Both are in libSystem on every
+    # macOS Rack runs on (memset_pattern16 since 10.5). First met when the core got its
+    # voice parameters, which are filled with a 16-bit pattern (Session 3).
+    *-apple-darwin:__bzero | *-apple-darwin:memset_pattern16) ;;
     *) fail "the core's object needs $sym" ;;
     esac
 done
