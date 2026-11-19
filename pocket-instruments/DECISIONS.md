@@ -431,6 +431,18 @@ Why: it is what the hardware is reported to do (D22), and D30 gives every key a 
 ⚠ Still a report and not a check on the hardware (D29): a mismatch the owner meets goes in
 `WORKFLOW.md`'s differences table.
 
+### D36 — The owner's rulings on D33 and D34
+**2026-11-19 · decided (owner)**
+
+- **D33 is decided**: individual outputs in Rack, first as two sixteen-channel jacks on the
+  main panel (TRIGGERS, VOICES), an expander with a jack per sound later. The panel gains two
+  jacks; the brief for the design is the addendum in `design/PROMPT.md`.
+- **D34 is decided**: any key can take the player's own sound file; browsing Freesound from
+  inside the instrument stays parked.
+
+Carried to P7: the core renders each track separately, or takes a mute mask (D33), and the
+host can replace any track's sample (D34).
+
 ## Open
 
 | ID | Question | Needs |

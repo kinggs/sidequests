@@ -76,3 +76,22 @@ WHAT I WANT BACK
   layout, the key-states sheet, three frames of the display animation,
   and the colour and type choices as named tokens.
 ```
+
+## Addendum, 2026-11-19: two more jacks (D33)
+
+Sent to Claude Design after the first export:
+
+```
+One change to the Rack panel. The bottom row of jack sockets gains two
+outputs, so it now reads, left to right:
+
+  CLOCK in, RESET in   (inputs, at the left, as now)
+  TRIGGERS out, VOICES out, AUDIO out   (outputs, grouped at the right)
+
+TRIGGERS and VOICES each carry sixteen channels on one cable, one per
+key. Mark those two sockets as multi-channel in a way that fits the
+design, and make the inputs and the outputs read as two groups at a
+glance. AUDIO stays the main output and should be the most prominent
+of the three. Nothing else on the panel moves. The phone layout has no
+jacks and does not change.
+```
