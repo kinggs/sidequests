@@ -21,6 +21,8 @@ class Engine extends AudioWorkletProcessor {
     const instance = new WebAssembly.Instance(new WebAssembly.Module(o.wasm), {});
     this.pi = instance.exports;
     this.base = this.pi.memory.grow(1) * PAGE;
+    // The engine sits before the events: 2 KiB of room (core/src/tests/rules.rs holds pi_size to it).
+    if (this.pi.pi_size() > EVENTS) throw new Error(`the engine is ${this.pi.pi_size()} bytes, more than the ${EVENTS} before the events`);
     this.e = this.pi.pi_init(this.base, this.pi.pi_size(), sampleRate, o.seed);
     // The other copies, one engine's size apart (pi_size, rounded to its alignment) in pages
     // of their own. It was a fixed 512 bytes until the drums took the engine past that.

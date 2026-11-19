@@ -22,7 +22,7 @@ const CMD = { clock: 1, reset: 2, source: 3, tempo: 4, play: 5, step: 16, prob: 
 const EDITS = new Set(["step", "prob", "swing", "length"]);
 const PAGE = 65536;
 // Where things sit in the one page the host adds (ENGINE.md §8).
-const SNAP = 1024, EVENTS = 2048, CAP = 256, AUDIO = 5120, AUDIO_MAX = 768, CMDS = 8192, CMDS_MAX = (PAGE - CMDS) / 12;
+const SNAP = 2048, EVENTS = 3072, CAP = 256, AUDIO = 6144, AUDIO_MAX = 768, CMDS = 9216, CMDS_MAX = (PAGE - CMDS) / 12;
 
 function load() {
   const module = new WebAssembly.Module(readFileSync(WASM));
@@ -123,8 +123,8 @@ test("the module imports nothing and its memory grows by a page for the host", {
   assert.equal(m.pi.pi_abi_version(), 2);
   assert.equal(m.pi.memory.buffer.byteLength, m.base + PAGE);
   // Memory the module was not given is refused, not written.
-  assert.equal(m.pi.pi_init(0, 1024, 48000, 1), 0, "null");
-  assert.equal(m.pi.pi_init(m.base + 1, 1024, 48000, 1), 0, "misaligned");
+  assert.equal(m.pi.pi_init(0, m.pi.pi_size(), 48000, 1), 0, "null");
+  assert.equal(m.pi.pi_init(m.base + 1, m.pi.pi_size(), 48000, 1), 0, "misaligned");
 });
 
 test("every fixture gives its trace on both sources, at every rate and block size", { skip }, () => {

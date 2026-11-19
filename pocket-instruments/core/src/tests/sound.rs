@@ -5,6 +5,7 @@ use super::*;
 use crate::voice::LEVEL;
 
 const CLICK: u8 = 9;
+const CLICK_TRACK: u8 = CLICK;
 
 /// Runs `frames` frames in blocks of `block` with sound, commands at absolute frames.
 /// Returns the samples and the frame of every TRIG.
@@ -176,12 +177,26 @@ fn fire_sounds_a_track_on_its_frame_stopped_or_playing_and_changes_nothing_else(
 }
 
 // ---- the beat: bass drum, snare, closed hat, open hat (VOICES.md keys 1 to 4) ----
+// ---- and since Session 7, all sixteen voices ----
 
 const KICK: u8 = 0;
 const SNARE: u8 = 1;
 const CLOSED: u8 = 2;
 const OPEN: u8 = 3;
 const DRUMS: [u8; 4] = [KICK, SNARE, CLOSED, OPEN];
+const SYNTH_SNARE: u8 = 4;
+const STICKS: u8 = 5;
+const CYMBAL: u8 = 6;
+const NOISE: u8 = 7;
+const CLAP: u8 = 8;
+const LOW_TOM: u8 = 10;
+const HIGH_TOM: u8 = 11;
+const COWBELL: u8 = 12;
+const BLIP: u8 = 13;
+const TONE: u8 = 14;
+const BASS: u8 = 15;
+/// Every track: each has a voice now.
+const ALL: [u8; 16] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
 
 /// One hit of `track` on frame 0 with its sliders at `a` and `b`, stopped, as a tap would.
 fn hit(track: u8, a: u32, b: u32, rate: u32, frames: usize) -> Vec<f32> {
@@ -203,16 +218,32 @@ fn crossings(out: &[f32]) -> usize {
 }
 
 /// How long each voice lasts, 60 dB down, in milliseconds: slider B's range (VOICES.md).
-/// The snare's B is its wires; its body falls 60 dB in 120 ms whatever B says.
+/// The snare's B is its wires; its body falls 60 dB in 120 ms whatever B says. The clap's B
+/// is its tail, which starts with the third burst, 20 ms in.
 fn length_ms(track: u8, b: u32) -> f64 {
     let (lo, hi) = match track {
         KICK => (100.0, 600.0),
         SNARE => (50.0, 250.0),
         CLOSED => (10.0, 60.0),
-        _ => (100.0, 500.0),
+        OPEN => (100.0, 500.0),
+        SYNTH_SNARE => (20.0, 150.0),
+        STICKS => (10.0, 40.0),
+        CYMBAL => (200.0, 1200.0),
+        NOISE => (50.0, 600.0),
+        CLAP => (50.0, 300.0),
+        CLICK_TRACK => (5.0, 40.0),
+        LOW_TOM => (150.0, 600.0),
+        HIGH_TOM => (100.0, 400.0),
+        COWBELL => (30.0, 300.0),
+        BLIP => (20.0, 100.0),
+        _ => (50.0, 500.0), // the two tones
     };
     let b = lo + b as f64 * (hi - lo) / 65535.0;
-    if track == SNARE { b.max(120.0) } else { b }
+    match track {
+        SNARE => b.max(120.0),
+        CLAP => 20.0 + b,
+        _ => b,
+    }
 }
 
 /// A sixteen-step beat: kick on the beat, snare on two and four, closed hats on the
@@ -238,9 +269,9 @@ fn beat() -> Vec<(u64, Cmd)> {
 }
 
 #[test]
-fn each_drum_is_loud_from_its_trigger_then_exactly_silent_within_its_length() {
+fn each_voice_is_loud_from_its_trigger_then_exactly_silent_within_its_length() {
     for rate in [44100, 48000, 96000] {
-        for t in DRUMS {
+        for t in ALL {
             let out = hit(t, 32768, 32768, rate, rate as usize);
             let p = peak(&out);
             assert!(p > 0.3 * LEVEL && p <= LEVEL, "track {t} at {rate}: peak {p}, at the core's level");
@@ -257,10 +288,10 @@ fn each_drum_is_loud_from_its_trigger_then_exactly_silent_within_its_length() {
 }
 
 #[test]
-fn slider_b_sets_each_drum_s_length() {
-    for t in DRUMS {
+fn slider_b_sets_each_voice_s_length() {
+    for t in ALL {
         for b in [0, 65535] {
-            let out = hit(t, 32768, b, 48000, 48000);
+            let out = hit(t, 32768, b, 48000, 96000); // the cymbal runs to 1.6 s
             let len = length_ms(t, b) * 48.0;
             let last = last_sound(&out) as f64;
             assert!(last > len * 0.9 && last < len * 1.5, "track {t} b {b}: last sound at {last}, length {len}");
@@ -307,7 +338,10 @@ fn the_beat_s_mix_is_the_sum_of_its_tracks_and_each_track_is_alone_in_its_channe
     let (tracks, _) = render(&mut Host::new(48000, 1), 48000, 128, 16, &cmds);
     for f in 0..48000 {
         let ch = |t: usize| tracks[f * 16 + t];
-        let sum = ch(0) + ch(1) + ch(2) + ch(3) + ch(9);
+        let mut sum = ch(0);
+        for t in 1..16 {
+            sum += ch(t);
+        }
         assert_eq!(mix[f].to_bits(), sum.to_bits(), "frame {f}");
         for t in (4..16).filter(|&t| t != 9) {
             assert_eq!(ch(t).to_bits(), 0, "frame {f} track {t}");
@@ -339,26 +373,26 @@ fn the_block_size_does_not_change_a_sample_of_the_beat() {
 }
 
 #[test]
-fn a_drum_sounding_across_a_rate_change_keeps_its_length_in_seconds() {
-    for t in DRUMS {
-        let whole = last_sound(&hit(t, 32768, 65535, 48000, 48000)) as f64 / 48000.0;
+fn a_voice_sounding_across_a_rate_change_keeps_its_length_in_seconds() {
+    for t in ALL {
+        let whole = last_sound(&hit(t, 32768, 65535, 48000, 96000)) as f64 / 48000.0; // to 1.6 s
         // The same hit, with the rate doubled 20 ms in.
         let mut h = Host::new(48000, 1);
         let fire = [(0, cmd(CMD_SOUND, t, 1, 65535)), (0, cmd(CMD_FIRE, t, 0, 0))];
         let (first, _) = render(&mut h, 960, 128, 1, &fire);
         assert!(first.iter().any(|&s| s != 0.0));
         unsafe { pi_set_sample_rate(h.e, 96000) };
-        let (rest, _) = render(&mut h, 96000, 128, 1, &[]);
+        let (rest, _) = render(&mut h, 192000, 128, 1, &[]);
         let split = 0.02 + last_sound(&rest) as f64 / 96000.0;
         assert!((split - whole).abs() < 0.002, "track {t}: {whole} s at one rate, {split} s across the change");
     }
 }
 
 #[test]
-fn a_slider_moved_while_a_drum_sounds_waits_for_its_next_hit() {
+fn a_slider_moved_while_a_voice_sounds_waits_for_its_next_hit() {
     // §11: a value is read when the voice is next triggered, and a rate change does not
     // read it either.
-    for t in DRUMS {
+    for t in ALL {
         let fire = [(0, cmd(CMD_SOUND, t, 1, 0)), (0, cmd(CMD_FIRE, t, 0, 0))];
         let mut moved = Host::new(48000, 1);
         let (a, _) = render(&mut moved, 240, 128, 1, &fire);
@@ -370,3 +404,124 @@ fn a_slider_moved_while_a_drum_sounds_waits_for_its_next_hit() {
         assert_eq!([a, b].concat().iter().map(|s| s.to_bits()).collect::<Vec<_>>(), [c, d].concat().iter().map(|s| s.to_bits()).collect::<Vec<_>>(), "track {t}");
     }
 }
+
+/// Full cycles of a steady pitch over `ms`, counted after `from_ms`.
+fn cycles_between(out: &[f32], rate: usize, from_ms: usize, ms: usize) -> usize {
+    crossings(&out[from_ms * rate / 1000..(from_ms + ms) * rate / 1000])
+}
+
+#[test]
+fn slider_a_changes_every_voice() {
+    for t in ALL {
+        let (low, high) = (hit(t, 0, 32768, 48000, 24000), hit(t, 65535, 32768, 48000, 24000));
+        assert!(low.iter().zip(&high).any(|(a, b)| a.to_bits() != b.to_bits()), "track {t}");
+    }
+}
+
+#[test]
+fn slider_a_sets_the_pitch_of_the_sines() {
+    // Each voice's range from VOICES.md, as (track, low Hz, high Hz, from ms, over ms), counted
+    // where the voice is steady and still sounding: after a sweep has died and before the end.
+    // Slider B at its top for room. The counts must scale as the pitches do, within a cycle or two.
+    for (t, lo, hi, from, ms) in [
+        (SYNTH_SNARE, 200.0, 460.0, 70, 60), // after its noise, which lasts a third as long
+        (STICKS, 500.0, 1000.0, 2, 30),
+        (LOW_TOM, 60.0, 120.0, 250, 200),
+        (HIGH_TOM, 120.0, 250.0, 200, 150),
+    ] {
+        let (low, high) = (hit(t, 0, 65535, 48000, 48000), hit(t, 65535, 65535, 48000, 48000));
+        let (cl, ch) = (cycles_between(&low, 48000, from, ms) as f64, cycles_between(&high, 48000, from, ms) as f64);
+        let (wl, wh) = (lo * ms as f64 / 1000.0, hi * ms as f64 / 1000.0);
+        assert!((cl - wl).abs() <= 2.0 && (ch - wh).abs() <= 2.0, "track {t}: {cl} and {ch} cycles, {wl} and {wh} wanted");
+    }
+}
+
+#[test]
+fn the_blip_rises_an_octave_from_where_slider_a_puts_it() {
+    // 1 kHz at the bottom: about 1 kHz in its first 2 ms, about 2 kHz by 60 ms.
+    let out = hit(BLIP, 0, 65535, 48000, 48000);
+    let (start, end) = (cycles_between(&out, 48000, 0, 2), cycles_between(&out, 48000, 60, 20));
+    assert!((2..=3).contains(&start) && (38..=41).contains(&end), "{start} cycles in 2 ms, {end} in 20 ms");
+    let top = cycles_between(&hit(BLIP, 65535, 65535, 48000, 48000), 48000, 60, 20);
+    assert!((118..=121).contains(&top), "3 kHz rising to 6: {top} cycles in 20 ms");
+}
+
+#[test]
+fn slider_a_brightens_the_filtered_voices() {
+    // A higher corner or band keeps more of the high partials: more crossings.
+    for t in [CYMBAL, NOISE, CLAP, COWBELL] {
+        let n = 4800;
+        let (dark, bright) = (crossings(&hit(t, 0, 65535, 48000, n)), crossings(&hit(t, 65535, 65535, 48000, n)));
+        assert!(bright as f64 > dark as f64 * 1.2, "track {t}: {dark} crossings low, {bright} high");
+    }
+}
+
+#[test]
+fn the_clap_is_three_bursts_ten_milliseconds_apart_then_a_tail() {
+    // Each burst starts the envelope again, so the loudness rises at 0, 10 and 20 ms.
+    let out = hit(CLAP, 32768, 0, 48000, 48000);
+    let loud = |from: usize| peak(&out[from..from + 96]);
+    for at in [480, 960] {
+        assert!(loud(at) > 2.0 * loud(at - 120), "a burst at frame {at}: {} after {}", loud(at), loud(at - 120));
+    }
+    // The tail runs on after the third: still sounding at 50 ms, when a burst alone is gone.
+    assert!(peak(&out[2400..2500]) > 0.0);
+}
+
+#[test]
+fn the_tones_play_in_tune_by_the_semitone() {
+    // Slider A picks one of 25 semitones. The tone: A2, A3 and A4 at the bottom, middle and
+    // top (110, 220 and 440 Hz); the bass two octaves down. Counted over 400 ms from 20 ms.
+    for (t, hz) in [(TONE, [110.0, 220.0, 440.0]), (BASS, [27.5, 55.0, 110.0])] {
+        for (a, want) in [0u32, 32768, 65535].into_iter().zip(hz) {
+            let got = cycles_between(&hit(t, a, 65535, 48000, 48000), 48000, 20, 400) as f64;
+            assert!((got - want * 0.4).abs() <= 1.0, "track {t} a {a}: {got} cycles, {} wanted", want * 0.4);
+        }
+    }
+    // One step of the slider's 25 is one semitone: E3 is 7 up from A2 (164.8 Hz).
+    let e = (7 * 65535 + 23) / 24;
+    let got = cycles_between(&hit(TONE, e, 65535, 48000, 48000), 48000, 20, 400) as f64;
+    assert!((got - 164.814 * 0.4).abs() <= 1.0, "E3: {got} cycles");
+}
+
+/// A pattern for all sixteen: each track on its own steps, a few overlapping.
+fn all_sixteen() -> Vec<(u64, Cmd)> {
+    let mut c = Vec::new();
+    for t in 0..16u8 {
+        for s in [t % 4, 4 + t % 3, 8 + t % 5, 12 + t % 4] {
+            c.push((0, cmd(CMD_STEP, t, s, 1)));
+        }
+    }
+    c.push((0, cmd(CMD_PLAY, 0, 0, 1)));
+    c
+}
+
+#[test]
+fn all_sixteen_mix_as_the_sum_of_their_channels_in_track_order() {
+    let cmds = all_sixteen();
+    let (mix, _) = render(&mut Host::new(48000, 1), 48000, 128, 1, &cmds);
+    let (tracks, _) = render(&mut Host::new(48000, 1), 48000, 128, 16, &cmds);
+    for f in 0..48000 {
+        let mut sum = tracks[f * 16];
+        for t in 1..16 {
+            sum += tracks[f * 16 + t];
+        }
+        assert_eq!(mix[f].to_bits(), sum.to_bits(), "frame {f}");
+    }
+    for t in ALL {
+        let solo: Vec<f32> = (0..48000).map(|f| tracks[f * 16 + t as usize]).collect();
+        assert!(peak(&solo) > 0.3 * LEVEL, "track {t} sounds in its own channel");
+    }
+    assert!(mix.iter().all(|s| s.is_finite()));
+}
+
+#[test]
+fn the_block_size_does_not_change_a_sample_of_all_sixteen() {
+    let cmds = all_sixteen();
+    let (want, _) = render(&mut Host::new(44100, 1), 44100, 1, 1, &cmds);
+    for block in [128, 512, 4096] {
+        let (got, _) = render(&mut Host::new(44100, 1), 44100, block, 1, &cmds);
+        assert!(got.iter().zip(&want).all(|(a, b)| a.to_bits() == b.to_bits()), "block {block}");
+    }
+}
+

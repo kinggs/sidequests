@@ -64,7 +64,7 @@ struct Probe : Module {
     pi::Latest<Snap> inbox; // Rack's loading thread writes, audio thread reads
 
     // The audio thread's own.
-    alignas(16) uint8_t mem[1024];
+    alignas(16) uint8_t mem[2048]; // the engine is 1 416 bytes with all sixteen voices
     pi_engine *e = nullptr;
     dsp::SchmittTrigger clockTrig, resetTrig;
     int fixture = -1;

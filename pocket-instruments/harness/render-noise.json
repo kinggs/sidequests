@@ -1,0 +1,33 @@
+{
+  "format": 1,
+  "name": "render-noise",
+  "about": "The noise (key 8, track 7) alone, for the native and WebAssembly renders to be compared. Not a trace fixture: it has no expect, and its sound commands are not in fixture format 1. Two bars at 120 bpm, a step 125 ms, with both sliders moved to each end and back; some hits land while the last is still sounding.",
+  "ticks_per_step": 96,
+  "seed": 1,
+  "mbpm": 120000,
+  "steps": 32,
+  "commands": [
+    {"at": 0, "cmd": "step", "track": 7, "step": 0, "value": 1},
+    {"at": 0, "cmd": "step", "track": 7, "step": 2, "value": 1},
+    {"at": 0, "cmd": "step", "track": 7, "step": 4, "value": 1},
+    {"at": 0, "cmd": "step", "track": 7, "step": 7, "value": 1},
+    {"at": 0, "cmd": "step", "track": 7, "step": 8, "value": 1},
+    {"at": 0, "cmd": "step", "track": 7, "step": 12, "value": 1},
+    {"at": 0, "cmd": "step", "track": 7, "step": 13, "value": 1},
+    {"at": 0, "cmd": "step", "track": 7, "step": 14, "value": 1},
+    {"at": 0, "cmd": "swing", "value": 20},
+    {"at": 0, "cmd": "play", "value": 1},
+    {"at": 4, "cmd": "sound", "track": 7, "param": 0, "value": 0},
+    {"at": 4, "cmd": "sound", "track": 7, "param": 1, "value": 65535},
+    {"at": 8, "cmd": "sound", "track": 7, "param": 0, "value": 65535},
+    {"at": 8, "cmd": "sound", "track": 7, "param": 1, "value": 0},
+    {"at": 16, "cmd": "sound", "track": 7, "param": 0, "value": 0},
+    {"at": 16, "cmd": "sound", "track": 7, "param": 1, "value": 0},
+    {"at": 20, "cmd": "sound", "track": 7, "param": 0, "value": 65535},
+    {"at": 20, "cmd": "sound", "track": 7, "param": 1, "value": 65535},
+    {"at": 24, "cmd": "sound", "track": 7, "param": 0, "value": 12345},
+    {"at": 24, "cmd": "sound", "track": 7, "param": 1, "value": 54321},
+    {"at": 28, "cmd": "sound", "track": 7, "param": 0, "value": 32768},
+    {"at": 28, "cmd": "sound", "track": 7, "param": 1, "value": 32768}
+  ]
+}

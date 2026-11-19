@@ -28,21 +28,25 @@ fn the_records_and_the_engine_have_the_sizes_the_header_says() {
     assert_eq!(pi_abi_version(), 2);
     assert_eq!(size_of::<Cmd>(), 12);
     assert_eq!(size_of::<Event>(), 12);
-    // The upper bound is the hosts' fixed room for one engine: 1 KiB before the snapshot in
-    // harness/trace.test.mjs, and Probe.cpp's buffer. It was 512 until the drums (752 bytes).
-    assert!(pi_size() >= 316 - 16 && pi_size() <= 1024, "pi_size is {}", pi_size());
+    // The upper bound is the hosts' fixed room for one engine: 2 KiB before the snapshot in
+    // harness/trace.test.mjs and before the events in web/worklet.js, and Probe.cpp's buffer.
+    // It was 512 until the drums (752 bytes), and 1 KiB until all sixteen voices (1 416).
+    assert!(pi_size() >= 316 - 16 && pi_size() <= 2048, "pi_size is {}", pi_size());
     assert!(pi_align() <= 8);
 }
 
 #[test]
 fn init_refuses_bad_memory() {
-    let mut mem = vec![0u64; 128];
+    // Room for the engine and one more word, so each refusal below is for its own reason and
+    // not for size. (It was a fixed 1 KiB, which the engine outgrew with all sixteen voices.)
+    let size = pi_size();
+    let mut mem = vec![0u64; size as usize / 8 + 2];
     let p = mem.as_mut_ptr().cast::<u8>();
     unsafe {
-        assert!(pi_init(core::ptr::null_mut(), 1024, SR, 1).is_null());
-        assert!(pi_init(p, pi_size() - 1, SR, 1).is_null());
-        assert!(pi_init(p.add(1), 1000, SR, 1).is_null(), "misaligned");
-        assert!(pi_init(p, 1024, 0, 1).is_null(), "no sample rate");
+        assert!(pi_init(core::ptr::null_mut(), size, SR, 1).is_null());
+        assert!(pi_init(p, size - 1, SR, 1).is_null());
+        assert!(pi_init(p.add(1), size, SR, 1).is_null(), "misaligned");
+        assert!(pi_init(p, size, 0, 1).is_null(), "no sample rate");
         assert!(!pi_init(p, pi_size(), SR, 1).is_null());
     }
 }
