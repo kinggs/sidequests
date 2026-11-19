@@ -95,6 +95,7 @@ Patent drawings are read from the Google Patents pages and are not stored in thi
 | R41 | Fundamental 2.6.4 has no module named Clock. Its LFO's square is output 3 and its FREQ is param 2 (8.0 gave 256 Hz); SEQ 3 has its own clock ⚠ not tried | run here: `rack/selftest.sh` counts the steps |
 | R42 | A plugin built on this laptop (g++ 16, glibc 2.44) asks for glibc symbols up to `GLIBC_2.35`, all from the statically linked libstdc++ and libgcc, none from the Rust core. VCV's toolchain sysroot is glibc 2.23 (R16), so this build is not one to hand to other people | `objdump -T rack/plugin.so` |
 | R43 | Headless Chromium 155 and headless Firefox 158 both run an `AudioContext` at a requested 44 100, 48 000 and 96 000 Hz with no user gesture, given `--autoplay-policy=no-user-gesture-required` and the pref `media.autoplay.default = 0`. Both compile a `WebAssembly.Module` synchronously inside an `AudioWorkletGlobalScope` from bytes sent in `processorOptions` | `web/desktop.mjs` |
+| R44 | Rack 2.6.6's Windows build copies MinGW's `libwinpthread-1.dll`, `libstdc++-6.dll` and `libgcc_s_seh-1.dll` beside `Rack.exe`. The SDK's `plugin.mk` links a Windows plugin with `-static-libstdc++` only, so a plugin built with MSYS2's gcc imports `libgcc_s_seh-1.dll` and finds Rack's copy. ⚠ Read in the Makefile, not in an installed Rack | https://github.com/VCVRack/Rack/blob/v2.6.6/Makefile (lines 230–232) · `plugin.mk` in the Rack SDK 2.6.6 |
 
 ## Not yet checked
 

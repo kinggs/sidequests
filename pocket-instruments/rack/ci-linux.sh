@@ -22,7 +22,9 @@ cp /tmp/zstd-1.5.6/programs/zstd /usr/local/bin/
 # rustup with no toolchain; then the one rust-toolchain.toml pins, with its targets.
 curl -fsSL https://sh.rustup.rs | sh -s -- -y -q --profile minimal --default-toolchain none
 . "$HOME/.cargo/env"
-(cd "$here/.." && rustup toolchain install)
+# There is no default toolchain: rustc resolves only inside the folder that pins it.
+cd "$here/.."
+rustup toolchain install
 gcc --version | sed -n 1p
 ldd --version | sed -n 1p
 rustc --version

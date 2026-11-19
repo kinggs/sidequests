@@ -7,8 +7,7 @@
 #
 #   - the archive holds the manifest and one plugin binary of the right kind;
 #   - lin-x64: needs no glibc newer than 2.23 and nothing from the system's libstdc++;
-#   - win-x64: needs no MinGW runtime DLL (libstdc++, libgcc, winpthread): a user's machine
-#     has none of them;
+#   - win-x64: needs no DLL that neither Windows nor Rack's own folder provides;
 #   - mac-*: one architecture, the right one; libRack found where Rack puts it
 #     (/tmp/Rack2); prints the oldest macOS it says it runs on (D46 accepts 10.12 on Intel).
 #
@@ -52,7 +51,15 @@ win-x64)
     objdump -f "$bin" | grep -q 'file format pei-x86-64' || fail "not an x86-64 PE"
     needs=$(objdump -p "$bin" | awk '/DLL Name:/ {print $3}' | tr '\n' ' ')
     for dll in $needs; do
-        case $dll in libstdc++* | libgcc* | libwinpthread*) fail "needs $dll, which a user's machine does not have" ;; esac
+        case $(echo "$dll" | tr 'A-Z' 'a-z') in
+        librack.dll) ;;
+        # MinGW's runtime: Rack ships these three beside Rack.exe (R44), and Windows looks
+        # in the application's folder first. The SDK links only libstdc++ statically, so
+        # every plugin built with it imports libgcc (first CI run, 2026-11-19).
+        libgcc_s_seh-1.dll | libstdc++-6.dll | libwinpthread-1.dll) ;;
+        kernel32.dll | msvcrt.dll | user32.dll | api-ms-win-*) ;;
+        *) fail "needs $dll, which neither Windows nor Rack provides" ;;
+        esac
     done
     note="libraries: $needs"
     ;;
