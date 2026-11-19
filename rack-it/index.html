@@ -389,6 +389,7 @@
   .fxst{color:var(--dim)}
   .fx.odd{box-shadow:inset 3px 0 0 var(--warn)}
   .fx.odd .fxst{color:var(--warn)}
+  .resume.tdispute{box-shadow:inset 3px 0 0 var(--warn)}
   .tsheet{display:flex;flex-direction:column;gap:14px}
   .tstep{display:flex;align-items:center;gap:12px;min-height:var(--tap)}
   .tstep .who{flex:1;min-width:0;display:flex;align-items:center;gap:10px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -851,7 +852,7 @@ import { connect } from "../shared/connect.js";
 import { ui } from "../shared/ui.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "2.28.0";
+const APP_VERSION = "2.29.0";
 const APP_ID = "rack-it";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 document.getElementById("versionMore").textContent = "v" + APP_VERSION;
@@ -1296,6 +1297,9 @@ let friendMode = false;              // signed in but not on /members (friend mo
 let drills = [], unsubDrills = null; // Spot 9 (2.27.0): every drill this phone may read, watched
 let drill = null;                    // the drill this phone is logging: { id, doc }
 let tours = [], unsubTours = null;   // Tournaments (2.28.0): every one this phone may list, watched
+// The finish (2.29.0, maybeFinish): declared up here because the tournaments' watch can fire
+// before the rest of this script has run.
+const DAY = 24 * 3600 * 1000, finishing = new Set();
 let tourNew = null;                  // Start a tournament: what's been picked so far
 let tourId = null, tourDoc = null, tourGone = false, tourUnsub = null, tourView = { side: null, round: null }, tourStage = "";   // the open page
 let accountSig = "";                 // what the header's avatar last showed (mountAccount)
@@ -4095,7 +4099,8 @@ function renderSummary(){
         : s.withdrawnBy ? ` · withdrawn by ${uidName(s, s.withdrawnBy)}` : "")
     : zb && za
     ? `Zargo: ${nA} ${Math.round(zb.a)} → ${Math.round(za.a)} · ${nB} ${Math.round(zb.b)} → ${Math.round(za.b)}` +
-      (s.ratedBy ? ` · counted as rated by ${uidName(s, s.ratedBy)}` : "")
+      (s.ratedBy ? ` · counted as rated by ${uidName(s, s.ratedBy)}` : "") +
+      (s.tournament ? ` · rated as part of ${s.tournamentName || "a tournament"}${s.round ? ", " + s.round.toLowerCase() : ""}` : "")
     : "Zargo didn't move.";
   el.sumRacks.innerHTML = "";
   for(const { n, rec } of countedRacks(s)){
@@ -4756,7 +4761,8 @@ ui.tap(el.drillCardOpen, () => { const d = liveDrillDoc(); if(d) resumeDrill(d.i
 // the results by fixture key. Who plays in every later match is worked out from those by
 // bracket.js, the same way on every phone, so a result is one small write and correcting one
 // fixes everything after it. The organiser (`by`) runs it: the settings, who's in, the draw,
-// every result. In Session 2 only the organiser enters results; players do from Session 3.
+// every result. From Session 3 (2.29.0) players enter their own and say Not right to one they
+// didn't enter, and the organiser's phone rates the tournament when it finishes (§3.7).
 const FORMAT_WORD = { single: "single elimination", double: "double elimination" };
 const SIDE_WORD = { W: "Winners' side", L: "Losers' side" };
 const TOUR_MAX = 32;
@@ -4768,6 +4774,33 @@ const meIn = t => { const ids = new Set([myUid(), people.meId()].filter(Boolean)
 const isMineTour = t => t.by === myUid() || (t.uids || []).includes(myUid());
 const runsTour = t => !!t && (t.by === myUid() || owner);
 const organiserName = t => firstName(t.byName || people.nameOf(t.by, "Someone"));
+// Who may do what with one match's result (TOURNAMENT.md §3.5, §6). The organiser enters,
+// changes and clears any, until the finish rates it. An entrant enters their own match while
+// it's live, and changes their own entry until it's disputed or a later match depends on it.
+// Not right is for a result you're in and didn't enter, while it's live.
+const inFixture = (f, uid) => !!uid && (f.a === uid || f.b === uid);
+const resultOf = (t, f) => (t.results || {})[f.key] || null;
+function mayEnter(t, f){
+  if(!t || t.ratedAt || !f.a || !f.b) return false;
+  if(runsTour(t)) return f.status === "ready" || f.status === "done" || !!f.ignored;
+  if(t.status !== "live" || !inFixture(f, myUid())) return false;
+  if(f.status === "ready") return true;
+  const r = f.status === "done" && resultOf(t, f);
+  return !!r && r.by === myUid() && !r.wrongBy && safely(() => B.canClear(t, f.key), false);
+}
+function mayDispute(t, f){
+  const r = f.status === "done" && resultOf(t, f);
+  return !!r && t.status === "live" && !t.ratedAt && !runsTour(t) && inFixture(f, myUid()) && r.by !== myUid() && !r.wrongBy;
+}
+const disputes = t => Object.entries(t.results || {}).filter(([, r]) => r && r.wrongBy);
+// "3–1 to Kenny", or "a walkover to Kenny".
+function resultWords(t, f, r){
+  const who = r.w === "b" ? f.b : f.a, me = who && who === meIn(t);
+  const name = me ? "you" : tName(t, who);
+  return r.wo ? `a walkover to ${name}` : `${Math.max(r.a, r.b)}–${Math.min(r.a, r.b)} to ${name}`;
+}
+const whoEntered = (t, r) => r.by === myUid() ? "You" : r.by === t.by ? organiserName(t) : firstName(people.nameOf(r.by, tNameOfUid(t, r.by)));
+const tNameOfUid = (t, uid) => tName(t, (t.players || []).find(x => x === uid) || uid);
 
 function watchTours(){
   if(unsubTours) unsubTours();
@@ -4779,6 +4812,7 @@ function watchTours(){
     tours = [...byId.values()].sort((x, y) => (y.createdAt || 0) - (x.createdAt || 0));
     paintTourCards();
     if(current === "tours") renderTours();
+    for(const t of tours) maybeFinish(t);
   };
   const warn = e => console.warn("[tournaments]", e);
   // The owner lists every tournament; anyone else the ones they're in, and the ones they run
@@ -5064,6 +5098,7 @@ function openTour(id){
     tourDoc = doc ? { id, ...doc } : null;
     tourGone = !doc;
     if(current === "tour" && !renderTour()){ ui.toast("That tournament has gone."); openPage("tours"); }
+    if(tourDoc) maybeFinish(tourDoc);
   }, e => console.warn("[tournament]", e));
   openPage("tour");
   el.tBody.scrollTop = 0;   // only takes once the page shows: a hidden one keeps the last tournament's place
@@ -5260,16 +5295,31 @@ function paintBracket(t, body, foot){
     if(line){
       tx.append(mk("span", "", line), ...(sub ? [mk("small", "", sub)] : []));
       card.append(tx);
-      if(f && f.status === "ready" && org){
+      if(f && f.status === "ready" && mayEnter(t, f)){
         const go = mk("button", "", "Enter the result");
         ui.tap(go, () => openResult(t, f));
         card.append(go);
-      } else if(f && f.status === "ready"){
-        tx.append(mk("small", "", `${organiserName(t)} enters the result`));
       }
       body.push(card);
     }
+    const last = lastResultCard(t, st, me);
+    if(last) body.push(last);
   }
+  // The organiser settles each Not right: a card for each, above everything else.
+  if(org && t.status === "live"){
+    for(const [key] of disputes(t)){
+      const f = st.find(x => x.key === key);
+      if(!f || !f.result) continue;
+      const card = mk("div", "resume tdispute"), tx = mk("span", "t"), go = mk("button", "", "Settle");
+      tx.append(mk("span", "", `${firstName(tNameOfUid(t, f.result.wrongBy))} says not right`),
+        mk("small", "", `${tName(t, f.a)} v ${tName(t, f.b)} · ${whoEntered(t, f.result)} entered ${resultWords(t, f, f.result)}`));
+      ui.tap(go, () => openResult(t, f));
+      card.append(tx, go);
+      body.push(card);
+    }
+  }
+  const pending = finishWords(t, st);
+  if(pending) body.push(mk("p", "thint" + (pending.warn ? " warn" : ""), pending.text));
   const odd = safely(() => B.ignored(t), []);
   if(org && odd.length) body.push(mk("p", "thint warn", `${odd.length === 1 ? "One result doesn't" : odd.length + " results don't"} fit the draw any more. Tap ${odd.length === 1 ? "it" : "them"} to clear.`));
   // Sides (double elimination), then rounds.
@@ -5333,9 +5383,9 @@ function paintBracket(t, body, foot){
   body.push(ul);
   if(org && t.status === "live"){
     const end = mk("button", "quiet warnbtn", "Hold to end early");
-    ui.hold(end, () => saveTour(t, { status: "done", endedAt: Date.now() }));
+    ui.hold(end, () => finishTour(t, { early: true }));
     body.push(end);
-    body.push(mk("p", "thint", "Ends it as it stands. The matches left aren't played."));
+    body.push(mk("p", "thint", "Ends it as it stands and moves the ratings. The matches left aren't played."));
   }
 }
 // A slot with nobody in it yet says where they'll come from.
@@ -5369,17 +5419,30 @@ function fixtureRow(t, f, st, org){
     : f.status === "waiting" ? "waiting"
     : r && r.wo ? "walkover" + byWords(t, r)
     : r ? "entered" + byWords(t, r) : "";
-  b.append(mk("span", "lbl fxst", words + (f.ignored ? " · a result here doesn't fit any more" : "")));
-  const tappable = org && (f.status === "ready" || f.status === "done" || f.ignored);
+  const wrong = r && r.wrongBy ? ` · ${firstName(tNameOfUid(t, r.wrongBy))} says not right` : "";
+  if(wrong) b.classList.add("odd");
+  b.append(mk("span", "lbl fxst", words + wrong + (f.ignored ? " · a result here doesn't fit any more" : "")));
+  const tappable = mayEnter(t, f) || mayDispute(t, f) || (org && f.status === "done");
   if(tappable) ui.tap(b, () => openResult(t, f));
   li.append(b);
   return li;
 }
-const byWords = (t, r) => r.by ? ` by ${r.by === t.by ? organiserName(t) : firstName(people.nameOf(r.by, "someone"))}` : "";
+const byWords = (t, r) => r.by ? ` by ${r.by === t.by ? organiserName(t) : firstName(people.nameOf(r.by, tNameOfUid(t, r.by)))}` : "";
 
 // ---- entering a result: two steppers, Save when exactly one side has reached the race ----
 async function openResult(t, f){
-  const has = !!(t.results || {})[f.key];
+  const has = !!(t.results || {})[f.key], org = runsTour(t), r0 = resultOf(t, f);
+  if(t.ratedAt && f.status === "done"){
+    return ui.sheet({ title: `${tName(t, f.a)} v ${tName(t, f.b)}`, text: `${whoEntered(t, r0 || {})} entered ${resultWords(t, f, f.result)}. ` +
+      "The tournament is rated, so its results stay as they are. The owner can put one right under Matches.", cancel: false, items: [{ label: "OK", value: null, primary: true }] });
+  }
+  if(!org && mayDispute(t, f)) return askNotRight(t, f);
+  if(!org && f.status === "done" && r0 && !mayEnter(t, f)){
+    const text = r0.wrongBy ? `${r0.wrongBy === myUid() ? "You said" : firstName(tNameOfUid(t, r0.wrongBy)) + " says"} it isn't right. ${organiserName(t)} settles it.`
+      : `${whoEntered(t, r0)} entered ${resultWords(t, f, r0)}. A later match depends on it now: ask ${organiserName(t)} to change it.`;
+    return ui.sheet({ title: `${tName(t, f.a)} v ${tName(t, f.b)}`, text, cancel: false, items: [{ label: "OK", value: null, primary: true }] });
+  }
+  if(!mayEnter(t, f)) return;
   if(f.ignored && f.status !== "ready" && f.status !== "done"){
     const v = await ui.sheet({ title: "A result that doesn't fit", text: "The players in this match have changed since it was entered. Clear it, and enter it again once the match is played.",
       items: [{ label: "Hold to clear", value: "clear", hold: true }] });
@@ -5388,6 +5451,17 @@ async function openResult(t, f){
   }
   if(!f.a || !f.b) return;
   const clearable = has && safely(() => B.canClear(t, f.key), false);
+  if(f.status === "done" && !clearable && r0 && r0.wrongBy){
+    // A later match depends on it, so it can't change, but it can stand.
+    const v = await ui.sheet({ title: `${tName(t, f.a)} v ${tName(t, f.b)}`,
+      text: `${firstName(tNameOfUid(t, r0.wrongBy))} says not right. ${whoEntered(t, r0)} entered ${resultWords(t, f, r0)}. A later match depends on it: clear that one first to change this, or let it stand.`,
+      items: [{ label: "It stands", value: "stands", primary: true }] });
+    if(v !== "stands") return;
+    tourDoc = { ...tourDoc, results: { ...(tourDoc.results || {}), [f.key]: (({ wrongBy, ...k }) => k)(r0) } };
+    renderTour();
+    return cloud.deleteFields(tourPath(t.id), ["results." + f.key + ".wrongBy"]).then(() => maybeFinish(tourDoc))
+      .catch(e => { console.warn("[result]", e); ui.toast("Couldn't save that: " + (e.message || e)); });
+  }
   if(f.status === "done" && !clearable){
     return ui.sheet({ title: `${tName(t, f.a)} v ${tName(t, f.b)}`, text: "A later match that depends on this one has a result. Clear that one first, then change this.",
       cancel: false, items: [{ label: "OK", value: null, primary: true }] });
@@ -5397,6 +5471,15 @@ async function openResult(t, f){
   const race = f.race;
   const v = await ui.sheet({ title: `${f.name}${t.format === "double" && !isFinal(f) ? " · " + SIDE_WORD[sideOf(f)] : ""}`, body: close => {
     const wrap = mk("div", "tsheet"), save = mk("button", "primary", "Save");
+    // A Not right to settle: say whose it is, and let it stand as it is.
+    if(org && r0 && r0.wrongBy){
+      wrap.append(mk("p", "thint warn", `${firstName(tNameOfUid(t, r0.wrongBy))} says not right. ${whoEntered(t, r0)} entered ${resultWords(t, f, r0)}. Let it stand, or change it.`));
+      const stands = mk("button", "", "It stands");
+      ui.tap(stands, () => close({ kind: "stands" }));
+      wrap.append(stands);
+    } else if(r0 && r0.by){
+      wrap.append(mk("p", "thint", `${whoEntered(t, r0)} entered ${resultWords(t, f, r0)}.`));
+    }
     const fits = () => (a === race) !== (bb === race);
     const paint = () => { save.disabled = !fits(); save.textContent = fits() ? `Save · ${a}–${bb}` : `First to ${race}`; };
     const label = id => [tAvatar(t, id, 36), mk("span", "", tName(t, id))];
@@ -5404,12 +5487,16 @@ async function openResult(t, f){
       stepper(label(f.a), a, 0, race, n => { a = n; paint(); }, { stack: true }),
       stepper(label(f.b), bb, 0, race, n => { bb = n; paint(); }, { stack: true }));
     ui.tap(save, () => fits() && close({ kind: "score" }));
-    const same = firstName(tName(t, f.a)) === firstName(tName(t, f.b)), short = id => same ? tName(t, id) : firstName(tName(t, id));
-    const woA = mk("button", "quiet", `Walkover to ${short(f.a)}`), woB = mk("button", "quiet", `Walkover to ${short(f.b)}`);
-    ui.tap(woA, () => close({ kind: "wo", w: "a" }));
-    ui.tap(woB, () => close({ kind: "wo", w: "b" }));
-    wrap.append(save, woA, woB);
-    if(clearable){
+    wrap.append(save);
+    // Walkovers and clearing are the organiser's.
+    if(org){
+      const same = firstName(tName(t, f.a)) === firstName(tName(t, f.b)), short = id => same ? tName(t, id) : firstName(tName(t, id));
+      const woA = mk("button", "quiet", `Walkover to ${short(f.a)}`), woB = mk("button", "quiet", `Walkover to ${short(f.b)}`);
+      ui.tap(woA, () => close({ kind: "wo", w: "a" }));
+      ui.tap(woB, () => close({ kind: "wo", w: "b" }));
+      wrap.append(woA, woB);
+    }
+    if(org && clearable){
       const clear = mk("button", "quiet warnbtn", "Hold to clear the result");
       ui.hold(clear, () => close({ kind: "clear" }));
       wrap.append(clear);
@@ -5419,29 +5506,184 @@ async function openResult(t, f){
   } });
   if(!v) return;
   if(v.kind === "clear") return clearResult(t, f);
+  if(v.kind === "stands"){
+    const { wrongBy: _w, ...kept } = r0;
+    tourDoc = { ...tourDoc, results: { ...(tourDoc.results || {}), [f.key]: kept } };
+    renderTour();
+    return cloud.deleteFields(tourPath(t.id), ["results." + f.key + ".wrongBy"])
+      .then(() => maybeFinish(tourDoc))
+      .catch(e => { console.warn("[result]", e); ui.toast("Couldn't save that: " + (e.message || e)); });
+  }
   const res = v.kind === "wo"
     ? { ids: [f.a, f.b], a: 0, b: 0, w: v.w, wo: true, by: myUid(), at: Date.now() }
     : { ids: [f.a, f.b], a, b: bb, w: a === race ? "a" : "b", by: myUid(), at: Date.now() };
   if(!B.validResult(t, f.key, res)) return ui.toast("That result doesn't fit this match.");
   const next = { ...t, results: { ...(t.results || {}), [f.key]: res } };
-  const fields = { ["results." + f.key]: res };
-  if(t.status === "live" && safely(() => B.finished(next), false)) Object.assign(fields, { status: "done", endedAt: Date.now() });
-  tourDoc = { ...tourDoc, results: next.results, ...(fields.status ? { status: fields.status, endedAt: fields.endedAt } : {}) };
+  // `entry` names the result an entrant's write touches (the rules check that one alone).
+  // The tournament finishes on the organiser's phone, never in this write (maybeFinish).
+  const fields = { ["results." + f.key]: res, entry: f.key };
+  tourDoc = { ...tourDoc, results: next.results, entry: f.key };
   tourView = { side: null, round: null };   // on to the next match waiting to be played
   renderTour();
-  cloud.patch(tourPath(t.id), fields).catch(e => { console.warn("[result]", e); ui.toast("Couldn't save the result: " + (e.message || e)); });
-  if(fields.status === "done"){
-    const top = safely(() => B.standings(next), []).find(s => s.place === 1);
-    if(top) ui.toast(`${tName(t, top.id)} wins ${t.name}`);
-  }
+  cloud.patch(tourPath(t.id), fields)
+    .then(() => maybeFinish(tourDoc && tourDoc.id === t.id ? tourDoc : next))
+    .catch(e => { console.warn("[result]", e); ui.toast(e && e.code === "permission-denied" ? "That result can't be changed now." : "Couldn't save the result: " + (e.message || e)); });
+}
+// Not right (§3.5): the opponent flags a result they didn't enter; the organiser settles it.
+async function askNotRight(t, f){
+  const r = resultOf(t, f);
+  const v = await ui.sheet({ title: `${tName(t, f.a)} v ${tName(t, f.b)}`,
+    text: `${whoEntered(t, r)} entered ${resultWords(t, f, r)}. If that's wrong, say so: ${organiserName(t)} settles it.`,
+    items: [{ label: "Not right", value: "wrong" }] });
+  if(v !== "wrong") return;
+  tourDoc = { ...tourDoc, results: { ...(tourDoc.results || {}), [f.key]: { ...r, wrongBy: myUid() } } };
+  renderTour();
+  cloud.patch(tourPath(t.id), { ["results." + f.key + ".wrongBy"]: myUid(), entry: f.key })
+    .then(() => ui.toast(`${organiserName(t)} will settle it.`))
+    .catch(e => { console.warn("[not right]", e); ui.toast("Couldn't send that: " + (e.message || e)); });
+}
+// Under Your match: the last result you're in, while it can still change. Someone else's entry
+// gets Not right; your own gets Change; a disputed one says who settles it.
+function lastResultCard(t, st, me){
+  const mine = st.filter(f => f.status === "done" && f.result && f.a && f.b && (f.a === me || f.b === me))
+    .sort((x, y) => (y.result.at || 0) - (x.result.at || 0));
+  const f = mine[0];
+  if(!f) return null;
+  const r = f.result, opp = f.a === me ? f.b : f.a;
+  const card = mk("div", "resume"), tx = mk("span", "t");
+  let line = "", sub = `You v ${tName(t, opp)}`, label = "", act = null;
+  if(r.wrongBy){
+    line = r.wrongBy === myUid() ? "You said not right" : `${firstName(tNameOfUid(t, r.wrongBy))} says not right`;
+    sub += ` · ${resultWords(t, f, r)} · ${organiserName(t)} settles it`;
+    card.classList.add("tdispute");
+  } else if(mayDispute(t, f) && safely(() => B.canClear(t, f.key), false)){
+    line = `${whoEntered(t, r)} entered ${resultWords(t, f, r)}`;
+    label = "Not right"; act = () => askNotRight(t, f);
+  } else if(r.by === myUid() && mayEnter(t, f) && !runsTour(t)){
+    line = `You entered ${resultWords(t, f, r)}`;
+    sub += " · you can change it until the next match is in";
+    label = "Change"; act = () => openResult(t, f);
+  } else return null;
+  tx.append(mk("span", "", line), mk("small", "", sub));
+  card.append(tx);
+  if(act){ const b = mk("button", "", label); ui.tap(b, act); card.append(b); }
+  return card;
 }
 function clearResult(t, f){
+  if(t.ratedAt) return;
   const { [f.key]: _gone, ...rest } = t.results || {};
   tourDoc = { ...tourDoc, results: rest, ...(t.status === "done" ? { status: "live", endedAt: null } : {}) };
   renderTour();
   cloud.deleteFields(tourPath(t.id), ["results." + f.key])
     .then(() => t.status === "done" ? cloud.patch(tourPath(t.id), { status: "live", endedAt: null }) : null)
     .catch(e => { console.warn("[result]", e); ui.toast("Couldn't clear it: " + (e.message || e)); });
+}
+
+// ---- the finish, and its ratings (TOURNAMENT.md §3.7) ----
+// When the last match is in and nothing is disputed, the organiser's phone finishes it: one
+// write claims it (status done, ratedAt, ratedBy), which the rules allow once, so two phones
+// can never rate it twice. Then each counted result (two accounts, not a walkover) becomes an
+// ordinary rated match, tour_<id>_<key>, in one batch with both players' ratings and the
+// tournament's note that it's rated. They go in the order they were entered, each from the
+// ratings as they stand then; each match's ratedAt is the finish plus its place in that order,
+// so Rebuild ratings replays them at the finish, in the same order. A phone that stops halfway
+// carries on next time it sees the tournament, within the day the rules allow.
+function countedResults(t){
+  const uids = new Set(t.uids || []);
+  return stateOf(t).filter(f => f.status === "done" && f.result && !f.ignored && !f.result.wo
+      && f.a && f.b && f.a !== f.b && uids.has(f.a) && uids.has(f.b))
+    .sort((x, y) => (x.result.at || 0) - (y.result.at || 0) || x.key.localeCompare(y.key));
+}
+const unrated = t => countedResults(t).filter(f => !(t.rated || {})[f.key]);
+function maybeFinish(t){
+  if(!t || !t.id || finishing.has(t.id) || !myUid()) return;
+  if(t.status === "live" && !t.ratedAt && t.by === myUid() && !disputes(t).length && safely(() => B.finished(t), false)) return finishTour(t);
+  if(t.status === "done" && t.ratedBy === myUid() && Date.now() < t.ratedAt + DAY && unrated(t).length) return rateTour(t);
+}
+async function finishTour(t, { early = false } = {}){
+  if(finishing.has(t.id) || t.ratedAt) return;
+  if(disputes(t).length) return ui.toast("Settle the Not right first.");
+  finishing.add(t.id);
+  const at = Date.now(), claim = { status: "done", endedAt: at, ratedAt: at, ratedBy: myUid() };
+  try { await cloud.patch(tourPath(t.id), claim); }
+  catch(e){
+    finishing.delete(t.id);
+    console.warn("[finish]", e);
+    if(early || e.code !== "permission-denied") ui.toast("Couldn't finish it: " + (e.message || e));
+    return;
+  }
+  const done = { ...t, ...claim, rated: {} };
+  if(tourDoc && tourDoc.id === t.id) tourDoc = { ...tourDoc, ...claim };
+  renderTour();
+  const top = !early && safely(() => B.standings(done), []).find(s => s.place === 1);
+  if(top) ui.toast(`${tName(t, top.id)} wins ${t.name}`);
+  finishing.delete(t.id);
+  return rateTour(done);
+}
+async function rateTour(t){
+  if(finishing.has(t.id)) return;
+  finishing.add(t.id);
+  const order = countedResults(t).map(f => f.key);
+  let n = 0;
+  try {
+    for(const f of unrated(t)){ await rateResult(t, f, t.ratedAt + order.indexOf(f.key)); n++; }
+    if(n) ui.toast(`${t.name}: ratings moved for ${n} ${n === 1 ? "match" : "matches"}.`);
+  } catch(e){
+    console.warn("[rate]", e);
+    ui.toast("Couldn't move every rating yet. It carries on next time you open it.");
+  }
+  finishing.delete(t.id);
+}
+async function ratingNow(pid){
+  const doc = await cloud.load("ratings/" + pid).catch(() => null);
+  const st = doc && Number.isFinite(doc.zargo) ? doc : statsOf(pid) || {};
+  return { zargo: Number.isFinite(st.zargo) ? st.zargo : cfg().startZargo, robustness: st.robustness || 0, sessions: st.sessions || 0 };
+}
+async function rateResult(t, f, ratedAt){
+  const r = f.result, id = `tour_${t.id}_${f.key}`, [A, Bp] = [f.a, f.b];
+  const racks = {};
+  let n = 1;
+  for(let i = 0; i < r.a; i++) racks[n++] = { winner: "a" };
+  for(let i = 0; i < r.b; i++) racks[n++] = { winner: "b" };
+  const m = { game: t.game, handicap: "off", playerA: A, playerB: Bp, names: { a: tName(t, A), b: tName(t, Bp) },
+    uids: [A, Bp], by: myUid(), rated: true, entered: true,
+    tournament: t.id, tournamentName: t.name || "a tournament", fixture: f.key,
+    round: (t.format === "double" && !isFinal(f) ? SIDE_WORD[sideOf(f)] + ", " + f.name.toLowerCase() : f.name),
+    mode: "race", targets: { a: f.race, b: f.race }, racksPlanned: null,
+    startedAt: r.at || t.startedAt || ratedAt, endedAt: r.at || ratedAt, playedAt: r.at || ratedAt, status: "done", racks,
+    totals: { a: r.a, b: r.b, racksA: r.a, racksB: r.b, dead: 0, lead: r.b - r.a, winner: r.w } };
+  const a = await ratingNow(A), b = await ratingNow(Bp);
+  const results = rackResults(t.game, Z.matchPoints(m, cfg()).points);
+  const z = Z.zargoOutcome({ za: a.zargo, zb: b.zargo, sessionsA: a.sessions, sessionsB: b.sessions,
+    robustnessA: a.robustness, robustnessB: b.robustness }, results, cfg());
+  const w = weightOf(results);
+  Object.assign(m, { zargoBefore: { a: z.a.from, b: z.b.from }, zargoAfter: { a: z.a.to, b: z.b.to }, ratedAt });
+  const ra = { zargo: z.a.to, robustness: a.robustness + w, sessions: a.sessions + 1, match: id };
+  const rb = { zargo: z.b.to, robustness: b.robustness + w, sessions: b.sessions + 1, match: id };
+  await cloud.batch([
+    { save: "matches/" + id, data: m },
+    { save: "ratings/" + A, data: ra },
+    { save: "ratings/" + Bp, data: rb },
+    { patch: tourPath(t.id), data: { ["rated." + f.key]: id } }
+  ]);
+  ratings[A] = Object.assign({}, ratings[A], ra);
+  ratings[Bp] = Object.assign({}, ratings[Bp], rb);
+  t.rated = { ...(t.rated || {}), [f.key]: id };
+}
+// What the page says while it waits to finish, or once it's rated.
+function finishWords(t, st){
+  if(t.status === "live" && safely(() => B.finished(t), false)){
+    const d = disputes(t).length;
+    if(d) return { warn: true, text: runsTour(t) ? "Every match is in. Settle the Not right and it finishes." : `Every match is in. It finishes once ${organiserName(t)} settles the Not right.` };
+    return { text: t.by === myUid() ? "Every match is in. Finishing…" : `Every match is in. It finishes, and ratings move, when ${organiserName(t)} next opens Rack It.` };
+  }
+  if(t.status === "done" && t.ratedAt){
+    const all = countedResults(t).length, left = unrated(t).length;
+    if(!all) return { text: "No match here was between two players with the app, so no rating moved." };
+    if(left) return { text: `Ratings moved for ${all - left} of ${all} matches. The rest move from ${t.ratedBy === myUid() ? "this phone" : organiserName(t) + "'s phone"}.` };
+    return { text: `Rated: ${all} ${all === 1 ? "match" : "matches"} moved ratings, as of the finish. Walkovers and guests' matches don't count.` };
+  }
+  return null;
 }
 
 // ---- joining by the Tournament QR (?g=t_<id>): the friendship is made first, then this ----

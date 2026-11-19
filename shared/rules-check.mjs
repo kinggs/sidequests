@@ -2213,3 +2213,126 @@ describe("tournaments", () => {
     await assertFails(updateDoc(doc(user("cat"), T + "started"), { players: ["ann", "g_1", "cat"], names: ["Ann", "Dan", "Cat"], uids: ["ann", "cat"] }));
   });
 });
+
+// ---- Tournaments, Session 3 (Rack It 2.29.0, rack-it/TOURNAMENT.md §3.5, §3.7, §6) ----
+// Players enter their own results: Cat and Eve are entrants in Ann's tournament, Dan a guest.
+// A write names the result it touches in `entry`. The organiser's phone rates the tournament at
+// the finish: it claims it once (ratedAt, ratedBy), then writes each counted result as a rated
+// match tour_<id>_<key> with both players' ratings, in one batch each, within a day.
+
+const res = (ids, by, extra = {}) => ({ ids, a: 3, b: 1, w: "a", by, at: 1, ...extra });
+const playTour = (extra = {}) => annTour({ status: "live", players: ["ann", "cat", "eve", "g_1"], names: ["Ann", "Cat", "Eve", "Dan"],
+  uids: ["ann", "cat", "eve"], seeds: ["ann", "cat", "eve", "g_1"], results: {
+    "W1-1": res(["cat", "eve"], "cat"),
+    "W1-2": res(["ann", "g_1"], "ann"),
+    "W1-3": res(["cat", "eve"], "cat", { wrongBy: "eve" }),
+    "W2-1": res(["ann", "eve"], "ann")
+  }, ...extra });
+const tourMatch = (t, key, a, b, extra = {}) => ({ game: "eight", handicap: "off", playerA: a, playerB: b, names: { a, b },
+  uids: [a, b], by: "ann", rated: true, entered: true, tournament: t, fixture: key, mode: "race", targets: { a: 3, b: 3 },
+  startedAt: 1, endedAt: 1, status: "done", racks: { 1: { winner: "a" }, 2: { winner: "a" }, 3: { winner: "a" }, 4: { winner: "b" } },
+  totals: { a: 3, b: 1, racksA: 3, racksB: 1, dead: 0, lead: 2, winner: "a" },
+  zargoBefore: { a: 500, b: 500 }, zargoAfter: { a: 510, b: 490 }, ratedAt: Date.now(), ...extra });
+// One batch a counted result: the match, both ratings, and the tournament's note that it's rated.
+function rateBatch(db, t, key, a, b, { match = {}, id = `tour_${t}_${key}`, ratingFor = [a, b] } = {}){
+  const w = writeBatch(db);
+  w.set(doc(db, "sidequests/rack-it/matches/" + id), tourMatch(t, key, a, b, match));
+  for(const p of ratingFor) w.set(doc(db, "sidequests/rack-it/ratings/" + p), { zargo: 505, robustness: 2, sessions: 1, match: id });
+  w.update(doc(db, T + t), { ["rated." + key]: id });
+  return w.commit();
+}
+
+describe("tournaments: players' results and ratings at the finish", () => {
+  beforeEach(async () => {
+    await seed(T + "play", playTour());
+    await seed(T + "over", playTour({ status: "done", endedAt: 2 }));
+    await seed(T + "rated", playTour({ status: "done", endedAt: 2, ratedAt: Date.now(), ratedBy: "ann", rated: {} }));
+    await seed(T + "stale", playTour({ status: "done", endedAt: 2, ratedAt: Date.now() - 25 * 3600 * 1000, ratedBy: "ann", rated: {} }));
+    await seed(T + "byCat", playTour({ status: "done", endedAt: 2, ratedAt: Date.now(), ratedBy: "cat", rated: {} }));
+  });
+
+  test("an entrant enters a result they're in, corrects their own, and says Not right to one they didn't enter", async () => {
+    const cat = user("cat"), eve = user("eve");
+    await assertSucceeds(updateDoc(doc(eve, T + "play"), { "results.L1-1": res(["eve", "g_1"], "eve"), entry: "L1-1" }));
+    await assertSucceeds(updateDoc(doc(cat, T + "play"), { "results.W1-1": res(["cat", "eve"], "cat", { a: 3, b: 2 }), entry: "W1-1" }));
+    await assertSucceeds(updateDoc(doc(eve, T + "play"), { "results.W1-1.wrongBy": "eve", entry: "W1-1" }));
+    await assertSucceeds(updateDoc(doc(eve, T + "play"), { "results.W2-1.wrongBy": "eve", entry: "W2-1" }));
+  });
+  test("the organiser settles a Not right: it stands, or changes", async () => {
+    const ann = user("ann");
+    await assertSucceeds(updateDoc(doc(ann, T + "play"), { "results.W1-3.wrongBy": deleteField() }));
+    await assertSucceeds(updateDoc(doc(ann, T + "play"), { "results.W1-3": res(["cat", "eve"], "ann", { w: "b", a: 1, b: 3 }), entry: "W1-3" }));
+  });
+  test("refused: an entrant entering as someone else, a match they aren't in, a walkover, or two at once", async () => {
+    const cat = user("cat");
+    await assertFails(updateDoc(doc(cat, T + "play"), { "results.L1-1": res(["cat", "g_1"], "eve"), entry: "L1-1" }));
+    await assertFails(updateDoc(doc(cat, T + "play"), { "results.L1-1": res(["ann", "g_1"], "cat"), entry: "L1-1" }));
+    await assertFails(updateDoc(doc(cat, T + "play"), { "results.L1-1": res(["cat", "g_1"], "cat", { wo: true, a: 0, b: 0 }), entry: "L1-1" }));
+    await assertFails(updateDoc(doc(cat, T + "play"), { "results.L1-1": res(["cat", "g_1"], "cat"), "results.L1-2": res(["cat", "g_1"], "cat"), entry: "L1-1" }));
+    await assertFails(updateDoc(doc(cat, T + "play"), { "results.L1-1": res(["cat", "g_1"], "cat"), entry: "L1-2" }));
+    await assertFails(updateDoc(doc(cat, T + "play"), { "results.L1-1": res(["cat", "g_1"], "cat") }));
+  });
+  test("refused: overwriting the opponent's or the organiser's result, a disputed one, or clearing one", async () => {
+    const cat = user("cat"), eve = user("eve");
+    await assertFails(updateDoc(doc(eve, T + "play"), { "results.W1-1": res(["cat", "eve"], "eve", { w: "b", a: 1, b: 3 }), entry: "W1-1" }));
+    await assertFails(updateDoc(doc(eve, T + "play"), { "results.W2-1": res(["ann", "eve"], "eve", { w: "b", a: 1, b: 3 }), entry: "W2-1" }));
+    await assertFails(updateDoc(doc(cat, T + "play"), { "results.W1-3": res(["cat", "eve"], "cat"), entry: "W1-3" }));
+    await assertFails(updateDoc(doc(cat, T + "play"), { "results.W1-3.wrongBy": deleteField(), entry: "W1-3" }));
+    await assertFails(updateDoc(doc(cat, T + "play"), { "results.W1-1": deleteField(), entry: "W1-1" }));
+  });
+  test("refused: Not right to your own entry, to a match you aren't in, with the score changed, or as someone else", async () => {
+    const cat = user("cat"), eve = user("eve");
+    await assertFails(updateDoc(doc(cat, T + "play"), { "results.W1-1.wrongBy": "cat", entry: "W1-1" }));
+    await assertFails(updateDoc(doc(cat, T + "play"), { "results.W1-2.wrongBy": "cat", entry: "W1-2" }));
+    await assertFails(updateDoc(doc(eve, T + "play"), { "results.W1-1": res(["cat", "eve"], "cat", { wrongBy: "eve", a: 2 }), entry: "W1-1" }));
+    await assertFails(updateDoc(doc(eve, T + "play"), { "results.W1-1.wrongBy": "cat", entry: "W1-1" }));
+  });
+  test("refused: an entrant's result once it's done, or with anything else changed", async () => {
+    const eve = user("eve");
+    await assertFails(updateDoc(doc(eve, T + "over"), { "results.L1-1": res(["eve", "g_1"], "eve"), entry: "L1-1" }));
+    await assertFails(updateDoc(doc(eve, T + "play"), { "results.L1-1": res(["eve", "g_1"], "eve"), entry: "L1-1", status: "done" }));
+    await assertFails(updateDoc(doc(user("ben"), T + "play"), { "results.L1-1": res(["ben", "g_1"], "ben"), entry: "L1-1" }));
+  });
+
+  test("the organiser claims the finish once, then rates each result: the match, both ratings, the note", async () => {
+    const ann = user("ann");
+    await assertSucceeds(updateDoc(doc(ann, T + "play"), { status: "done", endedAt: 2, ratedAt: Date.now(), ratedBy: "ann" }));
+    await assertSucceeds(rateBatch(ann, "rated", "W1-1", "cat", "eve"));
+    await assertSucceeds(rateBatch(ann, "rated", "W2-1", "ann", "eve"));
+    await assertSucceeds(updateDoc(doc(ann, T + "rated"), { name: "Club night" }));
+  });
+  test("refused: claiming in someone else's name, long ago, twice, from a done one, or as an entrant", async () => {
+    const ann = user("ann");
+    await assertFails(updateDoc(doc(ann, T + "play"), { status: "done", ratedAt: Date.now(), ratedBy: "cat" }));
+    await assertFails(updateDoc(doc(ann, T + "play"), { status: "done", ratedAt: Date.now() - 2 * 3600 * 1000, ratedBy: "ann" }));
+    await assertFails(updateDoc(doc(ann, T + "play"), { status: "live", ratedAt: Date.now(), ratedBy: "ann" }));
+    await assertFails(updateDoc(doc(ann, T + "rated"), { ratedAt: Date.now() + 1000, ratedBy: "ann" }));
+    await assertFails(updateDoc(doc(ann, T + "over"), { ratedAt: Date.now(), ratedBy: "ann" }));
+    await assertFails(updateDoc(doc(user("cat"), T + "play"), { status: "done", ratedAt: Date.now(), ratedBy: "cat" }));
+  });
+  test("refused: changing a rated tournament's results or status, or taking a result off the rated note", async () => {
+    const ann = user("ann");
+    await assertFails(updateDoc(doc(ann, T + "rated"), { "results.W1-1": deleteField() }));
+    await assertFails(updateDoc(doc(ann, T + "rated"), { status: "live", endedAt: null }));
+    await seed(T + "rated2", playTour({ status: "done", ratedAt: Date.now(), ratedBy: "ann", rated: { "W1-1": "tour_rated2_W1-1" } }));
+    await assertFails(updateDoc(doc(ann, T + "rated2"), { rated: {} }));
+  });
+  test("refused: rating as an entrant, a guest's result, a walkover, the wrong id or order, an unclaimed or day-old finish", async () => {
+    const ann = user("ann");
+    await assertFails(rateBatch(user("cat"), "byCat", "W1-1", "cat", "eve"));
+    await assertFails(rateBatch(ann, "rated", "W1-2", "ann", "g_1", { ratingFor: ["ann"] }));
+    await seed(T + "wo", playTour({ status: "done", ratedAt: Date.now(), ratedBy: "ann", rated: {},
+      results: { "W1-1": res(["cat", "eve"], "ann", { wo: true, a: 0, b: 0 }) } }));
+    await assertFails(rateBatch(ann, "wo", "W1-1", "cat", "eve"));
+    await assertFails(rateBatch(ann, "rated", "W1-1", "cat", "eve", { id: "m1" }));
+    await assertFails(rateBatch(ann, "rated", "W1-1", "eve", "cat"));
+    await assertFails(rateBatch(ann, "over", "W1-1", "cat", "eve"));
+    await assertFails(rateBatch(ann, "stale", "W1-1", "cat", "eve"));
+    await assertFails(rateBatch(ann, "rated", "W1-1", "cat", "eve", { match: { status: "pending" } }));
+  });
+  test("refused: a rating for someone not in the match, or naming a match outside a tournament", async () => {
+    const ann = user("ann");
+    await assertFails(rateBatch(ann, "rated", "W1-1", "cat", "eve", { ratingFor: ["cat", "ann"] }));
+    await assertFails(setDoc(doc(ann, "sidequests/rack-it/ratings/cat"), { zargo: 900, robustness: 1, sessions: 1, match: "done1" }));
+  });
+});

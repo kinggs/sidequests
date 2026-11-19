@@ -5,8 +5,15 @@
 // depends on; the final; standings. Ann's Play has the card; Ben can't write a result; Eve, who
 // connects after the draw, is told it has started; a stranger reads nothing. No page errors.
 //
+// 2.29.0, Session 3 (§3.5, §3.7): a second tournament where the players enter their own results
+// on their own phones. Ann enters hers; Ben says Not right; the owner lets it stand; Ann corrects
+// her own; Ben, out, writes a stale result for the final, which the draw ignores and the owner
+// clears; Ann enters the final; the owner's phone finishes it and rates the two matches between
+// accounts (not the guest's), once; a rated result can't change.
+//
 //   node shared/proofs/rack-it-tournament.mjs
-import { ok, summary, serve, browser, tab, C, tryC, text, store, hold, shot } from "./h.mjs";
+import { ok, summary, serve, browser, tab, C, tryC, text, store, hold, shot, matchesOf, ratingsOf } from "./h.mjs";
+import * as B from "../../rack-it/bracket.js";
 const srv = await serve();
 const { b, ctx } = await browser();
 const R = srv.base + "/rack-it/";
@@ -146,8 +153,8 @@ ok(/Clear that one first/.test(await text(owner, last)), "a result a later match
 await sheetButton(owner, "OK").click(); await owner.waitForTimeout(200);
 
 // Ben, an entrant, can't write a result in Session 2.
-ok(await tryC(ben, (c, id) => c.patch("tournaments/" + id, { "results.L1-1": { ids: ["x", "y"], a: 4, b: 0, w: "a", by: "mock-ben", at: 1 } }), t.id) === "permission-denied",
-  "ben can't enter a result yet (Session 3)");
+ok(await tryC(ben, (c, id) => c.patch("tournaments/" + id, { "results.L1-1": { ids: ["x", "y"], a: 4, b: 0, w: "a", by: "mock-ben", at: 1 }, entry: "L1-1" }), t.id) === "permission-denied",
+  "ben can't enter a result for a match he isn't in");
 
 // Play it out: losers' side, then the final (and a decider if the losers' side wins).
 for(let i = 0; i < 4 && (await tours(owner))[0].status === "live"; i++){
@@ -160,7 +167,9 @@ for(let i = 0; i < 4 && (await tours(owner))[0].status === "live"; i++){
   await enter(owner);
 }
 t = (await tours(owner))[0];
-ok(t.status === "done" && t.endedAt > 0, "done when the last match is in: " + t.status + ", " + Object.keys(t.results).join(" "));
+await owner.waitForTimeout(600);
+t = (await tours(owner))[0];
+ok(t.status === "done" && t.endedAt > 0 && t.ratedBy === "mock-uid", "done when the last match is in, claimed by the organiser's phone: " + t.status + ", " + Object.keys(t.results).join(" "));
 ok(/ won/.test(await text(owner, "#tBody .sumwin")) && /Standings/i.test(await text(owner, "#tBody")), "the page leads with the winner: " + await text(owner, "#tBody .sumwin"));
 const places = (await owner.locator("#tBody .rows .tplace").allInnerTexts()).map(s => s.trim());
 ok(JSON.stringify(places) === JSON.stringify(["1st", "2nd", "3rd", "4th"]), "standings: " + places.join(", "));
@@ -189,6 +198,131 @@ ok(t2 && t2.uids.includes("mock-ann") && t2.players.length === 2, "a friend pick
 ok(await tryC(ann, (c, id) => c.patch("tournaments/" + id, { players: ["mock-uid"], names: ["Mock"], uids: ["mock-uid"] }), t2.id) === "allowed", "ann may leave before the draw");
 await owner.locator("#tBody button.warnbtn").scrollIntoViewIfNeeded(); await hold(owner, "#tBody button.warnbtn"); await owner.waitForTimeout(500);
 ok(!(await tours(owner)).some(x => x.id === t2.id) && await owner.locator("#scrTours").isVisible(), "Hold to discard deletes it");
+
+// ---- Session 3: players enter their own results ----
+await front(owner);
+await owner.click('.tabbar button[data-tab="play"]'); await owner.waitForTimeout(200);
+await owner.click("#toursBtn"); await owner.waitForTimeout(200);
+await owner.click("#tourStartBtn"); await owner.waitForTimeout(200);
+for(const n of ["Ann", "Ben", "Dan"]){ await owner.locator("#tnChips button", { hasText: n }).first().click(); await owner.waitForTimeout(150); }
+await owner.click("#tnOpen"); await owner.waitForTimeout(600);
+let t3 = (await tours(owner)).find(x => x.status === "open");
+ok(t3 && t3.players.length === 4 && t3.uids.length === 3, "a third tournament, four in, three accounts: " + JSON.stringify(t3 && t3.uids));
+await owner.locator("#tFoot button.primary").click(); await owner.waitForTimeout(300);
+await sheetButton(owner, "Start").click(); await owner.waitForTimeout(500);
+// A known draw, so Ann plays Ben first and the owner plays Dan.
+const dan = t3.players.find(x => x.startsWith("g_"));
+await C(owner, (c, a) => c.patch("tournaments/" + a.id, { seeds: a.seeds }), { id: t3.id, seeds: ["mock-uid", "mock-ann", "mock-ben", dan] });
+await owner.waitForTimeout(400);
+t3 = (await tours(owner)).find(x => x.id === t3.id);
+const st3 = B.state(t3), annMatch = st3.find(f => f.a === "mock-ann" || f.b === "mock-ann");
+ok(annMatch && [annMatch.a, annMatch.b].includes("mock-ben") && annMatch.status === "ready", "Ann v Ben is ready: " + (annMatch && annMatch.key));
+const annIsA = annMatch.a === "mock-ann";
+// The open stepper sheet: the first stepper is the match's first player.
+async function fill(p, mine, theirs, iAmA){
+  const steps = p.locator(last + " .tstep");
+  for(let i = 0; i < mine; i++) await steps.nth(iAmA ? 0 : 1).locator("button", { hasText: "+" }).click();
+  for(let i = 0; i < theirs; i++) await steps.nth(iAmA ? 1 : 0).locator("button", { hasText: "+" }).click();
+  await sheetButton(p, "Save").click(); await p.waitForTimeout(500);
+}
+const openT3 = async p => { await front(p); await p.click('.tabbar button[data-tab="play"]'); await p.waitForTimeout(200);
+  await p.locator("#tourCards button").first().click(); await p.waitForTimeout(500); };
+
+// Ann enters her own result from Your match.
+await front(ann);
+await ann.goto(R + "?mock&as=ann"); await ann.waitForTimeout(900);
+await openT3(ann);
+ok(/You v Ben/.test(await text(ann, "#tBody .resume")), "ann's Your match: " + (await text(ann, "#tBody .resume >> nth=0")).replace(/\s+/g, " "));
+await ann.locator("#tBody .resume button", { hasText: "Enter the result" }).click(); await ann.waitForTimeout(300);
+ok(!(await ann.locator(last + " button", { hasText: "Walkover" }).count()), "a player's sheet has no walkovers");
+await fill(ann, 3, 1, annIsA);
+t3 = (await tours(owner)).find(x => x.id === t3.id);
+let r3 = t3.results[annMatch.key];
+ok(r3 && r3.by === "mock-ann" && t3.entry === annMatch.key && Math.max(r3.a, r3.b) === 3, "ann's result stands at once, entered by her: " + JSON.stringify(r3));
+ok(/You entered 3–1 to you/.test(await text(ann, "#tBody")), "ann's card says she entered it");
+
+// Ben says Not right.
+await front(ben);
+await ben.goto(R + "?mock&as=ben"); await ben.waitForTimeout(900);
+await openT3(ben);
+ok(/Ann entered 3–1 to Ann/.test(await text(ben, "#tBody")) && /entered by Ann/i.test(await text(ben, "#tBody")), "ben's card, and the row names who entered it: " + (await text(ben, "#tBody")).replace(/\s+/g, " "));
+await ben.locator("#tBody .resume button", { hasText: "Not right" }).click(); await ben.waitForTimeout(250);
+await sheetButton(ben, "Not right").click(); await ben.waitForTimeout(500);
+t3 = (await tours(owner)).find(x => x.id === t3.id);
+ok(t3.results[annMatch.key].wrongBy === "mock-ben", "flagged: " + JSON.stringify(t3.results[annMatch.key]));
+ok(/You said not right/.test(await text(ben, "#tBody")), "ben's page shows it flagged");
+await shot(ben, "tournament-not-right");
+ok(await tryC(ann, (c, a) => c.patch("tournaments/" + a.id, { ["results." + a.k]: { ...a.r, a: 3, b: 0, w: a.r.w } , entry: a.k }), { id: t3.id, k: annMatch.key, r: (({ wrongBy, ...x }) => x)(t3.results[annMatch.key]) }) === "permission-denied",
+  "ann can't change it while it's disputed");
+
+// The owner lets it stand.
+await openT3(owner);
+ok(/Ben says not right/.test(await text(owner, "#tBody")), "the owner sees the dispute: " + (await text(owner, "#tBody .tdispute")).replace(/\s+/g, " "));
+await shot(owner, "tournament-settle");
+await owner.locator("#tBody .tdispute button", { hasText: "Settle" }).click(); await owner.waitForTimeout(300);
+await sheetButton(owner, "It stands").click(); await owner.waitForTimeout(500);
+t3 = (await tours(owner)).find(x => x.id === t3.id);
+ok(!t3.results[annMatch.key].wrongBy && t3.results[annMatch.key].by === "mock-ann", "it stands: " + JSON.stringify(t3.results[annMatch.key]));
+
+// Ann corrects her own: 3–2.
+await front(ann); await ann.waitForTimeout(400);
+await ann.locator("#tBody .resume button", { hasText: "Change" }).click(); await ann.waitForTimeout(300);
+await ann.locator(last + " .tstep").nth(annIsA ? 1 : 0).locator("button", { hasText: "+" }).click();
+await sheetButton(ann, "Save").click(); await ann.waitForTimeout(500);
+t3 = (await tours(owner)).find(x => x.id === t3.id);
+ok(Math.min(t3.results[annMatch.key].a, t3.results[annMatch.key].b) === 2, "ann corrected hers to 3–2: " + JSON.stringify(t3.results[annMatch.key]));
+
+// The owner beats Dan; the final is the owner v Ann.
+await front(owner); await owner.waitForTimeout(300);
+await owner.locator("#tBody .resume button", { hasText: "Enter the result" }).click(); await owner.waitForTimeout(300);
+const ownerMatch = B.state(t3).find(f => f.a === "mock-uid" || f.b === "mock-uid");
+await fill(owner, 3, 0, ownerMatch.a === "mock-uid");
+t3 = (await tours(owner)).find(x => x.id === t3.id);
+const FK = B.state(t3).find(f => f.name === "Final").key;
+ok(B.state(t3).find(f => f.key === FK).status === "ready", "the final is ready: " + FK);
+
+// Ben, out now, writes a stale result for the final: the rules can't tell, the draw ignores it.
+ok(await tryC(ben, (c, a) => c.patch("tournaments/" + a.id, { ["results." + a.k]: { ids: ["mock-ben", "mock-uid"], a: 3, b: 0, w: "a", by: "mock-ben", at: Date.now() }, entry: a.k }), { id: t3.id, k: FK }) === "allowed",
+  "ben's stale write lands (the rules can't work out the draw)");
+await front(owner); await owner.waitForTimeout(500);
+t3 = (await tours(owner)).find(x => x.id === t3.id);
+ok(B.ignored(t3).includes(FK) && t3.status === "live", "the draw ignores it, and it doesn't finish");
+ok(/doesn't fit the draw/.test(await text(owner, "#tBody")), "the owner is told: " + (await text(owner, "#tBody .warn >> nth=0")).replace(/\s+/g, " "));
+await owner.locator("#tBody .fx", { hasText: "doesn't fit" }).first().click(); await owner.waitForTimeout(300);
+await hold(owner, last + " button.hold"); await owner.waitForTimeout(500);
+t3 = (await tours(owner)).find(x => x.id === t3.id);
+ok(!t3.results[FK], "the owner cleared it");
+
+// Ann enters the final; the owner's phone finishes it and rates it.
+const before = await ratingsOf(owner);
+await front(ann); await ann.waitForTimeout(400);
+await ann.locator("#tBody .resume button", { hasText: "Enter the result" }).click(); await ann.waitForTimeout(300);
+const fin = B.state(t3).find(f => f.key === FK);
+await fill(ann, 3, 0, fin.a === "mock-ann");
+await front(owner); await owner.waitForTimeout(1500);
+t3 = (await tours(owner)).find(x => x.id === t3.id);
+ok(t3.status === "done" && t3.ratedBy === "mock-uid" && t3.ratedAt > 0, "finished and claimed by the owner's phone: " + t3.status);
+const rated = (await matchesOf(owner)).filter(m => m.tournament === t3.id);
+ok(rated.length === 2 && rated.every(m => m.rated === true && m.status === "done" && m.entered === true && m.ratedAt >= t3.ratedAt)
+  && rated.some(m => m.fixture === FK) && rated.some(m => m.fixture === annMatch.key),
+  "two rated matches, not the guest's: " + rated.map(m => m.id).join(", "));
+ok(Object.keys(t3.rated || {}).length === 2, "the tournament notes both as rated");
+const afterR = await ratingsOf(owner);
+ok(afterR["mock-ann"] && afterR["mock-ann"].sessions === ((before["mock-ann"] && before["mock-ann"].sessions) || 0) + 2, "ann's rating moved twice: " + JSON.stringify(afterR["mock-ann"]));
+ok(/Rated: 2 matches/.test(await text(owner, "#tBody")), "the page says it's rated");
+await shot(owner, "tournament-rated");
+// Not twice: seeing it again rates nothing more.
+await owner.reload(); await owner.waitForTimeout(1200);
+ok((await matchesOf(owner)).filter(m => m.tournament === t3.id).length === 2 && (await ratingsOf(owner))["mock-ann"].sessions === afterR["mock-ann"].sessions, "rated once only");
+// A rated result can't change, even for the organiser in the rules (the owner's role aside).
+ok(await tryC(ben, (c, a) => c.patch("tournaments/" + a.id, { ["results." + a.k + ".wrongBy"]: "mock-ben", entry: a.k }), { id: t3.id, k: FK }) === "permission-denied", "nobody disputes a rated result");
+// Ann's summary of the final.
+await front(ann); await ann.goto(R + "?mock&as=ann"); await ann.waitForTimeout(900);
+await ann.click('.tabbar button[data-tab="matches"]'); await ann.waitForTimeout(400);
+const rowCount = await ann.locator("#matchList button, .hrow").count();
+ok(rowCount > 0, "ann's Matches list has rows");
+await ann.locator(".hrow").first().click(); await ann.waitForTimeout(400);
+ok(/rated as part of/.test(await text(ann, "#sumZargo")), "the summary: " + await text(ann, "#sumZargo"));
 
 await b.close(); srv.close();
 summary();

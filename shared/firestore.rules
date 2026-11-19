@@ -150,7 +150,7 @@ service cloud.firestore {
       // A Game QR (Session 8): someone connected to the starter gets a live match, never a list.
       allow get: if signedIn() && resource.data.get('status', '') == 'live'
         && connected(request.auth.uid, resource.data.get('by', ''));
-      allow create: if (signedIn() && (outsiderStarts() || scorerStarts())) || isOwner();
+      allow create: if (signedIn() && (outsiderStarts() || scorerStarts() || tourRated(id))) || isOwner();
       allow update: if (signedIn() && request.auth.uid in resource.data.get('uids', []) && playerScores())
         || (signedIn() && resource.data.get('scorer', '') == request.auth.uid && scorerScores())
         || (signedIn() && (rackClaim() || takesSeat() || takesScorer()))
@@ -176,13 +176,17 @@ service cloud.firestore {
     // lists with `by`. The organiser's friend gets it by id while it's open (the Tournament QR,
     // never a list) and may join it, or leave again, as exactly themselves. The rules can't work
     // the bracket out: rack-it/bracket.js ignores a result that doesn't fit its fixture.
+    // Session 3 (2.29.0): an entrant enters their own results while it's live, and says Not right
+    // to one they didn't enter (tourEnters). At the finish the organiser claims it once (ratedAt,
+    // ratedBy) and their phone rates it (tourRated, tourRating); after that only its name and
+    // the note of what's rated change.
     match /sidequests/rack-it/tournaments/{id} {
       allow read: if (signedIn() && (request.auth.uid in resource.data.get('uids', [])
           || resource.data.get('by', '') == request.auth.uid)) || isOwner();
       allow get: if signedIn() && resource.data.get('status', '') == 'open'
         && connected(request.auth.uid, resource.data.get('by', ''));
       allow create: if (signedIn() && tourStarts()) || isOwner();
-      allow update: if (signedIn() && (tourOrganises() || tourJoins() || tourLeaves())) || isOwner();
+      allow update: if (signedIn() && ((tourOrganises() && tourLocks()) || tourJoins() || tourLeaves() || tourEnters())) || isOwner();
       allow delete: if (signedIn() && resource.data.get('by', '') == request.auth.uid
           && resource.data.get('status', '') == 'open') || isOwner();
     }
@@ -192,7 +196,7 @@ service cloud.firestore {
     match /sidequests/rack-it/ratings/{pid} {
       allow get: if signedIn();
       allow list: if isOwner();
-      allow write: if (signedIn() && (confirming(pid) || guestStarter(pid) || claimedStarter(pid))) || isOwner();
+      allow write: if (signedIn() && (confirming(pid) || guestStarter(pid) || claimedStarter(pid) || tourRating(pid))) || isOwner();
     }
 
     // Sessions Loyalty (sessions-loyalty/SPEC.md §6): a club's staff and its members. Staff are
@@ -546,6 +550,64 @@ service cloud.firestore {
         && now.diff(was).affectedKeys().hasOnly(['players', 'uids', 'names', '_updatedAt'])
         && now.players == was.players.removeAll([me]) && now.uids == was.uids.removeAll([me])
         && now.names.size() == was.names.size() - 1;
+    }
+    // An entrant's result (Session 3): while it's live, one result changes, the one `entry`
+    // names, and nothing else. Either their own entry (them in it, by them, no walkover), over
+    // nothing or over their own undisputed one; or Not right: only `wrongBy`, as themselves, on
+    // an undisputed result they're in and didn't enter. Clearing is the organiser's.
+    function tourEnters() {
+      let was = resource.data;
+      let now = request.resource.data;
+      let me = request.auth.uid;
+      let k = now.get('entry', '');
+      let r = now.get('results', {}).get(k, null);
+      let old = was.get('results', {}).get(k, null);
+      return was.status == 'live' && me in was.get('uids', [])
+        && now.diff(was).affectedKeys().hasOnly(['results', 'entry', '_updatedAt'])
+        && now.get('results', {}).diff(was.get('results', {})).affectedKeys().hasOnly([k])
+        && r != null && (tourOwnEntry(r, old, me) || tourNotRight(r, old, me));
+    }
+    function tourOwnEntry(r, old, me) {
+      return r.keys().hasOnly(['ids', 'a', 'b', 'w', 'by', 'at']) && r.by == me && r.ids is list && me in r.ids
+        && (old == null || (old.get('by', '') == me && !('wrongBy' in old)));
+    }
+    function tourNotRight(r, old, me) {
+      return old != null && old.get('by', '') != me && me in old.get('ids', []) && !('wrongBy' in old)
+        && r.diff(old).affectedKeys().hasOnly(['wrongBy']) && r.wrongBy == me;
+    }
+    // The finish (Session 3): the organiser claims it once, from live to done, as themselves,
+    // stamped within an hour of now. Once claimed, only the name and the `rated` note change,
+    // and that note only grows: a rated result can't be changed under the ratings it moved.
+    function tourLocks() {
+      let was = resource.data;
+      let now = request.resource.data;
+      return !('ratedAt' in was)
+        ? (!('ratedAt' in now) || (was.status == 'live' && now.status == 'done' && now.get('ratedBy', '') == request.auth.uid
+            && now.ratedAt is int && now.ratedAt > request.time.toMillis() - 3600000 && now.ratedAt < request.time.toMillis() + 3600000))
+        : (now.diff(was).affectedKeys().hasOnly(['name', 'rated', '_updatedAt'])
+            && now.get('rated', {}).keys().hasAll(was.get('rated', {}).keys()));
+    }
+    // A counted result becomes a rated match (Session 3): id tour_<tournament>_<key>, so one a
+    // result ever; done and rated; the result's two players in its order, both accounts in the
+    // tournament; not a walkover; written by whoever claimed the finish, within a day of it.
+    function tourRated(id) {
+      let m = request.resource.data;
+      let t = get(/databases/$(database)/documents/sidequests/rack-it/tournaments/$(m.tournament)).data;
+      let r = t.results[m.fixture];
+      return id == 'tour_' + m.tournament + '_' + m.fixture
+        && m.status == 'done' && m.get('rated', false) == true && m.by == request.auth.uid
+        && !m.keys().hasAny(['scorer', 'venue', 'confirms', 'endedBy'])
+        && t.status == 'done' && t.get('ratedBy', '') == request.auth.uid && request.time.toMillis() < t.ratedAt + 86400000
+        && r.ids == [m.playerA, m.playerB] && !r.get('wo', false) && m.uids == [m.playerA, m.playerB]
+        && m.playerA != m.playerB && m.playerA in t.uids && m.playerB in t.uids;
+    }
+    // Its two ratings, in the same batch: a player in that match, by whoever claimed the finish,
+    // within a day of it. The rules can't check the arithmetic, as with a confirmation.
+    function tourRating(pid) {
+      let m = getAfter(/databases/$(database)/documents/sidequests/rack-it/matches/$(request.resource.data.match)).data;
+      let t = get(/databases/$(database)/documents/sidequests/rack-it/tournaments/$(m.tournament)).data;
+      return pid in m.uids && m.get('rated', false) == true
+        && t.status == 'done' && t.get('ratedBy', '') == request.auth.uid && request.time.toMillis() < t.ratedAt + 86400000;
     }
     // A guest's starter estimate, written once by the account that made the guest.
     function guestStarter(pid) {

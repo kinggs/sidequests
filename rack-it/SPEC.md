@@ -326,7 +326,7 @@ The handicap isn't remembered: each game starts at its default. A repeat of last
 two names, Start, and the question. Play keeps your picks while you look at another tab and starts fresh after a
 match has begun.
 
-### 5.1 Tournaments (2.28.0, TOURNAMENT.md Session 2)
+### 5.1 Tournaments (2.28.0, TOURNAMENT.md Sessions 2 and 3)
 
 The plan and the sessions still to come are in [`TOURNAMENT.md`](TOURNAMENT.md); this is what's
 built. The bracket is `bracket.js` (pure, tested): it works out who plays in every match from
@@ -352,23 +352,39 @@ the draw and the results, the same way on every phone, so nothing about the brac
 - **Joining.** Scanning the Tournament QR makes the friendship (as My QR), then adds you and
   shows the lobby. After the draw it says "This tournament has started. Ask Kenny."
 - **Live, round by round.** On top, **your match** when you're in it ("You v Greg", "Losers'
-  side, round 2 · race to 3"), or what you're waiting for, or "You're out · finished 5th–6th".
+  side, round 2 · race to 3", with **Enter the result**), or what you're waiting for, or "You're
+  out · finished 5th–6th". Under it, your last result while it can still change: "Greg entered
+  3–1 to Greg" with **Not right**, "You entered 3–1 to you" with **Change**, or "You said not
+  right · Kenny settles it". The organiser gets a **Settle** card for each Not right.
   Then, in double elimination, **Winners' side | Losers' side**; then the rounds as a segmented
   control (numbers past four rounds; the final and any decider close the winners' side), opening
   on the round with a match to play. Each match is a row: both players with avatars, the score
   in large figures once it's in (the winner's in the accent, with a tick and bold), and its state
   ("to play · race to 3", "waiting", "bye · goes straight through", "walkover by Kenny",
-  "entered by Kenny"). An empty slot says where its player comes from ("Winner of Mel v Rolf").
+  "entered by Kenny", in amber "Greg says not right"). An empty slot says where its player comes from ("Winner of Mel v Rolf").
   Below, **Still in, and out**: places as soon as someone's out ("5th–6th"), then **Standings**.
-- **Results** (the organiser, in this version). Tap a match with both players: two steppers,
-  0 to the race, and **Save** once exactly one has reached it; or **Walkover to Kenny**. After a
-  save the page moves to the next match to play. Tap one with a result to change it or **Hold to
-  clear the result**, unless a later match that depends on it has a result ("Clear that one
-  first"). A stored result that no longer fits its match (its players changed) is ignored by
-  `bracket.js` and shown in amber for the organiser to clear. When the last match is in, the
-  tournament is done and leads with the winner; **Hold to end early** finishes it as it stands.
-- Players enter their own results from Session 3, which also rates every tournament result when
-  the tournament finishes (TOURNAMENT.md §3.7). Nothing here moves a rating yet.
+- **Results.** The organiser taps any match with both players: two steppers, 0 to the race, and
+  **Save** once exactly one has reached it; or **Walkover to Kenny**. After a save the page moves
+  to the next match to play. Tap one with a result to change it or **Hold to clear the result**,
+  unless a later match that depends on it has a result ("Clear that one first"). A stored result
+  that no longer fits its match (its players changed, or someone entered a match they aren't
+  in) is ignored by `bracket.js` and shown in amber for the organiser to clear.
+- **A player enters their own** (2.29.0): the same steppers from **your match** or their match's
+  row, without walkovers or clearing. It stands at once, "entered by Ann" on every phone. They
+  may change their own entry until it's disputed or a later match depends on it. The opponent
+  may say **Not right** to a result they didn't enter: it turns amber, and only the organiser
+  then changes it, clears it or lets it stand (**It stands**).
+- **The finish, and ratings** (2.29.0, TOURNAMENT.md §3.7). When the last match is in and no
+  result is disputed, the organiser's phone finishes it (the next time it sees it, if a player
+  entered the last one); **Hold to end early** finishes it as it stands. Finishing rates it:
+  every result between two accounts that isn't a walkover becomes a rated match in Matches
+  (`tour_<tournament>_<key>`, `entered: true`, `tournament`, `tournamentName`, `fixture`,
+  `round`), in the order the results were entered, each from the ratings as they stand then,
+  with its two ratings in the same batch. Its summary says "rated as part of Kenny's tournament,
+  final". Each match's `ratedAt` is the finish (plus its place in that order), so Rebuild
+  replays them there. A phone that stops halfway carries on the next time it sees the
+  tournament, within a day. Once rated, its results can't change; the owner can put one right
+  by deleting its match under Matches. A tournament that ended before 2.29.0 stays unrated.
 
 ## 6. The live screen
 
@@ -863,7 +879,13 @@ drills/<id>                      // Spot 9 (2.27.0): one document a drill, writt
   Starting one holds only you as an account; each friend goes in with a write of its own, the last
   in `uids`, someone the organiser is connected to. The organiser's friend gets an open one by id
   (the Tournament QR) and joins or leaves as exactly themselves. Results are written with
-  `cloud.patch` on `results.<key>`, so two never clobber each other.
+  `cloud.patch` on `results.<key>`, so two never clobber each other. While it's live an entrant
+  changes the one result `entry` names: their own (over nothing or their own undisputed entry,
+  no walkover), or only `wrongBy` as themselves on one they're in and didn't enter. The
+  organiser claims the finish once (live to done, `ratedAt` within the hour, `ratedBy`
+  themselves); after it only `name` and the growing `rated` note change. The claimer then
+  creates each rated match (`tourRated`: id `tour_<id>_<key>`, the result's two accounts in
+  order, no walkover) and writes its two ratings (`tourRating`), within a day of the claim.
 - **Drills** (`shared/firestore.rules`, its own block): an account reads the drills with its uid in
   `uids`, lists them only with that filter, starts one only as itself (`by` and the one `players`
   and `uids` entry all its uid, live), writes a live one's runs and totals and ends it, never

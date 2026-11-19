@@ -68,13 +68,13 @@ const ACCESS = [
     // A Game QR (Session 8): a live match is got by anyone connected to its starter.
     read: (m, u, d, was) => isOwner(u) || inUids(was, u) || (!!was && was.scorer === u.uid)
       || (!!was && was.status === "live" && connectedTo(u.uid, was.by)),
-    write: (m, u, d, was) => !was ? !!d && (isOwner(u) || outsiderStarts(u, d) || scorerStarts(u, d))
+    write: (m, u, d, was) => !was ? !!d && (isOwner(u) || outsiderStarts(u, d) || scorerStarts(u, d) || tourRated(m[1], u, d))
       : (!!d && inUids(was, u) && playerScores(u, d, was)) || (!!d && was.scorer === u.uid && scorerScores(u, d, was))
         || (!!d && (rackClaim(u, d, was) || takesSeat(u, d, was) || takesScorer(u, d, was)))
         || (isOwner(u) && (!d || ownerKeepsChain(u, d, was))) },
   { path: /^sidequests\/rack-it\/ratings\/([^/]+)$/, read: "account",
     write: (m, u, d, was, ctx) => isOwner(u) || (!!d && (confirming(m[1], d, ctx.after) || (!was && !!store.docs[`profiles/${u.uid}/guests/${m[1]}`])
-      || claimedStarter(m[1], u, d, was))) },
+      || claimedStarter(m[1], u, d, was) || tourRating(m[1], u, d, ctx.after))) },
   // Spot 9 (2.27.0): a solo drill, yours alone; the owner reaches every drill and logs one for anyone.
   { path: /^sidequests\/rack-it\/drills$/, read: (m, u, d, was, ctx) => isOwner(u) || uidsFilter(ctx, u) },
   { path: /^sidequests\/rack-it\/drills\/([^/]+)$/,
@@ -88,7 +88,7 @@ const ACCESS = [
       || (!!was && was.status === "open" && connectedTo(u.uid, was.by)),
     write: (m, u, d, was) => isOwner(u) || (!was ? !!d && tourStarts(u, d)
       : !d ? was.by === u.uid && was.status === "open"
-      : tourOrganises(u, d, was) || tourJoins(u, d, was) || tourLeaves(u, d, was)) },
+      : (tourOrganises(u, d, was) && tourLocks(u, d, was)) || tourJoins(u, d, was) || tourLeaves(u, d, was) || tourEnters(u, d, was)) },
   { path: /^sidequests\/rack-it(\/|$)/, read: "owner", write: "owner" },   // starters, listing ratings
   // The open apps (Session 7): each record reached by the accounts in its uids, a list only with
   // the uids filter, and the rest of the app the owner's.
@@ -252,6 +252,39 @@ function tourLeaves(u, d, was){
   return was.status === "open" && listOf(was.uids).includes(u.uid) && tourWho(d, was)
     && same(d.players, listOf(was.players).filter(x => x !== u.uid)) && same(d.uids, listOf(was.uids).filter(x => x !== u.uid))
     && listOf(d.names).length === listOf(was.names).length - 1;
+}
+// Session 3 (2.29.0): an entrant's own result or Not right, the organiser's one claim on the
+// finish and the lock after it, and the rated matches and ratings the finish writes. As
+// tourEnters, tourLocks, tourRated and tourRating in firestore.rules.
+const mapOf = x => isMap(x) ? x : {};
+function tourEnters(u, d, was){
+  const k = typeof d.entry === "string" ? d.entry : "", r = mapOf(d.results)[k], old = mapOf(was.results)[k] || null;
+  return was.status === "live" && listOf(was.uids).includes(u.uid)
+    && changed(was, d).every(x => ["results", "entry", "_updatedAt"].includes(x))
+    && changed(mapOf(was.results), mapOf(d.results)).every(x => x === k)
+    && isMap(r) && (tourOwnEntry(r, old, u.uid) || tourNotRight(r, old, u.uid));
+}
+const tourOwnEntry = (r, old, me) => Object.keys(r).every(x => ["ids", "a", "b", "w", "by", "at"].includes(x))
+  && r.by === me && listOf(r.ids).includes(me) && (!old || (old.by === me && !("wrongBy" in old)));
+const tourNotRight = (r, old, me) => !!old && old.by !== me && listOf(old.ids).includes(me) && !("wrongBy" in old)
+  && changed(old, r).every(x => x === "wrongBy") && r.wrongBy === me;
+function tourLocks(u, d, was){
+  if (!("ratedAt" in was)) return !("ratedAt" in d) || (was.status === "live" && d.status === "done" && d.ratedBy === u.uid
+    && Number.isInteger(d.ratedAt) && Math.abs(d.ratedAt - Date.now()) < 3600000);
+  const before = Object.keys(mapOf(was.rated)), now = Object.keys(mapOf(d.rated));
+  return changed(was, d).every(x => ["name", "rated", "_updatedAt"].includes(x)) && before.every(x => now.includes(x));
+}
+const tourWithin = (t, u) => !!t && t.status === "done" && t.ratedBy === u.uid && Date.now() < t.ratedAt + 86400000;
+function tourRated(id, u, d){
+  const t = store.docs["sidequests/rack-it/tournaments/" + d.tournament], r = t && mapOf(t.results)[d.fixture];
+  return id === `tour_${d.tournament}_${d.fixture}` && d.status === "done" && d.rated === true && d.by === u.uid
+    && !["scorer", "venue", "confirms", "endedBy"].some(k => k in d)
+    && tourWithin(t, u) && isMap(r) && same(r.ids, [d.playerA, d.playerB]) && !r.wo && same(d.uids, [d.playerA, d.playerB])
+    && d.playerA !== d.playerB && listOf(t.uids).includes(d.playerA) && listOf(t.uids).includes(d.playerB);
+}
+function tourRating(pid, u, d, after){
+  const m = d.match && after && after["sidequests/rack-it/matches/" + d.match];
+  return !!m && listOf(m.uids).includes(pid) && m.rated === true && tourWithin(store.docs["sidequests/rack-it/tournaments/" + m.tournament], u);
 }
 // Two phones, one match (Session 8 step 3): a live score write is the next link of the chain;
 // a presence write touches only your own phones entry.
@@ -769,8 +802,8 @@ export const memory = {
   deleteFields(path, fields){
     const full = docPath(path, appBase());
     read();
-    if (!allowed("write", full)) return Promise.reject(denied());
-    if (!store.docs[full]) return Promise.reject(Object.assign(new Error("No document to update: " + full), { code: "not-found" }));
+    // The rules see the document as the write leaves it (write() checks it), as for a patch.
+    if (!store.docs[full]) return Promise.reject(allowed("read", full) ? Object.assign(new Error("No document to update: " + full), { code: "not-found" }) : denied());
     const doc = clone(store.docs[full]);
     for (const k of fields){
       const keys = k.split(".");

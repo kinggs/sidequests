@@ -5,7 +5,8 @@ with a QR, and the bracket runs itself as results come in. The organiser can ent
 players can enter their own. It reuses what Rack It has: the same accounts, the same QR, the same
 players, the same matches and ratings.
 
-**Status:** Sessions 1 and 2 done (2.28.0, 2026-11-18): an organiser runs a tournament end to end. Next: Session 3.
+**Status:** Sessions 1 to 3 done (2.29.0, 2026-11-19): players enter their own results, and the
+finish rates the tournament. Next: Session 4 or Session 5 (either order).
 This is also pre-work for the Sessions app (`SESSIONS-MIGRATION.md` at the repo root): the
 bracket logic and the data shape are written to be lifted out.
 
@@ -182,12 +183,14 @@ tournament rates nothing.
 - **Only the tournament's own games wait** (the owner, 2026-11-18). A match a player plays outside
   the tournament while it's live moves ratings as usual, at once; the tournament's results then
   start from those ratings when it finishes. Nothing about a rating is frozen during a tournament.
-- **The open question for Session 3:** who may write the ratings. Today the opponent's phone
-  writes both `ratings/` documents on Confirm. For a tournament it would be the organiser's
-  phone writing everyone's, which needs a rule (a ratings write that names a `done` tournament
-  you organised, and a match in it). If that rule proves too loose, the fallback is that the
-  finish writes the rated matches and the ratings catch up at the owner's next **Rebuild
-  ratings** (§3.2 of the spec), which already replays every rated match correctly.
+- **Who writes the ratings (settled in Session 3): the organiser's phone.** It claims the finish
+  once (`ratedAt`, `ratedBy`), then writes each rated match with its two ratings in one batch,
+  within a day of the claim. The rule is no looser than Confirm's, where the confirming phone
+  writes both players' numbers unchecked; the one claim stops two phones rating it twice, and
+  the day bounds it. The fallback (matches only, ratings at the owner's next Rebuild) wasn't
+  needed. A disputed result holds the finish until the organiser settles it, so nothing
+  disputed is ever rated. Once rated, the results are fixed (the owner can still delete a match
+  and Rebuild).
 
 ### 3.6 Leaving and removing
 
@@ -224,7 +227,7 @@ player has: who do I play, and who's next?
 - A step is a caps title ("Quarter-final", or "Losers' side · round 2" in double elimination)
   over the match card. Its dot is filled for played, the accent for now, hollow for ahead.
 - The step you're in carries **Enter the result** (76px) for whoever may enter it
-  (`runsTour()` today, wider in Session 3); otherwise "Kenny enters the result".
+  (`mayEnter()`, Session 3); otherwise "Kenny enters the result".
 - Dropping to the losers' side is just the next step. Nothing announces it.
 - It ends "You're out · finished 5th–6th" or "You won". It opens scrolled to the step you're in.
 
@@ -402,7 +405,8 @@ The owner reaches everything, as in the rest of Rack It.
 | An entrant (in `uids`) | Read it; list with the `uids` filter. |
 | The organiser's friend | **Get** it by id while `open` (never list): the Tournament QR, as a live match's Game QR. |
 | The organiser's friend, joining | While `open`: add exactly their own uid to `players` and `uids` and one name to `names`, nothing else. Or take exactly themselves out again. |
-| An entrant, entering a result (Session 3) | While `live`: change exactly one key of `results`, and only to an entry with `by` themselves and themselves in its `ids`; over nothing, or over an entry that was their own with no `wrongBy`. Or add only `wrongBy: <themselves>` to an entry they're in and didn't enter. |
+| An entrant, entering a result (Session 3) | While `live`: change exactly one key of `results`, the one the write names in `entry` (a rule can't list a map's changed keys), and only to an entry with `by` themselves and themselves in its `ids`, no walkover; over nothing, or over an entry that was their own with no `wrongBy`. Or add only `wrongBy: <themselves>` to an entry they're in and didn't enter. |
+| The organiser, at the finish (Session 3) | Claim it once: `live` to `done` with `ratedAt` (within an hour of now) and `ratedBy` themselves. After that only `name` and the `rated` note change, and `rated` only grows. Within a day of the claim, the claimer creates `matches/tour_<id>_<key>` for a counted result and writes the two players' `ratings/` naming it. |
 | A player starting a fixture's match (Session 4) | Start a match carrying `tournament`, against another account in that tournament's `uids`, without being connected to them (`fixtureStarts()`, beside `outsiderStarts()`), and read the opponent's rating by id as now. |
 
 **What the rules can't check, and what covers it.** They can't work out the bracket, so an
@@ -456,11 +460,11 @@ A club night can run on this session alone.
 
 ### Session 3 — players enter their own results, and ratings
 
-- [ ] Ratings at the finish (§3.7): the rated matches, the ratings write and its rule cases,
+- [x] Ratings at the finish (§3.7): the rated matches, the ratings write and its rule cases,
       "rated as part of Kenny's tournament". Settle the open question there first.
-- [ ] The entrant's rule rows and cases; **Your match** with **Enter the result**; "entered by";
+- [x] The entrant's rule rows and cases; **Your match** with **Enter the result**; "entered by";
       **Not right** and the organiser settling it; a player correcting their own.
-- [ ] The proof grows: two players' phones, a dispute, a stale entry ignored.
+- [x] The proof grows: two players' phones, a dispute, a stale entry ignored.
 
 ### Session 4 — score it in Rack It
 
@@ -595,3 +599,61 @@ Checked by eye at 360×640 and 390×844 with 32 players and two long names.
 the entrant's result rule rows (§6), **Enter the result** on Your match for entrants, "entered by",
 **Not right**, and the rated matches written at the finish. `openResult()` in `index.html` is the
 sheet to reuse; `runsTour()` is where "may enter this result" widens.
+
+### Session 3 — 2.29.0, 2026-11-19
+
+**Shipped.** Players enter their own results (Your match's **Enter the result**, or their match's
+row), change their own until it's disputed or a later match depends on it, and say **Not right**
+to one they didn't enter. The organiser gets a **Settle** card for each: **It stands**, change
+it, or clear it. The finish rates the tournament (§3.7): each result between two accounts that
+isn't a walkover becomes a rated match, `tour_<id>_<key>`, with its two ratings, in entered
+order. `rack-it/SPEC.md` §5.1 is the as-built description.
+
+**The open question, settled:** the organiser's phone writes the ratings (§3.7 says why). How:
+
+- **One claim.** Finishing is one write, live to done with `ratedAt` and `ratedBy`, which the
+  rules allow once. Two phones (the owner's and the organiser's) can't both rate it.
+- **A batch a result**: the match, both ratings and `rated.<key>` on the tournament, all or
+  nothing. `maybeFinish()` carries on from `rated` the next time the claimer's phone sees it, for
+  a day. The ids make a second copy of a match impossible: creating it again is an update, and
+  the organiser may not update a match.
+- **Only the organiser's phone finishes.** A player who enters the last result leaves it live,
+  "Every match is in. It finishes, and ratings move, when Kenny next opens Rack It." Any page
+  that watches the tournaments list counts (Play's cards), not only the tournament's own page.
+- **A Not right holds the finish.** Hold to end early says "Settle the Not right first".
+- Each match's `ratedAt` is the finish plus its index in entered order, so Rebuild replays them
+  at the finish in the same order (zargo.js `ratedOrder`).
+
+**Choices made on the way** (change freely):
+
+- **`entry`.** An entrant's write names the result it touches in a top-level `entry` field.
+  Firestore rules can't list a map's changed keys, so this is how the rule knows which one to
+  check; the organiser's writes set it too, harmlessly.
+- Walkovers and clearing stay the organiser's: a player can't walk an opponent over or erase a
+  result.
+- Not right shows on the card only while nothing downstream has a result; after that the row's
+  sheet still offers it. The organiser can let a disputed result stand even when a later match
+  depends on it.
+- A tournament done before 2.29.0 stays unrated: the claim only happens from live.
+- Owner mode: a result counts only when both its players are in `uids`, so a household person
+  without an account plays unrated, as a guest does.
+
+**Also fixed.** `shared/cloud-memory.js`'s `deleteFields` checked the write as a whole-document
+delete, so under `?mock` a non-owner organiser couldn't clear a result; it now checks the
+document as the write leaves it, as Firestore does.
+
+**Proof.** `node shared/proofs/rack-it-tournament.mjs`: 67 checks (27 new), green. A third
+tournament: Ann enters hers, Ben says Not right, the owner lets it stand, Ann corrects hers,
+Ben's stale result for the final is ignored and cleared, Ann enters the final, the owner's
+phone finishes and rates the two account matches once (not the guest's), and nobody can
+dispute a rated result. Rules: 295 cases pass on the emulator (11 new). Checked by eye at 390px:
+the flagged card, the Settle card, the rated page. ⚠ Not checked at 360×640 or by a real
+Firestore write: the first real finish should be watched (Matches shows the rated matches).
+On this machine the proof needs `PLAYWRIGHT=<playwright-core index.mjs>` (it isn't installed
+here; a copy in a scratch folder works with the cached Chromium), and the emulator needs
+`mise x java@temurin-21.0.12+101.0.LTS --` in front of `npx firebase-tools`.
+
+**Left for Session 4** (score it in Rack It): a match scored for a fixture is already a match,
+so at the finish `rateResult()` must mark it rated instead of writing a second one; `tourRated`
+then needs a sibling rule for that update. Results entered with `match` will need `match` added to
+`tourOwnEntry`'s allowed keys. Session 5 (the bracket view) is independent of both.
