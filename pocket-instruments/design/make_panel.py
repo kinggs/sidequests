@@ -8,13 +8,14 @@
     uv run pocket-instruments/design/make_panel.py --positions  prints the widget positions
 
 The panel holds only what never changes: the body, the display's frame, the stitched
-dividers, the slider threads and the lettering. Keys, slider caps, the display and the jack
+dividers, the slider threads, the marks round the outputs and the lettering. Keys, slider caps, the display and the jack
 sockets are widgets the module draws over it (DESIGN.md, "The Rack panel").
 
 Why a script and not a drawing: Rack's SVG reader draws no text, no dashes, no filters. So
 lettering is turned into outlines here, and each stitch of a divider is its own rectangle.
 Every number below is in mm from the panel's top-left corner.
 """
+import math
 import sys
 from pathlib import Path
 
@@ -48,11 +49,23 @@ FN_TOP = ("sound", "pattern", "bpm")
 FN_BOTTOM = ("function", "fx", "play", "write")
 
 JACK_Y = 116.3
-JACKS = {"CLOCK": 10.67, "RESET": 22.33, "AUDIO": 109.67}
+JACKS = {"CLOCK": 10.67, "RESET": 22.33, "TRIGGERS": 80.67, "VOICES": 95.17, "AUDIO": 109.67}
+OUTPUTS = ("TRIGGERS", "VOICES", "AUDIO")
 JACK_LABEL_Y = 109.7
-PLATE = (104.0, 107.0, 11.33, 15.0)  # the pale plate that marks the output
+# One pale plate under all three outputs: VCV's panel guide asks for an inverted background
+# on output ports (R33). A first draft had a stitched box round them and a plate under AUDIO
+# only; that left two outputs on the dark ground, so it went.
+PLATE = (72.6, 106.4, 43.4, 15.6)
+AUDIO_FRAME = (103.0, 107.0, 12.6, 14.6, 0.6)  # x, y, w, h, thickness: marks the main output
+MULTI = ("TRIGGERS", "VOICES")  # sixteen channels on one cable: sixteen stitches round the socket
+TICK_IN, TICK_OUT, TICK_W = 4.4, 5.2, 0.5
 
-WORDMARK = ("Pocket Instruments", 63.0, 118.2, 3.5)
+# It sat at x 63 until the outputs became three (2026-11-19); it moved left to clear them.
+WORDMARK = ("Pocket Instruments", 49.0, 118.2, 3.5)
+
+# Jack lettering was 2.17 mm. At Rack's 100% zoom (about 2.95 px per mm) that is under 5 px of
+# capital height, and the guide asks for text readable at 100% (R33). 2.6 mm is about 5.6 px.
+JACK_TYPE, AUDIO_TYPE, JACK_TRACKING = 2.6, 2.8, 0.04
 
 
 def num(v):
@@ -79,6 +92,19 @@ def outline(font, text, cx, cy, size, fill, tracking=0.0):
         parts.append(pen.getCommands())
         x += width
     return f'<path fill="{fill}" d="{"".join(parts)}"/>'
+
+
+def ticks(cx, cy, fill):
+    """Sixteen stitches round a socket, as one path. No rotate(): corners are worked out here."""
+    d = []
+    for k in range(16):
+        a = math.tau * k / 16
+        rx, ry = math.sin(a), -math.cos(a)  # outward
+        tx, ty = -ry, rx  # along the tick's width
+        pts = [(cx + rx * r + tx * s * TICK_W / 2, cy + ry * r + ty * s * TICK_W / 2)
+               for r, s in ((TICK_IN, -1), (TICK_OUT, -1), (TICK_OUT, 1), (TICK_IN, 1))]
+        d.append("M" + "L".join(f"{num(x)} {num(y)}" for x, y in pts) + "Z")
+    return f'<path fill="{fill}" d="{"".join(d)}"/>'
 
 
 def fn_keys():
@@ -129,9 +155,15 @@ def panel(font):
         out.append(rect(x - THREAD / 2, SLIDER_TOP, THREAD, SLIDER_BOTTOM - SLIDER_TOP, ECRU))
         out.append(outline(font, name, x, LETTER_Y, 3.0, ECRU))
     out.append(rect(*PLATE, ECRU))
+    fx, fy, fw, fh, ft = AUDIO_FRAME
+    for r in ((fx, fy, fw, ft), (fx, fy + fh - ft, fw, ft), (fx, fy, ft, fh), (fx + fw - ft, fy, ft, fh)):
+        out.append(rect(*r, GROUND))
+    for name in MULTI:
+        out.append(ticks(JACKS[name], JACK_Y, GROUND))
     for name, x in JACKS.items():
-        fill = GROUND if name == "AUDIO" else ECRU
-        out.append(outline(font, name, x, JACK_LABEL_Y, 2.17, fill, tracking=0.08))
+        fill = GROUND if name in OUTPUTS else ECRU
+        size = AUDIO_TYPE if name == "AUDIO" else JACK_TYPE
+        out.append(outline(font, name, x, JACK_LABEL_Y, size, fill, tracking=JACK_TRACKING))
     text, x, y, size = WORDMARK
     out.append(outline(font, text, x, y, size, ECRU))
     out.append("</svg>")

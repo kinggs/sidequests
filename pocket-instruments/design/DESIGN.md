@@ -56,7 +56,7 @@ each other, and one heavy weight survives small sizes.
 | `type/readout` | 10 mm | The tempo |
 | `type/numeral` | 3.8 mm | Key numbers |
 | `type/label` | 2.8 mm | Function key words, lower case |
-| `type/jack` | 2.2 mm, tracked 0.08 em, capitals | CLOCK, RESET, AUDIO |
+| `type/jack` | 2.6 mm (AUDIO 2.8), tracked 0.04 em, capitals | CLOCK, RESET, TRIGGERS, VOICES, AUDIO |
 
 On the phone nothing is under 16 px.
 
@@ -156,7 +156,7 @@ With reduced motion asked for, rule 6 is off and the shuttle jumps instead of tr
 
 24 HP: 121.92 mm wide, 128.5 mm tall. `panel.svg` holds only what never changes: the body,
 the display's frame, the two stitched dividers, the slider threads, A and B, the jack labels,
-the pale plate that marks the output, and the wordmark.
+the pale plate under the outputs with its marks, and the wordmark.
 
 Everything else is a widget the module draws: the display, sixteen keys, seven function keys,
 two slider caps, three sockets. Why: they change, and Rack's SVG reader draws no text, no
@@ -178,20 +178,57 @@ Positions in mm from the top-left corner (`uv run pocket-instruments/design/make
 | fx | 91.93 | 74.15 | 9.55 | 23.70 |
 | play | 102.08 | 74.15 | 9.55 | 23.70 |
 | write | 112.23 | 74.15 | 9.55 | 23.70 |
-| jack CLOCK | 10.67 | 116.30 | | |
-| jack RESET | 22.33 | 116.30 | | |
-| jack AUDIO | 109.67 | 116.30 | | |
+| jack CLOCK (in) | 10.67 | 116.30 | | |
+| jack RESET (in) | 22.33 | 116.30 | | |
+| jack TRIGGERS (out, 16 channels) | 80.67 | 116.30 | | |
+| jack VOICES (out, 16 channels) | 95.17 | 116.30 | | |
+| jack AUDIO (out) | 109.67 | 116.30 | | |
+
+### The jack row
+
+Left to right: CLOCK and RESET in, then TRIGGERS, VOICES and AUDIO out (D33).
+
+- **Two groups at a glance.** The inputs sit on the dark body at the left. The three outputs
+  sit together on one pale plate at the right, with dark lettering. Why a plate: VCV's guide
+  asks for an inverted background on output ports (R33).
+- **Sixteen channels.** TRIGGERS and VOICES each have sixteen stitches round the socket, one
+  for each key. AUDIO has none.
+- **AUDIO is the main output.** It alone has a solid frame round its cell, and its label is a
+  size larger.
+- A first draft drew a stitched box round the outputs with a plate under AUDIO only. It left
+  two outputs on the dark body, against R33, so it went.
 
 Also to draw as widgets:
 
 - **Slider cap:** 5 by 3 mm, ecru, with a dark slot across the middle.
 - **Function key label:** runs up the key, read from the right.
 - **Socket:** an ecru ring 8 mm across round a dark hole for the inputs; a dark ring round a
-  pale hole on the output plate.
+  pale hole for the outputs.
 - **Screws:** Rack's own, at the four corners. The display starts 7 mm down to clear them.
 
 ⚠ `panel.svg` was outlined from the Bold cut (700), the only one installed. The design asks
 for 800. Pass an ExtraBold file to `make_panel.py` to redo it.
+
+## What VCV's manual asks, and where this stands
+
+From R33 to R35. The manual gives no numbers for type size, spacing or colour.
+
+| The manual asks | Here |
+|---|---|
+| mm units; 128.5 mm tall; a multiple of 5.08 mm wide | Yes: 24 HP |
+| All text as paths | Yes: `make_panel.py` outlines it |
+| No complex gradients, no CSS | Yes: flat fills only |
+| Component graphics off the panel, on a hidden `components` layer | Partly: the panel is static only, but it has no `components` layer. The positions table above stands in; the builder adds the layer if Rack's helper script is used |
+| An inverted background for output ports | Yes, since the jack row was redrawn |
+| Room for thumbs between knobs and ports | Sockets are 11.67 mm apart or more; keys are at 12 mm. ⚠ The sliders are 7 mm apart, which is close |
+| Text readable at 100% on an ordinary monitor | ⚠ Jack labels were raised to 2.6 mm for this, about 5.6 px of capital height at 100%. Rendered and read at that size here, not in Rack |
+| Roughly the density and text sizes of VCV's own modules | ⚠ Not compared against one |
+| Do not use others' intellectual property | D20's avoid list; O7 at P9 |
+| A dark panel may be offered | Not needed: it is already dark |
+
+For the build, not the look: labels in code leave out the words input and output (R35); the
+module takes the `Polyphonic` tag; triggers are 10 V for 1 ms; RESET masks CLOCK for 1 ms;
+audio is about ±5 V (R34).
 
 ## The phone
 
@@ -211,6 +248,7 @@ the function keys side by side.
 | Function keys at 10 mm pitch on the Rack panel, not 12 | Four across at 12 mm do not fit beside a 48 mm grid and two sliders in 24 HP |
 | Function keys are tall, with the label running up the key | A label under a 10 mm key can only be about 1.2 mm high. On the key it is 2.8 mm |
 | On the phone both sliders are on the left | One at each edge left the bottom four keys under 60 px |
+| The wordmark moved 14 mm left when the outputs became three | The brief said nothing else moves; three sockets with readable labels do not fit beside it where it was |
 | Four grid states the prompt did not ask for: other sound, chosen, fired, queued | The owner kept the first, second and fourth (2026-11-19). Fired came from `WORKFLOW.md` afterwards ⚠ |
 
 ## Not done
