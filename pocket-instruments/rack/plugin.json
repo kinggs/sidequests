@@ -16,8 +16,8 @@
     {
       "slug": "Probe",
       "name": "Probe (P3)",
-      "description": "Not an instrument. Plays the engine's test fixtures and checks itself: clock in, reset in, gate out",
-      "tags": ["Utility"]
+      "description": "Not an instrument. Plays the engine's test fixtures and checks itself: clock in, reset in, gate out, and the drums' mix out",
+      "tags": ["Utility", "Drum"]
     }
   ]
 }

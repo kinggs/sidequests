@@ -2,7 +2,9 @@
 # P3 without the screen: Rack itself, headless, on a patch of four probes (one a fixture each;
 # three on a Fundamental LFO's square as the clock, one on its own table clock), in a throwaway
 # user folder so the owner's Rack is not touched. Passes only if every probe matched at least
-# one pass of its fixture, none mismatched and no event was dropped.
+# one pass of its fixture, none mismatched, no event was dropped, and its AUDIO output carried
+# sound (every fixture fires the bass drum on track 0): a peak above 0 V and under 10 V, with
+# no sample NaN or infinite.
 #
 #   selftest.sh [seconds] [sample rate]
 #
@@ -35,6 +37,7 @@ JSON
 lines=$(grep 'Pocket Instruments probe' "$user/log.txt" || true)
 echo "$lines" | sed 's/^.*report\] //'
 n=$(echo "$lines" | grep -c '(removed)' || true)
-good=$(echo "$lines" | grep -cE '\(removed\): [1-9][0-9]* passes matched, 0 did not, .* rate '"$rate"' Hz, .* 0 events dropped' || true)
-[ "$n" = 4 ] && [ "$good" = 4 ] || { echo "selftest: FAILED ($good of $n probes clean at $rate Hz)"; exit 1; }
-echo "selftest: 4 probes clean in Rack at $rate Hz."
+quiet=$(echo "$lines" | grep -c '(removed).*audio peak 0\.00 V' || true)
+good=$(echo "$lines" | grep -E '\(removed\): [1-9][0-9]* passes matched, 0 did not, .* rate '"$rate"' Hz, .* 0 events dropped, .*; audio peak [0-9]\.[0-9]{2} V, 0 samples not finite' | grep -vc 'audio peak 0\.00 V' || true)
+[ "$n" = 4 ] && [ "$good" = 4 ] || { echo "selftest: FAILED ($good of $n probes clean at $rate Hz; $quiet silent)"; exit 1; }
+echo "selftest: 4 probes clean in Rack at $rate Hz, each sounding."

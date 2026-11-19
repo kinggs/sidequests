@@ -1,4 +1,5 @@
-// P3's module: a blank panel, CLOCK in, RESET in, GATE out, the Rust core called once a sample.
+// P3's module: a blank panel, CLOCK in, RESET in, GATE out, AUDIO out, the Rust core called
+// once a sample.
 // Not an instrument. It plays one of the P2 fixtures round and round and checks every pass
 // against that fixture's trace, so "the gate matches the fixture" is counted as well as seen.
 //
@@ -6,6 +7,10 @@
 //                  edges run does. Unpatched: its own table clock at the fixture's tempo.
 //   RESET:         starts the fixture again. CLOCK is ignored for 1 ms after it (R34).
 //   GATE:          10 V from each firing of one track, for half a step.
+//   AUDIO:         the core's mix (ENGINE.md §11): every voice the fixture fires, 5 V to 1.0,
+//                  saturated so a loud mix bends towards 10 V and never passes it (RACK-RULES.md).
+//                  The fixtures fire tracks 0 to 3, so it plays the bass drum, snare and hats.
+//                  ⚠ Each pass starts a fresh engine, so a drum still sounding is cut there.
 //   The light:     green while every pass so far has matched, red once one has not.
 //
 // The module also keeps a snapshot ready for Rack to save while it plays (P6), by the scheme
@@ -47,13 +52,14 @@ struct Snap {
 struct Probe : Module {
     enum ParamId { PARAMS_LEN };
     enum InputId { CLOCK_INPUT, RESET_INPUT, INPUTS_LEN };
-    enum OutputId { GATE_OUTPUT, OUTPUTS_LEN };
+    enum OutputId { GATE_OUTPUT, AUDIO_OUTPUT, OUTPUTS_LEN };
     enum LightId { PASS_LIGHT, FAIL_LIGHT, LIGHTS_LEN };
 
     // The other thread's side. Read or written there; the audio thread only loads or stores.
     std::atomic<int> fixtureWanted{3}, track{2};
     std::atomic<uint32_t> passed{0}, failed{0}, aborted{0}, rateChanges{0}, loadsOk{0}, loadsRefused{0},
-        dropped{0}, published{0}, failRun{0}, failIndex{0}, failGot{0}, lastRate{0};
+        dropped{0}, published{0}, failRun{0}, failIndex{0}, failGot{0}, lastRate{0},
+        peakMillivolts{0}, notFinite{0};
     pi::Latest<Snap> saved; // audio thread writes, Rack's saving thread reads
     pi::Latest<Snap> inbox; // Rack's loading thread writes, audio thread reads
 
@@ -69,12 +75,14 @@ struct Probe : Module {
     uint64_t anchor = 0, anchorStep = 0;      // fixtures/README.md, "A reset"
     uint64_t lastStepAt = 0, stepLen = 0;
     uint32_t gate = 0;
+    float audio = 0.f; // the last frame's mix, held between passes
 
     Probe() {
         config(PARAMS_LEN, INPUTS_LEN, OUTPUTS_LEN, LIGHTS_LEN);
         configInput(CLOCK_INPUT, "Clock");
         configInput(RESET_INPUT, "Reset");
         configOutput(GATE_OUTPUT, "Gate");
+        configOutput(AUDIO_OUTPUT, "Audio");
         if (pi_abi_version() != PI_ABI_VERSION || pi_size() > sizeof mem) {
             WARN("Pocket Instruments: the core is not the one this plugin was built for");
             return;
@@ -86,9 +94,11 @@ struct Probe : Module {
 
     void report(const char *when) {
         INFO("Pocket Instruments probe (%s): %u passes matched, %u did not, %u cut short; rate %u Hz, "
-             "%u rate changes, %u events dropped, %u snapshots published, %u loaded, %u refused",
+             "%u rate changes, %u events dropped, %u snapshots published, %u loaded, %u refused; "
+             "audio peak %.2f V, %u samples not finite",
              when, passed.load(), failed.load(), aborted.load(), lastRate.load(), rateChanges.load(),
-             dropped.load(), published.load(), loadsOk.load(), loadsRefused.load());
+             dropped.load(), published.load(), loadsOk.load(), loadsRefused.load(),
+             peakMillivolts.load() / 1000.0, notFinite.load());
         if (failed.load())
             INFO("Pocket Instruments probe: first mismatch in pass %u at event %u (got tick<<8|type|track: %u)",
                  failRun.load(), failIndex.load(), failGot.load());
@@ -188,7 +198,7 @@ struct Probe : Module {
         if (running) {
             const Fixture &fx = FIXTURES[fixture];
             pi_event ev[PI_EVENTS_MIN];
-            uint32_t count = pi_process(e, 1, cmds, n, ev, PI_EVENTS_MIN, nullptr, PI_AUDIO_NONE);
+            uint32_t count = pi_process(e, 1, cmds, n, ev, PI_EVENTS_MIN, &audio, PI_AUDIO_MIX);
             int gateTrack = track.load(std::memory_order_relaxed);
             for (uint32_t i = 0; i < count; i++) {
                 const pi_event &x = ev[i];
@@ -234,6 +244,19 @@ struct Probe : Module {
 
         outputs[GATE_OUTPUT].setVoltage(gate ? 10.f : 0.f);
         if (gate) gate--;
+
+        // The mix can pass 1.0 (§11: a plain sum; the core sets no ceiling). 5 V to 1.0, then
+        // bent by tanh towards 10 V. This is the Probe's, so it can be heard; whether the
+        // instrument limits in the core or in each host is still open (D44).
+        float v = 5.f * audio;
+        if (!std::isfinite(v)) {
+            v = 0.f; // never NaN or infinity down a cable (RACK-RULES.md)
+            notFinite++;
+        }
+        v = 10.f * std::tanh(v / 10.f);
+        outputs[AUDIO_OUTPUT].setVoltage(running ? v : 0.f);
+        uint32_t mv = uint32_t(std::fabs(v) * 1000.f);
+        if (running && mv > peakMillivolts.load(std::memory_order_relaxed)) peakMillivolts.store(mv, std::memory_order_relaxed);
         bool bad = failed.load(std::memory_order_relaxed) != 0;
         lights[PASS_LIGHT].setBrightness(!bad && passed.load(std::memory_order_relaxed) ? 1.f : 0.f);
         lights[FAIL_LIGHT].setBrightness(bad ? 1.f : 0.f);
@@ -256,6 +279,8 @@ struct Probe : Module {
         json_object_set_new(p3, "published", json_integer(published.load()));
         json_object_set_new(p3, "loaded", json_integer(loadsOk.load()));
         json_object_set_new(p3, "refused", json_integer(loadsRefused.load()));
+        json_object_set_new(p3, "audioPeakMillivolts", json_integer(peakMillivolts.load()));
+        json_object_set_new(p3, "audioNotFinite", json_integer(notFinite.load()));
         json_object_set_new(root, "p3", p3);
         return root;
     }
@@ -289,7 +314,8 @@ struct ProbeWidget : ModuleWidget {
         addChild(createLightCentered<MediumLight<GreenRedLight>>(Vec(x, 60), module, Probe::PASS_LIGHT));
         addInput(createInputCentered<PJ301MPort>(Vec(x, 140), module, Probe::CLOCK_INPUT));
         addInput(createInputCentered<PJ301MPort>(Vec(x, 200), module, Probe::RESET_INPUT));
-        addOutput(createOutputCentered<PJ301MPort>(Vec(x, 300), module, Probe::GATE_OUTPUT));
+        addOutput(createOutputCentered<PJ301MPort>(Vec(x, 280), module, Probe::GATE_OUTPUT));
+        addOutput(createOutputCentered<PJ301MPort>(Vec(x, 330), module, Probe::AUDIO_OUTPUT));
     }
 
     // The blank panel: one flat fill. The look is design/'s and is not built yet (D15).

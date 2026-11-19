@@ -55,3 +55,12 @@ patch: build/P3.vcv
 build/P3.vcv: patch/patch.json
 	@mkdir -p build
 	tar -C patch -c patch.json | zstd -q -f -o $@
+
+# The patch for hearing the drums: one probe on its own clock playing straight-sixteenths
+# (bass drum on the beat, snare on two and four, closed hats on every sixteenth), its AUDIO
+# into both sides of the audio module. Choose the PulseAudio driver there (PLAN.md).
+.PHONY: sound
+sound: build/Sound.vcv
+build/Sound.vcv: patch/sound.json
+	@mkdir -p build
+	tar -C patch --transform 's/^sound.json$$/patch.json/' -c sound.json | zstd -q -f -o $@
