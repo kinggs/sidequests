@@ -15,11 +15,11 @@ engineering gate the brief asks for (its D2). Nothing visual is built before P3 
 |---|---|---|
 | P1 | One crate, two targets | passed 2026-11-19 |
 | P2 | Same trace everywhere | passed 2026-11-19 |
-| P3 | It runs in Rack | open |
-| P4 | It runs in a phone browser | open |
-| P5 | It ships to other people's machines | open |
-| P6 | Editing while playing is safe | open |
-| P7 | Shared sound is worth sharing | open |
+| P3 | It runs in Rack | running: the machine's half passed 2026-11-19; the owner's ten minutes are left |
+| P4 | It runs in a phone browser | running: both desktop browsers passed 2026-11-19; the phones are left |
+| P5 | It ships to other people's machines | running: four libraries built and checked here 2026-11-19; one bar not met (macOS 10.9); no plugin linked or loaded elsewhere |
+| P6 | Editing while playing is safe | running: ThreadSanitizer half passed 2026-11-19, with a finding (D43); the save in Rack and the browser are left |
+| P7 | Shared sound is worth sharing | running: the render half passed 2026-11-19 (the same bytes); the phone's voice count is left |
 | P8 | It feels like the real thing | open |
 | P9 | The look is one we may publish | open |
 
@@ -60,6 +60,15 @@ all its own stack) and the host adds one.
 ⚠ For P3: thirteen `compiler_builtins` members refer to `rust_eh_personality`. Nothing
 pulls them in today. If a later change does (128-bit arithmetic would), the Rack link will
 ask for that symbol (`LEARNINGS.md`).
+
+**Tried in Session 3, and the warning was wrong for Linux.** A 128-bit division was put
+into the core on purpose. The plugin linked, took `__udivti3` and nothing else, and asked
+for no Rust runtime symbol. `rack/Makefile`'s `check-link` now fails the build if one ever
+appears (shown to fail on a planted reference). ⚠ Not tried on the other three linkers.
+
+**Since Session 3 (ABI 2, sound):** the `.wasm` is 6 362 bytes with 11 exports, the engine
+is 432 bytes, and our object still asks only for `memcpy` and `memset`. `make test` still
+checks all four bars on every run.
 
 ### P2 — Same trace everywhere
 
@@ -126,7 +135,37 @@ clock in and a scope on the output.
 **If it fails:** Rust-in-Rack is not worth the friction. Fall back to a C++ core compiled to
 WASM with Emscripten, re-implemented against the P2 fixtures.
 
-**Result:** —
+**Result: running. The machine's half passed, 2026-11-19 (Session 3).** D13's kill
+criterion is not met: Rust links into a Rack plugin and runs there. What is left needs
+ears, eyes and a sound card.
+
+What was built: `rack/`, a plugin with one module, the Probe. It plays a P2 fixture round
+and round on the core, one `pi_process` call a sample, and checks every pass against that
+fixture's trace, compiled in from `fixtures/*.json`. CLOCK patched: the core follows the
+edges. Unpatched: its own table clock. So "the gate matches the fixture" is counted as well
+as seen.
+
+| Bar | Measured |
+|---|---|
+| `make install` builds Rust then C++ in one step | Yes. From `make clean` and with the Rust target folder removed: exit 0 in 1.9 s, one `cargo rustc` and three `g++` commands, and `PocketInstruments-2.0.0-lin-x64.vcvplugin` in Rack's plugin folder. `RACK_DIR` defaults to `~/.local/opt/Rack-SDK-2.6.6` |
+| Loads in Rack 2.6.6 | Yes: Rack Free 2.6.6 itself, headless (`rack/selftest.sh`), "Loaded plugin PocketInstruments 2.0.0" |
+| Two instances side by side | Four, in one patch, a fixture each: three clocked by a Fundamental LFO's square at 256 Hz, one on its own clock. In 12 s at each of 44.1, 48 and 96 kHz: 63, 190, 95 and 2 passes matched; 0 mismatched; 0 events dropped. No global state: each engine is in its module's own memory |
+| The gate pattern matches the P2 fixture | By count, yes: every pass above is the fixture's trace, event for event. ⚠ By eye on the scope: **left for the owner** |
+| Ten minutes with no audio dropout | **Left for the owner.** No audio device in a headless run |
+| Survives a sample-rate change | Half. It runs clean when started at each of the three rates. ⚠ A change while playing is **left for the owner**: on edges the pass in hand must still match; on the table clock the probe starts its pass again and counts it as cut short |
+| CPU meter under 1 % | **Left for the owner.** Headless Rack has no meter |
+
+The link: `plugin.so` is 1 016 912 bytes before stripping. It holds `pi_process` and asks
+for no Rust runtime symbol (`check-link`, every build). The Rust library is built with
+Rack's own CPU flag (`-C target-cpu=nehalem`).
+
+The checks can fail: swing made to follow the pattern step in the core gave "0 passes
+matched, 42 did not" on the swing fixture and a failed self-test; a planted reference to
+`rust_eh_personality` failed `check-link`.
+
+**To finish it:** open `rack/build/P3.vcv` (`make -C rack patch`) and follow the list in
+`PLAN.md`'s Handover. The probes' counts are in each one's right-click menu, in Rack's
+`log.txt`, and in any patch saved while they play.
 
 ### P4 — It runs in a phone browser
 
@@ -146,7 +185,33 @@ worklet. Measure tap-to-sound latency by recording the phone with a second devic
 **If it fails:** on one browser, record it and decide whether that browser matters. On all, the
 worklet design is wrong.
 
-**Result:** —
+**Result: running. Both desktop browsers passed, 2026-11-19 (Session 3).** The phones
+are left, and with them the two bars that are about phones.
+
+What was built: `web/index.html` and `web/worklet.js`, bare on purpose. The page fetches
+the raw `.wasm` and sends its bytes to the worklet, which compiles them there, grows the
+module's memory by one page and puts the engine and buffers in it. No generated glue; the
+module imports nothing. `web/desktop.mjs` opens the page in a headless browser, which plays
+all four fixtures in real time on both clocks at 44.1, 48 and 96 kHz, ticking on every
+step, and posts back what its worklet captured.
+
+| Bar | Measured |
+|---|---|
+| Trace identical to P2 on desktop Chrome | Chromium 155 (headless): 24 of 24 runs are byte for byte the section of the Node harness's report with the same label. 1 662 events in 46 682 blocks of 128; none dropped; each context ran at the rate asked for |
+| … on desktop Firefox | Firefox 158 (headless): the same 24 of 24, the same counts |
+| … on Android Chrome and iOS Safari | **Left for the owner** |
+| Ten minutes with no dropout on a mid-range Android phone | **Left for the owner.** The page's Play button runs the engine's own click on every step and shows how far audio has fallen behind the clock ⚠ an untested stand-in for hearing a dropout |
+| Tap-to-sound latency per device | **Left for the owner.** The page's Tap pad fires the click through the new `FIRE` command (D45) on `pointerdown` |
+
+⚠ Chromium here is the Arch build, not Google Chrome, and both browsers ran headless.
+
+The check can fail: a worklet made to skip the swing command gave 12 of 24 and a failed
+run; a stale `web/pi_core.wasm` fails `make test`.
+
+**To finish it:** `web/` is served by GitHub Pages as it stands (the `.wasm` is committed
+beside the page, and `make test` fails if it is not the one just built). On each phone open
+`…/sidequests/pocket-instruments/web/`, press Run the proof, then Play for ten minutes, then
+film the Tap pad with a second device.
 
 ### P5 — It ships to other people's machines
 
@@ -162,7 +227,45 @@ from VCV, whether the VCV Library will build and list a plugin with a Rust compo
 **If it fails:** if the Library will not take it and the Library matters, the core moves to C++
 (see P3's fallback). Decide which before building instruments.
 
-**Result:** —
+**Result: running. The half that needs no VCV and no second machine, 2026-11-19
+(Session 3).** Not passed: nothing here is one of the bar's four artefacts, and there is no
+answer from VCV.
+
+`make targets` cross-compiles the static library for all four Rack targets from this
+laptop and checks each against R16 (`harness/targets.sh`). A `staticlib` of a `no_std`
+crate needs no linker and no SDK, only rustup's copy of each target's core library.
+
+| Target | Built | Our object | Needs from the platform | R16 |
+|---|---|---|---|---|
+| Linux x64 (`x86_64-unknown-linux-gnu`) | yes | ELF x86-64 | `memcpy`, `memset` | glibc 2.23: **met** (both symbols predate it). No instruction newer than Nehalem: **met** |
+| Windows x64 (`x86_64-pc-windows-gnu`) | yes | COFF x86-64, the MinGW kind | `memcpy`, `memset` | MinGW: **met as far as an object can show**. Nehalem: **met** |
+| macOS x64 (`x86_64-apple-darwin`) | yes | Mach-O x86-64 | `memcpy`, `__bzero`, `memset_pattern16` | Nehalem: **met**. macOS 10.9: **NOT MET**: the object is stamped 10.12, rustc's floor (R38) |
+| macOS arm64 (`aarch64-apple-darwin`) | yes | Mach-O arm64, built for a generic armv8 | `memcpy`, `memset_pattern16` | Stamped macOS 11.0, the first there was for Apple Silicon: **met** |
+
+The macOS 10.9 finding, plainly: Rack's SDK builds plugins for 10.9 and stable Rust will
+not stamp an object below 10.12. ⚠ Unverified, but likely harmless: the core calls three
+memory routines that every macOS has, so nothing in it can need 10.12. A real macOS linker
+will probably warn and link. Nobody has seen it do so.
+
+The Linux plugin built on this laptop is not an artefact for other people: it asks for
+glibc 2.35 through the statically linked C++ runtime (R42). VCV's toolchain exists to
+avoid exactly that.
+
+The check can fail: a library built for Haswell failed on `shlxl` and `vmovups`; the Linux
+library offered as the Windows one failed on its format; 128-bit arithmetic failed on
+`_udivti3`.
+
+**What the full proof still needs:**
+
+1. A plugin linked for each of the four targets by a real toolchain: VCV's
+   `rack-plugin-toolchain` (Docker) with a Rust toolchain added, or CI on native runners as
+   Phona does (R16a). The static libraries can be built anywhere, including here, and
+   handed to that link.
+2. On the macOS link: what the linker says about the 10.12 stamp (item above).
+3. Each of the four artefacts loaded once in Rack on its platform. The Probe's light going
+   green is the test: it is in the plugin already.
+4. A written answer from VCV on the Library: will its build server take a plugin with a
+   Rust part, or a prebuilt static library, or neither (O2).
 
 ### P6 — Editing while playing is safe
 
@@ -179,7 +282,51 @@ on the other host.
 **If it fails:** the engine interface needs an explicit command queue and snapshot scheme
 before any instrument is built on it.
 
-**Result:** —
+**Result: running. The ThreadSanitizer half passed, 2026-11-19 (Session 3), and
+changed `ENGINE.md`.** The "if it fails" clause is half met: the core's interface held, but
+the host recipe in §8 was unsafe as written and is corrected (D43, proposed).
+
+`harness/race.cpp` (`make race`, part of `make test`): the core on an audio thread; a
+second thread sending edits and loads and taking snapshots, through
+`rack/src/handoff.hpp`, the file the Rack module uses. Three independent checks: the
+sanitizer; every snapshot taken is whole (a private engine loads it); nothing is lost or
+reordered (a model engine given the same messages must end each round with the same bytes).
+
+| Bar | Measured |
+|---|---|
+| ThreadSanitizer clean | Clean, twice: flat out (about 100 000 blocks, 19 000 publishes, 28 000 snapshots taken) and with an idle audio thread (10 884 blocks, 1.1 million snapshots taken). 3 804 rounds, 19 862 edits and 760 loads each time; 0 torn, 0 rounds where the snapshot was not the model's; 0 events dropped |
+| No dropout | **Left**: needs Rack with a sound card, and the browser |
+| A saved pattern reloads to the same P2 trace on the other host | From the harness, yes: each fixture's pattern was entered as edits while the core played, the snapshot taken, and those exact 316 bytes are ones the wasm host loaded in `make test` and got that fixture's trace from (four of four). From a patch saved in Rack: **left for the owner**; `rack/check-patch.mjs` makes the same comparison on the saved file |
+
+**The findings** (`ENGINE.md` §8 now says all of this):
+
+1. "Two buffers and an atomic index" is a data race. The sanitizer reports it at once. It
+   never produced a torn snapshot in ordinary runs here, and would need a reader stalled
+   across two publishes to do so. Three buffers and one atomic exchange are clean.
+2. A second thread may not call even the reading functions: `pi_save` beside `pi_process`
+   is a race.
+3. A load must travel in the same queue as the edits. On its own channel a load and the
+   edit sent straight after it can swap; that left the snapshot wrong in 3 116 of 3 804 rounds.
+4. A save can miss the last block's edits unless the audio thread publishes how far it has
+   got; and when no audio is running there is nothing newer to save.
+
+⚠ What the sanitizer cannot see: the core is Rust, and stable Rust cannot be built with
+ThreadSanitizer. Every call into the core goes through a wrapper that touches one plain
+byte, so two threads in the core at once race where the sanitizer looks. It also caught the
+two-buffer race from inside the core's own `memset`, which it does intercept.
+
+Five faults were put in on purpose and each is still run by `make race` on every build:
+two buffers and direct save (sanitizer, exit 66), a load on its own channel, a dropped edit
+and a flipped bit (the harness, exit 1). A sixth: the snapshot comparison fails against an
+empty report.
+
+In Rack so far: the Probe publishes a snapshot whenever the pattern changes and Rack's own
+thread saves the latest. Headless Rack loaded a good snapshot from a patch ("1 loaded") and
+refused one with a flipped bit ("1 refused").
+
+**To finish it:** save the patch while the probes play (File › Save As) and run
+`node rack/check-patch.mjs <the file> target/report-node.txt`. The browser's half comes
+with the instrument: the worklet posts a copy, so there is no shared memory to race on.
 
 ### P7 — Shared sound is worth sharing
 
@@ -193,7 +340,34 @@ many voices a mid-range phone runs before dropping out.
 
 **If it fails:** share sequencing only; write sound per host.
 
-**Result:** —
+**Result: running. The render half passed, 2026-11-19 (Session 3).** The phone's
+voice count is left.
+
+One voice in the core: the click (key 10, track 9), a sine with an exponential decay, the
+simplest recipe in `VOICES.md` that still has both things two platforms could disagree
+about. Sound crosses the ABI as a buffer on `pi_process` (ABI 2; D44, proposed).
+
+| Bar | Measured |
+|---|---|
+| The two renders differ by less than −80 dB | **They do not differ.** The C++ harness on the native static library and Node on the `.wasm` render `harness/render-click.json` (64 steps at 300 bpm, sliders moved six times, clicks cut off by the next) to the same bytes: 141 120 samples at 44.1 kHz (sha256 `8edac8757c455952`), 153 600 at 48 kHz (`0a70450dc7aa5170`), 307 200 at 96 kHz (`1df3dc10a21b2b7c`), on the table clock and on edges. Peak −0.2 dB |
+| At least 16 voices on the phone | **Left for the owner**, and it needs more voices or sixteen copies of this one. Nothing was measured |
+
+Why they are the same bits: the voice uses only add, subtract, multiply, divide and
+conversions, which IEEE 754 rounds one way everywhere. There is no library `sin` or `exp`:
+the sine is a polynomial and the decay a multiply a frame. That is a rule for every later
+voice (D44), not luck.
+
+`harness/compare.mjs` was written before the voice. It can fail: a `.wasm`-only error of
+one part in a thousand measured −64.9 dB and failed; silence against silence failed as too
+quiet to prove anything; a render one sample short failed. An error of one part in 20 000
+measured −90.9 dB and passed, as the bar says it should, reported as "not the same bytes".
+
+Also checked, in `cargo test`: the block size changes no sample; a voice starts on its
+trigger's frame; it decays to exact zeros; sound changes no event and no snapshot; a full
+event buffer does not silence a voice.
+
+**To finish it:** a page that runs N copies of a voice in the worklet and raises N until
+audio falls behind. `web/` has the worklet and the falling-behind measure; it needs the N.
 
 ### P8 — It feels like the real thing
 

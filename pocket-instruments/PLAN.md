@@ -45,8 +45,12 @@ pocket-instruments/
   plugin built against it with g++ in one `make`. `RACK_DIR` is not set in any shell file:
   give the plugin's Makefile that path as its default. clang's ThreadSanitizer reports a
   planted race, so P6's harness can run here.
-- Missing: cmake (the SDK does not need it), Playwright, MinGW, lld, any macOS SDK. Chromium is
-  present, and Firefox (found at the start of Session 3; the line above said it was missing).
+- Missing: cmake (the SDK does not need it), Playwright, MinGW, lld, any macOS SDK, `xxd`,
+  `/usr/bin/time`. Chromium 155 is present, and Firefox 158 (found at the start of Session 3;
+  this line used to say it was missing).
+- Since Session 3: rustup also holds `x86_64-pc-windows-gnu`, `x86_64-apple-darwin` and
+  `aarch64-apple-darwin` (for `make targets`). The plugin is installed in
+  `~/.local/share/Rack2/plugins-lin-x64/`. Rack runs headless: `rack/selftest.sh` (R40).
 
 ---
 
@@ -127,25 +131,30 @@ purpose; stable Rust only; nothing visual (no panel art, nothing in `design/` or
 
 - [x] Download the Rack SDK 2.6.6 for Linux outside the repo. Done 2026-11-19, ahead of the
       session: see Machine state.
-- [ ] **1. P3 in full.** `rack/`: a blank-panel module, CLOCK in, RESET in, GATE out, the core
+- [ ] **1. P3 in full.** The machine's half is done and measured. **Not ticked: the owner's ten minutes are left.**
+      `rack/`: a blank-panel module, CLOCK in, RESET in, GATE out, the core
       called once per sample. `RACK_DIR` defaults to `~/.local/opt/Rack-SDK-2.6.6` in the
       Makefile. The Makefile builds the Rust library first, with Rack's CPU flags (R16), and
       links it as `harness/harness.cpp` does. Watch for `rust_eh_personality` at link
       (`PROOFS.md` P1 ⚠). The owner watches the scope for the ten minutes.
-- [ ] **2. P6, the ThreadSanitizer half.** The C++ harness runs the core on one thread while
+- [x] **2. P6, the ThreadSanitizer half.** Done, with a finding (D43). The save in Rack is the owner's.
+      The C++ harness runs the core on one thread while
       another edits steps and takes snapshots, the way a host really would (`ENGINE.md` §8).
       If the interface cannot be used safely as written, that is the finding: propose the
       change. Then, in Rack: save a patch while it plays.
-- [ ] **3. P5, the half that needs no VCV.** Cross-compile the static library for the four Rack
+- [x] **3. P5, the half that needs no VCV.** Done; macOS 10.9 not met.
+      Cross-compile the static library for the four Rack
       targets from this machine and check each against R16 (glibc 2.23, macOS 10.9, nehalem,
       MinGW). Write down exactly what the full proof still needs. P5 is not ticked.
-- [ ] **4. P7, the render half.** One drum voice in the core, the simplest in `VOICES.md`,
+- [x] **4. P7, the render half.** Done: the same bytes. D44.
+      One drum voice in the core, the simplest in `VOICES.md`,
       rendered natively and in wasm, compared against the −80 dB bar. How sound crosses the
       ABI is a decision: the next free D number, proposed.
-- [ ] **5. P4, the desktop half.** `web/`: a bare page and worklet, the raw `.wasm`, no
+- [x] **5. P4, the desktop half.** Done: Chromium and Firefox. D45 added for the tap.
+      `web/`: a bare page and worklet, the raw `.wasm`, no
       generated glue, the trace captured in the worklet and compared with P2. Chromium, and
       Firefox if present. P4 is not ticked.
-- [ ] Fill in `PROOFS.md` with measured numbers; half-run proofs are `running`, with what is
+- [x] Fill in `PROOFS.md` with measured numbers; half-run proofs are `running`, with what is
       left. Write `LEARNINGS.md`. The Handover lists what Opus can now build without deciding
       anything.
 
@@ -153,9 +162,14 @@ purpose; stable Rust only; nothing visual (no panel art, nothing in `design/` or
 
 Was all of P4 until Session 3 was widened; the desktop half moved there.
 
-- [ ] Serve `web/` from GitHub Pages so the owner can open it on a phone. Android Chrome and
-      iOS Safari: the trace, ten minutes with no dropout, tap-to-sound latency per device.
-- [ ] Fill in P4. Whatever Session 3's Handover lists as left of P5, P6 and P7.
+- [x] Serve `web/` from GitHub Pages. Nothing to do: it is plain files and the `.wasm` is
+      committed (Session 3).
+- [ ] Owner, in Rack, ten minutes: the list under "After Session 3" below. Then fill in P3 and
+      P6's Rack row.
+- [ ] Owner, on each phone: Run the proof; Play for ten minutes; film the Tap pad. Fill in P4.
+- [ ] P7's voice count on a phone: a page that runs N copies of the click.
+- [ ] P5: the four links and the question to VCV (`PROOFS.md` P5, "What the full proof
+      still needs").
 
 ## After the gate
 
@@ -252,3 +266,76 @@ Decided when P1 to P4 are in, not before:
   the core does not: turn a voltage into an edge, and ignore clock edges for 1 ms after a
   reset (`ENGINE.md` §4). The gate out is the host's job too: a `TRIG` event is an instant.
 - Next: Session 3, P3, in Rack. It needs the Rack SDK 2.6.6, which is still not downloaded.
+
+### After Session 3 (2026-11-19)
+
+- **Nothing failed. Nothing is fully passed either:** P3, P4, P5, P6 and P7 are each
+  `running`, with the machine's half done and measured in `PROOFS.md`. Nothing was dropped
+  from the list. This session ran on Fable on purpose.
+- Built: `rack/` (the Probe module, `handoff.hpp`, a headless self-test), `harness/race.cpp`
+  (ThreadSanitizer), `make targets` (four Rack targets), the click voice and ABI 2 in
+  `core/`, `web/` (page and worklet). 39 Rust tests; `make verify` runs all but the
+  real-time checks (`make targets`, `make p4`, `make -C rack selftest`).
+- **Three decisions are proposed and built on, and wait for the owner, with D42:**
+  D43 (how a host hands snapshots, edits and loads between threads: it corrects
+  `ENGINE.md` §8), D44 (sound crosses as a buffer on `pi_process`: ABI 2), D45 (`FIRE`:
+  a tap fires a track).
+- **One bar is not met:** P5's macOS 10.9. rustc's floor is 10.12 (R38). Likely harmless,
+  unproven.
+
+**The owner's ten minutes in Rack (finishes P3 and P6's Rack row):**
+
+1. Start Rack. Open `pocket-instruments/rack/build/P3.vcv` (if it is missing:
+   `make -C pocket-instruments/rack patch`).
+2. Choose the audio device on the Audio module. A quiet steady sine should sound: a
+   dropout is a click in it.
+3. Engine menu: turn on the CPU meter. Note each Probe's figure. The bar is under 1 %.
+4. Watch the Scope for ten minutes. Left probe (clocked by the LFO; swing fixture, track
+   2): a gate on every step, the offbeats late by a third of a step. Right probe (its own
+   clock; straight sixteenths, track 0): one gate every four steps. Each light is green
+   while every pass has matched, red once one has not.
+5. In those ten minutes: change the sample rate once (Engine menu). Then File › Save As,
+   while it plays.
+6. Right-click each probe: the first line of its menu is the count. Write the counts, the
+   CPU figures and whether anything clicked into `PROOFS.md` P3.
+7. `cd pocket-instruments && make test && node rack/check-patch.mjs <the saved file>
+   target/report-node.txt`. Its output is P6's Rack row.
+   ⚠ The patch's wiring was never seen on a screen. The intent: LFO SQR to the left
+   probe's top socket; each probe's bottom socket to the Scope; VCO SIN through 8vert to
+   Audio.
+
+**What Opus can now build without deciding anything:**
+
+- **Any of the other fifteen voices,** in `core/src/voice.rs` beside the click: a struct
+  with `trigger`, `next` and `tune`, one line each in `Voices::trigger`, `render` and
+  `set_sample_rate`. The rules are `ENGINE.md` §11: only `+ − × ÷`, integers for pitch and
+  time, exact zeros when silent. `make test` holds each to the same-bytes comparison once
+  it is in `harness/render-click.json` or a scenario beside it. Recipes: `VOICES.md`.
+- **A Rack module that plays sound:** call `pi_process` with a one-float buffer
+  (`PI_AUDIO_MIX`) or sixteen (`PI_AUDIO_TRACKS`), multiply by 5 V. The Probe is the
+  template for the clock, reset, gate and threads; `handoff.hpp` is the only way anything
+  crosses threads.
+- **Edits from a UI,** in either host: commands through `pi::Queue`, loads through the
+  same queue, snapshots back through `pi::Latest`. `harness/race.cpp` is the worked example
+  and stays the gate: add the new message to it.
+- **A browser instrument's plumbing:** `web/worklet.js` already takes commands by message,
+  renders the mix and posts events. A page sends `STEP`, `SOUND`, `FIRE`, `PLAY`.
+- **CI for the four targets:** `make targets` is the build step; `rack/Makefile` already
+  maps Rack's target to Rust's. What CI adds is the link and the artefact.
+- **The phone page for P7's count:** N worklet nodes, or N engines in one, using the
+  falling-behind figure the page already shows.
+
+**What still needs a decision first (do not build past these):**
+
+- D42, D43, D44, D45: the owner's ruling. Each is cheap to overrule today.
+- Where the sliders live in snapshot version 2, and whether moving a slider changes a
+  voice that is already sounding (D44's open list).
+- Whether the mix is limited in the core or each host saturates (D44's open list).
+- The workflow: what a key press does in each mode (`WORKFLOW.md`, D29). `FIRE` and the
+  edits are what it will be built from.
+- If VCV says no to Rust in the Library (O2): D13's fallback, or self-hosted releases.
+
+- The repo's smoke test was skipped on this machine (no Playwright). Nothing in `shared/`
+  or any app changed.
+- Next: Session 4, which is mostly the owner's hands. Then a build session on Opus from
+  the list above.

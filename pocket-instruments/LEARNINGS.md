@@ -130,3 +130,60 @@ belongs in `PROOFS.md`, a change of course in `DECISIONS.md`, an outside fact in
   Rust 1.99.0 the moment a shim ran. It was removed. Test such a check on a copy.
 - **The build is reproducible across folders**: the same `.wasm` bytes from a clone in
   another path. Worth knowing before P5.
+
+## 2026-11-19 — Session 3, the proofs that could still change the architecture
+
+- **Rust in Rack was the non-event the brief feared most.** The plugin built, linked and
+  ran on the first try, in under two seconds from clean. The risk was never the link on one
+  machine; it is the other three machines (P5), and that is still open.
+- **Rack runs headless, and that turned an eyeball proof into a counted one.**
+  `Rack -h -u <folder>` loads a patch and steps the engine with no screen and no sound card.
+  So the module was made to check itself: it plays a fixture, compares every pass with the
+  fixture's trace, and Rack's log carries the count. What is left for a person is only what
+  needs a person: a dropout, a meter, a scope.
+- **The warning I wrote in Session 2 was wrong.** I said 128-bit arithmetic would make the
+  Rack link ask for `rust_eh_personality`. Tried on purpose: it took `__udivti3` and nothing
+  else. A warning nobody has tested is a guess with a ⚠ on it. It is now a check that runs.
+- **The interface held and the recipe beside it did not.** `ENGINE.md` said "two buffers and
+  an atomic index" in passing, as if it were obviously safe. It is a textbook race.
+  ThreadSanitizer found it in a second; a million ordinary reads never showed a torn
+  snapshot. Both facts matter: it would have shipped, and it would have failed once a year
+  on someone else's machine.
+- **A sanitizer cannot see into Rust on stable.** ThreadSanitizer for Rust is nightly only.
+  The harness touches one plain byte around every call into the core, so two threads inside
+  it race where the sanitizer looks. Worth knowing before trusting "clean".
+- **A flat-out test thread hides the bugs a real one shows.** With the audio thread
+  spinning, a load on its own channel never once swapped with the edit behind it. With the
+  thread idle between blocks, as a real callback is, it went wrong in most rounds. And the
+  idle had to go before the block, not in the middle of it: my first placement hid it
+  again. The shape of the test thread is part of the test.
+- **`pi_process` with no frames does nothing, and that has a cost.** A load that arrives
+  behind edits in the same block cannot have them applied first, so it waits a block. Fine
+  for a host; it is the kind of thing only writing the host finds.
+- **Bit-identical sound was a design choice, not a hope.** Native and WebAssembly agree to
+  the last bit because the voice never calls a maths library. The moment a voice wants a
+  real `sin` or `exp`, the −80 dB bar starts to matter. Until then it is not a tolerance,
+  it is an equality, and a far stronger gate.
+- **A fault that is too small proves the bar, not the check.** My first planted error
+  measured −90.9 dB and the comparison passed, correctly. I had to plant a bigger one to
+  see it fail. Then, restoring the file with `git checkout` did nothing, because the file
+  was new and untracked: the fault was still in until I noticed. Restore from a copy, and
+  check the restore.
+- **macOS found a symbol the other three did not.** The same Rust, filling sixteen pairs of
+  slider values, became a call to `memset_pattern16` on macOS only. Harmless (it is in
+  every macOS), but the check caught it the moment the voice landed. A check on one
+  platform says little about another.
+- **rustc has a floor under Rack's.** Rack builds for macOS 10.9; rustc will not stamp
+  below 10.12. Asked for 10.9 it warns and carries on. Nothing in the core can need 10.12,
+  but nobody has watched a macOS linker take it.
+- **The trace cannot see timing, again.** A worklet that put every command a frame late
+  would still pass P4, by design. What P4 on a desktop proves is that the engine in a
+  worklet makes the right events. Whether they are on time is the phone's half.
+- **No Playwright was needed.** The page posts its own result to the little server that
+  served it. Two browsers, no protocol, forty lines.
+- **A safety check stopped a command that deleted nothing,** because a script in it used
+  shell forms the checker could not read. The fix was to make the edits with the file tools.
+  Long inline scripts are the wrong tool for editing files in any case.
+- **Tools assumed, not present:** `/usr/bin/time` and `xxd`. Each failed silently inside a
+  pipe and the output looked like a result. The repo's hook that refuses a gate piped into
+  `tail` caught a third. Read exit codes, not tails.
