@@ -6,8 +6,8 @@ players can enter their own. It reuses what Rack It has: the same accounts, the 
 players, the same matches and ratings.
 
 **Status:** Sessions 1 to 7 done (2.33.0, 2026-11-19): every session in §8, round robin (§3.9) and
-groups into a knockout (§3.10); 2.33.1 (2026-11-20) fixed single elimination's Final race.
-Next: Session 8, handicapped races (§3.11, designed 2026-11-20, not built).
+groups into a knockout (§3.10); 2.33.1 (2026-11-20) fixed single elimination's Final race;
+Session 8 (2.34.0, 2026-11-20) built handicapped races (§3.11). What's next is §9.
 This is also pre-work for the Sessions app (`SESSIONS-MIGRATION.md` at the repo root): the
 bracket logic and the data shape are written to be lifted out.
 
@@ -32,7 +32,7 @@ on 2026-11-18** (the Answer column); the rest stand at their defaults.
 | 4 | Double elimination's final | **One final.** A toggle offers "play a decider if the losers' side wins" (the bracket reset). | Most club nights play one final; purists want the reset. |
 | 5 | Can guests (no phone) enter? | **Yes** (confirmed). The organiser picks them from their known guests or adds a new one, exactly as "Who's playing" does now, and enters their results. | A club night always has someone without the app. |
 | 6 | How many players? | 3 to 32. | A phone shows 32 comfortably round by round; the document stays small. |
-| 7 | Handicaps | **Off** in v1. Then (the owner, 2026-11-20): a tournament-wide **Race chart** switch, ratings frozen at Start, the underdog's race shorter, two targets (§3.11, Session 8). | Keep the first version to a plain race. |
+| 7 | Handicaps | **Off** in v1. Then (the owner, 2026-11-20): a tournament-wide **Race chart** switch, ratings frozen at Start, the underdog's race shorter, two targets (§3.11, built in Session 8, 2.34.0). | Keep the first version to a plain race. |
 
 ---
 
@@ -402,9 +402,9 @@ A walkover stays 0–0.
 - **The steppers sheet**: each stepper runs 0 to its own player's target. The hint reads "Kenny
   races to 5, Greg to 3. Racks each, then Save." Save reads "First to 5 v 3" until exactly one
   player is at their own target, then "Save · 5–2".
-- **The match sheet and the card's caps label**: "race to 5 v 3" where today they say "race to
-  3". Level targets read as today.
-- A stale result's words, the path's step titles and "Nobody reached 3" use the two targets too.
+- **The match sheet** (the read sheet's caps line): "Race to 5 v 3" where it said "Race to 3".
+  Level targets read as before. (The match card never showed the race, so it is unchanged.)
+- "Nobody reached 3" (a scored match nobody won) says "their target" when the two differ.
 
 **Score it in Rack It.** `scoreFixture` puts the fixture's targets on `setup.tour` and sets
 `setup.handicap = "racks"`, `mode: "race"`, `raceTo` the longer target, with those exact targets.
@@ -501,7 +501,7 @@ tournaments/<id>
   final: "one" | "reset"            // double only
   third: true | false               // single only
   race: { w, l?, f? }               // racks; l and f only when they differ
-  handicap: "racks"                 // Session 8 (§3.11); missing = off
+  handicap: "racks" | "off"         // Session 8 (§3.11); missing = off
   zargos: { "<id>": 612, … }        // Session 8: every entrant's rating, frozen at Start (500 if none)
   seeding: "random" | "rating"
   by: uid, byName                   // the organiser
@@ -669,27 +669,27 @@ Not in the first plan: §9's first item, asked for on 2026-11-19. Design in §3.
 `make verify` while another session works in `pocket-instruments/`; run `node --test`,
 `node shared/smoke.mjs` and the `shared/proofs/rack-it-*.mjs` proofs instead.
 
-- [ ] `bracket.js`: `targets` on each fixture from `handicap` and `zargos` (importing
+- [x] `bracket.js`: `targets` on each fixture from `handicap` and `zargos` (importing
       `raceChart` and `expectedShareA` from `./zargo.js`), `fits` with two targets,
       `validResult` against them, `oldRace` only when off. Tests first: level targets when off
       (every existing test still green, unchanged); a favourite as `a` and as `b`; equal ratings
       level; a missing rating at 500; a result fitting the targets but not the plain race, and
       the other way round; the 2.33.1 final allowance off when handicapped; the property test at
       every size and format with the handicap on and random ratings, played to the end.
-- [ ] Start and the lobby: the **Handicap** row, the tournament line "· handicapped".
-- [ ] Draw and start: `zargos` written with `seeds`; the draw sheet's numbers, "no rating yet"
+- [x] Start and the lobby: the **Handicap** row, the tournament line "· handicapped".
+- [x] Draw and start: `zargos` written with `seeds`; the draw sheet's numbers, "no rating yet"
       and round 1's targets.
-- [ ] Every `f.race` reader to `f.targets`: the steppers sheet, the match sheet and card, Your
+- [x] Every `f.race` reader to `f.targets`: the steppers sheet, the match sheet and card, Your
       path, the stale-result and "Nobody reached" words.
-- [ ] Score it in Rack It: `setup.tour.targets`, `handicap: "racks"`, `proposeTargets()` leaving
+- [x] Score it in Rack It: `setup.tour.targets`, `handicap: "racks"`, `proposeTargets()` leaving
       the frozen targets alone, the setup card's words.
-- [ ] `rateResult`: `handicap: "racks"` and the targets on the match it writes.
-- [ ] Proofs: `rack-it-tournament.mjs` grows a handicapped tournament (starter ratings set far
+- [x] `rateResult`: `handicap: "racks"` and the targets on the match it writes.
+- [x] Proofs: `rack-it-tournament.mjs` grows a handicapped tournament (starter ratings set far
       enough apart for uneven targets: 650 against 450 is 3 v 1 at race to 3): the draw sheet's numbers and
       targets; a typed result fitting the targets that wouldn't fit the plain race; a scored
       match locked to the targets; the finish rating it as racks. `rack-it-bracket-sizes.mjs` at
       8 and 32 with the handicap on (the caps label "race to 5 v 3" at 360px, largest text).
-- [ ] `rack-it/SPEC.md` §5.1 gains the handicap; §0 decision 7 and §9 here updated; a handover
+- [x] `rack-it/SPEC.md` §5.1 gains the handicap; §0 decision 7 and §9 here updated; a handover
       note.
 
 ## 9. Parked (in rough order of wanting)
@@ -995,3 +995,41 @@ test (36 in `bracket.test.mjs`): the final at `race.f`, earlier rounds at `race.
 `race.w` final still done and finished, a score fitting neither race ignored, and no allowance for
 the groups knockout. Node tests (186), smoke and `rack-it-tournament.mjs` (115) green.
 
+### Session 8 — handicapped races, 2.34.0, 2026-11-20
+
+**Shipped.** §3.11 as designed: Start's **Handicap** row (Off · Race chart), the line's
+"· handicapped", the ratings frozen into `zargos` at Start and listed on the draw sheet with round
+1's targets, the steppers to each side's own target, Score it in Rack It locked to Racks with the
+frozen targets, and the finish's rated match carrying `handicap: "racks"` and its targets. No rules
+change. `rack-it/SPEC.md` §5.1 is the as-built description.
+
+- `bracket.js` imports `raceChart` and `expectedShareA` from `./zargo.js` (both in the shell
+  already). New: `targetsFor(t, race, a, b)`, `NO_RATING` (500), `targets` on every fixture with
+  both players known (null while waiting). `fits` takes two targets; `oldRace` is off when
+  handicapped. 4 new tests (40 in all), one a property: every format and size, random ratings,
+  played to the end at random, the favourite always at the set race. Every earlier test passes
+  unchanged; the test helpers now play to `targets`.
+- `index.html`: `isHcp`, `targetsOf`, `level`, `raceWords`. The Handicap sheet writes `"racks"` or
+  `"off"`; a new tournament saves `handicap` only when on. `proposeTargets()` returns the frozen
+  targets while `setup.tour.targets` is set, so today's ratings never change them.
+
+**Choices made on the way** (change freely):
+
+- The stepper hint uses first names, or full names when the two share one ("Player 4", "Player
+  8"), as the walkover buttons do.
+- A handicapped match between equal ratings is level, and its rated match says `handicap: "off"`.
+- §3.11 said the match card's caps label shows the race; it never did, so only the read sheet's
+  line changed. §3.11 is corrected.
+
+**Proof.** `rack-it-tournament.mjs`: 130 checks, 15 new. Ann (650) v Ben (450) is 3 v 1; the
+organiser's steppers say so; Ann scores it in Rack It, locked to 3 v 1 with no head start, and
+Ben's 1–1 win is the result; the final is Ben 2 v the owner 3; the finish rates both, the scored
+match marked rated with no second one. `rack-it-bracket-sizes.mjs`: 176 checks, 6 new (handicapped
+8 single and 32 double at 360×640, largest text). Node tests and the smoke test green. Checked by
+eye: the handicapped setup card and the steppers sheet at the largest text. `make verify` not run:
+a parallel session builds in `pocket-instruments/`.
+
+⚠ Left as they are: the Start sheet's odds sentence in a scored handicapped match reads today's
+ratings, not the frozen ones, so it can disagree slightly with the targets if a rating moved since
+Start. And the round robin tie-break on rack difference under a handicap (§3.11). Neither is
+checked on a real club night yet.

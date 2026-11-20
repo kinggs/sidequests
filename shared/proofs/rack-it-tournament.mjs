@@ -21,6 +21,9 @@
 //
 // 2.32.0, round robin (§3.9): four players, everyone plays everyone; the table; the finish.
 // 2.33.0, groups into a knockout (§3.10): six players, two groups of three, a knockout of four.
+// 2.34.0, handicapped races (§3.11): ratings frozen at Start and shown at the draw; Ann (650) v
+// Ben (450) is 3 v 1; Ann scores it in Rack It locked to those targets and Ben wins 1–1, a result
+// no plain race to 3 allows; the steppers run to each side's own target; the finish rates it.
 //
 //   node shared/proofs/rack-it-tournament.mjs
 import { ok, summary, serve, browser, tab, C, tryC, text, store, hold, shot, matchesOf, ratingsOf, answerBreak } from "./h.mjs";
@@ -564,6 +567,81 @@ const st7 = B.standings(t7);
 ok(t7.status === "done" && t7.ratedBy === "mock-uid" && Object.keys(t7.results).length === 9, "done after six group matches and the knockout's two semis and final");
 ok(st7.filter(s => s.place === 1).length === 1 && st7.filter(s => s.place === 5 && s.placeTo === 6).length === 2,
   "standings: one winner, the groups' 3rds share 5th–6th: " + st7.map(s => s.place + "-" + s.placeTo).join(", "));
+
+// ---- Handicapped races (2.34.0, §3.11) ----
+// Ratings far enough apart for uneven targets: Ann 650, the owner 500, Ben 450; Dan, a guest,
+// has none and counts as 500.
+await front(owner);
+await C(owner, c => Promise.all([["mock-uid", 500], ["mock-ann", 650], ["mock-ben", 450]].map(([id, z]) =>
+  c.save("ratings/" + id, { zargo: z, robustness: 40, sessions: 10 }))));
+await owner.reload(); await owner.waitForTimeout(900);
+await owner.click('.tabbar button[data-tab="play"]'); await owner.waitForTimeout(200);
+await owner.click("#toursBtn"); await owner.waitForTimeout(200);
+await owner.click("#tourStartBtn"); await owner.waitForTimeout(200);
+ok(/Handicap\s*Off/i.test(await text(owner, "#tnSettings")), "Start has a Handicap row, off by default");
+await owner.locator("#tnSettings button", { hasText: "Handicap" }).click(); await owner.waitForTimeout(250);
+await sheetButton(owner, "Race chart").click(); await owner.waitForTimeout(250);
+ok(/Handicap\s*Race chart/i.test(await text(owner, "#tnSettings")), "handicap: race chart");
+for(const n of ["Ann", "Ben", "Dan"]){ await owner.locator("#tnChips button", { hasText: n }).first().click(); await owner.waitForTimeout(150); }
+await owner.click("#tnOpen"); await owner.waitForTimeout(600);
+let t8 = (await tours(owner)).find(x => x.status === "open");
+ok(t8 && t8.handicap === "racks" && /race to 3 · handicapped/i.test(await text(owner, "#tBody")), "saved handicapped; the line says so: " + (await text(owner, "#tBody")).replace(/\s+/g, " ").slice(0, 160));
+await owner.locator("#tFoot button.primary").click(); await owner.waitForTimeout(300);
+const drawText = await text(owner, last);
+ok(/Handicapped from these ratings/.test(drawText) && /Ann 650/.test(drawText) && /Ben 450/.test(drawText) && /Dan 500 · no rating yet/.test(drawText),
+  "the draw shows the frozen ratings: " + drawText.replace(/\s+/g, " "));
+await sheetButton(owner, "Start").click(); await owner.waitForTimeout(500);
+t8 = (await tours(owner)).find(x => x.id === t8.id);
+const dan8 = t8.players.find(x => x.startsWith("g_"));
+ok(t8.status === "live" && t8.zargos && t8.zargos["mock-ann"] === 650 && t8.zargos["mock-ben"] === 450 && t8.zargos[dan8] === 500,
+  "Start froze every rating: " + JSON.stringify(t8.zargos));
+// A known draw: Ann v Ben (3 v 1), the owner v Dan (level).
+await C(owner, (c, a) => c.patch("tournaments/" + a.id, { seeds: a.seeds }), { id: t8.id, seeds: ["mock-ann", "mock-uid", dan8, "mock-ben"] });
+await owner.waitForTimeout(400);
+t8 = (await tours(owner)).find(x => x.id === t8.id);
+const ab = B.state(t8).find(f => f.a === "mock-ann" && f.b === "mock-ben");
+ok(ab && ab.targets.a === 3 && ab.targets.b === 1, "Ann v Ben is 3 v 1: " + JSON.stringify(ab && ab.targets));
+// The organiser's steppers: each to its own player's target.
+await toDraw(owner);
+await curCard(owner, "Ann").first().click(); await owner.waitForTimeout(300);
+const hint8 = await text(owner, last);
+ok(/Ann races to 3, Ben to 1/.test(hint8) && /First to 3 v 1/.test(hint8), "the steppers sheet: " + hint8.replace(/\s+/g, " ").slice(0, 200));
+await owner.keyboard.press("Escape"); await owner.waitForTimeout(300);
+// Ann scores it in Rack It: locked to 3 v 1. Ben wins a rack and has reached his target.
+await front(ann);
+await ann.goto(R + "?mock&as=ann"); await ann.waitForTimeout(900);
+await ann.click('.tabbar button[data-tab="play"]'); await ann.waitForTimeout(200);
+await ann.locator("#tourCards button").first().click(); await ann.waitForTimeout(600);
+await ann.locator("#tBody .seg button", { hasText: "Your path" }).click(); await ann.waitForTimeout(200);
+await ann.locator("#tBody .tpath button", { hasText: "Score it in Rack It" }).click(); await ann.waitForTimeout(900);
+ok(/race to 3 v 1 · handicapped/.test(await text(ann, "#setupTour")), "setup is locked to the targets: " + (await text(ann, "#setupTour")).replace(/\s+/g, " "));
+await shot(ann, "tournament-handicap-setup");
+await ann.click("#startBtn"); await ann.waitForTimeout(400);
+await answerBreak(ann, "a");
+let hm = (await matchesOf(ann)).find(m => m.tournament === t8.id && m.status === "live");
+ok(hm && hm.handicap === "racks" && hm.targets.a === 3 && hm.targets.b === 1 && (!hm.start || (!hm.start.a && !hm.start.b)),
+  "the live match plays the frozen targets, not a head start: " + JSON.stringify(hm && { h: hm.handicap, t: hm.targets, s: hm.start }));
+await winRack(ann, "a"); await winRack(ann, "b");
+await ann.click("#doneNext"); await ann.waitForTimeout(1500);
+t8 = (await tours(owner)).find(x => x.id === t8.id);
+const r8 = t8.results[ab.key];
+ok(r8 && r8.a === 1 && r8.b === 1 && r8.w === "b" && r8.match, "Ben's 1–1 is the result, a score no plain race to 3 allows: " + JSON.stringify(r8));
+ok(B.state(t8).find(f => f.key === ab.key).status === "done", "and it fits its match");
+// The owner beats Dan (level), then the final: Ben (450) races to 2, the owner (500) to 3.
+await front(owner); await owner.waitForTimeout(400);
+await enter(owner, { loser: 1, wins: 3 });
+t8 = (await tours(owner)).find(x => x.id === t8.id);
+const fin8 = B.state(t8).find(f => f.name === "Final");
+ok(fin8.status === "ready" && fin8.a === "mock-ben" && fin8.targets.a === 2 && fin8.targets.b === 3, "the final: Ben 2 v the owner 3: " + JSON.stringify(fin8.targets));
+await enter(owner, { loser: 1, wins: 2 });
+await owner.waitForTimeout(1500);
+t8 = (await tours(owner)).find(x => x.id === t8.id);
+const m8 = (await matchesOf(owner)).filter(m => m.tournament === t8.id && m.status === "done");
+const finM = m8.find(m => m.fixture === fin8.key), abM = m8.find(m => m.fixture === ab.key);
+ok(t8.status === "done" && t8.results[fin8.key].a === 2 && t8.results[fin8.key].w === "a", "Ben wins the final 2–1, and it's done");
+ok(finM && finM.rated === true && finM.handicap === "racks" && finM.targets.a === 2 && finM.targets.b === 3 && finM.totals.racksA === 2,
+  "the final's rated match says what was played: " + JSON.stringify(finM && { h: finM.handicap, t: finM.targets }));
+ok(abM && abM.rated === true && abM.id === r8.match && m8.filter(m => m.fixture === ab.key).length === 1, "the scored match is marked rated, no second one");
 
 await b.close(); srv.close();
 summary();

@@ -2,14 +2,15 @@
 //
 //   import * as B from "./bracket.js";
 //   B.build({ format, n, final, third })    // the fixtures for n entrants: [{ key, side, round, slot, name, from, when? }]
-//   B.state(t)                              // those fixtures with players: [{ …, race, a, b, empty, result, status, winner, loser }]
+//   B.state(t)                              // those fixtures with players: [{ …, race, targets, a, b, empty, result, status, winner, loser }]
 //   B.standings(t)                          // [{ id, place, placeTo }]; place null while still in
 //   B.finished(t)                           // every match played (or a bye)
 //   B.canClear(t, key)                      // false while a fixture fed by it has a result
 //   B.validResult(t, key, result)           // fits that fixture: its pair, the race reached by exactly one side, or a walkover
 //   B.ignored(t)                            // keys whose stored result doesn't fit and is being ignored
 //   B.draw(ids, { seeding, ratings, rand }) // → seeds
-//   B.raceFor(t, fixture)                   // racks needed in that fixture
+//   B.raceFor(t, fixture)                   // racks needed in that fixture (the favourite's, when handicapped)
+//   B.targetsFor(t, race, a, b)             // each side's own target: { a, b }; the race chart when t.handicap is "racks"
 //   B.next(t, key)                          // where its players go: { winner, loser, out, top, decider }
 //   B.ROBIN_MAX                             // the most players a round robin takes (12)
 //   B.groupCount(n), B.groups(t)            // groups into a knockout: how many groups; each group's table
@@ -21,7 +22,10 @@
 // derived fixture is ignored, not trusted; that is the safety net behind the rules, which can't
 // work the bracket out. bracket.test.mjs proves it with `node --test` from the repo root.
 //
-// Written to be lifted into the Sessions app (SESSIONS-MIGRATION.md): nothing here knows about pool.
+// Written to be lifted into the Sessions app (SESSIONS-MIGRATION.md): nothing here knows about pool,
+// except the race chart a handicapped tournament borrows from zargo.js (TOURNAMENT.md §3.11).
+
+import { raceChart, expectedShareA } from "./zargo.js";
 
 const PENDING = Symbol("pending");   // not known yet: an earlier fixture is still to be played
 const EMPTY = null;                  // nobody, ever: a bye's missing player, or what a bye leaves behind
@@ -185,23 +189,39 @@ export function raceFor(t, f){
   return w;
 }
 
+// Each side's own target in a match between a and b to `race` (TOURNAMENT.md §3.11). Off, both
+// race to it. Handicapped, Rack It's race chart from the ratings frozen at Start (t.zargos, 500
+// for anyone without one): the favourite races to `race`, the other to the chart's target.
+export const NO_RATING = 500;
+export function targetsFor(t, race, a, b){
+  if (!t || t.handicap !== "racks") return { a: race, b: race };
+  const z = id => { const v = t.zargos && t.zargos[id]; return Number.isFinite(v) ? v : NO_RATING; };
+  return raceChart(expectedShareA(z(a), z(b)), race);
+}
+
 // The race a single elimination final was played to before 2.33.1 (r.w), when it differs from
-// today's: a result entered then still counts. Undefined for every other fixture.
+// today's: a result entered then still counts. Undefined for every other fixture, and with the
+// handicap on (no handicapped tournament predates 2.33.1).
 function oldRace(t, f){
   const r = (t && t.race) || {};
+  if (t && t.handicap === "racks") return;
   if (f.key[0] === "W" && f.name === "Final" && r.f && r.f !== (r.w || 3)) return r.w || 3;
 }
 
-// Does a stored result fit a fixture whose derived players are a and b?
-function fits(r, a, b, race){
+// Does a stored result fit a fixture whose derived players are a and b, racing to ta and tb?
+// (Level, ta = tb = the race: the check every result before Session 8 was made against.)
+function fits(r, a, b, ta, tb){
   if (!r || !Array.isArray(r.ids) || r.ids[0] !== a || r.ids[1] !== b) return false;
   if (r.w !== "a" && r.w !== "b") return false;
   if (r.wo) return (r.a || 0) === 0 && (r.b || 0) === 0;
-  const ok = x => Number.isInteger(x) && x >= 0 && x <= race;
-  if (!ok(r.a) || !ok(r.b)) return false;
-  if ((r.a === race) === (r.b === race)) return false;      // nobody at the race, or both
-  return (r.a === race ? "a" : "b") === r.w;
+  const ok = (x, top) => Number.isInteger(x) && x >= 0 && x <= top;
+  if (!ok(r.a, ta) || !ok(r.b, tb)) return false;
+  if ((r.a === ta) === (r.b === tb)) return false;         // nobody at their target, or both
+  return (r.a === ta ? "a" : "b") === r.w;
 }
+
+// A stored result against a derived match: its targets, or 2.33.1's old final race.
+const fitsHere = (x, r, a, b) => fits(r, a, b, x.targets.a, x.targets.b) || (!!x.was && fits(r, a, b, x.was, x.was));
 
 function entrants(t){ return (t && (t.seeds || t.players)) || []; }
 
@@ -231,7 +251,7 @@ function derive(t){
   };
   const show = v => (v === EMPTY || v === PENDING) ? null : v;
   for (const f of fixtures){
-    const x = { ...f, race: raceFor(t, f), was: oldRace(t, f), _w: EMPTY, _l: EMPTY, real: false, absent: false };
+    const x = { ...f, race: raceFor(t, f), was: oldRace(t, f), targets: null, _w: EMPTY, _l: EMPTY, real: false, absent: false };
     byKey.set(f.key, x); all.push(x);
     const r = results[f.key];
     if (f.when){
@@ -243,6 +263,7 @@ function derive(t){
       }
     }
     const [a, b] = f.from.map(resolve);
+    if (a !== EMPTY && b !== EMPTY && a !== PENDING && b !== PENDING) x.targets = targetsFor(t, x.race, a, b);
     x.a = show(a); x.b = show(b); x.result = null; x.winner = null; x.loser = null;
     x.real = a !== EMPTY && b !== EMPTY;
     x.empty = [a === EMPTY, b === EMPTY];        // nobody will ever come from that side (a bye's hole)
@@ -255,7 +276,7 @@ function derive(t){
       // _l stays EMPTY: whatever happens, a bye leaves nobody to drop.
     } else if (a === PENDING || b === PENDING){
       x.status = "waiting"; x._w = PENDING; x._l = PENDING;
-    } else if (r && (fits(r, a, b, x.race) || (x.was && fits(r, a, b, x.was)))){
+    } else if (r && fitsHere(x, r, a, b)){
       x.status = "done"; x.result = r;
       x._w = x.winner = r.w === "a" ? a : b;
       x._l = x.loser = r.w === "a" ? b : a;
@@ -286,7 +307,7 @@ export function validResult(t, key, result){
   const { byKey } = derive(t);
   const x = byKey.get(key);
   if (!x || x.absent || !(x.status === "ready" || x.status === "done")) return false;
-  return fits(result, x.a, x.b, x.race);
+  return !!x.targets && fits(result, x.a, x.b, x.targets.a, x.targets.b);
 }
 
 export function canClear(t, key){

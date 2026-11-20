@@ -343,7 +343,14 @@ the draw and the results, the same way on every phone, so nothing about the brac
   groups, then a knockout (2.33.0: 6 to 32 in 2, 4 or 8 round robin groups from the draw in a snake;
   the top two of each into a single elimination knockout, winners against other groups'
   runners-up; the draw gets Groups | Knockout and each group a table; §3.10),
-  **Race** to 3 with optional losers' side and final races, **Final** one or a decider (double),
+  **Race** to 3 with optional losers' side and final races, **Handicap** off or **Race chart**
+  (2.34.0, TOURNAMENT.md §3.11: every entrant's rating frozen into `zargos` at Start, 500 for
+  anyone without one, listed on the draw sheet; each match the race chart of §4 from those two
+  numbers, the higher rated racing to the race and the other to the chart's shorter target, never
+  a head start; the line ends "· handicapped"; the steppers run to each side's own target, "Ann
+  races to 3, Ben to 1", "First to 3 v 1"; Score it in Rack It locks setup to Racks with those
+  targets; at the finish the rated match carries `handicap: "racks"` and the targets, and rates
+  the racks as any match does), **Final** one or a decider (double),
   **Third place** off or a play-off (single), **Draw** random or by rating), each row a sheet;
   then **Who's in**: chips of you (in by default), whoever played lately, friends and guests,
   **More players** and **+ Add a guest**, "7 in", up to 32. **Open for entries** saves it.

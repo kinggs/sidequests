@@ -912,7 +912,7 @@ import { connect } from "../shared/connect.js";
 import { ui } from "../shared/ui.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "2.33.1";
+const APP_VERSION = "2.34.0";
 const APP_ID = "rack-it";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 document.getElementById("versionMore").textContent = "v" + APP_VERSION;
@@ -1917,6 +1917,8 @@ const readTarget = inp => { const n = parseInt(inp.value, 10); return n >= 1 ? n
 // Fill the target boxes from the length, the handicap and the ratings. Only called when one
 // of those changes, so a target typed in by hand stays put otherwise.
 function proposeTargets(){
+  // A handicapped tournament's match (§3.11): the targets frozen at its Start, never today's.
+  if(setup.tour && setup.tour.targets){ el.tgtA.value = setup.tour.targets.a; el.tgtB.value = setup.tour.targets.b; return; }
   const a = SP("a"), b = SP("b");
   if(!a || !b) return;
   const eA = expectedShareA(a.zargo, b.zargo);
@@ -4962,7 +4964,13 @@ function raceText(t){
   if(r.f && !isRobin(t)) bits.push(`final ${r.f}`);
   return `Race to ${w}` + (bits.length ? ` · ${bits.join(" · ")}` : "");
 }
-const tourLine = t => `${GAME_LABEL[t.game] || "Trad-Eight"} · ${FORMAT_WORD[t.format] || FORMAT_WORD.single} · ${raceText(t).toLowerCase()}`;
+const isHcp = t => !!t && t.handicap === "racks";
+const tourLine = t => `${GAME_LABEL[t.game] || "Trad-Eight"} · ${FORMAT_WORD[t.format] || FORMAT_WORD.single} · ${raceText(t).toLowerCase()}${isHcp(t) ? " · handicapped" : ""}`;
+// A match's two targets (TOURNAMENT.md §3.11): the race chart's when handicapped, else the race twice.
+const targetsOf = f => f.targets || { a: f.race, b: f.race };
+const level = f => { const g = targetsOf(f); return g.a === g.b; };
+// "race to 3", or "race to 5 v 3" when the handicap makes the two targets differ.
+const raceWords = f => { const g = targetsOf(f); return g.a === g.b ? `race to ${g.a}` : `race to ${g.a} v ${g.b}`; };
 const stateOf = t => t.seeds ? safely(() => B.state(t), []) : [];
 // The match this phone's player has next: ready, else the one they're waiting for.
 function myFixture(t, st = stateOf(t)){
@@ -5051,7 +5059,13 @@ function tourSettingRows(t, change){
       () => choose("Format", "format", [["single", "Single elimination"], ["double", "Double elimination"],
         ["robin", `Round robin · everyone plays everyone, ${B.ROBIN_MAX} at most`],
         ["groups", `Groups, then a knockout · the top two of each group go through, ${B.GROUPS_MIN} to ${B.GROUPS_MAX}`]])),
-    row("Race", raceText(t), async () => { const r = await askRace(t); if(r) change({ race: r }); })
+    row("Race", raceText(t), async () => { const r = await askRace(t); if(r) change({ race: r }); }),
+    row("Handicap", isHcp(t) ? "Race chart" : "Off", async () => {
+      const v = await ui.sheet({ title: "Handicap", items: [
+        { label: "Off · everyone races to the race", value: "off", primary: !isHcp(t) },
+        { label: "Race chart · from the ratings at the start, the higher rated races to the race", value: "racks", primary: isHcp(t) }] });
+      if(v && v !== (isHcp(t) ? "racks" : "off")) change({ handicap: v });
+    })
   ];
   if(t.format === "double") rows.push(row("Final", t.final === "reset" ? "Decider if the losers' side wins" : "One final",
     () => choose("Final", "final", [["one", "One final"], ["reset", "Decider if the losers' side wins"]])));
@@ -5182,7 +5196,7 @@ function openForEntries(){
   if(t.format === "double" && t.race.l) race.l = t.race.l;
   if(t.race.f) race.f = t.race.f;
   const doc = { name: t.name, game: t.game, format: t.format, final: t.format === "double" ? t.final : "one",
-    third: t.format === "single" && !!t.third, race, seeding: t.seeding,
+    third: t.format === "single" && !!t.third, race, seeding: t.seeding, ...(isHcp(t) ? { handicap: "racks" } : {}),
     by: me, byName: people.nameOf(meId, (cloud.user && cloud.user.displayName) || "Someone"),
     status: "open", createdAt: Date.now(), startedAt: null, endedAt: null,
     players: first, names: people.names(first).map((n, i) => n || tName(t, first[i])), uids: first.includes(me) ? [me] : [],
@@ -5350,17 +5364,20 @@ function showTourQR(t){
 async function drawAndStart(t){
   if((t.players || []).length < tourMin(t)) return;
   const ratingsNow = {};
-  for(const id of t.players){ const st = statsOf(id); if(st) ratingsNow[id] = st.zargo; }
+  for(const id of t.players){ const st = statsOf(id); if(st && Number.isFinite(st.zargo)) ratingsNow[id] = st.zargo; }
+  // Handicapped (§3.11): every entrant's rating frozen at Start, 500 for anyone without one.
+  const zargos = isHcp(t) ? Object.fromEntries(t.players.map(id => [id, id in ratingsNow ? Math.round(ratingsNow[id]) : B.NO_RATING])) : null;
   for(;;){
     const seeds = B.draw(t.players, { seeding: t.seeding, ratings: ratingsNow });
-    const r1 = safely(() => B.state({ ...t, seeds, results: {} }).filter(f => (f.side === "W" || f.side === "R") && f.round === 1), []);
+    const r1 = safely(() => B.state({ ...t, seeds, results: {}, ...(zargos ? { zargos } : {}) }).filter(f => (f.side === "W" || f.side === "R") && f.round === 1), []);
     const out1 = isRobin(t) ? B.sitsOut(seeds.length)[1] : null;
     const v = await ui.sheet({ title: "The draw", body: close => {
       const wrap = mk("div", "tsheet"), ul = mk("ul", "reclist");
       wrap.append(mk("p", "thint", `Round 1 · ${t.seeding === "rating" ? "by rating" : "drawn at random"}`));
       for(const f of r1){
         const li = mk("li");
-        li.append(mk("span", "", f.status === "bye" ? `${tName(t, f.winner)} has a bye` : `${tName(t, f.a)} v ${tName(t, f.b)}`));
+        li.append(mk("span", "", f.status === "bye" ? `${tName(t, f.winner)} has a bye`
+          : zargos && !level(f) ? `${tName(t, f.a)} ${f.targets.a} v ${tName(t, f.b)} ${f.targets.b}` : `${tName(t, f.a)} v ${tName(t, f.b)}`));
         ul.append(li);
       }
       if(out1) ul.append(Object.assign(mk("li"), { textContent: `${tName(t, seeds[out1 - 1])} sits this round out` }));
@@ -5373,7 +5390,15 @@ async function drawAndStart(t){
       const go = mk("button", "primary", "Start"), again = mk("button", "quiet", "Redraw");
       ui.tap(go, () => close("start"));
       ui.tap(again, () => close("redraw"));
-      wrap.append(ul, go, again);
+      wrap.append(ul);
+      // The ratings the handicap is fixed from, so a wrong one is seen before Start.
+      if(zargos){
+        const zl = mk("ul", "reclist");
+        for(const id of [...t.players].sort((x, y) => zargos[y] - zargos[x]))
+          zl.append(Object.assign(mk("li"), { textContent: `${tName(t, id)} ${zargos[id]}${id in ratingsNow ? "" : " · no rating yet"}` }));
+        wrap.append(mk("p", "thint", "Handicapped from these ratings, fixed at Start. Fix a guest's in Players first if one is wrong."), zl);
+      }
+      wrap.append(go, again);
       return wrap;
     } });
     if(v === "redraw") continue;
@@ -5386,7 +5411,7 @@ async function drawAndStart(t){
       return drawAndStart(fresh);
     }
     tourView = { side: null, round: null };
-    saveTour(t, { seeds, status: "live", startedAt: Date.now(), results: {} });
+    saveTour(t, { seeds, status: "live", startedAt: Date.now(), results: {}, ...(zargos ? { zargos } : {}) });
     return;
   }
 }
@@ -5827,7 +5852,7 @@ async function openMatch(t, f){
   const v = await ui.sheet({ title: roundTitle(t, f) + (f.key.includes("-") ? " · match " + f.slot : ""), body: close => {
     const wrap = mk("div", "tsheet");
     const state = r ? (r.wo ? "walkover" : "played") : f.status === "ready" ? "to play" : "waiting";
-    wrap.append(mk("p", "lbl dim", `Race to ${f.race} · ${state}`));
+    wrap.append(mk("p", "lbl dim", `R${raceWords(f).slice(1)} · ${state}`));
     for(const i of [0, 1]){
       const id = i ? f.b : f.a, p = mk("div", "tsp");
       if(id){
@@ -5906,7 +5931,7 @@ async function openResult(t, f){
   }
   const was = f.status === "done" && f.result && !f.result.wo ? f.result : null;
   let a = was ? was.a : 0, bb = was ? was.b : 0;
-  const race = f.race;
+  const race = targetsOf(f);                  // each side's own target (§3.11); level unless handicapped
   const v = await ui.sheet({ title: `${f.name}${t.format === "double" && !isFinal(f) ? " · " + SIDE_WORD[sideOf(f)] : ""}`, body: close => {
     const wrap = mk("div", "tsheet"), save = mk("button", "primary", "Save");
     const wn = whereNext(t, stateOf(t), f, close);
@@ -5920,12 +5945,14 @@ async function openResult(t, f){
     } else if(r0 && r0.by){
       wrap.append(mk("p", "thint", `${whoEntered(t, r0)} entered ${resultWords(t, f, r0)}.`));
     }
-    const fits = () => (a === race) !== (bb === race);
-    const paint = () => { save.disabled = !fits(); save.textContent = fits() ? `Save · ${a}–${bb}` : `First to ${race}`; };
+    const fits = () => (a === race.a) !== (bb === race.b);
+    const paint = () => { save.disabled = !fits(); save.textContent = fits() ? `Save · ${a}–${bb}` : `First to ${race.a === race.b ? race.a : race.a + " v " + race.b}`; };
     const label = id => [tAvatar(t, id, 36), mk("span", "", tName(t, id))];
-    wrap.append(mk("p", "thint", `Race to ${race}. Racks each, then Save.`),
-      stepper(label(f.a), a, 0, race, n => { a = n; paint(); }, { stack: true }),
-      stepper(label(f.b), bb, 0, race, n => { bb = n; paint(); }, { stack: true }));
+    const twin = firstName(tName(t, f.a)) === firstName(tName(t, f.b)), nm = id => twin ? tName(t, id) : firstName(tName(t, id));
+    const hint = race.a === race.b ? `Race to ${race.a}.` : `${nm(f.a)} races to ${race.a}, ${nm(f.b)} to ${race.b}.`;
+    wrap.append(mk("p", "thint", `${hint} Racks each, then Save.`),
+      stepper(label(f.a), a, 0, race.a, n => { a = n; paint(); }, { stack: true }),
+      stepper(label(f.b), bb, 0, race.b, n => { bb = n; paint(); }, { stack: true }));
     ui.tap(save, () => fits() && close({ kind: "score" }));
     wrap.append(save);
     if(mayScore(t, f) && !was){
@@ -5963,7 +5990,7 @@ async function openResult(t, f){
   }
   const res = v.kind === "wo"
     ? { ids: [f.a, f.b], a: 0, b: 0, w: v.w, wo: true, by: myUid(), at: Date.now() }
-    : { ids: [f.a, f.b], a, b: bb, w: a === race ? "a" : "b", by: myUid(), at: Date.now() };
+    : { ids: [f.a, f.b], a, b: bb, w: a === race.a ? "a" : "b", by: myUid(), at: Date.now() };
   if(!B.validResult(t, f.key, res)) return ui.toast("That result doesn't fit this match.");
   const next = { ...t, results: { ...(t.results || {}), [f.key]: res } };
   // `entry` names the result an entrant's write touches (the rules check that one alone).
@@ -6028,7 +6055,7 @@ function clearResult(t, f){
 
 // ---- Score it in Rack It (2.31.0, TOURNAMENT.md §3.5 item 3, Session 4) ----
 // A ready match opens match setup with the game, both players and the race filled in and
-// locked, handicap off, no Rated tick. The match is an ordinary friendly carrying `tournament`,
+// locked, handicap off (or a handicapped tournament's two targets, §3.11), no Rated tick. The match is an ordinary friendly carrying `tournament`,
 // `fixture`, `tournamentName` and `round` (fixtureStarts in the rules lets two entrants who
 // aren't connected start it). When it's saved its racks become the fixture's result, with
 // `match` naming it; at the finish that match is marked rated instead of a second one written.
@@ -6050,10 +6077,14 @@ async function scoreFixture(t, f){
   openSetup();
   setup.game = t.game;
   setup.a = f.a; setup.b = f.b; setup.touched = true;
-  setup.tour = { id: t.id, key: f.key, name: t.name || "the tournament", race: f.race,
+  // Handicapped and uneven (§3.11): Racks with the match's two targets, read as targets, not a head start.
+  const tg = level(f) ? null : { ...f.targets };
+  setup.tour = { id: t.id, key: f.key, name: t.name || "the tournament", race: f.race, targets: tg,
     round: roundTitle(t, f), names: { a: tName(t, f.a), b: tName(t, f.b) }, uids: (t.uids || []).filter(x => x === f.a || x === f.b) };
   applyGameDefaults();
-  setup.handicap = "off"; setup.mode = "race"; setup.raceTo = f.race; setup.raceOther = false; setup.rated = false;
+  setup.handicap = tg ? "racks" : "off"; setup.mode = "race"; setup.raceTo = tg ? Math.max(tg.a, tg.b) : f.race;
+  setup.raceOther = false; setup.rated = false; setup.form = "targets";
+  proposeTargets();
   renderSetup();
 }
 // While setup plays a fixture: its card on top, and everything the tournament fixed set aside.
@@ -6064,7 +6095,8 @@ function paintSetupTour(){
     n.classList.toggle("hidden", !!tr || (n === el.tourCards && !el.tourCards.children.length));
   if(!tr) return;
   el.setupTourWho.textContent = `${tr.name} · ${tr.round}`;
-  el.setupTourWhat.textContent = `${GAME_LABEL[setup.game]} · race to ${tr.race} · no handicap · rated when it finishes`;
+  el.setupTourWhat.textContent = `${GAME_LABEL[setup.game]} · ` + (tr.targets ? `race to ${tr.targets.a} v ${tr.targets.b} · handicapped` : `race to ${tr.race} · no handicap`)
+    + " · rated when it finishes";
 }
 ui.tap(el.setupTourOff, () => { const id = setup.tour && setup.tour.id; setup.tour = null; if(id) openTour(id); else openSetup(); });
 // A saved match that plays a fixture: its racks become the result, unless one is in already.
@@ -6083,7 +6115,7 @@ async function resultFromMatch(id){
     const swap = people.resolve(m.playerA) === f.b;
     const a = swap ? won("b") : won("a"), b = swap ? won("a") : won("b");
     const res = { ids: [f.a, f.b], a, b, w: a > b ? "a" : "b", by: myUid(), at: Date.now(), match: id };
-    if(!B.validResult(t, f.key, res)) return ui.toast(`Nobody reached ${f.race}, so it isn't the result. Enter it on the tournament's page.`);
+    if(!B.validResult(t, f.key, res)) return ui.toast(`Nobody reached ${level(f) ? f.race : "their target"}, so it isn't the result. Enter it on the tournament's page.`);
     await cloud.patch(tourPath(t.id), { ["results." + f.key]: res, entry: f.key });
     ui.toast(`${t.name}: ${resultWords(t, f, res)}, in.`);
   } catch(e){
@@ -6158,11 +6190,11 @@ async function rateResult(t, f, ratedAt){
   let n = 1;
   for(let i = 0; i < r.a; i++) racks[n++] = { winner: "a" };
   for(let i = 0; i < r.b; i++) racks[n++] = { winner: "b" };
-  const m = { game: t.game, handicap: "off", playerA: A, playerB: Bp, names: { a: tName(t, A), b: tName(t, Bp) },
+  const m = { game: t.game, handicap: level(f) ? "off" : "racks", playerA: A, playerB: Bp, names: { a: tName(t, A), b: tName(t, Bp) },
     uids: [A, Bp], by: myUid(), rated: true, entered: true,
     tournament: t.id, tournamentName: t.name || "a tournament", fixture: f.key,
     round: (t.format === "double" && !isFinal(f) ? SIDE_WORD[sideOf(f)] + ", " + f.name.toLowerCase() : f.name),
-    mode: "race", targets: { a: f.race, b: f.race }, racksPlanned: null,
+    mode: "race", targets: { ...targetsOf(f) }, racksPlanned: null,
     startedAt: r.at || t.startedAt || ratedAt, endedAt: r.at || ratedAt, playedAt: r.at || ratedAt, status: "done", racks,
     totals: { a: r.a, b: r.b, racksA: r.a, racksB: r.b, dead: 0, lead: r.b - r.a, winner: r.w } };
   const a = await ratingNow(A), b = await ratingNow(Bp);

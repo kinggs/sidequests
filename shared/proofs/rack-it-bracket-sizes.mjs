@@ -5,6 +5,8 @@
 // round of both sides and checks the geometry: each line meets a card's middle, no two cards in a
 // column overlap, and no card is cut off. Also: Your path at each size, two long names that
 // ellipsise instead of wrapping, and reduced motion (no pulse animation). Screenshots go to SHOTS.
+// 2.34.0 (§3.11): handicapped at 8 single and 32 double, at 360×640 with the largest text: the
+// geometry, and a ready match's steppers sheet reading "First to x v y" without a sideways scroll.
 //
 //   node shared/proofs/rack-it-bracket-sizes.mjs
 import { ok, summary, serve, browser, tab, C, shot } from "./h.mjs";
@@ -17,26 +19,29 @@ await p.waitForTimeout(600);
 
 const LONG = "Bartholomew Featherstonehaugh-Cholmondeley";
 // A tournament written straight to the mock store: the owner plus guests, half the matches played.
-async function make(n, format){
+async function make(n, format, hcp = false){
   const ids = ["mock-uid", ...Array.from({ length: n - 1 }, (_, i) => "g_t" + i)];
   const names = ["Mock", ...ids.slice(1).map((_, i) => i === 0 ? LONG : "Player " + (i + 2))];
   const t = { name: `${n} ${format}`, game: "eight", format, final: format === "double" ? "reset" : "one", third: false,
     race: { w: 3 }, seeding: "random", by: "mock-uid", byName: "Mock", status: "live", createdAt: Date.now(), startedAt: Date.now(),
     players: ids, names, uids: ["mock-uid"], seeds: ids.slice(), results: {} };
+  // Handicapped: ratings spread 300 to 800, so most matches have two different targets.
+  if(hcp) Object.assign(t, { handicap: "racks", zargos: Object.fromEntries(ids.map((id, i) => [id, 300 + (i * 137) % 500])) });
   const total = B.state(t).filter(f => f.status !== "bye").length;
   for(let i = 0; i < total / 2; i++){
     const f = B.state(t).find(x => x.status === "ready" && x.a !== "mock-uid" && x.b !== "mock-uid") || B.state(t).find(x => x.status === "ready");
     if(!f) break;
-    t.results[f.key] = { ids: [f.a, f.b], a: 3, b: i % 3, w: "a", by: "mock-uid", at: i + 1 };
+    const T = f.targets;
+    t.results[f.key] = { ids: [f.a, f.b], a: T.a, b: Math.min(i % 3, T.b - 1), w: "a", by: "mock-uid", at: i + 1 };
   }
-  const id = "size" + n + format;
+  const id = "size" + n + format + (hcp ? "h" : "");
   await C(p, (c, a) => c.save("tournaments/" + a.id, a.t), { id, t });
   return id;
 }
 const open = async id => {
   await p.click('.tabbar button[data-tab="play"]'); await p.waitForTimeout(150);
   await p.click("#toursBtn"); await p.waitForTimeout(200);
-  await p.locator("#tourList button", { hasText: id.replace("size", "").replace(/(single|double|robin|groups)/, " $1") }).first().click();
+  await p.locator("#tourList button", { hasText: id.replace("size", "").replace(/h$/, "").replace(/(single|double|robin|groups)/, " $1") }).first().click();
   await p.waitForTimeout(400);
 };
 // Geometry of the draw as it stands: lines against card middles, overlaps, cards cut off.
@@ -91,6 +96,44 @@ for(const [w, h] of SIZES) for(const big of [false, true]){
     ok(await p.evaluate(() => document.querySelector("#tBody").scrollWidth <= document.querySelector("#tBody").clientWidth + 1), `${tag}: no sideways scroll`);
   }
 }
+// Handicapped (2.34.0): the draw's geometry, and a ready match's sheet with two targets.
+await p.setViewportSize({ width: 360, height: 640 });
+await p.evaluate(() => { document.documentElement.style.fontSize = "26px"; });
+for(const [n, format] of [[8, "single"], [32, "double"]]){
+  // Older ones of the same size would share the list's text: name these apart.
+  const id = await make(n, format, true);
+  await C(p, (c, a) => c.patch("tournaments/" + a, { name: a.replace("size", "H ") }), id);
+  await p.click('.tabbar button[data-tab="play"]'); await p.waitForTimeout(150);
+  await p.click("#toursBtn"); await p.waitForTimeout(200);
+  await p.locator("#tourList button", { hasText: id.replace("size", "H ") }).first().click(); await p.waitForTimeout(400);
+  const tag = `handicapped ${n} ${format} 360×640 big text`;
+  ok(/handicapped/i.test(await p.locator("#tBody").innerText()), `${tag}: the line says handicapped`);
+  await p.locator("#tBody .seg button", { hasText: "Whole draw" }).click(); await p.waitForTimeout(150);
+  const back = p.locator('#tBody .tround button[aria-label="The round before"]');
+  while(await back.isEnabled()){ await back.click(); await p.waitForTimeout(60); }
+  let problems = [], opened = false;
+  for(let r = 1;; r++){
+    const g = await geometry();
+    if(g.err || g.bad.length || g.overlap || g.cut || g.spill) problems.push(`round ${r}: ${JSON.stringify(g)}`);
+    const ready = p.locator("#tBody .tcol.cur .mc", { hasText: "to play" });
+    if(!opened && await ready.count()){
+      await ready.first().click(); await p.waitForTimeout(250);
+      const sh = p.locator("body > .scrim:last-of-type .sheet");
+      const words = await sh.innerText();
+      ok(/races to \d+, .+ to \d+|Race to \d+\./.test(words) && /First to \d+( v \d+)?/.test(words)
+        && await sh.evaluate(n => n.scrollWidth <= n.clientWidth + 1), `${tag}: the steppers sheet: ` + words.replace(/\s+/g, " ").slice(0, 120));
+      await shot(p, `sizes-handicap-sheet-${n}-${format}`);
+      await p.keyboard.press("Escape"); await p.waitForTimeout(250);
+      opened = true;
+    }
+    const fwd = p.locator('#tBody .tround button[aria-label="The next round"]');
+    if(!(await fwd.isEnabled())) break;
+    await fwd.click(); await p.waitForTimeout(60);
+  }
+  ok(!problems.length && opened, `${tag}: lines meet cards, nothing overlaps or spills, a sheet opened` + (problems.length ? " — " + problems[0] : ""));
+}
+await p.evaluate(() => { document.documentElement.style.fontSize = ""; });
+
 // A long name ellipsises on one line.
 await p.setViewportSize({ width: 360, height: 640 });
 await p.evaluate(() => { document.documentElement.style.fontSize = ""; });

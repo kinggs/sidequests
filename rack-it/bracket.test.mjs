@@ -24,7 +24,8 @@ const fx = (t, key) => B.state(t).find(x => x.key === key);
 function win(t, key, who, score = 1){
   const x = fx(t, key);
   const w = x.a === who ? "a" : "b";
-  const r = { ids: [x.a, x.b], w, a: w === "a" ? x.race : score, b: w === "b" ? x.race : score, by: "u", at: 1 };
+  const T = x.targets, lose = side => Math.min(score, T[side] - 1);
+  const r = { ids: [x.a, x.b], w, a: w === "a" ? T.a : lose("a"), b: w === "b" ? T.b : lose("b"), by: "u", at: 1 };
   t.results = { ...t.results, [key]: r };
   return r;
 }
@@ -264,10 +265,11 @@ function play(t, r){
     if (!ready.length) return t;
     const x = ready[Math.floor(r() * ready.length)];
     const w = r() < 0.5 ? "a" : "b";
-    const loserRacks = Math.floor(r() * x.race);
+    const T = x.targets, l = w === "a" ? "b" : "a";
+    const loserRacks = Math.floor(r() * T[l]);
     const res = r() < 0.1
       ? { ids: [x.a, x.b], w, wo: true, a: 0, b: 0 }
-      : { ids: [x.a, x.b], w, a: w === "a" ? x.race : loserRacks, b: w === "b" ? x.race : loserRacks };
+      : { ids: [x.a, x.b], w, a: w === "a" ? T.a : loserRacks, b: w === "b" ? T.b : loserRacks };
     assert.ok(B.validResult(t, x.key, res));
     t.results = { ...t.results, [x.key]: res };
   }
@@ -626,5 +628,79 @@ test("property: groups at every size 6–32, random results, everyone placed onc
     for (const [k, c] of spans){ const [a, b] = k.split("-").map(Number); assert.equal(c, b - a + 1, `${n}: ${k} held by ${c}`); }
     assert.equal(Math.max(...s.map(x => x.placeTo)), n, `${n}: places run to ${n}`);
     assert.equal(s.filter(x => x.place === 1).length, 1);
+  }
+});
+
+// ---- handicapped races (TOURNAMENT.md §3.11, Session 8) ----
+
+test("handicap: each side's target from the ratings frozen at Start", () => {
+  const z = { p1: 650, p2: 500, p3: 500, p4: 450 };          // W1-1 is p1 v p4, W1-2 p2 v p3
+  const t = tour(4, { handicap: "racks", zargos: z });
+  assert.deepEqual(fx(t, "W1-1").targets, { a: 3, b: 1 }, "the favourite races to the set race");
+  assert.deepEqual(fx(t, "W1-2").targets, { a: 3, b: 3 }, "equal ratings play level");
+  assert.equal(fx(t, "W2-1").targets, null, "a match still waiting has no targets");
+  assert.equal(fx(t, "W1-1").race, 3, "race stays the set race");
+  const swapped = tour(4, { handicap: "racks", zargos: { ...z, p1: 450, p4: 650 } });
+  assert.deepEqual(fx(swapped, "W1-1").targets, { a: 1, b: 3 }, "a favourite as b");
+  const missing = tour(4, { handicap: "racks", zargos: { p1: 650, p4: 450, p3: 600 } });
+  assert.deepEqual(fx(missing, "W1-2").targets, { a: 2, b: 3 }, "no rating counts as 500 (500 v 600)");
+  assert.deepEqual(fx(tour(4, { zargos: z }), "W1-1").targets, { a: 3, b: 3 }, "off: both race to the race");
+  const big = tour(4, { handicap: "racks", zargos: z, race: { w: 5 } });
+  assert.deepEqual(fx(big, "W1-1").targets, { a: 5, b: 2 });
+  assert.deepEqual(B.targetsFor(big, 5, "p4", "p1"), { a: 2, b: 5 });
+});
+
+test("handicap: a result fits the two targets, not the plain race", () => {
+  const t = tour(4, { handicap: "racks", zargos: { p1: 650, p4: 450 } });
+  const r = (a, b, w) => ({ ids: ["p1", "p4"], a, b, w });
+  assert.ok(B.validResult(t, "W1-1", r(3, 0, "a")));
+  assert.ok(B.validResult(t, "W1-1", r(2, 1, "b")), "the underdog wins at their own target");
+  assert.ok(!B.validResult(t, "W1-1", r(3, 1, "a")), "both at their target");
+  assert.ok(!B.validResult(t, "W1-1", r(1, 3, "b")), "past the underdog's target");
+  assert.ok(!B.validResult(t, "W1-1", r(2, 1, "a")), "w must be the side at its target");
+  const off = tour(4, { zargos: { p1: 650, p4: 450 } });
+  assert.ok(!B.validResult(off, "W1-1", r(2, 1, "b")), "off, 2–1 reaches no race");
+  assert.ok(B.validResult(off, "W1-1", r(3, 1, "a")));
+  t.results["W1-1"] = r(2, 1, "b");
+  assert.equal(fx(t, "W1-1").status, "done");
+  assert.equal(fx(t, "W2-1").a, "p4");
+});
+
+test("handicap: the 2.33.1 final allowance applies only with the handicap off", () => {
+  const t = tour(4, { race: { w: 3, f: 5 }, handicap: "racks", zargos: {} });
+  for (const f of B.state(t).filter(f => f.name === "Semi-finals")) t.results[f.key] = { ids: [f.a, f.b], a: 3, b: 1, w: "a", by: "u", at: 1 };
+  const fin = fx(t, "W2-1");
+  assert.deepEqual(fin.targets, { a: 5, b: 5 });
+  t.results["W2-1"] = { ids: [fin.a, fin.b], a: 3, b: 2, w: "a", by: "u", at: 2 };
+  assert.equal(fx(t, "W2-1").status, "ready", "a handicapped final at race.w doesn't count");
+});
+
+test("property: handicapped, every format and size, random ratings, played to the end", () => {
+  const variants = [];
+  for (let n = 3; n <= 32; n++){
+    variants.push({ n, format: "single", third: n % 2 === 0 }, { n, format: "double", final: n % 2 ? "reset" : "one" });
+    if (n <= B.ROBIN_MAX) variants.push({ n, format: "robin" });
+    if (n >= 6) variants.push({ n, format: "groups", third: n % 3 === 0 });
+  }
+  for (const v of variants){
+    const r = rng(v.n * 31 + v.format.length * 7 + (v.third ? 1 : 0));
+    const players = ids(v.n), zargos = {};
+    for (const p of players) if (r() < 0.9) zargos[p] = 300 + Math.round(r() * 500);
+    const race = { w: 1 + Math.floor(r() * 7), l: r() < 0.5 ? 2 : undefined, f: r() < 0.5 ? 5 : undefined };
+    const t = { format: v.format, final: v.final || "one", third: !!v.third, race, players,
+      seeds: B.draw(players, { rand: r }), results: {}, handicap: "racks", zargos };
+    const tag = `handicap ${JSON.stringify(v)}`;
+    play(t, r);
+    assert.ok(B.finished(t), tag);
+    assert.deepEqual(B.ignored(t), [], tag);
+    for (const x of B.state(t).filter(x => x.status === "done" || x.status === "ready")){
+      const { a, b } = x.targets;
+      assert.equal(Math.max(a, b), x.race, `${tag} ${x.key} the favourite races to the race`);
+      assert.ok(Math.min(a, b) >= 1, `${tag} ${x.key}`);
+      const za = zargos[x.a] ?? 500, zb = zargos[x.b] ?? 500;
+      if (za > zb) assert.equal(a, x.race, `${tag} ${x.key} a is the favourite`);
+      if (zb > za) assert.equal(b, x.race, `${tag} ${x.key} b is the favourite`);
+    }
+    assert.equal(B.standings(t).length, v.n, tag);
   }
 });
