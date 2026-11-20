@@ -4,6 +4,7 @@
 mod fixtures;
 mod json;
 mod rules;
+mod samples;
 mod sound;
 
 use crate::abi::*;

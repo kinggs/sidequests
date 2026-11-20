@@ -2,6 +2,9 @@
 // bytes, this compiles them here, grows the module's memory by one page and puts the engine
 // and its buffers there (ENGINE.md §8), exactly as harness/trace.test.mjs does in Node.
 //
+// With `samples` each track can play the starter pack's sample in place of its code voice
+// (D50), chosen by command (22) like any other.
+//
 // Two uses, by what the page sends in processorOptions:
 //   a run     { cmds, end }: commands at absolute frames, as a P2 harness sends them. At `end`
 //             the events it captured are posted back and the node stops.
@@ -12,7 +15,7 @@
 //
 // SPDX-License-Identifier: MIT
 const PAGE = 65536;
-const EVENTS = 2048, CAP = 256, AUDIO = 5120, CMDS = 8192, CMDS_MAX = (PAGE - CMDS) / 12;
+const EVENTS = 4096, CAP = 256, AUDIO = 7168, CMDS = 8192, CMDS_MAX = (PAGE - CMDS) / 12;
 
 class Engine extends AudioWorkletProcessor {
   constructor(options) {
@@ -21,9 +24,21 @@ class Engine extends AudioWorkletProcessor {
     const instance = new WebAssembly.Instance(new WebAssembly.Module(o.wasm), {});
     this.pi = instance.exports;
     this.base = this.pi.memory.grow(1) * PAGE;
-    // The engine sits before the events: 2 KiB of room (core/src/tests/rules.rs holds pi_size to it).
+    // The engine sits before the events: 4 KiB of room (core/src/tests/rules.rs holds pi_size to it).
     if (this.pi.pi_size() > EVENTS) throw new Error(`the engine is ${this.pi.pi_size()} bytes, more than the ${EVENTS} before the events`);
     this.e = this.pi.pi_init(this.base, this.pi.pi_size(), sampleRate, o.seed);
+    // D50: `samples`, sixteen ArrayBuffers of 16-bit mono at 44.1 kHz (or null), one a track,
+    // copied once into pages of their own. The engine reads them from there for good.
+    if (o.samples) {
+      const total = o.samples.reduce((a, b) => a + (b ? b.byteLength : 0), 0);
+      let at = this.pi.memory.grow(Math.ceil(total / PAGE)) * PAGE;
+      o.samples.forEach((b, t) => {
+        if (!b || !b.byteLength) return;
+        new Uint8Array(this.pi.memory.buffer, at, b.byteLength).set(new Uint8Array(b));
+        if (this.pi.pi_set_sample(this.e, t, at, b.byteLength / 2) !== 1) throw new Error(`track ${t}'s sample was refused`);
+        at += b.byteLength + (b.byteLength & 1);
+      });
+    }
     // The other copies, one engine's size apart (pi_size, rounded to its alignment) in pages
     // of their own. It was a fixed 512 bytes until the drums took the engine past that.
     this.more = [];

@@ -5,7 +5,7 @@ use crate::engine::Engine;
 use crate::seq::TRACKS;
 use crate::snapshot;
 
-pub const ABI_VERSION: u32 = 2;
+pub const ABI_VERSION: u32 = 3;
 
 pub const CMD_CLOCK: u8 = 1;
 pub const CMD_RESET: u8 = 2;
@@ -18,6 +18,7 @@ pub const CMD_SWING: u8 = 18;
 pub const CMD_LENGTH: u8 = 19;
 pub const CMD_SOUND: u8 = 20;
 pub const CMD_FIRE: u8 = 21;
+pub const CMD_VOICE: u8 = 22;
 
 pub const EV_STEP: u8 = 1;
 pub const EV_TRIG: u8 = 2;
@@ -219,4 +220,29 @@ pub unsafe extern "C" fn pi_load(engine: *mut Engine, buf: *const u8, len: u32) 
     // SAFETY: non-null and `len` bytes by the contract.
     let bytes = unsafe { core::slice::from_raw_parts(buf, len as usize) };
     snapshot::load(e, bytes)
+}
+
+/// D50: track `track`'s sample, `frames` 16-bit mono frames at 44.1 kHz. Null or 0 frames
+/// clears it. Returns 1 if the sample was taken, 0 if cleared or refused (a track past 15,
+/// or data not aligned to 2 bytes). A sample that was sounding stops.
+///
+/// # Safety
+/// `engine` as `pi_set_sample_rate`. `data` is null or points to `frames` readable i16s that
+/// stay readable and unchanged until this track's sample is set again, or the engine is
+/// re-initialised or dropped. The only pointer the core keeps.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pi_set_sample(engine: *mut Engine, track: u32, data: *const i16, frames: u32) -> u32 {
+    // SAFETY: null or a live engine, by the contract.
+    let Some(e) = (unsafe { engine.as_mut() }) else {
+        return 0;
+    };
+    let Some(s) = e.voices.samples.get_mut(track as usize) else {
+        return 0;
+    };
+    if data.is_null() || frames == 0 || !data.is_aligned() {
+        s.set(core::ptr::null(), 0);
+        return 0;
+    }
+    s.set(data, frames);
+    1
 }

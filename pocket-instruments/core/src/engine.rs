@@ -147,6 +147,13 @@ impl Engine {
                 out.push(self.clock.now(), EV_TRIG, a as u8, self.seq.step());
                 false
             }
+            // Which a track plays when it fires: 0 its code voice, 1 its sample (D50). Not
+            // in snapshot version 1, like the sliders, so it does not move the generation.
+            CMD_VOICE if a < TRACKS => {
+                let bit = 1u16 << a;
+                self.voices.sampled = if v != 0 { self.voices.sampled | bit } else { self.voices.sampled & !bit };
+                false
+            }
             CMD_LENGTH => {
                 let l = v.clamp(1, STEPS as u32) as u8;
                 let old = core::mem::replace(&mut self.pat.length, l);

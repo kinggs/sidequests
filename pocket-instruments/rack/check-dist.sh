@@ -6,6 +6,7 @@
 #   check-dist.sh <PocketInstruments-<version>-<platform>.vcvplugin>
 #
 #   - the archive holds the manifest and one plugin binary of the right kind;
+#   - and the starter pack (D50): res/samples/tracks.txt and the sixteen samples it names;
 #   - lin-x64: needs no glibc newer than 2.23 and nothing from the system's libstdc++;
 #   - win-x64: needs no DLL that neither Windows nor Rack's own folder provides;
 #   - mac-*: one architecture, the right one; libRack found where Rack puts it
@@ -35,6 +36,12 @@ win-*) bin=$dir/plugin.dll ;;
 mac-*) bin=$dir/plugin.dylib ;;
 esac
 [ -f "$bin" ] || fail "no $(basename "$bin") in the archive"
+list=$dir/res/samples/tracks.txt
+[ -f "$list" ] || fail "no res/samples/tracks.txt: the plugin would play code only"
+[ "$(grep -c . "$list")" -eq 16 ] || fail "res/samples/tracks.txt does not name sixteen samples"
+while read -r s; do
+    [ -s "$dir/res/samples/$s.s16" ] || fail "no res/samples/$s.s16"
+done < "$list"
 
 case $platform in
 lin-x64)
@@ -73,4 +80,4 @@ mac-*)
     note="$archs; says it runs on macOS $min and later"
     ;;
 esac
-echo "P5 $platform: $(basename "$file"): $note"
+echo "P5 $platform: $(basename "$file"): $note; sixteen samples"

@@ -48,8 +48,10 @@ for (const m of probes) {
     continue;
   }
   const bytes = Buffer.from(d.snapshot, "base64");
-  new Uint8Array(pi.memory.buffer, base + 1024, bytes.length).set(bytes);
-  const rc = pi.pi_load(engine, base + 1024, bytes.length);
+  // Past the engine's 4 KiB (core/src/tests/rules.rs). It sat at 1 KiB, inside the engine
+  // once it grew past that (Session 7, found in Session 8).
+  new Uint8Array(pi.memory.buffer, base + 4096, bytes.length).set(bytes);
+  const rc = pi.pi_load(engine, base + 4096, bytes.length);
   if (rc !== 0) {
     say(`FAILED: the wasm core refused the snapshot (${rc})`);
     failed++;

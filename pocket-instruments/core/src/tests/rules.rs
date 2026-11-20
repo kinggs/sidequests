@@ -25,13 +25,14 @@ fn trigs(ev: &[(u64, Event)]) -> Vec<(u64, u32, u8)> {
 
 #[test]
 fn the_records_and_the_engine_have_the_sizes_the_header_says() {
-    assert_eq!(pi_abi_version(), 2);
+    assert_eq!(pi_abi_version(), 3);
     assert_eq!(size_of::<Cmd>(), 12);
     assert_eq!(size_of::<Event>(), 12);
-    // The upper bound is the hosts' fixed room for one engine: 2 KiB before the snapshot in
+    // The upper bound is the hosts' fixed room for one engine: 4 KiB before the snapshot in
     // harness/trace.test.mjs and before the events in web/worklet.js, and Probe.cpp's buffer.
-    // It was 512 until the drums (752 bytes), and 1 KiB until all sixteen voices (1 416).
-    assert!(pi_size() >= 316 - 16 && pi_size() <= 2048, "pi_size is {}", pi_size());
+    // It was 512 until the drums (752 bytes), 1 KiB until all sixteen voices (1 416), and
+    // 2 KiB until each track had a sample beside its voice (D50).
+    assert!(pi_size() >= 316 - 16 && pi_size() <= 4096, "pi_size is {}", pi_size());
     assert!(pi_align() <= 8);
 }
 

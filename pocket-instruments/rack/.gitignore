@@ -3,3 +3,4 @@ dist/
 plugin.so
 plugin.dll
 plugin.dylib
+res/

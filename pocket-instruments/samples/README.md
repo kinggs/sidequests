@@ -30,6 +30,13 @@ and a line in `LEARNINGS.md` if it taught something. 377 KB in all.
 | 15 | Tone | `elec_ping.flac` | looppool | http://www.freesound.org/people/looppool/sounds/13119/ | a pure tone near 880 Hz; slider A will tune it | `3a9d36527116` |
 | 16 | Bass tone | `elec_bong.flac` | looppool | http://www.freesound.org/people/looppool/sounds/13137/ | a low tone near 310 Hz; slider A will tune it | `e4f76c4bff74` |
 
+## As the engine reads them (D50)
+
+`raw/<name>.s16` is each file as the engine plays it: mono, 16-bit little-endian, 44.1 kHz,
+its loudest point at full scale. `tracks.txt` lists them in key order, one name a line;
+every host reads it. Both are made and committed by `python3 samples/make-raw.py` (needs
+ffmpeg; the same bytes every run). After a swap, run it again and commit both.
+
 ## Licence
 
 Creative Commons Zero 1.0: https://creativecommons.org/publicdomain/zero/1.0/

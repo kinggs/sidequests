@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Listen: all sixteen</title>
-<!-- A page to hear the sixteen voices the core builds in code, beside the starter pack's
-     samples (D35), and choose by ear which keys become samples. Not the instrument and not
-     its look (design/): a bare page, like index.html and samples/index.html.
+<!-- A page to hear the sixteen voices, each key either the sound the core builds in code or
+     the starter pack's sample (D35), and to choose which per key (D50). Not the instrument
+     and not its look (design/): a bare page, like index.html and samples/index.html.
      ?auto checks its own wiring and posts the result back (web/listen.mjs). -->
 <style>
   :root { color-scheme: dark; }
@@ -16,18 +16,21 @@
   button { font: inherit; color: #eee; background: #262626; border: 2px solid #444; border-radius: 12px; min-height: 64px; padding: 6px 12px; touch-action: manipulation; }
   button:disabled { opacity: 0.4; }
   .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-  .grid button { min-height: 84px; padding: 6px 2px; }
+  .grid button { min-height: 92px; padding: 6px 2px; }
   .grid b { display: block; font-size: 24px; }
-  .grid span { font-size: 15px; color: #ccc; }
+  .grid span { display: block; font-size: 15px; color: #ccc; }
+  .grid i { display: block; font-style: normal; font-size: 14px; letter-spacing: 0.06em; text-transform: uppercase; color: #999; }
+  .grid button.sampled { border-style: dashed; }
+  .grid button.sampled i { color: #e8c547; }
   .grid button.chosen { border-color: #eee; }
   .grid button.hit { background: #e8c547; border-color: #e8c547; color: #111; }
-  .grid button.hit span { color: #111; }
-  .switch { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+  .grid button.hit span, .grid button.hit i { color: #111; }
+  .switch { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0 12px; }
   .switch button[aria-pressed="true"] { background: #eee; color: #111; border-color: #eee; font-weight: 700; }
   .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
   .panel { margin-top: 16px; padding: 12px; border: 2px solid #333; border-radius: 12px; }
-  .panel h2 { font-size: 20px; margin: 0 0 8px; }
-  label { display: block; margin-top: 10px; font-size: 15px; letter-spacing: 0.04em; text-transform: uppercase; color: #ccc; }
+  .panel h2 { font-size: 20px; margin: 0 0 4px; }
+  label { display: block; margin-top: 10px; font-size: 14px; letter-spacing: 0.06em; text-transform: uppercase; color: #ccc; }
   label span { text-transform: none; letter-spacing: 0; color: #eee; font-size: 17px; }
   input[type=range] { width: 100%; height: 48px; margin: 0; }
   #status { min-height: 1.4em; font-size: 15px; }
@@ -36,17 +39,21 @@
 </head>
 <body>
 <h1>Listen: all sixteen</h1>
-<p>Tap a key. <b>Code</b> plays the sound the engine builds; <b>Sample</b> plays the starter pack's
-sample for that key (D35). Samples are scaled so their loudest point matches a voice's level.</p>
+<p>Each key plays either the sound the engine builds in <b>code</b> or the starter pack's
+<b>sample</b> (dashed edge). Tap a key to hear it and choose it; set it below.</p>
 
-<div class="switch">
-  <button id="code" aria-pressed="true">Code</button>
-  <button id="sample" aria-pressed="false">Sample</button>
+<div class="row">
+  <button id="allCode">All code</button>
+  <button id="allSample">All samples</button>
 </div>
-<div class="grid" id="grid"></div>
+<div class="grid" id="grid" style="margin-top: 12px"></div>
 
 <div class="panel">
   <h2 id="name">1 Bass drum</h2>
+  <div class="switch">
+    <button id="code" aria-pressed="true">Code</button>
+    <button id="sample" aria-pressed="false">Sample</button>
+  </div>
   <label for="a">Slider A <span id="aval"></span></label>
   <input id="a" type="range" min="0" max="65535" value="32768">
   <label for="b">Slider B <span id="bval"></span></label>
@@ -59,8 +66,7 @@ sample for that key (D35). Samples are scaled so their loudest point matches a v
     <button id="middle">Sliders to middle</button>
     <button id="pair">Code, then sample</button>
   </div>
-  <p>The sliders shape the code sound only. A move takes effect on the next hit, as on the
-  instrument; let go and the key plays.</p>
+  <p>A slider move takes effect on the next hit, as on the instrument; let go and the key plays.</p>
 </div>
 
 <div class="row">
@@ -68,21 +74,18 @@ sample for that key (D35). Samples are scaled so their loudest point matches a v
   <button id="compare">Compare in turn</button>
 </div>
 <div class="row">
-  <button id="beat">Beat (code)</button>
+  <button id="beat">Beat</button>
   <button id="stop">Stop</button>
 </div>
 <p id="status">Loading…</p>
-<p>The pack alone: <a href="../samples/">samples/</a>.</p>
+<p>Your choices stay in this browser. The pack alone: <a href="../samples/">samples/</a>.</p>
 
 <script type="module">
-// The same order as VOICES.md and samples/README.md.
-const KEYS = [
-  ["Bass drum", "bd_haus"], ["Snare", "sn_dolf"], ["Closed hat", "hat_bdu"], ["Open hat", "hat_cats"],
-  ["Synth snare", "elec_hi_snare"], ["Sticks", "elec_pop"], ["Cymbal", "elec_cymbal"], ["Noise", "hat_noiz"],
-  ["Clap", "perc_snap"], ["Click", "elec_tick"], ["Low tom", "drum_tom_lo_hard"], ["High tom", "drum_tom_hi_hard"],
-  ["Cow bell", "drum_cowbell"], ["Blip", "elec_blip"], ["Tone", "elec_ping"], ["Bass tone", "elec_bong"],
-];
-// What each slider moves, from VOICES.md "As built". Slider B is always the time to fall 60 dB.
+// The same order as VOICES.md and samples/tracks.txt.
+const NAMES = ["Bass drum", "Snare", "Closed hat", "Open hat", "Synth snare", "Sticks", "Cymbal", "Noise",
+  "Clap", "Click", "Low tom", "High tom", "Cow bell", "Blip", "Tone", "Bass tone"];
+// What each slider moves on the code voice, from VOICES.md "As built". Slider B is always the
+// time to fall 60 dB there; on a sample it is how long it plays before a 10 ms fade (D50).
 const SLIDERS = [
   ["base pitch, 40 to 90 Hz", "100 to 600 ms"], ["body pitch, 130 to 230 Hz", "the noise, 50 to 250 ms"],
   ["filter, 5 to 10 kHz", "10 to 60 ms"], ["filter, 5 to 10 kHz", "100 to 500 ms"],
@@ -93,27 +96,46 @@ const SLIDERS = [
   ["pitch, 400 to 680 Hz", "30 to 300 ms"], ["start pitch, 1 to 3 kHz", "20 to 100 ms"],
   ["A2 to A4 in semitones", "50 to 500 ms"], ["A0 to A2 in semitones", "50 to 500 ms"],
 ];
-const CMD = { reset: 2, tempo: 4, play: 5, step: 16, sound: 20, fire: 21 };
+const CMD = { reset: 2, tempo: 4, play: 5, step: 16, sound: 20, fire: 21, voice: 22 };
 const MIDDLE = 32768;         // PARAM_DEFAULT in core/src/voice.rs
-const LEVEL = 0.5;            // the core's level on every voice (D48)
 const GAP = 700;              // ms between keys in turn
+const STORE = "pocket-instruments/listen/voices";
 // One bar at 120 bpm, in sixteenths: the samples page's beat, plus a tom fill and the tones.
 const BEAT = { 0: [0, 4, 8, 12], 1: [4, 12], 2: [0, 2, 4, 6, 8, 10, 12], 3: [14], 8: [12], 10: [13], 11: [15], 12: [7, 10], 15: [0, 3, 6, 10] };
 const auto = new URLSearchParams(location.search).has("auto");
 const $ = (id) => document.getElementById(id);
 
 const ctx = new AudioContext({ latencyHint: "interactive" });
-const params = KEYS.map(() => [MIDDLE, MIDDLE]);
-const buffers = [], keys = [];
-let mode = "code", chosen = 0, node = null, run = 0, listeners = [];
+const params = NAMES.map(() => [MIDDLE, MIDDLE]);
+const keys = [];
+let chosen = 0, node = null, run = 0, listeners = [], loaded = 0;
+// Which each key plays: false code, true sample. All code to start (D50); kept per browser.
+let sampled = NAMES.map(() => false);
+try {
+  const kept = !auto && localStorage.getItem(STORE);
+  if (kept && kept.length === 16) sampled = [...kept].map((c) => c === "s");
+} catch {}
+
+// D50: the starter pack as the engine reads it, in track order.
+async function samples() {
+  const list = (await (await fetch("../samples/tracks.txt")).text()).trim().split("\n");
+  if (list.length !== 16) throw new Error("samples/tracks.txt does not name sixteen samples");
+  return Promise.all(list.map(async (name) => {
+    const r = await fetch(`../samples/raw/${name}.s16`);
+    if (!r.ok) throw new Error(`${name}.s16: ${r.status}`);
+    loaded++;
+    return r.arrayBuffer();
+  }));
+}
 
 // The engine: one, in an AudioWorklet, taking commands by message (web/worklet.js, playing).
 async function start() {
-  const wasm = await (await fetch("pi_core.wasm")).arrayBuffer();
+  const [wasm, pack] = await Promise.all([fetch("pi_core.wasm").then((r) => r.arrayBuffer()), samples()]);
   await ctx.audioWorklet.addModule("worklet.js");
+  const cmds = [[0, CMD.tempo, 0, 0, 120000], ...sampled.map((s, t) => [0, CMD.voice, t, 0, s ? 1 : 0])];
   node = new AudioWorkletNode(ctx, "pi-engine", {
     numberOfInputs: 0, outputChannelCount: [1],
-    processorOptions: { wasm, seed: 1, cmds: [[0, CMD.tempo, 0, 0, 120000]], every: 8 },
+    processorOptions: { wasm, seed: 1, cmds, every: 8, samples: pack },
   });
   // Under ?auto the engine still runs, into a gain of zero: nothing is heard.
   node.connect(new GainNode(ctx, { gain: auto ? 0 : 1 })).connect(ctx.destination);
@@ -121,41 +143,42 @@ async function start() {
 }
 const send = (...cmds) => node && node.port.postMessage({ cmds });
 
-// A sample, scaled so its peak is the voice level: a fair comparison by ear.
-async function loadSample(i) {
-  const r = await fetch(`../samples/${KEYS[i][1]}.flac`);
-  if (!r.ok) throw new Error(`${KEYS[i][1]}.flac: ${r.status}`);
-  const buf = await ctx.decodeAudioData(await r.arrayBuffer());
-  let peak = 0;
-  for (let c = 0; c < buf.numberOfChannels; c++) for (const s of buf.getChannelData(c)) peak = Math.max(peak, Math.abs(s));
-  buffers[i] = { buf, gain: peak ? LEVEL / peak : 1 };
-}
-
 function flash(i) {
   keys[i].classList.add("hit");
   setTimeout(() => keys[i].classList.remove("hit"), 120);
 }
-function playCode(i) { send([CMD.fire, i, 0, 0]); flash(i); }
-function playSample(i) {
-  if (!buffers[i]) return;
-  const src = new AudioBufferSourceNode(ctx, { buffer: buffers[i].buf });
-  const g = new GainNode(ctx, { gain: buffers[i].gain });
-  src.connect(g).connect(ctx.destination);
-  src.start();
+// The key as it is set.
+function fire(i) { send([CMD.fire, i, 0, 0]); flash(i); }
+// The key as code or as its sample, whatever it is set to, then back. A command lands on the
+// next block, so the switch back waits a moment: the voice is chosen when it fires.
+function fireAs(i, sample) {
+  if (sampled[i] === sample) return fire(i);
+  send([CMD.voice, i, 0, sample ? 1 : 0], [CMD.fire, i, 0, 0]);
   flash(i);
+  setTimeout(() => send([CMD.voice, i, 0, sampled[i] ? 1 : 0]), 50);
 }
-const playKey = (i) => (mode === "code" ? playCode(i) : playSample(i));
+
+function setVoice(i, sample) {
+  sampled[i] = sample;
+  send([CMD.voice, i, 0, sample ? 1 : 0]);
+  keys[i].classList.toggle("sampled", sample);
+  keys[i].querySelector("i").textContent = sample ? "sample" : "code";
+  try { if (!auto) localStorage.setItem(STORE, sampled.map((s) => (s ? "s" : "c")).join("")); } catch {}
+  if (i === chosen) choose(i);
+}
 
 function choose(i) {
   chosen = i;
   keys.forEach((k, j) => k.classList.toggle("chosen", j === i));
-  $("name").textContent = `${i + 1} ${KEYS[i][0]}`;
+  $("name").textContent = `${i + 1} ${NAMES[i]}`;
+  $("code").setAttribute("aria-pressed", !sampled[i]);
+  $("sample").setAttribute("aria-pressed", sampled[i]);
   $("a").value = params[i][0];
   $("b").value = params[i][1];
   showValues();
 }
 function showValues() {
-  const [a, b] = SLIDERS[chosen];
+  const [a, b] = sampled[chosen] ? ["up or down an octave in semitones; middle as recorded", `plays ${SLIDERS[chosen][1].replace(/^the \w+, /, "")}, then fades`] : SLIDERS[chosen];
   $("aval").textContent = `${Math.round(($("a").value / 65535) * 100)} % · ${a}`;
   $("bval").textContent = `${Math.round(($("b").value / 65535) * 100)} % · ${b}`;
 }
@@ -171,11 +194,11 @@ async function inTurn(compare) {
   for (let i = 0; i < 16 && me === run; i++) {
     choose(i);
     if (compare) {
-      playCode(i);
+      fireAs(i, false);
       await sleep(GAP);
       if (me !== run) break;
-      playSample(i);
-    } else playKey(i);
+      fireAs(i, true);
+    } else fire(i);
     await sleep(GAP);
   }
 }
@@ -190,45 +213,42 @@ function stop() {
   send([CMD.play, 0, 0, 0]);
 }
 
-KEYS.forEach(([name], i) => {
+NAMES.forEach((name, i) => {
   const b = document.createElement("button");
-  b.innerHTML = `<b>${i + 1}</b><span>${name}</span>`;
+  b.innerHTML = `<b>${i + 1}</b><span>${name}</span><i>code</i>`;
   // pointerdown, not click: a click waits for the finger to lift.
-  b.addEventListener("pointerdown", () => { wake(); choose(i); playKey(i); });
+  b.addEventListener("pointerdown", () => { wake(); choose(i); fire(i); });
   $("grid").appendChild(b);
   keys.push(b);
 });
-for (const m of ["code", "sample"])
-  $(m).addEventListener("pointerdown", () => {
-    mode = m;
-    $("code").setAttribute("aria-pressed", m === "code");
-    $("sample").setAttribute("aria-pressed", m === "sample");
-  });
+$("code").addEventListener("pointerdown", () => { wake(); setVoice(chosen, false); fire(chosen); });
+$("sample").addEventListener("pointerdown", () => { wake(); setVoice(chosen, true); fire(chosen); });
+$("allCode").addEventListener("pointerdown", () => NAMES.forEach((_, i) => setVoice(i, false)));
+$("allSample").addEventListener("pointerdown", () => NAMES.forEach((_, i) => setVoice(i, true)));
 for (const [id, which] of [["a", 0], ["b", 1]]) {
   $(id).addEventListener("input", () => { setSlider(chosen, which, +$(id).value); showValues(); });
   // Let go of a slider and the key plays, so the change is heard at once.
-  $(id).addEventListener("change", () => { wake(); playCode(chosen); });
+  $(id).addEventListener("change", () => { wake(); fire(chosen); });
 }
-$("hearCode").addEventListener("pointerdown", () => { wake(); playCode(chosen); });
-$("hearSample").addEventListener("pointerdown", () => { wake(); playSample(chosen); });
-$("pair").addEventListener("pointerdown", async () => { wake(); playCode(chosen); await sleep(GAP); playSample(chosen); });
+$("hearCode").addEventListener("pointerdown", () => { wake(); fireAs(chosen, false); });
+$("hearSample").addEventListener("pointerdown", () => { wake(); fireAs(chosen, true); });
+$("pair").addEventListener("pointerdown", async () => { wake(); fireAs(chosen, false); await sleep(GAP); fireAs(chosen, true); });
 $("middle").addEventListener("pointerdown", () => { setSlider(chosen, 0, MIDDLE); setSlider(chosen, 1, MIDDLE); choose(chosen); });
 $("turn").addEventListener("pointerdown", () => { wake(); inTurn(false); });
 $("compare").addEventListener("pointerdown", () => { wake(); inTurn(true); });
 $("beat").addEventListener("pointerdown", () => { wake(); beat(); });
 $("stop").addEventListener("pointerdown", stop);
+sampled.forEach((s, i) => { keys[i].classList.toggle("sampled", s); keys[i].querySelector("i").textContent = s ? "sample" : "code"; });
 choose(0);
 
-const loaded = (await Promise.allSettled([start(), ...KEYS.map((_, i) => loadSample(i))]));
-const failed = loaded.filter((r) => r.status === "rejected").map((r) => String(r.reason));
-const samples = buffers.filter(Boolean).length;
-$("status").textContent = !node ? `The engine did not start: ${failed[0]}` :
-  samples === 16 ? "Ready." : `Ready; ${samples} of 16 samples loaded. ${failed.join("; ")}`;
+const failed = [];
+await start().catch((e) => failed.push(String(e)));
+$("status").textContent = node ? "Ready." : `The engine did not start: ${failed[0]}`;
 
 // ?auto: the page checks its own wiring, with the speakers off, and posts what it found.
-// The voices themselves are proven in core/src/tests/sound.rs; this proves the page reaches them.
+// The voices themselves are proven in core/src/tests/; this proves the page reaches them.
 if (auto) {
-  const out = { agent: navigator.userAgent, rate: ctx.sampleRate, samples, failed, peaks: [], kick: {} };
+  const out = { agent: navigator.userAgent, rate: ctx.sampleRate, samples: loaded, failed, peaks: [], samplePeaks: [], back: [], kick: {} };
   const reports = [];
   listeners.push((d) => reports.push(d));
   // Wait for the engine to report silence, then fire, and give back the loudest sample and
@@ -237,7 +257,7 @@ if (auto) {
   async function hit(i) {
     if (!(await quiet())) return { peak: -1, reports: -1 };
     const from = reports.length;
-    playCode(i);
+    fire(i);
     let peak = 0, loud = 0;
     for (let t = 0; t < 400; t++) {
       await sleep(10);
@@ -249,8 +269,13 @@ if (auto) {
     return { peak, reports: loud };
   }
   try {
+    if (!node) throw new Error("no engine: nothing to check");
     await ctx.resume();
     for (let i = 0; i < 16; i++) out.peaks.push((await hit(i)).peak);
+    $("allSample").dispatchEvent(new PointerEvent("pointerdown"));
+    for (let i = 0; i < 16; i++) out.samplePeaks.push((await hit(i)).peak);
+    $("allCode").dispatchEvent(new PointerEvent("pointerdown"));
+    for (const i of [0, 9, 15]) out.back.push((await hit(i)).peak);
     // Slider B reaches the engine: the bass drum at its shortest and longest.
     setSlider(0, 1, 0);
     out.kick.short = (await hit(0)).reports;

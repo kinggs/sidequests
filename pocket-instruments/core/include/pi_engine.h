@@ -1,11 +1,12 @@
-/* Pocket Instruments: the engine's C ABI, version 2 (1 plus sound: D44).
+/* Pocket Instruments: the engine's C ABI, version 3 (1 plus sound: D44; 3 adds samples: D50).
  *
  * The contract both hosts link. ENGINE.md beside the crate is the specification; this file is
  * the same thing in C. Where they disagree, ENGINE.md is right.
  *
  * Rules of the ABI: only uint32_t, int32_t and pointers cross it. No float arguments, no
  * 64-bit values, no structs by value, no callbacks, no globals. The caller owns all memory.
- * Sound leaves through a pointer to the caller's floats; the core keeps no pointer.
+ * Sound leaves through a pointer to the caller's floats. The core keeps one kind of pointer:
+ * a track's sample, given with pi_set_sample, which the caller keeps alive (D50).
  * Every function on an engine is called from one thread, the audio thread.
  *
  * SPDX-License-Identifier: MIT
@@ -19,10 +20,11 @@
 extern "C" {
 #endif
 
-#define PI_ABI_VERSION 2u
+#define PI_ABI_VERSION 3u
 
 #define PI_TICKS_PER_STEP 96u /* a step is a sixteenth note */
 #define PI_TRACKS 16u         /* one per grid key: key n plays track n (D30) */
+#define PI_SAMPLE_RATE 44100u /* every sample's rate (pi_set_sample) */
 #define PI_STEPS 16u
 #define PI_SWING_MAX 48u      /* ticks an odd grid step is late by, at most */
 #define PI_MBPM_MIN 30000u    /* tempo is in thousandths of a bpm */
@@ -54,6 +56,9 @@ extern "C" {
                                Not in snapshot version 1 */
 #define PI_CMD_FIRE 21u     /* a: track. It fires on this frame, playing or stopped: one PI_EV_TRIG,
                                and its voice. The pattern is untouched */
+#define PI_CMD_VOICE 22u    /* a: track; value: 0 its voice built in code, 1 its sample (pi_set_sample).
+                               Taken at the track's next hit; a track with no sample plays its code
+                               voice. All code at pi_init. Not in snapshot version 1 */
 #define PI_CMD_KEY_DOWN 32u /* a: PI_KEY_*. Reserved: ignored by ABI 1 */
 #define PI_CMD_KEY_UP 33u   /* a: PI_KEY_*. Reserved */
 #define PI_CMD_PARAM 34u    /* a: 0 slider A, 1 slider B; value: 0..65535. Reserved */
@@ -127,6 +132,12 @@ uint32_t pi_process(pi_engine *engine, uint32_t frames,
                     const pi_cmd *cmds, uint32_t ncmds,
                     pi_event *events, uint32_t cap,
                     float *audio, uint32_t channels);
+
+/* D50: track `track`'s sample: `frames` 16-bit mono frames at PI_SAMPLE_RATE, native byte
+ * order. `data` must stay readable and unchanged until this track's sample is set again, or
+ * the engine is re-initialised. Null or 0 frames clears it. Returns 1 if taken, 0 if cleared
+ * or refused (track >= PI_TRACKS, data not 2-byte aligned). A sample sounding stops. */
+uint32_t pi_set_sample(pi_engine *engine, uint32_t track, const int16_t *data, uint32_t frames);
 
 /* Events dropped since pi_init, saturating. Zero in any correct host. */
 uint32_t pi_dropped(const pi_engine *engine);

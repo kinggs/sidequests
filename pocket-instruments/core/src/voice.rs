@@ -1024,6 +1024,140 @@ impl Tone {
     }
 }
 
+// ---- a sample, in place of a track's code voice (D50) ----
+
+/// The rate every sample is stored at: the starter pack's own (samples/make-raw.py).
+pub const SAMPLE_RATE: u32 = 44_100;
+
+/// 2^(n/12) for n = -12 ..= 12, in 1/65536ths, rounded: slider A's 25 semitones.
+const RATIOS: [u32; 25] = [
+    32768, 34716, 36781, 38968, 41285, 43740, 46341, 49097, 52016, 55109, 58386, 61858, 65536, 69433, 73562,
+    77936, 82570, 87480, 92682, 98193, 104032, 110218, 116772, 123715, 131072,
+];
+
+// TUNING SAMPLES. The numbers below are first settings, to move by ear (VOICES.md,
+// "Tuning a sample"). Changing one changes how a sample sounds and nothing else.
+
+/// Slider B on a sample, from the middle up: the whole sample. Below the middle it plays
+/// for less, down to this many microseconds at 0: each track's shortest code length
+/// (VOICES.md, "As built"). A sample shorter than this plays whole at every setting.
+const SHORTEST_US: [u64; TRACKS] = [
+    100_000, 50_000, 10_000, 100_000, 20_000, 10_000, 200_000, 50_000,
+    50_000, 5_000, 150_000, 100_000, 30_000, 20_000, 50_000, 50_000,
+];
+
+/// Where on slider B the whole sample is reached: its middle.
+const WHOLE_FROM: u16 = PARAM_DEFAULT;
+
+/// The fade once it has played as long as slider B says: 60 dB in this many microseconds.
+const FADE_US: u64 = 10_000;
+
+/// A track's sample: 16-bit mono at `SAMPLE_RATE`, in memory the host owns (`pi_set_sample`).
+/// Slider A moves it in semitones, an octave either way, by playing it faster or slower;
+/// the middle is as recorded. Slider B is how long it plays before a 10 ms fade: the whole
+/// sample from the middle up, shorter below (`SHORTEST_US`). It is read
+/// between stored frames by a straight line: `+ - * /` only, as everywhere in this file.
+#[derive(Clone, Copy)]
+pub struct Sample {
+    data: *const i16,
+    len: u32,
+    track: u8,
+    active: bool,
+    ab: [u16; 2],
+    /// Where in the data, in 1/2^32ths of a stored frame, and how far a frame moves it.
+    pos: u64,
+    step: u64,
+    /// Frames since the trigger; the frame the fade starts; the rate those are counted at.
+    t: u32,
+    hold: u32,
+    rate: u32,
+    env: f32,
+    k: f32,
+}
+
+impl Sample {
+    pub const fn new(track: u8) -> Self {
+        Sample {
+            data: core::ptr::null(), len: 0, track, active: false, ab: [PARAM_DEFAULT; 2],
+            pos: 0, step: 0, t: 0, hold: 0, rate: 0, env: 0.0, k: 0.0,
+        }
+    }
+
+    /// Stops it first: the host may free the old data as soon as this returns.
+    pub fn set(&mut self, data: *const i16, len: u32) {
+        self.active = false;
+        self.env = 0.0;
+        (self.data, self.len) = if data.is_null() || len == 0 { (core::ptr::null(), 0) } else { (data, len) };
+    }
+
+    pub fn loaded(&self) -> bool {
+        self.len != 0
+    }
+
+    pub fn sounding(&self) -> bool {
+        self.active
+    }
+
+    fn tune(&mut self, rate: u32) {
+        let rate = rate.max(1);
+        let [a, b] = self.ab;
+        let ratio = RATIOS[span(0, 24, a) as usize] as u64;
+        self.step = ((SAMPLE_RATE as u64 * ratio) << 16) / rate as u64;
+        // The whole sample at this rate, as recorded (slider A changes how fast it is read,
+        // and it stops at its end whatever the hold).
+        let whole = (self.len as u64 * rate as u64).div_ceil(SAMPLE_RATE as u64);
+        let shortest = frames(SHORTEST_US[self.track as usize % TRACKS], rate) as u64;
+        self.hold = if b >= WHOLE_FROM || shortest >= whole {
+            u32::MAX
+        } else {
+            (shortest + b as u64 * (whole - shortest) / WHOLE_FROM as u64) as u32
+        };
+        self.k = fall_60db(FADE_US, rate);
+        // Mid-sound, the time already played stays the same in seconds.
+        if self.rate != 0 && self.rate != rate {
+            self.t = (self.t as u64 * rate as u64 / self.rate as u64) as u32;
+        }
+        self.rate = rate;
+    }
+
+    pub fn trigger(&mut self, ab: [u16; 2], rate: u32) {
+        if !self.loaded() {
+            return;
+        }
+        self.ab = ab;
+        self.rate = 0;
+        self.tune(rate);
+        self.pos = 0;
+        self.t = 0;
+        self.env = 1.0;
+        self.active = true;
+    }
+
+    #[inline]
+    pub fn next(&mut self) -> f32 {
+        if !self.active {
+            return 0.0;
+        }
+        let i = (self.pos >> 32) as usize;
+        if i >= self.len as usize {
+            self.active = false;
+            return 0.0;
+        }
+        // SAFETY: i < len, and `pi_set_sample`'s contract keeps `len` frames readable at `data`.
+        let a = (unsafe { *self.data.add(i) }) as f32;
+        let b = if i + 1 < self.len as usize { (unsafe { *self.data.add(i + 1) }) as f32 } else { 0.0 };
+        let frac = (self.pos as u32) as f32 * (1.0 / 4_294_967_296.0);
+        let raw = (a + (b - a) * frac) * (1.0 / 32_768.0);
+        let gain = if self.t < self.hold { self.env } else { step_env(&mut self.env, self.k) };
+        self.t = self.t.saturating_add(1);
+        self.pos = self.pos.wrapping_add(self.step);
+        if self.env == 0.0 {
+            self.active = false;
+        }
+        raw * gain
+    }
+}
+
 // ---- all of them ----
 
 pub struct Voices {
@@ -1045,6 +1179,11 @@ pub struct Voices {
     bass: Tone,
     /// The two sliders of each track, 0 to 65535.
     pub params: [[u16; 2]; TRACKS],
+    /// Each track's sample, if the host gave one (D50).
+    pub samples: [Sample; TRACKS],
+    /// Bit t: track t plays its sample when it fires, if it has one; otherwise its code
+    /// voice. All code to start with (D50).
+    pub sampled: u16,
 }
 
 /// Calls `$f` on track `$t`'s voice with the remaining arguments. One line a track, in
@@ -1092,6 +1231,13 @@ impl Voices {
             tone: Tone::tone(),
             bass: Tone::bass(),
             params: [[PARAM_DEFAULT; 2]; TRACKS],
+            samples: [
+                Sample::new(0), Sample::new(1), Sample::new(2), Sample::new(3),
+                Sample::new(4), Sample::new(5), Sample::new(6), Sample::new(7),
+                Sample::new(8), Sample::new(9), Sample::new(10), Sample::new(11),
+                Sample::new(12), Sample::new(13), Sample::new(14), Sample::new(15),
+            ],
+            sampled: 0,
         }
     }
 
@@ -1104,7 +1250,12 @@ impl Voices {
         for t in 0..TRACKS {
             if fired >> t & 1 == 1 {
                 let p = self.params[t];
-                on_voice!(self, t, trigger(p, rate));
+                // A track switched to its sample with none given plays its code voice.
+                if self.sampled >> t & 1 == 1 && self.samples[t].loaded() {
+                    self.samples[t].trigger(p, rate);
+                } else {
+                    on_voice!(self, t, trigger(p, rate));
+                }
             }
         }
     }
@@ -1113,6 +1264,9 @@ impl Voices {
     pub fn set_sample_rate(&mut self, rate: u32) {
         for t in 0..TRACKS {
             on_voice!(self, t, tune(rate));
+            if self.samples[t].sounding() {
+                self.samples[t].tune(rate);
+            }
         }
     }
 
@@ -1122,7 +1276,11 @@ impl Voices {
     pub fn render(&mut self, frame: &mut [f32]) {
         let mut v = [0.0f32; TRACKS];
         for (t, out) in v.iter_mut().enumerate() {
-            *out = on_voice!(self, t, next()) * LEVEL;
+            let code = on_voice!(self, t, next());
+            // Both can sound at once after a switch: the old one's tail plays out. Only
+            // added when a sample is sounding, so the code voices alone keep their bits.
+            let s = &mut self.samples[t];
+            *out = (if s.sounding() { code + s.next() } else { code }) * LEVEL;
         }
         match frame {
             [mix] => {

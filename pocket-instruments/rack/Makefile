@@ -19,7 +19,21 @@ SOURCES += $(wildcard src/*.cpp)
 # After our objects, so the linker takes from the archive only what they ask for.
 OBJECTS += $(PI_LIB)
 
+# D50: the starter pack ships inside the plugin, as the engine reads it (samples/raw/),
+# copied in at build time so the repo holds one copy.
+PACK := $(patsubst ../samples/raw/%,res/samples/%,$(wildcard ../samples/raw/*.s16)) res/samples/tracks.txt
+DISTRIBUTABLES += res
+
 include $(RACK_DIR)/plugin.mk
+
+all: $(PACK)
+dist: $(PACK)
+res/samples/%: ../samples/raw/%
+	@mkdir -p res/samples
+	cp $< $@
+res/samples/tracks.txt: ../samples/tracks.txt
+	@mkdir -p res/samples
+	cp $< $@
 
 # cargo decides for itself whether anything changed, so always ask it.
 .PHONY: FORCE

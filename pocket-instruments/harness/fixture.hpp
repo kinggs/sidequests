@@ -121,6 +121,7 @@ static pi_cmd to_cmd(const Json &c) {
     if (name == "swing") return cmd(PI_CMD_SWING, 0, 0, value);
     if (name == "length") return cmd(PI_CMD_LENGTH, 0, 0, value);
     if (name == "sound") return cmd(PI_CMD_SOUND, track, uint8_t(c.n_or("param", 0)), value); // P7 only
+    if (name == "voice") return cmd(PI_CMD_VOICE, track, 0, value); // D50, render scenarios only
     die("unknown fixture command " + name);
 }
 

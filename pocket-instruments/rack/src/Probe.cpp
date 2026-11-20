@@ -10,6 +10,8 @@
 //   AUDIO:         the core's mix (ENGINE.md §11; its level, D48): 5 V to 1.0, bent by tanh
 //                  towards 10 V so it never passes it (RACK-RULES.md).
 //                  The fixtures fire tracks 0 to 3, so it plays the bass drum, snare and hats.
+//                  Each track plays its code voice or its starter-pack sample (D50): the
+//                  right-click menu's Sounds, saved with the patch. All code to start.
 //                  ⚠ Each pass starts a fresh engine, so a drum still sounding is cut there.
 //   The light:     green while every pass so far has matched, red once one has not.
 //
@@ -21,6 +23,9 @@
 
 #include <atomic>
 #include <cmath>
+#include <cstring>
+#include <fstream>
+#include <iterator>
 #include <vector>
 
 #include "handoff.hpp"
@@ -45,6 +50,10 @@ static const std::vector<Fixture> FIXTURES = {
 #include "fixtures.inc"
 };
 
+// The starter pack's names, in track order, for the menu (samples/tracks.txt has the files).
+static const char *const KEY_NAMES[PI_TRACKS] = {"Bass drum", "Snare", "Closed hat", "Open hat", "Synth snare", "Sticks",
+    "Cymbal", "Noise", "Clap", "Click", "Low tom", "High tom", "Cow bell", "Blip", "Tone", "Bass tone"};
+
 struct Snap {
     uint8_t b[PI_SNAPSHOT_SIZE];
 };
@@ -57,6 +66,7 @@ struct Probe : Module {
 
     // The other thread's side. Read or written there; the audio thread only loads or stores.
     std::atomic<int> fixtureWanted{3}, track{2};
+    std::atomic<uint32_t> sampledWanted{0}; // bit t: track t plays its sample (D50)
     std::atomic<uint32_t> passed{0}, failed{0}, aborted{0}, rateChanges{0}, loadsOk{0}, loadsRefused{0},
         dropped{0}, published{0}, failRun{0}, failIndex{0}, failGot{0}, lastRate{0},
         peakMillivolts{0}, notFinite{0};
@@ -64,7 +74,12 @@ struct Probe : Module {
     pi::Latest<Snap> inbox; // Rack's loading thread writes, audio thread reads
 
     // The audio thread's own.
-    alignas(16) uint8_t mem[2048]; // the engine is 1 416 bytes with all sixteen voices
+    alignas(16) uint8_t mem[4096]; // the engine is 2 328 bytes with a sample beside each voice
+    // The starter pack, read once when the module is made, before any audio. The engine reads
+    // these for as long as the module lives (pi_set_sample's contract); nothing changes them.
+    std::vector<int16_t> pack[PI_TRACKS];
+    uint32_t sampledSent = 0;
+    int packLoaded = 0;
     pi_engine *e = nullptr;
     dsp::SchmittTrigger clockTrig, resetTrig;
     int fixture = -1;
@@ -87,7 +102,31 @@ struct Probe : Module {
             WARN("Pocket Instruments: the core is not the one this plugin was built for");
             return;
         }
+        loadPack();
         e = pi_init(mem, sizeof mem, 48000, 1);
+        givePack();
+    }
+
+    // res/samples/ in the plugin: samples/raw/ as the Makefile copied it, in tracks.txt's order.
+    void loadPack() {
+        std::ifstream list(asset::plugin(pluginInstance, "res/samples/tracks.txt"));
+        std::string name;
+        for (uint32_t t = 0; t < PI_TRACKS && std::getline(list, name); t++) {
+            std::ifstream f(asset::plugin(pluginInstance, "res/samples/" + name + ".s16"), std::ios::binary);
+            std::vector<char> bytes((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+            pack[t].resize(bytes.size() / 2);
+            std::memcpy(pack[t].data(), bytes.data(), pack[t].size() * 2);
+            if (!pack[t].empty()) packLoaded++;
+        }
+        if (packLoaded != int(PI_TRACKS))
+            WARN("Pocket Instruments: %d of 16 samples found; the rest play their code voices", packLoaded);
+    }
+
+    // Every pi_init starts the engine with no samples and every track on code.
+    void givePack() {
+        for (uint32_t t = 0; t < PI_TRACKS; t++)
+            if (!pack[t].empty()) pi_set_sample(e, t, pack[t].data(), uint32_t(pack[t].size()));
+        sampledSent = 0;
     }
 
     ~Probe() { report("removed"); }
@@ -95,10 +134,10 @@ struct Probe : Module {
     void report(const char *when) {
         INFO("Pocket Instruments probe (%s): %u passes matched, %u did not, %u cut short; rate %u Hz, "
              "%u rate changes, %u events dropped, %u snapshots published, %u loaded, %u refused; "
-             "audio peak %.2f V, %u samples not finite",
+             "audio peak %.2f V, %u samples not finite; %d of 16 samples found, %d tracks on samples",
              when, passed.load(), failed.load(), aborted.load(), lastRate.load(), rateChanges.load(),
              dropped.load(), published.load(), loadsOk.load(), loadsRefused.load(),
-             peakMillivolts.load() / 1000.0, notFinite.load());
+             peakMillivolts.load() / 1000.0, notFinite.load(), packLoaded, __builtin_popcount(sampledWanted.load()));
         if (failed.load())
             INFO("Pocket Instruments probe: first mismatch in pass %u at event %u (got tick<<8|type|track: %u)",
                  failRun.load(), failIndex.load(), failGot.load());
@@ -172,6 +211,7 @@ struct Probe : Module {
                 fixtureWanted = fixture;
                 const Fixture &fx = FIXTURES[fixture];
                 e = pi_init(mem, sizeof mem, rate, fx.seed);
+                givePack();
                 cmds[n++] = pi_cmd{0, PI_CMD_TEMPO, 0, 0, 0, fx.mbpm};
                 cmds[n++] = pi_cmd{0, PI_CMD_SOURCE, 0, 0, 0, edges ? PI_SOURCE_EDGES : PI_SOURCE_TABLE};
                 running = true;
@@ -193,6 +233,17 @@ struct Probe : Module {
             if (edges) cmds[n++] = pi_cmd{0, PI_CMD_CLOCK, 0, 0, 0, 0};
             m++;
             nextStep = anchor + stepFrame(m - anchorStep, rate, fx.mbpm);
+        }
+
+        // Sounds from the menu: a switch is taken at the track's next hit (PI_CMD_VOICE).
+        uint32_t want = sampledWanted.load(std::memory_order_relaxed);
+        if (running && want != sampledSent) {
+            // Only what fits is marked sent; the rest goes on the next frame.
+            for (uint32_t t = 0; t < PI_TRACKS && n < 64; t++)
+                if ((want ^ sampledSent) >> t & 1) {
+                    cmds[n++] = pi_cmd{0, PI_CMD_VOICE, uint8_t(t), 0, 0, want >> t & 1};
+                    sampledSent ^= 1u << t;
+                }
         }
 
         if (running) {
@@ -266,6 +317,7 @@ struct Probe : Module {
         json_t *root = json_object();
         json_object_set_new(root, "fixture", json_string(FIXTURES[clamp(fixtureWanted.load(), 0, int(FIXTURES.size()) - 1)].name));
         json_object_set_new(root, "track", json_integer(track.load()));
+        json_object_set_new(root, "samples", json_integer(sampledWanted.load()));
         if (const Snap *s = saved.latest())
             json_object_set_new(root, "snapshot", json_string(string::toBase64(s->b, PI_SNAPSHOT_SIZE).c_str()));
         json_t *p3 = json_object();
@@ -289,6 +341,7 @@ struct Probe : Module {
             for (size_t i = 0; i < FIXTURES.size(); i++)
                 if (json_is_string(j) && FIXTURES[i].name == std::string(json_string_value(j))) fixtureWanted = int(i);
         if (json_t *j = json_object_get(root, "track")) track = clamp(int(json_integer_value(j)), 0, int(PI_TRACKS) - 1);
+        if (json_t *j = json_object_get(root, "samples")) sampledWanted = uint32_t(json_integer_value(j)) & 0xffffu;
         if (json_t *j = json_object_get(root, "snapshot")) {
             std::vector<uint8_t> bytes;
             try {
@@ -348,6 +401,15 @@ struct ProbeWidget : ModuleWidget {
             for (size_t i = 0; i < FIXTURES.size(); i++)
                 sub->addChild(createCheckMenuItem(FIXTURES[i].name, "", [=]() { return p->fixtureWanted.load() == int(i); },
                                                   [=]() { p->fixtureWanted = int(i); }));
+        }));
+        menu->addChild(createSubmenuItem("Sounds", "", [=](Menu *sub) {
+            sub->addChild(createMenuItem("All code", "", [=]() { p->sampledWanted = 0; }));
+            sub->addChild(createMenuItem("All samples", "", [=]() { p->sampledWanted = 0xffffu; }));
+            sub->addChild(new MenuSeparator);
+            for (int i = 0; i < int(PI_TRACKS); i++)
+                sub->addChild(createCheckMenuItem(string::f("%d %s: sample", i + 1, KEY_NAMES[i]), "",
+                                                  [=]() { return (p->sampledWanted.load() >> i & 1) != 0; },
+                                                  [=]() { p->sampledWanted ^= 1u << i; }));
         }));
         menu->addChild(createSubmenuItem("Gate follows track", string::f("%d", p->track.load()), [=](Menu *sub) {
             for (int i = 0; i < int(PI_TRACKS); i++)

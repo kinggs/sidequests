@@ -9,7 +9,7 @@ const CLICK_TRACK: u8 = CLICK;
 
 /// Runs `frames` frames in blocks of `block` with sound, commands at absolute frames.
 /// Returns the samples and the frame of every TRIG.
-fn render(h: &mut Host, frames: usize, block: usize, channels: usize, cmds: &[(u64, Cmd)]) -> (Vec<f32>, Vec<u64>) {
+pub fn render(h: &mut Host, frames: usize, block: usize, channels: usize, cmds: &[(u64, Cmd)]) -> (Vec<f32>, Vec<u64>) {
     let mut out = vec![f32::NAN; frames * channels];
     let mut trigs = Vec::new();
     let (mut start, mut next) = (0usize, 0usize);

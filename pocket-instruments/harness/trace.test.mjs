@@ -18,11 +18,12 @@ const skip = built || process.env.PI_REQUIRE_WASM ? false : "pi_core.wasm is not
 const RATES = [44100, 48000, 96000];
 const BLOCKS = [1, 128, 512];
 const SOURCES = [["table", 0], ["edges", 1]];
-const CMD = { clock: 1, reset: 2, source: 3, tempo: 4, play: 5, step: 16, prob: 17, swing: 18, length: 19, sound: 20 };
+const CMD = { clock: 1, reset: 2, source: 3, tempo: 4, play: 5, step: 16, prob: 17, swing: 18, length: 19, sound: 20, voice: 22 };
 const EDITS = new Set(["step", "prob", "swing", "length"]);
 const PAGE = 65536;
 // Where things sit in the one page the host adds (ENGINE.md §8).
-const SNAP = 2048, EVENTS = 3072, CAP = 256, AUDIO = 6144, AUDIO_MAX = 768, CMDS = 9216, CMDS_MAX = (PAGE - CMDS) / 12;
+// The engine gets the first 4 KiB (core/src/tests/rules.rs holds pi_size to it).
+const SNAP = 4096, EVENTS = 5120, CAP = 256, AUDIO = 8192, AUDIO_MAX = 768, CMDS = 11264, CMDS_MAX = (PAGE - CMDS) / 12;
 
 function load() {
   const module = new WebAssembly.Module(readFileSync(WASM));
@@ -41,6 +42,23 @@ function engine(m, rate, seed) {
   const e = m.pi.pi_init(m.base, size, rate, seed);
   assert.equal(e, m.base, "pi_init returns the memory it was given");
   return e;
+}
+
+// D50: the starter pack, in track order, copied once into pages of its own after the host's.
+// Returns [address, frames] a track.
+function starterPack(m) {
+  const dir = here("../samples");
+  const names = readFileSync(`${dir}/tracks.txt`, "utf8").trim().split("\n");
+  assert.equal(names.length, 16);
+  const files = names.map((n) => readFileSync(`${dir}/raw/${n}.s16`));
+  const total = files.reduce((a, f) => a + f.length, 0);
+  let at = m.pi.memory.grow(Math.ceil(total / PAGE)) * PAGE;
+  return files.map((f) => {
+    new Uint8Array(m.pi.memory.buffer, at, f.length).set(f);
+    const placed = [at, f.length / 2];
+    at += f.length;
+    return placed;
+  });
 }
 
 function toCmd(c) {
@@ -120,7 +138,7 @@ const hex = (bytes) => Array.from(bytes, (b) => b.toString(16).padStart(2, "0"))
 test("the module imports nothing and its memory grows by a page for the host", { skip }, () => {
   const m = load();
   assert.deepEqual(m.imports, [], "no imports: no glue to write");
-  assert.equal(m.pi.pi_abi_version(), 2);
+  assert.equal(m.pi.pi_abi_version(), 3);
   assert.equal(m.pi.memory.buffer.byteLength, m.base + PAGE);
   // Memory the module was not given is refused, not written.
   assert.equal(m.pi.pi_init(0, m.pi.pi_size(), 48000, 1), 0, "null");
@@ -177,12 +195,17 @@ for (const file of SCENARIOS) {
   test(`P7: ${name} renders from the .wasm`, { skip }, () => {
     const m = load();
     const fx = JSON.parse(readFileSync(here(file), "utf8"));
+    const pack = fx.samples ? starterPack(m) : [];
+    const withPack = (e) => {
+      pack.forEach(([at, frames], t) => assert.equal(m.pi.pi_set_sample(e, t, at, frames), 1));
+      return e;
+    };
     for (const [sourceName, source] of SOURCES) {
       for (const rate of RATES) {
         const { cmds, end } = schedule(fx, rate, source, false);
         const audio = new Float32Array(end);
-        const quiet = run(m, engine(m, rate, fx.seed), cmds, end, 128);
-        const loud = run(m, engine(m, rate, fx.seed), cmds, end, 128, audio);
+        const quiet = run(m, withPack(engine(m, rate, fx.seed)), cmds, end, 128);
+        const loud = run(m, withPack(engine(m, rate, fx.seed)), cmds, end, 128, audio);
         assert.equal(loud, quiet, "sound changes no event");
         assert.ok(audio.some((s) => s !== 0) && audio.every(Number.isFinite), "it made a sound");
         if (process.env.PI_RENDER) writeFileSync(`${process.env.PI_RENDER}-${name}-${sourceName}-${rate}.f32`, new Uint8Array(audio.buffer));

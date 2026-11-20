@@ -10,6 +10,8 @@
 #include "fixture.hpp"
 
 #include <algorithm>
+#include <cstring>
+#include <iterator>
 #include <filesystem>
 
 // ---- the engine, in memory this program owns ----
@@ -75,16 +77,37 @@ static std::string run(Host &h, const std::vector<Timed> &cmds, uint64_t end, ui
     return out;
 }
 
+// D50: the starter pack as the engine reads it, in track order (samples/tracks.txt), from
+// beside the harness folder the scenario is in. Little-endian on disk; every target is too.
+static std::vector<std::vector<int16_t>> starter_pack(const std::string &scenario) {
+    std::filesystem::path dir = std::filesystem::path(scenario).parent_path() / ".." / "samples";
+    std::ifstream list(dir / "tracks.txt");
+    std::vector<std::vector<int16_t>> pack;
+    for (std::string name; std::getline(list, name);) {
+        std::ifstream f(dir / "raw" / (name + ".s16"), std::ios::binary);
+        std::vector<char> bytes((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+        if (bytes.empty() || bytes.size() % 2) die("cannot read the sample " + name);
+        pack.emplace_back(bytes.size() / 2);
+        std::memcpy(pack.back().data(), bytes.data(), bytes.size());
+    }
+    if (pack.size() != PI_TRACKS) die("samples/tracks.txt does not name sixteen samples");
+    return pack;
+}
+
 // P7: the scenario's mix on both clock sources at three rates, as raw little-endian floats.
 // trace.test.mjs writes the same from the .wasm and compare.mjs holds the two to the bar.
 static int render(const std::string &scenario, const std::string &prefix) {
     Json fx = read_fixture(scenario);
+    std::vector<std::vector<int16_t>> pack;
+    if (fx.n_or("samples", 0)) pack = starter_pack(scenario);
     const std::pair<const char *, uint32_t> sources[] = {{"table", PI_SOURCE_TABLE}, {"edges", PI_SOURCE_EDGES}};
     for (auto &[source_name, source] : sources)
         for (uint32_t rate : {44100u, 48000u, 96000u}) {
             std::vector<Timed> cmds;
             uint64_t end = schedule(fx, rate, source, false, cmds);
             Host h(rate, uint32_t(fx.n("seed")));
+            for (uint32_t t = 0; t < pack.size(); t++)
+                if (pi_set_sample(h.e, t, pack[t].data(), uint32_t(pack[t].size())) != 1) die("pi_set_sample refused a sample");
             std::vector<float> audio;
             run(h, cmds, end, 128, &audio);
             std::ofstream out(prefix + "-" + source_name + "-" + std::to_string(rate) + ".f32", std::ios::binary);

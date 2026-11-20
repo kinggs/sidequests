@@ -24,13 +24,14 @@ mkdir -p "$user/plugins-lin-x64" "$user/autosave"
 ln -s "$fundamental" "$user/plugins-lin-x64/Fundamental"
 make --no-print-directory -C "$here" install RACK_USER_DIR="$user" >/dev/null
 printf '{"sampleRate": %s.0, "autoCheckUpdates": false}\n' "$rate" > "$user/settings.json"
-probe() { printf '{"id":%s,"plugin":"PocketInstruments","model":"Probe","version":"2.0.0","params":[],"pos":[%s,0],"data":{"fixture":"%s","track":0}}' "$1" "$(($1 * 4 + 6))" "$2"; }
+# The fourth argument is the Sounds menu's mask: 65535 puts every track on its sample (D50).
+probe() { printf '{"id":%s,"plugin":"PocketInstruments","model":"Probe","version":"2.0.0","params":[],"pos":[%s,0],"data":{"fixture":"%s","track":0,"samples":%s}}' "$1" "$(($1 * 4 + 6))" "$2" "${3:-0}"; }
 cable() { printf '{"id":%s,"outputModuleId":1,"outputId":3,"inputModuleId":%s,"inputId":0,"color":"#ffffff"}' "$1" "$1"; }
 # The LFO's FREQ is param 2; 8 is 256 Hz, so a 48-step fixture goes round five times a second.
 cat > "$user/autosave/patch.json" <<JSON
 {"version":"2.6.6","modules":[
  {"id":1,"plugin":"Fundamental","model":"LFO","version":"2.6.4","params":[{"id":2,"value":8.0}],"pos":[0,0]},
- $(probe 2 swing-length-change),$(probe 3 reset-mid-bar),$(probe 4 probability-seed-1),$(probe 5 straight-sixteenths)],
+ $(probe 2 swing-length-change),$(probe 3 reset-mid-bar),$(probe 4 probability-seed-1),$(probe 5 straight-sixteenths 65535)],
  "cables":[$(cable 2),$(cable 3),$(cable 4)]}
 JSON
 (cd "$app" && (sleep "$secs"; echo) | ./Rack -h -u "$user" >/dev/null 2>&1) || { echo "selftest: Rack exited badly"; tail -5 "$user/log.txt"; exit 1; }
@@ -40,4 +41,7 @@ n=$(echo "$lines" | grep -c '(removed)' || true)
 quiet=$(echo "$lines" | grep -c '(removed).*audio peak 0\.00 V' || true)
 good=$(echo "$lines" | grep -E '\(removed\): [1-9][0-9]* passes matched, 0 did not, .* rate '"$rate"' Hz, .* 0 events dropped, .*; audio peak [0-9]\.[0-9]{2} V, 0 samples not finite' | grep -vc 'audio peak 0\.00 V' || true)
 [ "$n" = 4 ] && [ "$good" = 4 ] || { echo "selftest: FAILED ($good of $n probes clean at $rate Hz; $quiet silent)"; exit 1; }
-echo "selftest: 4 probes clean in Rack at $rate Hz, each sounding."
+# D50: every probe found the pack in the installed plugin, and the last plays it.
+[ "$(echo "$lines" | grep '(removed)' | grep -c '16 of 16 samples found')" = 4 ] || { echo "selftest: FAILED (a probe did not find the sixteen samples)"; exit 1; }
+[ "$(echo "$lines" | grep '(removed)' | grep -c '16 tracks on samples')" = 1 ] || { echo "selftest: FAILED (the probe set to samples did not keep the setting)"; exit 1; }
+echo "selftest: 4 probes clean in Rack at $rate Hz, each sounding; one on the sixteen samples."
