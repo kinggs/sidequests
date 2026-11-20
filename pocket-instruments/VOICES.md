@@ -163,7 +163,7 @@ What samples change:
 - **Every file gets a line in a manifest**: its name, its Freesound page, its author, CC0.
   ⚠ CC0 is the uploader's word. `bd_808` is named after a machine; names like that are
   avoided here, whatever the licence says.
-- **They move us away from the hardware's sound**, which is synthetic. The `drum_` files are
+- **They move us away from the hardware's sound**, which is synthetic. (Annotated 2026-11-20: partly. Retail copy says the PO-12 mixes synthesised and sampled sounds, without saying which keys are which: R45.) The `drum_` files are
   an acoustic kit; the `bd_`, `elec_` and `hat_` files are electronic. D31's "close in
   character" is still the aim, and the owner's ear still decides.
 
