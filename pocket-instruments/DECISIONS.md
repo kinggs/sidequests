@@ -768,6 +768,12 @@ again at P8: the long tones, where a moving pitch might be missed.
 8. **The page's code-or-sample switch per key (D50)** is a sheet below the instrument, not
    on its face, with the credits (D7).
 
+### D58 — The owner accepts D57
+**2026-11-20 · decided (owner: "happy with all the suggestions on your side") · settles D57's proposal**
+
+All eight items of D57 stand as written. The readings of the hardware in item 3 are still
+guesses (D29): each stays a ⚠ row in `WORKFLOW.md` until the PO-12 confirms or corrects it.
+
 ## Open
 
 | ID | Question | Needs |

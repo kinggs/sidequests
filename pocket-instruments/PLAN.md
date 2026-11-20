@@ -298,7 +298,12 @@ push; no Teenage Engineering material. And for these five:
 - Each session ends by moving its sections of `ENGINE.md` from "designed" to built, with
   what turned out different marked, and by writing `LEARNINGS.md` and the Handover.
 
-## Session 10 — the workflow in the core: keys and the view (build, Opus; next)
+## Session 10 — the workflow in the core: keys and the view (build; next)
+
+Recommended on Fable, not Opus (Session 9's advice): this is where a contract that has
+never run first meets code, as Sessions 2 and 3 were. A gap in §13 or §14 found here can be
+ruled on in the session and written into `ENGINE.md`, marked, as D42 was; on Opus the rule
+is to stop.
 
 ABI 4. `ENGINE.md` §13 and §14. No host gains a face yet.
 
@@ -416,7 +421,10 @@ Probe is its template and stays as it is.
 - [ ] For the owner after it: the look in Rack at 100% (the ⚠ rows of `DESIGN.md`'s table);
       the latch by hand; MIDI-Map on a slider (D54's ⚠).
 
-## Session 14 — the weave (build, Opus, with the owner's eye)
+## Session 14 — the weave (build, with the owner's eye)
+
+Recommended on Fable: which cells each of the seven rules lights is not designed, only its
+inputs and its tests. That is drawing by judgment, with the owner watching.
 
 ABI 6. `ENGINE.md` §16, `design/DESIGN.md` "The animation", `design/loom/frames.html`.
 
@@ -804,10 +812,11 @@ the numbers stay easy to tweak.
   light (D51). The contract is `ENGINE.md` §13 to §16; the sessions are 10 to 14 above.
 - **The owner ruled on six questions,** all as recommended: D51 to D56. D46's annotation is
   closed: the slider waits for the next hit (D56) and snapshot version 2 is laid out (D55).
-- **D57 is proposed and built on:** eight things settled without asking, among them the
+- **D57 was proposed and is now accepted (D58, the same day):** eight things settled without asking, among them the
   readings of the hardware nobody could check. The ones the owner would feel: choosing a
   sound plays it; the tempo preset changes when bpm is let go; in Rack that is two clicks.
 - **Not verified, because nothing ran:** the view's 64 bytes and the snapshot's 388 are laid
   out on paper. Session 10's first job, fixtures by hand, is where a mistake in §13 or §14
   shows. The weave's cell size is to be read off `frames.html` in Session 14.
-- **Next: Session 10, on Opus.** Nothing waits on the owner.
+- **Next: Session 10.** Nothing waits on the owner. Fable is recommended for 10 and 14,
+  Opus for 11, 12 and 13 (the reasons are under each heading).
