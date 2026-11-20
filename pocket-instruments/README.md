@@ -41,7 +41,8 @@ into its own repository.
 | `WORKFLOW.md` | What each press does, in our words; the owner ticks each row on the hardware | Until P8 |
 | `RACK-RULES.md` | What any module of ours for VCV Rack is held to: the panel, the voltages, the code | Re-read VCV's manual (R33 to R35) before leaning on an old line |
 | `design/DESIGN.md` | The look (Loom): tokens, key states, the panel in mm, the phone layout | Changed by a decision; `design/panel.svg` is redrawn by its script |
-| `PLAN.md` | The sessions, their checklists and the Handover note | Each session ticks its boxes and writes its Handover |
+| `PLAN.md` | What a session needs: the rules, the machine, the lists not yet done, the latest two Handover notes. Its top says what else to read, and how little | Each session ticks its boxes and writes its Handover |
+| `PLAN-HISTORY.md` | Every finished session's list and every older Handover note, word for word | A finishing session moves its list and the note before last here. Not read at the start of a session |
 
 ## Rules of this folder
 
