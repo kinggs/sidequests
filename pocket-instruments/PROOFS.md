@@ -491,6 +491,13 @@ scenarios, at three rates on both clocks, came out the same bytes natively and f
   apart and would have had every copy refused; it now steps by `pi_size` and still held
   1 024 copies headless in Chromium and in Firefox.
 
+**Samples, 2026-11-20 (Session 8, D50).** `harness/render-samples.json`: every track on its
+starter-pack sample, sliders swept, tracks 0 to 7 back on code mid-way: the same bytes
+natively and from the `.wasm` at three rates on both clocks. With it, 19 scenarios and 114
+pairs, all the same bytes. The 108 renders from before match the previous commit's core
+byte for byte, so ABI 3 left every code voice alone. All sixteen samples at once peak at
++6.2 dB (each host softens it, D48).
+
 **All sixteen voices, 2026-11-19 (Session 7).** The other eleven, each in its own scenario,
 and `harness/render-all.json` with all sixteen together: 18 scenarios, 108 pairs at three
 rates on both clocks, every one the same bytes natively and from the `.wasm`. Annotations:

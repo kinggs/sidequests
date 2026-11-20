@@ -536,3 +536,41 @@ Decided when P1 to P4 are in, not before:
   the check can see each key. P4 passes again (24 of 24 in both browsers).
 - **Waits for the owner:** listen, then say which keys switch to samples. That answer
   scopes the sample path's plan (`DECISIONS.md` D35).
+
+### Session 8: a sample or the code voice, per key (2026-11-20)
+
+The owner asked for an easy switch between the code voices and the samples, defaulting to
+whatever the PO-12 uses. The PO-12 mixes both and does not say which keys are which (R45),
+so every key starts on code. The owner agreed the plan in four points (D50) and asked that
+the numbers stay easy to tweak.
+
+- **Built:** `samples/raw/` (the pack as the engine reads it, from `samples/make-raw.py`)
+  and `samples/tracks.txt`; a sample voice beside each code voice in the core, with
+  `pi_set_sample` and command 22 (ABI 3, ENGINE.md §12); both render harnesses load the
+  pack; the worklet takes it from the page; the listening page sets each key to code or
+  sample, with All code and All samples, kept in the browser; the Rack Probe loads the pack
+  from inside the plugin and has a Sounds menu, saved with the patch.
+- **Easy to tweak:** every number that shapes a sample is in one marked block of
+  `core/src/voice.rs`; `VOICES.md` "Tuning a sample" says what each moves and what to run
+  after. Slider B's middle plays a sample whole (a side agent showed that the proposed
+  range would have cut half the samples short by default).
+- **Proven:** 12 new Rust tests (68 in all); `harness/render-samples.json` with every track
+  on its sample, the same bytes natively and from the `.wasm` (114 render pairs in all);
+  the 108 renders from before, the same bytes as the previous commit's core; `make listen`
+  in Chromium and Firefox (every key as code, then as a sample, then back); `make p4` 24 of
+  24 in both; `make -C rack selftest` at three rates with one probe on samples; the archive
+  check now wants the pack inside the plugin. Every new check failed once on a planted
+  fault: 15 in all. Three first plants were caught by nothing, and each taught something
+  (LEARNINGS.md).
+- **Changed beside it, because it broke or was wrong:** the engine is 2 328 bytes; every
+  host's room is 4 KiB. `rack/check-patch.mjs` loaded its snapshot 1 KiB in, inside the
+  engine since Session 7: now past it. `make listen`'s server did not serve the new files.
+- **Not done:** the cost of a sample voice was not measured, natively or on a phone; P4 on
+  iOS still waits.
+- **Waits for the owner, blocking nothing:** which keys to switch to samples, by ear, on
+  the page or in Rack; whether any first setting in "Tuning a sample" is wrong.
+- **Hear it:** the listening page (live); in Rack, `Sound.vcv`, then the Probe's right-click
+  menu, Sounds. The Probe plays the four drums only.
+- **Next build:** carry on with the rest (Session 3's list): edits from a UI once
+  `WORKFLOW.md` says what a press does; or the instrument's own panel.
+

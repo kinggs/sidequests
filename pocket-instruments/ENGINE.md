@@ -15,6 +15,10 @@ length, reset, the table clock and external clock edges. No sound, no keys, no p
 **ABI 2 (Session 3, D44; accepted, D46)** adds sound and changes nothing else: two arguments on
 `pi_process`, one command (`SOUND`) and §11. Every trace, record and snapshot is as it was.
 
+**ABI 3 (Session 8, D50)** adds samples and changes nothing else: one function
+(`pi_set_sample`), one command (`VOICE`) and §12. Every trace, record, snapshot and code
+voice's render is as it was (108 of 108 renders from ABI 2's core, the same bytes).
+
 ## 1. The shape
 
 One engine is one clock feeding one sequencer, in memory the host provides.
@@ -225,6 +229,7 @@ One fixed record, 12 bytes, little-endian, no padding:
 | 19 | `LENGTH` | `value` 1 to 16 |
 | 20 | `SOUND` | `a` track, `b` slider (0 = A, 1 = B), `value` 0 to 65535, clamped. ABI 2. Not in snapshot version 1 (§11) |
 | 21 | `FIRE` | `a` track. ABI 2 (D45; accepted, D46). The track fires on this frame, playing or stopped: one `TRIG` with the latest tick and the playhead's step, and its voice. Changes no pattern, takes no draw |
+| 22 | `VOICE` | `a` track, `value` 0 its code voice, 1 its sample. ABI 3 (D50). Taken at the track's next hit; a track with no sample plays its code voice. Not in snapshot version 1 (§12) |
 | 32 | `KEY_DOWN` | `a` key. Reserved: ignored in ABI 1 |
 | 33 | `KEY_UP` | `a` key. Reserved |
 | 34 | `PARAM` | `a` slider (0 = A, 1 = B), `value` 0 to 65535. Reserved |
@@ -269,7 +274,8 @@ Two runs agree when their traces are the same bytes.
   `pi_init` builds an engine in it. No allocator, no globals, any number of engines.
 - **The ABI is plain.** Only `uint32_t`, `int32_t` and pointers cross it: no float arguments,
   no 64-bit values, no structs by value, no callbacks. Sound crosses as a pointer to the
-  host's own floats (§11); the core keeps no pointer after a call returns. In WebAssembly a pointer is an offset into the
+  host's own floats (§11); the core keeps no pointer after a call returns, except a track's
+  sample (§12, from ABI 3), which the host keeps alive. In WebAssembly a pointer is an offset into the
   module's memory and the module imports nothing.
   In the browser and Node the host grows the module's memory by one page and puts the engine
   and both buffers there. Checked in Session 2: it works with no glue, the module imports
@@ -277,6 +283,8 @@ Two runs agree when their traces are the same bytes.
   drums the engine is 752 bytes; it still fits the 1 KiB the harness gives it. With all
   sixteen voices it is 1 416 bytes, and every host's fixed room for it is now 2 KiB (the
   harness, the worklet and the Rack Probe; `core/src/tests/rules.rs` holds `pi_size` to it).
+  With a sample beside each voice (§12) it is 2 328 bytes, natively and in WebAssembly, and
+  the room is 4 KiB. The samples themselves are in pages of their own after the host's.
   A host that can should ask `pi_size` instead.
 - **One thread.** Every function on an engine is called from the audio thread only. That
   includes the ones that only read: `pi_save` on another thread while `pi_process` runs is a
@@ -429,3 +437,29 @@ the `TRIG` events they already make.
   retunes it from those, never from sliders moved since.
 - **Filters and noise** follow the same rule: a filter's coefficient is the polynomial sine
   and one division; noise is a generator of the voice's own, never the sequencer's.
+
+## 12. Samples (ABI 3; D50)
+
+Added in Session 8. Each track can play a sample in place of its code voice.
+
+- **How it crosses.** `pi_set_sample(engine, track, data, frames)`: `frames` 16-bit mono
+  frames at 44.1 kHz (`PI_SAMPLE_RATE`), native byte order. The core keeps the pointer: the
+  host keeps the data readable and unchanged until it sets that track's sample again or
+  re-initialises the engine. Null or 0 frames clears it. It returns 1 if taken, 0 if cleared
+  or refused (a track past 15, data not 2-byte aligned). A sample sounding stops at once,
+  because the host may free the old data as soon as the call returns. `pi_init` starts with
+  none.
+- **Which plays.** Command 22, `VOICE`: per track, 0 code, 1 sample. All code at `pi_init`.
+  Read when the track fires, like the sliders; a track switched to a sample it does not have
+  plays its code voice. After a switch the old sound's tail plays out under the new one.
+- **How it plays.** Read at 44.1 kHz times slider A's ratio (25 semitones, an octave either
+  way, from an integer table), with a straight line between stored frames: `+ − × ÷` only,
+  so the same bits everywhere, as §11 requires. Slider B: the whole sample from its middle
+  up; less below, to the track's shortest code length at 0; then 60 dB in 10 ms. A rate
+  change mid-sound keeps its pitch and its time in seconds. Level: the same fixed 0.5 as
+  every voice (D48); a pack sample peaks at full scale, so near 0.5.
+- **Not in the snapshot.** Neither the samples nor the switch are in version 1. The switch
+  joins the sliders in version 2; the samples are the host's to load.
+- **Proven:** `core/src/tests/samples.rs`, and `harness/render-samples.json` (every track on
+  its sample, half switched back mid-way) to the same bytes natively and from the `.wasm`.
+

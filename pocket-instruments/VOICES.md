@@ -123,7 +123,28 @@ starting point for the sliders' middle, and nothing more.
 | 15 | 110 ms | 171 Hz | 4.7 kHz | |
 | 16 | 95 ms | 154 Hz, strong partial at 615 | 0.8 kHz | |
 
+## Tuning a sample (D50)
+
+Each key plays its code voice or its sample, set per key (the listening page; the Rack
+Probe's Sounds menu). How a sample plays is a few numbers in one marked block of
+`core/src/voice.rs`, "TUNING SAMPLES". Each is a first setting, there to be moved by ear:
+
+| To change | Edit | Now |
+|---|---|---|
+| How short slider B at 0 makes a key's sample | `SHORTEST_US`, that key's entry | each key's shortest code length |
+| Where on slider B the whole sample is reached | `WHOLE_FROM` | the middle |
+| The fade after slider B's length | `FADE_US` | 10 ms for 60 dB |
+| Slider A's reach | `RATIOS` (25 semitones) | an octave either way |
+| A key's sample itself | a file in `samples/`, its row in `samples/README.md` and `samples/tracks.txt`, then `python3 samples/make-raw.py` | the starter pack (D35) |
+
+After an edit: `make test` (a test that pins the old number fails and says which; change it
+with the reason), `make web` so the page gets the new core, and `make listen`. The code
+voices' own numbers are in the "As built" table above and their structs in the same file.
+
 ## Samples instead of recipes, for some voices (D32, proposed)
+
+(Annotated 2026-11-20: done as D50, for every key at once. The candidates below were
+chosen as `samples/`, D35; the reasoning stands as written.)
 
 Sonic Pi ships about two hundred drum and percussion samples, every one public domain (CC0),
 each traced to its Freesound original (R31). They are heard by a very large number of people

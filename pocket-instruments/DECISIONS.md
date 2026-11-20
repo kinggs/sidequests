@@ -643,6 +643,37 @@ of tune with everything else, and the semitone table keeps every note exact on e
 It holds for the samples too: when 15 and 16 play D35's tones, slider A tunes them by the
 same semitones (D35 said slider A "will have to tune" them).
 
+### D50 — Each key plays its code voice or its sample: a setting per key, code by default
+**2026-11-20 · decided (owner: "Go", on the four points below) · carries out D32 and D35 · ABI 3**
+
+Every track can play its starter-pack sample (D35) in place of the voice built in code, by
+a setting per key; hosts offer "all code" and "all samples" too. Every key starts on code,
+because the PO-12 mixes synthesised and sampled sounds without saying which keys are which
+(R45): switch a key by ear when the hardware is to hand (D29).
+
+1. **The samples, as the engine reads them:** `samples/raw/<name>.s16`, mono, 16-bit
+   little-endian, at the files' own 44.1 kHz, each scaled so its loudest point is full scale.
+   Made from the FLACs by `samples/make-raw.py` and committed, so every host hands the
+   engine the same bytes (a browser's FLAC decoder would not). `samples/tracks.txt` gives
+   the order. 479 KB. (Proposed at 48 kHz; the files are 44.1 kHz, and keeping their own rate
+   avoids a resampling before the engine's own.)
+2. **Slider A on a sample:** speed and pitch together, in semitones, an octave either way;
+   the middle as recorded (D49's semitones, for every key).
+3. **Slider B on a sample:** from the middle up, the whole sample; below the middle,
+   shorter, down to that key's shortest code length at 0. Then a 10 ms fade. (Proposed as
+   the code voice's whole range; changed before it shipped, on the owner's word that the
+   samples sounded right whole, so the middle plays them whole.)
+4. **The setting:** per key, in each host: the listening page (kept in that browser) and the
+   Rack Probe's right-click menu (saved with the patch). Not in snapshot version 1, like the
+   sliders: it joins them in version 2 (D44).
+
+How it crosses: `pi_set_sample(engine, track, data, frames)` hands the engine a pointer the
+host keeps alive, and command 22 (`VOICE`) switches a track. This ends "the core keeps no
+pointer": it keeps one kind, a sample's, and the contract says how long it must live.
+
+Every number that shapes a sample is a first setting and sits in one marked block in
+`core/src/voice.rs` ("TUNING SAMPLES"); `VOICES.md` says how to move one.
+
 ## Open
 
 | ID | Question | Needs |

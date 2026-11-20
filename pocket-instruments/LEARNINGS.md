@@ -247,3 +247,26 @@ belongs in `PROOFS.md`, a change of course in `DECISIONS.md`, an outside fact in
   worktree, rendered the five older voices and the beat to the same bytes as this one.
   Adding exact zeros to a sum leaves it alone, except `-0.0 + 0.0`, which is why the old
   test's partial sum became the full one.
+
+## Session 8: samples per key (2026-11-20)
+
+- **An empty sample is silent anyway, so "clearing stops it" proved nothing.** The read is
+  bounds-checked, so a cleared sample was silent whether or not it was stopped. The case
+  that matters is a sample replaced while it sounds: the old pointer may already be freed.
+  The test now replaces it and checks nothing plays until the next hit.
+- **A plant that changes nothing at the slider's middle is not a fault there.** "Whole only
+  at the top" gives the same length as "whole from the middle" at the middle. The fair plant
+  breaks the lower half, which a quarter-way reading catches.
+- **A check with slack hides exactly the fault it was for.** "At least 14 keys differ, peak
+  over 0.3" let a missing sample through: the key fell back to its code voice, which peaked
+  at 0.34. All sixteen differ in practice, so all sixteen are required.
+- **A check's own server is part of the check.** The listening check timed out, not
+  failed: its server did not serve `.s16` or `.txt`, so the engine never started and the
+  page waited four seconds a key. The page now reports at once when it has no engine.
+- **A fixed offset hides until the thing before it grows.** `check-patch.mjs` put the
+  snapshot 1 KiB into the host's page; the engine passed 1 KiB in Session 7, and nothing
+  failed because `pi_load` reads before it writes. Search for every fixed room when a size
+  bound moves, not only the ones you remember.
+- **Read the files before deciding their format.** The plan said 48 kHz; the pack is 44.1
+  kHz, and storing it at its own rate removed a resampling step.
+

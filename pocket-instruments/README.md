@@ -2,7 +2,7 @@
 
 **Status:** P1, P2, P3 and P7 passed. P4, P5 and P6 are part-run (2026-11-19): the core runs in
 Rack and in an AudioWorklet, on a phone too, and plays all sixteen voices; CI builds the plugin
-for all four Rack platforms. What is left needs an iPhone, other machines and the instrument
+for all four Rack platforms. Each key plays its code voice or a sample (D50). What is left needs an iPhone, other machines and the instrument
 itself (`PROOFS.md`). Started 2026-11-18.
 
 Small calculator-format musical instruments, free and open source, playable as VCV Rack modules
@@ -37,7 +37,7 @@ into its own repository.
 | `Makefile` | `make build`: both targets. `make test`: the three harnesses compared, the render comparison, the race harness. The repo's `make verify` runs it. `make targets`, `make p4`: the slower checks | |
 | `rust-toolchain.toml`, `mise.toml` | The Rust this folder builds with. `mise install` once | The two must name one version; `make check-toolchain` fails if not |
 | `VOICES.md` | The sixteen sounds: role, recipe, what the sliders do, and what each was built as | Until each voice passes by ear |
-| `samples/` | The starter drum pack: sixteen CC0 files, their origins, and a page to hear them | A swap is a new file and a new manifest row |
+| `samples/` | The starter drum pack: sixteen CC0 files, their origins, a page to hear them, and `raw/` + `tracks.txt`, the pack as the engine reads it (D50) | A swap is a new file, a new manifest row and a line in `tracks.txt`, then `python3 samples/make-raw.py` |
 | `WORKFLOW.md` | What each press does, in our words; the owner ticks each row on the hardware | Until P8 |
 | `RACK-RULES.md` | What any module of ours for VCV Rack is held to: the panel, the voltages, the code | Re-read VCV's manual (R33 to R35) before leaning on an old line |
 | `design/DESIGN.md` | The look (Loom): tokens, key states, the panel in mm, the phone layout | Changed by a decision; `design/panel.svg` is redrawn by its script |
