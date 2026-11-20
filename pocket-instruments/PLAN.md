@@ -511,8 +511,8 @@ Decided when P1 to P4 are in, not before:
 - **Built inside the recipes, without a ruling:** key 5's noise is shorter than its body
   ("short noise"); key 15 is a triangle and key 16 a low-passed square ("a square or
   triangle"). Every number is a first setting, for the owner's ear at P8.
-- **Waits for the owner, blocking nothing:** whether slider A on the tones is in semitones
-  (⚠ the recipe's guess, built as one); which keys become samples (D35), which needs a
+- **Waits for the owner, blocking nothing:** ~~whether slider A on the tones is in semitones~~
+  (answered 2026-11-20: yes, D49); which keys become samples (D35), which needs a
   sample path the core does not have.
 - **Hear it:** no patch plays all sixteen yet. Rack's Probe plays whatever its fixture
   steps, so `Sound.vcv` is still the beat.

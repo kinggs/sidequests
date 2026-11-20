@@ -634,6 +634,15 @@ of two, so it is exact and cannot cost the same bits.
 What would reopen it: the owner's ear at P8; a voice level per track (the hardware's
 volume key); a master volume, which the instrument will need anyway.
 
+### D49 — Slider A on the tones moves in semitones
+**2026-11-20 · decided (owner): "yes on the semitones" · confirms VOICES.md's guess for keys 15 and 16**
+
+Slider A on the tone (15) and the bass tone (16) picks one of 25 semitones, two octaves
+centred on A3 and A1, as built in Session 7. Why: a tone that lands between notes is out
+of tune with everything else, and the semitone table keeps every note exact on every host.
+It holds for the samples too: when 15 and 16 play D35's tones, slider A tunes them by the
+same semitones (D35 said slider A "will have to tune" them).
+
 ## Open
 
 | ID | Question | Needs |

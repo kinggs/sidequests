@@ -36,8 +36,8 @@ one-pole or two-pole filter and exponential envelopes.
 | 12 | High tom | the same as 11 | base 120 to 250 Hz | 100 to 400 ms |
 | 13 | Cow bell | two squares, about 540 and 800 Hz, band-passed | pitch of both | 30 to 300 ms |
 | 14 | Blip | a short high sine with a fast rise in pitch | pitch | 20 to 100 ms |
-| 15 | Tone | a square or triangle held at one pitch | pitch, in semitones ⚠ | 50 to 500 ms |
-| 16 | Bass tone | the same as 15, two octaves down, low-passed | pitch, in semitones ⚠ | 50 to 500 ms |
+| 15 | Tone | a square or triangle held at one pitch | pitch, in semitones (D49) | 50 to 500 ms |
+| 16 | Bass tone | the same as 15, two octaves down, low-passed | pitch, in semitones (D49) | 50 to 500 ms |
 
 Hats 3 and 4 share a source, and 4 should cut 3 off when both fire, as a real hat does.
 ⚠ Whether the hardware does this is not known. ⚠ Not built: on a real hat it is the other
@@ -68,8 +68,8 @@ Every one is held to the same bytes natively and in WebAssembly by a scenario in
 | 12 | The same as 11 | base 120 to 250 Hz | 100 to 400 ms | the same |
 | 13 | Two squares, the upper 40/27 of the lower (540 and 800 Hz at the middle), through a band-pass an octave above the lower | lower 400 to 680 Hz | 30 to 300 ms | Q 1; level 0.45 |
 | 14 | Sine rising to an octave above its start (by e in 10 ms) | start 1 to 3 kHz | 20 to 100 ms | level 0.8 |
-| 15 | Triangle, from 0 and rising: no step at the start | A2 to A4 in 25 semitones, A3 (220 Hz) at the middle ⚠ | 50 to 500 ms | level 0.8 |
-| 16 | Square two octaves below 15, low-passed two octaves above its own pitch | A0 to A2 in semitones, A1 (55 Hz) at the middle ⚠ | 50 to 500 ms | Q 0.7; level 0.7 |
+| 15 | Triangle, from 0 and rising: no step at the start | A2 to A4 in 25 semitones, A3 (220 Hz) at the middle (D49) | 50 to 500 ms | level 0.8 |
+| 16 | Square two octaves below 15, low-passed two octaves above its own pitch | A0 to A2 in semitones, A1 (55 Hz) at the middle (D49) | 50 to 500 ms | Q 0.7; level 0.7 |
 
 - **Noise** is a xorshift generator of each voice's own, restarted on every hit, so a hit
   depends only on its sliders and the rate. It never touches the sequencer's generator.
@@ -82,7 +82,7 @@ Every one is held to the same bytes natively and in WebAssembly by a scenario in
 - **The hats do not cut each other off** (D47); a switch for it later.
 - **The tones are in tune by integers:** a table of the twelve semitones from A2 in
   thousandths of a hertz, shifted by octaves, so a note is exact and the same everywhere.
-  ⚠ Slider A in semitones for 15 and 16 is the recipe's own guess, still unconfirmed.
+  Slider A in semitones for 15 and 16 was the recipe's guess; the owner confirmed it (D49).
 - **Key 5's noise is shorter than its body,** as the recipe's "short noise" says; a first
   build with one envelope for both sounded as long as it was bright, and its pitch could
   not be measured under the noise.
