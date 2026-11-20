@@ -304,4 +304,11 @@ belongs in `PROOFS.md`, a change of course in `DECISIONS.md`, an outside fact in
   grid key numbered 23 shifts a 16-bit word by 23. The guard is one comparison, and several
   lines trust it. Session 11's clamp on a loaded volume is the same kind of guard for
   `1 << volume` in the view.
+- **A guard that only looks at the last file.** The fixtures-only commit reached CI early
+  (another session's push carried it), and the Rack build went green with three
+  `jq: error … not fixture format 1` lines in its log. Given several files, `jq` exits with
+  the last file's status, and the last fixture was a good one. So the Probe's "a command I
+  do not know" guard had never been able to stop a build unless the bad fixture sorted
+  last. `rack/Makefile` now runs `jq` once a file; a planted unknown command in
+  `reset-mid-bar` stops the build. Read a green run's log when you expected red.
 

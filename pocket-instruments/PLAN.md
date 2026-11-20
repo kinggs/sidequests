@@ -849,6 +849,9 @@ the numbers stay easy to tweak.
   caught by the harness it was in. Two things that taught something are in `LEARNINGS.md`:
   a plant script that reported every fault caught when cargo had never run, and a rule
   missing from the rule tests that only a fixture caught.
+- **Fixed beside it:** `rack/Makefile` built the Probe's fixtures with one `jq` over every
+  file, whose exit status is the last file's alone. A fixture it refused was dropped and
+  the build went on. Found when CI went green past three such errors; now one `jq` a file.
 - **Sizes:** the engine is 2 352 bytes (was 2 328), inside the hosts' 4 KiB. The `.wasm` is
   26 998 bytes (was 23 692).
 - **For Session 11 (Opus), what will bite:**

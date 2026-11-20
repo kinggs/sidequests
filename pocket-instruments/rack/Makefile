@@ -41,9 +41,14 @@ $(PI_LIB): FORCE
 	$(MAKE) --no-print-directory -C .. rack-lib T=$(RUST_TARGET)
 
 # The fixtures and their traces, as C++ initialisers. Never retyped by hand.
+# One jq a file: given them all at once, jq's exit status is the last file's alone, so a
+# fixture it refused in the middle of the list was dropped and the build went on (found in
+# Session 10, when CI built happily past three "not fixture format 1" errors).
 build/fixtures.inc: fixtures.jq $(wildcard ../fixtures/*.json)
 	@mkdir -p build
-	jq -r -f fixtures.jq ../fixtures/*.json > $@
+	@rm -f $@
+	for f in ../fixtures/*.json; do jq -r -f fixtures.jq "$$f" || exit 1; done > $@.tmp
+	mv $@.tmp $@
 build/src/Probe.cpp.o: build/fixtures.inc
 
 # P3 ⚠ (PROOFS.md P1): the plugin must not need Rust's unwinder, and the core must be inside it.
