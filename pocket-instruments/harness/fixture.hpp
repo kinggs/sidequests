@@ -1,5 +1,5 @@
-// What both C++ harnesses share: just enough JSON for fixture format 1, and a fixture's
-// commands as pi_cmd records. harness.cpp runs the fixtures (P2); race.cpp is P6.
+// What both C++ harnesses share: just enough JSON for the fixture formats, a fixture's
+// commands as pi_cmd records, and a view block as text (format 2). harness.cpp runs the fixtures (P2); race.cpp is P6.
 //
 // SPDX-License-Identifier: MIT
 #pragma once
@@ -106,6 +106,11 @@ static pi_cmd cmd(uint8_t type, uint8_t a = 0, uint8_t b = 0, uint32_t value = 0
     return pi_cmd{0, type, a, b, 0, value};
 }
 
+// Format 2: what a finger did. These land a frame after their step's boundary.
+[[maybe_unused]] static bool is_key(const std::string &name) {
+    return name == "key_down" || name == "key_up" || name == "param";
+}
+
 static bool is_edit(const std::string &name) {
     return name == "step" || name == "prob" || name == "swing" || name == "length";
 }
@@ -120,6 +125,9 @@ static pi_cmd to_cmd(const Json &c) {
     if (name == "prob") return cmd(PI_CMD_PROB, track, step, value);
     if (name == "swing") return cmd(PI_CMD_SWING, 0, 0, value);
     if (name == "length") return cmd(PI_CMD_LENGTH, 0, 0, value);
+    if (name == "key_down") return cmd(PI_CMD_KEY_DOWN, uint8_t(c.n("key")));
+    if (name == "key_up") return cmd(PI_CMD_KEY_UP, uint8_t(c.n("key")));
+    if (name == "param") return cmd(PI_CMD_PARAM, uint8_t(c.n("slider")), 0, value);
     if (name == "sound") return cmd(PI_CMD_SOUND, track, uint8_t(c.n_or("param", 0)), value); // P7 only
     if (name == "voice") return cmd(PI_CMD_VOICE, track, 0, value); // D50, render scenarios only
     die("unknown fixture command " + name);
@@ -132,6 +140,26 @@ static Json read_fixture(const std::string &path) {
     if (s.empty()) die("cannot read " + path);
     Parser p{s};
     Json fx = p.value();
-    if (fx.n("format") != 1 || fx.n("ticks_per_step") != PI_TICKS_PER_STEP) die(path + ": not a format this harness runs");
+    uint64_t format = fx.n("format");
+    if ((format != 1 && format != 2) || fx.n("ticks_per_step") != PI_TICKS_PER_STEP) die(path + ": not a format this harness runs");
+    if (format == 1 && fx.find("views")) die(path + ": views are format 2's");
     return fx;
+}
+
+// ENGINE.md section 14's text line for a view block: what a format 2 fixture holds.
+[[maybe_unused]] static std::string view_text(const uint8_t *b) {
+    auto u16 = [&](unsigned i) { return unsigned(b[i] | b[i + 1] << 8); };
+    auto u32 = [&](unsigned i) { return uint32_t(b[i]) | uint32_t(b[i + 1]) << 8 | uint32_t(b[i + 2]) << 16 | uint32_t(b[i + 3]) << 24; };
+    unsigned flags = b[PI_VIEW_FLAGS];
+    auto flag = [&](unsigned bit) { return flags & bit ? 1 : 0; };
+    std::string step = flags & PI_VIEW_FLAG_STEP ? std::to_string(b[PI_VIEW_STEP]) : "-";
+    char line[320];
+    std::snprintf(line, sizeof line,
+                  "view play=%d write=%d edges=%d sounds=%d step=%s sel=%u vol=%u tempo=%u len=%u swing=%u held=%06x field=%04x stitch=%04x bar=%04x sampled=%04x a=%u b=%u fires=",
+                  flag(PI_VIEW_FLAG_PLAYING), flag(PI_VIEW_FLAG_WRITE), flag(PI_VIEW_FLAG_EDGES), flag(PI_VIEW_FLAG_SOUNDS), step.c_str(),
+                  unsigned(b[PI_VIEW_SEL]), unsigned(b[PI_VIEW_VOLUME]), u32(PI_VIEW_TEMPO), unsigned(b[PI_VIEW_LENGTH]), unsigned(b[PI_VIEW_SWING]),
+                  u32(PI_VIEW_HELD), u16(PI_VIEW_FIELD), u16(PI_VIEW_STITCH), u16(PI_VIEW_BAR), u16(PI_VIEW_SAMPLED), u16(PI_VIEW_A), u16(PI_VIEW_B));
+    std::string out = line;
+    for (unsigned t = 0; t < PI_TRACKS; t++) out += (t ? "," : "") + std::to_string(b[PI_VIEW_FIRES + t]);
+    return out;
 }

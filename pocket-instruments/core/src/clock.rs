@@ -75,6 +75,10 @@ impl Clock {
         }
     }
 
+    pub fn source(&self) -> u8 {
+        self.source
+    }
+
     /// `CLOCK`: one edge, one step. Finishes the old step, then emits tick 0 of the new one.
     pub fn edge(&mut self, sink: &mut impl FnMut(u32)) {
         if self.source != SOURCE_EDGES {

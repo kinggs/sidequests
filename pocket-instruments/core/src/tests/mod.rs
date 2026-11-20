@@ -3,6 +3,7 @@
 
 mod fixtures;
 mod json;
+mod keys;
 mod rules;
 mod samples;
 mod sound;
@@ -69,6 +70,13 @@ impl Host {
         unsafe { pi_generation(self.e) }
     }
 
+    /// §14: the view block, as a host reads it.
+    pub fn view(&self) -> [u8; 64] {
+        let mut b = [0u8; 64];
+        assert_eq!(unsafe { pi_view(self.e, b.as_mut_ptr(), 64) }, 64);
+        b
+    }
+
     pub fn save(&self) -> [u8; 316] {
         let mut b = [0u8; 316];
         assert_eq!(unsafe { pi_save(self.e, b.as_mut_ptr(), 316) }, 316);
@@ -94,4 +102,19 @@ pub fn line(ev: &Event) -> String {
 
 pub fn trace(events: &[(u64, Event)]) -> String {
     events.iter().map(|(_, e)| line(e)).collect()
+}
+
+/// §14's text line for a view block: what a fixture holds. The tick and bytes 48 to 63 are
+/// left out.
+pub fn view_text(b: &[u8; 64]) -> String {
+    let u16_at = |i: usize| u16::from_le_bytes([b[i], b[i + 1]]);
+    let u32_at = |i: usize| u32::from_le_bytes([b[i], b[i + 1], b[i + 2], b[i + 3]]);
+    let flag = |bit: u8| b[24] >> bit & 1;
+    let step = if flag(3) == 1 { b[25].to_string() } else { "-".to_string() };
+    let fires: Vec<String> = b[32..48].iter().map(|n| n.to_string()).collect();
+    format!(
+        "view play={} write={} edges={} sounds={} step={} sel={} vol={} tempo={} len={} swing={} held={:06x} field={:04x} stitch={:04x} bar={:04x} sampled={:04x} a={} b={} fires={}",
+        flag(0), flag(1), flag(2), flag(4), step, b[26], b[27], u32_at(4), b[28], b[29],
+        u32_at(8), u16_at(12), u16_at(14), u16_at(16), u16_at(18), u16_at(20), u16_at(22), fires.join(","),
+    )
 }

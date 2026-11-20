@@ -1,4 +1,5 @@
-/* Pocket Instruments: the engine's C ABI, version 3 (1 plus sound: D44; 3 adds samples: D50).
+/* Pocket Instruments: the engine's C ABI, version 4 (1 plus sound: D44; 3 adds samples: D50;
+ * 4 adds keys and the view: D51).
  *
  * The contract both hosts link. ENGINE.md beside the crate is the specification; this file is
  * the same thing in C. Where they disagree, ENGINE.md is right.
@@ -20,7 +21,7 @@
 extern "C" {
 #endif
 
-#define PI_ABI_VERSION 3u
+#define PI_ABI_VERSION 4u
 
 #define PI_TICKS_PER_STEP 96u /* a step is a sixteenth note */
 #define PI_TRACKS 16u         /* one per grid key: key n plays track n (D30) */
@@ -32,11 +33,13 @@ extern "C" {
 #define PI_EVENTS_MIN 64u     /* the least room a host gives pi_process for events */
 #define PI_SNAPSHOT_VERSION 1u
 #define PI_SNAPSHOT_SIZE 316u /* bytes, for PI_SNAPSHOT_VERSION */
+#define PI_VIEW_SIZE 64u      /* bytes pi_view writes */
+#define PI_VOLUME_MAX 16u     /* master volume, 1..16; the mix is times (volume / 16) squared */
 
 /* What pi_process writes to `audio`, by its `channels` argument. Any other value: no sound. */
 #define PI_AUDIO_NONE 0u    /* the voices do not run at all */
-#define PI_AUDIO_MIX 1u     /* one float a frame: every voice, summed */
-#define PI_AUDIO_TRACKS 16u /* PI_TRACKS floats a frame: track n alone in channel n */
+#define PI_AUDIO_MIX 1u     /* one float a frame: every voice, summed, times the master volume */
+#define PI_AUDIO_TRACKS 16u /* PI_TRACKS floats a frame: track n alone in channel n, before the master */
 
 /* Clock sources (PI_CMD_SOURCE). */
 #define PI_SOURCE_TABLE 0u /* the engine counts frames at its tempo */
@@ -59,9 +62,13 @@ extern "C" {
 #define PI_CMD_VOICE 22u    /* a: track; value: 0 its voice built in code, 1 its sample (pi_set_sample).
                                Taken at the track's next hit; a track with no sample plays its code
                                voice. All code at pi_init. Not in snapshot version 1 */
-#define PI_CMD_KEY_DOWN 32u /* a: PI_KEY_*. Reserved: ignored by ABI 1 */
-#define PI_CMD_KEY_UP 33u   /* a: PI_KEY_*. Reserved */
-#define PI_CMD_PARAM 34u    /* a: 0 slider A, 1 slider B; value: 0..65535. Reserved */
+/* What a finger did (ABI 4; ENGINE.md section 13). The core runs the workflow and turns each
+ * into the edits above; a host sends these and draws pi_view. */
+#define PI_CMD_KEY_DOWN 32u /* a: PI_KEY_*. A key already down, or a number past 22: ignored */
+#define PI_CMD_KEY_UP 33u   /* a: PI_KEY_*. A key not down: ignored */
+#define PI_CMD_PARAM 34u    /* a: 0 slider A, 1 slider B; value: 0..65535, clamped. The chosen
+                               sound's slider; with bpm held, swing (A) and tempo (B). A value
+                               equal to the one pi_view shows for that slider changes nothing */
 
 /* Keys. 0..15 are the grid, left to right, top to bottom. */
 #define PI_KEY_SOUND 16u
@@ -71,6 +78,30 @@ extern "C" {
 #define PI_KEY_FX 20u
 #define PI_KEY_PLAY 21u
 #define PI_KEY_WRITE 22u
+
+/* The view: where each field is in pi_view's block (ENGINE.md section 14). Little-endian. */
+#define PI_VIEW_TICK 0u     /* u32: the latest tick emitted */
+#define PI_VIEW_TEMPO 4u    /* u32: thousandths of a bpm */
+#define PI_VIEW_HELD 8u     /* u32: bit k, key k is down */
+#define PI_VIEW_FIELD 12u   /* u16: bit n lights grid key n's face */
+#define PI_VIEW_STITCH 14u  /* u16: bit n puts the corner stitch on key n */
+#define PI_VIEW_BAR 16u     /* u16: bit n puts the bar on key n */
+#define PI_VIEW_SAMPLED 18u /* u16: bit t, track t plays its sample */
+#define PI_VIEW_A 20u       /* u16: slider A as it should show */
+#define PI_VIEW_B 22u       /* u16: slider B as it should show */
+#define PI_VIEW_FLAGS 24u   /* u8: PI_VIEW_FLAG_* */
+#define PI_VIEW_STEP 25u    /* u8: the playhead's step; means something while PI_VIEW_FLAG_STEP */
+#define PI_VIEW_SEL 26u     /* u8: the chosen sound */
+#define PI_VIEW_VOLUME 27u  /* u8: 1..PI_VOLUME_MAX */
+#define PI_VIEW_LENGTH 28u  /* u8 */
+#define PI_VIEW_SWING 29u   /* u8 */
+#define PI_VIEW_FIRES 32u   /* PI_TRACKS u8s: how often each track has fired, wrapping at 256 */
+
+#define PI_VIEW_FLAG_PLAYING 1u
+#define PI_VIEW_FLAG_WRITE 2u
+#define PI_VIEW_FLAG_EDGES 4u   /* the clock source is PI_SOURCE_EDGES */
+#define PI_VIEW_FLAG_STEP 8u    /* a step has arrived since play or reset; clear when stopped */
+#define PI_VIEW_FLAG_SOUNDS 16u /* the grid is sixteen sounds, not sixteen steps */
 
 /* Event types. */
 #define PI_EV_STEP 1u /* the playhead arrived on a step; never swung */
@@ -132,6 +163,10 @@ uint32_t pi_process(pi_engine *engine, uint32_t frames,
                     const pi_cmd *cmds, uint32_t ncmds,
                     pi_event *events, uint32_t cap,
                     float *audio, uint32_t channels);
+
+/* Everything a host draws, as one block. Returns PI_VIEW_SIZE, or 0 if cap is too small.
+ * On the audio thread, like every function on an engine. Moves nothing. */
+uint32_t pi_view(const pi_engine *engine, uint8_t *buf, uint32_t cap);
 
 /* D50: track `track`'s sample: `frames` 16-bit mono frames at PI_SAMPLE_RATE, native byte
  * order. `data` must stay readable and unchanged until this track's sample is set again, or

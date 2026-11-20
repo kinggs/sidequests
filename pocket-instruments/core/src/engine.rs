@@ -2,6 +2,7 @@
 
 use crate::abi::*;
 use crate::clock::Clock;
+use crate::keys::Keys;
 use crate::seq::{Pattern, Rng, SWING_MAX, STEPS, Seq, TRACKS};
 use crate::voice::Voices;
 
@@ -19,6 +20,10 @@ pub struct Engine {
     pub(crate) dropped: u32,
     pub(crate) generation: u32,
     pub(crate) voices: Voices,
+    /// §13: what the keys hold. Not in snapshot version 1.
+    pub(crate) keys: Keys,
+    /// §14: firings per track since `pi_init`, wrapping.
+    pub(crate) fires: [u8; TRACKS],
 }
 
 impl Engine {
@@ -34,6 +39,8 @@ impl Engine {
             dropped: 0,
             generation: 0,
             voices: Voices::new(),
+            keys: Keys::new(),
+            fires: [0; TRACKS],
         }
     }
 
@@ -64,7 +71,7 @@ impl Engine {
         }
         let thr = 625 * self.sample_rate as u64;
         let last = frames - 1;
-        let mut out = Out::new(events);
+        let mut out = Out::new(events, self.fires);
         let mut next = 0;
 
         for f in 0..frames {
@@ -87,17 +94,19 @@ impl Engine {
                 let at = f as usize * channels;
                 self.voices.trigger(out.fired, self.sample_rate);
                 if let Some(frame) = audio.get_mut(at..at + channels) {
-                    self.voices.render(frame);
+                    // §13: the master volume, read on each frame, so a key changes it at once.
+                    self.voices.render(frame, self.keys.gain());
                 }
             }
             out.fired = 0;
         }
 
+        self.fires = out.fires;
         self.dropped = self.dropped.saturating_add(out.dropped);
         out.len()
     }
 
-    fn apply(&mut self, c: &Cmd, out: &mut Out) {
+    pub(crate) fn apply(&mut self, c: &Cmd, out: &mut Out) {
         let (a, b, v) = (c.a as usize, c.b as usize, c.value);
         let changed = match c.kind {
             CMD_CLOCK => {
@@ -159,7 +168,21 @@ impl Engine {
                 let old = core::mem::replace(&mut self.pat.length, l);
                 old != l
             }
-            // Keys and sliders are reserved (D26); anything else is unknown. All ignored.
+            // §13: what a finger did. Each becomes edits through this same function, which
+            // count their own changes, so nothing is counted here.
+            CMD_KEY_DOWN => {
+                self.key_down(a, out);
+                false
+            }
+            CMD_KEY_UP => {
+                self.key_up(a, out);
+                false
+            }
+            CMD_PARAM => {
+                self.param(a, v, out);
+                false
+            }
+            // Anything else is unknown, and ignored.
             _ => false,
         };
         if changed {

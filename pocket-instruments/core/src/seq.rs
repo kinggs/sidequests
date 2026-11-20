@@ -67,6 +67,15 @@ impl Seq {
         }
     }
 
+    pub fn playing(&self) -> bool {
+        self.playing
+    }
+
+    /// A step has arrived since play, or since a reset: the playhead's step means something.
+    pub fn started(&self) -> bool {
+        self.playing && !self.fresh
+    }
+
     /// The pattern step the playhead is on.
     pub fn step(&self) -> u8 {
         self.cur

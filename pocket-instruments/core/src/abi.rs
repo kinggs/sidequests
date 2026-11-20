@@ -1,11 +1,12 @@
-//! §6 to §8 and §11: the records and the C functions. Only `u32`, `i32` and pointers cross.
+//! §6 to §8, §11 and §14: the records and the C functions. Only `u32`, `i32` and pointers cross.
 //! Sound crosses as a pointer to the host's floats, never as a float argument (D44).
 
 use crate::engine::Engine;
+use crate::keys;
 use crate::seq::TRACKS;
 use crate::snapshot;
 
-pub const ABI_VERSION: u32 = 3;
+pub const ABI_VERSION: u32 = 4;
 
 pub const CMD_CLOCK: u8 = 1;
 pub const CMD_RESET: u8 = 2;
@@ -19,6 +20,9 @@ pub const CMD_LENGTH: u8 = 19;
 pub const CMD_SOUND: u8 = 20;
 pub const CMD_FIRE: u8 = 21;
 pub const CMD_VOICE: u8 = 22;
+pub const CMD_KEY_DOWN: u8 = 32;
+pub const CMD_KEY_UP: u8 = 33;
+pub const CMD_PARAM: u8 = 34;
 
 pub const EV_STEP: u8 = 1;
 pub const EV_TRIG: u8 = 2;
@@ -65,17 +69,22 @@ pub struct Out<'a> {
     /// Bit `t`: track `t` fired since this was last cleared. Set even when the event itself
     /// found no room: a full event buffer must not silence a voice.
     pub fired: u16,
+    /// §14: how many times each track has fired, wrapping. The engine's count, carried
+    /// through the block and handed back at its end. Counted like `fired`: room or not.
+    pub fires: [u8; TRACKS],
 }
 
 impl<'a> Out<'a> {
-    pub fn new(buf: &'a mut [Event]) -> Self {
-        Out { buf, n: 0, frame: 0, dropped: 0, fired: 0 }
+    pub fn new(buf: &'a mut [Event], fires: [u8; TRACKS]) -> Self {
+        Out { buf, n: 0, frame: 0, dropped: 0, fired: 0, fires }
     }
 
     #[inline]
     pub fn push(&mut self, tick: u32, kind: u8, track: u8, step: u8) {
         if kind == EV_TRIG {
             self.fired |= 1 << (track & 15);
+            let count = &mut self.fires[track as usize & 15];
+            *count = count.wrapping_add(1);
         }
         match self.buf.get_mut(self.n) {
             Some(slot) => {
@@ -220,6 +229,25 @@ pub unsafe extern "C" fn pi_load(engine: *mut Engine, buf: *const u8, len: u32) 
     // SAFETY: non-null and `len` bytes by the contract.
     let bytes = unsafe { core::slice::from_raw_parts(buf, len as usize) };
     snapshot::load(e, bytes)
+}
+
+/// §14: everything a host draws, as one block. Returns `VIEW_SIZE` (64), or 0 if `cap` is
+/// too small. Moves nothing: not the generation, not a counter.
+///
+/// # Safety
+/// `engine` as `pi_set_sample_rate`. `buf` is null or points to `cap` writable bytes.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pi_view(engine: *const Engine, buf: *mut u8, cap: u32) -> u32 {
+    // SAFETY: null or a live engine.
+    let Some(e) = (unsafe { engine.as_ref() }) else {
+        return 0;
+    };
+    if buf.is_null() || (cap as usize) < keys::VIEW_SIZE {
+        return 0;
+    }
+    // SAFETY: non-null and at least VIEW_SIZE bytes, checked above; u8 has no alignment.
+    e.view(unsafe { &mut *buf.cast::<[u8; keys::VIEW_SIZE]>() });
+    keys::VIEW_SIZE as u32
 }
 
 /// D50: track `track`'s sample, `frames` 16-bit mono frames at 44.1 kHz. Null or 0 frames

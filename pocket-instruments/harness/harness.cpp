@@ -26,36 +26,62 @@ struct Host {
 };
 
 using Timed = std::pair<uint64_t, pi_cmd>;
+// A view to read: the frame its block ends on, and the text expected there (format 2).
+using View = std::pair<uint64_t, std::string>;
 
 // What to send and when, and the frame the run ends before.
-static uint64_t schedule(const Json &fx, uint32_t rate, uint32_t source, bool from_snapshot, std::vector<Timed> &cmds) {
+static uint64_t schedule(const Json &fx, uint32_t rate, uint32_t source, bool from_snapshot, std::vector<Timed> &cmds,
+                         std::vector<View> *views = nullptr) {
     uint64_t mbpm = fx.n("mbpm"), steps = fx.n("steps");
     auto F = [&](uint64_t n) { return (n * rate * 15000 + mbpm - 1) / mbpm; };
     uint64_t anchor = 0, anchor_step = 0;
+    std::vector<uint64_t> step_frames;
     if (!from_snapshot) cmds.push_back({0, cmd(PI_CMD_TEMPO, 0, 0, uint32_t(mbpm))});
     cmds.push_back({0, cmd(PI_CMD_SOURCE, 0, 0, source)});
     for (uint64_t m = 0; m < steps; m++) {
         uint64_t at = anchor + F(m - anchor_step);
+        step_frames.push_back(at);
         for (const Json &c : fx.at("commands").arr) {
             if (c.n("at") != m) continue;
             const std::string &name = c.at("cmd").str;
+            if (is_key(name)) continue;
             if (from_snapshot && m == 0 && is_edit(name)) continue; // the snapshot carries these
             cmds.push_back({at, to_cmd(c)});
             if (name == "reset") { anchor = at; anchor_step = m; }
         }
         if (source == PI_SOURCE_EDGES) cmds.push_back({at, cmd(PI_CMD_CLOCK)});
+        // Keys and sliders: one frame on, so the step's tick 0 is behind them on both sources.
+        for (const Json &c : fx.at("commands").arr)
+            if (c.n("at") == m && is_key(c.at("cmd").str)) cmds.push_back({at + 1, to_cmd(c)});
     }
-    return anchor + F(steps - anchor_step);
+    uint64_t end = anchor + F(steps - anchor_step);
+    // A view is read where its run step ends: on the frame the next one falls on. Written
+    // for the table run; the edges run differs in that one flag.
+    if (views && fx.find("views"))
+        for (const Json &v : fx.at("views").arr) {
+            uint64_t at = v.n("at");
+            if (at >= steps) die("a view past the end of the run");
+            std::string text = v.at("view").str;
+            size_t flag = text.find(" edges=0 ");
+            if (source == PI_SOURCE_EDGES && flag != std::string::npos) text[flag + 7] = '1';
+            views->push_back({at + 1 < steps ? step_frames[at + 1] : end, text});
+        }
+    return end;
 }
 
-static std::string run(Host &h, const std::vector<Timed> &cmds, uint64_t end, uint32_t block, std::vector<float> *audio = nullptr) {
+// Runs to `end` in blocks of `block`, ending a block wherever a view is to be read. Returns
+// the trace; with `views`, each one read is appended to `seen` as a line, and `ok` is cleared
+// if any is not the text expected.
+static std::string run(Host &h, const std::vector<Timed> &cmds, uint64_t end, uint32_t block, std::vector<float> *audio = nullptr,
+                       const std::vector<View> *views = nullptr, std::string *seen = nullptr, bool *ok = nullptr) {
     if (audio) audio->assign(end, 0.f);
     std::string out;
     std::vector<pi_cmd> these;
     pi_event ev[256];
-    size_t next = 0;
+    size_t next = 0, view = 0;
     for (uint64_t start = 0; start < end;) {
-        uint32_t n = uint32_t(std::min<uint64_t>(block, end - start));
+        uint64_t stop = views && view < views->size() ? (*views)[view].first : end;
+        uint32_t n = uint32_t(std::min<uint64_t>(block, stop - start));
         these.clear();
         for (; next < cmds.size() && cmds[next].first < start + n; next++) {
             pi_cmd c = cmds[next].second;
@@ -72,7 +98,16 @@ static std::string run(Host &h, const std::vector<Timed> &cmds, uint64_t end, ui
             out += line;
         }
         start += n;
+        while (views && view < views->size() && (*views)[view].first == start) {
+            uint8_t b[PI_VIEW_SIZE];
+            if (pi_view(h.e, b, sizeof b) != PI_VIEW_SIZE) die("pi_view");
+            std::string got = view_text(b);
+            if (got != (*views)[view].second) *ok = false;
+            *seen += got + "\n";
+            view++;
+        }
     }
+    if (views && view != views->size()) die("a view was never read");
     if (pi_dropped(h.e) != 0) die("events were dropped");
     return out;
 }
@@ -126,7 +161,7 @@ int main(int argc, char **argv) {
     for (auto &entry : std::filesystem::directory_iterator(argv[1]))
         if (entry.path().extension() == ".json") files.push_back(entry.path());
     std::sort(files.begin(), files.end());
-    if (files.size() < 4) die("expected the four fixtures");
+    if (files.size() < 7) die("expected the seven fixtures");
 
     const uint32_t rates[] = {44100, 48000, 96000}, blocks[] = {1, 128, 512};
     const std::pair<const char *, uint32_t> sources[] = {{"table", PI_SOURCE_TABLE}, {"edges", PI_SOURCE_EDGES}};
@@ -140,13 +175,14 @@ int main(int argc, char **argv) {
         std::string want;
         for (const Json &l : fx.at("expect").arr) want += l.str + "\n";
 
-        auto check = [&](const std::string &label, const std::string &got) {
+        // The report holds each run's trace, then its views.
+        auto check = [&](const std::string &label, const std::string &got, const std::string &seen, bool views_ok) {
             runs++;
-            if (got != want) {
+            if (got != want || !views_ok) {
                 failed++;
-                std::fprintf(stderr, "MISMATCH %s\n", label.c_str());
+                std::fprintf(stderr, "MISMATCH %s%s\n", label.c_str(), views_ok ? "" : " (a view)");
             }
-            report += "# " + label + "\n" + got;
+            report += "# " + label + "\n" + got + seen;
         };
 
         for (auto &[source_name, source] : sources) {
@@ -154,9 +190,13 @@ int main(int argc, char **argv) {
                 std::string where = name + " " + source_name + " " + std::to_string(rate);
                 for (uint32_t block : blocks) {
                     std::vector<Timed> cmds;
-                    uint64_t end = schedule(fx, rate, source, false, cmds);
+                    std::vector<View> views;
+                    uint64_t end = schedule(fx, rate, source, false, cmds, &views);
                     Host h(rate, seed);
-                    check(where + " " + std::to_string(block), run(h, cmds, end, block));
+                    std::string seen;
+                    bool ok = true;
+                    std::string got = run(h, cmds, end, block, nullptr, &views, &seen, &ok);
+                    check(where + " " + std::to_string(block), got, seen, ok);
                 }
 
                 // Save, load into a fresh engine with another seed, same trace.
@@ -172,14 +212,18 @@ int main(int argc, char **argv) {
                 Host b(rate, seed + 12345);
                 if (pi_load(b.e, snap, sizeof snap) != PI_OK) die("pi_load refused a good snapshot");
                 std::vector<Timed> cmds;
-                uint64_t end = schedule(fx, rate, source, true, cmds);
+                std::vector<View> views;
+                uint64_t end = schedule(fx, rate, source, true, cmds, &views);
                 std::string hex;
                 for (uint8_t byte : snap) {
                     char two[3];
                     std::snprintf(two, sizeof two, "%02x", byte);
                     hex += two;
                 }
-                check(where + " snapshot " + hex, run(b, cmds, end, 128));
+                std::string seen;
+                bool ok = true;
+                std::string got = run(b, cmds, end, 128, nullptr, &views, &seen, &ok);
+                check(where + " snapshot " + hex, got, seen, ok);
 
                 // One flipped bit is refused.
                 snap[40] ^= 1;

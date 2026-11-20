@@ -9,7 +9,7 @@
 // A browser that is not installed is reported and skipped; none at all is exit 2.
 //
 // The pass bar, written before the page first ran (PROOFS.md P4, desktop browsers):
-//   - 24 runs: four fixtures, both clock sources, 44.1, 48 and 96 kHz, at the rate asked for;
+//   - 24 runs: the four format 1 fixtures (the page has no keys; format 2 is Session 12's), both clock sources, 44.1, 48 and 96 kHz, at the rate asked for;
 //   - every run's trace is byte for byte the section of the Node report with the same label
 //     (the page runs in blocks of 128, so the label is "# name source rate 128");
 //   - the page itself judged every run good, no event was dropped, and the fixture list the
@@ -73,7 +73,9 @@ function launch(name, profile) {
 
 function judge(name, r) {
   const bad = [];
-  const onDisk = readdirSync(join(root, "fixtures")).filter((f) => f.endsWith(".json")).map((f) => f.replace(/\.json$/, "")).sort();
+  // The page plays the format 1 fixtures: it sends edits, not keys (fixtures/README.md).
+  const onDisk = readdirSync(join(root, "fixtures")).filter((f) => f.endsWith(".json"))
+    .filter((f) => JSON.parse(readFileSync(join(root, "fixtures", f), "utf8")).format === 1).map((f) => f.replace(/\.json$/, "")).sort();
   const inPage = [...new Set(r.runs.map((x) => x.name))].sort();
   if (inPage.join() !== onDisk.join()) bad.push(`the page ran ${inPage.join(", ")} but the fixtures are ${onDisk.join(", ")}`);
   if (r.runs.length !== 24) bad.push(`${r.runs.length} runs, not 24`);

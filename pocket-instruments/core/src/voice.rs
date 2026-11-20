@@ -1271,9 +1271,11 @@ impl Voices {
     }
 
     /// One frame. `frame` is `channels` floats: 1 is the mix, 16 is each track on its own.
-    /// The mix is the plain sum, in track order, from track 0.
+    /// The mix is the plain sum, in track order, from track 0, times `gain`: the master
+    /// volume (§13), which is exactly 1 at volume 16. The sixteen tracks are not scaled:
+    /// they are the direct outputs, before the master (D57).
     #[inline]
-    pub fn render(&mut self, frame: &mut [f32]) {
+    pub fn render(&mut self, frame: &mut [f32], gain: f32) {
         let mut v = [0.0f32; TRACKS];
         for (t, out) in v.iter_mut().enumerate() {
             let code = on_voice!(self, t, next());
@@ -1288,7 +1290,7 @@ impl Voices {
                 for s in &v[1..] {
                     sum += *s;
                 }
-                *mix = sum;
+                *mix = sum * gain;
             }
             tracks => tracks.copy_from_slice(&v),
         }
