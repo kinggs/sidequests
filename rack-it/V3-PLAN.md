@@ -6,8 +6,8 @@ session ends with the app **deployed and working**, then ticks its boxes and wri
 handover note below, so the next session starts from the truth.
 
 **Start every session with:** "Read `rack-it/V3-PLAN.md` and do Session N."
-Sessions 1 to 7 have shipped. There is no Session 8 yet: the next one starts from a fresh goal,
-and the ideas waiting for it are under "Parked".
+Sessions 1 to 7 have shipped. **Session 8 (Play: the match on one screen) is planned and not
+built.** Other ideas wait under "Parked".
 
 ## Read first, every session
 
@@ -429,6 +429,162 @@ and 11-Point-Nine behaves identically.
 
 ---
 
+## Session 8 — Play: the match on one screen
+
+**Planned 2026-11-20 (Fable); Opus builds it. Lands as `2.35.0`.** One build session. No data
+changes, no rules changes, nothing in `shared/` except the proofs.
+
+**Goal.** Starting an ordinary match is: see both players, the game, the length and the handicap
+on one screen, tap an opponent, tap Start, answer the break. No scrolling at 360×640.
+
+### 8.1 What's wrong today (measured in `?mock`, 2.34.0)
+
+| | 360×640 | 390×844 |
+| --- | --- | --- |
+| Room for the page between the header and Start | 349px | 553px |
+| The page's length, two players picked | 975px (2.8 screens) | 975px (1.8 screens) |
+| On screen without scrolling | Tournaments, Game and its blurb, one row of chips | the same, and the chips |
+| The Teal and Lilac slots | 660px down, off screen | off screen |
+| Length, Handicap, Break, Rated | 778px to 1,037px down, off screen | off screen |
+| The Start sheet | 804px in a 616px sheet: both lag buttons cut, the coin off screen | fits exactly |
+
+- A friendly with a recent opponent is three taps (chip, Start, who won the lag), but nothing
+  that says what you're about to play is on screen until the sheet, and on a small phone the
+  sheet's answer needs a scroll.
+- A rated match is four taps and a full scroll: Rated is the last row on the page. SPEC §6.1
+  already records that a match meant to count is easily played as a friendly.
+- A handicapped race is seven taps and two scrolls (Handicap, Racks, then Length).
+- The players show twice (the chips, then the slots). The page's first 270px are the Tournaments
+  row and a game blurb that never change between matches. Two hints (65px and up to 66px) say
+  what the controls already say.
+- With eight friends the chips are four or five rows, so everything below moves down again.
+
+### 8.2 The design (owner's answers, 2026-11-20)
+
+The owner chose, each as recommended: **Rated on the Start sheet**; **drop the Break row**;
+**slots, then one chip row** ending in Someone else; **Tournaments at the bottom of Play**.
+
+Play, top to bottom:
+
+1. **Cards, only when there's something live**, as now: the match you're in (`inCard`), the
+   drill (`drillCard`), tournament cards, the locked fixture card (`setupTour`). Unchanged.
+2. **The two slots**, Teal and Lilac, first thing under the header. You on teal as now. A slot
+   opens the picker, as now.
+3. **One row of chips** under the slots, one line, scrolling sideways, no heading and no hint:
+   the teal player's recent opponents, last one first, then friends and guests by name, eight
+   at most. Whoever is on a side isn't repeated, except the lilac player, who shows chosen
+   (tap to step out). You show as a chip only when you're on neither side, so a scorer can step
+   back in. A chip fills the empty side, else takes lilac's place. The row ends in **Someone
+   else**, which opens the picker for the empty side (lilac when both are full); **Scan a new
+   player** and **Add a guest** are already in the picker, so **Show QR** and **+ Add a guest**
+   leave the page. To score for two others, tap the teal slot and pick someone, as the picker
+   allows today.
+4. **One settings card: Game, Length, Handicap.** Game moves in as the card's first row, the
+   same fold. The two-sentence blurb leaves the page and shows inside the open fold, under the
+   chosen game's line. The **Break** and **Rated** rows go.
+5. **The odds sentence** leaves the foot and shows inside the open Handicap fold, under the
+   targets, where a change to them changes it. The foot keeps the short-race warning, the drill's
+   line, and Start. "Pick a player for each side to see the handicap" goes: Start says "Pick
+   two players".
+6. **The Tournaments row**, last on the page.
+7. **Start**, pinned, its words unchanged ("Pick two players", "Set the length first", "Score
+   it for Ann and Mel").
+
+**The Start sheet** is where the match is read back, where it's made rated, and where the break
+is answered. Top to bottom: the two names; one line, "11-Point-Nine · Race, about 5 racks ·
+Scoring · Kenny 28, Mel 28" (the three rows' own words); the ratings line ("Kenny 505 · Mel 332
+· provisional"); the odds sentence; the **Rated** switch when it's offered ("Off · a friendly",
+"On · moves ratings once Mel confirms"; flipping it updates in place); then **Who breaks
+first?** with the two lag buttons and **Flip a coin**; Cancel. "Lag for it and say who won…"
+goes: the buttons say it. Rated still resets with each new setup, and holds if the sheet is
+cancelled and reopened for the same pair. The break is no longer kept between a cancel and the
+next Start: the sheet asks every time.
+
+**What stays exactly as it is:** every fold's contents and rules (§4, §5 Length and Handicap),
+`plannedMatch()`, `proposeTargets()`, what `startMatch()` writes, the picker, a swap keeping the
+break, the game remembered per phone, the handicap not remembered, a drill being one slot, the
+chip row, Game and Start with its line above Start, the locked fixture (slots and rows fixed, no
+Rated switch on its sheet), `?club=` and `?p=` arrivals from Sessions Loyalty, friend mode's
+"Pick friends or guests". The live screen isn't touched, and the ground rule holds:
+11-Point-Nine behaves identically.
+
+**Budget, the check that decides it's done.** At 360×640 with two players picked and every fold
+closed, the slots, the chip row and the whole settings card are on screen with no scroll (102 +
+60 + 195 and two 16px gaps is 389px in the 402px the page has once the foot is Start alone;
+mocked 2026-11-20). The Tournaments row is the only thing below the fold. At 390×844 nothing
+scrolls. On the sheet at 360×640, both lag buttons and Flip a coin are fully on screen without
+scrolling, Rated offered or not; Cancel may sit below.
+
+**Taps after it:** a friendly, three and no scroll. Rated, four and no scroll. A handicapped
+race, seven and no scroll bar the open folds. Scoring for two others, five. A guest, one more
+than today (Someone else, Add a guest, the name, Add).
+
+### 8.3 The list
+
+- [ ] Read `SPEC.md` §4 to §6.2, this section, and `renderSetup`, `paintWhoChips`, `chipTap`,
+      `chooseBreak`, `overviewOf` and the setup markup (`#scrSetup`) in `index.html`.
+- [ ] Reorder `#scrSetup` as 8.2; move `#foldGame` into `#matchSettings`; remove `#breakBtn`,
+      `#whoHint`, the Who's playing heading, and `setup.breakHow` / `breakPair` with the code
+      that keeps them.
+- [ ] The chip row: one line, sideways scroll (`touch-action: pan-x`, taps still off
+      `pointerup`), its contents and **Someone else** as 8.2. The chosen chip scrolls into view.
+- [ ] The Start sheet as 8.2, with the Rated switch (keep the id `ratedBtn`, `role="switch"`).
+      `overviewOf` becomes the one line and the ratings line, still read from the rows so they
+      can't disagree.
+- [ ] The odds sentence into the Handicap fold; the foot hint only for a drill, the club line
+      and the fixture line.
+- [ ] A drill and a locked fixture still read right with the new order (check both by hand).
+- [ ] Largest text: the page flows and may scroll; nothing clips or overlaps.
+- [ ] `SPEC.md` §5 rewritten to match (the order, the chip row, the sheet, Rated's new home,
+      Break), §6.1's "Count it as rated" note amended (Rated is now asked at every Start), and a
+      line in §13's decisions log with the owner's four answers and this date.
+- [ ] Proofs updated, then all green (8.4). `APP_VERSION` and `CACHE` to `2.35.0`; deploy with
+      `/deployquest`; Handover note below.
+
+### 8.4 Proofs and checks
+
+**Must stay green, untouched:** `node --test` (zargo, bracket); `rack-it-same-match.mjs` (the
+ground rule; run it with `OLD=<the 2.34.0 commit>`); `rack-it-two-phones`, `rack-it-expiry`,
+`rack-it-count-rated`, `rack-it-one-admin`, `rack-it-outsiders`, `rack-it-bracket-sizes`;
+`node shared/smoke.mjs`.
+
+**Change with the page, then green.** Each of these drives a part that moves:
+
+| Proof | What changes |
+| --- | --- |
+| `h.mjs` `startMatch` | Rated is ticked on the sheet, after Start, before the break answer; "offered" is read there |
+| `rack-it-break.mjs` | Loses the Break row cases (asks early, a new opponent forgets). Gains: the one-line overview, Rated flipped on the sheet, cancel and reopen keeps Rated, the sheet asks again |
+| `rack-it-scorer.mjs`, `rack-it-late-scorer.mjs`, `table-session.mjs` | `#ratedBtn` on the sheet; stepping yourself out goes through the teal slot; `#setupHint` reads move to where the line now is |
+| `rack-it-seats.mjs` | The chip row's new contents; Show QR and Add a guest reached through Someone else |
+| `connect-scan.mjs`, `claim-guest.mjs` | Rack It's Show QR and Add a guest are in the picker now |
+| `rack-it-tournament.mjs` | `#toursBtn` is at the bottom (scroll to it); the fixture's sheet has no Rated switch |
+| `club-friends.mjs` | Only if its `#whoChips` read assumed a club connection's place in the wrapping chips |
+
+`bloc-11-open.mjs` and `around-the-clock-open.mjs` name `whoChips` in their own apps; leave them.
+
+**New proof, `shared/proofs/rack-it-setup.mjs`**, at 360×640 and 390×844, normal and largest
+text: the budget of 8.2 measured (slots, chips, card within the page with `scrollTop` 0; the
+sheet's three break buttons within the sheet); no sideways scroll on the page; every target
+60px or more and Start 76; with ten friends the chip row is still one line; a friendly in three
+taps and a rated match in four, counted by the proof; a drill and a locked fixture each render
+without a hidden-but-reachable Rated or chip row. Add it to `shared/proofs/README.md`.
+
+**By hand in `?mock`:** each of the five games' folds open at 360×640 (the open fold scrolls
+into view, as now); a race in racks with uneven targets; a guest added through Someone else and
+landing on lilac; `?mock&as=mel` (friend mode) scoring for two friends; arriving from Sessions
+Loyalty with `?club=`.
+
+### 8.5 Not in this session
+
+- A one-tap **Play again** card (last night's pair and settings). Parked: with this layout a
+  repeat is already chip, Start, break.
+- Remembering Rated or the handicap per opponent. The spec resets both on purpose.
+- Any change to `shared/people.js`'s picker.
+- Claude Design: not needed. Every part here is one the theme already has; if the build finds
+  it needs a new one, stop and say so in Handover.
+
+---
+
 ## Rename runbook (Session 5, done)
 
 Chrome can't move an installed app to a new manifest URL, so everyone reinstalls once.
@@ -508,6 +664,7 @@ agreement matters less than every token and every component reading the same eve
 - 11-Point-Nine over fixed racks or open with the scoring handicap still shows raw points and no
   quota live, as Golden-Nine did before 2.1.0. Left alone: 11-Point-Nine must not change.
 - The design's hold on Delete could extend to Unclaim and Remove (both two taps today).
+- A one-tap Play again card on Play: last night's pair and settings (Session 8 left it out).
 
 ## Handover
 
