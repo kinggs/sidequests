@@ -141,7 +141,9 @@ fn bpm_held_a_grid_key_sets_the_volume_and_uses_bpm() {
     assert!(ev.is_empty());
     let v = V::of(&h);
     assert_eq!((v.volume(), v.sel()), (10, 0));
-    assert_eq!(h.save(), before, "no step was written");
+    // Version 1's part of the snapshot: no step was written. (The whole snapshot until
+    // Session 11; version 2 holds the volume too, at byte 378.)
+    assert_eq!(h.save()[..312], before[..312], "no step was written");
 }
 
 #[test]
@@ -157,7 +159,7 @@ fn sound_held_a_grid_key_chooses_that_sound_and_fires_it() {
     let ev = send(&mut h, &[up(6), up(SOUND), down(WRITE), up(WRITE), down(SOUND), down(11), up(11), up(SOUND)]);
     assert_eq!(trig_tracks(&ev), [11]);
     assert_eq!(V::of(&h).sel(), 11);
-    assert_eq!(h.save(), before);
+    assert_eq!(h.save()[..312], before[..312], "no step written; version 2 holds the choice (byte 379)");
     // And before pattern, fx and function.
     let ev = send(&mut h, &[down(PATTERN), down(FX), down(FUNCTION), down(SOUND), down(2)]);
     assert_eq!(trig_tracks(&ev), [2]);
@@ -193,13 +195,17 @@ fn write_on_a_grid_key_flips_that_step_of_the_chosen_sound_in_silence() {
     assert_eq!(V::of(&h).field(), 1 << 9);
     assert_eq!(h.generation(), g + 1, "a step is in the snapshot");
     // Exactly what the STEP edit would have done.
+    // (Sound 4 chosen in both: version 2 holds the choice.)
+    let chosen = [down(SOUND), down(3), up(3), up(SOUND)];
     let mut by_edit = fresh();
+    send(&mut by_edit, &chosen);
+    let unwritten = by_edit.save();
     send(&mut by_edit, &[cmd(CMD_STEP, 3, 9, 1)]);
     assert_eq!(h.save(), by_edit.save());
     // A second press takes it off.
     send(&mut h, &[down(9), up(9)]);
     assert_eq!(V::of(&h).field(), 0);
-    assert_eq!(h.save(), fresh().save());
+    assert_eq!(h.save(), unwritten);
     assert_eq!(h.generation(), g + 2);
     // It flips on the press: the release does nothing more.
     send(&mut h, &[down(4)]);
@@ -333,7 +339,9 @@ fn function_and_pattern_clear_the_steps_and_probabilities_and_nothing_else() {
 
     let mut want = fresh();
     send(&mut want, &[cmd(CMD_LENGTH, 0, 0, 12), cmd(CMD_SWING, 0, 0, 20), cmd(CMD_TEMPO, 0, 0, 97_000)]);
-    assert_eq!(h.save(), want.save(), "steps off, probabilities 100; length, swing and tempo stay");
+    // Version 2 holds the sliders and the volume as well: they stay too.
+    send(&mut want, &[cmd(CMD_SOUND, 0, 0, 1111), cmd(CMD_SOUND, 0, 1, 2222), down(BPM), down(4), up(4), up(BPM)]);
+    assert_eq!(h.save(), want.save(), "steps off, probabilities 100; length, swing, tempo, sliders and volume stay");
     let v = V::of(&h);
     assert_eq!((v.volume(), v.a(), v.b()), (5, 1111, 2222), "volume and sliders stay");
 
@@ -575,15 +583,28 @@ fn the_generation_moves_exactly_when_a_key_changes_what_a_snapshot_holds() {
     let mut h = fresh();
     let g = h.generation();
     let quiet = [
-        down(3), up(3), down(SOUND), down(5), up(5), up(SOUND), down(PLAY), up(PLAY), down(WRITE), up(WRITE),
-        down(WRITE), up(WRITE), down(FX), up(FX), down(FUNCTION), up(FUNCTION), down(PATTERN), up(PATTERN),
-        down(BPM), down(2), up(2), up(BPM), param(0, 9), param(1, 9), down(PLAY), up(PLAY),
+        down(3), up(3), down(PLAY), up(PLAY), down(WRITE), up(WRITE), down(WRITE), up(WRITE), down(FX), up(FX),
+        down(FUNCTION), up(FUNCTION), down(PATTERN), up(PATTERN), down(SOUND), up(SOUND), down(PLAY), up(PLAY),
     ];
     for c in quiet {
         send(&mut h, &[c]);
         assert_eq!(h.generation(), g, "command {} on key {}", c.kind, c.a);
     }
     assert_eq!(h.save(), fresh().save());
+    // Until Session 11 this list also held a sound chosen, a volume set and both sliders
+    // moved, which snapshot version 1 did not hold (D59 item 1). Version 2 holds them (§15),
+    // so each now moves it once.
+    let movers = [
+        vec![down(SOUND), down(5), up(5), up(SOUND)],
+        vec![down(BPM), down(2), up(2), up(BPM)],
+        vec![param(0, 9)],
+        vec![param(1, 9)],
+    ];
+    for (i, cmds) in movers.iter().enumerate() {
+        let g = h.generation();
+        send(&mut h, cmds);
+        assert_eq!(h.generation(), g + 1, "mover {i}");
+    }
 
     // Any sequence at all: the generation moves on exactly the commands that change the
     // snapshot's bytes.
@@ -957,7 +978,7 @@ fn the_block_size_does_not_change_what_keys_do() {
     }
     cmds.sort_by_key(|c| c.0); // stable: commands of one frame keep their order
     let frames = at + 2 * STEP;
-    let runs: Vec<(String, [u8; 64], [u8; 316])> = [1u32, 7, 128, 512, 4096]
+    let runs: Vec<(String, [u8; 64], [u8; SNAP])> = [1u32, 7, 128, 512, 4096]
         .iter()
         .map(|block| {
             let mut h = fresh();

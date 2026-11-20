@@ -37,7 +37,8 @@ pub const FLAG_EDGES: u8 = 4;
 pub const FLAG_STEP: u8 = 8;
 pub const FLAG_SOUNDS: u8 = 16;
 
-/// What the keys add to an engine. None of it is in snapshot version 1.
+/// What the keys add to an engine. The volume and the chosen sound are in snapshot version 2
+/// (§15); the rest belongs to the moment.
 pub struct Keys {
     /// Bit `k`: key `k` is down.
     pub held: u32,
@@ -103,10 +104,12 @@ impl Engine {
     /// §13's table for a grid key: the first row that applies.
     fn grid_down(&mut self, n: usize, out: &mut Out) {
         if self.keys.down(KEY_BPM) {
-            self.keys.volume = n as u8 + 1;
+            let old = core::mem::replace(&mut self.keys.volume, n as u8 + 1);
             self.keys.bpm_used = true;
+            self.saved_if(old != self.keys.volume);
         } else if self.keys.down(KEY_SOUND) {
-            self.keys.sel = n as u8;
+            let old = core::mem::replace(&mut self.keys.sel, n as u8);
+            self.saved_if(old != self.keys.sel);
             self.edit(CMD_FIRE, n, 0, 0, out); // choosing a sound plays it ⚠
         } else if self.keys.down(KEY_PATTERN) || self.keys.down(KEY_FX) || self.keys.down(KEY_FUNCTION) {
             // Later rows of WORKFLOW.md: patterns, effects.
@@ -119,6 +122,14 @@ impl Engine {
         }
     }
 
+    /// §15: the volume and the chosen sound are in the snapshot, but no edit sets them, so
+    /// their keys move the generation here, and only when the value changed.
+    fn saved_if(&mut self, changed: bool) {
+        if changed {
+            self.generation = self.generation.wrapping_add(1);
+        }
+    }
+
     /// Function + pattern. Every step off, every probability back to 100 ⚠. Length, swing,
     /// tempo, sliders and volume stay.
     fn clear(&mut self) {
@@ -128,9 +139,7 @@ impl Engine {
             self.pat.on[t] = 0;
             self.pat.prob[t] = [100; STEPS];
         }
-        if changed {
-            self.generation = self.generation.wrapping_add(1);
-        }
+        self.saved_if(changed);
     }
 
     pub(crate) fn key_up(&mut self, key: usize, out: &mut Out) {

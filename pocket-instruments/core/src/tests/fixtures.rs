@@ -150,7 +150,7 @@ fn expect(fx: &Json) -> String {
 
 /// A snapshot of the fixture's pattern, taken from an engine that was given the tempo and
 /// the step-0 edits and nothing else.
-fn snapshot_of(fx: &Json, rate: u32) -> [u8; 316] {
+fn snapshot_of(fx: &Json, rate: u32) -> [u8; SNAP] {
     let mut a = Host::new(rate, fx.num("seed") as u32);
     let mut cmds = vec![cmd(CMD_TEMPO, 0, 0, fx.num("mbpm") as u32)];
     cmds.extend(
@@ -216,5 +216,61 @@ fn every_fixture_everywhere() {
     // The Makefile compares this file with the ones the Node and C++ harnesses write.
     if let Ok(path) = std::env::var("PI_REPORT") {
         std::fs::write(path, report).unwrap();
+    }
+}
+
+/// `fixtures/snapshots-v1.txt`: each fixture's version 1 snapshot, as the ABI 4 core wrote
+/// it before version 2 existed (Session 11).
+fn snapshots_v1() -> Vec<(String, Vec<u8>)> {
+    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../fixtures/snapshots-v1.txt");
+    std::fs::read_to_string(path)
+        .unwrap()
+        .lines()
+        .filter(|l| !l.starts_with('#') && !l.is_empty())
+        .map(|l| {
+            let (name, hex) = l.split_once(' ').unwrap();
+            let bytes: Vec<u8> = (0..hex.len()).step_by(2).map(|i| u8::from_str_radix(&hex[i..i + 2], 16).unwrap()).collect();
+            (name.to_string(), bytes)
+        })
+        .collect()
+}
+
+#[test]
+fn every_version_1_snapshot_ever_written_still_loads_and_gives_its_fixture_s_trace() {
+    let all = fixtures();
+    let old = snapshots_v1();
+    assert_eq!(old.len(), 7, "one a fixture");
+    // An engine with every field version 2 adds away from its starting value, so a load
+    // that left one alone would show in the views and the saved bytes.
+    let mut d = Host::new(48_000, 3);
+    let mut dress: Vec<Cmd> = (0..16u8).flat_map(|t| [cmd(CMD_SOUND, t, 0, 100 + t as u32), cmd(CMD_SOUND, t, 1, 9000), cmd(CMD_VOICE, t, 0, 1)]).collect();
+    let (down, up) = (|k| cmd(CMD_KEY_DOWN, k, 0, 0), |k| cmd(CMD_KEY_UP, k, 0, 0));
+    dress.extend([down(18), down(3), up(3), up(18)]); // bpm + key 4: volume 4
+    dress.extend([down(16), down(9), up(9), up(16)]); // sound + key 10: key 10 chosen
+    d.block(1, &dress);
+    let dressed = d.save();
+    assert_eq!((dressed[378], dressed[379]), (4, 9), "volume 4, key 10 chosen");
+
+    for (name, v1) in &old {
+        assert_eq!(v1.len(), SNAP_V1, "{name}");
+        assert_eq!(v1[4..6], [1, 0], "{name}: version 1");
+        let (_, fx) = all.iter().find(|(n, _)| n == name).unwrap_or_else(|| panic!("no fixture {name}"));
+        let want = expect(fx);
+        for (source_name, source) in SOURCES {
+            for rate in RATES {
+                let label = format!("{name} {source_name} {rate} from its version 1 snapshot");
+                let mut h = Host::new(rate, fx.num("seed") as u32 + 777);
+                assert_eq!(h.load(&dressed), OK);
+                assert_eq!(h.load(v1), OK, "{label}");
+                let s = h.save();
+                assert!(s[312..376].chunks(2).all(|v| v == [0x00, 0x80]), "{label}: sliders at their middles");
+                assert_eq!(s[376..384], [0, 0, 16, 0, 0, 0, 0, 0], "{label}: all code, volume 16, key 1");
+                // What today's core saves for the same fixture is the old one, grown.
+                assert_eq!(s, snapshot_of(fx, rate), "{label}");
+                let plan = schedule(fx, rate, source, true);
+                let (events, _) = play(&mut h, &plan, 128, &label);
+                assert_eq!(trace(&events), want, "{label}");
+            }
+        }
     }
 }

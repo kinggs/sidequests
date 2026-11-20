@@ -25,10 +25,17 @@ trace and snapshot is as it was, and every render (volume starts at 16, which is
 four older fixtures and the 114 render pairs, the same bytes. Building it found eight places
 where §13 and §14 did not say what happens; they are marked (D59) below.
 
-**Designed, not built (Session 9, D51 to D57):** §15 and §16 are the rest of the instrument:
-snapshot version 2 and the weave. Sessions 11 and 14 build them (`PLAN.md`); each moves
-`PI_ABI_VERSION` by one. Until a section's session is done, the code does not do it.
-(§13 and §14 were in this list until Session 10 built them.)
+**ABI 5 (Session 11, D55)** adds snapshot version 2 and a third audio layout and changes
+nothing else: `pi_save` writes §15's 388 bytes, `pi_load` takes them and version 1's 316,
+`SOUND`, `VOICE`, the volume and the chosen sound move the generation, and
+`PI_AUDIO_BOTH` gives the tracks and the mix from one call. Every trace and every earlier
+render is as it was (the 114 render pairs and the seven fixtures' traces and views, the
+same bytes); only the snapshots' bytes differ, by the new fields at their starting values.
+
+**Designed, not built (Session 9, D51 to D57):** §16 is the rest of the instrument: the
+weave. Session 14 builds it (`PLAN.md`) and moves `PI_ABI_VERSION` by one. Until then the
+code does not do it. (§13 and §14 were in this list until Session 10 built them, §15 until
+Session 11.)
 
 ## 1. The shape
 
@@ -295,7 +302,8 @@ Two runs agree when their traces are the same bytes.
   sixteen voices it is 1 416 bytes, and every host's fixed room for it is now 2 KiB (the
   harness, the worklet and the Rack Probe; `core/src/tests/rules.rs` holds `pi_size` to it).
   With a sample beside each voice (§12) it is 2 328 bytes, natively and in WebAssembly, and
-  the room is 4 KiB. With the keys (§13) it is 2 352 bytes, in the same room. The samples
+  the room is 4 KiB. With the keys (§13) it is 2 352 bytes, in the same room, and snapshot
+  version 2 (§15) added nothing to it. The samples
   themselves are in pages of their own after the host's.
   A host that can should ask `pi_size` instead.
 - **One thread.** Every function on an engine is called from the audio thread only. That
@@ -310,7 +318,8 @@ Why not one readable format: the core has no allocator and should not carry a JS
 and one writer with one reader cannot drift. A readable export is a tool for later.
 
 Version 1, 316 bytes, little-endian. (It was 100 bytes for four tracks until D30; nothing
-had been built, so the number stays 1.)
+had been built, so the number stays 1.) Since ABI 5 the core writes version 2 (§15), which is
+this table with more after it, and still loads this one.
 
 | Offset | Size | Field |
 |---|---|---|
@@ -333,8 +342,9 @@ had been built, so the number stays 1.)
   loaded snapshot's, after a 0 has been replaced (D42).
 - **Load, in detail (D42).** The checks run in this order: under 12 bytes, `PI_ERR_SIZE`;
   magic, `PI_ERR_MAGIC`; any version but one this core has written (a newer one, or 0),
-  `PI_ERR_VERSION`; under 316 bytes, `PI_ERR_SIZE`; kind, `PI_ERR_MAGIC`; payload size,
-  `PI_ERR_SIZE`; CRC, `PI_ERR_CRC`. Bytes after the first 316 are the host's and are not
+  `PI_ERR_VERSION`; under 316 bytes (since §15: under that version's size), `PI_ERR_SIZE`;
+  kind, `PI_ERR_MAGIC`; payload size,
+  `PI_ERR_SIZE`; CRC, `PI_ERR_CRC`. Bytes after the first 316 (that version's size) are the host's and are not
   read. A value no core writes but whose CRC is right (a length of 0, a probability of 200)
   is clamped, as it would be in a command. A load that succeeds moves `pi_generation`.
 - **Load** checks magic, kind, size and CRC, and changes nothing if any is wrong. It replaces
@@ -417,7 +427,8 @@ the `TRIG` events they already make.
   stands and the WebAssembly side still needs no glue: the buffer is a `Float32Array` over
   the module's memory.
 - **Layouts.** `channels` is 1 for the mix, or 16 for each track alone in its own channel
-  (D33: Rack's sixteen-channel cable, and later the expander). Any other value, or a null
+  (D33: Rack's sixteen-channel cable, and later the expander). Since ABI 5 also 17, both
+  (`PI_AUDIO_BOTH`, §15). Any other value, or a null
   buffer, is no sound: nothing is written and no voice runs.
 - **Sound changes no event.** The trace, `pi_dropped`, the snapshot and `pi_generation` are
   the same with and without a buffer. A host that only sequences passes null and pays nothing.
@@ -438,8 +449,10 @@ the `TRIG` events they already make.
   command will become this, for the selected sound, when the keys are built: D26). A value
   is read when the voice is next triggered. A sounding voice keeps its pitch and length, in
   hertz and seconds, across `pi_set_sample_rate`.
-- **Not saved yet.** Slider values are in the engine but not in snapshot version 1, and
-  `SOUND` does not move `pi_generation`. They join the snapshot in version 2.
+- **Not saved yet.** ~~Slider values are in the engine but not in snapshot version 1, and
+  `SOUND` does not move `pi_generation`. They join the snapshot in version 2.~~ Overtaken in
+  Session 11 (ABI 5): they are in version 2, and `SOUND` moves the generation when a value
+  changes (§15).
 - **The first voice** is the click (key 10, track 9): a sine from 500 Hz to 2 kHz by slider
   A, falling 60 dB in 5 to 40 ms by slider B.
 - **Then the minimum beat** (2026-11-19): the bass drum, snare, closed hat and open hat on
@@ -470,8 +483,9 @@ Added in Session 8. Each track can play a sample in place of its code voice.
   up; less below, to the track's shortest code length at 0; then 60 dB in 10 ms. A rate
   change mid-sound keeps its pitch and its time in seconds. Level: the same fixed 0.5 as
   every voice (D48); a pack sample peaks at full scale, so near 0.5.
-- **Not in the snapshot.** Neither the samples nor the switch are in version 1. The switch
-  joins the sliders in version 2; the samples are the host's to load.
+- **Not in the snapshot.** ~~Neither the samples nor the switch are in version 1. The switch
+  joins the sliders in version 2;~~ the samples are the host's to load. Since Session 11
+  (ABI 5) the switch is in version 2 (§15); the samples still are not.
 - **Proven:** `core/src/tests/samples.rs`, and `harness/render-samples.json` (every track on
   its sample, half switched back mid-way) to the same bytes natively and from the `.wasm`.
 
@@ -539,10 +553,12 @@ scaled: they are the direct outputs, before the master, as on a drum machine (D5
 
 **Generation.** A key or slider moves `pi_generation` when it changes something a snapshot
 holds (§15), and not otherwise: a tap, a hold, play and write do not.
-**In ABI 4 that is snapshot version 1 (D59):** a step, clear, swing and the tempo move it;
+~~**In ABI 4 that is snapshot version 1 (D59):** a step, clear, swing and the tempo move it;
 the volume, the chosen sound and a sound's sliders do not until Session 11 puts them in
-version 2. A rule test holds it to exactly that: over 20 000 random presses the generation
-moves on the ones that change the snapshot's bytes and on no others.
+version 2.~~ Overtaken in Session 11 (ABI 5): version 2 holds those three, so they move it
+too, each only when its value changes. A rule test holds it to exactly that: over 20 000
+random presses the generation moves on the ones that change the snapshot's bytes and on no
+others. It passed unchanged on version 2.
 
 ⚠ marks the plainest reading where the guide and the search are silent (D29): whether
 choosing a sound plays it, whether bpm acts on release, whether a tempo change is at once.
@@ -642,7 +658,7 @@ table run's, and the edges run expects `edges=1` in its place (D59; `fixtures/RE
 in `core/src/tests/keys.rs`. `harness/race.cpp` hands a view from the audio thread to the
 other through `pi::Latest` after every block, as a module's drawing thread will get it.
 
-## 15. Snapshot version 2 (designed in Session 9; D55; built in Session 11)
+## 15. Snapshot version 2 (ABI 5; designed in Session 9; D55; built in Session 11)
 
 388 bytes. Bytes 0 to 311 are version 1's (§8) with version 2 and payload size 372. Then:
 
@@ -670,6 +686,26 @@ other through `pi::Latest` after every block, as a module's drawing thread will 
 Also Session 11's, because the Rack module needs the voices and the mix from one call: a
 third layout, `PI_AUDIO_BOTH` (17 channels): tracks 0 to 15 as layout 16 gives them, then
 the mix as layout 1 gives it, volume and all. Each must be the same bytes as its own layout.
+
+**Built (Session 11):** `core/src/snapshot.rs`; the generation in `Engine::apply` (`SOUND`,
+`VOICE`) and `keys.rs` (the volume and the chosen sound, which no edit sets); the layout in
+`Voices::render`. The design held. Each point below is held by a test in
+`core/src/tests/snapshot.rs`:
+
+- ⚠ Two readings where §15 is silent, built on and not ruled (Session 11 ran on Opus;
+  `PLAN.md`'s Handover asks the owner): a chosen sound past 15 loads as 15, as a volume
+  past 16 loads as 16; and bytes 381 to 383 are not read, like the bytes after a snapshot.
+- Following from §8's order, not a reading: a version 2 whose version field says 1 is read
+  as version 1 and refused by its payload size (`PI_ERR_SIZE`), before its CRC is looked at.
+- The payload size counts the bytes between the header and the CRC (300, 372), as version
+  1's did; §15's 372 says so, and a first draft of the code counted the CRC too.
+
+Proven: each fixture's version 1 snapshot, saved by the ABI 4 core before any change
+(`fixtures/snapshots-v1.txt`), loads into an engine whose new fields were all moved, sets
+them back to `pi_init`'s values, saves as today's snapshot of that fixture, and gives the
+fixture's trace on both sources at three rates. `harness/render-both.json` holds the three
+layouts to each other in each harness and each layout's native render to its `.wasm` one.
+The Rack Probe loads a patch with a version 1 snapshot (`rack/selftest.sh`).
 
 ## 16. The weave (designed in Session 9; D53; built in Session 14)
 

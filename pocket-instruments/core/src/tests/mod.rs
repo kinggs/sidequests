@@ -6,12 +6,16 @@ mod json;
 mod keys;
 mod rules;
 mod samples;
+mod snapshot;
 mod sound;
 
 use crate::abi::*;
 use crate::engine::Engine;
 
 pub const CAP: usize = 256;
+/// §15: what `pi_save` writes, and version 1's size, which `pi_load` still takes.
+pub const SNAP: usize = 388;
+pub const SNAP_V1: usize = 316;
 
 /// An engine in caller-owned memory, driven through the ABI.
 pub struct Host {
@@ -77,9 +81,9 @@ impl Host {
         b
     }
 
-    pub fn save(&self) -> [u8; 316] {
-        let mut b = [0u8; 316];
-        assert_eq!(unsafe { pi_save(self.e, b.as_mut_ptr(), 316) }, 316);
+    pub fn save(&self) -> [u8; SNAP] {
+        let mut b = [0u8; SNAP];
+        assert_eq!(unsafe { pi_save(self.e, b.as_mut_ptr(), SNAP as u32) }, SNAP as u32);
         b
     }
 

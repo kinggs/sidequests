@@ -126,10 +126,12 @@ fn sound_changes_no_event_and_no_snapshot() {
     let mut loud = Host::new(48000, 1);
     let (_, trigs) = render(&mut loud, 50000, 128, 1, &cmds);
     assert_eq!(trigs.len(), want.lines().filter(|l| l.contains("trig")).count());
+    assert_eq!(loud.save(), quiet.save());
+    assert_eq!(loud.generation(), quiet.generation());
+    // A slider is (snapshot version 2, §15): it moves both, with or without sound.
     let g = loud.generation();
     loud.block(1, &[cmd(CMD_SOUND, CLICK, 0, 1000)]);
-    assert_eq!(loud.generation(), g, "a slider is not in snapshot version 1");
-    assert_eq!(loud.save(), quiet.save());
+    assert_eq!(loud.generation(), g + 1, "a slider is in snapshot version 2");
 }
 
 #[test]
@@ -137,7 +139,7 @@ fn a_layout_this_core_does_not_know_is_no_sound_and_writes_nothing() {
     let h = Host::new(48000, 1);
     let mut out = [7.0f32; 64];
     let c = four_clicks().into_iter().map(|c| c.1).collect::<Vec<_>>();
-    for channels in [0u32, 2, 17, u32::MAX] {
+    for channels in [0u32, 2, 15, 18, 32, u32::MAX] { // 17 is PI_AUDIO_BOTH since ABI 5
         unsafe { pi_process(h.e, 4, c.as_ptr(), c.len() as u32, core::ptr::null_mut(), 0, out.as_mut_ptr(), channels) };
         assert!(out.iter().all(|&s| s == 7.0), "channels {channels}");
     }
@@ -525,3 +527,27 @@ fn the_block_size_does_not_change_a_sample_of_all_sixteen() {
     }
 }
 
+
+#[test]
+fn both_layouts_at_once_are_each_layout_s_own_bits() {
+    // §15, PI_AUDIO_BOTH: channels 0 to 15 are layout 16's, channel 16 is layout 1's, volume
+    // and all. All sixteen voices, the volume taken to 6 by its keys half-way through.
+    let mut cmds = all_sixteen();
+    for k in [cmd(CMD_KEY_DOWN, 18, 0, 0), cmd(CMD_KEY_DOWN, 5, 0, 0), cmd(CMD_KEY_UP, 5, 0, 0), cmd(CMD_KEY_UP, 18, 0, 0)] {
+        cmds.push((24_001, k));
+    }
+    for block in [1, 128, 4096] {
+        let (mix, _) = render(&mut Host::new(48000, 1), 48000, block, 1, &cmds);
+        let (tracks, _) = render(&mut Host::new(48000, 1), 48000, block, 16, &cmds);
+        let (both, _) = render(&mut Host::new(48000, 1), 48000, block, 17, &cmds);
+        for f in 0..48000 {
+            for t in 0..16 {
+                assert_eq!(both[f * 17 + t].to_bits(), tracks[f * 16 + t].to_bits(), "block {block} frame {f} track {t}");
+            }
+            assert_eq!(both[f * 17 + 16].to_bits(), mix[f].to_bits(), "block {block} frame {f}: the mix");
+        }
+        let loud = mix[..24_000].iter().fold(0f32, |m, s| m.max(s.abs()));
+        let quiet = mix[24_002..].iter().fold(0f32, |m, s| m.max(s.abs()));
+        assert!(quiet < loud * 0.2, "volume 6 is (6 / 16)² of the mix: {loud} then {quiet}");
+    }
+}

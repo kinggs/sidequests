@@ -25,7 +25,7 @@ fn trigs(ev: &[(u64, Event)]) -> Vec<(u64, u32, u8)> {
 
 #[test]
 fn the_records_and_the_engine_have_the_sizes_the_header_says() {
-    assert_eq!(pi_abi_version(), 4);
+    assert_eq!(pi_abi_version(), 5);
     assert_eq!(size_of::<Cmd>(), 12);
     assert_eq!(size_of::<Event>(), 12);
     // The upper bound is the hosts' fixed room for one engine: 4 KiB before the snapshot in
@@ -186,9 +186,12 @@ fn unknown_reserved_and_out_of_range_commands_are_ignored() {
         &[
             cmd(0, 0, 0, 1),
             cmd(200, 1, 2, 3),
-            cmd(32, 5, 0, 0),          // KEY_DOWN, reserved
+            // 32 to 34 were reserved until ABI 4 made them keys. A tap of key 6 and a slider
+            // sent the value it shows change nothing saved. (Until Session 11 the PARAM here
+            // was 40 000, which moved nothing only because no snapshot held a slider.)
+            cmd(32, 5, 0, 0),          // KEY_DOWN
             cmd(33, 5, 0, 0),          // KEY_UP
-            cmd(34, 0, 0, 40_000),     // PARAM
+            cmd(34, 0, 0, 32_768),     // PARAM, at slider A's shown value
             cmd(CMD_STEP, 16, 0, 1),   // no such track
             cmd(CMD_STEP, 0, 16, 1),   // no such step
             cmd(CMD_PROB, 255, 0, 50), // no such track
@@ -359,7 +362,7 @@ fn crc32_is_the_zip_one() {
 fn the_snapshot_has_the_layout_the_spec_gives() {
     let s = busy().save();
     assert_eq!(&s[0..4], b"PKIN");
-    assert_eq!(s[4..12], [1, 0, 1, 0, 44, 1, 0, 0]); // version 1, kind 1, payload 300
+    assert_eq!(s[4..12], [2, 0, 1, 0, 0x74, 1, 0, 0]); // version 2, kind 1, payload 372 (§15)
     assert_eq!(s[12..16], 77u32.to_le_bytes());
     assert_eq!(s[16..20], 133_700u32.to_le_bytes());
     assert_eq!(s[20..24], [11, 17, 0, 0]);
@@ -372,15 +375,16 @@ fn the_snapshot_has_the_layout_the_spec_gives() {
     prob[1] = 99;
     prob[255] = 1;
     assert_eq!(s[56..312], prob);
-    assert_eq!(s[312..316], crc32(&s[..312]).to_le_bytes());
+    // 312 to 383, what version 2 adds, is held in tests/snapshot.rs.
+    assert_eq!(s[384..388], crc32(&s[..384]).to_le_bytes());
 }
 
 #[test]
 fn save_needs_room() {
     let h = busy();
-    let mut b = [0u8; 316];
-    assert_eq!(unsafe { pi_save(h.e, b.as_mut_ptr(), 315) }, 0);
-    assert_eq!(b, [0u8; 316]);
+    let mut b = [0u8; SNAP];
+    assert_eq!(unsafe { pi_save(h.e, b.as_mut_ptr(), SNAP as u32 - 1) }, 0);
+    assert_eq!(b, [0u8; SNAP]);
 }
 
 #[test]
@@ -409,7 +413,7 @@ fn every_corrupted_byte_is_refused_and_changes_nothing() {
     h.block(1, &[cmd(CMD_STEP, 7, 7, 1)]);
     let before = h.save();
     let g = h.generation();
-    for i in 0..316 {
+    for i in 0..SNAP {
         for bit in [0x01u8, 0x80] {
             let mut bad = snap;
             bad[i] ^= bit;
@@ -423,10 +427,10 @@ fn every_corrupted_byte_is_refused_and_changes_nothing() {
             assert_eq!(r, want, "byte {i} bit {bit:#x}");
         }
     }
-    for len in [0, 11, 12, 100, 315] {
+    for len in [0, 11, 12, 100, 315, SNAP_V1, SNAP - 1] {
         assert_eq!(h.load(&snap[..len]), ERR_SIZE, "length {len}");
     }
-    assert_eq!(unsafe { pi_load(h.e, core::ptr::null(), 316) }, ERR_SIZE);
+    assert_eq!(unsafe { pi_load(h.e, core::ptr::null(), SNAP as u32) }, ERR_SIZE);
     assert_eq!(h.save(), before);
     assert_eq!(h.generation(), g);
 }
@@ -434,9 +438,9 @@ fn every_corrupted_byte_is_refused_and_changes_nothing() {
 #[test]
 fn a_newer_version_is_refused_even_with_a_good_checksum() {
     let mut s = busy().save();
-    s[4] = 2;
-    let crc = crc32(&s[..312]);
-    s[312..].copy_from_slice(&crc.to_le_bytes());
+    s[4] = 3;
+    let crc = crc32(&s[..384]);
+    s[384..].copy_from_slice(&crc.to_le_bytes());
     assert_eq!(Host::new(SR, 1).load(&s), ERR_VERSION);
 }
 
@@ -448,8 +452,8 @@ fn values_no_core_writes_are_clamped_on_load() {
     s[21] = 200; // swing
     s[56] = 255; // a probability
     s[12..16].copy_from_slice(&0u32.to_le_bytes()); // seed
-    let crc = crc32(&s[..312]);
-    s[312..].copy_from_slice(&crc.to_le_bytes());
+    let crc = crc32(&s[..384]);
+    s[384..].copy_from_slice(&crc.to_le_bytes());
     let mut h = Host::new(SR, 1);
     assert_eq!(h.load(&s), OK);
     let t = h.save();

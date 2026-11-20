@@ -1,24 +1,41 @@
-//! §8. The snapshot, version 1: 316 bytes, little-endian. Written and read only here.
+//! §8 and §15. The snapshot: version 2, 388 bytes, little-endian. Written and read only here.
+//! This core writes version 2 and loads both versions it has ever written.
 
 use crate::abi::{ERR_CRC, ERR_MAGIC, ERR_SIZE, ERR_VERSION, OK};
 use crate::clock::{MBPM_MAX, MBPM_MIN};
 use crate::crc::crc32;
 use crate::engine::Engine;
+use crate::keys::VOLUME_MAX;
 use crate::seq::{STEPS, SWING_MAX, TRACKS};
+use crate::voice::PARAM_DEFAULT;
 
-pub const SIZE: usize = 316;
+/// What this core writes: version 2 (§15).
+pub const SIZE: usize = 388;
+/// Version 1 (§8), which it still loads.
+pub const SIZE_V1: usize = 316;
 const MAGIC: [u8; 4] = *b"PKIN";
-const VERSION: u16 = 1;
+const VERSION: u16 = 2;
 const KIND_RHYTHM: u16 = 1;
-const PAYLOAD: u32 = 300;
 const HEADER: usize = 12;
-const CRC_AT: usize = SIZE - 4;
+/// The payload size field counts what is between the header and the CRC: 300 and 372.
+const fn payload(size: usize) -> u32 {
+    (size - HEADER - 4) as u32
+}
 
-fn u16_at(b: &[u8; SIZE], at: usize) -> u16 {
+/// Each version this core has written: its size. The CRC is always the last four bytes.
+fn size_of_version(version: u16) -> Option<usize> {
+    match version {
+        1 => Some(SIZE_V1),
+        2 => Some(SIZE),
+        _ => None, // newer than this core, or 0, which no core has written
+    }
+}
+
+fn u16_at(b: &[u8], at: usize) -> u16 {
     u16::from_le_bytes([b[at], b[at + 1]])
 }
 
-fn u32_at(b: &[u8; SIZE], at: usize) -> u32 {
+fn u32_at(b: &[u8], at: usize) -> u32 {
     u32::from_le_bytes([b[at], b[at + 1], b[at + 2], b[at + 3]])
 }
 
@@ -35,7 +52,7 @@ pub fn save(e: &Engine, b: &mut [u8; SIZE]) {
     put(b, 0, &MAGIC);
     put(b, 4, &VERSION.to_le_bytes());
     put(b, 6, &KIND_RHYTHM.to_le_bytes());
-    put(b, 8, &PAYLOAD.to_le_bytes());
+    put(b, 8, &payload(SIZE).to_le_bytes());
     put(b, 12, &e.seed.to_le_bytes());
     put(b, 16, &e.clock.mbpm.to_le_bytes());
     b[20] = e.pat.length;
@@ -43,14 +60,22 @@ pub fn save(e: &Engine, b: &mut [u8; SIZE]) {
     for t in 0..TRACKS {
         put(b, 24 + 2 * t, &e.pat.on[t].to_le_bytes());
         put(b, 56 + STEPS * t, &e.pat.prob[t]);
+        // §15: each track's sliders, A then B.
+        put(b, 312 + 4 * t, &e.voices.params[t][0].to_le_bytes());
+        put(b, 314 + 4 * t, &e.voices.params[t][1].to_le_bytes());
     }
-    let crc = crc32(&b[..CRC_AT]);
-    put(b, CRC_AT, &crc.to_le_bytes());
+    put(b, 376, &e.voices.sampled.to_le_bytes());
+    b[378] = e.keys.volume;
+    b[379] = e.keys.sel;
+    // 380: the hat cut, 0 until D47 has a setting. 381 to 383: zero.
+    let crc = crc32(&b[..SIZE - 4]);
+    put(b, SIZE - 4, &crc.to_le_bytes());
 }
 
-/// Checks everything before it changes anything. A longer buffer is read as its first 316
-/// bytes. Values a correct core never writes (a length of 0, a probability of 200) are
-/// clamped, as the same values are in a command.
+/// Checks everything before it changes anything, in §8's order, with the size and the
+/// CRC's place taken from the version. A longer buffer is read as its first `size` bytes.
+/// Values a correct core never writes (a length of 0, a volume of 0) are clamped, as the
+/// same values are in a command. What version 1 does not hold gets `pi_init`'s values.
 pub fn load(e: &mut Engine, buf: &[u8]) -> i32 {
     if buf.len() < HEADER {
         return ERR_SIZE;
@@ -58,21 +83,21 @@ pub fn load(e: &mut Engine, buf: &[u8]) -> i32 {
     if buf[..4] != MAGIC {
         return ERR_MAGIC;
     }
-    let version = u16::from_le_bytes([buf[4], buf[5]]);
-    if version != VERSION {
-        // Newer than this core, or 0, which no core has written.
+    let version = u16_at(buf, 4);
+    let Some(size) = size_of_version(version) else {
         return ERR_VERSION;
-    }
-    let Some(b) = buf.first_chunk::<SIZE>() else {
-        return ERR_SIZE;
     };
+    if buf.len() < size {
+        return ERR_SIZE;
+    }
+    let b = &buf[..size];
     if u16_at(b, 6) != KIND_RHYTHM {
         return ERR_MAGIC;
     }
-    if u32_at(b, 8) != PAYLOAD {
+    if u32_at(b, 8) != payload(size) {
         return ERR_SIZE;
     }
-    if u32_at(b, CRC_AT) != crc32(&b[..CRC_AT]) {
+    if u32_at(b, size - 4) != crc32(&b[..size - 4]) {
         return ERR_CRC;
     }
 
@@ -85,6 +110,21 @@ pub fn load(e: &mut Engine, buf: &[u8]) -> i32 {
         for s in 0..STEPS {
             e.pat.prob[t][s] = b[56 + STEPS * t + s].min(100);
         }
+    }
+    if version == 1 {
+        e.voices.params = [[PARAM_DEFAULT; 2]; TRACKS];
+        e.voices.sampled = 0;
+        e.keys.volume = VOLUME_MAX;
+        e.keys.sel = 0;
+    } else {
+        for t in 0..TRACKS {
+            e.voices.params[t] = [u16_at(b, 312 + 4 * t), u16_at(b, 314 + 4 * t)];
+        }
+        e.voices.sampled = u16_at(b, 376);
+        // The view's volume row is (1 << volume) - 1: past 16 it would overflow (§14).
+        e.keys.volume = b[378].clamp(1, VOLUME_MAX);
+        e.keys.sel = b[379].min(TRACKS as u8 - 1);
+        // 380, the hat cut: nothing to set while no core writes anything but 0 (§15).
     }
     e.generation = e.generation.wrapping_add(1);
     OK

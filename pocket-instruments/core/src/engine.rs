@@ -20,7 +20,7 @@ pub struct Engine {
     pub(crate) dropped: u32,
     pub(crate) generation: u32,
     pub(crate) voices: Voices,
-    /// §13: what the keys hold. Not in snapshot version 1.
+    /// §13: what the keys hold. The volume and the chosen sound are in snapshot version 2.
     pub(crate) keys: Keys,
     /// §14: firings per track since `pi_init`, wrapping.
     pub(crate) fires: [u8; TRACKS],
@@ -144,11 +144,12 @@ impl Engine {
                 let old = core::mem::replace(&mut self.pat.swing, s);
                 old != s
             }
-            // A track's two sliders. Held by the engine; not in snapshot version 1, so it does
-            // not move the generation (D44: version 2, with the instrument).
+            // A track's two sliders. In snapshot version 2 (§15), so a change moves the
+            // generation. (Until Session 11 they were in no snapshot and moved nothing: D44.)
             CMD_SOUND if a < TRACKS && b < 2 => {
-                self.voices.params[a][b] = v.min(65_535) as u16;
-                false
+                let p = v.min(65_535) as u16;
+                let old = core::mem::replace(&mut self.voices.params[a][b], p);
+                old != p
             }
             // A tap: the track fires now, playing or stopped, as if its step had come round.
             // The pattern is not touched (D45).
@@ -156,12 +157,13 @@ impl Engine {
                 out.push(self.clock.now(), EV_TRIG, a as u8, self.seq.step());
                 false
             }
-            // Which a track plays when it fires: 0 its code voice, 1 its sample (D50). Not
-            // in snapshot version 1, like the sliders, so it does not move the generation.
+            // Which a track plays when it fires: 0 its code voice, 1 its sample (D50). In
+            // snapshot version 2 with the sliders (§15).
             CMD_VOICE if a < TRACKS => {
+                let old = self.voices.sampled;
                 let bit = 1u16 << a;
-                self.voices.sampled = if v != 0 { self.voices.sampled | bit } else { self.voices.sampled & !bit };
-                false
+                self.voices.sampled = if v != 0 { old | bit } else { old & !bit };
+                self.voices.sampled != old
             }
             CMD_LENGTH => {
                 let l = v.clamp(1, STEPS as u32) as u8;

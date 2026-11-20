@@ -1270,10 +1270,11 @@ impl Voices {
         }
     }
 
-    /// One frame. `frame` is `channels` floats: 1 is the mix, 16 is each track on its own.
-    /// The mix is the plain sum, in track order, from track 0, times `gain`: the master
-    /// volume (§13), which is exactly 1 at volume 16. The sixteen tracks are not scaled:
-    /// they are the direct outputs, before the master (D57).
+    /// One frame. `frame` is `channels` floats: 1 is the mix, 16 is each track on its own,
+    /// 17 is both, the sixteen then the mix (§15). The mix is the plain sum, in track order,
+    /// from track 0, times `gain`: the master volume (§13), which is exactly 1 at volume 16.
+    /// The sixteen tracks are not scaled: they are the direct outputs, before the master
+    /// (D57). Each layout's channels are the same bits whichever layout carries them.
     #[inline]
     pub fn render(&mut self, frame: &mut [f32], gain: f32) {
         let mut v = [0.0f32; TRACKS];
@@ -1284,13 +1285,18 @@ impl Voices {
             let s = &mut self.samples[t];
             *out = (if s.sounding() { code + s.next() } else { code }) * LEVEL;
         }
+        let mix = |v: &[f32; TRACKS]| {
+            let mut sum = v[0];
+            for s in &v[1..] {
+                sum += *s;
+            }
+            sum * gain
+        };
         match frame {
-            [mix] => {
-                let mut sum = v[0];
-                for s in &v[1..] {
-                    sum += *s;
-                }
-                *mix = sum * gain;
+            [out] => *out = mix(&v),
+            [tracks @ .., out] if tracks.len() == TRACKS => {
+                tracks.copy_from_slice(&v);
+                *out = mix(&v);
             }
             tracks => tracks.copy_from_slice(&v),
         }

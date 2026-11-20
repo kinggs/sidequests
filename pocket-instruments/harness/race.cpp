@@ -326,8 +326,21 @@ struct Other {
     }
 
     // Enter a fixture's opening pattern over whatever is there, as a player would have to:
-    // every step and probability, then swing, length and tempo.
+    // every step and probability, then swing, length and tempo. Since snapshot version 2
+    // (§15) also what the churn left in the sliders, the switches, the volume and the chosen
+    // sound: every key let go, volume 16 and key 1 by their keys, then each track's sliders
+    // at their middles and back on code. (Until Session 11 the pattern alone was enough.)
     Snap enter(const Json &fx) {
+        for (uint8_t k = 0; k <= PI_KEY_WRITE; k++) edit(pi_cmd{0, PI_CMD_KEY_UP, k, 0, 0, 0});
+        for (uint8_t k : {PI_KEY_BPM, 15u}) edit(pi_cmd{0, PI_CMD_KEY_DOWN, k, 0, 0, 0});
+        for (uint8_t k : {15u, PI_KEY_BPM}) edit(pi_cmd{0, PI_CMD_KEY_UP, k, 0, 0, 0});
+        for (uint8_t k : {PI_KEY_SOUND, 0u}) edit(pi_cmd{0, PI_CMD_KEY_DOWN, k, 0, 0, 0});
+        for (uint8_t k : {0u, PI_KEY_SOUND}) edit(pi_cmd{0, PI_CMD_KEY_UP, k, 0, 0, 0});
+        for (uint8_t t = 0; t < 16; t++) {
+            edit(pi_cmd{0, PI_CMD_SOUND, t, 0, 0, 32768});
+            edit(pi_cmd{0, PI_CMD_SOUND, t, 1, 0, 32768});
+            edit(pi_cmd{0, PI_CMD_VOICE, t, 0, 0, 0});
+        }
         uint16_t on[16] = {};
         uint8_t prob[16][16];
         std::memset(prob, 100, sizeof prob);

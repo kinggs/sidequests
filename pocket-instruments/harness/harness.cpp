@@ -4,7 +4,8 @@
 // same and write the same report.
 //
 //   harness <fixtures dir> [report file]        exits 0 only if every trace matched
-//   harness --render <scenario.json> <prefix>   P7: writes <prefix>-<source>-<rate>.f32, the mix
+//   harness --render <scenario.json> <prefix>   P7: writes <prefix>-<source>-<rate>.f32, the mix,
+//                                               and <...>-16ch.f32 / -17ch.f32 for its "layouts"
 //
 // SPDX-License-Identifier: MIT
 #include "fixture.hpp"
@@ -73,8 +74,9 @@ static uint64_t schedule(const Json &fx, uint32_t rate, uint32_t source, bool fr
 // the trace; with `views`, each one read is appended to `seen` as a line, and `ok` is cleared
 // if any is not the text expected.
 static std::string run(Host &h, const std::vector<Timed> &cmds, uint64_t end, uint32_t block, std::vector<float> *audio = nullptr,
-                       const std::vector<View> *views = nullptr, std::string *seen = nullptr, bool *ok = nullptr) {
-    if (audio) audio->assign(end, 0.f);
+                       const std::vector<View> *views = nullptr, std::string *seen = nullptr, bool *ok = nullptr,
+                       uint32_t channels = PI_AUDIO_MIX) {
+    if (audio) audio->assign(end * channels, 0.f);
     std::string out;
     std::vector<pi_cmd> these;
     pi_event ev[256];
@@ -89,7 +91,7 @@ static std::string run(Host &h, const std::vector<Timed> &cmds, uint64_t end, ui
             these.push_back(c);
         }
         uint32_t got = pi_process(h.e, n, these.data(), uint32_t(these.size()), ev, 256,
-                                  audio ? audio->data() + start : nullptr, audio ? PI_AUDIO_MIX : PI_AUDIO_NONE);
+                                  audio ? audio->data() + start * channels : nullptr, audio ? channels : PI_AUDIO_NONE);
         for (uint32_t i = 0; i < got; i++) {
             char line[64];
             if (ev[i].type == PI_EV_STEP) std::snprintf(line, sizeof line, "%u step %u\n", ev[i].tick, ev[i].step);
@@ -129,25 +131,47 @@ static std::vector<std::vector<int16_t>> starter_pack(const std::string &scenari
     return pack;
 }
 
-// P7: the scenario's mix on both clock sources at three rates, as raw little-endian floats.
+// P7: the scenario on both clock sources at three rates, as raw little-endian floats: the mix,
+// and each other layout its "layouts" names (§15), with the channel count in the file's name.
 // trace.test.mjs writes the same from the .wasm and compare.mjs holds the two to the bar.
 static int render(const std::string &scenario, const std::string &prefix) {
     Json fx = read_fixture(scenario);
     std::vector<std::vector<int16_t>> pack;
     if (fx.n_or("samples", 0)) pack = starter_pack(scenario);
+    std::vector<uint32_t> layouts{PI_AUDIO_MIX};
+    if (fx.find("layouts")) {
+        layouts.clear();
+        for (const Json &l : fx.at("layouts").arr) layouts.push_back(uint32_t(l.num));
+    }
+    for (uint32_t c : layouts)
+        if (c != PI_AUDIO_MIX && c != PI_AUDIO_TRACKS && c != PI_AUDIO_BOTH) die("a layout this core does not have");
+    if (std::find(layouts.begin(), layouts.end(), PI_AUDIO_MIX) == layouts.end()) die("every render has the mix");
     const std::pair<const char *, uint32_t> sources[] = {{"table", PI_SOURCE_TABLE}, {"edges", PI_SOURCE_EDGES}};
     for (auto &[source_name, source] : sources)
         for (uint32_t rate : {44100u, 48000u, 96000u}) {
             std::vector<Timed> cmds;
             uint64_t end = schedule(fx, rate, source, false, cmds);
-            Host h(rate, uint32_t(fx.n("seed")));
-            for (uint32_t t = 0; t < pack.size(); t++)
-                if (pi_set_sample(h.e, t, pack[t].data(), uint32_t(pack[t].size())) != 1) die("pi_set_sample refused a sample");
-            std::vector<float> audio;
-            run(h, cmds, end, 128, &audio);
-            std::ofstream out(prefix + "-" + source_name + "-" + std::to_string(rate) + ".f32", std::ios::binary);
-            out.write(reinterpret_cast<const char *>(audio.data()), std::streamsize(audio.size() * sizeof(float)));
-            if (!out) die("cannot write the render");
+            std::vector<float> by[PI_AUDIO_BOTH + 1];
+            for (uint32_t channels : layouts) {
+                Host h(rate, uint32_t(fx.n("seed")));
+                for (uint32_t t = 0; t < pack.size(); t++)
+                    if (pi_set_sample(h.e, t, pack[t].data(), uint32_t(pack[t].size())) != 1) die("pi_set_sample refused a sample");
+                std::vector<float> &audio = by[channels];
+                run(h, cmds, end, 128, &audio, nullptr, nullptr, nullptr, channels);
+                std::string suffix = channels == PI_AUDIO_MIX ? "" : "-" + std::to_string(channels) + "ch";
+                std::ofstream out(prefix + "-" + source_name + "-" + std::to_string(rate) + suffix + ".f32", std::ios::binary);
+                out.write(reinterpret_cast<const char *>(audio.data()), std::streamsize(audio.size() * sizeof(float)));
+                if (!out) die("cannot write the render");
+            }
+            // §15: the seventeen channels are the sixteen, then the mix, bit for bit.
+            if (!by[PI_AUDIO_BOTH].empty()) {
+                if (by[PI_AUDIO_TRACKS].empty()) die("layout 17 is held to layout 16: render both");
+                const std::vector<float> &b = by[PI_AUDIO_BOTH], &t = by[PI_AUDIO_TRACKS], &m = by[PI_AUDIO_MIX];
+                for (uint64_t f = 0; f < end; f++) {
+                    if (std::memcmp(&b[f * 17], &t[f * 16], 16 * sizeof(float)) != 0) die("layout 17's tracks are not layout 16's");
+                    if (std::memcmp(&b[f * 17 + 16], &m[f], sizeof(float)) != 0) die("layout 17's mix is not layout 1's");
+                }
+            }
         }
     return 0;
 }

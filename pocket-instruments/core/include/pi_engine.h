@@ -1,5 +1,5 @@
-/* Pocket Instruments: the engine's C ABI, version 4 (1 plus sound: D44; 3 adds samples: D50;
- * 4 adds keys and the view: D51).
+/* Pocket Instruments: the engine's C ABI, version 5 (1 plus sound: D44; 3 adds samples: D50;
+ * 4 adds keys and the view: D51; 5 adds snapshot version 2 and PI_AUDIO_BOTH: D55, D57).
  *
  * The contract both hosts link. ENGINE.md beside the crate is the specification; this file is
  * the same thing in C. Where they disagree, ENGINE.md is right.
@@ -21,7 +21,7 @@
 extern "C" {
 #endif
 
-#define PI_ABI_VERSION 4u
+#define PI_ABI_VERSION 5u
 
 #define PI_TICKS_PER_STEP 96u /* a step is a sixteenth note */
 #define PI_TRACKS 16u         /* one per grid key: key n plays track n (D30) */
@@ -31,8 +31,9 @@ extern "C" {
 #define PI_MBPM_MIN 30000u    /* tempo is in thousandths of a bpm */
 #define PI_MBPM_MAX 300000u
 #define PI_EVENTS_MIN 64u     /* the least room a host gives pi_process for events */
-#define PI_SNAPSHOT_VERSION 1u
-#define PI_SNAPSHOT_SIZE 316u /* bytes, for PI_SNAPSHOT_VERSION */
+#define PI_SNAPSHOT_VERSION 2u   /* what pi_save writes; pi_load also takes version 1 */
+#define PI_SNAPSHOT_SIZE 388u    /* bytes, for PI_SNAPSHOT_VERSION */
+#define PI_SNAPSHOT_SIZE_V1 316u /* version 1: the least a host should keep and pass to pi_load */
 #define PI_VIEW_SIZE 64u      /* bytes pi_view writes */
 #define PI_VOLUME_MAX 16u     /* master volume, 1..16; the mix is times (volume / 16) squared */
 
@@ -40,6 +41,7 @@ extern "C" {
 #define PI_AUDIO_NONE 0u    /* the voices do not run at all */
 #define PI_AUDIO_MIX 1u     /* one float a frame: every voice, summed, times the master volume */
 #define PI_AUDIO_TRACKS 16u /* PI_TRACKS floats a frame: track n alone in channel n, before the master */
+#define PI_AUDIO_BOTH 17u   /* PI_AUDIO_TRACKS's sixteen, then PI_AUDIO_MIX's one: the same bits as each */
 
 /* Clock sources (PI_CMD_SOURCE). */
 #define PI_SOURCE_TABLE 0u /* the engine counts frames at its tempo */
@@ -56,12 +58,12 @@ extern "C" {
 #define PI_CMD_SWING 18u    /* value: 0..PI_SWING_MAX, clamped */
 #define PI_CMD_LENGTH 19u   /* value: 1..PI_STEPS, clamped */
 #define PI_CMD_SOUND 20u    /* a: track, b: 0 slider A, 1 slider B; value: 0..65535, clamped.
-                               Not in snapshot version 1 */
+                               In snapshot version 2, not 1 */
 #define PI_CMD_FIRE 21u     /* a: track. It fires on this frame, playing or stopped: one PI_EV_TRIG,
                                and its voice. The pattern is untouched */
 #define PI_CMD_VOICE 22u    /* a: track; value: 0 its voice built in code, 1 its sample (pi_set_sample).
                                Taken at the track's next hit; a track with no sample plays its code
-                               voice. All code at pi_init. Not in snapshot version 1 */
+                               voice. All code at pi_init. In snapshot version 2, not 1 */
 /* What a finger did (ABI 4; ENGINE.md section 13). The core runs the workflow and turns each
  * into the edits above; a host sends these and draws pi_view. */
 #define PI_CMD_KEY_DOWN 32u /* a: PI_KEY_*. A key already down, or a number past 22: ignored */
@@ -185,7 +187,8 @@ uint32_t pi_save(const pi_engine *engine, uint8_t *buf, uint32_t cap);
 
 /* Read a snapshot of this or any older version. On any error nothing changes. Replaces the
  * pattern and settings and reseeds the random generator; leaves the playhead and clock.
- * Bytes past PI_SNAPSHOT_SIZE are not read. Moves pi_generation. */
+ * A version 1 snapshot sets what it does not hold to pi_init's values. Bytes past that
+ * version's size are not read: pass the length read, not a fixed size. Moves pi_generation. */
 int32_t pi_load(pi_engine *engine, const uint8_t *buf, uint32_t len);
 
 #ifdef __cplusplus

@@ -6,7 +6,7 @@ use crate::keys;
 use crate::seq::TRACKS;
 use crate::snapshot;
 
-pub const ABI_VERSION: u32 = 4;
+pub const ABI_VERSION: u32 = 5;
 
 pub const CMD_CLOCK: u8 = 1;
 pub const CMD_RESET: u8 = 2;
@@ -169,11 +169,13 @@ pub unsafe extern "C" fn pi_process(
         // SAFETY: non-null, aligned, and `cap` long by the contract.
         unsafe { core::slice::from_raw_parts_mut(events, cap as usize) }
     };
-    // Sound is asked for with a buffer and a layout this core knows: 1 (the mix) or one
-    // channel a track. Anything else is no sound at all, and the voices do not run.
+    // Sound is asked for with a buffer and a layout this core knows: 1 (the mix), one
+    // channel a track, or both, the tracks then the mix (§15). Anything else is no sound at
+    // all, and the voices do not run.
     let len = (frames as usize).checked_mul(channels as usize);
+    let known = channels == 1 || channels == TRACKS as u32 || channels == TRACKS as u32 + 1;
     let audio: Option<&mut [f32]> = match len {
-        Some(len) if !audio.is_null() && audio.is_aligned() && (channels == 1 || channels == TRACKS as u32) => {
+        Some(len) if !audio.is_null() && audio.is_aligned() && known => {
             // SAFETY: non-null, aligned, and `frames * channels` long by the contract.
             Some(unsafe { core::slice::from_raw_parts_mut(audio, len) })
         }

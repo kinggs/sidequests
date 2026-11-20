@@ -24,8 +24,11 @@ const KEYS = new Set(["key_down", "key_up", "param"]);
 const EDITS = new Set(["step", "prob", "swing", "length"]);
 const PAGE = 65536;
 // Where things sit in the one page the host adds (ENGINE.md §8).
-// The engine gets the first 4 KiB (core/src/tests/rules.rs holds pi_size to it).
-const SNAP = 4096, VIEW = 4608, EVENTS = 5120, CAP = 256, AUDIO = 8192, AUDIO_MAX = 768, CMDS = 11264, CMDS_MAX = (PAGE - CMDS) / 12;
+// The engine gets the first 4 KiB (core/src/tests/rules.rs holds pi_size to it). The snapshot
+// has 512 bytes (version 2 is 388: §15). The audio has room for a 128-frame block at 17
+// channels (PI_AUDIO_BOTH); it had 768 floats, and the commands began at 11264, until then.
+const SNAP = 4096, SNAP_SIZE = 388, VIEW = 4608, EVENTS = 5120, CAP = 256, AUDIO = 8192, AUDIO_MAX = 128 * 17;
+const CMDS = AUDIO + 4 * AUDIO_MAX, CMDS_MAX = Math.floor((PAGE - CMDS) / 12);
 
 function load() {
   const module = new WebAssembly.Module(readFileSync(WASM));
@@ -111,12 +114,13 @@ function viewText(v, p) {
     ` bar=${hex(v.getUint16(p + 16, true), 4)} sampled=${hex(v.getUint16(p + 18, true), 4)} a=${v.getUint16(p + 20, true)} b=${v.getUint16(p + 22, true)} fires=${fires}`;
 }
 
-// With `audio` (a Float32Array of `end` samples) the mix is rendered into it as well.
+// With `audio` (a Float32Array of `end * channels` samples) sound is rendered into it as well,
+// in that layout (1 the mix, 16 the tracks, 17 both).
 // With `views` a block ends wherever one is to be read; each is held to its text, labelled
 // `label`, and added to the lines after the trace, as the report has it.
-function run(m, e, cmds, end, block, audio, views = [], label = "") {
+function run(m, e, cmds, end, block, audio, views = [], label = "", channels = 1) {
   const lines = [], seen = [];
-  assert.ok(!audio || block <= AUDIO_MAX);
+  assert.ok(!audio || block * channels <= AUDIO_MAX);
   let next = 0, view = 0;
   for (let start = 0; start < end; ) {
     const n = Math.min(block, (view < views.length ? views[view][0] : end) - start);
@@ -133,8 +137,8 @@ function run(m, e, cmds, end, block, audio, views = [], label = "") {
       v.setUint8(p + 7, 0);
       v.setUint32(p + 8, c.value, true);
     }
-    const got = m.pi.pi_process(e, n, m.base + CMDS, count, m.base + EVENTS, CAP, audio ? m.base + AUDIO : 0, audio ? 1 : 0);
-    if (audio) audio.set(new Float32Array(m.pi.memory.buffer, m.base + AUDIO, n), start);
+    const got = m.pi.pi_process(e, n, m.base + CMDS, count, m.base + EVENTS, CAP, audio ? m.base + AUDIO : 0, audio ? channels : 0);
+    if (audio) audio.set(new Float32Array(m.pi.memory.buffer, m.base + AUDIO, n * channels), start * channels);
     for (let i = 0; i < got; i++) {
       const p = m.base + EVENTS + 12 * i;
       const tick = v.getUint32(p + 4, true), type = v.getUint8(p + 8);
@@ -162,8 +166,8 @@ function snapshotOf(m, fx, rate) {
   const cmds = [[0, { type: CMD.tempo, a: 0, b: 0, value: fx.mbpm }]];
   for (const c of fx.commands) if (c.at === 0 && EDITS.has(c.cmd)) cmds.push([0, toCmd(c)]);
   run(m, e, cmds, 1, 1);
-  assert.equal(m.pi.pi_save(e, m.base + SNAP, 316), 316);
-  return new Uint8Array(m.pi.memory.buffer, m.base + SNAP, 316).slice();
+  assert.equal(m.pi.pi_save(e, m.base + SNAP, SNAP_SIZE), SNAP_SIZE);
+  return new Uint8Array(m.pi.memory.buffer, m.base + SNAP, SNAP_SIZE).slice();
 }
 
 const hex = (bytes) => Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
@@ -171,7 +175,7 @@ const hex = (bytes) => Array.from(bytes, (b) => b.toString(16).padStart(2, "0"))
 test("the module imports nothing and its memory grows by a page for the host", { skip }, () => {
   const m = load();
   assert.deepEqual(m.imports, [], "no imports: no glue to write");
-  assert.equal(m.pi.pi_abi_version(), 4);
+  assert.equal(m.pi.pi_abi_version(), 5);
   assert.equal(m.pi.memory.buffer.byteLength, m.base + PAGE);
   // Memory the module was not given is refused, not written.
   assert.equal(m.pi.pi_init(0, m.pi.pi_size(), 48000, 1), 0, "null");
@@ -205,17 +209,17 @@ test("every fixture gives its trace on both sources, at every rate and block siz
         // Save, load into a fresh engine with another seed, same trace.
         const snap = snapshotOf(m, fx, rate);
         const e = engine(m, rate, fx.seed + 12345);
-        new Uint8Array(m.pi.memory.buffer, m.base + SNAP, 316).set(snap);
-        assert.equal(m.pi.pi_load(e, m.base + SNAP, 316), 0);
+        new Uint8Array(m.pi.memory.buffer, m.base + SNAP, SNAP_SIZE).set(snap);
+        assert.equal(m.pi.pi_load(e, m.base + SNAP, SNAP_SIZE), 0);
         const { cmds, end, views } = schedule(fx, rate, source, true);
         const got = run(m, e, cmds, end, 128, null, views, `${name} ${sourceName} ${rate} from a snapshot`);
         assert.equal(got, wanted(views), `${name} ${sourceName} ${rate} from a snapshot`);
         report += `# ${name} ${sourceName} ${rate} snapshot ${hex(snap)}\n${got}`;
         runs++;
         // One flipped bit is refused.
-        const bad = new Uint8Array(m.pi.memory.buffer, m.base + SNAP, 316);
+        const bad = new Uint8Array(m.pi.memory.buffer, m.base + SNAP, SNAP_SIZE);
         bad[40] ^= 1;
-        assert.equal(m.pi.pi_load(e, m.base + SNAP, 316), -4);
+        assert.equal(m.pi.pi_load(e, m.base + SNAP, SNAP_SIZE), -4);
       }
     }
   }
@@ -237,15 +241,32 @@ for (const file of SCENARIOS) {
       pack.forEach(([at, frames], t) => assert.equal(m.pi.pi_set_sample(e, t, at, frames), 1));
       return e;
     };
+    // "layouts": the mix alone unless the scenario asks for more. A layout but the mix is
+    // written with its channel count in the name (harness.cpp does the same).
+    const layouts = fx.layouts ?? [1];
+    assert.ok(layouts.includes(1) && layouts.every((c) => [1, 16, 17].includes(c)));
     for (const [sourceName, source] of SOURCES) {
       for (const rate of RATES) {
         const { cmds, end } = schedule(fx, rate, source, false);
-        const audio = new Float32Array(end);
         const quiet = run(m, withPack(engine(m, rate, fx.seed)), cmds, end, 128);
-        const loud = run(m, withPack(engine(m, rate, fx.seed)), cmds, end, 128, audio);
-        assert.equal(loud, quiet, "sound changes no event");
-        assert.ok(audio.some((s) => s !== 0) && audio.every(Number.isFinite), "it made a sound");
-        if (process.env.PI_RENDER) writeFileSync(`${process.env.PI_RENDER}-${name}-${sourceName}-${rate}.f32`, new Uint8Array(audio.buffer));
+        const out = {};
+        for (const channels of layouts) {
+          const audio = new Float32Array(end * channels);
+          const loud = run(m, withPack(engine(m, rate, fx.seed)), cmds, end, 128, audio, [], "", channels);
+          assert.equal(loud, quiet, "sound changes no event");
+          assert.ok(audio.some((s) => s !== 0) && audio.every(Number.isFinite), "it made a sound");
+          out[channels] = new Uint32Array(audio.buffer);
+          const suffix = channels === 1 ? "" : `-${channels}ch`;
+          if (process.env.PI_RENDER) writeFileSync(`${process.env.PI_RENDER}-${name}-${sourceName}-${rate}${suffix}.f32`, new Uint8Array(audio.buffer));
+        }
+        // §15: the seventeen channels are the sixteen, then the mix, bit for bit.
+        if (out[17]) {
+          assert.ok(out[16], "layout 17 is held to layout 16");
+          for (let f = 0; f < end; f++) {
+            for (let t = 0; t < 16; t++) if (out[17][f * 17 + t] !== out[16][f * 16 + t]) assert.fail(`${sourceName} ${rate}: frame ${f} track ${t}`);
+            if (out[17][f * 17 + 16] !== out[1][f]) assert.fail(`${sourceName} ${rate}: frame ${f}, the mix`);
+          }
+        }
       }
     }
   });

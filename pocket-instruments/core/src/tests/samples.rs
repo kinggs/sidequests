@@ -142,14 +142,18 @@ fn a_sample_sounding_across_a_rate_change_keeps_its_pitch_and_length_in_seconds(
 }
 
 #[test]
-fn the_switch_and_the_samples_are_not_in_the_snapshot() {
+fn the_samples_are_not_in_the_snapshot_and_since_version_2_the_switch_is() {
     let data = vec![1i16; 100];
     let mut h = Host::new(48000, 1);
     let (g, saved) = (h.generation(), h.save());
     give(&h, 3, &data);
+    assert_eq!((h.generation(), h.save()), (g, saved), "the samples are the host's (§12)");
+    // Until Session 11 the switch was in no snapshot either (D44, D50); version 2 holds it.
     h.block(1, &[cmd(CMD_VOICE, 3, 0, 1)]);
-    assert_eq!(h.generation(), g, "not in snapshot version 1, like the sliders (D44)");
-    assert_eq!(h.save(), saved);
+    assert_eq!(h.generation(), g + 1);
+    let now = h.save();
+    assert_eq!(now[376..378], 8u16.to_le_bytes(), "bit 3: track 3 plays its sample");
+    assert_eq!((&now[..376], &now[378..384]), (&saved[..376], &saved[378..384]), "and nothing else");
 }
 
 #[test]
