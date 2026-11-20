@@ -6,8 +6,8 @@ session ends with the app **deployed and working**, then ticks its boxes and wri
 handover note below, so the next session starts from the truth.
 
 **Start every session with:** "Read `rack-it/V3-PLAN.md` and do Session N."
-Sessions 1 to 7 have shipped. **Session 8 (Play: the match on one screen) is planned and not
-built.** Other ideas wait under "Parked".
+Sessions 1 to 8 have shipped (Session 8, Play: the match on one screen, as `2.35.0`). Other
+ideas wait under "Parked".
 
 ## Read first, every session
 
@@ -431,7 +431,7 @@ and 11-Point-Nine behaves identically.
 
 ## Session 8 — Play: the match on one screen
 
-**Planned 2026-11-20 (Fable); Opus builds it. Lands as `2.35.0`.** One build session. No data
+**Planned 2026-11-20 (Fable); built the same day (Opus) as `2.35.0`.** One build session. No data
 changes, no rules changes, nothing in `shared/` except the proofs.
 
 **Goal.** Starting an ordinary match is: see both players, the game, the length and the handicap
@@ -521,24 +521,24 @@ than today (Someone else, Add a guest, the name, Add).
 
 ### 8.3 The list
 
-- [ ] Read `SPEC.md` §4 to §6.2, this section, and `renderSetup`, `paintWhoChips`, `chipTap`,
+- [x] Read `SPEC.md` §4 to §6.2, this section, and `renderSetup`, `paintWhoChips`, `chipTap`,
       `chooseBreak`, `overviewOf` and the setup markup (`#scrSetup`) in `index.html`.
-- [ ] Reorder `#scrSetup` as 8.2; move `#foldGame` into `#matchSettings`; remove `#breakBtn`,
+- [x] Reorder `#scrSetup` as 8.2; move `#foldGame` into `#matchSettings`; remove `#breakBtn`,
       `#whoHint`, the Who's playing heading, and `setup.breakHow` / `breakPair` with the code
       that keeps them.
-- [ ] The chip row: one line, sideways scroll (`touch-action: pan-x`, taps still off
+- [x] The chip row: one line, sideways scroll (`touch-action: pan-x`, taps still off
       `pointerup`), its contents and **Someone else** as 8.2. The chosen chip scrolls into view.
-- [ ] The Start sheet as 8.2, with the Rated switch (keep the id `ratedBtn`, `role="switch"`).
+- [x] The Start sheet as 8.2, with the Rated switch (keep the id `ratedBtn`, `role="switch"`).
       `overviewOf` becomes the one line and the ratings line, still read from the rows so they
       can't disagree.
-- [ ] The odds sentence into the Handicap fold; the foot hint only for a drill, the club line
+- [x] The odds sentence into the Handicap fold; the foot hint only for a drill, the club line
       and the fixture line.
-- [ ] A drill and a locked fixture still read right with the new order (check both by hand).
-- [ ] Largest text: the page flows and may scroll; nothing clips or overlaps.
-- [ ] `SPEC.md` §5 rewritten to match (the order, the chip row, the sheet, Rated's new home,
+- [x] A drill and a locked fixture still read right with the new order (check both by hand).
+- [x] Largest text: the page flows and may scroll; nothing clips or overlaps.
+- [x] `SPEC.md` §5 rewritten to match (the order, the chip row, the sheet, Rated's new home,
       Break), §6.1's "Count it as rated" note amended (Rated is now asked at every Start), and a
       line in §13's decisions log with the owner's four answers and this date.
-- [ ] Proofs updated, then all green (8.4). `APP_VERSION` and `CACHE` to `2.35.0`; deploy with
+- [x] Proofs updated, then all green (8.4). `APP_VERSION` and `CACHE` to `2.35.0`; deploy with
       `/deployquest`; Handover note below.
 
 ### 8.4 Proofs and checks
@@ -1010,3 +1010,51 @@ Discard bins the lot. There was no way back to the table.
   carry their number, and a ball is never a person marker, so nothing reads as a state — but
   it's the one place the new hue has a neighbour. Coral had the same problem with amber, which
   is the reason for the swap.
+
+### After Session 8
+
+**Shipped 2.35.0.** Play is the match on one screen: the two slots first, one sideways chip row
+ending in **Someone else**, one settings card (Game, Length, Handicap), Tournaments last, and
+Start. Rated and who-breaks-first both live on the Start sheet now. Every box in 8.3 is ticked.
+
+- **Owner:** open Rack It on the phone (More shows v2.35.0), start a friendly and a rated match
+  from the chip row, and check the sheet on the small phone. Nothing else: no data, rules or
+  config changes.
+- **Measured at 360×640** (`rack-it-setup.mjs`, two players, folds closed): the slots end at
+  184px, the chip row at 260, the settings card at 471, in a page that ends at 480; Tournaments
+  starts below it. At 390×844 nothing scrolls. On the sheet the coin's bottom is at 584 of 640
+  with Rated offered, 554 without.
+- **Choices I made where the plan was open.**
+  - **The blurb sits inside the chosen game's own row** of the open Game fold, under its one-line
+    gist, so "under the chosen game's line" is literal. One element moves between rows.
+  - **Rated resets for a new pair, not only a new setup.** 8.2 says it "holds if the sheet is
+    cancelled and reopened for the same pair"; the pair it was switched on for is kept
+    (`setup.ratedPair`), so a swap keeps it and a different opponent turns it off. Going back to
+    the first opponent doesn't bring it back.
+  - **The drill keeps the Game row** (it's how you leave the drill); only Length and Handicap step
+    aside. A locked fixture hides the whole settings card, chips and Tournaments.
+  - **In a drill the chips are you and whoever played lately**, as before, minus the player on the
+    slot: "the teal player's recent opponents" means nothing for one player.
+  - **The foot's line shows without players picked** for a table session or fixture. It used to
+    appear only with both picked, prefixed to the odds.
+  - **The chip row bleeds to the screen edges** (negative margin, padding back) so a chip cut by
+    the edge reads as "scroll me". Its scrollbar is hidden.
+  - **The Rated switch reuses the old row's look** (`#ratedBtn::after`, the tick box) as a sheet
+    button, so no new theme part was needed.
+- **Proofs.** `node --test` 191 pass. Green: `rack-it-setup.mjs` (new), every other
+  `rack-it-*.mjs`, `rack-it-same-match.mjs` with `OLD=3a1b800`, `connect-scan`, `claim-guest`,
+  `club-friends`, `table-session`, and `node shared/smoke.mjs`. `h.mjs`'s `startMatch` now ticks
+  Rated on the sheet and reads "offered" there; `rack-it-break` lost the Break-row cases and gained
+  the one-line overview, Rated flipped and kept through Cancel, and the sheet asking again.
+  `rack-it-scorer` steps Mel out through the teal slot; `connect-scan` reaches Scan a new player
+  through Someone else; `rack-it-tournament` checks the fixture's sheet has no Rated switch.
+- **By hand in `?mock`, scripted** (not committed): each of the five games' Game, Length and
+  Handicap folds open at 360×640 and scroll into view; a race in racks at 7 against 4 reads in the
+  fold and on the sheet; a guest added through Someone else lands on lilac, chosen. Friend mode
+  scoring for two friends is `rack-it-scorer`; `?club=` is `table-session`.
+- **⚠ Watch on the phone.** At the largest text the page and the sheet scroll (8.3 allows it).
+  `touch-action: pan-x` on the chip row means a vertical swipe that starts on a chip doesn't move
+  the page; 8.3 asks for it, and the row is 60px tall, but it's the one place that could feel
+  stuck. With Racks and uneven targets open, the odds sit under the two form buttons and need a
+  scroll at 360×640.
+- **Not run on the phone, and not against real Firestore.**

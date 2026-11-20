@@ -35,8 +35,9 @@ ok(!/club=|[?&]m=/.test(owner.url()), "rack-it took the link out of the address 
 ok(/Ann/.test(await text(owner, "#pickA")) && /Ben/.test(await text(owner, "#pickB")), "rack-it: Ann and Ben picked: " + (await text(owner, "#pickA")) + " / " + (await text(owner, "#pickB")));
 ok(/^At Sessions/.test(await text(owner, "#setupHint")), "setup says: " + (await text(owner, "#setupHint")).slice(0, 50));
 ok(/Score it for Ann and Ben/.test(await text(owner, "#startBtn")), "Start: " + (await text(owner, "#startBtn")));
-await owner.click("#ratedBtn"); await owner.waitForTimeout(200);
-await owner.click("#startBtn"); await owner.waitForTimeout(700); await answerBreak(owner);
+await owner.click("#startBtn"); await owner.waitForTimeout(700);
+await owner.click(".sheet.brk #ratedBtn"); await owner.waitForTimeout(200);   // Rated is on the Start sheet (Rack It 2.35.0)
+await answerBreak(owner);
 const table = (await owner.evaluate(() => JSON.parse(localStorage.getItem("sessions-loyalty.tables.mock-uid") || "[]")))[0];
 let m = (await matchesOf(owner)).find(x => x.status === "live");
 ok(!!m && m.id === table.m && m.venue === "sessions" && m.scorer === "mock-uid" && m.rated === true && JSON.stringify(m.uids) === '["mock-ann","mock-ben"]',

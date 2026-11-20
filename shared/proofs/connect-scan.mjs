@@ -29,8 +29,10 @@ ok(/[?&]i=/.test(link || ""), "ann's My QR has a link");
 // Ben: setup → Show QR → Or scan theirs.
 await ben.bringToFront();
 await ben.click('.tabbar button[data-tab="play"]'); await ben.waitForTimeout(300);
-await ben.locator("#whoChips button", { hasText: "Show QR" }).click(); await ben.waitForTimeout(500);
-ok(await theirs(ben).isVisible(), "Show QR offers Or scan theirs");
+// Rack It 2.35.0: Show QR is in the picker now, as Scan a new player, behind Someone else.
+await ben.locator("#whoChips button", { hasText: "Someone else" }).click(); await ben.waitForTimeout(400);
+await ben.locator('body > .scrim:last-of-type [data-k="scan"]').click(); await ben.waitForTimeout(500);
+ok(await theirs(ben).isVisible(), "Someone else → Scan a new player offers Or scan theirs");
 await theirs(ben).click(); await ben.waitForTimeout(300);
 ok(/Scan their QR/i.test(await text(ben, ".cn-scan")) || /Scan their QR/i.test(await text(ben, ".cn-ov:last-of-type .lbl")), "the scanner opens");
 ok(/can't scan in the app|camera isn't available/.test(await text(ben, '.cn-scan [data-k="msg"]')), "no camera here: it says so and takes a paste");

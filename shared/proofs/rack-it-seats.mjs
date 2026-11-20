@@ -23,9 +23,15 @@ await ann.reload(); await ann.waitForTimeout(900);
 
 // Setup: the chips.
 await ann.click('.tabbar button[data-tab="play"]'); await ann.waitForTimeout(300);
+// Rack It 2.35.0: one row under the slots. Ann is on teal, so she isn't a chip; it ends in Someone
+// else, whose picker holds Scan a new player and Add a guest.
 const chips = (await ann.locator("#whoChips button > span:last-child, #whoChips button.add").allInnerTexts()).map(t => t.trim());
-ok(chips.includes("Ann (you)") && chips.includes("Cat") && chips.includes("Dan") && chips.includes("Show QR") && chips.includes("+ Add a guest"),
-  "Who's playing: " + chips.join(" | "));
+ok(!chips.includes("Ann (you)") && chips.includes("Cat") && chips.includes("Dan") && chips[chips.length - 1] === "Someone else"
+  && !chips.includes("Show QR") && !chips.includes("+ Add a guest"), "the chip row: " + chips.join(" | "));
+await ann.locator("#whoChips button", { hasText: "Someone else" }).click(); await ann.waitForTimeout(300);
+ok(await ann.locator(last + ' [data-k="scan"]').isVisible() && await ann.locator(last + ' [data-k="guest"]').isVisible(),
+  "Someone else: the picker, with Scan a new player and Add a guest");
+await ann.keyboard.press("Escape"); await ann.waitForTimeout(300);
 await ann.locator("#whoChips button", { hasText: "Dan" }).click(); await ann.waitForTimeout(250);
 ok(/Ann/.test(await text(ann, "#pickA")) && /Dan/.test(await text(ann, "#pickB")), "the Dan chip filled the lilac side");
 ok(await ann.locator("#whoChips button", { hasText: "Dan" }).getAttribute("aria-pressed") === "true", "…and shows chosen");

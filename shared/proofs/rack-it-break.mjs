@@ -1,7 +1,8 @@
 // Rack It 2.25.0: who breaks first. Start asks, with two ways to answer: the players lagged and
-// say who won, or the phone flips a coin and says who starts. The Break row shows the call and
-// opens the same question early, so Start then asks nothing; a new opponent starts over, a swap
-// keeps the break with the person who had it; Cancel stays on setup.
+// say who won, or the phone flips a coin and says who starts. 2.35.0 (V3-PLAN Session 8): the sheet
+// reads the match back in one line, then the ratings and the odds, and holds the Rated switch; the
+// Break row is gone, so the sheet asks every time. Cancel stays on setup and keeps Rated for the
+// same pair; a swap keeps it too, a new opponent starts over.
 //
 //   node shared/proofs/rack-it-break.mjs
 import { ok, summary, serve, browser, tab, C, text, pickSlot, matchesOf, startMatch, answerBreak } from "./h.mjs";
@@ -23,32 +24,51 @@ const discard = async p => { const bb = await p.locator("#end").boundingBox(); a
 // 1. Start asks; the sheet names both players; Cancel stays on setup.
 await owner.click('.tabbar button[data-tab="play"]'); await owner.waitForTimeout(300);
 await pickSlot(owner, "#pickB", "Mel");
-ok(/Lag or coin, at Start/.test(await text(owner, "#breakWho")), "the Break row before Start: " + await text(owner, "#breakWho"));
+ok(await owner.locator("#breakBtn, #breakWho").count() === 0 && await owner.locator("#ratedBtn").count() === 0, "no Break row and no Rated row on the page");
 await owner.click("#startBtn"); await owner.waitForTimeout(400);
 const sheet = owner.locator(".sheet.brk");
 ok(await sheet.isVisible() && /Who breaks first\?/i.test(await text(owner, ".sheet.brk h3")), "Start asks who breaks first");
-// The overview above the question (2.26.0): the settings card's own rows, both ratings, the odds.
 ok(/^Mock v Mel$/.test(await text(owner, ".sheet.brk h2")), "the sheet is headed by the two names: " + await text(owner, ".sheet.brk h2"));
-// The labels are tracked caps (CSS), so innerText reads them upper-case.
-const rowsOf = async () => Object.fromEntries((await sheet.locator(".ovr li").allInnerTexts()).map(r => r.split("\n").map(x => x.trim()).filter(Boolean)).map(([k, v]) => [k.toLowerCase(), v]));
-const rows = await rowsOf();
-ok(rows.game === "11-Point-Nine" && /^Race/.test(rows.length || "") && /^Scoring/.test(rows.handicap || ""), "Game, Length and Handicap rows: " + JSON.stringify(rows));
-ok(/^Mock 500 ·\sprovisional · Mel 500 ·\sprovisional$/.test(rows.ratings || ""), "the Ratings row, provisional marked: " + rows.ratings);
-ok(rows.rated === "Friendly · ratings unchanged", "the Rated row for a friendly: " + rows.rated);
-ok(/even match|expects/.test(await text(owner, ".sheet.brk")), "the odds sentence is there");
+// The match in one line, the settings card's own rows word for word; then the ratings line.
+const rows = await owner.evaluate(() => [document.querySelector("#gameName").textContent, document.querySelector("#lenSummary").textContent, document.querySelector("#hcpSummary").textContent].join(" · "));
+const line = await text(owner, ".sheet.brk .ovline");
+ok(line === rows && /^11-Point-Nine · Race, about 5 racks · Scoring · Mock \d+, Mel \d+$/.test(line), "the one line: " + line);
+ok(/^Mock 500 ·\sprovisional · Mel 500 ·\sprovisional$/.test(await text(owner, ".sheet.brk .ovrate")) && /prov/.test(await owner.locator(".sheet.brk .ovrate").getAttribute("class")),
+  "the ratings line, provisional in amber: " + await text(owner, ".sheet.brk .ovrate"));
+ok(/even match|expects/.test(await text(owner, ".sheet.brk .ovodds")), "the odds sentence is there");
+ok(!/Lag for it/.test(await text(owner, ".sheet.brk")), "no how-to line: the buttons say it");
+ok(await text(owner, "#ratedWho") === "Off · a friendly" && await owner.locator("#ratedBtn").getAttribute("aria-checked") === "false"
+  && await owner.locator("#ratedBtn").getAttribute("role") === "switch", "the Rated switch, off: " + await text(owner, "#ratedWho"));
 const labels = await sheet.locator("button").allInnerTexts();
 ok(labels.some(l => /Mock won the lag/.test(l)) && labels.some(l => /Mel won the lag/.test(l)) && labels.some(l => /Flip a coin/.test(l)) && labels.some(l => /Cancel/.test(l)),
   "two lag answers, a coin and Cancel: " + labels.join(" | "));
-await sheet.locator("button.cancel").click(); await owner.waitForTimeout(400);
-ok(!(await sheet.isVisible().catch(() => false)) && await owner.locator("#scrSetup, #setupHint").first().isVisible() && !(await live()), "Cancel: no match started, still on setup");
-
-// 2. Rated on: the overview says so. Mel won the lag: Mel breaks, and shoots first.
+// 2. Rated flipped on the sheet: the words change in place. Cancel and reopen: still on, and asked again.
 await owner.click("#ratedBtn"); await owner.waitForTimeout(200);
+ok(await text(owner, "#ratedWho") === "On · moves ratings once Mel confirms" && await owner.locator("#ratedBtn").getAttribute("aria-checked") === "true",
+  "Rated on, in place: " + await text(owner, "#ratedWho"));
+await sheet.locator("button.cancel").click(); await owner.waitForTimeout(400);
+ok(!(await sheet.isVisible().catch(() => false)) && await owner.locator("#scrSetup").isVisible() && !(await live()), "Cancel: no match started, still on setup");
 await owner.click("#startBtn"); await owner.waitForTimeout(400);
-ok((await rowsOf()).rated === "Rated · moves ratings once Mel confirms", "the Rated row for a rated match: " + (await rowsOf()).rated);
+ok(await sheet.isVisible() && await text(owner, "#ratedWho") === "On · moves ratings once Mel confirms", "reopened for the same pair: asked again, Rated still on");
+await sheet.locator("button.cancel").click(); await owner.waitForTimeout(300);
+// A swap keeps it; a new opponent starts over.
+await pickSlot(owner, "#pickA", "Mel");
+await owner.click("#startBtn"); await owner.waitForTimeout(400);
+ok(/^Mel v Mock$/.test(await text(owner, ".sheet.brk h2")) && await owner.locator("#ratedBtn").getAttribute("aria-checked") === "true", "after a swap Rated holds");
+await sheet.locator("button.cancel").click(); await owner.waitForTimeout(300);
+await pickSlot(owner, "#pickA", "Mock");
+await pickSlot(owner, "#pickB", "Ann");
+await owner.click("#startBtn"); await owner.waitForTimeout(400);
+ok(await owner.locator("#ratedBtn").getAttribute("aria-checked") === "false", "a new opponent starts over: " + await text(owner, "#ratedWho"));
+await sheet.locator("button.cancel").click(); await owner.waitForTimeout(300);
+await pickSlot(owner, "#pickB", "Mel");
+await owner.click("#startBtn"); await owner.waitForTimeout(400);
+ok(await owner.locator("#ratedBtn").getAttribute("aria-checked") === "false", "…and back to Mel, it's off too: a new setup of the pair");
+await owner.click("#ratedBtn"); await owner.waitForTimeout(200);
+// Mel won the lag: Mel breaks, and shoots first; the match is rated.
 await answerBreak(owner, "b");
 let m = await live();
-ok(m && m.turn === "b", "Mel won the lag: she shoots first (turn b)");
+ok(m && m.turn === "b" && m.rated === true, "Mel won the lag: she shoots first (turn b), rated");
 ok(/⇄ MEL?$/i.test((await text(owner, "#breakFlip")).trim()), "the break chip: " + await text(owner, "#breakFlip"));
 await discard(owner);
 ok(!(await live()), "discarded");
@@ -68,27 +88,13 @@ m = await live();
 ok(m && m.turn === side, `the match starts with the coin's breaker (turn ${m && m.turn})`);
 await discard(owner);
 
-// 4. Decided early from the Break row: Start asks nothing. A swap keeps it; a new opponent forgets it.
+// 4. The next match asks again: nothing about the last call is kept.
 await owner.click('.tabbar button[data-tab="play"]'); await owner.waitForTimeout(300);
 await pickSlot(owner, "#pickB", "Mel");
-await owner.click("#breakBtn"); await owner.waitForTimeout(400);
-ok(await owner.locator(".sheet.brk").isVisible(), "the Break row opens the same question");
-await answerBreak(owner, "b");
-ok(/Mel breaks · won the lag/.test(await text(owner, "#breakWho")), "the row shows the call: " + await text(owner, "#breakWho"));
-await pickSlot(owner, "#pickA", "Mel");   // swap sides
-ok(/Mel/.test(await text(owner, "#pickA")) && /Mel breaks · won the lag/.test(await text(owner, "#breakWho")), "after a swap Mel still breaks: " + await text(owner, "#breakWho"));
-await pickSlot(owner, "#pickA", "Mock");   // swap back
-await pickSlot(owner, "#pickB", "Ann");
-ok(/Lag or coin, at Start/.test(await text(owner, "#breakWho")), "a new opponent starts over: " + await text(owner, "#breakWho"));
-await owner.click("#breakBtn"); await owner.waitForTimeout(400);
-await answerBreak(owner, "coin");
-ok(/breaks · the coin's call/.test(await text(owner, "#breakWho")), "the coin's call shows on the row: " + await text(owner, "#breakWho"));
-const breaker = /^Mock/.test(await text(owner, "#breakWho")) ? "a" : "b";
-await owner.click("#startBtn"); await owner.waitForTimeout(500);
-ok(!(await owner.locator(".sheet.brk").isVisible().catch(() => false)), "Start asked nothing more");
-m = await live();
-ok(m && m.turn === breaker && m.uids.includes("mock-ann"), `…and started against Ann with turn ${m && m.turn}`);
-await discard(owner);
+await owner.click("#startBtn"); await owner.waitForTimeout(400);
+ok(await owner.locator(".sheet.brk").isVisible() && await owner.locator('.sheet.brk [data-coin="flip"]').isVisible(), "a new Start asks again");
+ok(await owner.locator("#ratedBtn").getAttribute("aria-checked") === "false", "…with Rated off: each new setup resets it");
+await owner.locator(".sheet.brk button.cancel").click(); await owner.waitForTimeout(300);
 
 // 5. The helper's default still starts a match for every other proof.
 ok(await startMatch(owner, { b: "Mel" }) !== undefined && !!(await live()), "startMatch helper answers the question and starts");

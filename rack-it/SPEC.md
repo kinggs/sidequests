@@ -6,7 +6,7 @@ pair close, and one solo drill (**Spot 9**, §2.5) tracked over time. Matches sy
 so any invited phone can score, resume or watch.
 Invite-only: members sign in with Google. Anyone else who signs in gets My QR and Friends (§8.1).
 
-This spec is the app as it is (2.2.0). The rating's reasoning is in [`ZARGO.md`](ZARGO.md); the
+This spec is the app as it is (2.35.0). The rating's reasoning is in [`ZARGO.md`](ZARGO.md); the
 build sessions and their handovers are in [`V3-PLAN.md`](V3-PLAN.md); the look (dark system v2)
 is in [`design/DESIGN.md`](design/DESIGN.md).
 
@@ -262,59 +262,65 @@ intentional foul loses the match whatever the score.
 ## 5. Play: setup
 
 One page, defaults first, **Start** pinned below it and naming what's missing ("Pick two
-players", "Set the length first"). The page above Start scrolls when an open fold needs the
-room, and opening a fold scrolls it into view.
+players", "Set the length first"). An ordinary match is on one screen (2.35.0, V3-PLAN Session
+8): at 360×640 with two players picked and every fold closed, the slots, the chip row and the
+settings card show with no scroll, and only the Tournaments row is below. The page scrolls when
+an open fold needs the room, and opening a fold scrolls it into view. Top to bottom:
 
-1. **Game**, a dropdown row like Length and Handicap: the chosen game's name on the row, and
-   under it two sentences on what the game is and how it scores, so 11-Point-Nine, Golden-Nine
-   and Ten-Point-Eight tell themselves apart without opening anything. Open, it lists all five
-   in order, a line each ("Nine-ball · every ball scores, 11 a rack"), and all five fit a phone
-   screen; picking one closes it. The last game picked is remembered per phone (`localStorage`
-   `rack-it.game`).
-2. **Who's playing** (2.14.0, frame 8a): chips of you, whoever played lately, then your friends
-   and guests (eight at most), then **Show QR** (My QR; whoever scans is picked) and **+ Add a
-   guest**. A chip fills the empty side, lilac once you're on teal, or takes lilac's place; a
-   chosen chip, tapped, steps out. A friend picked here finds the match on their phone's Home
-   (§7). Step yourself out and pick two others, and you **score it for them** (2.16.0): Start
-   reads "Score it for Kenny and Rolf" (§6.2). In friend mode they must be your friends or
-   guests.
-   **Players:** a Teal side and a Lilac side slot, each showing its player's avatar and name, or
-   "Pick a player". You're pre-selected on teal. A slot opens the picker (`people.pick`, §8):
-   on teal you first, then whoever played lately; on lilac the teal player's recent opponents,
-   the last one first; then everyone by name, with a search box past eight. **Scan a new
-   player** opens My QR and picks whoever scans it; **Add a guest** takes a name. Picking the
-   player who's on the other side swaps the two, and the break stays with whoever had it.
-3. **Length**, **Handicap** and **Break**: one settings card, a row each showing the current
-   choice. Length and Handicap open on tap. **Break** (2.25.0) reads "Lag or coin, at Start"
-   until it's decided, then the call ("Melanie breaks · won the lag", "· the coin's call"); tapping
-   it asks the question below early. A new opponent starts over; swapping sides keeps the break
-   with the person who had it.
-4. **Rated**, a tick under Break, off by default and offered only when both players have an
-   account (a household person who has claimed, or a friend; never a guest). Off reads "Off · a
-   friendly"; on, "On · moves ratings once Melanie confirms". It resets with each new setup.
-5. The handicap row shows the proposal and, open, the targets, both editable. The odds sentence
-   sits above **Start** at all times: how many racks (or points, in 11-Point-Nine) the favourite
-   expects for each one of the other's, "Near-level ratings, so an even match" when close, and
-   with Racks the chance the higher-rated player wins the race as set. Ten-Point-Eight reads as
-   points a rack instead ("Kenny expects 8.4 points a rack to Melanie's 5.1"), since its loser
-   scores too.
+1. **Cards, only when something is live:** the match you're in, a drill left mid-way, tournament
+   cards, a locked fixture (§5.1).
+2. **The two slots**, Teal side and Lilac side, each showing its player's avatar and name, or
+   "Pick a player". You're pre-selected on teal. A slot opens the picker (`people.pick`, §8): on
+   teal you first, then whoever played lately; on lilac the teal player's recent opponents, the
+   last one first; then everyone by name, with a search box past eight. **Scan a new player**
+   opens My QR and picks whoever scans it; **Add a guest** takes a name. Picking the player who's
+   on the other side swaps the two. Step yourself out (pick someone else on teal) and pick two
+   others, and you **score it for them** (2.16.0): Start reads "Score it for Kenny and Rolf"
+   (§6.2). In friend mode they must be your friends or guests ("Pick friends or guests").
+3. **The chip row**, one line under the slots, scrolling sideways, with no heading: the teal
+   player's recent opponents, last one first, then friends and guests by name, eight at most.
+   Whoever is on teal isn't repeated; the lilac player shows chosen and, tapped, steps out. You
+   show as a chip only when you're on neither side, so a scorer can step back in. Club
+   connections stay in the picker's Sessions fold unless they've played lately. A chip fills the
+   empty side, else takes lilac's place; the chosen chip scrolls into view. The row ends in
+   **Someone else**, the picker for the empty side (lilac when both are full), where Scan a new
+   player and Add a guest are. A friend picked here finds the match on their phone's Home (§7).
+4. **One settings card: Game, Length, Handicap**, a row each showing the current choice, each
+   opening on tap.
+   - **Game**: the chosen game's name on the row. Open, it lists all five in order, a line each
+     ("Nine-ball · every ball scores, 11 a rack"), the chosen one also carrying its two sentences
+     on what the game is and how it scores, then the drills; picking one closes it. The last game
+     picked is remembered per phone (`localStorage` `rack-it.game`).
+   - **Length** and **Handicap** (§4). The Handicap row shows the proposal; open, the targets,
+     both editable, and under them the **odds sentence**: how many racks (or points, in
+     11-Point-Nine) the favourite expects for each one of the other's, "Near-level ratings, so an
+     even match" when close, and with Racks the chance the higher-rated player wins the race as
+     set. Ten-Point-Eight reads as points a rack ("Kenny expects 8.4 points a rack to Melanie's
+     5.1"), since its loser scores too. A change to the targets changes it.
+5. **The Tournaments row** (§5.1), last on the page.
+6. **The foot**: the short-race warning when there is one, a line only for a drill, a table
+   session ("At Sessions: you score it for the club") or a fixture, and Start.
 
-**The match at a glance, and who breaks first** (2.25.0, 2.26.0). **Start** opens one sheet,
-headed by the two names. First the overview, so what's about to be played is read back before a
-ball moves: **Game**, **Length**, **Handicap** (each the settings card's own row, word for word),
-**Ratings** ("Kenny 505 · Melanie 332", "· provisional" in amber under 30 racks) and **Rated**
-("Rated · moves ratings once Melanie confirms" or "Friendly · ratings unchanged"), then the odds
-sentence from above Start. Under it, unless the Break row has settled it, the question "Who
-breaks first?" with two ways to answer: **Kenny won the lag** / **Melanie won the lag**
-(the players lagged at the table and say who won), or **Flip a coin**: the phone flips one (heads
-teal, tails lilac, from `crypto.getRandomValues`), shows the coin and "Tails · Melanie breaks
-first", and one tap on **Melanie breaks** starts the match with her shooting. Cancel stays on
-setup. The live screen's break chip (§6) still puts a wrong answer right. Nothing about the
-choice is stored: the match carries only who broke each rack, as before.
+**The Start sheet: the match read back, Rated, and who breaks first** (2.25.0, 2.26.0, 2.35.0).
+**Start** opens one sheet, headed by the two names. Under them, one line read from the settings
+card's own rows, word for word, so the two can't disagree: "11-Point-Nine · Race, about 5 racks ·
+Scoring · Kenny 28, Mel 28". Then the ratings ("Kenny 505 · Mel 332 · provisional", amber when
+either is under 30 racks) and the odds sentence. Then **Rated**, a switch (`#ratedBtn`,
+`role="switch"`), only when both players have an account (a household person who has claimed, or
+a friend; never a guest) and never for a fixture: "Off · a friendly", or "On · moves ratings once
+Mel confirms"; flipping it changes the words in place. Rated is off at every new setup and for a
+new pair, and holds through a swap or a cancelled sheet for the same pair. Then **Who breaks
+first?** with two ways to answer: **Kenny won the lag** / **Melanie won the lag** (the players
+lagged at the table and say who won), or **Flip a coin**: the phone flips one (heads teal, tails
+lilac, from `crypto.getRandomValues`), shows the coin and "Tails · Melanie breaks first", and one
+tap on **Melanie breaks** starts the match with her shooting. Cancel stays on setup. The sheet
+asks every time; nothing about the answer is kept or stored, and the match carries only who broke
+each rack, as before. The live screen's break chip (§6) still puts a wrong answer right. At
+360×640 both lag buttons and the coin fit the sheet without a scroll, Rated offered or not.
 
 **A drill** (2.27.0, §2.5): picking **Spot 9** in the dropdown turns the page into one player
 and Start. The chips and the one slot (**Who's drilling**) pick who's at the table, you by
-default; the settings card (Length, Handicap, Break, Rated) steps aside, and the line above
+default; Length and Handicap step aside (the Game row stays), and the line above
 Start says where that player stands ("Kenny's Spot 9 so far: best 4.2 a run, last time 3.1,
 over 14 drills", or that it's their first). Start opens the drill screen with no sheet: nothing
 to lag for. In friend mode you drill as yourself (the rules let an account log only its own
@@ -322,8 +328,9 @@ drills; Start reads "Pick yourself" otherwise); the owner logs a drill for anyon
 included. A drill left mid-way shows as a card at the top of Play ("Spot 9 · Kenny", "Live · 7
 runs · 3.4 a run"), and **Open** picks it up where it was.
 
-The handicap isn't remembered: each game starts at its default. A repeat of last night is Game,
-two names, Start, and the question. Play keeps your picks while you look at another tab and starts fresh after a
+The handicap isn't remembered: each game starts at its default. A friendly with a recent
+opponent is three taps (the chip, Start, who won the lag), a rated one four (Rated on the sheet),
+none needing a scroll. Play keeps your picks while you look at another tab and starts fresh after a
 match has begun.
 
 ### 5.1 Tournaments (2.28.0, TOURNAMENT.md Sessions 2 and 3)
@@ -409,7 +416,8 @@ the draw and the results, the same way on every phone, so nothing about the brac
 - **Score it in Rack It** (2.31.0): from a ready match's sheet, or under **Enter the result** on
   Your path, for whoever may enter it and plays in it (or the organiser). Match setup opens locked
   to the fixture: a card on top with **Not now**, both players (an opponent this phone doesn't
-  know reads the tournament's name), the game and race fixed, handicap off, no Rated tick. The
+  know reads the tournament's name), the game and race fixed, handicap off, no chips, no settings card and no Rated switch on its
+  Start sheet. The
   match is a friendly carrying `tournament`, `fixture`, `tournamentName` and `round`; saved, its
   racks become the result (`match` names it), with no confirm. Its summary names the tournament
   and round, says it's rated when the tournament finishes, and has **Back to the tournament**.
@@ -516,8 +524,9 @@ match** or **Discard**. Saving opens the match's summary; discarding goes to Rat
 - **Not right** or **Withdraw** writes `{ status: "done", rated: false }` with `declinedBy` or
   `withdrawnBy`. It stands as a friendly.
 - A pending match can't be resumed. It expires after a week (2.21.0, §8.2).
-- **Count it as rated** (2.24.0). Rated is off by default, so a match meant to count is easily
-  played as a friendly. The owner puts it right from the summary of a finished friendly between
+- **Count it as rated** (2.24.0). Rated is off by default, so a match meant to count was easily
+  played as a friendly; since 2.35.0 Rated is asked on the Start sheet at every Start (§5), right
+  above who breaks first, so it is much harder to miss. For the ones that still slip, the owner puts it right from the summary of a finished friendly between
   two accounts with a rack that counted: **Hold to count it as rated** writes `rated: true` and
   `ratedBy` (the owner), drops `declinedBy`, `withdrawnBy` or `expired`, and rebuilds every rating
   at once (§3.2). Nobody is asked to confirm: only the owner may rewrite a saved match, and the
@@ -740,8 +749,8 @@ account, not to Rack It, so they show in every app with Connect.
   It's framed in teal with Rack It's 9-ball as a badge on the frame (2.23.0, Session 10 step 5);
   the code inside is the plain one. **Or scan theirs** (2.18.0, KIT-PLAN Session 10 step 2): their phone shows My QR, this one's
   camera reads it in the app (`connect.scan`; a pasted link where the phone can't), and the
-  friendship is made from their code, as their link would. So setup's **Show QR** and **Add
-  player** work whichever phone does the scanning.
+  friendship is made from their code, as their link would. So the picker's **Scan a new player**
+  (behind setup's **Someone else**) and **Add player** work whichever phone does the scanning.
 - **Scanning.** The link opens Rack It. The code is saved and taken out of the address bar
   before anything else, so it survives the Google sign-in. Signed in, you're connected at
   once: "You're connected with Kenny Inggs". Signed out, a card says who it's from and offers
@@ -1082,6 +1091,7 @@ account, so a static app can't upload results.
 | 2.9.0 | Rated matches and confirming (KIT-PLAN Session 5). Setup gains a **Rated** tick, off by default, offered when both players have an account. A friendly moves no rating; a rated match moves both only once the opponent confirms on their own phone, worked out from the ratings at that moment, in one batch. Not right or Withdraw leaves it a friendly. Rebuild replays rated matches by `ratedAt`, else `endedAt`; a match with no `rated` field is rated. For the social leagues, where a rating has to be agreed by both players. |
 | 2.10.0 | Outsiders play in Rack It (KIT-PLAN Session 6): friend mode instead of the outsider screen. The rules open the matches an account plays in, starting one against a connection or a guest, and a rating only in the batch that confirms a rated match the other player ended. Ratings are read by id, matches with one `uids` query. A household member can no longer turn a friendly into a rated match. For pool friends who aren't family. |
 | 2.11.0 | One admin, everyone else a player (KIT-PLAN Session 6b). The owner sees and rewrites every match; everyone else, a household member included, runs friend mode and reads only the matches they play in. The owner's phone backfills `uids` and `names` on matches from before 2.8.0, so the players keep them. The "Before you play" note goes: there's nothing left to warn about. Owner's call, 2026-10-02: "a family member is just another member". Other apps keep the household. |
+| 2.35.0 | Play, the match on one screen (V3-PLAN Session 8): the slots first, then one sideways chip row ending in **Someone else**, then one settings card (Game, Length, Handicap), with Tournaments last. Rated moves to the Start sheet as a switch, so it is asked at every Start; the Break row goes and the sheet asks who breaks every time; the sheet reads the match back in one line; the odds move into the open Handicap fold. A friendly is three taps, a rated match four, neither needing a scroll at 360×640. The owner's four answers, 2026-11-20, each as recommended: Rated on the Start sheet; drop the Break row; slots, then one chip row; Tournaments at the bottom of Play. |
 | 2.27.1 | Spot 9's **average, last 10** tile and the chart's dotted line pool every run in those drills (total potted over total runs) instead of averaging the drills' averages, which let a short drill count as much as a long one. Owner's ask: "the averages on the last couple of games seem out". |
 | 2.27.0 | Spot 9, a solo drill (§2.5): pot 1 to 9 off the spot until a miss, one tap a run, scored by the average a run, with tiles and a chart on the player's page. It lives in the Game dropdown under a Drills label rather than a card or a fifth tab, records go in their own `drills/` collection with their own rule, and it never moves a rating. Owner's ask: "a solo player drill that scores points … graph it and track it over time", answered 2026-10-19: the first miss ends the run, one tap logs it, straight to main. |
 | 2.26.0 | The Start sheet opens with the match at a glance: game, length, handicap, both ratings, rated or friendly, and the odds, read from the settings card's own rows, above the who-breaks-first question. Owner's ask: "a little overview screen, a confirmation overview screen". |

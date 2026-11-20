@@ -138,11 +138,14 @@ export async function startMatch(p, { a, b, rated = false, breaker = "a" }){
   await p.click('.tabbar button[data-tab="play"]'); await p.waitForTimeout(250);
   if (a) await pickSlot(p, "#pickA", a);
   if (b) await pickSlot(p, "#pickB", b);
-  const offered = await p.locator("#ratedBtn").isVisible();
-  if (rated) await p.click("#ratedBtn");
   const label = await p.locator("#startBtn").innerText();
   await p.click("#startBtn", { timeout: 5000 }).catch(() => {});
   await p.waitForTimeout(400);
+  // Rated is a switch on the Start sheet (Rack It 2.35.0), after Start and before the break.
+  const offered = await p.locator(".sheet.brk #ratedBtn").isVisible().catch(() => false);
+  if (rated && offered && await p.locator("#ratedBtn").getAttribute("aria-checked") !== "true"){
+    await p.click("#ratedBtn"); await p.waitForTimeout(150);
+  }
   await answerBreak(p, breaker);
   if (!(await p.locator("#scrLive").isVisible())){
     await shot(p, "nostart");

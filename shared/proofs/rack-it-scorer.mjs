@@ -3,7 +3,7 @@
 // the second, in one write. Rebuild then proposes no change. Mel can't confirm, nor stand in.
 //
 //   node shared/proofs/rack-it-scorer.mjs
-import { ok, summary, serve, browser, tab, C, tryC, text, store, scoreLeague, RACKS, matchesOf, ratingsOf, answerBreak } from "./h.mjs";
+import { ok, summary, serve, browser, tab, C, tryC, text, store, scoreLeague, RACKS, matchesOf, ratingsOf, answerBreak, pickSlot } from "./h.mjs";
 const srv = await serve();
 const { b, ctx } = await browser();
 const R = srv.base + "/rack-it/";
@@ -21,15 +21,17 @@ await mel.reload(); await mel.waitForTimeout(900);
 
 // Mel's setup: the owner and Ann, not herself.
 await mel.click('.tabbar button[data-tab="play"]'); await mel.waitForTimeout(300);
-await mel.locator("#whoChips button", { hasText: "Mel (you)" }).click(); await mel.waitForTimeout(200);   // step out
-await mel.locator("#whoChips button", { hasText: "Mock" }).click(); await mel.waitForTimeout(200);
+// Rack It 2.35.0: you aren't a chip while you're on teal, so stepping out is the teal slot.
+await pickSlot(mel, "#pickA", "Mock");
+ok(await mel.locator("#whoChips button", { hasText: "Mel (you)" }).count() === 1, "mel off both sides: she's a chip again, to step back in");
 await mel.locator("#whoChips button", { hasText: "Ann" }).click(); await mel.waitForTimeout(200);
 ok(/Mock/.test(await text(mel, "#pickA")) && /Ann/.test(await text(mel, "#pickB")), "mel picked the owner and Ann: " + (await text(mel, "#pickA")) + " / " + (await text(mel, "#pickB")));
-ok(await mel.locator("#ratedBtn").isVisible(), "Rated is offered");
+ok(/Score it for Mock Player and Ann/.test(await text(mel, "#startBtn")), "Start: " + (await text(mel, "#startBtn")));
+await mel.click("#startBtn"); await mel.waitForTimeout(600);
+ok(await mel.locator(".sheet.brk #ratedBtn").isVisible(), "Rated is offered, on the Start sheet");
 await mel.click("#ratedBtn"); await mel.waitForTimeout(200);
 ok(/once Mock Player and Ann confirm/.test(await text(mel, "#ratedWho")), "rated says both confirm: " + (await text(mel, "#ratedWho")));
-ok(/Score it for Mock Player and Ann/.test(await text(mel, "#startBtn")), "Start: " + (await text(mel, "#startBtn")));
-await mel.click("#startBtn"); await mel.waitForTimeout(600); await answerBreak(mel);
+await answerBreak(mel);
 let m = (await matchesOf(owner)).find(x => x.status === "live");
 ok(m && m.scorer === "mock-mel" && m.by === "mock-mel" && JSON.stringify(m.uids) === '["mock-uid","mock-ann"]' && m.rated === true,
   "the match: scorer Mel, uids the players only: " + JSON.stringify({ scorer: m && m.scorer, uids: m && m.uids }));

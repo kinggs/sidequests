@@ -425,6 +425,7 @@ ok(!(await ann.locator("#foldGame").isVisible()) && !(await ann.locator("#whoChi
   && !(await ann.locator("#foldHcp").isVisible()), "game, players, length, handicap and Rated are locked away");
 await shot(ann, "tournament-score-setup");
 await ann.click("#startBtn"); await ann.waitForTimeout(400);
+ok(await ann.locator(".sheet.brk").isVisible() && await ann.locator(".sheet.brk #ratedBtn").count() === 0, "the fixture's Start sheet has no Rated switch (2.35.0)");
 await answerBreak(ann, "a");
 let fm = (await matchesOf(ann)).find(m => m.tournament === t4.id && m.status === "live");
 ok(fm && fm.fixture === FK4 && fm.rated === false && JSON.stringify(fm.uids) === JSON.stringify(["mock-ann", "mock-ben"]) && !fm.scorer,

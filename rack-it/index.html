@@ -112,9 +112,14 @@
   .gopt .gdesc{font-size:.8889rem;font-weight:600;line-height:1.4;color:var(--dim)}
   .gopt.sel{background:var(--text);color:var(--ink-0)}
   .gopt.sel .gdesc{color:var(--ink-0);opacity:.75}
-  .gblurb{font-size:.8889rem;line-height:1.45;color:var(--dim);padding:0 16px 14px}
-  /* Open, each row carries its own two sentences, so the one under the head would only repeat. */
-  .fold.open+.gblurb{display:none}
+  /* The chosen game's two sentences (Session 8): inside the open fold, under its own line. */
+  .gopt .gblurb{font-size:.8889rem;line-height:1.45;font-weight:500;color:var(--ink-0)}
+  /* One row of chips under the slots (Session 8): one line, scrolling sideways, edge to edge. */
+  .chiprow{flex-wrap:nowrap;overflow-x:auto;touch-action:pan-x;overscroll-behavior-x:contain;scrollbar-width:none;
+    margin:0 -16px;padding:0 16px;scroll-padding:0 16px}
+  .chiprow::-webkit-scrollbar{display:none}
+  .chiprow button{flex:0 0 auto;max-width:14rem}
+  .chiprow .add{color:var(--text);padding:0 18px}
   .setupbody{flex:1;display:flex;flex-direction:column;gap:16px;padding:4px 16px 16px;overflow-y:auto}
   /* A flex column that scrolls must not shrink its children: a squeezed child with its own
      overflow (.settings) clips what's past its height, and because the column never grows past
@@ -137,7 +142,7 @@
   .pickcol.ca .slot.set{background:var(--a);color:var(--a-ink)}
   .pickcol.cb .slot.set{background:var(--b);color:var(--b-ink)}
   .settings{background:var(--ink-1);border-radius:var(--r-card);overflow:hidden}
-  .fold+.fold,.fold+#breakBtn{box-shadow:0 -1px 0 var(--line)}
+  .fold+.fold{box-shadow:0 -1px 0 var(--line)}
   .foldhead{width:100%;display:flex;align-items:center;gap:12px;background:none;min-height:64px;padding:10px 16px;text-align:left;border-radius:0}
   .foldk{flex:0 0 auto;color:var(--dim)}
   .foldv{flex:1;text-align:right;font-size:1rem;font-weight:600;line-height:1.3}
@@ -148,15 +153,15 @@
     margin:6px auto;font-family:var(--grot);font-size:2rem;font-weight:700;animation:toss .7s ease}
   .brk .coinsay{color:var(--text);font-weight:600;font-size:1.1111rem;text-align:center;padding:0 2px 4px}
   .brkbody{display:flex;flex-direction:column;gap:10px}
-  .brk .ovr{list-style:none;display:flex;flex-direction:column;padding:0 2px}
-  .brk .ovr li{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:9px 0;box-shadow:0 -1px 0 var(--line)}
-  .brk .ovr li:first-child{box-shadow:none}
-  .brk .ovr li span:first-child{flex:0 0 auto;color:var(--dim)}
-  .brk .ovr li span:last-child{text-align:right;font-weight:600;color:var(--text-2);font-size:1rem;line-height:1.3}
-  .brk .ovr .prov{color:var(--warn)}
-  .brk h3.sechead{padding-top:6px}
+  .brk .ovr{display:flex;flex-direction:column;gap:4px}
+  .brk .ovr p{font-size:1rem;line-height:1.4;font-weight:600}
+  .brk .ovr .ovline{color:var(--text)}
+  .brk .ovr .ovrate{color:var(--text-2)}
+  .brk .ovr .ovrate.prov{color:var(--warn)}
+  .brk .ovodds{font-size:.8889rem;line-height:1.4}
+  .brk h3.sechead{padding:4px 2px 0}
   @keyframes toss{from{transform:translateY(0) rotateX(0)}50%{transform:translateY(-36px) rotateX(540deg)}to{transform:translateY(0) rotateX(1080deg)}}
-  #ratedBtn{box-shadow:0 -1px 0 var(--line)}
+  #ratedBtn .foldv{color:var(--text-2)}
   #ratedBtn::after{content:"";flex:0 0 26px;height:26px;border-radius:6px;box-shadow:inset 0 0 0 2px var(--dim)}
   #ratedBtn.on::after{content:"✓";display:flex;align-items:center;justify-content:center;background:var(--text);color:var(--ink-0);
     box-shadow:none;font-size:1rem;font-weight:800}
@@ -556,27 +561,17 @@
       <span class="t"><span id="setupTourWho"></span><small id="setupTourWhat"></small></span>
       <button id="setupTourOff">Not now</button>
     </div>
-    <div class="settings">
-      <button class="foldhead go" id="toursBtn"><span class="foldk lbl">Tournaments</span><span class="foldv" id="toursSum">Start one</span></button>
-    </div>
-    <div class="settings">
-      <div class="fold" id="foldGame">
-        <button class="foldhead" id="gameHead"><span class="foldk lbl">Game</span><span class="foldv" id="gameName">&mdash;</span></button>
-        <div class="foldbody" id="games"></div>
-      </div>
-      <p class="gblurb" id="gameBlurb"></p>
-    </div>
-    <div class="whobox">
-      <h3 class="lbl">Who's playing</h3>
-      <div class="chips" id="whoChips"></div>
-      <p class="thint" id="whoHint">Someone new scans your QR and appears here, already picked. Pick a friend who isn't here and they'll find the match on their phone.</p>
-    </div>
     <div class="pick">
       <div class="pickcol ca"><h3 class="lbl" id="pickALabel">Teal side</h3><button class="slot" id="pickA"></button></div>
       <div class="pickcol cb" id="pickColB"><h3 class="lbl">Lilac side</h3><button class="slot" id="pickB"></button></div>
     </div>
+    <div class="chips chiprow" id="whoChips"></div>
 
     <div class="settings" id="matchSettings">
+      <div class="fold" id="foldGame">
+        <button class="foldhead" id="gameHead"><span class="foldk lbl">Game</span><span class="foldv" id="gameName">&mdash;</span></button>
+        <div class="foldbody" id="games"></div>
+      </div>
       <div class="fold" id="foldLen">
         <button class="foldhead" id="lenHead"><span class="foldk lbl">Length</span><span class="foldv" id="lenSummary"></span></button>
         <div class="foldbody">
@@ -623,15 +618,16 @@
             <button data-form="targets" id="formTargets"></button>
             <button data-form="start" id="formStart"></button>
           </div>
+          <p class="thint" id="hcpOdds"></p>
         </div>
       </div>
-
-      <button class="foldhead" id="breakBtn"><span class="foldk lbl">Break</span><span class="foldv" id="breakWho">—</span></button>
-      <button class="foldhead hidden" id="ratedBtn" role="switch" aria-checked="false"><span class="foldk lbl">Rated</span><span class="foldv" id="ratedWho"></span></button>
+    </div>
+    <div class="settings">
+      <button class="foldhead go" id="toursBtn"><span class="foldk lbl">Tournaments</span><span class="foldv" id="toursSum">Start one</span></button>
     </div>
   </div>
   <div class="setupfoot">
-    <p class="thint" id="setupHint"></p>
+    <p class="thint hidden" id="setupHint"></p>
     <p class="thint warn hidden" id="setupWarn"></p>
     <button class="primary" id="startBtn" disabled>Start</button>
   </div>
@@ -912,7 +908,7 @@ import { connect } from "../shared/connect.js";
 import { ui } from "../shared/ui.js";
 
 // Bump on every change. The deploy skill checks this against the live site.
-const APP_VERSION = "2.34.0";
+const APP_VERSION = "2.35.0";
 const APP_ID = "rack-it";
 document.getElementById("version").textContent = "v" + APP_VERSION;
 document.getElementById("versionMore").textContent = "v" + APP_VERSION;
@@ -926,7 +922,7 @@ const el = {};
  "aboutBtn","aboutBack","versionMore",
  "pform","pfTitle","pfFields","pfName","pfColours","pfZargoRow","pfZargo","pfNote","pfSave","pfCancel","pfOwnerNote",
  "scrSetup","scrLive","pickA","pickB","modes","lenRow","lenLabel","racksIn",
- "targetsRow","tgtA","tgtB","tgtALabel","tgtBLabel","setupHint","setupWarn","breakBtn","breakWho","startBtn",
+ "targetsRow","tgtA","tgtB","tgtALabel","tgtBLabel","setupHint","setupWarn","startBtn","hcpOdds",
  "foldLen","foldHcp","lenHead","hcpHead","lenSummary","hcpSummary","goldLen","hcps","raceForm","formTargets","formStart","raceNLabel",
  "sideA","sideB","nameA","nameB","rawA","rawB","subA","subB","lead","leadFill","controls",
  "rackNo","breakFlip","rack","undo","next","end","sumDelete","sumDeleteNote","sumRate","sumRateNote","ownerNote",
@@ -935,11 +931,11 @@ const el = {};
  "histList",
  "impChoice","impInfo","impMerge","impReplace","impCancel",
  "pfEst","estRef","estRefName","estRefScore","estNewScore","estOut","pfDelete","pfShared",
- "games","foldGame","gameHead","gameName","gameBlurb","raceLen","raceNRow","raceN","winArea","drop","goldChip","doneExtra",
+ "games","foldGame","gameHead","gameName","raceLen","raceNRow","raceN","winArea","drop","goldChip","doneExtra",
  "rebuild","rbInfo","rbList","rbNote","rbApply","rbCancel","rebuildBtn",
- "ratedBtn","ratedWho","pendBar","pendWho","pendGo","pendNo","perClaim","perClaimNote",
+ "pendBar","pendWho","pendGo","pendNo","perClaim","perClaimNote",
  "inCard","inWho","inWhat","inOpen","whoChips","liveMore","presence","echo","scoringFor","scoringWho","matchbar",
- "drillCard","drillCardWho","drillCardWhat","drillCardOpen","whoHint","pickALabel","pickColB","matchSettings","perSpotHead","perSpot",
+ "drillCard","drillCardWho","drillCardWhat","drillCardOpen","pickALabel","pickColB","matchSettings","perSpotHead","perSpot",
  "scrDrill","drillHead","drillAvg","drillSoFar","drillRuns","drillAsk","spotGrid","drillUndo","drillEnd",
  "drillDone","drillDoneTitle","drillDoneAvg","drillDoneBody","drillAgain","drillDoneOk",
  "scrDrillSum","dsBack","dsHead","dsAvg","dsMeta","dsLine","dsRuns","dsDelete","dsDeleteNote",
@@ -1740,14 +1736,35 @@ const GAME_KEY = "rack-it.game";   // the last game picked, per phone
 //   raceTo    the race length: racks for a race in racks, points for a Golden-Nine points race.
 //   raceOther the race length is typed in rather than a chip.
 //   handicap  off | scoring | racks.  form: a Racks handicap as unequal targets, or a head start.
-//   rated     the Rated tick: off (a friendly) unless both players have an account and it's ticked.
+//   rated     the Rated switch, on the Start sheet (Session 8): off (a friendly) unless both players
+//             have an account and it's switched on. ratedPair: the pair it was switched on for, so
+//             it holds through a cancelled sheet and a swap, and a new pair starts over.
 //   tour      Score it in Rack It (2.31.0): { id, key, name, round, race, names: { a, b }, uids } while
 //             setup plays a tournament's match. Game, players, race and handicap are then locked.
-const setup = { game:"league", a:null, b:null, mode:"race", breaker:"a", breakHow:null, breakPair:"", raceTo:5, raceOther:false,
-  handicap:"scoring", form:"targets", rated:false, tour:null };
+const setup = { game:"league", a:null, b:null, mode:"race", breaker:"a", raceTo:5, raceOther:false,
+  handicap:"scoring", form:"targets", rated:false, ratedPair:"", tour:null };
 // A side's player, as P() gives it: a tournament's opponent this phone doesn't know reads the
 // name the tournament keeps (TOURNAMENT.md Session 4), so the picker is never needed.
 const SP = side => P(setup[side], setup.tour ? setup.tour.names[side] : undefined);
+const pairKey = () => [setup.a, setup.b].map(String).sort().join("|");
+// The odds sentence as renderSetup last wrote it: in the open Handicap fold and on the Start sheet.
+let oddsLine = "";
+// The chosen game's two sentences, moved into its row of the open Game fold by renderSetup.
+const gameBlurb = document.createElement("span");
+gameBlurb.className = "gblurb";
+// The foot's line over Start: only a drill's, the club's or a fixture's (Session 8).
+function footHint(t){ el.setupHint.textContent = t; el.setupHint.classList.toggle("hidden", !t); }
+// Rated is offered when both players have an account, never for a tournament's fixture.
+const ratedIsOffered = () => !setup.tour && ratedOffered(SP("a"), SP("b"));
+// The Rated switch's words: who has to confirm, or that it's a friendly.
+function ratedWords(){
+  if(!setup.rated) return "Off · a friendly";
+  const a = SP("a"), b = SP("b");
+  // You start it, but you aren't playing: you score it (Session 8 step 4), and both players confirm.
+  const scoring = !people.isMe(a.id) && !people.isMe(b.id);
+  const signers = confirmersOf([a, b]);
+  return `On · moves ratings once ${scoring ? signers.join(" and ") : namesOr(signers)} confirm${scoring && signers.length > 1 ? "" : "s"}`;
+}
 const HCP_LABEL = { off: "Off", scoring: "Scoring", racks: "Racks" };
 const RACK_RACE_MAX = 15;     // the race chart's range
 const GOLD_RACE = 35;         // the Golden-Nine points race chip
@@ -1783,7 +1800,6 @@ function applyLengthDefaults(){
 function applyGameDefaults(){
   setup.handicap = rackGame(setup.game) ? "off" : "scoring";
   setup.breaker = "a";
-  setup.breakHow = null;
   applyLengthDefaults();
 }
 
@@ -1819,7 +1835,6 @@ function openSetup(){
   setup.a = selfPlayable(me) ? me : null;   // you, on the teal side
   setup.b = null;
   setup.rated = false;
-  setup.breakHow = null;
   setup.touched = false;   // until you change a side, the people list arriving late still pre-picks you
   applyGameDefaults();
   el.foldGame.classList.remove("open");
@@ -1830,8 +1845,8 @@ function openSetup(){
   el.scrSetup.querySelector(".setupbody").scrollTop = 0;
   loadRecent();
 }
-// The settings card is the last thing in a scrolling column, so an opened fold's options can
-// start below the visible area. Scroll the least that brings the whole fold into view.
+// The settings card sits low in a scrolling column, so an opened fold's options can start below
+// the visible area. Scroll the least that brings the whole fold into view.
 function revealFold(fold){
   if(!fold.classList.contains("open")) return;
   const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -1976,20 +1991,27 @@ function plannedMatch(){
 function renderSetup(){
   const drill = isDrill(setup.game);
   paintDrillCard();
+  // Rated: offered only when both players have an account (KIT-PLAN.md Session 5), and asked on
+  // the Start sheet. A new pair starts over; a swap or a cancelled sheet keeps it.
+  if(setup.rated && setup.ratedPair !== pairKey()) setup.rated = false;
+  if(!ratedIsOffered()) setup.rated = false;
   if(!drill && !hcpAllowed(setup.handicap)){ setup.handicap = rackGame(setup.game) ? "off" : "scoring"; applyLengthDefaults(); }
   const league = setup.game === "league", golden = setup.game === "golden";
   const pts = pointsGame(setup.game), ten = setup.game === "tenpoint";
   const racksLever = setup.handicap === "racks", rackRace = setupRacks();
   el.gameName.textContent = drill ? DRILL_LABEL[setup.game] : GAME_LABEL[setup.game];
-  el.gameBlurb.textContent = drill ? DRILL_BLURB[setup.game] : GAME_BLURB[setup.game];
-  el.games.querySelectorAll("button").forEach(b =>
-    b.classList.toggle("sel", b.dataset.game === setup.game));
-  // A drill (2.27.0) is one player and Start: the second slot and the match's settings step aside.
+  // The chosen game's two sentences sit inside the open fold, under its own line (Session 8).
+  gameBlurb.textContent = drill ? DRILL_BLURB[setup.game] : GAME_BLURB[setup.game];
+  el.games.querySelectorAll("button").forEach(b => {
+    const on = b.dataset.game === setup.game;
+    b.classList.toggle("sel", on);
+    if(on && gameBlurb.parentElement !== b) b.appendChild(gameBlurb);
+  });
+  // A drill (2.27.0) is one player and Start: the second slot, Length and Handicap step aside.
   el.pickColB.classList.toggle("hidden", drill);
-  el.matchSettings.classList.toggle("hidden", drill);
+  el.foldLen.classList.toggle("hidden", drill || !!setup.tour);
+  el.foldHcp.classList.toggle("hidden", drill || !!setup.tour);
   el.pickALabel.textContent = drill ? "Who's drilling" : "Teal side";
-  el.whoHint.textContent = drill ? "Pick who's at the table. Someone new scans your QR and appears here, already picked."
-    : "Someone new scans your QR and appears here, already picked. Pick a friend who isn't here and they'll find the match on their phone.";
   if(drill) setup.b = null;
 
   // ---- players: two slots, each filled from the picker (people.pick); you on teal ----
@@ -2105,30 +2127,19 @@ function renderSetup(){
     } else if(setup.mode === "race"){
       more = " Targets share the points out on that basis.";
     }
-    el.setupHint.textContent = (setup.club ? "At Sessions: you score it for the club. " : "")
-      + (setup.tour ? `For ${setup.tour.name}: when it's saved, its racks are the result. ` : "") + odds + more;
-    // Who breaks first is lagged for or flipped (2.25.0): the row shows the call, and a new pair
-    // of players starts over. A swap keeps it: the break stays with the person who had it.
-    if(setup.breakHow && setup.breakPair !== pairKey()) setup.breakHow = null;
-    el.breakWho.textContent = setup.breakHow
-      ? `${(setup.breaker === "a" ? a : b).name} breaks · ${setup.breakHow === "coin" ? "the coin's call" : "won the lag"}`
-      : "Lag or coin, at Start";
+    // The odds sit in the open Handicap fold, under the targets that change them, and on the
+    // Start sheet (Session 8); the foot keeps only the lines that aren't about the handicap.
+    oddsLine = odds + more;
     showShortRaceWarning(a, b, eA);
   } else {
-    el.setupHint.textContent = "Pick a player for each side to see the handicap.";
+    oddsLine = "";
     el.setupWarn.classList.add("hidden");
-    el.breakWho.textContent = "—";
   }
-  // ---- rated: offered only when both players have an account (KIT-PLAN.md Session 5) ----
-  const offered = ratedOffered(a, b) && !setup.tour;
-  if(!offered) setup.rated = false;
-  el.ratedBtn.classList.toggle("hidden", !offered);
-  el.ratedBtn.classList.toggle("on", setup.rated);
-  el.ratedBtn.setAttribute("aria-checked", String(setup.rated));
-  // You start it, but you aren't playing: you score it (Session 8 step 4), and both players confirm.
+  el.hcpOdds.textContent = oddsLine;
+  el.hcpOdds.classList.toggle("hidden", !oddsLine);
+  footHint((setup.club ? "At Sessions: you score it for the club. " : "")
+    + (setup.tour ? `For ${setup.tour.name}: when it's saved, its racks are the result.` : ""));
   const scoring = !!(a && b) && !people.isMe(a.id) && !people.isMe(b.id);
-  const signers = confirmersOf([a, b]);
-  el.ratedWho.textContent = setup.rated ? `On · moves ratings once ${scoring ? signers.join(" and ") : namesOr(signers)} confirm${scoring && signers.length > 1 ? "" : "s"}` : "Off · a friendly";
   // In friend mode you score for two players only if you're connected to each (the rules check).
   const stranger = scoring && friendMode && [a, b].some(p => p.kind === "household");
   el.startBtn.disabled = !(a && b && plan) || stranger;
@@ -2137,27 +2148,32 @@ function renderSetup(){
 }
 // A slot opens the picker: on teal, you first then whoever played lately; on lilac, the teal
 // player's recent opponents, the last one first. Scanning or adding a guest there fills it.
-// Who's playing (frame 8a): you, whoever played lately, then your friends and guests, as chips;
-// then Show QR and Add a guest. A chip fills the empty side (lilac first once you're on teal), or
-// takes lilac's place; a chosen one, tapped, steps out. Whoever scans appears here, chosen.
+// The chip row (Session 8): one line under the slots, scrolling sideways. The teal player's recent
+// opponents, last one first, then friends and guests by name, eight at most. Whoever is on teal
+// isn't repeated; the lilac player shows chosen (tap to step out); you show only when you're on
+// neither side, so a scorer can step back in. A chip fills the empty side, else takes lilac's
+// place. It ends in Someone else: the picker, where Scan a new player and Add a guest live.
 const CHIPS_MAX = 8;
 let chipsSig = "";
 function paintWhoChips(){
-  const me = people.meId();
-  const order = [...new Set([me, setup.a, setup.b, ...recentFor(null)].filter(Boolean).map(people.resolve))];
+  const me = people.meId(), drill = isDrill(setup.game);
+  const order = [...new Set((drill ? [me, ...recentFor(null)] : recentFor(setup.a)).filter(Boolean).map(people.resolve))];
   const rank = id => { const i = order.indexOf(id); return i < 0 ? Infinity : i; };
-  // The club's connections stay in the picker's Sessions fold unless you've played them lately.
-  const pool = people.players().filter(p => !p.deleted && (!friendMode || p.kind !== "household") && !(p.club && rank(p.id) === Infinity));
+  const onSide = id => id === setup.a || id === setup.b;
+  // The club's connections stay in the picker's Sessions fold unless they've played here lately.
+  const lately = new Set(recentFor(null).map(people.resolve));
+  const pool = people.players().filter(p => !p.deleted && (!friendMode || p.kind !== "household")
+    && !(p.club && !lately.has(p.id)) && p.id !== setup.a && !(people.isMe(p.id) && onSide(p.id)));
   const list = pool.sort((x, y) => rank(x.id) - rank(y.id) || String(x.name).localeCompare(String(y.name)))
     .slice(0, CHIPS_MAX);
-  for(const id of [setup.a, setup.b]) if(id && !list.some(p => p.id === id) && people.get(id)) list.push(people.get(id));
+  if(setup.b && !list.some(p => p.id === setup.b) && people.get(setup.b)) list.push(people.get(setup.b));
   const sig = JSON.stringify([list.map(p => [p.id, p.name, p.photo]), setup.a, setup.b]);
   if(sig === chipsSig) return;
   chipsSig = sig;
   const chips = list.map(p => {
     const b = document.createElement("button");
     b.type = "button";
-    b.setAttribute("aria-pressed", String(p.id === setup.a || p.id === setup.b));
+    b.setAttribute("aria-pressed", String(onSide(p.id)));
     b.append(people.avatar(p.id, 36));
     const n = document.createElement("span");
     n.textContent = p.name + (people.isMe(p.id) ? " (you)" : "");
@@ -2165,10 +2181,15 @@ function paintWhoChips(){
     ui.tap(b, () => chipTap(p.id), LOOSE);
     return b;
   });
-  const add = (label, fn) => { const b = document.createElement("button"); b.type = "button"; b.className = "add"; b.textContent = label; ui.tap(b, fn, LOOSE); return b; };
-  chips.push(add("Show QR", async () => { const id = await people.scan(APP_ID); if(id) chipTap(id, true); }));
-  chips.push(add("+ Add a guest", async () => { const id = await people.addGuest(); if(id) chipTap(id, true); }));
+  const more = document.createElement("button");
+  more.type = "button"; more.className = "add"; more.textContent = "Someone else";
+  ui.tap(more, () => chooseSide(!setup.a ? "a" : "b"), LOOSE);
+  chips.push(more);
   el.whoChips.replaceChildren(...chips);
+  // The chosen chip in view: the row starts at the beginning otherwise.
+  const chosen = el.whoChips.querySelector('[aria-pressed="true"]');
+  el.whoChips.scrollLeft = 0;
+  if(chosen) requestAnimationFrame(() => chosen.scrollIntoView({ block: "nearest", inline: "nearest" }));
 }
 function chipTap(id, fresh){
   if(setup.tour) return;
@@ -2226,39 +2247,33 @@ function showShortRaceWarning(a, b, eA){
 el.racksIn.addEventListener("input", () => { proposeTargets(); renderSetup(); });
 el.modes.querySelectorAll("button").forEach(b =>
   ui.tap(b, () => { setup.mode = b.dataset.mode; proposeTargets(); renderSetup(); }));
-ui.tap(el.breakBtn, () => { if(setup.a && setup.b) chooseBreak(); });
 ui.tap(el.startBtn, async () => {
   if(isDrill(setup.game)) return startDrill();
   const a = SP("a"), b = SP("b");
   if(!(a && b && plannedMatch())) return;
-  if(!setup.breakHow && !(await chooseBreak())) return;
+  if(!(await chooseBreak())) return;
   startMatch();
 });
 
-// ---------- the match at a glance, and who breaks first (2.25.0, 2.26.0) ----------
-// Start opens one sheet: an overview of what's about to be played (the game, the length, the
-// handicap, both ratings, rated or friendly, the odds), read from the settings card's own rows so
-// it can't disagree with them, then the question, unless the Break row settled it already: the
-// players lag and say who won, or the phone flips a coin and says who starts. Heads is teal,
-// tails lilac, from crypto's randomness. The live screen's break chip still puts a wrong answer right.
-const pairKey = () => [setup.a, setup.b].map(String).sort().join("|");
+// ---------- the match at a glance, Rated, and who breaks first (2.25.0, 2.26.0, Session 8) ----------
+// Start opens one sheet: the match read back in one line (the settings card's own rows, word for
+// word, so it can't disagree with them), both ratings, the odds, the Rated switch when it's
+// offered, then who breaks first: the players lag and say who won, or the phone flips a coin and
+// says who starts. Heads is teal, tails lilac, from crypto's randomness. It asks every time; the
+// live screen's break chip still puts a wrong answer right.
 function overviewOf(a, b){
-  const ul = document.createElement("ul");
-  ul.className = "ovr";
+  const box = document.createElement("div");
+  box.className = "ovr";
+  const line = document.createElement("p");
+  line.className = "ovline";
+  line.textContent = [el.gameName.textContent, el.lenSummary.textContent, el.hcpSummary.textContent].join(" · ");
   const prov = p => p.robustness < cfg().provisionalRacks;
   const rating = p => `${p.name} ${Math.round(p.zargo)}` + (prov(p) ? " ·\u00a0provisional" : "");
-  const ratedRow = setup.rated && ratedOffered(a, b) ? el.ratedWho.textContent.replace(/^On · /, "Rated · ") : "Friendly · ratings unchanged";
-  const rows = [["Game", el.gameName.textContent], ["Length", el.lenSummary.textContent],
-    ["Handicap", el.hcpSummary.textContent], ["Ratings", `${rating(a)} · ${rating(b)}`], ["Rated", ratedRow]];
-  for(const [k, v] of rows){
-    const li = document.createElement("li"), key = document.createElement("span"), val = document.createElement("span");
-    key.className = "lbl"; key.textContent = k;
-    val.textContent = v;
-    if(k === "Ratings" && (prov(a) || prov(b))) val.classList.add("prov");
-    li.append(key, val);
-    ul.appendChild(li);
-  }
-  return ul;
+  const rates = document.createElement("p");
+  rates.className = "ovrate" + (prov(a) || prov(b) ? " prov" : "");
+  rates.textContent = `${rating(a)} · ${rating(b)}`;
+  box.append(line, rates);
+  return box;
 }
 async function chooseBreak(){
   const a = SP("a"), b = SP("b");
@@ -2270,15 +2285,38 @@ async function chooseBreak(){
       const wrap = document.createElement("div");
       wrap.className = "brkbody";
       const odds = document.createElement("p");
-      odds.textContent = el.setupHint.textContent;
+      odds.className = "ovodds";
+      odds.textContent = oddsLine;
+      wrap.append(overviewOf(a, b), odds);
+      // Rated: a switch here, where the match is read back, so it's asked at every Start.
+      if(ratedIsOffered()){
+        const sw = document.createElement("button");
+        sw.type = "button"; sw.id = "ratedBtn"; sw.setAttribute("role", "switch");
+        const k = document.createElement("span"), v = document.createElement("span");
+        k.className = "foldk lbl"; k.textContent = "Rated";
+        v.className = "foldv"; v.id = "ratedWho";
+        sw.append(k, v);
+        const paint = () => {
+          sw.classList.toggle("on", setup.rated);
+          sw.setAttribute("aria-checked", String(setup.rated));
+          v.textContent = ratedWords();
+          odds.textContent = oddsLine;
+        };
+        ui.tap(sw, () => {
+          setup.rated = !setup.rated;
+          setup.ratedPair = pairKey();
+          renderSetup();
+          paint();
+        }, LOOSE);
+        paint();
+        wrap.append(sw);
+      }
       const q = document.createElement("h3");
       q.className = "lbl sechead";
       q.textContent = "Who breaks first?";
-      const how = document.createElement("p");
-      how.textContent = "Lag for it and say who won, or let the phone flip a coin.";
       const box = document.createElement("div");
       box.className = "brkbody";
-      wrap.append(overviewOf(a, b), odds, q, how, box);
+      wrap.append(q, box);
       const lag = (side, p) => {
         const btn = document.createElement("button");
         btn.type = "button";
@@ -2306,7 +2344,6 @@ async function chooseBreak(){
         go.type = "button"; go.className = "primary"; go.dataset.coin = side;
         go.textContent = `${p.name} breaks`;
         ui.tap(go, () => close({ how: "coin", breaker: side }));
-        how.remove();
         box.replaceChildren(disc, say, go);
       });
       box.append(lag("a", a), lag("b", b), coin);
@@ -2315,12 +2352,8 @@ async function chooseBreak(){
   });
   if(!picked) return false;
   setup.breaker = picked.breaker;
-  setup.breakHow = picked.how;
-  setup.breakPair = pairKey();
-  renderSetup();
   return true;
 }
-ui.tap(el.ratedBtn, () => { setup.rated = !setup.rated; renderSetup(); }, LOOSE);
 
 // ---------- live session ----------
 let live = null;
@@ -4555,10 +4588,10 @@ function renderDrillSetup(){
   const notYou = !!a && friendMode && !people.isMe(a.id);
   const mine = a ? doneDrillsFor(a.id) : [];
   const avgs = mine.map(d => totalsOf(d).avg);
-  el.setupHint.textContent = !a ? "Pick who's drilling, then Start. A clean run is 9."
+  footHint(!a ? "Pick who's drilling, then Start. A clean run is 9."
     : notYou ? "Here you log your own drills. Pick yourself."
     : !mine.length ? `${a.name}'s first Spot 9. A miss ends the run; tap how many went in, 0 to 9.`
-    : `${a.name}'s Spot 9 so far: best ${fmtAvg(Math.max(...avgs))} a run, last time ${fmtAvg(avgs[avgs.length - 1])}, over ${drillsWord(mine.length)}.`;
+    : `${a.name}'s Spot 9 so far: best ${fmtAvg(Math.max(...avgs))} a run, last time ${fmtAvg(avgs[avgs.length - 1])}, over ${drillsWord(mine.length)}.`);
   el.startBtn.disabled = !a || notYou;
   el.startBtn.textContent = !a ? "Pick a player" : notYou ? "Pick yourself" : "Start";
 }
@@ -6091,7 +6124,7 @@ async function scoreFixture(t, f){
 function paintSetupTour(){
   const tr = setup.tour;
   el.setupTour.classList.toggle("hidden", !tr);
-  for(const n of [el.foldGame.parentElement, el.whoChips.parentElement, el.foldLen, el.foldHcp, el.tourCards, el.toursBtn.parentElement])
+  for(const n of [el.matchSettings, el.whoChips, el.tourCards, el.toursBtn.parentElement])
     n.classList.toggle("hidden", !!tr || (n === el.tourCards && !el.tourCards.children.length));
   if(!tr) return;
   el.setupTourWho.textContent = `${tr.name} · ${tr.round}`;

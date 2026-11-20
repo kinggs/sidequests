@@ -22,8 +22,9 @@ await ann.reload(); await ann.waitForTimeout(1000);
 // Ann against Ben, rated.
 await ann.click('.tabbar button[data-tab="play"]'); await ann.waitForTimeout(300);
 await ann.locator("#whoChips button", { hasText: "Ben" }).click(); await ann.waitForTimeout(250);
-await ann.click("#ratedBtn"); await ann.waitForTimeout(150);
-await ann.click("#startBtn"); await ann.waitForTimeout(500); await answerBreak(ann);
+await ann.click("#startBtn"); await ann.waitForTimeout(500);
+await ann.click(".sheet.brk #ratedBtn"); await ann.waitForTimeout(150);   // Rated is on the Start sheet (2.35.0)
+await answerBreak(ann);
 let m = (await matchesOf(owner)).find(x => x.status === "live");
 ok(!!m && m.rated === true && !m.scorer, "ann started a rated match against Ben, no scorer");
 await ann.click("#liveMore"); await ann.waitForTimeout(250);
