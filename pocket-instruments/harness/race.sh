@@ -21,7 +21,7 @@ export TSAN_OPTIONS=halt_on_error=1
 "$race" "$fixtures" "$race-snapshots-idle.txt" safe 50
 cmp "$race-snapshots.txt" "$race-snapshots-idle.txt"
 
-for fault in two-buffers:66 direct-save:66 split-load:1 drop-edit:1 torn:1; do
+for fault in two-buffers:66 direct-save:66 split-load:1 drop-edit:1 torn:1 torn-view:1; do
     mode=$(echo "$fault" | cut -d: -f1)
     want=$(echo "$fault" | cut -d: -f2)
     got=0
@@ -31,7 +31,7 @@ for fault in two-buffers:66 direct-save:66 split-load:1 drop-edit:1 torn:1; do
         exit 1
     fi
 done
-echo "P6: all five planted faults were caught."
+echo "P6: all six planted faults were caught."
 
 n=0
 while read -r name hex; do
@@ -41,8 +41,8 @@ while read -r name hex; do
     fi
     n=$((n + 1))
 done < "$race-snapshots.txt"
-if [ "$n" -lt 4 ]; then
-    echo "P6: expected four snapshots, got $n"
+if [ "$n" -lt 7 ]; then
+    echo "P6: expected seven snapshots, got $n"
     exit 1
 fi
 echo "P6: $n snapshots taken while playing; the wasm host gave each fixture's trace from the same bytes."

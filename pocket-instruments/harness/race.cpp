@@ -1,6 +1,6 @@
 // P6, the ThreadSanitizer half: the core on an audio thread while a second thread edits the
-// pattern, loads snapshots and takes snapshots, through rack/src/handoff.hpp, which is the
-// same file the Rack module uses.
+// pattern, presses keys and moves sliders (ABI 4), loads snapshots, and takes snapshots and
+// views, through rack/src/handoff.hpp, which is the same file the Rack module uses.
 //
 //   race <fixtures dir> <out file> [mode] [idle]    exits 0 only if nothing went wrong
 //
@@ -14,6 +14,10 @@
 //   3. Nothing is lost or reordered: the second thread keeps a model engine, gives it every
 //      edit and load in the order it sent them, and after each round the published snapshot
 //      must be the model's, byte for byte.
+// Since ABI 4 the messages include keys and sliders (ENGINE.md §13), which reach the pattern
+// through the workflow: the model is pressed the same keys in the same order. And the audio
+// thread hands a view out after every block, the way a module's drawing thread will get it;
+// the second thread reads each one and holds it to what a view can be (check 2's kind).
 // At the end each fixture's pattern is entered as edits while the core plays, and the
 // snapshot taken is written to <out file>. The Makefile then looks for those bytes in the
 // Node report: the wasm host loaded the same snapshot and gave that fixture's trace.
@@ -29,6 +33,7 @@
 //   split-load    a load travels on its own channel, beside the edits rather than among them
 //   drop-edit     the audio thread loses one edit in a thousand
 //   torn          one published snapshot in five hundred has a bit flipped
+//   torn-view     one view in five hundred is handed over with its volume byte cleared
 //
 // SPDX-License-Identifier: MIT
 #include "fixture.hpp"
@@ -41,7 +46,7 @@
 #include <filesystem>
 #include <thread>
 
-enum Mode { SAFE, TWO_BUFFERS, DIRECT_SAVE, SPLIT_LOAD, DROP_EDIT, TORN };
+enum Mode { SAFE, TWO_BUFFERS, DIRECT_SAVE, SPLIT_LOAD, DROP_EDIT, TORN, TORN_VIEW };
 
 struct Snap {
     uint8_t b[PI_SNAPSHOT_SIZE];
@@ -52,6 +57,10 @@ struct Snap {
 struct Published {
     Snap snap;
     uint32_t edits, loads;
+};
+// ENGINE.md §14: what the drawing thread is handed.
+struct Seen {
+    uint8_t b[PI_VIEW_SIZE];
 };
 // What the second thread sends: an edit, or "load the next snapshot in `loads`", in one
 // queue so that the order is the order they were sent in.
@@ -90,6 +99,10 @@ struct Core {
         reads();
         return pi_generation(e);
     }
+    void view(Seen &v) const {
+        reads();
+        if (pi_view(e, v.b, PI_VIEW_SIZE) != PI_VIEW_SIZE) die("pi_view");
+    }
     uint32_t dropped() const {
         reads();
         return pi_dropped(e);
@@ -102,6 +115,7 @@ struct Shared {
     pi::Queue<Msg, 1024> msgs;
     pi::Queue<Snap, 8> loads;     // the bytes a `load` message refers to, in the same order
     pi::Latest<Published> saved;  // the audio thread's snapshots, for the other thread
+    pi::Latest<Seen> seen;        // and its views
     pi::Latest<Snap> inbox;       // split-load only
     Published two[2];             // two-buffers only
     std::atomic<int> twoIndex{0};
@@ -155,6 +169,10 @@ static void audio(Shared &s) {
         }
         core.process(64, cmds, n, ev, 256);
         s.blocks++;
+        // The view, after every block: pi_view on this thread, the copy handed over.
+        core.view(s.seen.write());
+        if (s.mode == TORN_VIEW && s.blocks % 500 == 0) s.seen.write().b[PI_VIEW_VOLUME] = 0;
+        s.seen.publish();
         if (s.mode == SPLIT_LOAD)
             if (const Snap *in = s.inbox.take()) {
                 if (core.load(*in) != PI_OK) die("the audio thread was sent a bad snapshot");
@@ -196,7 +214,7 @@ struct Other {
     Shared &s;
     Core model{48000, 1}, checker{48000, 1};
     uint32_t pushedEdits = 0, pushedLoads = 0, x = 2463534242u;
-    uint64_t reads = 0, torn = 0, wrong = 0, rounds = 0;
+    uint64_t reads = 0, torn = 0, wrong = 0, rounds = 0, views = 0;
     explicit Other(Shared &shared) : s(shared) {}
 
     uint32_t rnd() {
@@ -219,7 +237,26 @@ struct Other {
         }
         reads++;
         if (checker.load(out.snap) != PI_OK) torn++;
+        look();
         return true;
+    }
+
+    // A view has no checksum, so hold it to what any view is: a volume and a chosen sound in
+    // range, no key past 22, its zero bytes zero, and the grid's rows as ENGINE.md §14 gives
+    // them (a bar is one key; with bpm held the field is the volume's row).
+    void look() {
+        const Seen *v = s.seen.take();
+        if (!v) return;
+        views++;
+        const uint8_t *b = v->b;
+        uint32_t held = uint32_t(b[PI_VIEW_HELD]) | uint32_t(b[PI_VIEW_HELD + 1]) << 8 | uint32_t(b[PI_VIEW_HELD + 2]) << 16 | uint32_t(b[PI_VIEW_HELD + 3]) << 24;
+        unsigned field = b[PI_VIEW_FIELD] | b[PI_VIEW_FIELD + 1] << 8, bar = b[PI_VIEW_BAR] | b[PI_VIEW_BAR + 1] << 8;
+        unsigned volume = b[PI_VIEW_VOLUME];
+        bool ok = volume >= 1 && volume <= PI_VOLUME_MAX && b[PI_VIEW_SEL] < PI_TRACKS && held >> 23 == 0 && b[30] == 0 && b[31] == 0
+               && (bar & (bar - 1)) == 0 && b[PI_VIEW_LENGTH] >= 1 && b[PI_VIEW_LENGTH] <= PI_STEPS && b[PI_VIEW_SWING] <= PI_SWING_MAX;
+        for (unsigned i = 48; i < PI_VIEW_SIZE; i++) ok = ok && b[i] == 0;
+        if (held >> PI_KEY_BPM & 1) ok = ok && field == (1u << volume) - 1 && bar == 0;
+        if (!ok) torn++;
     }
 
     void edit(const pi_cmd &c) {
@@ -267,7 +304,16 @@ struct Other {
             }
             for (uint32_t i = 0, count = 1 + rnd() % 8; i < count; i++) {
                 uint8_t a = uint8_t(rnd() % 16), b = uint8_t(rnd() % 16);
-                switch (rnd() % 4) {
+                // Half edits, half what a finger does: any key down or up, a tap, a slider.
+                uint8_t key = uint8_t(rnd() % 23);
+                switch (rnd() % 8) {
+                case 4: edit(pi_cmd{0, PI_CMD_KEY_DOWN, key, 0, 0, 0}); break;
+                case 5: edit(pi_cmd{0, PI_CMD_KEY_UP, key, 0, 0, 0}); break;
+                case 6:
+                    edit(pi_cmd{0, PI_CMD_KEY_DOWN, key, 0, 0, 0});
+                    edit(pi_cmd{0, PI_CMD_KEY_UP, key, 0, 0, 0});
+                    break;
+                case 7: edit(pi_cmd{0, PI_CMD_PARAM, uint8_t(rnd() % 2), 0, 0, rnd() % 65536}); break;
                 case 0: edit(pi_cmd{0, PI_CMD_STEP, a, b, 0, rnd() % 2}); break;
                 case 1: edit(pi_cmd{0, PI_CMD_PROB, a, b, 0, rnd() % 101}); break;
                 case 2: edit(pi_cmd{0, PI_CMD_SWING, 0, 0, 0, rnd() % 49}); break;
@@ -308,16 +354,16 @@ struct Other {
 };
 
 int main(int argc, char **argv) {
-    if (argc < 3) die("usage: race <fixtures dir> <out file> [safe|two-buffers|direct-save|split-load|drop-edit|torn] [idle us]");
+    if (argc < 3) die("usage: race <fixtures dir> <out file> [safe|two-buffers|direct-save|split-load|drop-edit|torn|torn-view] [idle us]");
     std::string m = argc > 3 ? argv[3] : "safe";
     Mode mode = m == "safe" ? SAFE : m == "two-buffers" ? TWO_BUFFERS : m == "direct-save" ? DIRECT_SAVE
-              : m == "split-load" ? SPLIT_LOAD : m == "drop-edit" ? DROP_EDIT : m == "torn" ? TORN : (die("unknown mode " + m), SAFE);
+              : m == "split-load" ? SPLIT_LOAD : m == "drop-edit" ? DROP_EDIT : m == "torn" ? TORN : m == "torn-view" ? TORN_VIEW : (die("unknown mode " + m), SAFE);
 
     std::vector<std::filesystem::path> files;
     for (auto &entry : std::filesystem::directory_iterator(argv[1]))
         if (entry.path().extension() == ".json") files.push_back(entry.path());
     std::sort(files.begin(), files.end());
-    if (files.size() < 4) die("expected the four fixtures");
+    if (files.size() < 7) die("expected the seven fixtures");
 
     Shared shared(mode);
     shared.idle = argc > 4 ? std::atoi(argv[4]) : 0;
@@ -343,10 +389,10 @@ int main(int argc, char **argv) {
     shared.stop.store(true, std::memory_order_release);
     audio_thread.join();
     std::ofstream(argv[2], std::ios::binary) << out;
-    std::printf("race (%s, idle %d): %llu rounds, %u edits and %u loads sent, %llu blocks, %llu publishes, %llu snapshots taken; "
+    std::printf("race (%s, idle %d): %llu rounds, %u edits and %u loads sent, %llu blocks, %llu publishes, %llu snapshots and %llu views taken; "
                 "%llu torn, %llu rounds where the snapshot was not the model's\n",
                 m.c_str(), shared.idle, (unsigned long long)other.rounds, other.pushedEdits, other.pushedLoads,
                 (unsigned long long)shared.blocks, (unsigned long long)shared.publishes,
-                (unsigned long long)other.reads, (unsigned long long)other.torn, (unsigned long long)other.wrong);
+                (unsigned long long)other.reads, (unsigned long long)other.views, (unsigned long long)other.torn, (unsigned long long)other.wrong);
     return other.torn == 0 && other.wrong == 0 ? 0 : 1;
 }
