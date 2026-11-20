@@ -55,6 +55,44 @@ in the same frame, as it follows every other command. In the trace, ticks start 
 Format 1 still leaves two things out: a `tempo` command after step 0 (the harness would have
 to re-anchor `F` in the same way; no fixture needs it yet) and a command placed inside a step.
 
+## Format 2 (Session 10: keys, sliders and views)
+
+Format 1, and:
+
+| Field | Meaning |
+|---|---|
+| `format` | 2 |
+| `commands` | also `key_down` and `key_up` (`key`, 0 to 22: `ENGINE.md` §6) and `param` (`slider` 0 = A or 1 = B, `value`) |
+| `views` | what the core must say to draw: `{"at": n, "view": "…"}`, the view as text (`ENGINE.md` §14), in rising `at` |
+
+How a harness runs one, beyond format 1:
+
+- **A key or a slider lands one frame after its step's boundary:** at `F(at) + 1`, counted
+  from the anchor as every step is. Why: on the edges run the `CLOCK` for a step follows
+  that frame's other commands, so a key in the same frame would meet the step before. One
+  frame later, the latest tick is that step's tick 0 on both sources and at every rate, and
+  anything the key fires carries it.
+- So within one `at`: the format 1 commands in file order, then the `CLOCK` (edges run),
+  then, a frame later, the keys and sliders in file order. An edit lands before a key of
+  the same `at` wherever it sits in the file.
+- **A view is read where run step `at` ends:** the harness ends a block on the frame run
+  step `at + 1` falls on (the end of the run, for the last step), calls `pi_view` and
+  writes the block as text. The extra block boundary changes no event (§3).
+- **The view's text is written for the table run** (`edges=0`). On the edges run the
+  harness expects the same line with `edges=1`. Nothing else in a view may differ between
+  the two runs: the tick, which does, is not in the text.
+- **The report** holds each run's trace and then its views, one line each.
+- **From a snapshot** (below), as format 1: only the step-0 edits are left out. Every key
+  and slider is sent again, so the trace and the views are the same.
+- **A fixture that changes the tempo fires nothing and is not played:** its trace is empty,
+  and `F` stays true to `mbpm` while the engine's tempo moves.
+- **A fixture starts and stops with the `play` edit, never the play key.** The key resets
+  the table clock and cannot reset an external one (§13), so the two runs would rightly
+  give two traces. The play key is a rule test on each source instead
+  (`core/src/tests/keys.rs`).
+
+The Rack Probe and the P4 page play the format 1 fixtures only; neither has keys.
+
 ## Where the expected traces came from
 
 Session 1 had no engine. The traces were produced by a throwaway model of `ENGINE.md`
@@ -102,3 +140,27 @@ everything else. The trace must be the same.
   carry on from the table above: 95 does not fire, 33 fires (tick 192), 4 fires (tick 504).
   Had the reset reseeded the generator, the second half would repeat the first. 18 lines
   before the reset, 21 after (nine steps): 39 lines.
+
+### The format 2 fixtures (Session 10)
+
+Written before `core/src/keys.rs` existed, from `ENGINE.md` §13 and §14, and committed
+before any core ran them. Each fixture's `about` says what it holds. A script laid the JSON
+out; every tick, mask and count in it was typed in by hand.
+
+- **keys-write-a-beat.** A key lands a frame after its step's tick 0. So a step set on the
+  playhead's own step waits a bar, and one set a step ahead (track 2, step 6, at run step
+  5) fires. Choosing a sound fires it at once: `384 trig 2 4` follows the sequencer's
+  `384 trig 0 4` in the same tick, a frame later. Track 0 fires at ticks 384, 768 and 1152
+  in the first bar (its step 0 was set after tick 0) and at 1536, 1920 and 2304 in the
+  second: six. Track 2: once chosen, then 576, 960, 1344, 1728, 2112, 2496: seven. Track 1:
+  once chosen, then 1152 and 1920: three. The stop lands on run step 28 before its tick, so
+  the last line is `2592 step 11`.
+- **keys-tap-and-choose.** Stopped, the clock still counts, so each tap's tick is 96 times
+  its run step, and its step is the playhead's, 0. The play edit lands on run step 8: tick
+  768 is `step 0`, and the step set by an edit (track 3, step 2) fires at run step 10,
+  tick 960, where a tap of the same key adds the same line a frame later.
+- **keys-bpm-family.** Swing from slider A: `(20000 × 48 + 32767) / 65535 = 15`, shown as
+  `15 × 65535 / 48 = 20479`. Tempo from B: `60 + (40000 × 180 + 32767) / 65535 = 170`,
+  shown as `110 × 65535 / 180 = 40049`. At 120 bpm B shows `60 × 65535 / 180 = 21845`.
+  Presets: above 120 is 140; above 140 is none, so 80; above 80 is 120; above 170 is none,
+  so 80.
