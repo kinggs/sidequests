@@ -5,7 +5,9 @@ The handover between sessions. Each session does its list, ticks its boxes, fill
 bottom of this file.
 
 **Start every session with:** "Read `pocket-instruments/PLAN.md` and do Session N."
-Design sessions run on Fable; build sessions on Opus, on the laptop (Arch, Omarchy).
+Design sessions run on Fable; build sessions on Opus, on the laptop (Arch, Omarchy). A build
+session whose heading says Fable is one where a contract first meets code (2, 3, 10) or is
+drawn by eye (14): there the session may rule on a gap; on Opus it stops and asks.
 
 ## Read first, every session
 
@@ -13,16 +15,22 @@ Design sessions run on Fable; build sessions on Opus, on the laptop (Arch, Omarc
 2. `DECISIONS.md`: what is decided, proposed and open.
 3. `PROOFS.md`: the proof this session runs, and its pass bar. Do not change a pass bar to make
    it pass; record the failure.
-4. The **Handover** at the bottom of this doc.
+4. The **last note of the Handover** at the bottom of this doc, and your session's own
+   list. The earlier notes are the record of how it got here: read one when a line points
+   you to it, not all of them.
+5. From Session 10 on: "Rules for Sessions 10 to 14", above Session 10's list.
 
 ## Ground rules
 
 - No Teenage Engineering material in the repo: no samples, firmware, photos, traced art, logos.
-- Nothing visual before P3 passes (D15). No framework before a second instrument (README rule 5).
+- ~~Nothing visual before P3 passes (D15).~~ P3 passed on 2026-11-19; the look is Sessions 12
+  to 14. No framework before a second instrument (README rule 5).
 - Stable Rust only. A nightly feature would block every reproducible build (R13).
 - No secrets. Commit direct to `main`, small commits, `make verify` before a push.
 
 ## Where the code will go
+
+(Written before any of it existed, and it went there. `README.md`'s table is the map now.)
 
 ```
 pocket-instruments/
@@ -57,6 +65,10 @@ pocket-instruments/
   `rack/patch/patch.json` names no driver, so Rack picks; choose by hand.
 - Found in Session 6: Docker is installed but the user is not in the `docker` group, so
   `rack/ci-linux.sh` cannot be rehearsed here. CI runs it; nothing local needs it.
+- Found in Session 10: `cargo` only works with this folder as the working directory. From
+  anywhere else the mise shim fails with "No version is set". To build a scratch copy, stay
+  here and pass `--manifest-path` and `CARGO_TARGET_DIR`. `jq` (1.8) is present; the Rack
+  build needs it.
 
 ---
 
@@ -289,12 +301,19 @@ The standing ones: stable Rust; voices use only `+ − × ÷`; no trace and no p
 edited; every new check fails once on a fault put in on purpose; `make verify` before a
 push; no Teenage Engineering material. And for these five:
 
-- **Decide nothing.** `ENGINE.md` §13 to §16 and D51 to D57 are the brief. Where they are
+- **Decide nothing** (on Opus; see the top of this file). `ENGINE.md` §13 to §16 and D51 to
+  D59 are the brief. Where they are
   silent or wrong, stop, write the question into the Handover, and build round it.
 - **Expected output before the core runs it:** a fixture's trace and views are worked out by
   hand from `ENGINE.md`, committed, and only then run (as `reset-mid-bar` was).
 - **What exists does not move** unless the session says so: the four fixtures' traces and
-  the 114 render pairs stay the same bytes.
+  the 114 render pairs stay the same bytes. Since Session 10 that is seven fixtures, with
+  the three key fixtures' views. To prove it, keep `target/report-rust.txt` and a
+  `sha256sum` of `target/render-*.f32` from before the first change and compare at the end.
+  (Session 11 changes one thing in the report on purpose: the snapshot's hex in each
+  "snapshot" label. The lines under every label stay.)
+- **A planted fault counts only if it built and a named test failed.** Run the unplanted
+  copy first (`LEARNINGS.md`, Session 10).
 - Each session ends by moving its sections of `ENGINE.md` from "designed" to built, with
   what turned out different marked, and by writing `LEARNINGS.md` and the Handover.
 
@@ -349,11 +368,15 @@ ABI 4. `ENGINE.md` §13 and §14. No host gains a face yet.
 
 ## Session 11 — snapshot version 2, and voices with the mix (build, Opus; next)
 
-ABI 5. `ENGINE.md` §15.
+ABI 5. `ENGINE.md` §15. The list was checked against the code after Session 10
+(2026-11-20): what was added is marked "added".
 
 - [ ] **First, before any change:** save each fixture's version 1 snapshot from today's core
       into `fixtures/snapshots-v1.txt` (name and hex; the Node report already prints them).
-      They are the proof that every version ever written still loads.
+      They are the proof that every version ever written still loads. Seven fixtures now.
+      (Added: a fixture's snapshot holds its step-0 edits and nothing a key did, so
+      `keys-write-a-beat`'s is the empty pattern. The four older ones carry the swing,
+      length and probabilities worth loading.)
 - [ ] Version 2 in `core/src/snapshot.rs`: save, load both versions, the clamps.
       `PI_SNAPSHOT_SIZE` 388, `PI_SNAPSHOT_SIZE_V1` 316.
 - [ ] Tests: each version 1 snapshot loads and gives its fixture's trace, and has the
@@ -361,13 +384,36 @@ ABI 5. `ENGINE.md` §15.
       the same render; a flipped bit in each new field is refused; a version 3 is refused;
       a version 2 cut to 316 bytes is refused; the generation moves on each new saved thing
       and only when its value changes.
-- [ ] Every fixed 316 and every fixed room: `harness/trace.test.mjs`, `harness.cpp`,
-      `race.cpp`, `rack/check-patch.mjs`, the Probe's `Snap`, the worklet. Search, do not
-      remember (`LEARNINGS.md`, Session 8).
+- [ ] Added: **the generation's rule test changes with it.**
+      `the_generation_moves_exactly_when…` in `core/src/tests/keys.rs` has two halves. The
+      random half ("it moves exactly when the snapshot's bytes change") should pass as it
+      is. The first half lists presses that leave it alone: the volume, sound + key and
+      `param` lines there become movers. Then strike `ENGINE.md` §13's "In ABI 4 that is
+      snapshot version 1 (D59)" as overtaken, leaving the words.
+- [ ] Added: **a loaded volume is clamped to 1 to 16, and tested.** The view's volume row is
+      `(1 << volume) - 1`; a 17 would overflow it.
+- [ ] Every fixed 316 and every fixed room. Search, do not remember (`LEARNINGS.md`,
+      Session 8). As of Session 10 the literal 316s are in `harness/trace.test.mjs` and in
+      `core/src/tests/` (`mod.rs`, `fixtures.rs`, `rules.rs`, `keys.rs`). `harness.cpp`,
+      `race.cpp` and the Probe use `PI_SNAPSHOT_SIZE` and follow the header;
+      `rack/check-patch.mjs` passes the length it read; the worklet holds no snapshot yet.
+      Node's snapshot buffer has 512 bytes before the view's (`SNAP`, `VIEW`): 388 fits.
 - [ ] `PI_AUDIO_BOTH`, 17 channels. A render scenario holds channels 0 to 15 to layout 16's
       bytes and channel 16 to layout 1's, natively and from the `.wasm`.
+      Added, what it needs: `pi_process` in `core/src/abi.rs` takes only 1 or 16 channels;
+      both render harnesses write the mix alone, so each needs a way to render a layout
+      and write one file a layout; and Node's audio buffer is 768 floats (`AUDIO_MAX`),
+      where a block of 128 frames at 17 channels is 2 176: move it or render in smaller
+      blocks. The mix channel is after the master volume, the sixteen before it (§13).
 - [ ] The Probe loads a patch saved before this session (a version 1 snapshot in it):
       headless, "1 loaded".
+      Added: it will not, as written. `Probe.cpp` takes a saved snapshot only if it is at
+      least `PI_SNAPSHOT_SIZE` bytes and copies exactly that many, so at 388 it drops a
+      316-byte one before `pi_load` sees it. Its `Snap` needs a length: take 316 or more,
+      pass what was read. A patch to test with: `rack/selftest.sh` writes each probe's
+      `data` itself and gives it no snapshot today, so add `"snapshot"` to one probe: a
+      line of `fixtures/snapshots-v1.txt`, hex to base64. Show it fails first, with the
+      size check as it is now.
 
 ## Session 12 — the page: playable on a phone (build, Opus)
 
@@ -397,9 +443,14 @@ is the picture). Finishes P6. This is the first build the owner can play.
 - [ ] **P6's browser half:** enter a P2 fixture's pattern by keys while it plays, take the
       saved snapshot from the page, load it in `target/harness`: that fixture's trace.
       Fill in `PROOFS.md` P6.
+      (Noted 2026-11-20: `target/harness` has no such mode yet. Either add one, or do as
+      `harness/race.sh` does and look for the page's bytes among the report's "snapshot"
+      labels. Keys cannot set a probability or a length, so the fixture is
+      `straight-sixteenths`; the page's seed must be 1 and its tempo 120.)
 - [ ] Not built: a link that carries a beat, an offline shell, the weave.
 - [ ] For the owner after it: play it on the phone beside the PO-12 and start P8's list;
-      tick or correct `WORKFLOW.md`'s readings.
+      tick or correct `WORKFLOW.md`'s readings, and D59's (stopped, no key shows the
+      playhead).
 
 ## Session 13 — the Rack module (build, Opus)
 
@@ -423,7 +474,10 @@ Probe is its template and stays as it is.
 - [ ] The menu: each key's code or sample, All code, All samples.
 - [ ] **A self-test in Rack itself:** a patch that names a format 2 fixture makes the module
       press its own parameters (and send the fixture's `play` edit) and hold its events and
-      views to the fixture, with a light, as the Probe does. `rack/selftest.sh` runs it headless at three rates.
+      views to the fixture, with a light, as the Probe does. `rack/selftest.sh` runs it
+      headless at three rates. (Noted 2026-11-20: `rack/fixtures.jq` leaves format 2 out
+      on purpose, for the Probe. This needs its own filter and its own `.inc`, built one
+      `jq` a file as the Probe's now is.)
 - [ ] `rack/check-dist.sh` and CI still green on all four platforms.
 - [ ] Not built: sliders under CV, the neighbour connection (D40), the tempo-voltage clock,
       a player's own samples (D34), the expander.
@@ -437,8 +491,10 @@ inputs and its tests. That is drawing by judgment, with the owner watching.
 
 ABI 6. `ENGINE.md` §16, `design/DESIGN.md` "The animation", `design/loom/frames.html`.
 
-- [ ] The view's bytes 48 to 55, filled by the sequencer; fixtures' view text is unchanged
-      (it leaves them out). Rust tests for the three fields.
+- [ ] The view's bytes 48 to 54 (§16: a u32, a u16, a u8; this line said 48 to 55), filled
+      by the sequencer; fixtures' view text is unchanged (it leaves them out). Rust tests
+      for the three fields. `harness/race.cpp`'s `look()` and `the_view_follows_edits…` in
+      `core/src/tests/keys.rs` both hold bytes 48 to 63 to zero: change them with it.
 - [ ] `pi_weave`: the seven rules as cells. Tests of the rules, not of a picture: stopped,
       the cells do not depend on the tick; the beater is 1 cell wide at no firings and 4 at
       sixteen; a beat with nothing set weaves one stitch; reduced motion never draws white
@@ -465,6 +521,9 @@ In the order they are likely wanted; none is planned in detail yet.
 - Still the owner's hands: P4 on an iPhone and the tap film; P5's loads and VCV's reply.
 
 ## After the gate
+
+(Where this stands, 2026-11-20: the first two lines became Sessions 5 to 14 once P1 to P3 and
+P7 passed. The last three still wait; "After Session 14" above orders them.)
 
 Decided when P1 to P4 are in, not before:
 
