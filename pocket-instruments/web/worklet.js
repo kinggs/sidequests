@@ -36,6 +36,7 @@ class Engine extends AudioWorkletProcessor {
     }
     this.every = o.every || 375; // blocks between reports while playing
     this.spent = 0;              // milliseconds inside process(), summed
+    this.peak = 0;               // the loudest sample since the last report (web/listen.mjs)
     this.clock = globalThis.performance && performance.now ? () => performance.now() : () => Date.now();
     this.abi = this.pi.pi_abi_version();
     this.cmds = o.cmds || []; // [frame, type, a, b, value], in order
@@ -108,7 +109,11 @@ class Engine extends AudioWorkletProcessor {
     // The core's mix is near 1.0 with every drum at once and is not capped (D48). The output
     // clips hard at 1.0, so bend it there instead: tanh, which leaves a quiet mix almost as
     // it is. Host-side, so the same-bytes rule does not apply here.
-    for (let f = 0; f < frames; f++) out[f] = Math.tanh(out[f]);
+    for (let f = 0; f < frames; f++) {
+      const a = out[f] < 0 ? -out[f] : out[f];
+      if (a > this.peak) this.peak = a; // before the bend: what the core gave
+      out[f] = Math.tanh(out[f]);
+    }
     this.now += frames;
     this.blocks++;
     if (this.end && this.now >= this.end) {
@@ -122,7 +127,10 @@ class Engine extends AudioWorkletProcessor {
     // While playing: where the audio clock has got to, once a second or so, for the page to
     // hold against its own clock. If audio stalls, frames fall behind time.
     this.spent += this.clock() - began;
-    if (!this.end && this.blocks % this.every === 0) this.port.postMessage({ frames: this.now, at: currentTime, spent: this.spent });
+    if (!this.end && this.blocks % this.every === 0) {
+      this.port.postMessage({ frames: this.now, at: currentTime, spent: this.spent, peak: this.peak });
+      this.peak = 0;
+    }
     return true;
   }
 }

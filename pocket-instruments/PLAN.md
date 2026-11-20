@@ -518,3 +518,21 @@ Decided when P1 to P4 are in, not before:
   steps, so `Sound.vcv` is still the beat.
 - **Next build, from Session 3's list:** edits from a UI, once the workflow's rows say
   what a press does; or a patch and a page to hear all sixteen.
+
+### The listening page (2026-11-20)
+
+- **Built:** `web/listen.html`, to hear all sixteen voices and choose by ear which keys
+  become samples (D35). Each key plays its code sound or its sample, by a switch; the
+  chosen key's sliders A and B move the code sound; "Compare in turn" plays each key's code
+  then its sample; a beat runs in the engine while the sliders move. Samples are scaled so
+  their peak is the voice level (0.5, D48). Live at
+  `https://kinggs.github.io/sidequests/pocket-instruments/web/listen.html`.
+- **Checked:** `make listen` (`web/listen.mjs`) drives the page in headless Chromium and
+  Firefox: all sixteen samples load, every key sounds and falls silent, at least 14
+  different voices sit behind the keys, and slider B reaches the engine. Both browsers pass
+  with the same loudest sample on every key. Four planted faults were caught: every key on
+  one track, sliders not sent, a misnamed sample, a key that fires nothing.
+- **Changed beside it:** the worklet reports the loudest sample since its last report, so
+  the check can see each key. P4 passes again (24 of 24 in both browsers).
+- **Waits for the owner:** listen, then say which keys switch to samples. That answer
+  scopes the sample path's plan (`DECISIONS.md` D35).
