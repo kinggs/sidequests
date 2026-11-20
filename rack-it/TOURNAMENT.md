@@ -6,7 +6,7 @@ players can enter their own. It reuses what Rack It has: the same accounts, the 
 players, the same matches and ratings.
 
 **Status:** Sessions 1 to 7 done (2.33.0, 2026-11-19): every session in §8, round robin (§3.9) and
-groups into a knockout (§3.10). What's next is §9 (Parked): handicapped races.
+groups into a knockout (§3.10); 2.33.1 (2026-11-20) fixed single elimination's Final race. What's next is §9 (Parked): handicapped races.
 This is also pre-work for the Sessions app (`SESSIONS-MIGRATION.md` at the repo root): the
 bracket logic and the data shape are written to be lifted out.
 
@@ -332,7 +332,7 @@ Round robin groups, whose top two go into a single elimination knockout. Default
   and a group's two in opposite halves, so they can meet only in the final. Its matches name
   where their players come from ("Winner of group A", "Runner-up of group B").
 - **Settings:** Third place (in the knockout) and the Final's race apply; the Final's race is
-  the knockout's final. ⚠ That last part exposed a bug in single elimination, below.
+  the knockout's final. That last part exposed a bug in single elimination, below (fixed in 2.33.1).
 - **Changing a group result** is blocked once a knockout match it decides has a result (clear
   that first), as `canClear` does for any later match.
 - **Places:** the knockout's as single elimination, then everyone out in the groups by where
@@ -341,12 +341,14 @@ Round robin groups, whose top two go into a single elimination knockout. Default
   rounds); each group's table sits above the standings, with "through" in the accent once it's
   done. Your path is your group's matches (now, next), then the knockout once you're through.
 
-⚠ **Found on the way, for the owner:** in single elimination the Final's race override is
-offered in settings but never used: `raceFor` gives `race.f` only to `F`, `F2` and `T`, and a
-single elimination final is `W<k>-1`. The groups knockout uses it; single elimination is left as
-it was, because fixing it would make an already-entered single elimination final "not fit" if
-its race differed. Fixing it is one line in `raceFor` (`f.name === "Final"`), safest with a
-check that no live single elimination has `race.f` set.
+**Found on the way, fixed in 2.33.1:** in single elimination the Final's race override was
+offered in settings, and shown on the tournament ("race to 3 · final 5"), but never used:
+`raceFor` gave `race.f` only to `F`, `F2` and `T`, and a single elimination final is `W<k>-1`.
+Session 7 left it, because fixing it alone would make an already-entered single elimination
+final "not fit" if its race differed, and drop it. 2.33.1 gives `race.f` to any fixture named
+"Final", and keeps the old results: `oldRace` lets a stored `W…` final count at `race.w` too.
+A new entry plays to `race.f` (`validResult`), so the allowance only reads what's there. The
+groups knockout's final (`K…`) never played to `race.w`, so it gets no allowance.
 
 ## 4. The bracket (pure logic)
 
@@ -867,5 +869,12 @@ knockout, each semi-final a winner against the other group's runner-up, done, th
 sharing 5th–6th). `rack-it-bracket-sizes.mjs`: 170 checks, groups at 6, 13 and 32 added. Node
 tests (173) and smoke green.
 
-**For the owner:** the single elimination Final race bug in §3.10.
+**For the owner:** the single elimination Final race bug in §3.10 (fixed in 2.33.1, below).
+
+### 2.33.1 — single elimination's Final race, 2026-11-20
+
+**Shipped.** The fix in §3.10: `raceFor` by name, `oldRace` for finals already entered. One
+test (36 in `bracket.test.mjs`): the final at `race.f`, earlier rounds at `race.w`, a stored
+`race.w` final still done and finished, a score fitting neither race ignored, and no allowance for
+the groups knockout. Node tests (186), smoke and `rack-it-tournament.mjs` (115) green.
 

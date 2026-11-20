@@ -560,7 +560,31 @@ test("groups: qualifiers wait for their group; a tie goes to the draw; the knock
   assert.equal(B.state(t).find(f => f.key === "K1-2").b, "p4", "group A's runner-up meets group B's winner");
   const fin = B.state(t).find(f => f.name === "Final");
   assert.equal(fin.race, 5);
-  assert.equal(B.state({ ...tour(4), race: { w: 3, f: 5 } }).find(f => f.name === "Final").race, 3, "single elimination's final unchanged");
+  assert.equal(B.state({ ...tour(4), race: { w: 3, f: 5 } }).find(f => f.name === "Final").race, 5, "single elimination's final too (2.33.1)");
+});
+
+test("single elimination: the final takes race.f; a final entered at race.w before 2.33.1 still counts", () => {
+  const t = tour(4, { race: { w: 3, f: 5 } });
+  const semis = B.state(t).filter(f => f.name === "Semi-finals");
+  for (const f of semis) t.results[f.key] = { ids: [f.a, f.b], a: 3, b: 1, w: "a", by: "u", at: 1 };
+  const fin = B.state(t).find(f => f.name === "Final");
+  assert.equal(fin.race, 5);
+  assert.equal(B.state(t).find(f => f.name === "Semi-finals").race, 3, "earlier rounds keep race.w");
+  const old = { ids: [fin.a, fin.b], a: 3, b: 2, w: "a", by: "u", at: 2 };
+  assert.equal(B.validResult(t, fin.key, old), false, "a new entry plays to the Final's race");
+  assert.equal(B.validResult(t, fin.key, { ...old, a: 5 }), true);
+  t.results[fin.key] = old;                                      // as stored by 2.33.0 or earlier
+  assert.equal(B.state(t).find(f => f.name === "Final").status, "done");
+  assert.ok(B.finished(t));
+  assert.equal(B.state(t).find(f => f.name === "Final").was, undefined, "was stays internal");
+  t.results[fin.key] = { ...old, a: 4 };                        // fits neither race
+  assert.equal(B.state(t).find(f => f.name === "Final").status, "ready");
+  // The groups knockout's final never played to race.w, so it gets no such allowance.
+  const g = groupsTour(6, { race: { w: 3, f: 5 } });
+  chalkAll(g);
+  const kf = B.state(g).find(f => f.name === "Final");
+  g.results[kf.key] = { ids: [kf.a, kf.b], a: 3, b: 0, w: "a", by: "u", at: 9 };
+  assert.equal(B.state(g).find(f => f.name === "Final").status, "ready");
 });
 
 test("groups: a group's result can't change once the knockout it feeds has a result", () => {

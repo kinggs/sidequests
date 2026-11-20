@@ -178,11 +178,18 @@ export function raceFor(t, f){
   const r = (t && t.race) || {};
   const w = r.w || 3;
   if (f.key === "F" || f.key === "F2" || f.key === "T") return r.f || w;
-  // The knockout's final after groups. (A single elimination final keeps r.w, as it always has:
-  // changing that would unsettle results already entered. TOURNAMENT.md §3.10 says more.)
-  if (t && t.format === "groups" && f.name === "Final") return r.f || w;
+  // The last match of an elimination: single elimination's W<k>-1, the groups knockout's K<k>-1.
+  // (Before 2.33.1 single elimination's final ignored r.f; oldRace keeps those results.)
+  if (f.name === "Final") return r.f || w;
   if (f.side === "L") return r.l || w;
   return w;
+}
+
+// The race a single elimination final was played to before 2.33.1 (r.w), when it differs from
+// today's: a result entered then still counts. Undefined for every other fixture.
+function oldRace(t, f){
+  const r = (t && t.race) || {};
+  if (f.key[0] === "W" && f.name === "Final" && r.f && r.f !== (r.w || 3)) return r.w || 3;
 }
 
 // Does a stored result fit a fixture whose derived players are a and b?
@@ -224,7 +231,7 @@ function derive(t){
   };
   const show = v => (v === EMPTY || v === PENDING) ? null : v;
   for (const f of fixtures){
-    const x = { ...f, race: raceFor(t, f), _w: EMPTY, _l: EMPTY, real: false, absent: false };
+    const x = { ...f, race: raceFor(t, f), was: oldRace(t, f), _w: EMPTY, _l: EMPTY, real: false, absent: false };
     byKey.set(f.key, x); all.push(x);
     const r = results[f.key];
     if (f.when){
@@ -248,7 +255,7 @@ function derive(t){
       // _l stays EMPTY: whatever happens, a bye leaves nobody to drop.
     } else if (a === PENDING || b === PENDING){
       x.status = "waiting"; x._w = PENDING; x._l = PENDING;
-    } else if (r && fits(r, a, b, x.race)){
+    } else if (r && (fits(r, a, b, x.race) || (x.was && fits(r, a, b, x.was)))){
       x.status = "done"; x.result = r;
       x._w = x.winner = r.w === "a" ? a : b;
       x._l = x.loser = r.w === "a" ? b : a;
@@ -262,7 +269,7 @@ function derive(t){
 }
 
 const tidy = x => {
-  const { _w, _l, real, absent, ...out } = x;
+  const { _w, _l, real, absent, was, ...out } = x;
   return out;
 };
 
