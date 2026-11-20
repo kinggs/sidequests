@@ -166,3 +166,12 @@ out; every tick, mask and count in it was typed in by hand.
   shown as `110 × 65535 / 180 = 40049`. At 120 bpm B shows `60 × 65535 / 180 = 21845`.
   Presets: above 120 is 140; above 140 is none, so 80; above 80 is 120; above 170 is none,
   so 80.
+
+## `snapshots-v1.txt` (Session 11)
+
+Each fixture's version 1 snapshot (`ENGINE.md` §8), as the harnesses' "from a snapshot" run
+saved it on the ABI 4 core, the day before version 2 (§15) was built: one line a fixture,
+name then lowercase hex. Never regenerated. It is the proof that a snapshot written by an
+old core still loads: `core/src/tests/fixtures.rs` loads each one and holds it to its
+fixture's trace, and `rack/selftest.sh` gives one to a Probe as an old patch would.
+A future version adds its own file beside this one, written before its change.
