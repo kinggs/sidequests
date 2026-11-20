@@ -2,17 +2,18 @@
 
 **Status:** written 2026-11-19 (D30, D31) as a starting sheet. All sixteen voices are built
 in `core/src/voice.rs` as recipes: key 10 (P7), keys 1 to 4 (the minimum beat), and the
-other eleven (Session 7), all 2026-11-19. What each became is under **As built**. D35's
-samples can still replace any of them, key by key, by ear; no sample path exists yet.
+other eleven (Session 7), all 2026-11-19. What each became is under **As built**. Since
+Session 8 (D50) any key can play its D35 sample instead, set per key, code by default: see
+**Tuning a sample**.
 
 Key *n* plays track *n*. The roles and their order follow the hardware, so that what a
 player learns here (which key is which drum) carries over (D22). The sounds are synthesised
 by us, in the core, from the recipes below, or played from public-domain samples where that
-sounds better (D32, proposed). Nothing comes from the hardware or from anyone's recordings
+sounds better (D32; built as D50). Nothing comes from the hardware or from anyone's recordings
 of it (README rule 6).
 
-Slider A is pitch and slider B is length for the drums (R27). ⚠ What they do for the three
-tones is not confirmed.
+Slider A is pitch and slider B is length for the drums (R27). For the two tones slider A
+moves in semitones (D49); what the hardware does there is still not checked.
 
 ## Roles and recipes
 

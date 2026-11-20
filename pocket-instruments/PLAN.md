@@ -227,6 +227,43 @@ to 4; D35's samples can still replace any of them by ear.
       planted fault.
 - [x] The engine passed the hosts' 1 KiB (now 1 416 bytes): every fixed room is 2 KiB.
 
+## The listening page (build, Opus; done 2026-11-20)
+
+- [x] `web/listen.html`: every key as code or sample, sliders, in turn, a beat; `make listen`
+      drives it in both browsers. Details: Handover, "The listening page".
+
+## Session 8 — a sample or the code voice, per key (build, Opus; done 2026-11-20)
+
+D50, agreed by the owner in four points. Details: Handover, "Session 8".
+
+- [x] The pack as the engine reads it (`samples/raw/`, `tracks.txt`, `make-raw.py`).
+- [x] A sample voice beside each code voice; `pi_set_sample` and `VOICE` (ABI 3, ENGINE.md §12).
+- [x] Both render harnesses, the worklet, the listening page and the Rack Probe use it.
+- [x] Every number that shapes a sample in one block; `VOICES.md` "Tuning a sample".
+- [x] The engine is 2 328 bytes: every fixed room is 4 KiB (it was 2 KiB after Session 7).
+
+## Session 9 — the instrument, planned (design, Fable; next)
+
+Everything the instrument is built from now exists: sixteen voices or samples, the
+sequencer, `FIRE`, edits, snapshots, both hosts, and a draft workflow (`WORKFLOW.md`, built
+from as it stands, D29). What is missing is the design that joins them: the tiny rhythm
+machine (D12) as a page and a Rack module, in the Loom look (`design/DESIGN.md`). A design
+session, because it decides; the builds after it are Opus's.
+
+It must decide, each with a recommendation for the owner:
+- **Where keys are interpreted:** in the core (`KEY_DOWN`/`KEY_UP`, reserved by D26), so
+  both hosts behave alike (D22), or in each host, sending edits.
+- **Snapshot version 2:** the sliders, D50's switch per key, master volume and tempo
+  presets; and how version 1 loads into it.
+- **What a slider move does to a sounding voice:** built as "waits for the next hit",
+  never ruled (D44's open list).
+- **The page's first scope:** which `WORKFLOW.md` rows are in the first build (the "in" rows,
+  or fewer), and the display (the weaving, O12).
+- **The build sessions after it,** each small enough to prove.
+
+Meanwhile, the owner's hands, none blocking: P8 by ear against the PO-12 (which keys to
+switch to samples, and the first settings); P4 on an iPhone; P5 on someone else's machine.
+
 ## After the gate
 
 Decided when P1 to P4 are in, not before:
@@ -382,6 +419,9 @@ Decided when P1 to P4 are in, not before:
   falling-behind figure the page already shows.
 
 **What still needs a decision first (do not build past these):**
+
+(Annotated 2026-11-20: the limiter is D48; the workflow is drafted and built from as it
+stands (D29); the rest is Session 9's to plan.)
 
 - ~~D42, D43, D44, D45: the owner's ruling.~~ All accepted the same day (D46), with
   macOS 10.12 as the floor on Intel Macs. Nothing here blocks a build now.

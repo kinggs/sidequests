@@ -319,7 +319,7 @@ ordinary drum types is common practice; it is still worth letting Teenage Engine
 when they are shown the showpiece (D19).
 
 ### D32 — Voices may be public-domain samples, one manifest line each
-**2026-11-19 · proposed (the owner asked for it; the choices are not made) · would supersede "nothing is sampled" in D31**
+**2026-11-19 · proposed (the owner asked for it; the choices are not made) · would supersede "nothing is sampled" in D31** · carried out: the choices by D35, the per-key switch by D50 (2026-11-20)
 
 A voice is either a CC0 sample or a recipe, chosen per key by ear. The first source is Sonic
 Pi's bundled set (R31). Each file used is listed with its origin and author. Samples are data
@@ -592,7 +592,9 @@ No fixture sends it, so no trace moved.
   with this ruling beside it. It does not count against Rust under D13.
 
 D44's own open list (a limiter, the sliders in snapshot version 2, a slider moving a
-sounding voice) was not part of the interview and is still open.
+sounding voice) was not part of the interview and is still open. (Annotated 2026-11-20: the
+limiter is D48. A slider waits for the voice's next hit, as built in §11 and tested, but
+never ruled on. Snapshot version 2 is open, and now also holds D50's switch per key.)
 
 For P5: the owner has no Windows machine, Intel Mac or Apple Silicon Mac to load a plugin
 on yet, nor a friend with one. That half waits for one.
