@@ -312,3 +312,36 @@ belongs in `PROOFS.md`, a change of course in `DECISIONS.md`, an outside fact in
   last. `rack/Makefile` now runs `jq` once a file; a planted unknown command in
   `reset-mid-bar` stops the build. Read a green run's log when you expected red.
 
+
+## Session 11: snapshot version 2 and both layouts (2026-11-20)
+
+- **Saving the old snapshots before touching the code paid for itself.** Seven version 1
+  snapshots went into `fixtures/snapshots-v1.txt` from the ABI 4 report first. Every later
+  claim that version 1 still loads is held to bytes an old core wrote, not to a version 1
+  that today's code builds for its own test, which would agree with itself whatever it got
+  wrong.
+- **"Payload size" was ambiguous only to the code.** §8's 300 for 316 bytes means the
+  payload excludes the header and the CRC; the first version 2 draft counted the CRC
+  (376, not §15's 372). The layout test caught it at once. Read a size field off the old
+  table's numbers, not off its name.
+- **A planting script's copy kept the files' old times, and cargo trusted them.**
+  `shutil.copytree` copies modification times. A restored, unplanted copy looked older
+  than the last plant's build, so cargo reused the planted binary and the "unplanted"
+  run failed. Session 10's guard (the unplanted copy must pass first) is what caught it.
+  Copy without metadata (`copy_function=shutil.copy`).
+- **A plant aimed by text can land on the wrong line.** `old != p` appears in both `PROB`
+  and `SOUND`; the first plant hit `PROB`, failed a different test, and looked like a
+  miss. Aim each plant with enough context to be unique, and assert it is.
+- **A panic inside `pi_load` aborts the run, not a test.** Planting "check the length
+  against version 1's size" let a short version 2 reach a slice, which panics inside an
+  `extern "C"` function and aborts (P1's rule, working as meant). Rerun alone with one test
+  thread to name the test it aborted in.
+- **A harness check written for one snapshot version silently assumed it.** `race.cpp`'s
+  last step entered each fixture's pattern "over whatever is there", which was enough while
+  the snapshot held only the pattern. With version 2 the churn's slider moves, volume and
+  choice leaked into the saved bytes and the check failed. Every place that builds a
+  "known" snapshot by hand has to set every field the snapshot holds.
+- **The Probe's fixed-size copy was the real compatibility bug, and only a host test could
+  show it.** The core loaded version 1 from the first build; Rack would still have dropped
+  an old patch's beat unread, because `Probe.cpp` copied exactly `PI_SNAPSHOT_SIZE` bytes or
+  none. The self-test failed on "0 loaded" first, as the plan asked, then passed.

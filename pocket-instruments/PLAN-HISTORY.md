@@ -295,6 +295,72 @@ ABI 4. `ENGINE.md` §13 and §14. No host gains a face yet.
 
 ---
 
+## Session 11 — snapshot version 2, and voices with the mix (build, Opus; done 2026-11-20)
+
+ABI 5. `ENGINE.md` §15. The list was checked against the code after Session 10
+(2026-11-20): what was added is marked "added".
+
+- [x] **First, before any change:** save each fixture's version 1 snapshot from today's core
+      into `fixtures/snapshots-v1.txt` (name and hex; the Node report already prints them).
+      They are the proof that every version ever written still loads. Seven fixtures now.
+      (Added: a fixture's snapshot holds its step-0 edits and nothing a key did, so
+      `keys-write-a-beat`'s is the empty pattern. The four older ones carry the swing,
+      length and probabilities worth loading.)
+      Done: one line a fixture, the same at every rate and source, from the Rust report.
+- [x] Version 2 in `core/src/snapshot.rs`: save, load both versions, the clamps.
+      `PI_SNAPSHOT_SIZE` 388, `PI_SNAPSHOT_SIZE_V1` 316.
+- [x] Tests: each version 1 snapshot loads and gives its fixture's trace, and has the
+      starting values in every new field; save, load into a fresh engine, the same view and
+      the same render; a flipped bit in each new field is refused; a version 3 is refused;
+      a version 2 cut to 316 bytes is refused; the generation moves on each new saved thing
+      and only when its value changes.
+      Done: `core/src/tests/snapshot.rs` (seven tests) and, for the fixtures' own version 1
+      snapshots, `every_version_1_snapshot_ever_written…` in `fixtures.rs`: each is loaded
+      into an engine whose new fields were all moved first. The flipped bits are the old
+      every-byte test, now over 388 bytes, and a new one over version 1's 316.
+- [x] Added: **the generation's rule test changes with it.**
+      `the_generation_moves_exactly_when…` in `core/src/tests/keys.rs` has two halves. The
+      random half ("it moves exactly when the snapshot's bytes change") should pass as it
+      is. The first half lists presses that leave it alone: the volume, sound + key and
+      `param` lines there become movers. Then strike `ENGINE.md` §13's "In ABI 4 that is
+      snapshot version 1 (D59)" as overtaken, leaving the words.
+      Done as written: the random half passed unchanged.
+- [x] Added: **a loaded volume is clamped to 1 to 16, and tested.** The view's volume row is
+      `(1 << volume) - 1`; a 17 would overflow it.
+- [x] Every fixed 316 and every fixed room. Search, do not remember (`LEARNINGS.md`,
+      Session 8). As of Session 10 the literal 316s are in `harness/trace.test.mjs` and in
+      `core/src/tests/` (`mod.rs`, `fixtures.rs`, `rules.rs`, `keys.rs`). `harness.cpp`,
+      `race.cpp` and the Probe use `PI_SNAPSHOT_SIZE` and follow the header;
+      `rack/check-patch.mjs` passes the length it read; the worklet holds no snapshot yet.
+      Node's snapshot buffer has 512 bytes before the view's (`SNAP`, `VIEW`): 388 fits.
+      Found beside the list: `race.cpp`'s `enter()` set only what version 1 held, so the
+      churn's sliders, volume and choice leaked into its snapshots and P6's last check
+      failed. It now sets every field version 2 holds, by keys and edits.
+      Six tests pinned "sliders, switch, volume and choice are not saved" on purpose; each
+      now says what version 2 holds, with the old reading noted.
+- [x] `PI_AUDIO_BOTH`, 17 channels. A render scenario holds channels 0 to 15 to layout 16's
+      bytes and channel 16 to layout 1's, natively and from the `.wasm`.
+      Added, what it needs: `pi_process` in `core/src/abi.rs` takes only 1 or 16 channels;
+      both render harnesses write the mix alone, so each needs a way to render a layout
+      and write one file a layout; and Node's audio buffer is 768 floats (`AUDIO_MAX`),
+      where a block of 128 frames at 17 channels is 2 176: move it or render in smaller
+      blocks. The mix channel is after the master volume, the sixteen before it (§13).
+      Done: `harness/render-both.json` (render-all with the volume moved by keys) names
+      `"layouts": [1, 16, 17]`; each harness renders all three, holds 17 to the other two
+      itself, and writes `-16ch` and `-17ch` files that `make test` pairs. Node's audio room
+      grew to 2 176 floats and the commands moved after it. A Rust test does the same at
+      three block sizes.
+- [x] The Probe loads a patch saved before this session (a version 1 snapshot in it):
+      headless, "1 loaded".
+      Added: it will not, as written. `Probe.cpp` takes a saved snapshot only if it is at
+      least `PI_SNAPSHOT_SIZE` bytes and copies exactly that many, so at 388 it drops a
+      316-byte one before `pi_load` sees it. Its `Snap` needs a length: take 316 or more,
+      pass what was read. A patch to test with: `rack/selftest.sh` writes each probe's
+      `data` itself and gives it no snapshot today, so add `"snapshot"` to one probe: a
+      line of `fixtures/snapshots-v1.txt`, hex to base64. Show it fails first, with the
+      size check as it is now.
+      Done: it failed first ("0 loaded, 0 refused"), then passed at three rates.
+
 # The Handover notes
 
 ### After Session 0 (2026-11-18)
@@ -630,3 +696,18 @@ the numbers stay easy to tweak.
   menu, Sounds. The Probe plays the four drums only.
 - **Next build:** carry on with the rest (Session 3's list): edits from a UI once
   `WORKFLOW.md` says what a press does; or the instrument's own panel.
+
+### After Session 9: the instrument, planned (2026-11-20)
+
+- **Designed, nothing built.** Keys go into the core and the core tells both hosts what to
+  light (D51). The contract is `ENGINE.md` §13 to §16; the sessions are 10 to 14 above.
+- **The owner ruled on six questions,** all as recommended: D51 to D56. D46's annotation is
+  closed: the slider waits for the next hit (D56) and snapshot version 2 is laid out (D55).
+- **D57 was proposed and is now accepted (D58, the same day):** eight things settled without asking, among them the
+  readings of the hardware nobody could check. The ones the owner would feel: choosing a
+  sound plays it; the tempo preset changes when bpm is let go; in Rack that is two clicks.
+- **Not verified, because nothing ran:** the view's 64 bytes and the snapshot's 388 are laid
+  out on paper. Session 10's first job, fixtures by hand, is where a mistake in §13 or §14
+  shows. The weave's cell size is to be read off `frames.html` in Session 14.
+- **Next: Session 10.** Nothing waits on the owner. Fable is recommended for 10 and 14,
+  Opus for 11, 12 and 13 (the reasons are under each heading).

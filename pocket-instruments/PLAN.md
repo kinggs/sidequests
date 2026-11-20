@@ -19,7 +19,7 @@ are about 300 KB, and a session that reads them all has spent its attention befo
 3. `ENGINE.md`: the sections your session's list names, and §3 and §8 if you have not built
    on the engine before.
 4. `DECISIONS.md`: the decisions your list and those sections cite, and the **Open** table
-   at its end. For Sessions 11 to 14 that is D51 onwards. Not the whole log.
+   at its end. For Sessions 12 to 14 that is D51 onwards. Not the whole log.
 5. `PROOFS.md`: the ladder table at its top, and the proof your session runs, if it runs
    one. Do not change a pass bar to make it pass; record the failure.
 
@@ -94,6 +94,7 @@ Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
 | 8, samples (Opus) | a sample beside each voice, ABI 3 (D50) | 2026-11-20 |
 | 9, the instrument planned (Fable) | `ENGINE.md` §13 to §16, D51 to D58, Sessions 10 to 14 | 2026-11-20 |
 | 10, the workflow in the core (Fable) | keys, sliders, the view, the volume: ABI 4; fixture format 2 and three key fixtures; D59 | 2026-11-20 |
+| 11, snapshot version 2 (Opus) | ABI 5: the snapshot holds the sliders, switches, volume and choice; version 1 still loads, in the core and the Probe; `PI_AUDIO_BOTH` | 2026-11-20 |
 
 ## Still the owner's hands
 
@@ -107,6 +108,8 @@ Unticked in the finished lists. None blocks a build session.
 - [ ] Measure the PO-12 (width, height, key pitch, jack spacing) for D16.
 - [ ] By ear, on the listening page or in Rack: which keys become samples (D35, D50).
 - [ ] A look at D59, Session 10's eight rulings.
+- [ ] Two readings Session 11 built on (⚠ in `ENGINE.md` §15): a loaded chosen sound past
+      15 becomes 15; snapshot bytes 381 to 383 are not read.
 
 ## The instrument's build: Sessions 10 to 14
 
@@ -152,62 +155,14 @@ push; no Teenage Engineering material. And for these five:
   the three key fixtures' views. To prove it, keep `target/report-rust.txt` and a
   `sha256sum` of `target/render-*.f32` from before the first change and compare at the end.
   (Session 11 changes one thing in the report on purpose: the snapshot's hex in each
-  "snapshot" label. The lines under every label stay.)
+  "snapshot" label. The lines under every label stay. Done: they stayed, and the 114 render
+  pairs are the same bytes. Session 11 added 18 pairs: `render-both`.)
 - **A planted fault counts only if it built and a named test failed.** Run the unplanted
   copy first (`LEARNINGS.md`, Session 10).
 - Each session ends by moving its sections of `ENGINE.md` from "designed" to built, with
   what turned out different marked, and by writing `LEARNINGS.md` and the Handover.
 
-## Session 11 — snapshot version 2, and voices with the mix (build, Opus; next)
-
-ABI 5. `ENGINE.md` §15. The list was checked against the code after Session 10
-(2026-11-20): what was added is marked "added".
-
-- [ ] **First, before any change:** save each fixture's version 1 snapshot from today's core
-      into `fixtures/snapshots-v1.txt` (name and hex; the Node report already prints them).
-      They are the proof that every version ever written still loads. Seven fixtures now.
-      (Added: a fixture's snapshot holds its step-0 edits and nothing a key did, so
-      `keys-write-a-beat`'s is the empty pattern. The four older ones carry the swing,
-      length and probabilities worth loading.)
-- [ ] Version 2 in `core/src/snapshot.rs`: save, load both versions, the clamps.
-      `PI_SNAPSHOT_SIZE` 388, `PI_SNAPSHOT_SIZE_V1` 316.
-- [ ] Tests: each version 1 snapshot loads and gives its fixture's trace, and has the
-      starting values in every new field; save, load into a fresh engine, the same view and
-      the same render; a flipped bit in each new field is refused; a version 3 is refused;
-      a version 2 cut to 316 bytes is refused; the generation moves on each new saved thing
-      and only when its value changes.
-- [ ] Added: **the generation's rule test changes with it.**
-      `the_generation_moves_exactly_when…` in `core/src/tests/keys.rs` has two halves. The
-      random half ("it moves exactly when the snapshot's bytes change") should pass as it
-      is. The first half lists presses that leave it alone: the volume, sound + key and
-      `param` lines there become movers. Then strike `ENGINE.md` §13's "In ABI 4 that is
-      snapshot version 1 (D59)" as overtaken, leaving the words.
-- [ ] Added: **a loaded volume is clamped to 1 to 16, and tested.** The view's volume row is
-      `(1 << volume) - 1`; a 17 would overflow it.
-- [ ] Every fixed 316 and every fixed room. Search, do not remember (`LEARNINGS.md`,
-      Session 8). As of Session 10 the literal 316s are in `harness/trace.test.mjs` and in
-      `core/src/tests/` (`mod.rs`, `fixtures.rs`, `rules.rs`, `keys.rs`). `harness.cpp`,
-      `race.cpp` and the Probe use `PI_SNAPSHOT_SIZE` and follow the header;
-      `rack/check-patch.mjs` passes the length it read; the worklet holds no snapshot yet.
-      Node's snapshot buffer has 512 bytes before the view's (`SNAP`, `VIEW`): 388 fits.
-- [ ] `PI_AUDIO_BOTH`, 17 channels. A render scenario holds channels 0 to 15 to layout 16's
-      bytes and channel 16 to layout 1's, natively and from the `.wasm`.
-      Added, what it needs: `pi_process` in `core/src/abi.rs` takes only 1 or 16 channels;
-      both render harnesses write the mix alone, so each needs a way to render a layout
-      and write one file a layout; and Node's audio buffer is 768 floats (`AUDIO_MAX`),
-      where a block of 128 frames at 17 channels is 2 176: move it or render in smaller
-      blocks. The mix channel is after the master volume, the sixteen before it (§13).
-- [ ] The Probe loads a patch saved before this session (a version 1 snapshot in it):
-      headless, "1 loaded".
-      Added: it will not, as written. `Probe.cpp` takes a saved snapshot only if it is at
-      least `PI_SNAPSHOT_SIZE` bytes and copies exactly that many, so at 388 it drops a
-      316-byte one before `pi_load` sees it. Its `Snap` needs a length: take 316 or more,
-      pass what was read. A patch to test with: `rack/selftest.sh` writes each probe's
-      `data` itself and gives it no snapshot today, so add `"snapshot"` to one probe: a
-      line of `fixtures/snapshots-v1.txt`, hex to base64. Show it fails first, with the
-      size check as it is now.
-
-## Session 12 — the page: playable on a phone (build, Opus)
+## Session 12 — the page: playable on a phone (build, Opus; next)
 
 `web/rhythm.html`, in the Loom look (`design/DESIGN.md`, "The phone"; `design/loom/phone.html`
 is the picture). Finishes P6. This is the first build the owner can play.
@@ -333,21 +288,6 @@ Decided when P1 to P4 are in, not before:
 
 The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
 
-### After Session 9: the instrument, planned (2026-11-20)
-
-- **Designed, nothing built.** Keys go into the core and the core tells both hosts what to
-  light (D51). The contract is `ENGINE.md` §13 to §16; the sessions are 10 to 14 above.
-- **The owner ruled on six questions,** all as recommended: D51 to D56. D46's annotation is
-  closed: the slider waits for the next hit (D56) and snapshot version 2 is laid out (D55).
-- **D57 was proposed and is now accepted (D58, the same day):** eight things settled without asking, among them the
-  readings of the hardware nobody could check. The ones the owner would feel: choosing a
-  sound plays it; the tempo preset changes when bpm is let go; in Rack that is two clicks.
-- **Not verified, because nothing ran:** the view's 64 bytes and the snapshot's 388 are laid
-  out on paper. Session 10's first job, fixtures by hand, is where a mistake in §13 or §14
-  shows. The weave's cell size is to be read off `frames.html` in Session 14.
-- **Next: Session 10.** Nothing waits on the owner. Fable is recommended for 10 and 14,
-  Opus for 11, 12 and 13 (the reasons are under each heading).
-
 ### After Session 10: the workflow in the core (2026-11-20)
 
 - **Built: ABI 4.** `KEY_DOWN`, `KEY_UP` and `PARAM` do what `ENGINE.md` §13 says, `pi_view`
@@ -388,3 +328,45 @@ The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
 - **Waits for the owner, blocking nothing:** a look at D59. Still open from before: P4 on
   an iPhone, P5's loads and VCV's reply, which keys become samples.
 - **Next: Session 11,** on Opus.
+
+### After Session 11: snapshot version 2 (2026-11-20)
+
+- **Built: ABI 5.** `pi_save` writes §15's 388 bytes: version 1 plus each track's sliders,
+  the code-or-sample switches, the volume and the chosen sound. `pi_load` takes both
+  versions. Those four now move the generation, each only when its value changes.
+  `PI_AUDIO_BOTH` (17 channels) gives the sixteen tracks and the mix from one call, for
+  Session 13. Nothing a player can touch yet; that is still Session 12.
+- **An old beat still loads, proven three ways.** The seven fixtures' version 1 snapshots
+  were saved from the ABI 4 core before any change (`fixtures/snapshots-v1.txt`). Each
+  loads into an engine whose new fields were all moved, sets them back to `pi_init`'s
+  values, and gives its fixture's trace. In Rack, a patch carrying one is loaded by the
+  Probe ("1 loaded"); it failed first with the old fixed-size copy, as planned.
+- **Nothing older moved:** the report is the same line for line apart from the 42 snapshot
+  hex labels, and all 240 earlier render files are the same bytes. 132 render pairs now
+  (18 new, `render-both`), every one the same bytes natively and from the `.wasm`.
+- **Proven:** `make test` (112 Rust tests; seven fixtures, 168 runs a harness, one
+  report; 132 render pairs; the race harness, six planted faults caught), `make p4` (24 of
+  24 in Chromium and Firefox, ABI 5), `make listen` (both), `make -C rack selftest` (three
+  rates), the repo's `make verify` (its smoke test skips: no Playwright).
+- **Every new check failed once on purpose:** 25 faults planted in the core, each built and
+  failed a named test (one by aborting inside that test). One core fault caught by both
+  harnesses' own layout check; one flipped sample caught by `compare.mjs`. What that
+  taught (a copy's old file times fooled cargo; a plant aimed at the wrong line) is in
+  `LEARNINGS.md`.
+- **Found beside the list:** `harness/race.cpp`'s `enter()` built its "known" snapshot by
+  setting only what version 1 held; it now sets every field version 2 holds.
+- **Sizes:** the engine is 2 352 bytes (unchanged). The `.wasm` is 28 216 bytes (was 26 998).
+- **For the owner, blocking nothing (Opus decided nothing):** two readings where §15 is
+  silent, built on and marked ⚠: a loaded chosen sound past 15 becomes 15; bytes 381 to 383
+  are not read. Either is one line in `core/src/snapshot.rs`.
+- **For Session 12 (Opus), what will bite:**
+  - The worklet holds no snapshot yet. Give it 388 bytes, and always pass `pi_load` the
+    length read, not `PI_SNAPSHOT_SIZE`: a beat saved in the browser before ABI 5 does not
+    exist, but a version 1 can come from anywhere a link carries one later.
+  - `pi_generation` now moves on a slider, a switch, the volume and a chosen sound, so the
+    page will post snapshots more often than Session 10's core would have. §8's "a few a
+    second at most" still holds the rate.
+  - P6's browser half: `straight-sixteenths`' saved snapshot now also holds the starting
+    sliders, volume and choice. Entering its pattern by keys from a fresh page gives those,
+    so the bytes should match the report's label. A page that moved a slider first will not.
+- **Next: Session 12,** on Opus.

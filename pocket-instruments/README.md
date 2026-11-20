@@ -1,6 +1,6 @@
 # Pocket Instruments
 
-**Status:** P1, P2, P3 and P7 passed. The instrument is designed (Session 9, 2026-11-20) and its workflow is in the core (Session 10, ABI 4: keys, sliders, and a view that says what to light); no host has a face yet: `PLAN.md` Sessions 11 to 14. P4, P5 and P6 are part-run (2026-11-19): the core runs in
+**Status:** P1, P2, P3 and P7 passed. The instrument is designed (Session 9, 2026-11-20) and its workflow is in the core (Session 10, ABI 4: keys, sliders, and a view that says what to light), and the snapshot holds all of it (Session 11, ABI 5); no host has a face yet: `PLAN.md` Sessions 12 to 14. P4, P5 and P6 are part-run (2026-11-19): the core runs in
 Rack and in an AudioWorklet, on a phone too, and plays all sixteen voices; CI builds the plugin
 for all four Rack platforms. Each key plays its code voice or a sample (D50). What is left needs an iPhone, other machines and the instrument
 itself (`PROOFS.md`). Started 2026-11-18.
@@ -30,7 +30,7 @@ into its own repository.
 | `ENGINE.md` | The engine interface: time, the clock, commands, events, the snapshot | Changed by a decision; the header and fixtures change with it |
 | `core/include/pi_engine.h` | The same contract in C, for both hosts | Follows `ENGINE.md` |
 | `core/` | The engine: one Rust crate, `no_std`, no allocator, no dependencies. Its tests are in `core/src/tests/` | Built from `ENGINE.md`; a disagreement is settled there first |
-| `fixtures/` | Test vectors and the traces they must produce (`fixtures/README.md`) | A trace is never edited to make a build pass |
+| `fixtures/` | Test vectors and the traces they must produce (`fixtures/README.md`); `snapshots-v1.txt`, the old snapshots that must still load | A trace is never edited to make a build pass |
 | `harness/` | The same fixtures through the `.wasm` in Node and through C++ on the static library; the ThreadSanitizer harness (`race.cpp`, P6); the render comparison (`compare.mjs`, P7); the four-target check (`targets.sh`, P5) | Follows `fixtures/README.md` |
 | `rack/` | The Rack plugin: one module, the Probe, which plays the fixtures and checks itself (P3), and plays their drums from its AUDIO jack. `handoff.hpp` is how a host moves things between its threads. `check-dist.sh` holds a finished `.vcvplugin` to Rack's rules (P5); `ci-linux.sh` is CI's Linux build | `make install`; `make selftest` runs Rack headless; `make sound` is a patch to hear it. CI (`.github/workflows/pocket-instruments-rack.yml`) builds all four platforms on every push that touches the core or `rack/` |
 | `web/` | The bare page and worklet on the raw `.wasm` (P4), and `listen.html`: all sixteen voices beside the starter samples. `pi_core.wasm` is committed so Pages can serve it | `make web` after the core changes; `make p4` and `make listen` run both desktop browsers |
