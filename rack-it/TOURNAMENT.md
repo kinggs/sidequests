@@ -6,7 +6,8 @@ players can enter their own. It reuses what Rack It has: the same accounts, the 
 players, the same matches and ratings.
 
 **Status:** Sessions 1 to 7 done (2.33.0, 2026-11-19): every session in §8, round robin (§3.9) and
-groups into a knockout (§3.10); 2.33.1 (2026-11-20) fixed single elimination's Final race. What's next is §9 (Parked): handicapped races.
+groups into a knockout (§3.10); 2.33.1 (2026-11-20) fixed single elimination's Final race.
+Next: Session 8, handicapped races (§3.11, designed 2026-11-20, not built).
 This is also pre-work for the Sessions app (`SESSIONS-MIGRATION.md` at the repo root): the
 bracket logic and the data shape are written to be lifted out.
 
@@ -31,7 +32,7 @@ on 2026-11-18** (the Answer column); the rest stand at their defaults.
 | 4 | Double elimination's final | **One final.** A toggle offers "play a decider if the losers' side wins" (the bracket reset). | Most club nights play one final; purists want the reset. |
 | 5 | Can guests (no phone) enter? | **Yes** (confirmed). The organiser picks them from their known guests or adds a new one, exactly as "Who's playing" does now, and enters their results. | A club night always has someone without the app. |
 | 6 | How many players? | 3 to 32. | A phone shows 32 comfortably round by round; the document stays small. |
-| 7 | Handicaps | **Off** in v1. Parked: Rack It's race chart per match (§9). | Keep the first version to a plain race. |
+| 7 | Handicaps | **Off** in v1. Then (the owner, 2026-11-20): a tournament-wide **Race chart** switch, ratings frozen at Start, the underdog's race shorter, two targets (§3.11, Session 8). | Keep the first version to a plain race. |
 
 ---
 
@@ -61,6 +62,7 @@ Standard options, from what pool tournaments usually ask, and what v1 does with 
 | **Game** | Trad-Eight or Trad-Nine | The two games where one rack is one rack, so a result is a race. The points games wait (§9). |
 | **Format** | Single elimination · Double elimination · Round robin (3 to 12, §3.9) · Groups, then a knockout (6 to 32, §3.10) | Swiss is §9. |
 | **Race** | Race to 1–15, default 3 | One number for the whole tournament, plus two optional overrides: **Losers' side** (often one shorter) and **Final** (often longer). |
+| **Handicap** (Session 8) | Off · Race chart | §3.11: from the ratings frozen at Start; the favourite races to the set race. |
 | **Final** (double only) | One final · Decider if the losers' side wins | Decision 4. |
 | **Third place** (single only) | Off · Play-off | Off by default. |
 | **Draw** | Random · By rating | By rating puts the highest Zargo first and keeps the top two apart until the final. Guests and unrated players count as 500. **Redraw** until play starts. A manual order is §9. |
@@ -350,6 +352,89 @@ final "not fit" if its race differed, and drop it. 2.33.1 gives `race.f` to any 
 A new entry plays to `race.f` (`validResult`), so the allowance only reads what's there. The
 groups knockout's final (`K…`) never played to `race.w`, so it gets no allowance.
 
+### 3.11 Handicapped races (designed 2026-11-20, Session 8)
+
+A tournament-wide switch: every match is a race in racks with Rack It's race chart (spec §4),
+from the two players' ratings. The owner settled the four questions on 2026-11-20, each as
+recommended:
+
+| Question | Answer | Why |
+|---|---|---|
+| When is a match's handicap fixed? | **At Draw and start.** Each entrant's rating is frozen into the tournament. | Every phone works out the same targets from the document alone, with no ratings to read (an opponent may be no friend). Targets never shift under a match being played, so a result once entered keeps fitting. Ratings move during a tournament (§3.7), so live ratings would. |
+| A player with no rating? | **500**, as Draw by rating does, **shown at the draw.** | The draw sheet lists every frozen number, so the organiser sees a wrong one and fixes the guest's estimate (Players) before Start. |
+| Which race does the chart shorten? | **The underdog's.** The higher-rated player races to the set race, the other to `raceChart`'s target. | Rack It's chart as it stands (`zargo.js`), no new function. "Race to 3" still means the longest race anyone plays. |
+| Two targets or a head start? | **Two targets only**, never a head start. | A result stays racks actually won: the steppers, the stored result, a scored match's racks and the rating all use the same two numbers. |
+
+**Settings.** Start's settings card gains **Handicap**, under Race: **Off** (the default) ·
+**Race chart** ("from the ratings at the start"). One switch for the whole tournament, with no
+per-match override. It stays editable until Start, as every setting is, and works with every
+format. The race and its folds (Losers' side, Final) still set the favourite's race in each
+match. The tournament's line reads "Trad-Eight · double elimination · race to 3 · handicapped".
+
+**Freezing.** Start writes `zargos: { "<id>": 612, … }` beside `seeds`: every entrant, rounded,
+from `statsOf()` on the organiser's phone (the same numbers Draw by rating uses), 500 for anyone
+without one. A Redraw reads them again; after Start they never change. With the handicap on, the
+draw sheet shows each entrant's number ("Greg 498", "Ann 500 · no rating yet") and round 1's
+targets ("Kenny 5 v Greg 3").
+
+**The targets** (`bracket.js`). `raceFor(t, f)` is unchanged: the set race for that match.
+`derive` gives every fixture with both players known `targets: { a, b }`, in the fixture's own
+order:
+
+- handicap off: `{ a: race, b: race }`;
+- on: `raceChart(expectedShareA(za, zb), race)` from the two frozen ratings, imported from
+  `./zargo.js`. Equal ratings come out level.
+- A fixture still waiting has `targets: null`.
+
+`fits(r, a, b, ta, tb)` takes the two targets: each side between 0 and its own target, exactly
+one side at its own target, and `w` that side. **Results already stored keep fitting**: with the
+handicap off both targets are the race, so every check is the one made today, and a tournament
+with no `handicap` field is off. `oldRace` (2.33.1's allowance) applies only with the handicap
+off; no handicapped tournament predates it. `validResult` checks against `targets`.
+
+**The result shape doesn't change**: `{ ids, a, b, w, wo }`, racks won. The targets are derived
+from the frozen ratings, never stored on the result, so there is one source and nothing to drift.
+A walkover stays 0–0.
+
+**On screen.** Every reader of `f.race` in `index.html` moves to `f.targets` (14 places today:
+`grep -n 'f\.race\|\.race\b'`).
+
+- **The steppers sheet**: each stepper runs 0 to its own player's target. The hint reads "Kenny
+  races to 5, Greg to 3. Racks each, then Save." Save reads "First to 5 v 3" until exactly one
+  player is at their own target, then "Save · 5–2".
+- **The match sheet and the card's caps label**: "race to 5 v 3" where today they say "race to
+  3". Level targets read as today.
+- A stale result's words, the path's step titles and "Nobody reached 3" use the two targets too.
+
+**Score it in Rack It.** `scoreFixture` puts the fixture's targets on `setup.tour` and sets
+`setup.handicap = "racks"`, `mode: "race"`, `raceTo` the longer target, with those exact targets.
+`proposeTargets()` must not recompute them from today's ratings while `setup.tour` holds targets:
+the frozen ones win. The setup card reads "Kenny's tournament · Final · Trad-Eight · race to 5 v 3
+· handicapped · rated when it finishes" (or "no handicap" when off). The live screen already plays
+a race in racks with two targets. `resultFromMatch` counts the racks each side won, as now, and
+`validResult` checks them against the targets. A match ended before anyone reached their own
+target isn't a result, as now.
+
+**Ratings at the finish.** Nothing about the rating changes. Spec §3: "Handicap never enters the
+update. The racks are what happened." Zargo rates each rack 1 or 0 at weight 0.5, so a
+handicapped 5–2 rates exactly as a level 5–2. `rateResult` keeps its synthetic racks; the match it
+writes says what was played: `handicap: "racks"`, `targets: { a: ta, b: tb }` (today: `"off"`, the
+race twice), so its summary reads "race to 5 v 3". A scored match already carries both.
+
+**Round robin and groups tables.** Unchanged: wins, then rack difference. ⚠ With a handicap,
+rack difference leans on the targets (a favourite winning 5–1 is +4; an underdog winning 3–0 is
++3). It is only a tie-break after wins, so it stays. If it looks wrong on a club night, the next
+step is the match between the two, then a shared place.
+
+**Rules: no change.** `handicap` and `zargos` are written by the organiser, who may change any
+field but `by` (`tourOrganises()`), and only before Start, which the app enforces as it does for
+every setting. A result's keys don't change, so `tourOwnEntry`'s list stands. `tourRated`,
+`tourMarks` and `fixtureStarts` don't read a match's handicap or targets. The existing case
+"an entrant changing settings" covers an entrant writing `zargos`. No new cases.
+
+**Not doing:** a per-match override; a head start; ratings read live when a match is ready;
+handicaps for the points games (they aren't in tournaments yet, §9).
+
 ## 4. The bracket (pure logic)
 
 All of it lives in one browser-free module, `rack-it/bracket.js`, with `rack-it/bracket.test.mjs`
@@ -391,7 +476,8 @@ Rules the module follows, each with tests:
   as late as possible. `F` is the winners' side winner against the losers' side winner. With
   `final: "reset"`, `F2` exists only if the losers' side winner takes `F`.
 - **The race** for a fixture: `race.f` for `F`, `F2` and `T` when set, else `race.l` on the
-  losers' side when set, else `race.w`.
+  losers' side when set, else `race.w`. (2.33.1: `race.f` for any match named "Final". Session
+  8: with the handicap on, each side gets its own target from that race, §3.11.)
 - **A result that doesn't fit is ignored**, not trusted: wrong players for that fixture (its
   `ids` don't match the derived pair), nobody at the race, both at the race. `state` reports it
   as `ignored` so the organiser's page can show and clear it. This is the safety net behind the
@@ -415,6 +501,8 @@ tournaments/<id>
   final: "one" | "reset"            // double only
   third: true | false               // single only
   race: { w, l?, f? }               // racks; l and f only when they differ
+  handicap: "racks"                 // Session 8 (§3.11); missing = off
+  zargos: { "<id>": 612, … }        // Session 8: every entrant's rating, frozen at Start (500 if none)
   seeding: "random" | "rating"
   by: uid, byName                   // the organiser
   status: "open" | "live" | "done"  // Hold to discard deletes an open one (Session 2)
@@ -575,9 +663,38 @@ Not in the first plan: §9's first item, asked for on 2026-11-19. Design in §3.
 - [x] Start, the lobby and the draw sheet offer it; **Groups | Knockout**; the group tables.
 - [x] The proofs grow: six players through two groups and a knockout; groups at 6, 13 and 32.
 
+### Session 8 — handicapped races (a minor version, 2.34.0)
+
+§9's first item, asked for on 2026-11-20. Design in §3.11. No rules change. Don't run
+`make verify` while another session works in `pocket-instruments/`; run `node --test`,
+`node shared/smoke.mjs` and the `shared/proofs/rack-it-*.mjs` proofs instead.
+
+- [ ] `bracket.js`: `targets` on each fixture from `handicap` and `zargos` (importing
+      `raceChart` and `expectedShareA` from `./zargo.js`), `fits` with two targets,
+      `validResult` against them, `oldRace` only when off. Tests first: level targets when off
+      (every existing test still green, unchanged); a favourite as `a` and as `b`; equal ratings
+      level; a missing rating at 500; a result fitting the targets but not the plain race, and
+      the other way round; the 2.33.1 final allowance off when handicapped; the property test at
+      every size and format with the handicap on and random ratings, played to the end.
+- [ ] Start and the lobby: the **Handicap** row, the tournament line "· handicapped".
+- [ ] Draw and start: `zargos` written with `seeds`; the draw sheet's numbers, "no rating yet"
+      and round 1's targets.
+- [ ] Every `f.race` reader to `f.targets`: the steppers sheet, the match sheet and card, Your
+      path, the stale-result and "Nobody reached" words.
+- [ ] Score it in Rack It: `setup.tour.targets`, `handicap: "racks"`, `proposeTargets()` leaving
+      the frozen targets alone, the setup card's words.
+- [ ] `rateResult`: `handicap: "racks"` and the targets on the match it writes.
+- [ ] Proofs: `rack-it-tournament.mjs` grows a handicapped tournament (starter ratings set far
+      enough apart for uneven targets: 650 against 450 is 3 v 1 at race to 3): the draw sheet's numbers and
+      targets; a typed result fitting the targets that wouldn't fit the plain race; a scored
+      match locked to the targets; the finish rating it as racks. `rack-it-bracket-sizes.mjs` at
+      8 and 32 with the handicap on (the caps label "race to 5 v 3" at 360px, largest text).
+- [ ] `rack-it/SPEC.md` §5.1 gains the handicap; §0 decision 7 and §9 here updated; a handover
+      note.
+
 ## 9. Parked (in rough order of wanting)
 
-- **Handicapped races**: Rack It's race chart per fixture from the two ratings (spec §4).
+- ~~Handicapped races~~: designed in §3.11, built in Session 8.
 - **The points games** (11-Point-Nine, Golden-Nine, Ten-Point-Eight): a fixture decided by a
   match in Rack It only, since their results aren't a race in racks.
 - **At the club**: `venue: "sessions"` set by staff from the loyalty app, points for entering
