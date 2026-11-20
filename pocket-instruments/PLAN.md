@@ -242,27 +242,210 @@ D50, agreed by the owner in four points. Details: Handover, "Session 8".
 - [x] Every number that shapes a sample in one block; `VOICES.md` "Tuning a sample".
 - [x] The engine is 2 328 bytes: every fixed room is 4 KiB (it was 2 KiB after Session 7).
 
-## Session 9 — the instrument, planned (design, Fable; next)
+## Session 9 — the instrument, planned (design, Fable; done 2026-11-20)
 
-Everything the instrument is built from now exists: sixteen voices or samples, the
-sequencer, `FIRE`, edits, snapshots, both hosts, and a draft workflow (`WORKFLOW.md`, built
-from as it stands, D29). What is missing is the design that joins them: the tiny rhythm
-machine (D12) as a page and a Rack module, in the Loom look (`design/DESIGN.md`). A design
-session, because it decides; the builds after it are Opus's.
+Everything the instrument is built from existed: sixteen voices or samples, the sequencer,
+`FIRE`, edits, snapshots, both hosts, a draft workflow. This session designed the join. No
+code. The owner ruled on six questions, all as recommended (D51 to D56); what was settled
+without asking is D57, proposed.
 
-It must decide, each with a recommendation for the owner:
-- **Where keys are interpreted:** in the core (`KEY_DOWN`/`KEY_UP`, reserved by D26), so
-  both hosts behave alike (D22), or in each host, sending edits.
-- **Snapshot version 2:** the sliders, D50's switch per key, master volume and tempo
-  presets; and how version 1 loads into it.
-- **What a slider move does to a sounding voice:** built as "waits for the next hit",
-  never ruled (D44's open list).
-- **The page's first scope:** which `WORKFLOW.md` rows are in the first build (the "in" rows,
-  or fewer), and the display (the weaving, O12).
-- **The build sessions after it,** each small enough to prove.
+- [x] Where keys are interpreted: in the core, which also says what to light (D51).
+- [x] Snapshot version 2, and how version 1 loads into it (D55).
+- [x] A slider and a sounding voice: it waits for the next hit (D56).
+- [x] The first scope: every "in" row (D52). The display: plain first, the weave after, drawn
+      once in the core (D53). The slider caps follow the chosen sound (D54).
+- [x] The contract: `ENGINE.md` §13 keys, §14 the view, §15 snapshot version 2, §16 the weave.
+- [x] The readings taken where nobody knows the hardware: `WORKFLOW.md`, "What the first
+      build does".
+- [x] The build sessions: 10 to 14, below.
 
-Meanwhile, the owner's hands, none blocking: P8 by ear against the PO-12 (which keys to
-switch to samples, and the first settings); P4 on an iPhone; P5 on someone else's machine.
+### How the pieces join
+
+```
+finger ─► host ─ KEY_DOWN / KEY_UP / PARAM ─► core: keys ─► edits, FIRE ─► sequencer ─► voices ─► sound
+                                                │
+lights, caps, display ◄─ host draws ◄─ view ◄───┘        saved beat ◄─► snapshot version 2
+```
+
+- **A host sends what a finger did and draws what it is told.** The core holds the
+  workflow (which key is held, write, the chosen sound, volume) and turns presses into the
+  edits and `FIRE` that already exist. Nothing below the keys changes.
+- **The view** is one 64-byte block the core fills: three masks for the grid's lights, the
+  sliders as they should show, the playhead, and a count of firings per track. The page
+  and the Rack module read the same block, so they cannot light differently.
+- **The snapshot** grows to hold what the keys can now change (sliders, the code-or-sample
+  switch, volume, the chosen sound). An old one still loads.
+- **The page** is the worklet that exists plus a face: keys and sliders send three message
+  kinds; the view comes back as a message. Multi-touch is real, so nothing latches.
+- **The Rack module** is the Probe's plumbing (`handoff.hpp`, the clock, reset, the saving
+  scheme) plus a face: every key and slider a Rack parameter, the view handed to the
+  drawing thread through `pi::Latest`. A click latches (D23, D57).
+- **The weave** is a pure function from a view to a grid of cells, in the core. Each host
+  paints cells.
+
+### Rules for Sessions 10 to 14
+
+The standing ones: stable Rust; voices use only `+ − × ÷`; no trace and no pass bar is
+edited; every new check fails once on a fault put in on purpose; `make verify` before a
+push; no Teenage Engineering material. And for these five:
+
+- **Decide nothing.** `ENGINE.md` §13 to §16 and D51 to D57 are the brief. Where they are
+  silent or wrong, stop, write the question into the Handover, and build round it.
+- **Expected output before the core runs it:** a fixture's trace and views are worked out by
+  hand from `ENGINE.md`, committed, and only then run (as `reset-mid-bar` was).
+- **What exists does not move** unless the session says so: the four fixtures' traces and
+  the 114 render pairs stay the same bytes.
+- Each session ends by moving its sections of `ENGINE.md` from "designed" to built, with
+  what turned out different marked, and by writing `LEARNINGS.md` and the Handover.
+
+## Session 10 — the workflow in the core: keys and the view (build, Opus; next)
+
+ABI 4. `ENGINE.md` §13 and §14. No host gains a face yet.
+
+- [ ] **Fixture format 2** in `fixtures/README.md`: format 1 plus `key_down`, `key_up`
+      (`key`) and `param` (`slider`, `value`), and `views`: `{"at": n, "view": "…"}`, §14's
+      text line. A key or slider lands **one frame after** its step's boundary, after that
+      frame's other commands, so anything it fires carries that step's tick 0 on both clock
+      sources and at every rate. A view is read where run step `at` ends: the harness ends
+      a block at `F(at + 1)` and calls `pi_view`. A fixture that changes the tempo fires
+      nothing and is not played (its trace is empty): `F` stays true to `mbpm`.
+      **A fixture starts and stops with the `play` edit, never the play key:** the key
+      restarts the table clock and cannot restart an external one (§13), so the two runs
+      would rightly give two traces. The play key is a rule test on each source instead.
+- [ ] **Three fixtures by hand, before the code:**
+      `keys-write-a-beat` (choose sounds, write on, set and remove steps, with the `play`
+      edit at step 0; views in write mode show field and stitch);
+      `keys-tap-and-choose` (write off: taps fire and do not choose; sound + key chooses
+      and fires; the bar; `fires` counting);
+      `keys-bpm-family` (stopped: a clean release steps 120, 140, 80; bpm + B sets a fine
+      tempo and does not step; bpm + A swing; bpm + key volume and the field row;
+      function + pattern clears; a `PARAM` equal to the shown value changes nothing).
+- [ ] `core/src/keys.rs`, `pi_view`, the volume on the mix. The header: `PI_ABI_VERSION` 4,
+      `PI_VIEW_SIZE`, the three commands no longer "reserved".
+- [ ] Rust rule tests, one for each row of §13's tables and §14's "what the grid shows",
+      plus: a repeated `KEY_DOWN` and a stray `KEY_UP` do nothing; `PARAM` with every shown
+      value (49 swings, 181 tempos) is a no-op; a tap, a hold, play and write leave
+      `pi_generation` alone; volume 16 renders the bytes volume had no say in, and volume 8
+      is a quarter of them.
+- [ ] All three harnesses run format 2: `cargo test`, Node on the `.wasm`, C++. One report.
+- [ ] `harness/race.cpp`: keys and sliders among its messages; still clean.
+- [ ] Every host on ABI 4: the worklet, the Probe, `web/pi_core.wasm` rebuilt. `make test`,
+      `make p4`, `make listen`, `make -C rack selftest` pass. The four fixtures and the 114
+      render pairs: the same bytes as before this session.
+
+## Session 11 — snapshot version 2, and voices with the mix (build, Opus)
+
+ABI 5. `ENGINE.md` §15.
+
+- [ ] **First, before any change:** save each fixture's version 1 snapshot from today's core
+      into `fixtures/snapshots-v1.txt` (name and hex; the Node report already prints them).
+      They are the proof that every version ever written still loads.
+- [ ] Version 2 in `core/src/snapshot.rs`: save, load both versions, the clamps.
+      `PI_SNAPSHOT_SIZE` 388, `PI_SNAPSHOT_SIZE_V1` 316.
+- [ ] Tests: each version 1 snapshot loads and gives its fixture's trace, and has the
+      starting values in every new field; save, load into a fresh engine, the same view and
+      the same render; a flipped bit in each new field is refused; a version 3 is refused;
+      a version 2 cut to 316 bytes is refused; the generation moves on each new saved thing
+      and only when its value changes.
+- [ ] Every fixed 316 and every fixed room: `harness/trace.test.mjs`, `harness.cpp`,
+      `race.cpp`, `rack/check-patch.mjs`, the Probe's `Snap`, the worklet. Search, do not
+      remember (`LEARNINGS.md`, Session 8).
+- [ ] `PI_AUDIO_BOTH`, 17 channels. A render scenario holds channels 0 to 15 to layout 16's
+      bytes and channel 16 to layout 1's, natively and from the `.wasm`.
+- [ ] The Probe loads a patch saved before this session (a version 1 snapshot in it):
+      headless, "1 loaded".
+
+## Session 12 — the page: playable on a phone (build, Opus)
+
+`web/rhythm.html`, in the Loom look (`design/DESIGN.md`, "The phone"; `design/loom/phone.html`
+is the picture). Finishes P6. This is the first build the owner can play.
+
+- [ ] The worklet: `KEY_DOWN`, `KEY_UP`, `PARAM` by message; the view posted back (§14's
+      rule for when); the snapshot posted when the generation moves, a few times a second
+      at most; a load by message, between blocks.
+- [ ] The face: the plain display (tempo, `bpm`, the write mark, the step number, sixteen
+      step marks; the weave's area left as bare display), sixteen keys, seven function
+      keys, two sliders. Everything lit from the view; the page keeps no copy of the
+      workflow. Pointer events with capture, several at once; nothing latches.
+- [ ] Sound starts on the first touch, and that touch counts as a press.
+- [ ] Computer keys (D57 item 5).
+- [ ] The beat is kept in the browser (the snapshot, base64) and is there after a reload.
+- [ ] Below the instrument: the sixteen code-or-sample switches with All code and All
+      samples (from `listen.html`), and the credits (D7, and the README's second paragraph).
+- [ ] Reduced motion respected; nothing under 16 px; every state without hue, as
+      `loom/states.html` shows.
+- [ ] `make play` (`web/play.mjs`, both desktop browsers, as `listen.mjs` does): enter
+      `straight-sixteenths`' pattern by keys while stopped, press play, and the worklet's
+      trace is that fixture's (the play key resets, so ticks start at 0); press
+      `keys-bpm-family`'s keys and the last view, as text, is the fixture's last; every
+      key's drawn state equals the view it was drawn from; two pointers held at once choose
+      a sound; a reload brings the beat back. Each fails once on a planted fault.
+- [ ] **P6's browser half:** enter a P2 fixture's pattern by keys while it plays, take the
+      saved snapshot from the page, load it in `target/harness`: that fixture's trace.
+      Fill in `PROOFS.md` P6.
+- [ ] Not built: a link that carries a beat, an offline shell, the weave.
+- [ ] For the owner after it: play it on the phone beside the PO-12 and start P8's list;
+      tick or correct `WORKFLOW.md`'s readings.
+
+## Session 13 — the Rack module (build, Opus)
+
+`rack/src/Rhythm.cpp`, 24 HP, on `design/panel.svg`, at `design/DESIGN.md`'s positions. The
+Probe is its template and stays as it is.
+
+- [ ] The module: every key and both sliders are Rack parameters; `process` turns a
+      parameter's change into `KEY_DOWN`, `KEY_UP` or `PARAM` on that frame. CLOCK patched:
+      edges; unpatched: the table clock. RESET, with CLOCK ignored for 1 ms after.
+      `PI_AUDIO_BOTH`: VOICES sixteen channels at 5 V to 1.0; AUDIO the mix, bent by tanh
+      towards 10 V as the Probe does; TRIGGERS 10 V for 1 ms a firing, sixteen channels.
+      Never a non-finite sample (`RACK-RULES.md`).
+- [ ] The view to the drawing thread through `pi::Latest`; the snapshot saved and loaded as
+      the Probe does (D43). The starter pack loaded as the Probe does.
+- [ ] The widgets, drawn from the view: keys with field, frame, white, stitch and bar;
+      function keys idle, pressed, latched; slider caps that follow the shown value unless
+      held; sockets; the plain display. JetBrains Mono ExtraBold in `res/`, with its
+      licence (OFL).
+- [ ] The latch (D57 item 4) and the computer keys while the pointer is over the module
+      (item 5). ⚠ R25: whether Rack reports several keys held at once is found out here.
+- [ ] The menu: each key's code or sample, All code, All samples.
+- [ ] **A self-test in Rack itself:** a patch that names a format 2 fixture makes the module
+      press its own parameters (and send the fixture's `play` edit) and hold its events and
+      views to the fixture, with a light, as the Probe does. `rack/selftest.sh` runs it headless at three rates.
+- [ ] `rack/check-dist.sh` and CI still green on all four platforms.
+- [ ] Not built: sliders under CV, the neighbour connection (D40), the tempo-voltage clock,
+      a player's own samples (D34), the expander.
+- [ ] For the owner after it: the look in Rack at 100% (the ⚠ rows of `DESIGN.md`'s table);
+      the latch by hand; MIDI-Map on a slider (D54's ⚠).
+
+## Session 14 — the weave (build, Opus, with the owner's eye)
+
+ABI 6. `ENGINE.md` §16, `design/DESIGN.md` "The animation", `design/loom/frames.html`.
+
+- [ ] The view's bytes 48 to 55, filled by the sequencer; fixtures' view text is unchanged
+      (it leaves them out). Rust tests for the three fields.
+- [ ] `pi_weave`: the seven rules as cells. Tests of the rules, not of a picture: stopped,
+      the cells do not depend on the tick; the beater is 1 cell wide at no firings and 4 at
+      sixteen; a beat with nothing set weaves one stitch; reduced motion never draws white
+      rows. Natively and from the `.wasm`, the same bytes for a set of views.
+- [ ] The page paints the cells (its own instance of the `.wasm`), the Rack display paints
+      the same cells. Neither holds a rule.
+- [ ] The owner watches it move, on the phone and in Rack. What is wrong is changed in the
+      core, once. When it is accepted, three views and their cells are committed as the
+      picture to hold to.
+- [ ] `DESIGN.md`'s "Not done" list brought up to date.
+
+## After Session 14
+
+In the order they are likely wanted; none is planned in detail yet.
+
+- **P8,** the owner's: the list of differences against the PO-12, and which keys become
+  samples. It starts after Session 12.
+- **The showpiece's last mile (D19):** a link that carries a beat (the snapshot in the URL),
+  `web/` opening on the instrument, an offline shell. Then P9 and the approach to Teenage
+  Engineering.
+- **Live record,** the first "later" row: fixture format 3 for a press inside a step.
+- A gesture for probability and a short length (O10). The hat cut (D47). A player's own
+  samples (D34). The neighbour connection (D40). The expander (D33).
+- Still the owner's hands: P4 on an iPhone and the tap film; P5's loads and VCV's reply.
 
 ## After the gate
 
@@ -614,3 +797,17 @@ the numbers stay easy to tweak.
 - **Next build:** carry on with the rest (Session 3's list): edits from a UI once
   `WORKFLOW.md` says what a press does; or the instrument's own panel.
 
+
+### After Session 9: the instrument, planned (2026-11-20)
+
+- **Designed, nothing built.** Keys go into the core and the core tells both hosts what to
+  light (D51). The contract is `ENGINE.md` §13 to §16; the sessions are 10 to 14 above.
+- **The owner ruled on six questions,** all as recommended: D51 to D56. D46's annotation is
+  closed: the slider waits for the next hit (D56) and snapshot version 2 is laid out (D55).
+- **D57 is proposed and built on:** eight things settled without asking, among them the
+  readings of the hardware nobody could check. The ones the owner would feel: choosing a
+  sound plays it; the tempo preset changes when bpm is let go; in Rack that is two clicks.
+- **Not verified, because nothing ran:** the view's 64 bytes and the snapshot's 388 are laid
+  out on paper. Session 10's first job, fixtures by hand, is where a mistake in §13 or §14
+  shows. The weave's cell size is to be read off `frames.html` in Session 14.
+- **Next: Session 10, on Opus.** Nothing waits on the owner.

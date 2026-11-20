@@ -1,6 +1,6 @@
 # Pocket Instruments
 
-**Status:** P1, P2, P3 and P7 passed. P4, P5 and P6 are part-run (2026-11-19): the core runs in
+**Status:** P1, P2, P3 and P7 passed. The instrument is designed (Session 9, 2026-11-20) and not built: `PLAN.md` Sessions 10 to 14. P4, P5 and P6 are part-run (2026-11-19): the core runs in
 Rack and in an AudioWorklet, on a phone too, and plays all sixteen voices; CI builds the plugin
 for all four Rack platforms. Each key plays its code voice or a sample (D50). What is left needs an iPhone, other machines and the instrument
 itself (`PROOFS.md`). Started 2026-11-18.

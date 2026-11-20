@@ -19,6 +19,10 @@ length, reset, the table clock and external clock edges. No sound, no keys, no p
 (`pi_set_sample`), one command (`VOICE`) and §12. Every trace, record, snapshot and code
 voice's render is as it was (108 of 108 renders from ABI 2's core, the same bytes).
 
+**Designed, not built (Session 9, D51 to D57):** §13 to §16 are the instrument: keys, the
+view, snapshot version 2 and the weave. Sessions 10, 11 and 14 build them (`PLAN.md`); each
+moves `PI_ABI_VERSION` by one. Until a section's session is done, the code does not do it.
+
 ## 1. The shape
 
 One engine is one clock feeding one sequencer, in memory the host provides.
@@ -463,3 +467,181 @@ Added in Session 8. Each track can play a sample in place of its code voice.
 - **Proven:** `core/src/tests/samples.rs`, and `harness/render-samples.json` (every track on
   its sample, half switched back mid-way) to the same bytes natively and from the `.wasm`.
 
+
+## 13. Keys (designed in Session 9; D51, D52, D54; built in Session 10)
+
+The reserved commands 32 to 34 come alive. The core holds the workflow (`WORKFLOW.md`), so a
+press means the same on both hosts, and tells them what to light (§14). A host sends what a
+finger did and draws what it is told. Edits (16 to 22) still work beside keys and show in
+the view like any other change.
+
+State, all in the engine: `held` (one bit a key, 0 to 22), `write` (off at `pi_init`), the
+chosen sound (track 0 at `pi_init`), `volume` (1 to 16; 16 at `pi_init`), and whether
+anything has used the bpm key since it went down.
+
+Total behaviour: a key number past 22 is ignored; `KEY_DOWN` on a key already held and
+`KEY_UP` on one not held are ignored (a keyboard repeats).
+
+**`KEY_DOWN` on grid key *n*.** The first row that applies, in this order:
+
+| When | It does |
+|---|---|
+| bpm is held | `volume` becomes *n* + 1. Uses bpm |
+| sound is held | the chosen sound becomes track *n*, and it fires as `FIRE` does ⚠ |
+| pattern, fx or function is held | nothing (later rows of `WORKFLOW.md`) |
+| write is on | step *n* of the chosen sound flips, as `STEP` would. No sound |
+| otherwise | track *n* fires, as `FIRE` does. The chosen sound does not change |
+
+**`KEY_DOWN` on a function key.**
+
+| Key | It does |
+|---|---|
+| play | Stopped: on the table clock, `RESET` then `PLAY 1` (it starts on this frame, from step 1; §9's host policy moves here); on edges, `PLAY 1` alone (step 1 at the next edge). Playing: `PLAY 0` |
+| write | flips `write` |
+| pattern | with function held: clears the pattern. Every track's steps go off and every probability back to 100. Length, swing, tempo, sliders and volume stay. Otherwise only held |
+| sound, bpm, function, fx | only held |
+
+**`KEY_UP`.** The key is no longer held. If it is bpm and nothing used it while it was down,
+the tempo moves to the next preset: the lowest of 80, 120 and 140 bpm above the tempo now,
+or 80 if there is none. At once ⚠.
+
+**`PARAM`** (`a` 0 = slider A, 1 = B; `value` 0 to 65535, clamped):
+
+| When | It does |
+|---|---|
+| its value is the one the view shows for that slider now (§14) | nothing. This is what lets a host move a cap to follow the view without an echo |
+| bpm is held | A: swing = `(value × 48 + 32767) / 65535`. B: tempo = 60 + `(value × 180 + 32767) / 65535` whole bpm. Uses bpm |
+| otherwise | `SOUND` on the chosen sound: that slider, that value |
+
+A slider is read when its voice is next hit and never moves one that is sounding (§11;
+ruled in D56).
+
+**Volume.** The mix is multiplied by `(volume / 16)²` after the sum. At 16 that is × 1, so
+every render made before ABI 4 is the same bytes. The sixteen track channels are not
+scaled: they are the direct outputs, before the master, as on a drum machine (D57).
+
+**Generation.** A key or slider moves `pi_generation` when it changes something a snapshot
+holds (§15), and not otherwise: a tap, a hold, play and write do not.
+
+⚠ marks the plainest reading where the guide and the search are silent (D29): whether
+choosing a sound plays it, whether bpm acts on release, whether a tempo change is at once.
+Each is one line in `core/src/keys.rs` and one row in `WORKFLOW.md`.
+
+## 14. The view (designed in Session 9; D51; built in Session 10)
+
+```
+bytes = pi_view(engine, buf, cap)        /* PI_VIEW_SIZE (64), or 0 if cap is too small */
+```
+
+Everything a host draws, as one fixed block. Called on the audio thread like every other
+function on an engine (§8). It moves nothing: not the generation, not a counter.
+
+| Offset | Size | Field |
+|---|---|---|
+| 0 | 4 | tick: the latest tick emitted, 0 before any |
+| 4 | 4 | tempo, thousandths of a bpm |
+| 8 | 4 | held: bit *k* is key *k* down |
+| 12 | 2 | field: bit *n* lights key *n*'s face |
+| 14 | 2 | stitch: bit *n* puts the corner stitch on key *n* |
+| 16 | 2 | bar: bit *n* puts the bar on key *n* |
+| 18 | 2 | sampled: bit *t*, track *t* plays its sample (D50) |
+| 20 | 2 | slider A as it should show, 0 to 65535 |
+| 22 | 2 | slider B as it should show |
+| 24 | 1 | flags: bit 0 playing; 1 write; 2 the source is edges; 3 a step has played since play (the next byte means something); 4 the grid is sounds |
+| 25 | 1 | the playhead's step, 0 to 15 |
+| 26 | 1 | the chosen sound |
+| 27 | 1 | volume, 1 to 16 |
+| 28 | 1 | length |
+| 29 | 1 | swing |
+| 30 | 2 | zero |
+| 32 | 16 | fires: for each track, how many times it has fired, wrapping at 256 |
+| 48 | 16 | zero until §16 |
+
+**What the grid shows** (`design/DESIGN.md`; D37, extended by D51 to the held keys). The
+first row that applies:
+
+| When | field | stitch | bar | grid is sounds |
+|---|---|---|---|---|
+| bpm held | keys 1 to `volume` | none | none | no |
+| sound held | none | none | the chosen sound | yes |
+| pattern held | none | none | key 1 (the one pattern) | no |
+| write on | the chosen sound's steps | steps of any other sound | none | no |
+| write off | none | none | none | yes |
+
+**The sliders as shown:** with bpm held, A is `swing × 65535 / 48` and B is
+`(bpm − 60) × 65535 / 180`, the tempo taken in whole bpm and held to 60 to 240. Otherwise
+the chosen sound's own A and B. `PARAM` with a shown value changes nothing (§13), so the
+two directions cannot drift.
+
+**What a host does with it, and nothing more:**
+
+- Lights each grid key from the three masks. Frame: on the playhead's key while flags 0 and
+  3 are set. White: the key is in `held`; or, while the grid is sounds, track *n*'s `fires`
+  has moved since the host last looked (it holds the white for half a step at the view's
+  tempo, between 40 and 120 ms).
+- Function keys: pressed while in `held`; play lit while playing, write while write is on.
+- Moves a slider's cap to its shown value unless a finger is on it.
+- Hands it on when anything past the first four bytes has changed, and at least sixty
+  times a second while playing. Rack: `pi::Latest` (§8). The worklet: a message.
+- Counters, not flags, for firing: a host that misses a view loses nothing, and reading
+  one clears nothing.
+
+**As text**, for fixtures: one line, the tick and bytes 48 to 63 left out, masks and `held`
+in hex, `step` a dash when flag 3 is clear, `fires` as sixteen numbers:
+
+```
+view play=1 write=1 edges=0 sounds=0 step=4 sel=0 vol=16 tempo=120000 len=16 swing=0 held=000000 field=1111 stitch=0404 bar=0000 sampled=0000 a=32768 b=32768 fires=2,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0
+```
+
+## 15. Snapshot version 2 (designed in Session 9; D55; built in Session 11)
+
+388 bytes. Bytes 0 to 311 are version 1's (§8) with version 2 and payload size 372. Then:
+
+| Offset | Size | Field |
+|---|---|---|
+| 312 | 64 | sliders: track by track, A then B, a u16 each |
+| 376 | 2 | sampled: bit *t*, track *t* plays its sample (D50) |
+| 378 | 1 | volume, 1 to 16 |
+| 379 | 1 | the chosen sound, 0 to 15 |
+| 380 | 1 | hat cut: 0. Room for D47's setting; no core writes anything else yet |
+| 381 | 3 | zero |
+| 384 | 4 | CRC-32 of bytes 0 to 383 |
+
+- **Not saved:** write mode, held keys, playing, the playhead, the clock source (the
+  moment's and the host's, as in §8); the samples themselves (the host's, §12); the tempo
+  presets (fixed).
+- **The core writes version 2 only.** `PI_SNAPSHOT_SIZE` is 388; `PI_SNAPSHOT_SIZE_V1` 316.
+- **It loads both.** §8's checks in §8's order, with the size and the CRC's place taken
+  from the version. A version 1 load sets what it does not hold to `pi_init`'s values:
+  sliders at their middles, every key on code, volume 16, key 1 chosen. Values no core
+  writes are clamped (a volume of 0 is 1); a hat cut that is not 0 loads as 0.
+- **Generation** now also moves on `SOUND`, `VOICE`, a volume or chosen-sound change, each
+  only when the value changes.
+
+Also Session 11's, because the Rack module needs the voices and the mix from one call: a
+third layout, `PI_AUDIO_BOTH` (17 channels): tracks 0 to 15 as layout 16 gives them, then
+the mix as layout 1 gives it, volume and all. Each must be the same bytes as its own layout.
+
+## 16. The weave (designed in Session 9; D53; built in Session 14)
+
+The display's animation is drawn once, in the core, as cells: both hosts paint the same
+grid and neither holds a drawing rule.
+
+```
+cells = pi_weave(view, len, flags, out, cap)    /* PI_WEAVE_W × PI_WEAVE_H, or 0 */
+```
+
+- **A pure function of a view block.** No engine, no state, no floats. Because it takes no
+  engine, §8's one-thread rule does not reach it: Rack's drawing thread calls it; the page
+  calls it in its own instance of the same `.wasm`.
+- **Cells** are 1 mm squares, row by row from the top left, one byte each, a palette number:
+  0 display, 1 thread, 2 ecru, 3 white, 4 ochre (`design/DESIGN.md`'s tokens). The size is
+  the weave's area on the display in whole mm, read off `design/loom/frames.html`.
+- **`flags`** bit 0: reduced motion (the shuttle jumps; rule 6's flash is off).
+- **What it needs, in the view's bytes 48 to 63:** 48, a u32, steps woven since play began
+  (0 at play; held when stopped); 52, a u16, bit *i* set if the step woven *i* steps ago had
+  any sound set when it was woven; 54, a u8, how many tracks have fired on the playhead's
+  step so far, taps included. With the tick (shuttle and flash position), flags and tempo
+  already there, `DESIGN.md`'s seven rules are a function of the block.
+- The host draws the rest of the display itself, from the view: the tempo, `bpm`, the write
+  mark, the step number, the sixteen step marks.

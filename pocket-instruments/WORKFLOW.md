@@ -60,6 +60,23 @@ instrument must choose first, it takes the plainest reading and says so below.
 10. **The key positions.** Which key sits where, row by row, for the keyboard mapping (D23).
 11. **Sizes, for D16:** board width and height, key pitch, jack spacing.
 
+## What the first build does (Session 9, 2026-11-20)
+
+Every **in** row above is in the first build (D52), with a tap in play mode playing that
+key's sound. Exactly what each press does is `ENGINE.md` §13. Where the guide and the search
+are silent, it takes these readings (D57), each one line to change:
+
+| ⚠ | Reading built | The question it guesses at |
+|---|---|---|
+| ☐ | Choosing a sound plays it | not asked above |
+| ☐ | bpm changes the preset when it is let go, and only if nothing else was done while it was held; so changing the volume or the swing never changes the tempo | not asked above |
+| ☐ | A tempo change is at once | 6 |
+| ☐ | Play always starts from step 1 | 7 |
+| ☐ | Write turns on at the press, not the release | will be asked again with live record |
+| ☐ | Clear empties every sound's steps | not asked above |
+| ☐ | Swing: the slider's bottom is none, its top is 48 of 96 ticks | 5 |
+| ☐ | Fine tempo moves in whole bpm, 60 to 240 | not asked above |
+
 ## What a search found (2026-11-19)
 
 Second-hand answers to the questions above, from R26 to R28. They replace a guess with a
@@ -122,8 +139,11 @@ D22 asks for every one to be listed and explained. So far:
 |---|---|
 | Sliders where the hardware has knobs | D20, D21: the look must be our own. They work the same way if question 4 is "absolute" |
 | In Rack, a click on a function key latches it | D23: a mouse is one finger |
+| In Rack the tempo preset is two clicks on bpm: one latches it, one lets it go | D57: the preset changes on release, and a click is a latch |
+| The slider caps move by themselves to the chosen sound's settings, and to swing and tempo while bpm is held | D54: what is seen is what is heard. A knob cannot; a drawn slider can |
+| While bpm is held the grid shows the volume as a row of lit keys | D51: glowing keys can say it; ⚠ what the hardware shows is not known |
 | Probability on a step | not on the hardware; the brief asks for it. It needs a gesture that does not collide with anything above. Open |
 | A length under sixteen | same |
 | One pattern at first | D12: the tiny rhythm machine comes first. Sixteen sounds from the start (D30) |
-| Our own sixteen sounds, in the same roles on the same keys | D31: synthesised by us, close in character, never sampled |
+| Our own sixteen sounds, in the same roles on the same keys | D31: synthesised by us, close in character, never sampled. (Since D35 and D50: or a public-domain sample, per key. Still nothing from the hardware) |
 | No sync modes, clock, alarm or battery | hardware business |

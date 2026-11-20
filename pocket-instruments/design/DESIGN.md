@@ -112,6 +112,11 @@ click latches any function key until the next grid press or a second click (D23)
 | White | a finger | a finger, or the key's sound firing |
 | Bar | off | the chosen sound, while sound is held or latched |
 
+While a function key is held the grid changes meaning, in either mode (D51; the core
+decides it, `ENGINE.md` §14): **sound held**, the grid is sounds and the bar marks the chosen
+one, fields off; **bpm held**, the fields of keys 1 to *n* are lit, *n* being the master
+volume; **pattern held**, the bar is on key 1. The frame runs throughout.
+
 This follows what a search found about the hardware (`WORKFLOW.md`, question 3: R26, R27),
 not a check on it. D30 gives all sixteen keys a track, so every key can fire.
 

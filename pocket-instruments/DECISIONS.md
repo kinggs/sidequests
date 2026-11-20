@@ -676,6 +676,98 @@ pointer": it keeps one kind, a sample's, and the contract says how long it must 
 Every number that shapes a sample is a first setting and sits in one marked block in
 `core/src/voice.rs` ("TUNING SAMPLES"); `VOICES.md` says how to move one.
 
+### D51 — The core interprets the keys and says what to light: the view
+**2026-11-20 · decided (owner, Session 9) · carries out D26; extends D37 to the held keys · ABI 4**
+
+Hosts send `KEY_DOWN`, `KEY_UP` and `PARAM`. The core runs the workflow and writes a
+64-byte view: which keys light and how, the sliders as they should show, tempo, write,
+the playhead, a count of firings per track. A host draws it and decides nothing.
+`ENGINE.md` §13 and §14.
+
+Why: D22 wants the phone and Rack to behave alike, and a lighting table written twice, in
+JavaScript and C++, can disagree. In the core the whole workflow is tested once, as
+fixtures. Not chosen: the core interpreting keys while each host works out its own lights;
+each host interpreting presses and sending edits.
+
+D37's table said nothing about a held function key. Now: sound held, the grid is sounds
+with a bar on the chosen one; bpm held, the fields show the volume; in either mode.
+
+### D52 — The first build is every "in" row of the workflow
+**2026-11-20 · decided (owner, Session 9) · scopes D12**
+
+Choose a sound, play, write, set a step, tap a key to hear it, sliders A and B, the tempo
+presets, fine tempo, swing, master volume, clear. The pattern and fx keys are drawn and
+press; only function + pattern does anything. No gesture for probability or a short length
+(O10 stays open; both survive in a snapshot), no live record, chains, effects or locks.
+
+Why: it is the whole of what `WORKFLOW.md` promises for the tiny rhythm machine, and the bpm
+family is needed for a phone to play at any tempo but 120. Not chosen: the loop alone;
+adding live record, which is first in line afterwards (it needs a press placed inside a
+step, and changes what a press on write does).
+
+### D53 — A plain display first; the weave once, in the core, as cells
+**2026-11-20 · decided (owner, Session 9) · carries out D36's display**
+
+The first page and Rack module show the tempo, the write mark, the step number and the
+sixteen step marks. The weave then has its own session: the core draws it as a grid of 1 mm
+cells, each a palette number, and both hosts paint the cells (`ENGINE.md` §16).
+
+Why: nobody has seen the animation move, so it will be tuned by eye, and one drawing is
+tuned once. It is integers only, the same on both hosts, and testable as bytes. Not
+chosen: a canvas version and a NanoVG version; holding the first playable build for it.
+
+### D54 — The slider caps follow the chosen sound
+**2026-11-20 · decided (owner, Session 9) · answers `WORKFLOW.md` question 4 for us · a deliberate difference**
+
+Choosing a sound moves both caps to that sound's own A and B; holding bpm moves them to
+swing and tempo. The view carries the value to show, and a `PARAM` equal to it changes
+nothing, so a host can move a cap without sending an edit.
+
+Why: what is seen is what is heard, and nothing jumps in sound at a touch. A knob cannot
+do this; a drawn slider can. Not chosen: caps that stay where the hand left them.
+⚠ In Rack the module moves its own parameter; how Rack's MIDI-Map behaves when it does is
+to be tried at P8.
+
+### D55 — Snapshot version 2
+**2026-11-20 · decided (owner, Session 9) · closes D44's and D50's open item; makes room for D47**
+
+Version 1 plus each key's sliders, each key's code-or-sample switch, master volume, the
+chosen sound, and a byte for the hat cut. 388 bytes. Not saved: write mode (a shared beat
+should play when tapped, not be edited), held keys, playing. The tempo presets are fixed,
+not saved. Version 1 loads, with the new fields at their starting values; the core writes
+version 2 only. `ENGINE.md` §15.
+
+### D56 — A slider waits for the voice's next hit
+**2026-11-20 · decided (owner, Session 9) · rules on what §11 built · closes D44's open list**
+
+A sounding voice keeps the pitch and length it was hit with. Why: it is built, tested and
+bit-identical; it is what a per-step slider lock will be; and the drums are short. To hear
+again at P8: the long tones, where a moving pitch might be missed.
+
+### D57 — What Session 9 settled without asking, for the builder
+**2026-11-20 · proposed · built on from Session 10 · the owner can overrule any of it cheaply before then**
+
+1. **Master volume scales the mix only,** by `(volume / 16)²`; the sixteen track channels
+   are direct outputs, before the master. It starts at 16, so no earlier render moves.
+2. **A third audio layout,** 17 channels: the sixteen tracks, then the mix. Rack needs
+   VOICES and AUDIO from one call.
+3. **The plainest readings, each ⚠ in `WORKFLOW.md`:** choosing a sound plays it; bpm
+   changes the preset on release, and only if nothing else used it while held; a tempo
+   change is at once; write flips on the press; clear empties every sound's steps and puts
+   every probability back to 100.
+4. **The latch in Rack (D23), made exact.** Sound, pattern, bpm, function and fx latch on a
+   click and let go on a second. Play and write never latch. A grid click lets every
+   latched key go when it ends. A click on a second latching key while one is latched is a
+   press and release of the second, then the first lets go (function, then pattern, is
+   clear). A slider drag lets nothing go. So in Rack the tempo preset is two clicks on bpm.
+5. **Computer keys (D28):** `1234`, `qwer`, `asdf`, `zxcv` for the grid; `7 8 9` for
+   sound, pattern, bpm; `u i o p` for function, fx, play, write. Real holds, no latch.
+6. **Names for now:** the page is `web/rhythm.html` and the Rack module's slug is `Rhythm`.
+   ⚠ A slug cannot change once published: O3 (the name) is settled before any release.
+7. **The Probe stays** as P3's proof and keeps its own saved Sounds setting.
+8. **The page's code-or-sample switch per key (D50)** is a sheet below the instrument, not
+   on its face, with the credits (D7).
+
 ## Open
 
 | ID | Question | Needs |
@@ -690,7 +782,7 @@ Every number that shapes a sample is a first setting and sits in one marked bloc
 | O8 | ~~Answered by D23.~~ The hardware is played with two fingers: hold a function key, press a grid key or turn a knob. A mouse has one pointer. How are combinations made in Rack? Proposed: a click on a function key latches it (it glows) until the next grid press or a second click; computer keys held while hovering also work. The phone browser has real multi-touch and needs neither | Session 1, with D22 in mind; try it at P8 |
 | O11 | ~~On the hardware each grid key is its own sound in play mode (R26, R27). Sixteen tracks from the start, or four and twelve dead keys?~~ | Answered 2026-11-19: D30 |
 | O12 | ~~Answered 2026-11-19: the owner is content with the textile theme ("I think"). It still goes to O7 and D19 at P9.~~ The chosen look, Loom, animates a loom weaving with a shuttle and thread. The original's protected display art (R6) shows a sewing machine and thread spools. Different drawing, neighbouring subject. Is a textile theme far enough away, or should the display's subject move? | The owner, before the look is built on; then O7 and D19 at P9 |
-| O10 | Probability and a short length are not on the hardware. What gesture sets them without colliding with its combinations? | `WORKFLOW.md`, after the hardware hour |
+| O10 | Probability and a short length are not on the hardware. What gesture sets them without colliding with its combinations? | `WORKFLOW.md`, after the hardware hour. Not in the first build (D52) |
 | O13 | ~~Answered 2026-11-19 for now: D47.~~ Do the hats cut each other off, and which way? `VOICES.md` says the open hat (4) cuts the closed (3) "as a real hat does"; on a real hat it is the closed that cuts the open. The hardware's behaviour is not known. Built 2026-11-19 with neither cutting the other. Recommended: closed cuts open, as a kit does, then checked on the PO-12 (D29). Cost either way: a few lines in `Voices::trigger`; the sixteen-channel layout (D33) shows the cut in track 3's channel | The owner; the hardware when to hand |
 | O14 | ~~Answered 2026-11-19, provisionally: D48.~~ The mix now passes 1: the four drums together peak at 2.1 (+6.6 dB, `harness/render-beat.json`). Where is it kept in bounds: a level and a limiter in the core, or each host saturating (D44's open item; `ENGINE.md` §10 put it "with the second voice")? Meanwhile the Rack Probe bends its output with tanh towards 10 V, so it can be heard; the browser page does nothing. Recommended: a fixed master level in the core (so a phone and Rack sound alike, D22) and each host saturating at its own ceiling. A limiter in the core would have to stay bit-identical (`+ − × ÷` only) | The owner, before the instrument's own output is built |
 | O9 | ~~How do the three blocks stack on a phone, and does one instrument fill the screen or share it?~~ | Answered 2026-11-19: D36 |
