@@ -774,6 +774,44 @@ again at P8: the long tones, where a moving pitch might be missed.
 All eight items of D57 stand as written. The readings of the hardware in item 3 are still
 guesses (D29): each stays a ⚠ row in `WORKFLOW.md` until the PO-12 confirms or corrects it.
 
+### D59 — What `ENGINE.md` §13 and §14 did not say, as the core was built
+**2026-11-20 · ruled in Session 10, as its brief allows (`PLAN.md`), and built on · the owner can overrule any item; each is a line or two of `core/src/keys.rs` · as D42 was for §1 to §8**
+
+The contract held: the three fixtures worked out by hand from §13 and §14 passed at the
+first run, with no trace and no view edited. These are the places it was silent. Each is
+written into `ENGINE.md`, marked (D59), and held by a rule test.
+
+1. **The generation in ABI 4 follows snapshot version 1.** A step, clear, swing and the
+   tempo move it. The volume, the chosen sound and a sound's sliders do not until Session
+   11 puts them in version 2. Why: §13 says "something a snapshot holds", and the only
+   snapshot this core writes is version 1; a generation that moved for a volume key would
+   make every host save a snapshot identical to its last.
+2. **The view's flag 3** ("a step has played since play") is set by the first step after
+   play, or after a reset while playing, and is clear whenever the sequencer is stopped. So
+   stopped, no key carries the playhead's frame. Why: play always starts from step 1 (D57),
+   so a stopped playhead points at nothing. Not chosen: leaving it lit where it stopped.
+3. **"The tempo taken in whole bpm" is rounded down.** 97.5 bpm shows on slider B as 97.
+   Only a `TEMPO` edit can make a tempo that is not whole; keys cannot.
+4. **Field and stitch can share a key:** the stitch is every other sound's steps, including
+   where the chosen sound has one too. `design/DESIGN.md` already draws that state.
+5. **"Uses bpm"** is a grid key pressed or a slider moved while bpm is down, even when the
+   value it sets is not new. Another function key pressed with bpm down is not a use, and a
+   `PARAM` equal to the shown value is not one either: it is nothing at all, which is what
+   lets a host set its cap from the view while bpm is held and still get a clean release.
+6. **`fires` counts every firing,** whether or not its event found room, as a voice sounds
+   whether or not it did (§11). Nothing sets a count back.
+7. **A fixture's view is written for the table run;** the edges run expects `edges=1` in its
+   place. Why: the flag is true information for a host and belongs in the text; it is also
+   the one field that must differ between the two runs.
+8. **Small totals.** A `PARAM` for a slider that is neither A nor B is ignored. Play and
+   write act whatever else is held. Clear is function, then pattern: the other order is two
+   keys held.
+
+Also settled, about the harnesses and not the instrument: the Rack Probe and the P4 page
+stay on the four format 1 fixtures (neither has keys; Sessions 12 and 13 run format 2 in
+their own hosts), and `harness/race.cpp` hands a view between its threads as well as keys,
+which Session 10's list did not ask for and Session 13 will need.
+
 ## Open
 
 | ID | Question | Needs |

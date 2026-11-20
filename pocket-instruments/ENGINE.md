@@ -19,9 +19,16 @@ length, reset, the table clock and external clock edges. No sound, no keys, no p
 (`pi_set_sample`), one command (`VOICE`) and §12. Every trace, record, snapshot and code
 voice's render is as it was (108 of 108 renders from ABI 2's core, the same bytes).
 
-**Designed, not built (Session 9, D51 to D57):** §13 to §16 are the instrument: keys, the
-view, snapshot version 2 and the weave. Sessions 10, 11 and 14 build them (`PLAN.md`); each
-moves `PI_ABI_VERSION` by one. Until a section's session is done, the code does not do it.
+**ABI 4 (Session 10, D51)** adds keys and the view and changes nothing else: commands 32 to
+34 do what §13 says, one function (`pi_view`, §14), and the master volume on the mix. Every
+trace and snapshot is as it was, and every render (volume starts at 16, which is × 1): the
+four older fixtures and the 114 render pairs, the same bytes. Building it found eight places
+where §13 and §14 did not say what happens; they are marked (D59) below.
+
+**Designed, not built (Session 9, D51 to D57):** §15 and §16 are the rest of the instrument:
+snapshot version 2 and the weave. Sessions 11 and 14 build them (`PLAN.md`); each moves
+`PI_ABI_VERSION` by one. Until a section's session is done, the code does not do it.
+(§13 and §14 were in this list until Session 10 built them.)
 
 ## 1. The shape
 
@@ -234,13 +241,13 @@ One fixed record, 12 bytes, little-endian, no padding:
 | 20 | `SOUND` | `a` track, `b` slider (0 = A, 1 = B), `value` 0 to 65535, clamped. ABI 2. Not in snapshot version 1 (§11) |
 | 21 | `FIRE` | `a` track. ABI 2 (D45; accepted, D46). The track fires on this frame, playing or stopped: one `TRIG` with the latest tick and the playhead's step, and its voice. Changes no pattern, takes no draw |
 | 22 | `VOICE` | `a` track, `value` 0 its code voice, 1 its sample. ABI 3 (D50). Taken at the track's next hit; a track with no sample plays its code voice. Not in snapshot version 1 (§12) |
-| 32 | `KEY_DOWN` | `a` key. Reserved: ignored in ABI 1 |
-| 33 | `KEY_UP` | `a` key. Reserved |
-| 34 | `PARAM` | `a` slider (0 = A, 1 = B), `value` 0 to 65535. Reserved |
+| 32 | `KEY_DOWN` | `a` key. ABI 4: §13. (Reserved and ignored until then) |
+| 33 | `KEY_UP` | `a` key. ABI 4: §13 |
+| 34 | `PARAM` | `a` slider (0 = A, 1 = B), `value` 0 to 65535, clamped. ABI 4: §13 |
 
 Two families, on purpose (D26). **Edits** (16 to 19) say what the pattern becomes. **Keys**
-(32 to 34) say what a finger did; the workflow in `WORKFLOW.md` will turn them into edits
-inside the core, so both hosts get the same behaviour (D22, D23). The proofs use edits only:
+(32 to 34) say what a finger did; the workflow in `WORKFLOW.md` turns them into edits
+inside the core (§13, since ABI 4), so both hosts get the same behaviour (D22, D23). The proofs use edits only:
 the sequencer's fixtures then stay true however the workflow is settled.
 
 Key numbers, fixed now so hosts can map to them: 0 to 15 the grid, 16 sound, 17 pattern,
@@ -288,7 +295,8 @@ Two runs agree when their traces are the same bytes.
   sixteen voices it is 1 416 bytes, and every host's fixed room for it is now 2 KiB (the
   harness, the worklet and the Rack Probe; `core/src/tests/rules.rs` holds `pi_size` to it).
   With a sample beside each voice (§12) it is 2 328 bytes, natively and in WebAssembly, and
-  the room is 4 KiB. The samples themselves are in pages of their own after the host's.
+  the room is 4 KiB. With the keys (§13) it is 2 352 bytes, in the same room. The samples
+  themselves are in pages of their own after the host's.
   A host that can should ask `pi_size` instead.
 - **One thread.** Every function on an engine is called from the audio thread only. That
   includes the ones that only read: `pi_save` on another thread while `pi_process` runs is a
@@ -392,10 +400,10 @@ it is not, as the hardware runs alone.
 | Eleven of the sixteen voices | P7 needed one; the minimum beat four more | each is a struct in `core/src/voice.rs` beside the others; no interface changes |
 | The sliders in the snapshot | version 1 has no room and the keys that set them are not built | snapshot version 2, with the instrument |
 | A master level, a limiter, a mute mask for D33's expander | nothing summed until the drums | the level is done (D48). A master volume, a level per track and the mute mask: with the instrument |
-| Keys and sliders doing anything | the workflow is not confirmed on hardware | with the instrument, from `WORKFLOW.md` |
+| ~~Keys and sliders doing anything~~ | ~~the workflow is not confirmed on hardware~~ | Done in Session 10: §13, ABI 4. Built from `WORKFLOW.md` as it stands (D29) |
 | Sixteen patterns, chains | scope to decide | snapshot version 2 |
 | Parameter locks, step multiplier, effects | same | same |
-| A command in the middle of a step, in a fixture | on edges, a flush is one indivisible burst, so the position cannot be matched | fixture format 2, with live recording |
+| A command in the middle of a step, in a fixture | on edges, a flush is one indivisible burst, so the position cannot be matched | with live recording: fixture format 3. (Format 2, Session 10, puts a key one frame after its step's boundary, no further) |
 | A tempo change inside a fixture | the harness would need to re-anchor its step frames, as it now does for a reset (`fixtures/README.md`) | when a fixture needs one. Until then the Rust rule tests cover it (`core/src/tests/rules.rs`) |
 
 ## 11. Sound (ABI 2; D44; accepted, D46)
@@ -468,7 +476,7 @@ Added in Session 8. Each track can play a sample in place of its code voice.
   its sample, half switched back mid-way) to the same bytes natively and from the `.wasm`.
 
 
-## 13. Keys (designed in Session 9; D51, D52, D54; built in Session 10)
+## 13. Keys (ABI 4; designed in Session 9: D51, D52, D54; built in Session 10)
 
 The reserved commands 32 to 34 come alive. The core holds the workflow (`WORKFLOW.md`), so a
 press means the same on both hosts, and tells them what to light (§14). A host sends what a
@@ -480,7 +488,13 @@ chosen sound (track 0 at `pi_init`), `volume` (1 to 16; 16 at `pi_init`), and wh
 anything has used the bpm key since it went down.
 
 Total behaviour: a key number past 22 is ignored; `KEY_DOWN` on a key already held and
-`KEY_UP` on one not held are ignored (a keyboard repeats).
+`KEY_UP` on one not held are ignored (a keyboard repeats). A `PARAM` for a slider that is
+neither A nor B is ignored (D59).
+
+**Using bpm (D59).** "Uses bpm" below means: a grid key pressed, or a slider moved, while
+bpm is down, whether or not the value it sets is a new one. Not a use: another function
+key pressed while bpm is down, and a `PARAM` equal to the shown value (it is nothing at
+all). A new press of bpm starts unused.
 
 **`KEY_DOWN` on grid key *n*.** The first row that applies, in this order:
 
@@ -497,9 +511,12 @@ Total behaviour: a key number past 22 is ignored; `KEY_DOWN` on a key already he
 | Key | It does |
 |---|---|
 | play | Stopped: on the table clock, `RESET` then `PLAY 1` (it starts on this frame, from step 1; §9's host policy moves here); on edges, `PLAY 1` alone (step 1 at the next edge). Playing: `PLAY 0` |
-| write | flips `write` |
+| write | flips `write`, on the press |
 | pattern | with function held: clears the pattern. Every track's steps go off and every probability back to 100. Length, swing, tempo, sliders and volume stay. Otherwise only held |
 | sound, bpm, function, fx | only held |
+
+Play and write act whatever else is held. Clear is function, then pattern, in that order:
+pattern first and then function is two keys held (D59).
 
 **`KEY_UP`.** The key is no longer held. If it is bpm and nothing used it while it was down,
 the tempo moves to the next preset: the lowest of 80, 120 and 140 bpm above the tempo now,
@@ -522,12 +539,21 @@ scaled: they are the direct outputs, before the master, as on a drum machine (D5
 
 **Generation.** A key or slider moves `pi_generation` when it changes something a snapshot
 holds (§15), and not otherwise: a tap, a hold, play and write do not.
+**In ABI 4 that is snapshot version 1 (D59):** a step, clear, swing and the tempo move it;
+the volume, the chosen sound and a sound's sliders do not until Session 11 puts them in
+version 2. A rule test holds it to exactly that: over 20 000 random presses the generation
+moves on the ones that change the snapshot's bytes and on no others.
 
 ⚠ marks the plainest reading where the guide and the search are silent (D29): whether
 choosing a sound plays it, whether bpm acts on release, whether a tempo change is at once.
 Each is one line in `core/src/keys.rs` and one row in `WORKFLOW.md`.
 
-## 14. The view (designed in Session 9; D51; built in Session 10)
+**Built (Session 10):** `core/src/keys.rs`. Every press goes through the same function as
+a host's edit, so "as `STEP` would" and "as `FIRE` does" are literally that. Proven by
+`fixtures/keys-*.json` (worked by hand before the code; all three passed at the first run,
+on all three harnesses) and `core/src/tests/keys.rs`, a test for each row above.
+
+## 14. The view (ABI 4; designed in Session 9: D51; built in Session 10)
 
 ```
 bytes = pi_view(engine, buf, cap)        /* PI_VIEW_SIZE (64), or 0 if cap is too small */
@@ -547,7 +573,7 @@ function on an engine (§8). It moves nothing: not the generation, not a counter
 | 18 | 2 | sampled: bit *t*, track *t* plays its sample (D50) |
 | 20 | 2 | slider A as it should show, 0 to 65535 |
 | 22 | 2 | slider B as it should show |
-| 24 | 1 | flags: bit 0 playing; 1 write; 2 the source is edges; 3 a step has played since play (the next byte means something); 4 the grid is sounds |
+| 24 | 1 | flags: bit 0 playing; 1 write; 2 the source is edges; 3 a step has played since play (the next byte means something; exactly when, below); 4 the grid is sounds |
 | 25 | 1 | the playhead's step, 0 to 15 |
 | 26 | 1 | the chosen sound |
 | 27 | 1 | volume, 1 to 16 |
@@ -568,8 +594,21 @@ first row that applies:
 | write on | the chosen sound's steps | steps of any other sound | none | no |
 | write off | none | none | none | yes |
 
+**Flag 3, exactly (D59):** set when the first step arrives after play, or after a reset
+while playing; clear from play or reset until that step, and clear whenever the sequencer
+is stopped. On the table clock the step arrives in the frame of the play or the reset, so
+only an external clock ever shows the gap. Stopped, there is no playhead: play always
+starts from step 1 (`WORKFLOW.md`), so there is no place to show.
+
+**Field and stitch can share a key (D59):** the stitch is every other sound's steps,
+whether or not the chosen sound has that step too (`design/DESIGN.md`: "dark on ecru").
+
+**`fires` (D59):** every firing counts, the sequencer's and a tap's, whether or not its
+event found room in the buffer. Nothing ever sets a count back: not reset, not play.
+
 **The sliders as shown:** with bpm held, A is `swing × 65535 / 48` and B is
-`(bpm − 60) × 65535 / 180`, the tempo taken in whole bpm and held to 60 to 240. Otherwise
+`(bpm − 60) × 65535 / 180`, the tempo taken in whole bpm and held to 60 to 240.
+"Whole bpm" is rounded down (D59): 97.5 bpm shows as 97. Every division here rounds down. Otherwise
 the chosen sound's own A and B. `PARAM` with a shown value changes nothing (§13), so the
 two directions cannot drift.
 
@@ -586,12 +625,22 @@ two directions cannot drift.
 - Counters, not flags, for firing: a host that misses a view loses nothing, and reading
   one clears nothing.
 
-**As text**, for fixtures: one line, the tick and bytes 48 to 63 left out, masks and `held`
-in hex, `step` a dash when flag 3 is clear, `fires` as sixteen numbers:
+**As text**, for fixtures: one line, the tick and bytes 48 to 63 left out, masks (four
+digits) and `held` (six) in lowercase hex, `step` (0 to 15) a dash when flag 3 is clear,
+`sel` 0 to 15, `fires` as sixteen numbers:
 
 ```
 view play=1 write=1 edges=0 sounds=0 step=4 sel=0 vol=16 tempo=120000 len=16 swing=0 held=000000 field=1111 stitch=0404 bar=0000 sampled=0000 a=32768 b=32768 fires=2,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0
 ```
+
+`edges` is the one field that differs between a fixture's two runs: a fixture's text is the
+table run's, and the edges run expects `edges=1` in its place (D59; `fixtures/README.md`).
+
+**Built (Session 10):** `pi_view` and `Engine::view` in `core/src/keys.rs`;
+`PI_VIEW_SIZE` and each field's offset (`PI_VIEW_*`) in the header. Proven by the views in
+`fixtures/keys-*.json` on all three harnesses, and a test for each row of the grid's table
+in `core/src/tests/keys.rs`. `harness/race.cpp` hands a view from the audio thread to the
+other through `pi::Latest` after every block, as a module's drawing thread will get it.
 
 ## 15. Snapshot version 2 (designed in Session 9; D55; built in Session 11)
 

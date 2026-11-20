@@ -63,7 +63,8 @@ instrument must choose first, it takes the plainest reading and says so below.
 ## What the first build does (Session 9, 2026-11-20)
 
 Every **in** row above is in the first build (D52), with a tap in play mode playing that
-key's sound. Exactly what each press does is `ENGINE.md` §13. Where the guide and the search
+key's sound. Built into the core in Session 10 (`core/src/keys.rs`); nothing can be pressed
+yet, because no host has a face until Session 12. Exactly what each press does is `ENGINE.md` §13. Where the guide and the search
 are silent, it takes these readings (D57), each one line to change:
 
 | ⚠ | Reading built | The question it guesses at |

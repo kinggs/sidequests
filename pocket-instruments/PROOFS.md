@@ -116,6 +116,11 @@ only by the rule tests: no fixture swings past tick 47, and the flush hides it f
 Beyond the bar, in the Rust run: on both sources every `STEP` leaves in the exact frame
 `fixtures/README.md`'s `F` gives. No drift on the table, no latency on edges.
 
+Since Session 10 (2026-11-20, ABI 4): seven fixtures, 168 runs a harness, still one report.
+The three new ones (fixture format 2: keys, sliders and views) were worked out by hand and
+committed before the code that runs them, and passed at the first run. The four above did
+not move: their 96 report sections are the same bytes as before the session.
+
 ### P3 — It runs in Rack
 
 **Claim:** a C++ VCV Rack 2 plugin can link the Rust static library and call it once per sample
@@ -404,6 +409,13 @@ empty report.
 In Rack so far: the Probe publishes a snapshot whenever the pattern changes and Rack's own
 thread saves the latest. Headless Rack loaded a good snapshot from a patch ("1 loaded") and
 refused one with a flipped bit ("1 refused").
+
+Since Session 10 (2026-11-20): the second thread's messages are half edits and half keys
+and sliders (`ENGINE.md` §13), the model is pressed the same keys, and the audio thread
+hands a view out through `pi::Latest` after every block. Clean, twice: 4 407 rounds, 26 803
+messages and 880 loads each time; about 33 000 views read flat out and 14 500 with an idle
+audio thread, none torn. A sixth planted fault, a view handed over with its volume byte
+cleared, is caught (exit 1). Seven snapshots taken while playing, one a fixture.
 
 **To finish it:** the browser's half, which comes with the instrument: the worklet posts
 a copy, so there is no shared memory to race on. (To repeat the Rack row:

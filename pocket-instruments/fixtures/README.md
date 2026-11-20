@@ -68,9 +68,11 @@ Format 1, and:
 How a harness runs one, beyond format 1:
 
 - **A key or a slider lands one frame after its step's boundary:** at `F(at) + 1`, counted
-  from the anchor as every step is. Why: on the edges run the `CLOCK` for a step follows
-  that frame's other commands, so a key in the same frame would meet the step before. One
-  frame later, the latest tick is that step's tick 0 on both sources and at every rate, and
+  from the anchor as every step is. Why: a command lands before the clock moves on its
+  frame (`ENGINE.md` §3), and on the edges run the `CLOCK` follows that frame's other
+  commands. So on either source a key in the step's own frame meets the step before: a
+  tap there carries tick 95, not 96 (Session 10 planted it and saw exactly that). One frame
+  later, the latest tick is that step's tick 0 on both sources and at every rate, and
   anything the key fires carries it.
 - So within one `at`: the format 1 commands in file order, then the `CLOCK` (edges run),
   then, a frame later, the keys and sliders in file order. An edit lands before a key of

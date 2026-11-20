@@ -298,16 +298,16 @@ push; no Teenage Engineering material. And for these five:
 - Each session ends by moving its sections of `ENGINE.md` from "designed" to built, with
   what turned out different marked, and by writing `LEARNINGS.md` and the Handover.
 
-## Session 10 — the workflow in the core: keys and the view (build; next)
+## Session 10 — the workflow in the core: keys and the view (build, Fable; done 2026-11-20)
 
 Recommended on Fable, not Opus (Session 9's advice): this is where a contract that has
 never run first meets code, as Sessions 2 and 3 were. A gap in §13 or §14 found here can be
 ruled on in the session and written into `ENGINE.md`, marked, as D42 was; on Opus the rule
-is to stop.
+is to stop. (It ran on Fable. The gaps are D59: eight, none of which moved a fixture.)
 
 ABI 4. `ENGINE.md` §13 and §14. No host gains a face yet.
 
-- [ ] **Fixture format 2** in `fixtures/README.md`: format 1 plus `key_down`, `key_up`
+- [x] **Fixture format 2** in `fixtures/README.md`: format 1 plus `key_down`, `key_up`
       (`key`) and `param` (`slider`, `value`), and `views`: `{"at": n, "view": "…"}`, §14's
       text line. A key or slider lands **one frame after** its step's boundary, after that
       frame's other commands, so anything it fires carries that step's tick 0 on both clock
@@ -317,7 +317,9 @@ ABI 4. `ENGINE.md` §13 and §14. No host gains a face yet.
       **A fixture starts and stops with the `play` edit, never the play key:** the key
       restarts the table clock and cannot restart an external one (§13), so the two runs
       would rightly give two traces. The play key is a rule test on each source instead.
-- [ ] **Three fixtures by hand, before the code:**
+      Added to it in the session: the view's text is the table run's, and the edges run
+      expects `edges=1` (D59).
+- [x] **Three fixtures by hand, before the code:**
       `keys-write-a-beat` (choose sounds, write on, set and remove steps, with the `play`
       edit at step 0; views in write mode show field and stitch);
       `keys-tap-and-choose` (write off: taps fire and do not choose; sound + key chooses
@@ -325,20 +327,27 @@ ABI 4. `ENGINE.md` §13 and §14. No host gains a face yet.
       `keys-bpm-family` (stopped: a clean release steps 120, 140, 80; bpm + B sets a fine
       tempo and does not step; bpm + A swing; bpm + key volume and the field row;
       function + pattern clears; a `PARAM` equal to the shown value changes nothing).
-- [ ] `core/src/keys.rs`, `pi_view`, the volume on the mix. The header: `PI_ABI_VERSION` 4,
-      `PI_VIEW_SIZE`, the three commands no longer "reserved".
-- [ ] Rust rule tests, one for each row of §13's tables and §14's "what the grid shows",
+      Committed alone (`0eb2ac0`) before `keys.rs` existed. All three passed at the first
+      run on all three harnesses; nothing in them was edited.
+- [x] `core/src/keys.rs`, `pi_view`, the volume on the mix. The header: `PI_ABI_VERSION` 4,
+      `PI_VIEW_SIZE`, the three commands no longer "reserved". Also in the header: each
+      view field's offset (`PI_VIEW_*`) and the flags, for Sessions 12 and 13.
+- [x] Rust rule tests, one for each row of §13's tables and §14's "what the grid shows",
       plus: a repeated `KEY_DOWN` and a stray `KEY_UP` do nothing; `PARAM` with every shown
       value (49 swings, 181 tempos) is a no-op; a tap, a hold, play and write leave
       `pi_generation` alone; volume 16 renders the bytes volume had no say in, and volume 8
-      is a quarter of them.
-- [ ] All three harnesses run format 2: `cargo test`, Node on the `.wasm`, C++. One report.
-- [ ] `harness/race.cpp`: keys and sliders among its messages; still clean.
-- [ ] Every host on ABI 4: the worklet, the Probe, `web/pi_core.wasm` rebuilt. `make test`,
+      is a quarter of them. 35 tests in `core/src/tests/keys.rs` (103 in all). 83 faults
+      planted in the core one at a time: each failed a test.
+- [x] All three harnesses run format 2: `cargo test`, Node on the `.wasm`, C++. One report:
+      168 runs each. Faults planted in each harness and in the fixtures were each caught.
+- [x] `harness/race.cpp`: keys and sliders among its messages; still clean. It also hands
+      a view between the threads, with a sixth planted fault for it.
+- [x] Every host on ABI 4: the worklet, the Probe, `web/pi_core.wasm` rebuilt. `make test`,
       `make p4`, `make listen`, `make -C rack selftest` pass. The four fixtures and the 114
-      render pairs: the same bytes as before this session.
+      render pairs: the same bytes as before this session. (The Probe and the P4 page stay
+      on the four format 1 fixtures: neither has keys.)
 
-## Session 11 — snapshot version 2, and voices with the mix (build, Opus)
+## Session 11 — snapshot version 2, and voices with the mix (build, Opus; next)
 
 ABI 5. `ENGINE.md` §15.
 
@@ -820,3 +829,41 @@ the numbers stay easy to tweak.
   shows. The weave's cell size is to be read off `frames.html` in Session 14.
 - **Next: Session 10.** Nothing waits on the owner. Fable is recommended for 10 and 14,
   Opus for 11, 12 and 13 (the reasons are under each heading).
+
+### After Session 10: the workflow in the core (2026-11-20)
+
+- **Built: ABI 4.** `KEY_DOWN`, `KEY_UP` and `PARAM` do what `ENGINE.md` §13 says, `pi_view`
+  writes §14's 64 bytes, and the master volume is on the mix. No host has a face: nothing
+  can be pressed or seen yet. That is Session 12 (the phone) and Session 13 (Rack).
+- **The contract held.** The three fixtures were worked out by hand, committed, and only
+  then run: all three passed at the first run on all three harnesses, no trace and no view
+  edited. Where §13 and §14 were silent is **D59: eight rulings, built on, for the owner to
+  overrule cheaply.** The one a player would see: stopped, no key shows the playhead.
+- **Proven:** `make test` (103 Rust tests; seven fixtures, 168 runs a harness, one report;
+  114 render pairs; the race harness with keys and views, six planted faults caught),
+  `make p4` (24 of 24 in Chromium and Firefox, ABI 4), `make listen` (both), `make -C rack
+  selftest` (three rates). Nothing older moved: the four fixtures' 96 report sections and
+  every render file are the same bytes as before the session.
+- **Every new check failed once on purpose:** 83 faults planted in the core, each failing a
+  named test (one by aborting the run); 4 in the fixtures and 4 in each harness, each
+  caught by the harness it was in. Two things that taught something are in `LEARNINGS.md`:
+  a plant script that reported every fault caught when cargo had never run, and a rule
+  missing from the rule tests that only a fixture caught.
+- **Sizes:** the engine is 2 352 bytes (was 2 328), inside the hosts' 4 KiB. The `.wasm` is
+  26 998 bytes (was 23 692).
+- **For Session 11 (Opus), what will bite:**
+  - `the_generation_moves_exactly_when…` in `core/src/tests/keys.rs` has two halves. The
+    random half holds "the generation moves exactly when the snapshot's bytes change" and
+    should pass unchanged on version 2. The first half lists presses that leave the
+    generation alone: the volume, sound + key and `param` lines there become movers
+    (§15), so move them out of that list and say so.
+  - The view's volume row is `(1 << volume) - 1`: a volume past 16 from a loaded snapshot
+    would overflow it. §15's clamp (1 to 16) is what keeps it true; test the clamp.
+  - `Host::save` in `core/src/tests/mod.rs` is a fixed 316, with the rest the plan lists.
+  - `rack/fixtures.jq` leaves format 2 out, and `web/desktop.mjs` counts format 1 only.
+    A new format 1 fixture still reaches both; a format 2 one reaches neither.
+- **Not done, on purpose:** a view in the worklet or the Probe (Sessions 12 and 13); the
+  weave's three fields, which stay zero (Session 14).
+- **Waits for the owner, blocking nothing:** a look at D59. Still open from before: P4 on
+  an iPhone, P5's loads and VCV's reply, which keys become samples.
+- **Next: Session 11,** on Opus.

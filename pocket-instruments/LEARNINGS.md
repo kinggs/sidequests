@@ -270,3 +270,38 @@ belongs in `PROOFS.md`, a change of course in `DECISIONS.md`, an outside fact in
 - **Read the files before deciding their format.** The plan said 48 kHz; the pack is 44.1
   kHz, and storing it at its own rate removed a resampling step.
 
+## Session 10: keys and the view in the core (2026-11-20)
+
+- **The contract ran as written.** Three fixtures were worked out by hand from `ENGINE.md`
+  §13 and §14, committed, and then run: all passed first time, in Rust, C++ and Node. The
+  cost of Session 9 writing every row as a table was repaid here: the code is the table.
+  What the text did not say (D59) was all at the edges: rounding, a flag's exact life, what
+  counts as "using" a key.
+- **A check of the checks needs its own proof that it ran.** The script that plants faults
+  reported 83 of 83 caught. Not one test had run: outside this folder the `cargo` shim has
+  no toolchain, so every run failed, and "failed" was read as "caught". It now runs the
+  unplanted copy first and requires it to pass, and counts a plant as caught only when a
+  failing test is named. The same trap again by hand: a C++ plant that did not compile left
+  the previous plant's binary in place, which failed for its own reason.
+- **Four of the new rule tests were wrong before the core was.** A rounding boundary off by
+  one (65 353 is the first value that gives 240 bpm, not the last that gives 239); a test
+  that set the volume to 1 and then expected 16; a stop sent a frame after the step it was
+  meant to prevent; and a "busy passage" that held its keys down, so most presses were
+  repeats and it produced 37 events. In each case `ENGINE.md` decided, and it was the test.
+- **A fixture caught what the rule tests had no test for.** "A new press of bpm starts
+  unused" failed only `keys-bpm-family`. The rule is now in the rule tests too. A fixture
+  is a walk through the workflow; it should not be the only thing holding a rule.
+- **A key in its step's own frame is early on the table too,** not only on edges. Planted
+  in each harness, it gave `95 trig` where 96 was due: a command lands before the clock
+  moves on its frame (§3). The fixtures README said this was about the edges run alone
+  until the plant showed otherwise.
+- **Three reports that agree prove less than they seem to.** Each harness writes the views
+  it got and checks them against the fixture itself; the three reports are then compared
+  with each other. A harness that stopped checking would still agree with the other two.
+  That was already true of traces. What holds it up is that a wrong view in a fixture
+  failed all three harnesses when planted.
+- **Planting "keys 23 to 31 are keys" aborted the test run** rather than failing a test: a
+  grid key numbered 23 shifts a 16-bit word by 23. The guard is one comparison, and several
+  lines trust it. Session 11's clamp on a loaded volume is the same kind of guard for
+  `1 << volume` in the view.
+
