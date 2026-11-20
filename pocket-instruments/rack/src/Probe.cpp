@@ -21,6 +21,7 @@
 // SPDX-License-Identifier: MIT
 #include <rack.hpp>
 
+#include <algorithm>
 #include <atomic>
 #include <cmath>
 #include <cstring>
@@ -54,8 +55,12 @@ static const std::vector<Fixture> FIXTURES = {
 static const char *const KEY_NAMES[PI_TRACKS] = {"Bass drum", "Snare", "Closed hat", "Open hat", "Synth snare", "Sticks",
     "Cymbal", "Noise", "Clap", "Click", "Low tom", "High tom", "Cow bell", "Blip", "Tone", "Bass tone"};
 
+// A snapshot and how many of its bytes are real. A patch saved before ABI 5 holds version 1,
+// 316 bytes (PI_SNAPSHOT_SIZE_V1): pi_load takes it if it is passed the length read. Until
+// Session 11 this was a fixed PI_SNAPSHOT_SIZE, which dropped such a patch's beat unread.
 struct Snap {
     uint8_t b[PI_SNAPSHOT_SIZE];
+    uint32_t len = 0;
 };
 
 struct Probe : Module {
@@ -183,7 +188,7 @@ struct Probe : Module {
             lastRate = r;
         }
         if (const Snap *s = inbox.take()) {
-            (pi_load(e, s->b, PI_SNAPSHOT_SIZE) == PI_OK ? loadsOk : loadsRefused)++;
+            (pi_load(e, s->b, s->len) == PI_OK ? loadsOk : loadsRefused)++;
             mustPublish = true;
             cut = true;
         }
@@ -285,7 +290,9 @@ struct Probe : Module {
             if (g != generation || mustPublish) {
                 generation = g;
                 mustPublish = false;
-                if (pi_save(e, saved.write().b, PI_SNAPSHOT_SIZE) == PI_SNAPSHOT_SIZE) {
+                Snap &out = saved.write();
+                out.len = pi_save(e, out.b, PI_SNAPSHOT_SIZE);
+                if (out.len == PI_SNAPSHOT_SIZE) {
                     saved.publish();
                     published++;
                 }
@@ -319,7 +326,7 @@ struct Probe : Module {
         json_object_set_new(root, "track", json_integer(track.load()));
         json_object_set_new(root, "samples", json_integer(sampledWanted.load()));
         if (const Snap *s = saved.latest())
-            json_object_set_new(root, "snapshot", json_string(string::toBase64(s->b, PI_SNAPSHOT_SIZE).c_str()));
+            json_object_set_new(root, "snapshot", json_string(string::toBase64(s->b, s->len).c_str()));
         json_t *p3 = json_object();
         json_object_set_new(p3, "passed", json_integer(passed.load()));
         json_object_set_new(p3, "failed", json_integer(failed.load()));
@@ -348,8 +355,11 @@ struct Probe : Module {
                 bytes = string::fromBase64(json_string_value(j) ? json_string_value(j) : "");
             } catch (const std::exception &) {
             }
-            if (bytes.size() >= PI_SNAPSHOT_SIZE) {
-                std::copy(bytes.begin(), bytes.begin() + PI_SNAPSHOT_SIZE, inbox.write().b);
+            // Any version the core has written; the core checks which, and refuses the rest.
+            if (bytes.size() >= PI_SNAPSHOT_SIZE_V1) {
+                Snap &in = inbox.write();
+                in.len = uint32_t(std::min<size_t>(bytes.size(), PI_SNAPSHOT_SIZE));
+                std::copy(bytes.begin(), bytes.begin() + in.len, in.b);
                 inbox.publish();
             }
         }
