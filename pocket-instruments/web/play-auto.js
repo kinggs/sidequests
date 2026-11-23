@@ -13,6 +13,11 @@
 //   keep    §20 (D75, Session 21): the cap is the hand's and stays put when another sound
 //           is chosen; a load moves it; a step keeps what it was written with, and the
 //           second mark shows what the chosen sound was last hit with.
+//   punch   §17 (Session 19): fx-repeat-punch (format 3) played on the page, fx and key 11
+//           by touch, fx alone by the computer key; its views and its trace.
+//   written keeps-what-it-was-written-with (format 4) by touch: its views.
+//   fxlatch D78 by a mouse, fx + key by the computer keys, and the sounds sheet's "through
+//           fx" switch (D69); each gesture held to the commands it sent.
 //
 // SPDX-License-Identifier: MIT
 const r = window.rhythm;
@@ -23,13 +28,15 @@ const u16 = (v, i) => v[i] | (v[i + 1] << 8);
 const u32 = (v, i) => (v[i] | (v[i + 1] << 8) | (v[i + 2] << 16) | (v[i + 3] << 24)) >>> 0;
 const hex = (buf) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
 
-// ENGINE.md §14, "As text".
-function viewText(v) {
+// ENGINE.md §14, "As text"; format 3 adds §17's three fields, format 4 §20's two.
+function viewText(v, format = 2) {
   const f = v[24], h4 = (x) => x.toString(16).padStart(4, "0");
   return `view play=${f & 1} write=${(f >> 1) & 1} edges=${(f >> 2) & 1} sounds=${(f >> 4) & 1} ` +
     `step=${f & 8 ? v[25] : "-"} sel=${v[26]} vol=${v[27]} tempo=${u32(v, 4)} len=${v[28]} swing=${v[29]} ` +
     `held=${u32(v, 8).toString(16).padStart(6, "0")} field=${h4(u16(v, 12))} stitch=${h4(u16(v, 14))} bar=${h4(u16(v, 16))} ` +
-    `sampled=${h4(u16(v, 18))} a=${u16(v, 20)} b=${u16(v, 22)} fires=${[...v.slice(32, 48)].join(",")}`;
+    `sampled=${h4(u16(v, 18))} a=${u16(v, 20)} b=${u16(v, 22)} fires=${[...v.slice(32, 48)].join(",")}` +
+    (format >= 3 ? ` fx=${v[55]} fxsteps=${h4(u16(v, 56))} fxsounds=${h4(u16(v, 58))}` : "") +
+    (format >= 4 ? ` ea=${u16(v, 60)} eb=${u16(v, 62)}` : "");
 }
 
 // Where a slider's cap sits for a value, from the track's height (design/DESIGN.md: the cap
@@ -60,6 +67,15 @@ r.afterDraw = (v) => {
     frames: f & 1 && f & 8 ? String(v[25]) : "", latch: (f & 1 ? 1 << 21 : 0) | (f & 2 ? 1 << 22 : 0),
   };
   const got = { field, stitch, bar, held, frames: frames.join(), latch };
+  // D81: the effect block says byte 55, and is absent at 0; the lane's ticks are bytes 56 and
+  // 57. D69: the sheet's "through fx" switches are bytes 58 and 59. Read off the face.
+  const mark = document.getElementById("fxmark");
+  want.fxmark = v[55] ? `fx ${v[55]}` : "none";
+  got.fxmark = mark.hidden || getComputedStyle(mark).visibility === "hidden" ? "none" : mark.textContent;
+  want.lane = u16(v, 56);
+  got.lane = r.ticks.reduce((m, el, n) => m | (el.classList.contains("on") && getComputedStyle(el).backgroundColor !== "rgba(0, 0, 0, 0)" ? 1 << n : 0), 0);
+  want.through = u16(v, 58);
+  got.through = r.sounds.reduce((m, row, t) => m | (row.fx.classList.contains("through") ? 1 << t : 0), 0);
   // §20: the second mark is drawn from bytes 60 to 63, always. The cap is drawn from 20 to
   // 23 while bpm is held; otherwise it is the hand's, which equals 20 to 23 unless a phase
   // says (capWant) where the hand is. Held only on a view that holds everything sent: a cap
@@ -75,7 +91,7 @@ r.afterDraw = (v) => {
     }
   }
   const bad = Object.keys(want).filter((k) => (typeof want[k] === "number" && k.includes(" ") ? Math.abs(want[k] - got[k]) > 0.01 : want[k] !== got[k]));
-  if (bad.length && out.drawn.bad.length < 5) out.drawn.bad.push(`${bad.map((k) => `${k} drawn ${got[k]}, view ${want[k]}`).join("; ")} (${viewText(v)})`);
+  if (bad.length && out.drawn.bad.length < 5) out.drawn.bad.push(`${bad.map((k) => `${k} drawn ${got[k]}, view ${want[k]}`).join("; ")} (${viewText(v, 4)})`);
 };
 
 // Pointers, as a finger gives them.
@@ -367,7 +383,188 @@ async function phaseKeep() {
     step5: [s.getUint16(436 + 4 * 20, true), s.getUint16(438 + 4 * 20, true)] };
 }
 
-const PHASES = { 1: [phase1, "reload"], reload: [phaseReload, "bpm"], bpm: [phaseBpm, "latch"], latch: [phaseLatch, "keep"], keep: [phaseKeep, null] };
+// Run steps as the views show them while playing: one more each time the playhead moves,
+// from the first view after play that has a step (§14's flag 3). The last view of each run
+// step is kept, because a fixture's view is read where its run step ends (fixtures/README.md).
+function runSteps() {
+  const t = { run: -1, last: null, views: [], waiters: [] };
+  const f = (d) => {
+    if (!d.view) return;
+    const v = new Uint8Array(d.view);
+    if (!(v[24] & 1) || !(v[24] & 8)) return;
+    if (v[25] !== t.last) { t.run++; t.last = v[25]; }
+    t.views[t.run] = v;
+    t.waiters = t.waiters.filter(([n, res]) => (t.run >= n ? (res(), false) : true));
+  };
+  r.listeners.push(f);
+  t.at = (n) => (t.run >= n ? Promise.resolve() : new Promise((res) => t.waiters.push([n, res])));
+  t.stop = () => r.listeners.splice(r.listeners.indexOf(f), 1);
+  return t;
+}
+// A fixture's edits as the page sends them: [type, a, b, value] (ENGINE.md §6).
+const edit = (c) => ({ step: [16, c.track, c.step, c.value], length: [19, 0, 0, c.value], fxsound: [24, c.track, 0, c.value],
+  fx: [23, c.step, 0, c.value], play: [5, 0, 0, c.value] })[c.cmd];
+// The computer keys (D57 item 5), by the key's number: a press as a keyboard gives it.
+const CODE = { 0: "Digit1", 1: "Digit2", 2: "Digit3", 10: "KeyD", 20: "KeyI" };
+const kb = (type, k) => window.dispatchEvent(new KeyboardEvent(type, { code: CODE[k], bubbles: true, cancelable: true }));
+
+// fx-repeat-punch (format 3, ENGINE.md §17), played on the page. A key lands within its run
+// step, a few milliseconds after the view says the step began, as a fixture's lands a frame
+// after: nothing in the fixture depends on which frame. The first pass's fx and key 11 by
+// touch, the second pass's fx alone by the computer key `i`. Every view is held to the
+// fixture's, as text, and the trace (its ticks counted from the first) to its `expect`.
+async function phasePunch() {
+  await r.ready;
+  await r.ctx.resume();
+  const fx = await (await fetch("../fixtures/fx-repeat-punch.json")).json();
+  const P = (out.punch = { want: fx.views.map((x) => x.view), wantTrace: fx.expect });
+  await settle();
+  const t = runSteps();
+  r.post({ mark: true });
+  r.send(...fx.commands.filter((c) => c.at === 0).map((c) => {
+    const e = edit(c);
+    if (!e) throw new Error(`a step-0 command the page cannot send: ${c.cmd}`);
+    return e;
+  }));
+  const ids = {};
+  for (const c of fx.commands.filter((c) => c.at > 0)) {
+    await t.at(c.at);
+    const byKeys = c.at >= 8; // the first pass by touch, the rest by the computer keys
+    if (c.cmd === "key_down") byKeys ? kb("keydown", c.key) : hold(keyEl(c.key), (ids[c.key] = pid++));
+    else if (c.cmd === "key_up") byKeys ? kb("keyup", c.key) : lift(keyEl(c.key), ids[c.key]);
+    else throw new Error(`a command the page cannot send: ${c.cmd}`);
+  }
+  await t.at(fx.steps);
+  t.stop();
+  r.post({ trace: true });
+  const trace = traceLines((await next("trace")).trace);
+  r.send([5, 0, 0, 0]);
+  await settle((v) => !(v[24] & 1), "stopped");
+  const first = trace.length ? +trace[0].split(" ")[0] : 0;
+  P.trace = trace.map((l) => l.replace(/^\d+/, (n) => String(+n - first))).filter((l) => +l.split(" ")[0] < fx.steps * fx.ticks_per_step);
+  P.got = fx.views.map((x) => (t.views[x.at] ? viewText(t.views[x.at], 3) : `no view at run step ${x.at}`));
+}
+
+// keeps-what-it-was-written-with (format 4, §20), by touch and the page's slide(): the three
+// views while stopped, then play (the edit) and the views at the play's first and fifth steps,
+// which are the fixture's run steps 4 and 8 (it plays from run step 4).
+async function phaseWritten() {
+  await r.ready;
+  await r.ctx.resume();
+  const fx = await (await fetch("../fixtures/keeps-what-it-was-written-with.json")).json();
+  const W = (out.written = { want: fx.views.map((x) => x.view), got: [] });
+  if (fx.views.map((x) => x.at).join() !== "0,1,2,4,8" || fx.commands.at(-1).cmd !== "play" || fx.commands.at(-1).at !== 4)
+    throw new Error("keeps-what-it-was-written-with is not the fixture this phase was written for");
+  await settle();
+  const ids = {};
+  for (const at of [0, 1, 2]) {
+    for (const c of fx.commands.filter((c) => c.at === at)) {
+      if (c.cmd === "key_down") hold(keyEl(c.key), (ids[c.key] = pid++));
+      else if (c.cmd === "key_up") lift(keyEl(c.key), ids[c.key]);
+      else if (c.cmd === "param") r.slide(c.slider, c.value);
+      else throw new Error(`a command the page cannot send: ${c.cmd}`);
+    }
+    W.got.push(viewText(await settle(), 4));
+  }
+  const t = runSteps();
+  r.send([5, 0, 0, 1]);
+  await t.at(5);
+  t.stop();
+  W.got.push(viewText(t.views[0], 4), viewText(t.views[4], 4));
+  r.send([5, 0, 0, 0]);
+  await settle((v) => !(v[24] & 1), "stopped");
+}
+
+// D78 by a mouse, fx + key by the computer keys, and D69's switch. What each gesture sent is
+// read from the page's own messages (rhythm.onPost), as "type a b value".
+async function phaseFxLatch() {
+  await r.ready;
+  await r.ctx.resume();
+  const X = (out.fxlatch = {});
+  let log = [];
+  r.onPost = (m) => { if (m.cmds) log.push(...m.cmds.map((c) => c.join(" "))); };
+  const take = () => { const l = log; log = []; return l; };
+  const latchedLit = (i) => r.fkeys[i].classList.contains("latched");
+  // A beat to play over: sound 1 on every step. Play by the key.
+  r.send(...Array.from({ length: 16 }, (_, s) => [16, 0, s, 1]));
+  tap(r.fkeys[5], pid++);
+  await settle((x) => x[24] & 1 && x[24] & 8, "playing");
+  // fx + key by the computer keys: i, then d (key 11). Effect 11 is heard while both are down.
+  take();
+  kb("keydown", 20);
+  kb("keydown", 10);
+  let v = await settle((x) => x[55] === 11, "fx and key 11 by the computer keys");
+  X.keys = { held: u32(v, 8), heard: v[55], sent: take() };
+  kb("keyup", 10);
+  kb("keyup", 20);
+  await settle((x) => u32(x, 8) === 0, "the computer keys let go");
+  X.keys.after = take();
+  // An empty lane to start D78 from.
+  r.send(...Array.from({ length: 16 }, (_, s) => [23, s, 0, 0]));
+  await settle((x) => u16(x, 56) === 0, "the lane emptied");
+  take();
+  // D78 item 1: Ctrl+click fx latches it, lit, and sends nothing: fx alone would empty steps.
+  ctrl(r.fkeys[4]);
+  await frames2();
+  v = await settle();
+  X.latched = { lit: latchedLit(4), held: u32(v, 8), sent: take() };
+  // Item 2: a click on key 2 sends fx down, then the key; effect 2 is heard. Held for
+  // about three and a half steps, so the steps that arrive take it.
+  mouse(r.keys[1], "pointerdown", 0);
+  v = await settle((x) => x[55] === 2, "a click with fx latched punched effect 2");
+  X.click1 = { held: u32(v, 8), sent: take() };
+  await sleep(450);
+  mouse(r.keys[1], "pointerup", 0);
+  v = await settle((x) => u32(x, 8) === 0, "the click let go");
+  await frames2();
+  X.up1 = { lane: u16(v, 56), lit: latchedLit(4), sent: take() };
+  // Item 3: over a bar and a bit with the latch on and nothing clicked, the lane replays
+  // (effect 2 heard on its steps) and does not change.
+  const heard = new Set(), lanes = new Set();
+  const watch = (d) => { if (d.view) { const x = new Uint8Array(d.view); heard.add(x[55]); lanes.add(u16(x, 56)); } };
+  r.listeners.push(watch);
+  await sleep(2300);
+  r.listeners.splice(r.listeners.indexOf(watch), 1);
+  X.bar = { heard: [...heard].sort((a, b) => a - b), lanes: [...lanes], sent: take() };
+  // The latch did not go after the first click: a second click punches effect 3.
+  mouse(r.keys[2], "pointerdown", 0);
+  v = await settle((x) => x[55] === 3, "the second click punched effect 3");
+  X.click2 = { held: u32(v, 8), sent: take() };
+  mouse(r.keys[2], "pointerup", 0);
+  await settle((x) => u32(x, 8) === 0, "the second click let go");
+  X.up2 = { sent: take() };
+  // Item 5: Ctrl+click sound, click key 5: chosen, sound's latch gone, fx's still on.
+  ctrl(r.fkeys[0]);
+  click(r.keys[4]);
+  v = await settle((x) => x[26] === 4 && u32(x, 8) === 0, "sound 5 chosen with fx latched");
+  await frames2();
+  X.sound = { sel: v[26], soundLit: latchedLit(0), fxLit: latchedLit(4) };
+  take();
+  // Ctrl+click fx again: off, and it sends nothing (fx was not down). A click on key 2 is
+  // then a plain press: only the key goes down and up.
+  ctrl(r.fkeys[4]);
+  await frames2();
+  X.off = { lit: latchedLit(4), sent: take() };
+  click(r.keys[1]);
+  await settle();
+  X.off.click = take();
+  tap(r.fkeys[5], pid++);
+  await settle((x) => !(x[24] & 1), "stopped");
+  take();
+  // D69: the sheet's switch takes sound 4 out of the effects and puts it back (FXSOUND).
+  r.sounds[3].fx.click();
+  v = await settle((x) => u16(x, 58) === 0xfff7, "sound 4 out of the effects");
+  await frames2();
+  X.through = { off: u16(v, 58), sentOff: take(), lit: r.sounds[3].fx.classList.contains("through"), pressed: r.sounds[3].fx.getAttribute("aria-pressed") };
+  r.sounds[3].fx.click();
+  v = await settle((x) => u16(x, 58) === 0xffff, "sound 4 back through the effects");
+  X.through.on = u16(v, 58);
+  X.through.sentOn = take();
+  r.onPost = null;
+}
+
+const PHASES = { 1: [phase1, "reload"], reload: [phaseReload, "bpm"], bpm: [phaseBpm, "latch"], latch: [phaseLatch, "keep"],
+  keep: [phaseKeep, "punch"], punch: [phasePunch, "written"], written: [phaseWritten, "fxlatch"], fxlatch: [phaseFxLatch, null] };
 const [run, then] = PHASES[phase] || [async () => { throw new Error(`no phase ${phase}`); }, null];
 try {
   await run();

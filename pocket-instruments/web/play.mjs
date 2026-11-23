@@ -33,6 +33,20 @@
 //     (the mark goes there) and the cap stays; the hand's move and a step written by key
 //     keep what they were written with, and played, the mark shows both; every drawing's
 //     cap and mark are held to the view (or to the hand where the phase moved it apart);
+//   - the effects (added in Session 19; D69, D78, D81): every drawing's effect block, lane
+//     ticks and "through fx" switches are held to the view's bytes 55 to 59, as the rest is;
+//     fx-repeat-punch (format 3) played on the page, fx and key 11 by touch and fx alone by
+//     the computer key: its four views, as text, are the fixture's, and its trace (ticks from
+//     the first) is the fixture's `expect`; keeps-what-it-was-written-with (format 4) by
+//     touch: its five views are the fixture's;
+//   - fx + key 11 by the computer keys: fx down, then the key, heard 11, and up in reverse;
+//   - D78 by a mouse: Ctrl+click fx lights it and sends nothing; a click on key 2 sends fx
+//     down then the key and is heard as effect 2; its release sends the key up then fx; a bar
+//     with nothing clicked replays the lane (2 heard) and changes nothing; a second click
+//     punches 3; Ctrl+click sound and a key still lets sound go, and fx stays latched;
+//     Ctrl+click fx again lets it go and sends nothing, and a click is then a plain press;
+//   - the sheet's "through fx" (D69): a tap sends FXSOUND 0 for that sound alone, the view
+//     says so and the switch goes dark; a second tap sends 1;
 //   - P6's browser half: the pattern entered by keys while it plays, the snapshot the page
 //     saved is byte for byte one the wasm host loaded and got straight-sixteenths' trace from
 //     (a "# straight-sixteenths ... snapshot <hex>" label in the Node report), and is what
@@ -94,7 +108,7 @@ function judge(phases) {
   const bad = [];
   const p = Object.fromEntries(phases.map((r) => [r.phase, r]));
   for (const r of phases) for (const f of r.failed) bad.push(`phase ${r.phase}: ${f}`);
-  for (const name of ["1", "reload", "bpm", "latch", "keep"]) if (!p[name]) bad.push(`phase ${name} never reported`);
+  for (const name of ["1", "reload", "bpm", "latch", "keep", "punch", "written", "fxlatch"]) if (!p[name]) bad.push(`phase ${name} never reported`);
   // Each phase reports under its own name: p.reload.reload, p.bpm.bpm. (A first draft read
   // p.bpm.last, and undefined equalled undefined: the bpm line passed with nothing checked.)
   const one = p["1"] || {}, reload = p.reload?.reload || {}, bpm = p.bpm?.bpm || {};
@@ -125,6 +139,34 @@ function judge(phases) {
     K.chosen?.capStayed === true && K.marks?.join() === "20000,60000" && K.kept?.keep === 0b10001 &&
     K.kept?.step1?.join() === "60000,32768" && K.kept?.step5?.join() === "20000,32768";
   if (!keepOk) bad.push(`§20, the hand and what a step keeps: ${JSON.stringify(K)}`);
+  // Session 19: the effects.
+  const P = p.punch?.punch || {};
+  if (!P.want?.length || P.got?.join("\n") !== P.want.join("\n"))
+    bad.push(`fx-repeat-punch's views:\n${(P.want || []).map((w, i) => `     got  ${P.got?.[i]}\n     want ${w}`).join("\n")}`);
+  if (!P.wantTrace?.length || P.trace?.join("\n") !== P.wantTrace.join("\n")) {
+    const at = (P.trace || []).findIndex((l, i) => l !== P.wantTrace?.[i]);
+    bad.push(`fx-repeat-punch's trace: ${P.trace?.length} lines, not ${P.wantTrace?.length}; first difference at line ${at + 1}: "${P.trace?.[at]}" for "${P.wantTrace?.[at]}"`);
+  }
+  const W = p.written?.written || {};
+  if (!W.want?.length || W.got?.join("\n") !== W.want.join("\n"))
+    bad.push(`keeps-what-it-was-written-with's views:\n${(W.want || []).map((w, i) => `     got  ${W.got?.[i]}\n     want ${w}`).join("\n")}`);
+  const X = p.fxlatch?.fxlatch || {};
+  const FX = 1 << 20, sent = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const lanes = X.up1?.lane ?? 0, written = [...Array(16).keys()].filter((s) => (lanes >> s) & 1).length;
+  const fxChecks = {
+    "fx + key 11 by the computer keys": X.keys?.held === (FX | 1 << 10) && X.keys?.heard === 11 &&
+      sent(X.keys?.sent, ["32 20 0 0", "32 10 0 0"]) && sent(X.keys?.after, ["33 10 0 0", "33 20 0 0"]),
+    "D78: Ctrl+click fx lights it and sends nothing": X.latched?.lit === true && X.latched?.held === 0 && sent(X.latched?.sent, []),
+    "D78: a click sends fx down, then the key, and punches 2": X.click1?.held === (FX | 1 << 1) && sent(X.click1?.sent, ["32 20 0 0", "32 1 0 0"]),
+    "D78: its release sends the key up, then fx; the latch stays; steps took 2": sent(X.up1?.sent, ["33 1 0 0", "33 20 0 0"]) && X.up1?.lit === true && written >= 2,
+    "D78: a bar with nothing clicked replays the lane and changes nothing": X.bar?.heard?.join() === "0,2" && sent(X.bar?.lanes, [lanes]) && sent(X.bar?.sent, []),
+    "D78: a second click punches 3": X.click2?.held === (FX | 1 << 2) && sent(X.click2?.sent, ["32 20 0 0", "32 2 0 0"]) && sent(X.up2?.sent, ["33 2 0 0", "33 20 0 0"]),
+    "D78 item 5: sound's latch goes after a key, fx's stays": X.sound?.sel === 4 && X.sound?.soundLit === false && X.sound?.fxLit === true,
+    "D78: Ctrl+click fx again lets it go; a click is then plain": X.off?.lit === false && sent(X.off?.sent, []) && sent(X.off?.click, ["32 1 0 0", "33 1 0 0"]),
+    "D69: the through fx switch": X.through?.off === 0xfff7 && sent(X.through?.sentOff, ["24 3 0 0"]) && X.through?.lit === false &&
+      X.through?.pressed === "false" && X.through?.on === 0xffff && sent(X.through?.sentOn, ["24 3 0 1"]),
+  };
+  for (const [name, ok] of Object.entries(fxChecks)) if (!ok) bad.push(`${name}: ${JSON.stringify(X)}`);
   const p6 = one.p6 || {};
   const label = p6.hex && new RegExp(`^# straight-sixteenths .* snapshot ${p6.hex}$`, "m").test(report);
   if (!p6.playing) bad.push("P6: it was not playing while the keys went in");
