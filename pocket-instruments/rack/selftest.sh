@@ -29,7 +29,9 @@ fundamental=${FUNDAMENTAL:-$HOME/.local/share/Rack2/plugins-lin-x64/Fundamental}
 [ -x "$app/Rack" ] || { echo "selftest: no Rack at $app (set RACK_APP)"; exit 2; }
 [ -d "$fundamental" ] || { echo "selftest: no Fundamental at $fundamental"; exit 2; }
 user=$(mktemp -d)
-trap 'rm -rf "$user"' EXIT
+# On a failure Rack's log is kept as build/selftest-<rate>.log: one run in 32 at 96 kHz once
+# failed with a Rhythm module that never saw its CLOCK cable (2026-11-23), and the log was gone.
+trap 's=$?; [ $s -ne 0 ] && mkdir -p "$here/build" && cp "$user/log.txt" "$here/build/selftest-$rate.log" 2>/dev/null && echo "selftest: Rack'"'"'s log kept: rack/build/selftest-$rate.log"; rm -rf "$user"' EXIT
 mkdir -p "$user/plugins-lin-x64" "$user/autosave"
 ln -s "$fundamental" "$user/plugins-lin-x64/Fundamental"
 make --no-print-directory -C "$here" install RACK_USER_DIR="$user" >/dev/null
