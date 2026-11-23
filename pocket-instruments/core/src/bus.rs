@@ -104,10 +104,16 @@ pub fn is_sound_effect(effect: u8) -> bool {
     matches!(effect, 1 | 2 | 3 | 5 | 6 | 7 | 8)
 }
 
-/// Effects that share state: the four filters are one filter (§18), each other its own.
+/// §19: set on an effect's number while its sound comes from outside (the loop's channel 17)
+/// and not from here. Such an effect has no state of ours.
+pub const OUTSIDE: u8 = 0x80;
+
+/// Effects that share state: the four filters are one filter (§18), each other its own; and
+/// every outside effect is one kind, with none.
 #[inline]
 fn family(effect: u8) -> u8 {
     match effect {
+        e if e & OUTSIDE != 0 => OUTSIDE,
         5..=8 => 5,
         e => e,
     }
@@ -135,7 +141,21 @@ pub struct Bus {
     cutoff: f32,
     swept: u32,
     tuned: bool,
+    /// §19, the engine's to set, kept here because the loop's frame is mixed here, and so
+    /// that the engine's own fields stay where they were (the voices' place in memory is
+    /// worth a nanosecond a frame: measured, Session 18). What `ROUTE` set, by its `a`: the
+    /// sounds taken from the input, the effects whose sound comes from outside (bit n - 1:
+    /// effect n), and the sounds whose A, and whose B, come from the input at a hit. The
+    /// patch's to keep: not saved, and no generation.
+    pub route: [u16; 4],
+    /// §19's addition: what the thirty-two slider outputs say, A for sounds 1 to 16 then B,
+    /// 0 to 1: each sound's own until it is hit, then what it was last hit with by the
+    /// instrument's own reckoning, before any input took its place.
+    pub outs: [f32; 2 * TRACKS],
 }
+
+/// A slider in the middle, where `pi_init` puts every one: 32768 of 65535.
+const MIDDLE: f32 = 32_768.0 / 65_535.0;
 
 impl Bus {
     pub const fn new() -> Self {
@@ -154,6 +174,8 @@ impl Bus {
             cutoff: 0.0,
             swept: 0,
             tuned: false,
+            route: [0; 4],
+            outs: [MIDDLE; 2 * TRACKS],
         }
     }
 
@@ -261,9 +283,13 @@ impl Bus {
         }
     }
 
-    /// The effect's output for one frame of the bus.
+    /// The effect's output for one frame of the bus. `outside` is what came back for an
+    /// effect that is heard from outside (§19).
     #[inline]
-    fn wet(&mut self, x: f32) -> f32 {
+    fn wet(&mut self, x: f32, outside: f32) -> f32 {
+        if self.on & OUTSIDE != 0 {
+            return outside;
+        }
         match self.on {
             1 => {
                 // Plaits' sample-rate reducer, without its polyBLEP: in hertz at any rate.
@@ -303,7 +329,58 @@ impl Bus {
                 rest += *s;
             }
         }
-        let wet = self.wet(bus);
+        // No loop in this layout, so an outside effect still ramping out has nothing to
+        // cross to: the bus as it is.
+        let wet = self.wet(bus, bus);
         (rest + bus + self.w * (wet - bus)) * gain
+    }
+
+    /// §19: one frame of a loop layout, read and written in place. In: channels 0 to 15, of
+    /// which only the sounds in `returned` are read, each taking its own voice's place in the
+    /// bus or the rest; channel 17, read only while an outside effect runs. Out: the sixteen
+    /// voices as they are, the mix, and the bus before any effect and before the volume.
+    /// With nothing returned and nothing running the mix is §13's sum, the same bytes.
+    /// An input that is not a number is silence: one NaN would otherwise stay in a filter.
+    /// And in the layout that has them, the thirty-two slider outputs after those.
+    #[inline(never)]
+    pub fn looped(&mut self, frame: &mut [f32], v: &[f32; TRACKS], fx_sounds: u16, gain: f32) {
+        let returned = self.route[0];
+        let Some((io, sliders)) = frame.split_first_chunk_mut::<{ TRACKS + 2 }>() else {
+            return;
+        };
+        if sliders.len() == self.outs.len() {
+            sliders.copy_from_slice(&self.outs);
+        }
+        let clean = |x: f32| if x.is_finite() { x } else { 0.0 };
+        let mut m = *v;
+        if returned != 0 {
+            for (t, s) in m.iter_mut().enumerate() {
+                if returned >> t & 1 == 1 {
+                    *s = clean(io[t]);
+                }
+            }
+        }
+        let (mut rest, mut bus) = (0.0f32, 0.0f32);
+        for (t, s) in m.iter().enumerate() {
+            if fx_sounds >> t & 1 == 1 {
+                bus += *s;
+            } else {
+                rest += *s;
+            }
+        }
+        let mix = if self.on == 0 {
+            let mut sum = m[0];
+            for s in &m[1..] {
+                sum += *s;
+            }
+            sum * gain
+        } else {
+            let back = if self.on & OUTSIDE != 0 { clean(io[TRACKS + 1]) } else { 0.0 };
+            let wet = self.wet(bus, back);
+            (rest + bus + self.w * (wet - bus)) * gain
+        };
+        io[..TRACKS].copy_from_slice(v);
+        io[TRACKS] = mix;
+        io[TRACKS + 1] = bus;
     }
 }

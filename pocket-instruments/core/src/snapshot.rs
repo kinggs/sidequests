@@ -168,6 +168,8 @@ pub fn load(e: &mut Engine, buf: &[u8]) -> i32 {
                 (true, false) => [u16_at(b, at), u16_at(b, at + 2)],
             };
         }
+        // §19's addition: a sound not yet hit shows its own on the slider outputs.
+        e.own_out(t);
     }
     e.generation = e.generation.wrapping_add(1);
     OK

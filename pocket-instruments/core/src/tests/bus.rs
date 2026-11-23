@@ -12,22 +12,22 @@ const STEP: u64 = 6000;
 const FX: u8 = 20;
 const BPM: u8 = 18;
 
-fn down(key: u8) -> Cmd {
+pub(super) fn down(key: u8) -> Cmd {
     cmd(CMD_KEY_DOWN, key, 0, 0)
 }
-fn up(key: u8) -> Cmd {
+pub(super) fn up(key: u8) -> Cmd {
     cmd(CMD_KEY_UP, key, 0, 0)
 }
-fn fx(step: u8, effect: u32) -> Cmd {
+pub(super) fn fx(step: u8, effect: u32) -> Cmd {
     cmd(CMD_FX, step, 0, effect)
 }
-fn fxsound(track: u8, on: u32) -> Cmd {
+pub(super) fn fxsound(track: u8, on: u32) -> Cmd {
     cmd(CMD_FXSOUND, track, 0, on)
 }
-fn on(track: u8, step: u8) -> Cmd {
+pub(super) fn on(track: u8, step: u8) -> Cmd {
     cmd(CMD_STEP, track, step, 1)
 }
-fn play() -> Cmd {
+pub(super) fn play() -> Cmd {
     cmd(CMD_PLAY, 0, 0, 1)
 }
 
@@ -37,7 +37,7 @@ fn bus(h: &Host) -> &Bus {
 
 /// The minimum beat: bass drum on the beat, snare on two and four, closed hats on the
 /// eighths, open hats on the last eighth of each half.
-fn beat() -> Vec<Cmd> {
+pub(super) fn beat() -> Vec<Cmd> {
     let mut c = Vec::new();
     for s in 0..16u8 {
         if s % 4 == 0 {
@@ -57,7 +57,7 @@ fn beat() -> Vec<Cmd> {
 }
 
 /// Edits at frame 0, then play: the commands for `render`.
-fn at_zero(edits: &[Cmd]) -> Vec<(u64, Cmd)> {
+pub(super) fn at_zero(edits: &[Cmd]) -> Vec<(u64, Cmd)> {
     let mut c: Vec<(u64, Cmd)> = edits.iter().map(|c| (0, *c)).collect();
     c.push((0, play()));
     c
@@ -79,8 +79,8 @@ const SEVEN: [u32; 7] = [1, 2, 3, 5, 6, 7, 8];
 
 /// §18 in the plainest code, from ENGINE.md's text and table: kept apart from `bus.rs` so
 /// that a slip in either shows as a difference.
-struct Model {
-    on: u8,
+pub(super) struct Model {
+    pub(super) on: u8,
     heard: u8,
     w: f32,
     acc: u32,
@@ -92,13 +92,21 @@ struct Model {
 }
 
 impl Model {
-    fn new() -> Self {
+    pub(super) fn new() -> Self {
         Model { on: 0, heard: 0, w: 0.0, acc: 0, held: 0.0, s1: 0.0, s2: 0.0, cutoff: 0.0, swept: 0 }
     }
 
     /// One frame: what is heard (an effect the core sounds, or 0), the ticks the frame had,
     /// the sixteen voices, which go through the effects, and the volume. The mix.
     fn frame(&mut self, effect: u8, ticks: u32, rate: u32, v: &[f32], sounds: u16, volume: u8) -> f32 {
+        self.frame_looped(effect, ticks, rate, v, sounds, volume, 0.0)
+    }
+
+    /// The same with §19's one addition (Session 18; `tests/route.rs` drives it): an effect
+    /// whose number carries 0x80 is heard from outside, so its output is `back`, what the
+    /// loop's channel 17 brought; it has no state here, and the ramp is the same ramp.
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn frame_looped(&mut self, effect: u8, ticks: u32, rate: u32, v: &[f32], sounds: u16, volume: u8, back: f32) -> f32 {
         let gain = (volume as u32 * volume as u32) as f32 / 256.0;
         let filter = |e: u8| (5..=8).contains(&e);
         if effect != 0 || self.on != 0 {
@@ -118,7 +126,7 @@ impl Model {
                 }
                 self.on = effect;
                 self.swept = 0;
-                self.cutoff = [0.0, 0.0, 0.0, 0.0, 0.0, 600.0, 8000.0, 2000.0, 100.0][effect as usize];
+                self.cutoff = [0.0, 0.0, 0.0, 0.0, 0.0, 600.0, 8000.0, 2000.0, 100.0].get(effect as usize).copied().unwrap_or(0.0);
             } else if self.on == 6 || self.on == 8 {
                 for _ in 0..ticks {
                     self.swept += 1;
@@ -158,6 +166,7 @@ impl Model {
             }
         }
         let wet = match self.on {
+            e if e & 0x80 != 0 => back,
             1 => {
                 self.acc += 6000;
                 if self.acc >= rate {
@@ -239,7 +248,7 @@ fn hold_to_model(rate: u32, cmds: &[(u64, Cmd)], frames: u64) -> usize {
 /// one effect straight to another (a filter to a filter, a filter from another kind, the hold
 /// from another kind), a sweep held over two steps and restarted, a punch over the lane, a
 /// sound switched out and the volume down.
-fn tour(step: u64) -> Vec<(u64, Cmd)> {
+pub(super) fn tour(step: u64) -> Vec<(u64, Cmd)> {
     let mut edits = beat();
     edits.extend([on(9, 3), on(9, 11), fxsound(1, 0)]);
     for (s, e) in [(1, 1), (2, 1), (3, 2), (4, 3), (5, 2), (6, 5), (7, 6), (8, 6), (9, 7), (10, 8), (11, 5), (13, 7)] {

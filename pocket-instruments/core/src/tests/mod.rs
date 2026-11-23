@@ -7,6 +7,7 @@ mod fx;
 mod json;
 mod keep;
 mod keys;
+mod route;
 mod rules;
 mod samples;
 mod snapshot;

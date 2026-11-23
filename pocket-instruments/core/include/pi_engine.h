@@ -1,16 +1,19 @@
-/* Pocket Instruments: the engine's C ABI, version 8 (1 plus sound: D44; 3 adds samples: D50;
+/* Pocket Instruments: the engine's C ABI, version 9 (1 plus sound: D44; 3 adds samples: D50;
  * 4 adds keys and the view: D51; 5 adds snapshot version 2 and PI_AUDIO_BOTH: D55, D57;
  * 6 adds the lane, the fx key, the four repeats and snapshot version 3: D66, D67;
  * 7 adds the bus and seven sound effects on the mix, with no new call or command: D67;
  * 8 makes the sliders the hand's and lets a step keep them: KEEP, view bytes 60 to 63 and
- * snapshot version 4: D75).
+ * snapshot version 4: D75;
+ * 9 adds sound in: the loop layouts and ROUTE, for Rack's returns, effects loop and slider
+ * jacks: D68, D76, D80).
  *
  * The contract both hosts link. ENGINE.md beside the crate is the specification; this file is
  * the same thing in C. Where they disagree, ENGINE.md is right.
  *
  * Rules of the ABI: only uint32_t, int32_t and pointers cross it. No float arguments, no
  * 64-bit values, no structs by value, no callbacks, no globals. The caller owns all memory.
- * Sound leaves through a pointer to the caller's floats. The core keeps one kind of pointer:
+ * Sound leaves through a pointer to the caller's floats, and since ABI 9 comes in through the
+ * same one. The core keeps one kind of pointer:
  * a track's sample, given with pi_set_sample, which the caller keeps alive (D50).
  * Every function on an engine is called from one thread, the audio thread.
  *
@@ -25,7 +28,7 @@
 extern "C" {
 #endif
 
-#define PI_ABI_VERSION 8u
+#define PI_ABI_VERSION 9u
 
 #define PI_TICKS_PER_STEP 96u /* a step is a sixteenth note */
 #define PI_TRACKS 16u         /* one per grid key: key n plays track n (D30) */
@@ -53,6 +56,29 @@ extern "C" {
 #define PI_AUDIO_TRACKS 16u /* PI_TRACKS floats a frame: track n alone in channel n, before the master
                                and before any effect */
 #define PI_AUDIO_BOTH 17u   /* PI_AUDIO_TRACKS's sixteen, then PI_AUDIO_MIX's one: the same bits as each */
+/* Sound in (ABI 9; ENGINE.md section 19). A loop layout is read and written in place: the
+ * host fills each frame's input channels before the call and reads its outputs after.
+ *   channel   in (before the call)                       out (after it)
+ *   0..15     sound n as it comes back; read only for    sound n's own voice, as PI_AUDIO_TRACKS
+ *             the sounds PI_CMD_ROUTE 0 names
+ *   16        not read                                   the mix. With nothing routed and no
+ *                                                        effect heard: PI_AUDIO_BOTH's, the same bits
+ *   17        what an outside effect sends back; read    the bus: the sounds through the effects,
+ *             only while an effect PI_CMD_ROUTE 1        returned ones included, before any effect
+ *             marks is heard or ramping out              and before the volume
+ * and with the sliders, 1 is the slider's full travel (65535):
+ *   18..33    slider A for sound n; read only on the     the A sound n was last hit with by the
+ *             frame it is hit, for the sounds             instrument's own reckoning (its own until
+ *             PI_CMD_ROUTE 2 names                        it is hit), before any input replaced it
+ *   34..49    the same for slider B (PI_CMD_ROUTE 3)     the same for B
+ * A returned sound takes its own voice's place in the bus or the rest, so the effects reach
+ * it. An input that is not a number is silence; a slider input is held to 0..1. */
+#define PI_AUDIO_LOOP 18u
+#define PI_AUDIO_LOOP_SLIDERS 50u
+#define PI_LOOP_MIX 16u    /* where each is in a loop layout's frame */
+#define PI_LOOP_FX 17u
+#define PI_LOOP_A 18u
+#define PI_LOOP_B 34u
 
 /* Clock sources (PI_CMD_SOURCE). */
 #define PI_SOURCE_TABLE 0u /* the engine counts frames at its tempo */
@@ -81,6 +107,15 @@ extern "C" {
                                A value past PI_FX_MAX is ignored */
 #define PI_CMD_FXSOUND 24u  /* a: track, value: 0 or 1, whether it goes through the effects.
                                All sixteen at pi_init */
+/* Sound in (ABI 9; ENGINE.md section 19): what a loop layout reads. The patch's to keep: in no
+ * snapshot, moves no generation, untouched by pi_load, nothing at pi_init. In the layouts
+ * that read nothing it changes nothing heard. */
+#define PI_CMD_ROUTE 25u    /* a: PI_ROUTE_*; value: a mask of sixteen. An a past 3: ignored */
+#define PI_ROUTE_SOUNDS 0u  /* bit t: sound t is taken from input channel t */
+#define PI_ROUTE_FX 1u      /* bit n - 1: effect n is heard from input channel 17 (the bus crosses
+                               over to it with the 2 ms ramp), whether or not the core sounds it */
+#define PI_ROUTE_A 2u       /* bit t: sound t's slider A comes from its input at each hit */
+#define PI_ROUTE_B 3u       /* the same for slider B */
 /* A step's own sliders (ABI 8; ENGINE.md section 20). An edit; in snapshot version 4. */
 #define PI_CMD_KEEP 26u     /* a: track, b: step, value: A in the high 16 bits, B in the low. That
                                step plays with these from now on. PI_CMD_STEP 0 forgets them */
@@ -189,7 +224,8 @@ void pi_set_sample_rate(pi_engine *engine, uint32_t sample_rate);
  * Sound: `audio` has room for frames * channels floats, frame by frame, about -1 to 1 (it is
  * a sum, so a host must not assume it stays inside). A track that fires on a frame sounds
  * from that frame. With `audio` null or `channels` PI_AUDIO_NONE nothing is written and no
- * voice runs: the events are the same either way. */
+ * voice runs: the events are the same either way. In a loop layout (PI_AUDIO_LOOP and
+ * PI_AUDIO_LOOP_SLIDERS) `audio` is read as well, frame by frame, before it is written. */
 uint32_t pi_process(pi_engine *engine, uint32_t frames,
                     const pi_cmd *cmds, uint32_t ncmds,
                     pi_event *events, uint32_t cap,

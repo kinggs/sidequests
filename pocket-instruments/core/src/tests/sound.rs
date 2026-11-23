@@ -139,7 +139,7 @@ fn a_layout_this_core_does_not_know_is_no_sound_and_writes_nothing() {
     let h = Host::new(48000, 1);
     let mut out = [7.0f32; 64];
     let c = four_clicks().into_iter().map(|c| c.1).collect::<Vec<_>>();
-    for channels in [0u32, 2, 15, 18, 32, u32::MAX] { // 17 is PI_AUDIO_BOTH since ABI 5
+    for channels in [0u32, 2, 15, 19, 32, 49, 51, u32::MAX] { // 17 is PI_AUDIO_BOTH since ABI 5; 18 and 50 the loops since ABI 9 (§19)
         unsafe { pi_process(h.e, 4, c.as_ptr(), c.len() as u32, core::ptr::null_mut(), 0, out.as_mut_ptr(), channels) };
         assert!(out.iter().all(|&s| s == 7.0), "channels {channels}");
     }

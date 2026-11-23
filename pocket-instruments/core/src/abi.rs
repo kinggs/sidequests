@@ -4,9 +4,10 @@
 use crate::engine::Engine;
 use crate::keys;
 use crate::seq::TRACKS;
+use crate::voice::{LOOP, LOOP_SLIDERS};
 use crate::snapshot;
 
-pub const ABI_VERSION: u32 = 8;
+pub const ABI_VERSION: u32 = 9;
 
 pub const CMD_CLOCK: u8 = 1;
 pub const CMD_RESET: u8 = 2;
@@ -22,6 +23,7 @@ pub const CMD_FIRE: u8 = 21;
 pub const CMD_VOICE: u8 = 22;
 pub const CMD_FX: u8 = 23;
 pub const CMD_FXSOUND: u8 = 24;
+pub const CMD_ROUTE: u8 = 25;
 pub const CMD_KEEP: u8 = 26;
 pub const CMD_KEY_DOWN: u8 = 32;
 pub const CMD_KEY_UP: u8 = 33;
@@ -195,10 +197,12 @@ pub unsafe extern "C" fn pi_process(
         unsafe { core::slice::from_raw_parts_mut(events, cap as usize) }
     };
     // Sound is asked for with a buffer and a layout this core knows: 1 (the mix), one
-    // channel a track, or both, the tracks then the mix (§15). Anything else is no sound at
-    // all, and the voices do not run.
+    // channel a track, or both, the tracks then the mix (§15); or a loop (§19), which is also
+    // read: 18 channels, or 50 with the sliders. Anything else is no sound at all, and the
+    // voices do not run.
     let len = (frames as usize).checked_mul(channels as usize);
-    let known = channels == 1 || channels == TRACKS as u32 || channels == TRACKS as u32 + 1;
+    let c = channels as usize;
+    let known = c == 1 || c == TRACKS || c == TRACKS + 1 || c == LOOP || c == LOOP_SLIDERS;
     let audio: Option<&mut [f32]> = match len {
         Some(len) if !audio.is_null() && audio.is_aligned() && known => {
             // SAFETY: non-null, aligned, and `frames * channels` long by the contract.

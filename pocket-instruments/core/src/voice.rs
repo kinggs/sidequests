@@ -16,6 +16,11 @@
 use crate::bus::Bus;
 use crate::seq::TRACKS;
 
+/// §19: the loop layouts' channel counts: the sixteen sounds, the mix and the bus; and the
+/// same with the thirty-two slider channels after them.
+pub const LOOP: usize = TRACKS + 2;
+pub const LOOP_SLIDERS: usize = LOOP + 2 * TRACKS;
+
 pub const KICK_TRACK: usize = 0;
 pub const SNARE_TRACK: usize = 1;
 pub const CLOSED_HAT_TRACK: usize = 2;
@@ -1277,6 +1282,9 @@ impl Voices {
     /// (D57). Each layout's channels are the same bits whichever layout carries them.
     /// §18: while the bus runs an effect the mix is the bus's; idle, it is exactly the sum
     /// above. The sixteen tracks are never touched by an effect.
+    ///
+    /// §19: a loop layout (18 or 50 channels) is also read: the bus does that mix, out of
+    /// line, so the three layouts above cost what they did.
     #[inline]
     pub fn render(&mut self, frame: &mut [f32], gain: f32, bus: &mut Bus, fx_sounds: u16) {
         let mut v = [0.0f32; TRACKS];
@@ -1303,7 +1311,8 @@ impl Voices {
                 tracks.copy_from_slice(&v);
                 *out = mix(&v);
             }
-            tracks => tracks.copy_from_slice(&v),
+            tracks if tracks.len() == TRACKS => tracks.copy_from_slice(&v),
+            looped => bus.looped(looped, &v, fx_sounds, gain),
         }
     }
 }
