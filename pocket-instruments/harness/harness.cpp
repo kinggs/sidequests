@@ -77,6 +77,12 @@ static std::string run(Host &h, const std::vector<Timed> &cmds, uint64_t end, ui
                        const std::vector<View> *views = nullptr, std::string *seen = nullptr, bool *ok = nullptr,
                        uint32_t channels = PI_AUDIO_MIX, uint64_t format = 2) {
     if (audio) audio->assign(end * channels, 0.f);
+    // §19: a loop layout is read as well as written, so every frame's channels are given
+    // something first. Any numbers do, so long as the .wasm harness gives the same: sixteenths
+    // of sixteenths, exact in a float, from the frame and the channel (trace.test.mjs has it too).
+    if (audio && channels >= PI_AUDIO_LOOP)
+        for (uint64_t f = 0; f < end; f++)
+            for (uint32_t c = 0; c < channels; c++) (*audio)[f * channels + c] = float((f * 31 + c * 17) % 256) / 256.f - 0.25f;
     std::string out;
     std::vector<pi_cmd> these;
     pi_event ev[256];
@@ -145,13 +151,19 @@ static int render(const std::string &scenario, const std::string &prefix) {
     }
     for (uint32_t c : layouts)
         if (c != PI_AUDIO_MIX && c != PI_AUDIO_TRACKS && c != PI_AUDIO_BOTH) die("a layout this core does not have");
+    // "loops": the loop layouts (§19), each rendered with its inputs given (run() says how).
+    if (fx.find("loops"))
+        for (const Json &l : fx.at("loops").arr) {
+            if (uint32_t(l.num) != PI_AUDIO_LOOP && uint32_t(l.num) != PI_AUDIO_LOOP_SLIDERS) die("a loop layout this core does not have");
+            layouts.push_back(uint32_t(l.num));
+        }
     if (std::find(layouts.begin(), layouts.end(), PI_AUDIO_MIX) == layouts.end()) die("every render has the mix");
     const std::pair<const char *, uint32_t> sources[] = {{"table", PI_SOURCE_TABLE}, {"edges", PI_SOURCE_EDGES}};
     for (auto &[source_name, source] : sources)
         for (uint32_t rate : {44100u, 48000u, 96000u}) {
             std::vector<Timed> cmds;
             uint64_t end = schedule(fx, rate, source, false, cmds);
-            std::vector<float> by[PI_AUDIO_BOTH + 1];
+            std::vector<float> by[PI_AUDIO_LOOP_SLIDERS + 1];
             for (uint32_t channels : layouts) {
                 Host h(rate, uint32_t(fx.n("seed")));
                 for (uint32_t t = 0; t < pack.size(); t++)

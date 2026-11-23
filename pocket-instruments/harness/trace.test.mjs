@@ -18,7 +18,7 @@ const skip = built || process.env.PI_REQUIRE_WASM ? false : "pi_core.wasm is not
 const RATES = [44100, 48000, 96000];
 const BLOCKS = [1, 128, 512];
 const SOURCES = [["table", 0], ["edges", 1]];
-const CMD = { clock: 1, reset: 2, source: 3, tempo: 4, play: 5, step: 16, prob: 17, swing: 18, length: 19, sound: 20, voice: 22, fx: 23, fxsound: 24, keep: 26, key_down: 32, key_up: 33, param: 34 };
+const CMD = { clock: 1, reset: 2, source: 3, tempo: 4, play: 5, step: 16, prob: 17, swing: 18, length: 19, sound: 20, voice: 22, fx: 23, fxsound: 24, route: 25, keep: 26, key_down: 32, key_up: 33, param: 34 };
 // Format 2: what a finger did. These land a frame after their step's boundary.
 const KEYS = new Set(["key_down", "key_up", "param"]);
 const EDITS = new Set(["step", "prob", "swing", "length", "fx", "fxsound", "keep"]);
@@ -29,7 +29,7 @@ const PAGE = 65536;
 // audio has room for a 128-frame block at 17 channels (PI_AUDIO_BOTH); it had 768 floats, and
 // the commands began at 11264, until then. Session 21 moved the view, the events and the audio
 // up to make the snapshot's room.
-const SNAP = 4096, SNAP_SIZE = 1464, VIEW = 5632, EVENTS = 5760, CAP = 256, AUDIO = 9216, AUDIO_MAX = 128 * 17;
+const SNAP = 4096, SNAP_SIZE = 1464, VIEW = 5632, EVENTS = 5760, CAP = 256, AUDIO = 9216, AUDIO_MAX = 128 * 50;
 const CMDS = AUDIO + 4 * AUDIO_MAX, CMDS_MAX = Math.floor((PAGE - CMDS) / 12);
 
 function load() {
@@ -73,6 +73,7 @@ function toCmd(c) {
   assert.ok(type && c.cmd !== "clock" && c.cmd !== "source" && c.cmd !== "tempo", `fixture command ${c.cmd}`);
   // Format 3's fx names a step and nothing else: the step goes in `a` (ENGINE.md §17).
   if (c.cmd === "fx") return { type, a: c.step ?? 0, b: 0, value: c.value ?? 0 };
+  if (c.cmd === "route") return { type, a: c.what, b: 0, value: c.value ?? 0 }; // P7 only (§19)
   // Format 4's keep: A in the high sixteen bits of the value, B in the low (ENGINE.md §20).
   if (c.cmd === "keep") return { type, a: c.track, b: c.step, value: ((c.a << 16) | c.b) >>> 0 };
   return { type, a: c.track ?? c.key ?? c.slider ?? 0, b: c.step ?? c.param ?? 0, value: c.value ?? 0 };
@@ -145,6 +146,11 @@ function run(m, e, cmds, end, block, audio, views = [], label = "", channels = 1
       v.setUint8(p + 6, c.b);
       v.setUint8(p + 7, 0);
       v.setUint32(p + 8, c.value, true);
+    }
+    // §19: a loop layout is read as well as written. The same numbers harness.cpp gives it.
+    if (audio && channels >= 18) {
+      const io = new Float32Array(m.pi.memory.buffer, m.base + AUDIO, n * channels);
+      for (let f = 0; f < n; f++) for (let c = 0; c < channels; c++) io[f * channels + c] = (((start + f) * 31 + c * 17) % 256) / 256 - 0.25;
     }
     const got = m.pi.pi_process(e, n, m.base + CMDS, count, m.base + EVENTS, CAP, audio ? m.base + AUDIO : 0, audio ? channels : 0);
     if (audio) audio.set(new Float32Array(m.pi.memory.buffer, m.base + AUDIO, n * channels), start * channels);
@@ -279,8 +285,9 @@ for (const file of SCENARIOS) {
     };
     // "layouts": the mix alone unless the scenario asks for more. A layout but the mix is
     // written with its channel count in the name (harness.cpp does the same).
-    const layouts = fx.layouts ?? [1];
-    assert.ok(layouts.includes(1) && layouts.every((c) => [1, 16, 17].includes(c)));
+    // "loops": the loop layouts (§19), each rendered with its inputs given (run() says how).
+    const layouts = [...(fx.layouts ?? [1]), ...(fx.loops ?? [])];
+    assert.ok(layouts.includes(1) && (fx.layouts ?? [1]).every((c) => [1, 16, 17].includes(c)) && (fx.loops ?? []).every((c) => [18, 50].includes(c)));
     for (const [sourceName, source] of SOURCES) {
       for (const rate of RATES) {
         const { cmds, end } = schedule(fx, rate, source, false);

@@ -133,6 +133,7 @@ static pi_cmd to_cmd(const Json &c) {
     if (name == "key_up") return cmd(PI_CMD_KEY_UP, uint8_t(c.n("key")));
     if (name == "param") return cmd(PI_CMD_PARAM, uint8_t(c.n("slider")), 0, value);
     if (name == "sound") return cmd(PI_CMD_SOUND, track, uint8_t(c.n_or("param", 0)), value); // P7 only
+    if (name == "route") return cmd(PI_CMD_ROUTE, uint8_t(c.n("what")), 0, value);              // P7 only (§19)
     if (name == "voice") return cmd(PI_CMD_VOICE, track, 0, value); // D50, render scenarios only
     die("unknown fixture command " + name);
 }

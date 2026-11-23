@@ -49,6 +49,9 @@ SCENARIOS := $(patsubst harness/render-%.json,%,$(wildcard harness/render-*.json
 # A scenario that names "layouts" (render-both.json, §15) is also rendered at 16 and 17
 # channels, each harness holding the three to each other; here each is held to its pair.
 LAYOUTS := $(patsubst harness/render-%.json,%,$(shell grep -l '"layouts"' harness/render-*.json))
+# A scenario that names "loops" (render-loop.json, §19) is also rendered in the loop layouts,
+# 18 and 50 channels, which are read as well as written: each harness gives them the same inputs.
+LOOPS := $(patsubst harness/render-%.json,%,$(shell grep -l '"loops"' harness/render-*.json))
 test: build check-p1
 	PI_REPORT=$(REPORT)-rust.txt cargo test -p pi-core --locked -q
 	$(CXX) -std=c++17 -O2 -Wall -Wextra -Werror -Icore/include harness/harness.cpp $(NATIVE) -o target/harness
@@ -61,7 +64,8 @@ test: build check-p1
 	@echo "Pocket Instruments: three harnesses, $$(grep -c '^#' $(REPORT)-rust.txt) runs each, one report ($$(sha256sum < $(REPORT)-rust.txt | cut -c1-16))."
 	@for s in $(SCENARIOS); do target/harness --render harness/render-$$s.json target/render-cpp-$$s || exit 1; done
 	node harness/compare.mjs --same $(foreach n,$(SCENARIOS),$(foreach s,table edges,$(foreach r,44100 48000 96000,target/render-cpp-$(n)-$(s)-$(r).f32 target/render-node-$(n)-$(s)-$(r).f32))) \
-	  $(foreach n,$(LAYOUTS),$(foreach s,table edges,$(foreach r,44100 48000 96000,$(foreach c,16ch 17ch,target/render-cpp-$(n)-$(s)-$(r)-$(c).f32 target/render-node-$(n)-$(s)-$(r)-$(c).f32))))
+	  $(foreach n,$(LAYOUTS),$(foreach s,table edges,$(foreach r,44100 48000 96000,$(foreach c,16ch 17ch,target/render-cpp-$(n)-$(s)-$(r)-$(c).f32 target/render-node-$(n)-$(s)-$(r)-$(c).f32)))) \
+	  $(foreach n,$(LOOPS),$(foreach s,table edges,$(foreach r,44100 48000 96000,$(foreach c,18ch 50ch,target/render-cpp-$(n)-$(s)-$(r)-$(c).f32 target/render-node-$(n)-$(s)-$(r)-$(c).f32))))
 	@cmp -s $(WASM) web/pi_core.wasm || { echo "web/pi_core.wasm is not the .wasm just built: run 'make web' and commit it"; exit 1; }
 	@if command -v clang++ >/dev/null; then $(MAKE) --no-print-directory race; else echo "P6's ThreadSanitizer run skipped: no clang++."; fi
 
