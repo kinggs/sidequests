@@ -341,4 +341,10 @@ The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
   - The view's white needs a host-side "last fires seen" per track, not a flag; the page
     keeps one array and a timer for when the next white goes out.
   - `rack/fixtures.jq` still leaves format 2 out; Session 13's own filter is in its list.
+- **Later the same day, with the owner (D60, D61):** a mouse latches by **Ctrl+click** (Cmd
+  on a Mac) on sound, pattern, bpm, function and fx; a plain click is a real hold; the next
+  press of any key lets a latch go, a slider move does not. Session 13 builds the same in
+  Rack, which keeps right-click for its own parameter menu (R47). The sounds sheet now
+  plays what it sets: a name plays its sound, the switch changes it and plays it. `make
+  play` has a fourth phase for both; three more planted faults, each caught.
 - **Next: Session 13,** on Opus.

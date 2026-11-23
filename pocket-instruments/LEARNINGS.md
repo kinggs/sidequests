@@ -368,3 +368,10 @@ belongs in `PROOFS.md`, a change of course in `DECISIONS.md`, an outside fact in
 - **`pkill -f` with a pattern also in its own command line kills the shell running it.**
   The pattern matched the bash that ran `pkill`, which died with exit 144 before the next
   command. Stop a server by its port or by the PID taken at its start.
+- **A light the page owns is drawn a frame after the press; the view's lights come with
+  the view.** The latch's lit face is the page's state, not the core's, so a check that
+  reads it straight after the view arrives reads the frame before (Chromium saw it still
+  lit, Firefox not yet lit). Wait two animation frames before reading a page-owned light.
+- **Firefox reports `AudioContext.state` as "running" a moment after audio has run.** The
+  first view had already come from the worklet while the state still said "suspended".
+  Judge "sound started" by what the worklet sent, or wait for the state, not both at once.
