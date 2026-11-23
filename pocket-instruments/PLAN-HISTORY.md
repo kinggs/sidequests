@@ -1011,3 +1011,114 @@ Order against Session 14 is the owner's call; neither needs the other.
       covers there.
 - [x] Build sessions, planned with lists like Sessions 10 to 13, each efficient and measured
       (Ground rules).
+
+### After Session 13: the Rack module (2026-11-23)
+
+- **Built: the Rhythm module,** `rack/src/Rhythm.cpp`, 24 HP, on the redrawn panel. Every
+  key and both sliders are Rack parameters; the face is drawn from the core's view; CLOCK,
+  RESET and the table clock; TRIGGERS, VOICES and AUDIO; the starter pack; the snapshot
+  saved and loaded as the Probe does. The latch (Ctrl+click), the computer keys, D63's
+  double-click, and the menu: Sounds, RETURN, and Self-test. The core did not change: ABI 5.
+- **RETURN (D62),** `rack/src/jacks.hpp`, held by `rack/test/jacks.cpp`, which `make test`
+  now runs. Unpatched, AUDIO is the core's mix bit for bit. A return of silence on channel
+  1 gives the mix of the same beat with no bass drum, bit for bit, with VOICES and TRIGGERS
+  unchanged. A sound's own VOICES channel returned gives the same mix **to within 1.2e-7,
+  not bit for bit**: `5x / 5` is not always `x` in floats. To hold the core's order, the
+  plugin is now built with `-fno-associative-math -fno-reciprocal-math` after Rack's
+  `-funsafe-math-optimizations` (`rack/math.mk`). clang, which builds the macOS plugin,
+  regrouped the sum without them.
+- **The panel's sixth jack:** `design/make_panel.py` draws RETURN at 34 mm with ecru
+  stitches. The wordmark moved right and, by D62 item 4, dropped to 3.0 mm: at 3.5 mm it
+  is 37.8 mm wide and the room is 33.4 mm. It is outlined from ExtraBold now
+  (`design/fonts/`, with the OFL), which closes DESIGN.md's old ⚠ about the Bold cut.
+- **Proven:** `make test` (the report and all 276 render files the same bytes as before
+  the session); `make -C rack selftest` at 44.1, 48 and 96 kHz: the four probes as before,
+  and six Rhythm modules, the three format 2 fixtures each on the table and on an 8 Hz LFO.
+  Each pressed its own parameters, one a frame from the frame after each boundary
+  (`LEARNINGS.md` says why one a frame and why 8 Hz). Every pass matched its trace, every
+  view its text, and both slider caps the view. One played through its own RETURN; a
+  Rhythm instrument loaded an old patch's version 1 snapshot. Nine faults planted in the
+  module and nine in `jacks.hpp`, each caught by a named check (two only after the test
+  was tightened; `LEARNINGS.md`). The repo's `make verify`: see below.
+- **Seen, not only counted:** Rack's screenshot mode draws the face on this desktop (Machine
+  state). It found one bug no headless run could: the sliders were placed by centring a
+  widget whose size Rack starts at infinity, so their position was NaN and they were never
+  drawn. A scratch build with a hand-made view showed every lit state as DESIGN.md has it.
+  Nothing has been pressed by hand.
+- **Opus decided nothing. Nine readings built on, each ⚠, each a line or two:**
+  1. The menu's per-key sample switch also plays the sound, as the page's sheet does (D60
+     item 4 carried to Rack's menu).
+  2. A key that a patch saved as held starts held, and is not a press. Rack saves parameter
+     values; the module reads the first frame's as where things start.
+  3. A slider drags at Rack's own knob speed (its settings apply), not one to one with the
+     43 mm travel. One line: `speed` in `RhythmSlider`.
+  4. Rack's Initialize empties the beat (a fresh engine) and sets RETURN back to "As the
+     cable carries".
+  5. Ticking one sound in RETURN's menu while on "As the cable carries" starts from the
+     sounds the cable carries now.
+  6. "RETURN carrying sound 1's own VOICES channel back gives the same mix" read as to within
+     rounding (above).
+  7. VOICES is not bent by tanh: one voice peaks near 2.5 V. Only AUDIO is.
+  8. In a self-test the weave's area shows the fixture, its count and a green or madder
+     square. Green is not a Loom token; it marks a test, not the instrument.
+  9. The display's and keys' sizes measured off `loom/rack.html` and the page (DESIGN.md,
+     "Not done").
+- **CI and `make verify`:** the repo's `make verify` passed before the push (the smoke test
+  and the Rack It proofs skip: no Playwright). CI run 45153314152: all four platforms built
+  and passed `check-dist.sh`, which now also wants the panel, the font and its licence. So
+  `glfwGetKey` links on Windows and macOS too. ⚠ The first Linux attempt hung for 11
+  minutes before compiling anything: Ubuntu 16.04's archive was slow, and `ci-linux.sh`
+  hides apt's output and the job has no `timeout-minutes`, so a stall is silent for up to six
+  hours. Cancelled and re-run; the re-run passed in 14 minutes (usually 1.5). Recommended: a
+  timeout on the job and apt's progress shown. Not done; it is the owner's call.
+- **For Session 14:** the Rack display's weave area is `RhythmDisplay::draw`; the view
+  reaches it through `Face` every frame, so painting cells is a loop there. `harness/race.cpp`
+  and `keys.rs` still hold bytes 48 to 63 to zero (Session 14's list). The screenshot route
+  (Machine state) is how to see the weave in Rack without a person.
+- **Later the same day, with the owner in Rack.** The owner played the module and is happy
+  with the Rack side. Two findings: a Clocked ×1 clock runs the beat at a quarter of the
+  speed, and the tempo readout keeps the stored tempo on an external clock. Both inputs
+  were tested and work (a scratch build, headless: 95 edges gave 95 steps; 8 resets gave
+  8 returns to step 1). The owner ruled D64: one edge a step stays, as SEQ-3's, and the menu
+  will offer one edge a beat. The readout from the edges is proposed in D64 item 3. Then
+  perf: the module's time fell 31% (above, and `LEARNINGS.md`), and efficiency, measured,
+  is a ground rule. CI's Linux job now has a 30-minute limit and says which setup step it
+  is in. Questions still open: the nine readings above, the parameter reading rate, and how
+  the fx key should reach Rack modules: now Session 15, a design loop on Fable 5.2 with the
+  owner's whole brief in it (O15). Session 14 or Session 15 first is the owner's call.
+- **Then the owner's rulings, D65:** effects first (Session 15); D64's measured tempo with
+  "ext" decided; the nine readings accepted; CI's Linux image as Session 15's first small
+  task. The idle CPU (0.6% stopped) is in "Later: efficiency".
+- **Next: Session 15, on Fable 5.2:** the effects design loop, research first, with CI's
+  image as its small first task. Then Session 14 (the weave), which should also plan D64.
+
+## Session 16 — the lane and the repeats, in the core (build, Opus; done 2026-11-23)
+
+`ENGINE.md` §17; D66; D67 item 1. No sound path changes: this session is the sequencer.
+
+- [x] Before any change: `target/report-rust.txt` and a `sha256sum` of `target/render-*.f32`
+      kept; `fixtures/snapshots-v2.txt` written by today's core (each fixture's version 2
+      snapshot, as `snapshots-v1.txt` was in Session 11) and committed.
+- [x] `make bench`, new: nanoseconds a frame of `pi_process` for an idle engine, the minimum
+      beat and all sixteen sounds, a release build, the best of five. Run it before the
+      change; the number goes in `LEARNINGS.md`.
+- [x] A second fixture by hand, before code, into `fixtures/designed/`: effect 10 (128
+      ticks) over four steps with swing on and one step at a probability under 100, so the
+      run's own grid, the unswung repeats and the draw order are each in a trace.
+- [x] Commands 23 `FX` and 24 `FXSOUND`; the lane and `fx_sounds` in the pattern; clear
+      empties the lane.
+- [x] The keys: fx + key punches; the last key held wins and the one before comes back;
+      fx let go ends them all; stopped, nothing (§17).
+- [x] The sequencer: the lane written by arriving steps; `eff`; the four repeats.
+- [x] The view's bytes 55 to 59 (the grid's table does not change). `harness/race.cpp`'s `look()` and
+      `the_view_follows_edits…` in `core/src/tests/keys.rs` hold bytes 48 to 63 to zero:
+      now 48 to 54 and 60 to 63.
+- [x] Snapshot version 3; versions 1 and 2 still load (the two files of old snapshots).
+- [x] Fixture format 3 in the three harnesses; both designed fixtures moved up unchanged
+      and run. A disagreement is settled in `ENGINE.md`, not in the trace.
+- [x] A rule test for each row and bullet of §17; the 20 000-press generation test with fx
+      in it. Planted faults.
+- [x] `core/include/pi_engine.h`; the page's worklet and the Rack module still build and
+      pass their checks. Nothing is drawn yet, but fx + 9 to 12 already repeats on both,
+      because the keys reach the core: say so in the Handover so the owner can try it.
+- [x] `make bench` again: an empty lane costs nothing measurable, or the Handover says what.

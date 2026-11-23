@@ -176,7 +176,15 @@ old core still loads: `core/src/tests/fixtures.rs` loads each one and holds it t
 fixture's trace, and `rack/selftest.sh` gives one to a Probe as an old patch would.
 A future version adds its own file beside this one, written before its change.
 
-## Format 3, and `designed/` (Session 15: the effects; not built yet)
+## Format 3, and `designed/` (Session 15: the effects; built in Session 16)
+
+**Session 16:** both fixtures below were moved up out of `designed/`, unchanged (git shows
+each as a rename with no change), and only then run. Both passed at the first run on all
+three harnesses. `designed/` is empty until the next session that designs ahead of a core.
+The Rack self-tests leave format 3 out until Session 18. Since Session 16,
+`snapshots-v2.txt` sits beside `snapshots-v1.txt`: each of the seven older fixtures'
+version 2 snapshot, written by the ABI 5 core before version 3 existed, loaded in
+`core/src/tests/fixtures.rs` against the fixture's trace.
 
 `designed/` holds fixtures written for a core that does not exist yet. No harness reads
 the folder: each looks only at the `.json` files beside this one. The session that builds

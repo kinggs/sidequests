@@ -32,10 +32,17 @@ nothing else: `pi_save` writes §15's 388 bytes, `pi_load` takes them and versio
 render is as it was (the 114 render pairs and the seven fixtures' traces and views, the
 same bytes); only the snapshots' bytes differ, by the new fields at their starting values.
 
-**Designed, not built (Session 15, D66 to D68):** §17 to §19 are the effects: the lane, the
-fx key and the four repeats (§17), the bus and the first sound effects (§18), and sound
-coming in from Rack (§19). Sessions 16 to 18 build them (`PLAN.md`), each moving
-`PI_ABI_VERSION` by one, as the weave will whenever it is built.
+**ABI 6 (Session 16, D66, D67 item 1)** adds §17, the lane, the fx key and the four
+repeats, and snapshot version 3, and changes nothing else: commands 23 `FX` and 24
+`FXSOUND`, the view's bytes 55 to 59, `pi_save` writes 408 bytes and `pi_load` takes all
+three versions. Every trace and view of the seven older fixtures and all 276 render files
+are as they were; only the snapshots' bytes differ, by the new fields at their starting
+values.
+
+**Designed, not built (Session 15, D66 to D68):** §18 and §19 are the rest of the effects:
+the bus and the first sound effects (§18), and sound coming in from Rack (§19). Sessions
+17 and 18 build them (`PLAN.md`), each moving `PI_ABI_VERSION` by one, as the weave will
+whenever it is built. (§17 was in this list until Session 16.)
 
 **Designed, not built (Session 9, D51 to D57):** §16 is the rest of the instrument: the
 weave. Session 14 builds it (`PLAN.md`) and moves `PI_ABI_VERSION` by one. Until then the
@@ -308,7 +315,7 @@ Two runs agree when their traces are the same bytes.
   harness, the worklet and the Rack Probe; `core/src/tests/rules.rs` holds `pi_size` to it).
   With a sample beside each voice (§12) it is 2 328 bytes, natively and in WebAssembly, and
   the room is 4 KiB. With the keys (§13) it is 2 352 bytes, in the same room, and snapshot
-  version 2 (§15) added nothing to it. The samples
+  version 2 (§15) added nothing to it. With the lane and the repeats (§17) it is 2 400. The samples
   themselves are in pages of their own after the host's.
   A host that can should ask `pi_size` instead.
 - **One thread.** Every function on an engine is called from the audio thread only. That
@@ -765,7 +772,7 @@ cells = pi_weave(view, len, flags, out, cap)    /* PI_WEAVE_W × PI_WEAVE_H, or 
 - The host draws the rest of the display itself, from the view: the tempo, `bpm`, the write
   mark, the step number, the sixteen step marks.
 
-## 17. Effects: the lane, the keys and the repeats (designed in Session 15; D66, D67; not built)
+## 17. Effects: the lane, the keys and the repeats (ABI 6; designed in Session 15; D66, D67; built in Session 16)
 
 The fx key comes alive. What the PO-12 does is in `REFERENCES.md` R48 to R54; what we take
 from it is D66. One more thing a pattern holds: **the lane**, one effect number for each of
@@ -791,7 +798,7 @@ hardware is unknown and ours are our own design under its names.
 | Type | Name | Arguments |
 |---|---|---|
 | 23 | `FX` | `a` step, `value` 0 to 16: the lane's entry for that step. A value past 16 is ignored, as an index is |
-| 24 | `FXSOUND` | `a` track, `value` 0 or 1: whether that sound goes through the effects |
+| 24 | `FXSOUND` | `a` track, `value` 0 or 1: whether that sound goes through the effects (built: any value but 0 is 1, as `STEP`'s) |
 
 Both are edits (§6): a host's sheet or menu sends them, and a fixture can. Each moves
 `pi_generation` when it changes a value.
@@ -937,6 +944,38 @@ and is not saved.
 Session 15 before any code (`fixtures/README.md`), on both sources; a rule test for each
 row and bullet above; a version 2 snapshot file kept from before the change, as
 `snapshots-v1.txt` was.
+
+**Built (Session 16):** the lane, `eff`, the runs and the repeats in `core/src/seq.rs`
+(`Seq::tick` is handed one byte, what an arriving step takes, and says whether the lane
+changed); the punches in `core/src/keys.rs`, kept in the order they went down, and `heard`
+and bytes 55 to 59 in `Engine::view`; `FX` and `FXSOUND` in `core/src/engine.rs`; version 3
+in `core/src/snapshot.rs`; the header. Proven by the two format 3 fixtures, worked by hand
+before the code (`fx-repeat-punch`, Session 15, and `fx-repeat-swing`, Session 16: effect
+10 over four steps with swing and a probability), moved up unchanged: both passed at the
+first run on all three harnesses, both sources, three rates, three block sizes and from a
+version 3 snapshot; 30 rule tests in `core/src/tests/fx.rs`, among them the 20 000-press
+generation test with fx in it; `fixtures/snapshots-v2.txt`, saved before the change and
+loaded against every fixture's trace; 24 faults planted in the core, each caught by a
+named test. Cost, measured (`make bench`, `LEARNINGS.md`): none that the bench can see
+with an empty lane. The design held. What it did not say, built on and marked:
+
+- ⚠ **A step that writes the lane moves the generation.** §8 says the generation moves
+  when "a command" changes what a snapshot holds; a lane written by an arriving step is a
+  tick, not a command. Built: it moves, so a host saves a performance as it does an edit.
+  `pi_generation`'s line in the header says so.
+- ⚠ **A repeat waits for the first step after play.** Play from stopped and reset clear
+  `eff` with `last`: between a play and the first boundary after it nothing has been read
+  since play, so no repeat fires there, as no plain firing does (`pending`). Only the
+  `PLAY` edit in the middle of a step, or the play key on edges, can reach that stretch.
+- ⚠ Bytes 402 and 403 of a version 3 snapshot are not read, as 381 to 383 are not (§15).
+- Not a reading: a punch made while stopped is kept, unheard and unwritten, and is heard
+  and written from the first step once play starts (the keys' row applies whether playing
+  or not; "stopped, nothing" is what `heard` and the lane say).
+- Rack and the page: nothing is drawn yet (Sessions 18 and 19), but both carry ABI 6, so fx
+  plus a key already repeats there. Rack's self-tests leave the format 3 fixtures out until
+  Session 18 gives the module FX GATES. `harness/race.cpp`'s churn no longer presses fx:
+  held while playing, it lets steps write the lane at the audio thread's pace, which its
+  model (a frame an edit) cannot keep; the lane goes in by `FX` instead.
 
 ## 18. The bus and the first sound effects (designed in Session 15; D67; not built)
 

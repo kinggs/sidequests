@@ -509,3 +509,43 @@ belongs in `PROOFS.md`, a change of course in `DECISIONS.md`, an outside fact in
   DaisySP is MIT but its bitcrush, reverb and compressor sit in an LGPL repository; the
   one engine already written in four-operation arithmetic is MPL. What ports cleanly is a
   few dozen lines of Émilie Gillet's (R56).
+
+## Session 16: the lane and the repeats, in the core (2026-11-23)
+
+- **Both hand-worked fixtures passed at the first run.** `fx-repeat-punch` (Session 15)
+  and `fx-repeat-swing` (this session, committed before any §17 code) were moved up as
+  renames with no change, then run: Rust, C++ and Node, both sources, three rates, three
+  block sizes, and from a version 3 snapshot. Writing §17 as pseudo-code with the order of
+  every comparison paid for itself again: the code is that pseudo-code. Working the second
+  fixture by hand took longer than writing the sequencer.
+- **The race harness failed for a reason the design created, not a bug.** With fx in its
+  random keys, 289 of 4 809 rounds had a snapshot that was not the model's: held while the
+  engine played, fx let arriving steps write the lane at the audio thread's pace, and the
+  model (one frame an edit) never reached those steps. The lane is the first thing a
+  snapshot holds that time writes, not a command. That is also why the generation now
+  moves on a tick (a ⚠ reading, `ENGINE.md` §17). Fixed in the harness: no fx key in the
+  churn, `FX` edits instead. Predicted before the run, which is how it was told apart from
+  a real fault.
+- **The planting guard caught the plant script, again.** The first unplanted copy failed:
+  one test reads `samples/`, which the copy left out. Session 10's rule (the unplanted copy
+  must pass first) stopped 24 "caught" faults that would have meant nothing.
+- **One plant was caught only by a fixture.** "A sound outside the effects is not swung
+  during a run" failed `fx-repeat-swing` and no rule test: every rule test ran with swing
+  0 or drew the same numbers either way. A rule test was added and the plant re-run (Session
+  10's lesson, met again: a fixture is a walk, not the holder of a rule). 24 of 24 caught.
+- **Checking the first draft of the rule tests by hand, before running them, found five
+  wrong expectations; the core then passed all of them at the first run.** Each was the
+  test missing something `ENGINE.md` already says: tick 0's events land in the block that
+  sends play, so a helper that plays first hides them; a run of `n` steps' frames also
+  reaches the next step's tick 0 on its last frame. The helpers now say which.
+- **Measured (`make bench`, new; best of five, 10 s at 48 kHz, the mix, release build;
+  three runs each, the range):** before the change, idle 26.1 to 27.0 ns a frame, the
+  minimum beat 28.3 to 29.5, all sixteen 41.7 to 42.7. After, with an empty lane: idle 25.5
+  to 26.0, beat 27.9 to 29.4, all sixteen 42.3 to 44.8 (one run's 44.8 against 42.3 and
+  42.5 the others). An empty lane costs nothing the bench can see: the runs overlap.
+  With effect 11 on every step ("repeat", all sixteen sounds): 30.9 to 31.7, less than
+  "all" because only one column sounds. The engine grew from 2 352 to 2 400 bytes; the
+  `.wasm` from 28 216 to 30 381.
+- **Idle is 26 ns a frame, almost all of it the voices.** A stopped engine with nothing
+  sounding costs as much as the minimum beat playing. That is the "Later: efficiency"
+  idle row, now with a number, and the bench is where to see it move.
