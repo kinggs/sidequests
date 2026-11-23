@@ -126,6 +126,7 @@ Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
 | 21, the sliders are the hand's (Opus; D75) | ABI 8: `KEEP`, a step keeps what it was written with, the view's second mark, snapshot version 4; the caps the hand's on the page and in Rack; `snapshots-v3.txt`; fixture format 4; the plugin ships the stmlib and Plaits notice (D77 item 5) | 2026-11-23 |
 | 18, Rack's jacks (Fable; D68, D76, D78, D80) | ABI 9: sound in (`PI_AUDIO_LOOP`, `ROUTE`), so a returned sound goes through the effects; FX GATES, FX SEND, FX RETURN, A and B out and in; the fx latch that stays; the panel in two rows of thirteen jacks; self-tests through the module's own cables; `make bench`'s loop cases | 2026-11-23 |
 | 19, the page's effects (Opus; D69, D78, D81) | fx and a key on the page by touch, mouse and keys; the display's effect block and lane ticks on the page and in Rack (D81's stand-in); the sheet's "through fx"; D78's latch on the page; `make play`'s three new phases, format 3 and 4 fixtures played on the page; the lit Rack screenshots again | 2026-11-23 |
+| 20, the grid's lights (Opus; D71, D72, D82) | with write off the grid lights the chosen sound's steps, as the hardware does: one line of the core, twelve fixture views worked again by hand; `make play` holds every key's white; `design/rack-face-writeoff-*.png` | 2026-11-23 |
 
 ## Still the owner's hands
 
@@ -152,6 +153,9 @@ Unticked in the finished lists. None blocks a build session.
       display" and "Not done"): the madder `fx` block and the lane's ticks, D81's stand-in;
       whether madder or the fx key's ecru (Session 19's Handover); the sheet's "through fx"
       switch; D78 on the page by mouse (Ctrl+click fx, then click and hold keys while it plays).
+- [ ] Session 20's grid with write off, on the phone and in Rack (`design/rack-face-writeoff-100.png`
+      first): the chosen sound's steps lit, a lit key white as it fires and lit again, no
+      stitch (D82 item 3); and Session 20's three ⚠ readings (its Handover).
 - [ ] Session 22's recording: ten minutes with the PO-12 and the Scarlett, when it suits.
 - [ ] The four effects checks left on the PO-12 (`WORKFLOW.md`, "The effects: what to check
       on the PO-12"; nine were done on 2026-11-23): what 9 to 12 do (9 gave no repeat the
@@ -336,22 +340,6 @@ tuned by ear and before the delay is designed. It needs no build to have happene
       on 9 at all. Decide from the recording what a repeat should hold when the step is
       empty (the last step that had a hit is the obvious candidate).
 
-## Session 20 — the grid's lights, as the hardware has them (build, Opus; D71, D72, D82)
-
-Small, and before the weave: the weave's rules read the same view. Every fixture with a
-view taken while write is off changes in its `field`; check all of them, not only the
-three key fixtures.
-
-- [x] D71's open point, answered by the owner's PO-12: every sound's key flashes as it
-      fires and the playhead's as it passes. So the field becomes the chosen sound's steps
-      in both modes, and the white and the frame stay (D72 item 3).
-- [ ] The write-off row is D82 items 2 to 4: field, the chosen sound's steps; no stitch; no
-      bar; the grid still sounds.
-- [ ] `ENGINE.md` §14's table changed first; the three key fixtures' views worked again by
-      hand from it and their change explained in `fixtures/README.md` (a trace is not
-      edited to pass a build; a view changed by a decision is).
-- [ ] The core, the page and the module follow; `make play` and the self-test.
-
 ## After Session 14
 
 In the order they are likely wanted; none is planned in detail yet.
@@ -389,79 +377,6 @@ Decided when P1 to P4 are in, not before:
 ## Handover
 
 The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
-
-### After Session 18: Rack's jacks, sound in, the panel in two rows (2026-11-23)
-
-- **Built, ABI 9 (`ENGINE.md` §19, now marked built; D68, D76, D78; the builder's rulings
-  are D80):** in the core, two layouts that are read as well as written (`PI_AUDIO_LOOP`,
-  18 channels: the sixteen sounds, the mix, the bus; `PI_AUDIO_LOOP_SLIDERS`, 50: those and
-  A and B for each sound) and command 25 `ROUTE` (which sounds come back, which effects are
-  heard from outside, which sounds take A and B from an input). A returned sound takes its
-  own voice's place in the bus or the rest, so a punch reaches it. In the module: FX GATES,
-  FX SEND, FX RETURN, A OUT, A IN, B OUT, B IN (new ports after the old ones in each enum, so
-  an old patch keeps its cables); the menu's ticks for FX RETURN (default: effects 4 and 13
-  to 16), A IN, B IN, and Sounds, "Through fx"; D78's latch; the module no longer rebuilds
-  the mix, and `rack/src/jacks.hpp` is volts in and out. The panel: `design/make_panel.py`
-  draws two rows of thirteen jacks, each output on its own plate, and `--check` holds every
-  label, plate and stitch clear of its neighbour's.
-- **Proven:** kept first: the report, the hashes of the 372 render files, `make bench` and
-  a perf profile. At the end the report and all 372 files are the same bytes; unpatched,
-  the loop's channel 16 is layout 17's mix bit for bit (core test and `rack/test/jacks.cpp`,
-  volumes 16 and 11). 204 Rust tests (23 of them §19's in `core/src/tests/route.rs`: the
-  four cases `rack/test/jacks.cpp` held, as core tests; a test a rule; and §18's model given
-  what came back, bit for bit on every frame at three rates and on edges). 36 new render
-  files (`harness/render-loop.json`, 18 and 50 channels), native and `.wasm` the same
-  bytes. `rack/test/jacks.cpp`: the owner's patch as volts (every sound returned from its
-  own VOICES, effect 2 punched: the core's own punched render within 1e-5, largest 1.8e-7,
-  and heard). Planted, the unplanted copy passing first: 30 faults in the core, 30 caught by
-  named tests; 18 in the module and its jacks, 17 caught at once and one (FX SEND carrying
-  the mix) after a check was added. `make test` (300 runs a harness; P6's race and its six
-  plants), `make play`, `make p4`, `make listen`, the repo's `make verify`. Rack's `make
-  selftest` at 44.1, 48 and 96 kHz: 12 Rhythm modules on the six fixtures of formats 2, 3
-  and 4, both clocks, FX GATES held to each view's `fx`; three modules through their own
-  cables, every frame held to a second engine given what those cables should carry
-  (VOICES to RETURN with effect 2 punched, which is the owner's patch with the module's
-  voices as the drums; FX SEND to FX RETURN with effect 4; A OUT and B OUT to A IN and B
-  IN); and D78's latch, eight checks a pass. The face seen in Rack's screenshot mode at 100%
-  and 200%, unlit and lit: `design/rack-face-*.png`. CI run 45200249016 (19d3af0, the last
-  push that changed code) green on all four platforms.
-- **Measured (`LEARNINGS.md`):** ns a frame, back to back with the old build, ten pairs,
-  lowest and middle: idle 25.2 and 26.1 → 24.9 and 25.6; the minimum beat 27.7 and 28.6 →
-  27.3 and 28.3; all sixteen 42.4 and 42.7 → 41.3 and 41.8; repeat 31.2 and 32.3 → 30.2 and
-  30.8. New: every sound returned, about 9 ns a frame over the unpatched 28; the slider
-  jacks about 4. perf, four modules playing unpatched, samples over 20 s: `pi_process`
-  3 272 and 3 320 before, 3 144 to 3 518 after; `Rhythm::process` 2 726 and 2 806 before,
-  2 516 to 2 655 after. Unpatched, the new jacks cost nothing measurable. The engine is
-  3 704 bytes (from 3 568), the `.wasm` 39 836 (from 36 963).
-- **Rulings (D80, each the owner's to overrule; `DECISIONS.md` has all eighteen).** The
-  ones that change what is heard or seen: `ROUTE` may mark any effect, a repeat too (item
-  3); a slider's input is turned to a number to the nearest, not down (item 7: through
-  Rack's volts 5 116 values of 65 536 came back one less); FX RETURN's default ticks are 4
-  and 13 to 16 (item 9); on one frame a function key goes down before a grid key (item
-  13); the left three columns moved to 12.4, 25.4 and 38.4 mm, FX SEND and FX RETURN to 84
-  and 96 with FX on its own line, FX GATES to 90 (items 16 and 17): the lettering did not
-  fit D76's arithmetic.
-- **Questions for the owner:**
-  1. The panel, at 100% zoom and with cables in: do the two rows and their groups work?
-     `design/DESIGN.md`, "Not done", lists what to look at.
-  2. A OUT through a module to A IN is one hit late (`ENGINE.md` §19, "Found"). Is that
-     the instrument wanted?
-  3. Should a marked repeat cross the bus to FX RETURN (D80 item 3), and are 4 and 13 to
-     16 the right default ticks (item 9)?
-  4. D80's other items: accept as built?
-- **Not done:** nothing on the list is left. Limits: the face was seen only in screenshot
-  mode, never with a cable in or a mouse on it; the menus and D78 by a real Ctrl+click were
-  not tried by hand (the self-test calls the functions the mouse calls); in Rack the display
-  shows nothing of the effects yet (Session 19 decides the mark for the page first). The
-  loop's mix costs 9 ns with all sixteen returned and has not been tuned. No ear has heard
-  any of it.
-- **For the owner to try now** (`make install` in `rack/`, then Rack; PulseAudio in the
-  Audio module): your patch: Clocked to CLOCK and RESET, TRIGGERS to Split to the drums,
-  Merge to RETURN, AUDIO to a mixer. While it plays, hold fx and press 2 (or Ctrl+click fx,
-  then click and hold 2): the distortion is on the returned drums. Then FX SEND to a delay,
-  the delay to FX RETURN, and hold fx and 4. Right-click: FX RETURN, A IN, B IN, and
-  Sounds, Through fx.
-- **Next:** Session 19 (Opus), the page; or the owner's eye on the panel first.
 
 ### After Session 19: the page's effects; the display says the effect and the lane (2026-11-23)
 
@@ -520,3 +435,58 @@ The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
   clean. In Rack (`make install`), the same block and ticks on the display.
 - **Next:** Session 20 (the grid's lights), then a first weave (Session 14, D79); or the
   owner's eye on the block, the ticks and the madder question first.
+
+### After Session 20: the grid's lights, as the hardware has them (2026-11-23)
+
+- **Built (D71, D72 item 3, D82; ABI 9, no byte moved):** with write off the grid's field is
+  the chosen sound's steps, as with write on and as on the owner's PO-12; no stitch, no bar,
+  and the grid is still sounds, so every key goes white as its own sound fires and the frame
+  marks the playhead. One line in `Engine::view` (`core/src/keys.rs`). `ENGINE.md` §14's
+  table changed first and is marked; `web/pi_core.wasm` rebuilt and committed. Neither host
+  needed a change: the page and the Rack module already lit every key from the field and
+  drew a firing's white over it.
+- **The fixtures, before any code:** every view of every fixture listed with the row it
+  takes. Sixteen lines in four fixtures take the write-off row (not only the three key
+  fixtures: both format 3 ones too); twelve change, in `field=` only: `fx-repeat-punch` at
+  4, 7, 14, 23 (`0011`); `fx-repeat-swing` at 2, 15 (`0007`); `keys-tap-and-choose` at 7, 10
+  (`0004`); `keys-write-a-beat` at 11, 15, 27, 31 (`1010`). Why, line by line, in
+  `fixtures/README.md` ("The views worked again for the write-off row"). No trace changed.
+- **Proven:** before the first change, `make test` (204 Rust tests, 300 runs a harness), its
+  report and the sha256 of all 408 render files kept. At the end: 205 Rust tests; the report
+  differs in exactly 360 of 14 191 lines (twelve a run, 30 runs), each only in `field=`
+  (checked by a script); the three harnesses agree; all 408 render files the same bytes.
+  `make play` in Chromium and Firefox: 8 phases, about 735 drawings each, the field read back
+  on every one, and new: every drawn key's white held to §14's rule, and with write off a lit
+  key seen going white and lit again (26 and 7 times in Chromium, 27 and 7 in Firefox).
+  `make p4` (24 of 24, both browsers). Rack: `make install`, `make selftest` at 44.1, 48 and
+  96 kHz (12 Rhythm modules on the six fixtures of formats 2 to 4, both clocks, every view
+  held; three through their own cables; D78's latch), all clean. Planted, the unplanted copy
+  passing first: 7 in the core, 7 caught by named tests (one, the field masked by the
+  length, only after a test was added that holds write off to write on's field); one each in
+  the C++ and Node harnesses' view text, one in Rack's view text, three on the page: each
+  failed its check. The repo's `make verify`. CI run 45209366419 (15bfd44, the last push
+  that changed the core) green on win-x64, lin-x64, mac-x64 and mac-arm64.
+- **Measured:** `pi_process` unchanged. `pi_view`, back to back with the old build, best of
+  seven: write off 6.56 to 6.82 ns old, 6.48 to 6.53 new; write on about 12.9 both.
+- **Opus decided nothing. Readings built on (⚠):**
+  1. No `PI_ABI_VERSION` bump: no byte moved and the field means what it meant; only which
+     row fills it changed. D82 is silent on the ABI.
+  2. "With write off as with write on" (the session's brief) is read as the field and the
+     host's drawing; the white for a firing still shows only while the grid is sounds
+     (§14), so with write on a firing still does not whiten a key (D82 item 5).
+  3. A step past a short length is lit with write off, as write on has always lit it: §14
+     names the same steps in both rows, and a test now holds the two fields equal.
+- **Questions for the owner:**
+  1. The look with write off (`design/rack-face-writeoff-100.png`, `-200.png`; on the phone
+     by playing with write off): does it read like the PO-12?
+  2. D82 item 3 (Fable's, the owner away): no stitches with write off. Keep?
+  3. The three readings above: accept as built?
+- **Not done, and limits:** nothing on the list is left. The Rack drawing has no checker; its
+  write-off face was seen only in screenshot mode from a scratch build (kept out of the tree;
+  `grep SCRATCH` is clean). Nothing was seen on a phone, and nothing was heard (no sound
+  changed).
+- **For the owner to try now:** on `web/rhythm.html`, write a kick on 1, 5, 9 and 13, turn
+  write off and play: the four keys stay lit and flash white as the kick fires. Choose
+  another sound (sound + its key): its steps light instead. In Rack (`make install`), the same.
+- **Next:** a first weave (Session 14, D79), which reads the same view; or the owner's eye on
+  the write-off grid first.

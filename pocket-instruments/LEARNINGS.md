@@ -751,3 +751,43 @@ belongs in `PROOFS.md`, a change of course in `DECISIONS.md`, an outside fact in
 - **No audio path changed:** the page's main thread and Rack's drawing thread only, so there
   is no frame cost to measure (the ground rule). The report, all 408 render files and the
   `.wasm` are the same bytes as before the session.
+
+## Session 20: the grid's lights, as the hardware has them (2026-11-23)
+
+- **"The three key fixtures" was four fixtures, and two of them format 3.** PLAN's list named
+  the three key fixtures; its heading said to check every fixture. A script listed every view
+  of every fixture with the row it takes (write off, and none of bpm, sound or pattern held):
+  sixteen lines in four fixtures, `fx-repeat-punch` and `fx-repeat-swing` among them, twelve
+  of which change. Four take the row with a chosen sound that has no steps and stay
+  `field=0000`. Listing by the rule, not by the fixture's name, is what found them.
+- **The worked views passed at the first run,** as Session 21's did: the core gave all twelve
+  lines, the report differed from the morning's in exactly 360 lines (twelve a fixture run,
+  30 runs a fixture), each checked by a script to differ only in `field=`, and every trace and
+  all 408 render files were the same bytes. No hand-worked line disagreed with the build.
+- **A planted fault survived the first tests:** the field masked to the pattern's length
+  with write off. Nothing had a step past the length, so nothing could see it. The fix was a
+  test that holds D82's "in both modes" itself (write off lights exactly what write on
+  lights, over 400 random patterns, lengths and choices, and a step past a length of 4),
+  not a test of the masking: which is right past the length is §14's, and §14 says the same
+  words in both rows. 7 faults planted in the core, the unplanted copy passing first: 7
+  caught by named tests, one only after that test. One in each of the C++ and Node
+  harnesses' view text (120 of 300 runs failed; the Node fixture test failed on
+  `fx-repeat-punch`'s first view). One in Rack's view text: the self-test failed on four
+  fixtures' views. Three on the page (the field drawn only with write on; a lit key never
+  going white; the lit colour winning over white in the CSS): `make play` failed on each.
+- **`make play` read the field already; it never read the white.** Every drawing's `on`
+  classes were held to the field since Session 12, so the new field was checked the moment
+  the `.wasm` changed. D82 item 4 (a lit key goes white and comes back lit) had no check at
+  all on any host. Now every drawn key's colour is held to §14's rule for white, from the
+  checker's own record of when each count moved, and the punch phase (write off, sound 1
+  lit) must show a lit key white and then lit again: 26 and 7 in Chromium, 27 and 7 in
+  Firefox. A drawing within 15 ms of a white's end is not judged: the page and the check read
+  the clock a moment apart.
+- **Neither host needed a change.** Both lit keys from the field whatever the row, and both
+  draw a firing's white over the field and drop back to it. The decision cost one line of
+  the core; the session's work was the fixtures, the checks and the record.
+- **Measured.** `pi_process` did not change (`make bench` does not call `pi_view`). `pi_view`
+  alone, a scratch bench against a build of the session's first commit, three runs of best
+  of seven times twenty million: write off 6.56 to 6.82 ns old, 6.48 to 6.53 new; write on
+  12.77 to 12.98 old, 12.89 to 12.90 new. No difference to see; Rack calls it at most every
+  16th frame. The `.wasm` is 39 832 bytes (from 39 836).
