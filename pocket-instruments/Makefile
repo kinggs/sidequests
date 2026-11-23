@@ -9,7 +9,7 @@ CXX    ?= c++
 include rack/math.mk
 RACK_ARCH := $(if $(filter x86_64,$(shell uname -m)),-march=nehalem,-march=armv8-a+fp+simd)
 
-.PHONY: build test check-toolchain check-p1 clean rack-lib race targets web p4 listen play
+.PHONY: build test check-toolchain check-p1 clean rack-lib race targets web p4 listen play bench
 
 # Both targets from one crate, one crate type each: a static library for Rack and the C++
 # harness, a bare module for the browser and Node.
@@ -71,6 +71,13 @@ test: build check-p1
 race:
 	clang++ -std=c++17 -O1 -g -fsanitize=thread -Wall -Wextra -Werror -Icore/include harness/race.cpp $(NATIVE) -o target/race
 	sh harness/race.sh target/race fixtures $(REPORT)-node.txt
+
+# What a frame of pi_process costs, in nanoseconds, on the release library: idle, the minimum
+# beat, all sixteen sounds (harness/bench.cpp says how). Not part of `make test`: a number, not
+# a pass or fail. A change on the audio path records it before and after (PLAN.md).
+bench: build
+	$(CXX) -std=c++17 -O2 -Wall -Wextra -Werror -Icore/include harness/bench.cpp $(NATIVE) -o target/bench
+	target/bench
 
 # rust-toolchain.toml is the pin. mise.toml must name the same version, and so must the
 # compiler that actually runs: mise sets RUSTUP_TOOLCHAIN, which wins over the file. For the

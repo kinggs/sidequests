@@ -222,3 +222,30 @@ typed in. Length 8, so a pass is 768 ticks. A key lands a frame after its step's
   alone at 1344.
 - **Counts.** Sound 1 fires twice a pass: 6. Sound 2 once a pass: 3. Sound 3: 6, 2 and 2:
   10. 43 lines.
+
+### `fx-repeat-swing`, worked by hand (Session 16)
+
+Written from `ENGINE.md` §17 and §5 with no engine and no model, before any code of §17
+existed, and committed first. Every tick, draw and count was typed in. Length 8, swing 24,
+so a pass is 768 ticks and odd grid steps play 24 ticks late. Numbers below are the trace's:
+track and step from 0. The lane comes from four `fx` edits at step 0, so the "from a
+snapshot" run holds it to snapshot version 3 as well.
+
+- **The run's own grid.** Steps 1 to 4 hold effect 10, period 128. The run begins at the
+  boundary of step 1 (tick 96, grid step 1). Hits at 96, 224 and 352: inside steps 1, 2 and
+  3. Tick 480 is the next one, and step 5 arrives on it with an empty lane, so four steps
+  hold three hits. Each carries the run's column, 1 (`224 trig 2 1` while the playhead is
+  on 2).
+- **Unswung.** Grid step 1 is odd: a plain hit there would be at 120. The run's first is at
+  96. Track 1 is out of the effects and plays its own step 3 swung, at 312; after the run,
+  track 2's step 5 is swung too, at 504: the beat comes back in place.
+- **In the effects, its own steps are silent.** Track 0 has step 2 on; it never fires.
+- **The draws.** Track 0's step 1 is at probability 70 and is the only step that draws.
+  Each repeated hit draws once, in track order, before track 2 in the same tick. From seed
+  1: 270369 (69, fires at 96), 67634689 (89, not at 224), 2647435461 (61, fires at 352);
+  in the second pass the run begins again at 864: 307599695 (95, not), 2398689233 (33,
+  fires at 992), 745495504 (4, fires at 1120). A core that drew once a step, or not at all
+  for a repeat, gives other lines.
+- **Counts.** Track 0: 0, 96, 352, 768, 992, 1120: 6. Track 1: 312, 1080: 2. Track 2: four
+  a pass: 8. 32 lines. The view in step 2 says `fx=10` (nothing punched; the playhead's step
+  holds 10) and `fxsteps=001e`; the last, on step 7, `fx=0`.
