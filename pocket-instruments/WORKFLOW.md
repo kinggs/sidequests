@@ -139,8 +139,9 @@ D22 asks for every one to be listed and explained. So far:
 | Difference | Why |
 |---|---|
 | Sliders where the hardware has knobs | D20, D21: the look must be our own. They work the same way if question 4 is "absolute" |
-| In Rack, a click on a function key latches it | D23: a mouse is one finger |
-| In Rack the tempo preset is two clicks on bpm: one latches it, one lets it go | D57: the preset changes on release, and a click is a latch |
+| ~~In Rack, a click on a function key latches it~~ With a mouse, in Rack and on the page, Ctrl+click (Cmd on a Mac) latches sound, pattern, bpm, function or fx; a click is a real hold | D23: a mouse is one finger. D60, D61 replaced the click latch (built in Rack in Session 13) |
+| ~~In Rack the tempo preset is two clicks on bpm: one latches it, one lets it go~~ The tempo preset is one click on bpm, with a mouse as with a finger | D57 made it two clicks; D60 made the click a hold again |
+| In Rack each sound's trigger and its audio go out on sixteen channels, and come back in through RETURN to take that sound's place in the mix | D62: the module's showpiece. Rack has cables; the hardware does not |
 | The slider caps move by themselves to the chosen sound's settings, and to swing and tempo while bpm is held | D54: what is seen is what is heard. A knob cannot; a drawn slider can |
 | While bpm is held the grid shows the volume as a row of lit keys | D51: glowing keys can say it; ⚠ what the hardware shows is not known |
 | Probability on a step | not on the hardware; the brief asks for it. It needs a gesture that does not collide with anything above. Open |

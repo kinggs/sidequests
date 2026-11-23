@@ -382,3 +382,44 @@ belongs in `PROOFS.md`, a change of course in `DECISIONS.md`, an outside fact in
   `bass_voxy_hit_c` (C2). An autocorrelation read the old file at 157 Hz, the README said
   310: one of them is an octave out, which is why a pitch from a script is a guess (⚠)
   and the ear decides.
+
+## Session 13: the Rack module (2026-11-23)
+
+- **Rack's own compiler flags change floating-point bits.** The SDK's `compile.mk` builds
+  every plugin with `-funsafe-math-optimizations`. That lets the compiler regroup a sum and
+  turn `x / 5` into `x * 0.2`. RETURN rebuilds the core's mix in the core's order, so it needs
+  neither. The test only caught it because it was built with the plugin's own flags, not
+  the harness's `-O2`. Per compiler: gcc 16 changed nothing with either flag alone; clang 23
+  (macOS's compiler) broke the silence check without `-fno-associative-math`. Both flags
+  are now in `rack/math.mk`, shared by the plugin and its test. Any C++ that must match the
+  core's bits gets built with what ships.
+- **"5 V to 1.0" out and back is not the same float.** VOICES is `5 × x` and RETURN divides
+  by 5. In floats that does not always give `x` back, so "RETURN carrying a sound's own
+  channel gives the same mix" can only hold to within rounding: 1.2e-7 at worst here, under
+  the test's 1e-6 bound. Through a real cable it is a frame late as well. Silence, a return
+  of exactly 0, is still bit for bit.
+- **A parameter cannot press a key twice in one frame.** A fixture's `key_down` and
+  `key_up` of one key in one `at` are two changes of one Rack parameter. On one frame the
+  audio thread would see no change at all. The self-test makes its presses one a frame, from
+  the frame after the step's boundary. That holds the fixture's ticks only while a step's
+  presses all land inside its first tick (57 frames at 120 bpm and 44.1 kHz). So the
+  edges runs use an 8 Hz LFO, not the Probe's 256 Hz, where a tick is two frames. Planting
+  "presses in the boundary frame" showed the other side: a tap there carries the step
+  before's tick 95, as `fixtures/README.md` says.
+- **A safety net can hide the fault it sits behind.** The first not-finite test returned NaN
+  on every channel. A NaN let into the sum was then cleaned to 0 by the last line before the
+  jack, which the test also expected, so the plant passed. Returning NaN on one channel, and
+  holding the mix to the same frame with silence there, tells the two apart.
+- **A check comparing a value with itself, through two compilations, is a check of the
+  compiler.** The test's own `10 tanh(5 m / 10)` and the header's were compiled differently
+  under unsafe maths. Compare the mix before the shaping. The shaping check is now its own
+  named check, so a failure there cannot pass for a wrong mix.
+- **What a headless Rack cannot tell.** No widget is made with `-h`, so nothing drawn and
+  nothing pressed by hand was seen this session: not the panel, the keys, the latch, the
+  computer keys (R25), the double-click or MIDI-Map. The self-test covers everything below
+  the parameters. The face is the owner's to look at.
+- **A locally built plugin fails `check-dist.sh` on glibc, and that is expected.** Arch's
+  toolchain brings in `_dl_find_object` (2.35) from libgcc and, now that the module holds
+  a `std::shared_ptr` (Rack's font), `__libc_single_threaded` (2.32). CI builds Linux in
+  Ubuntu 16.04 for glibc 2.23. The local run checks the archive's contents; CI checks the
+  rest.

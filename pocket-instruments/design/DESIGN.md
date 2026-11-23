@@ -1,8 +1,8 @@
 # The look: Loom
 
 **Status:** chosen by the owner on 2026-11-19 (D36) from three directions drawn in Claude
-Design to `PROMPT.md`. The phone is built (`web/rhythm.html`, Session 12), without the
-animation; the Rack panel is Session 13. ⚠ marks a proposal the owner has not ruled on.
+Design to `PROMPT.md`. The phone is built (`web/rhythm.html`, Session 12), and the Rack module
+(`rack/src/Rhythm.cpp`, Session 13), both without the animation. ⚠ marks a proposal the owner has not ruled on.
 
 The idea in one line: a pattern is a cloth. The grid is a tight woven swatch, the dividers are
 stitches, the sliders are shuttles on a thread, and the display weaves as the pattern plays.
@@ -99,8 +99,10 @@ Function key:
 | pressed | White, pulled in, no band |
 | latched | The whole face lit: in its own colour for the top three, ecru for the rest. Dark label |
 
-Play is latched while the sequencer runs. Write is latched while write mode is on. In Rack a
-click latches any function key until the next grid press or a second click (D23).
+Play is latched while the sequencer runs. Write is latched while write mode is on. ~~In Rack a
+click latches any function key until the next grid press or a second click (D23).~~ With a
+mouse, in Rack and on the page, a click is a real hold and Ctrl+click (Cmd on a Mac) latches
+sound, pattern, bpm, function or fx until a press of any key ends (D60, D61).
 
 ### What the grid shows, by mode (D37, accepted by D38)
 
@@ -186,21 +188,24 @@ Positions in mm from the top-left corner (`uv run pocket-instruments/design/make
 | write | 112.23 | 74.15 | 9.55 | 23.70 |
 | jack CLOCK (in) | 10.67 | 116.30 | | |
 | jack RESET (in) | 22.33 | 116.30 | | |
+| jack RETURN (in, 16 channels) | 34.00 | 116.30 | | |
 | jack TRIGGERS (out, 16 channels) | 80.67 | 116.30 | | |
 | jack VOICES (out, 16 channels) | 95.17 | 116.30 | | |
 | jack AUDIO (out) | 109.67 | 116.30 | | |
 
 ### The jack row
 
-Left to right: CLOCK and RESET in, then TRIGGERS, VOICES and AUDIO out (D33). ⚠ D62 adds
-a sixth, RETURN in (sixteen channels, beside RESET at 34.00 mm, the wordmark moved to clear
-it): decided, drawn in Session 13.
+Left to right: CLOCK, RESET and RETURN in, then TRIGGERS, VOICES and AUDIO out (D33, D62).
+RETURN was drawn in Session 13: sixteen ecru stitches round it, as the two sixteen-channel
+outputs have dark ones. The wordmark moved right to clear it and, by D62 item 4, dropped from
+3.5 to 3.0 mm: at 3.5 mm it is 37.8 mm wide and the room between RETURN's stitches and the
+plate is 33.4 mm. At 3.0 mm it is 0.5 mm clear of each (`make_panel.py --check`).
 
 - **Two groups at a glance.** The inputs sit on the dark body at the left. The three outputs
   sit together on one pale plate at the right, with dark lettering. Why a plate: VCV's guide
   asks for an inverted background on output ports (R33).
-- **Sixteen channels.** TRIGGERS and VOICES each have sixteen stitches round the socket, one
-  for each key. AUDIO has none.
+- **Sixteen channels.** RETURN, TRIGGERS and VOICES each have sixteen stitches round the
+  socket, one for each key. AUDIO has none.
 - **AUDIO is the main output.** It alone has a solid frame round its cell, and its label is a
   size larger.
 - A first draft drew a stitched box round the outputs with a plate under AUDIO only. It left
@@ -214,8 +219,10 @@ Also to draw as widgets:
   pale hole for the outputs.
 - **Screws:** Rack's own, at the four corners. The display starts 7 mm down to clear them.
 
-⚠ `panel.svg` was outlined from the Bold cut (700), the only one installed. The design asks
-for 800. Pass an ExtraBold file to `make_panel.py` to redo it.
+~~⚠ `panel.svg` was outlined from the Bold cut (700), the only one installed. The design asks
+for 800. Pass an ExtraBold file to `make_panel.py` to redo it.~~ Since Session 13 the
+ExtraBold cut is in `fonts/` with its licence (OFL), `make_panel.py` outlines from it, and the
+Rack module draws its lettering in the same file.
 
 ## What VCV's manual asks, and where this stands
 
@@ -257,13 +264,25 @@ the function keys side by side.
 | Function keys are tall, with the label running up the key | A label under a 10 mm key can only be about 1.2 mm high. On the key it is 2.8 mm |
 | On the phone both sliders are on the left | One at each edge left the bottom four keys under 60 px |
 | The wordmark moved 14 mm left when the outputs became three | The brief said nothing else moves; three sockets with readable labels do not fit beside it where it was |
+| The wordmark moved right again and down to 3.0 mm for RETURN | D62 item 4: an input sits on the dark body, beside RESET, and only 33.4 mm is left |
 | Four grid states the prompt did not ask for: other sound, chosen, fired, queued | The owner kept the first, second and fourth (2026-11-19). Fired came from `WORKFLOW.md` afterwards ⚠ |
 
 ## Not done
 
 - ~~The keys, slider caps, sockets and display are not drawn as Rack widgets or web
-  components.~~ On the phone they are (Session 12, `web/rhythm.html`, plain CSS); in Rack,
-  Session 13.
+  components.~~ On the phone they are (Session 12, `web/rhythm.html`, plain CSS); in Rack
+  too (Session 13, `rack/src/Rhythm.cpp`, NanoVG). Nobody has looked at them in Rack yet:
+  the build machine ran Rack headless only.
+- In Rack, readings the design did not settle (Session 13, ⚠), each measured off
+  `loom/rack.html` at 6 px a mm or the page: the frame an eighth of a key (1.46 mm); the
+  dark line between a lit field and the frame 0.66 mm; the stitch 1.83 mm square, 1.33 mm
+  in from the corner; the bar 1.6 mm tall; a function key's band 1.67 mm; the cap's slot
+  0.7 mm; a socket's hole 3.5 mm across. The display's sizes are the picture's: tempo 10 mm,
+  `bpm` 2.5 mm in lilac, the write mark and the step number 2.67 mm. A Ctrl+click latch
+  lights the face in the key's own colour, as on the page. In a self-test the weave's area
+  shows the fixture's name, its count and a square, green while every pass has matched
+  (green is not a Loom token: it marks a test, not the instrument). The screws are Rack's
+  own (`ThemedScrew`).
 - On the phone, readings the design did not settle (Session 12, ⚠): a slider is dragged
   from where its cap shows, so a touch alone moves nothing; the bar is ochre while pattern
   is held and madder otherwise; a key whose sound fires stays white with reduced motion

@@ -184,6 +184,18 @@ Rack's log and its autosave while it was still playing.
 Rack was also closed and started again at 96 kHz before this run: each probe loaded the
 snapshot Rack had saved for it ("1 loaded, 0 refused").
 
+**Since Session 13 (2026-11-23): the instrument in the same run.** `rack/selftest.sh` also
+runs the Rhythm module on the three format 2 fixtures, each on its table clock and on a
+second LFO at 8 Hz. Each module presses its own parameters, one a frame from the frame
+after each step's boundary, and holds its events, its views and its slider caps to the
+fixture. Every run matched, at each of 44.1, 48 and 96 kHz: at 48 kHz, 7, 5 and 2 passes
+on each clock, with 95, 53 and 26 views held and none missed. The two fixtures that fire
+sounded and sent triggers. One ran with its VOICES patched into its own RETURN. A Rhythm
+module given an old patch's version 1 snapshot loaded it. Nine planted faults in the module,
+each caught, and nine in `rack/src/jacks.hpp` caught by `rack/test/jacks.cpp` (`PLAN.md`,
+Session 13's Handover). Not seen headless: anything drawn or pressed by
+hand. A screenshot from Rack's `-t` mode shows the panel and widgets drawn.
+
 The patch's wiring, which had never been seen on a screen when it was written, was right.
 
 ### P4 — It runs in a phone browser

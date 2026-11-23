@@ -389,6 +389,14 @@ ThreadSanitizer, `harness/race.cpp`). `rack/src/handoff.hpp` is this in C++:
   keys, run between blocks; and beside each snapshot and view a count of queue entries
   taken, the count this section asks for. `make play` holds a snapshot saved while
   playing to the bytes the wasm host ran a fixture from (`PROOFS.md` P6).
+  **Built in Rack (Session 13):** `rack/src/Rhythm.cpp` keeps the Probe's scheme: a
+  snapshot out through `pi::Latest` when the generation moves, a load in through another,
+  taken between frames. Its edits are not a queue: every key and slider is a Rack
+  parameter, read by the audio thread each frame, so there is no queue to put a load in
+  order with; the menu's edits do go through a `pi::Queue`. One addition: each saved
+  snapshot carries the count of loads the audio thread had taken, and a save made before a
+  load was taken writes the loaded bytes instead, so a patch saved straight after it was
+  opened keeps its beat.
 
 ## 9. The table, in the browser
 
@@ -662,6 +670,12 @@ above says, and posts it from the worklet when bytes 4 to 63 change and at least
 times a second while playing. `make play` reads every drawing back off the page and holds
 it to the view it came from. Nothing in this section changed.
 
+**Drawn in Rack (Session 13):** `rack/src/Rhythm.cpp` calls `pi_view` after every frame
+and hands it to the drawing thread through `pi::Latest` by the same rule. The slider
+parameters are the caps: the audio thread moves each to its shown value unless the pointer
+is on it, and the self-test holds both to every fixture view. Nothing in this section
+changed.
+
 **Built (Session 10):** `pi_view` and `Engine::view` in `core/src/keys.rs`;
 `PI_VIEW_SIZE` and each field's offset (`PI_VIEW_*`) in the header. Proven by the views in
 `fixtures/keys-*.json` on all three harnesses, and a test for each row of the grid's table
@@ -696,6 +710,9 @@ other through `pi::Latest` after every block, as a module's drawing thread will 
 Also Session 11's, because the Rack module needs the voices and the mix from one call: a
 third layout, `PI_AUDIO_BOTH` (17 channels): tracks 0 to 15 as layout 16 gives them, then
 the mix as layout 1 gives it, volume and all. Each must be the same bytes as its own layout.
+Used since Session 13 by the Rhythm module: VOICES from the sixteen, AUDIO from the mix, or,
+with RETURN patched (D62), the mix rebuilt in the core's order with the core's gain
+(`rack/src/jacks.hpp`; `rack/test/jacks.cpp` holds it to the core's own mix).
 
 **Built (Session 11):** `core/src/snapshot.rs`; the generation in `Engine::apply` (`SOUND`,
 `VOICE`) and `keys.rs` (the volume and the chosen sound, which no edit sets); the layout in

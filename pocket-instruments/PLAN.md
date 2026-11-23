@@ -69,6 +69,11 @@ done, and the latest two Handover notes. A session that finishes:
   `rack/patch/patch.json` names no driver, so Rack picks; choose by hand.
 - Found in Session 6: Docker is installed but the user is not in the `docker` group, so
   `rack/ci-linux.sh` cannot be rehearsed here. CI runs it; nothing local needs it.
+- Found in Session 13: Rack's screenshot mode works on this desktop and draws a module's face,
+  which `-h` never makes: `cd ~/.local/opt/Rack2Free-2.6.6 && ./Rack -u <a user folder with
+  the plugin installed> -t 3` writes `screenshots/PocketInstruments/*.png` and exits. The
+  module is null there, so nothing is lit; a scratch build that fills the face's view by
+  hand shows the lit states.
 - Found in Session 10: `cargo` only works with this folder as the working directory. From
   anywhere else the mise shim fails with "No version is set". To build a scratch copy, stay
   here and pass `--manifest-path` and `CARGO_TARGET_DIR`. `jq` (1.8) is present; the Rack
@@ -96,6 +101,7 @@ Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
 | 10, the workflow in the core (Fable) | keys, sliders, the view, the volume: ABI 4; fixture format 2 and three key fixtures; D59 | 2026-11-20 |
 | 11, snapshot version 2 (Opus) | ABI 5: the snapshot holds the sliders, switches, volume and choice; version 1 still loads, in the core and the Probe; `PI_AUDIO_BOTH` | 2026-11-20 |
 | 12, the page on a phone (Opus) | `web/rhythm.html`, playable; `make play`; P6's browser snapshot passed | 2026-11-23 |
+| 13, the Rack module (Opus) | the Rhythm module, RETURN (D62) and its test, the panel's sixth jack, a format 2 self-test in Rack | 2026-11-23 |
 
 ## Still the owner's hands
 
@@ -118,6 +124,13 @@ Unticked in the finished lists. None blocks a build session.
 - [ ] A look at D59, Session 10's eight rulings.
 - [ ] Two readings Session 11 built on (⚠ in `ENGINE.md` §15): a loaded chosen sound past
       15 becomes 15; snapshot bytes 381 to 383 are not read.
+- [ ] The Rhythm module in Rack, by hand (Session 13): the look at 100% zoom (the ⚠ rows of
+      `design/DESIGN.md`'s table and its "Not done"; the wordmark at 3.0 mm, 0.5 mm from
+      RETURN and the plate); the latch (Ctrl+click); the computer keys, several at once (R25);
+      a double-click on each slider, with and without bpm held; MIDI-Map on a slider (D54's
+      ⚠); the round trip by ear: TRIGGERS ch 1 to any kick, back into RETURN ch 1 (D62); the
+      CPU meter. Session 13's nine readings (its Handover) are for the same sitting.
+- [ ] CI on all four platforms after Session 13's push (its Handover says what was seen).
 
 ## The instrument's build: Sessions 10 to 14
 
@@ -170,53 +183,7 @@ push; no Teenage Engineering material. And for these five:
 - Each session ends by moving its sections of `ENGINE.md` from "designed" to built, with
   what turned out different marked, and by writing `LEARNINGS.md` and the Handover.
 
-## Session 13 — the Rack module (build, Opus; next)
-
-`rack/src/Rhythm.cpp`, 24 HP, on `design/panel.svg`, at `design/DESIGN.md`'s positions. The
-Probe is its template and stays as it is.
-
-- [ ] The module: every key and both sliders are Rack parameters; `process` turns a
-      parameter's change into `KEY_DOWN`, `KEY_UP` or `PARAM` on that frame. CLOCK patched:
-      edges; unpatched: the table clock. RESET, with CLOCK ignored for 1 ms after.
-      `PI_AUDIO_BOTH`: VOICES sixteen channels at 5 V to 1.0; AUDIO the mix, bent by tanh
-      towards 10 V as the Probe does; TRIGGERS 10 V for 1 ms a firing, sixteen channels.
-      Never a non-finite sample (`RACK-RULES.md`).
-- [ ] **RETURN (D62), the showpiece:** a sixteen-channel input; channel *n* takes sound
-      *n*'s place in AUDIO's mix, master volume and tanh still applied; by default the
-      channels the cable carries, or the menu's ticks. A test in the module's self-test or
-      a unit test beside it: unpatched, AUDIO is the core's mix bit for bit; RETURN carrying
-      sound 1's own VOICES channel back gives the same mix; a return of silence on channel
-      1 removes the bass drum from AUDIO and leaves VOICES and TRIGGERS as they were. Each
-      fails once on a planted fault.
-- [ ] The panel's sixth jack (D62 item 4): `design/make_panel.py` redrawn, `panel.svg`
-      regenerated, `design/DESIGN.md`'s positions table and jack row updated.
-- [ ] The view to the drawing thread through `pi::Latest`; the snapshot saved and loaded as
-      the Probe does (D43). The starter pack loaded as the Probe does.
-- [ ] The widgets, drawn from the view: keys with field, frame, white, stitch and bar;
-      function keys idle, pressed, latched; slider caps that follow the shown value unless
-      held; sockets; the plain display. JetBrains Mono ExtraBold in `res/`, with its
-      licence (OFL).
-- [ ] The latch, by D60 and D61: Ctrl+click (Cmd on a Mac), as the page does; right-click
-      keeps Rack's parameter menu. It supersedes D57 item 4. And the computer keys while the
-      pointer is over the module (D57 item 5). ⚠ R25: whether Rack reports several keys held at once is found out here.
-- [ ] Double-click on a slider (D63): the middle, or with bpm held swing 0 and 120 bpm, as
-      the page does; not Rack's fixed default.
-- [ ] The menu: each key's code or sample, All code, All samples; and D62's "Sound *n* from
-      RETURN" ticks with "As the cable carries".
-- [ ] **A self-test in Rack itself:** a patch that names a format 2 fixture makes the module
-      press its own parameters (and send the fixture's `play` edit) and hold its events and
-      views to the fixture, with a light, as the Probe does. `rack/selftest.sh` runs it
-      headless at three rates. (Noted 2026-11-20: `rack/fixtures.jq` leaves format 2 out
-      on purpose, for the Probe. This needs its own filter and its own `.inc`, built one
-      `jq` a file as the Probe's now is.)
-- [ ] `rack/check-dist.sh` and CI still green on all four platforms.
-- [ ] Not built: sliders under CV, the neighbour connection (D40), the tempo-voltage clock,
-      a player's own samples (D34), the expander.
-- [ ] For the owner after it: the look in Rack at 100% (the ⚠ rows of `DESIGN.md`'s table);
-      the latch by hand; MIDI-Map on a slider (D54's ⚠); the round trip by ear: a sound out
-      through a Rack module and back through RETURN (D62).
-
-## Session 14 — the weave (build, with the owner's eye)
+## Session 14 — the weave (build, with the owner's eye; next)
 
 Recommended on Fable: which cells each of the seven rules lights is not designed, only its
 inputs and its tests. That is drawing by judgment, with the owner watching.
@@ -232,7 +199,8 @@ ABI 6. `ENGINE.md` §16, `design/DESIGN.md` "The animation", `design/loom/frames
       sixteen; a beat with nothing set weaves one stitch; reduced motion never draws white
       rows. Natively and from the `.wasm`, the same bytes for a set of views.
 - [ ] The page paints the cells (its own instance of the `.wasm`), the Rack display paints
-      the same cells. Neither holds a rule.
+      the same cells. Neither holds a rule. (Rack: `RhythmDisplay::draw` in
+      `rack/src/Rhythm.cpp` leaves the weave's area dark; a self-test writes its name there.)
 - [ ] The owner watches it move, on the phone and in Rack. What is wrong is changed in the
       core, once. When it is accepted, three views and their cells are committed as the
       picture to hold to.
@@ -273,48 +241,6 @@ Decided when P1 to P4 are in, not before:
 ## Handover
 
 The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
-
-### After Session 11: snapshot version 2 (2026-11-20)
-
-- **Built: ABI 5.** `pi_save` writes §15's 388 bytes: version 1 plus each track's sliders,
-  the code-or-sample switches, the volume and the chosen sound. `pi_load` takes both
-  versions. Those four now move the generation, each only when its value changes.
-  `PI_AUDIO_BOTH` (17 channels) gives the sixteen tracks and the mix from one call, for
-  Session 13. Nothing a player can touch yet; that is still Session 12.
-- **An old beat still loads, proven three ways.** The seven fixtures' version 1 snapshots
-  were saved from the ABI 4 core before any change (`fixtures/snapshots-v1.txt`). Each
-  loads into an engine whose new fields were all moved, sets them back to `pi_init`'s
-  values, and gives its fixture's trace. In Rack, a patch carrying one is loaded by the
-  Probe ("1 loaded"); it failed first with the old fixed-size copy, as planned.
-- **Nothing older moved:** the report is the same line for line apart from the 42 snapshot
-  hex labels, and all 240 earlier render files are the same bytes. 132 render pairs now
-  (18 new, `render-both`), every one the same bytes natively and from the `.wasm`.
-- **Proven:** `make test` (112 Rust tests; seven fixtures, 168 runs a harness, one
-  report; 132 render pairs; the race harness, six planted faults caught), `make p4` (24 of
-  24 in Chromium and Firefox, ABI 5), `make listen` (both), `make -C rack selftest` (three
-  rates), the repo's `make verify` (its smoke test skips: no Playwright).
-- **Every new check failed once on purpose:** 25 faults planted in the core, each built and
-  failed a named test (one by aborting inside that test). One core fault caught by both
-  harnesses' own layout check; one flipped sample caught by `compare.mjs`. What that
-  taught (a copy's old file times fooled cargo; a plant aimed at the wrong line) is in
-  `LEARNINGS.md`.
-- **Found beside the list:** `harness/race.cpp`'s `enter()` built its "known" snapshot by
-  setting only what version 1 held; it now sets every field version 2 holds.
-- **Sizes:** the engine is 2 352 bytes (unchanged). The `.wasm` is 28 216 bytes (was 26 998).
-- **For the owner, blocking nothing (Opus decided nothing):** two readings where §15 is
-  silent, built on and marked ⚠: a loaded chosen sound past 15 becomes 15; bytes 381 to 383
-  are not read. Either is one line in `core/src/snapshot.rs`.
-- **For Session 12 (Opus), what will bite:**
-  - The worklet holds no snapshot yet. Give it 388 bytes, and always pass `pi_load` the
-    length read, not `PI_SNAPSHOT_SIZE`: a beat saved in the browser before ABI 5 does not
-    exist, but a version 1 can come from anywhere a link carries one later.
-  - `pi_generation` now moves on a slider, a switch, the volume and a chosen sound, so the
-    page will post snapshots more often than Session 10's core would have. §8's "a few a
-    second at most" still holds the rate.
-  - P6's browser half: `straight-sixteenths`' saved snapshot now also holds the starting
-    sliders, volume and choice. Entering its pattern by keys from a fresh page gives those,
-    so the bytes should match the report's label. A page that moved a slider first will not.
-- **Next: Session 12,** on Opus.
 
 ### After Session 12: the page on a phone (2026-11-23)
 
@@ -361,3 +287,61 @@ The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
   plays what it sets: a name plays its sound, the switch changes it and plays it. `make
   play` has a fourth phase for both; three more planted faults, each caught.
 - **Next: Session 13,** on Opus.
+
+### After Session 13: the Rack module (2026-11-23)
+
+- **Built: the Rhythm module,** `rack/src/Rhythm.cpp`, 24 HP, on the redrawn panel. Every
+  key and both sliders are Rack parameters; the face is drawn from the core's view; CLOCK,
+  RESET and the table clock; TRIGGERS, VOICES and AUDIO; the starter pack; the snapshot
+  saved and loaded as the Probe does. The latch (Ctrl+click), the computer keys, D63's
+  double-click, and the menu: Sounds, RETURN, and Self-test. The core did not change: ABI 5.
+- **RETURN (D62),** `rack/src/jacks.hpp`, held by `rack/test/jacks.cpp`, which `make test`
+  now runs. Unpatched, AUDIO is the core's mix bit for bit. A return of silence on channel
+  1 gives the mix of the same beat with no bass drum, bit for bit, with VOICES and TRIGGERS
+  unchanged. A sound's own VOICES channel returned gives the same mix **to within 1.2e-7,
+  not bit for bit**: `5x / 5` is not always `x` in floats. To hold the core's order, the
+  plugin is now built with `-fno-associative-math -fno-reciprocal-math` after Rack's
+  `-funsafe-math-optimizations` (`rack/math.mk`). clang, which builds the macOS plugin,
+  regrouped the sum without them.
+- **The panel's sixth jack:** `design/make_panel.py` draws RETURN at 34 mm with ecru
+  stitches. The wordmark moved right and, by D62 item 4, dropped to 3.0 mm: at 3.5 mm it
+  is 37.8 mm wide and the room is 33.4 mm. It is outlined from ExtraBold now
+  (`design/fonts/`, with the OFL), which closes DESIGN.md's old ⚠ about the Bold cut.
+- **Proven:** `make test` (the report and all 276 render files the same bytes as before
+  the session); `make -C rack selftest` at 44.1, 48 and 96 kHz: the four probes as before,
+  and six Rhythm modules, the three format 2 fixtures each on the table and on an 8 Hz LFO.
+  Each pressed its own parameters, one a frame from the frame after each boundary
+  (`LEARNINGS.md` says why one a frame and why 8 Hz). Every pass matched its trace, every
+  view its text, and both slider caps the view. One played through its own RETURN; a
+  Rhythm instrument loaded an old patch's version 1 snapshot. Nine faults planted in the
+  module and nine in `jacks.hpp`, each caught by a named check (two only after the test
+  was tightened; `LEARNINGS.md`). The repo's `make verify`: see below.
+- **Seen, not only counted:** Rack's screenshot mode draws the face on this desktop (Machine
+  state). It found one bug no headless run could: the sliders were placed by centring a
+  widget whose size Rack starts at infinity, so their position was NaN and they were never
+  drawn. A scratch build with a hand-made view showed every lit state as DESIGN.md has it.
+  Nothing has been pressed by hand.
+- **Opus decided nothing. Nine readings built on, each ⚠, each a line or two:**
+  1. The menu's per-key sample switch also plays the sound, as the page's sheet does (D60
+     item 4 carried to Rack's menu).
+  2. A key that a patch saved as held starts held, and is not a press. Rack saves parameter
+     values; the module reads the first frame's as where things start.
+  3. A slider drags at Rack's own knob speed (its settings apply), not one to one with the
+     43 mm travel. One line: `speed` in `RhythmSlider`.
+  4. Rack's Initialize empties the beat (a fresh engine) and sets RETURN back to "As the
+     cable carries".
+  5. Ticking one sound in RETURN's menu while on "As the cable carries" starts from the
+     sounds the cable carries now.
+  6. "RETURN carrying sound 1's own VOICES channel back gives the same mix" read as to within
+     rounding (above).
+  7. VOICES is not bent by tanh: one voice peaks near 2.5 V. Only AUDIO is.
+  8. In a self-test the weave's area shows the fixture, its count and a green or madder
+     square. Green is not a Loom token; it marks a test, not the instrument.
+  9. The display's and keys' sizes measured off `loom/rack.html` and the page (DESIGN.md,
+     "Not done").
+- **CI and `make verify`:** filled in after the push below.
+- **For Session 14:** the Rack display's weave area is `RhythmDisplay::draw`; the view
+  reaches it through `Face` every frame, so painting cells is a loop there. `harness/race.cpp`
+  and `keys.rs` still hold bytes 48 to 63 to zero (Session 14's list). The screenshot route
+  (Machine state) is how to see the weave in Rack without a person.
+- **Next: Session 14,** with the owner's eye.
