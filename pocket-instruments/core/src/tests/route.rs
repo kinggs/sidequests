@@ -699,3 +699,48 @@ fn split_into_other_blocks_a_loop_gives_the_same_fifty_channels() {
         assert_eq!(v, view);
     }
 }
+
+#[test]
+fn a_load_shows_on_the_slider_outputs_of_the_sounds_not_yet_hit() {
+    // A snapshot with sound 3's sliders at 111 and 222, loaded into an engine where sound 10
+    // has been hit: sound 3's outputs follow the load, sound 10's stay at its last hit.
+    let mut from = Host::new(SR, 1);
+    from.block(1, &[sound(2, 0, 111), sound(2, 1, 222), sound(9, 0, 333)]);
+    let snap = from.save();
+    let mut h = Host::new(SR, 1);
+    let mut io = [0f32; SLIDERS];
+    frame(&h, &[sound(9, 0, 1000), fire(9)], &mut io);
+    assert_eq!(h.load(&snap), 0);
+    frame(&h, &[], &mut io);
+    assert_eq!((io[A_OUT + 2], io[B_OUT + 2]), (unit(111), unit(222)), "not yet hit: the loaded sound's own");
+    assert_eq!(io[A_OUT + 9], unit(1000), "hit before the load: what it was hit with");
+}
+
+#[test]
+fn a_host_that_leaves_the_loop_while_an_outside_effect_ramps_out_hears_the_bus_as_it_is() {
+    // Effect 4 from outside, held, with 0.5 on channel 17, and the click sounding. Then the
+    // host asks for layout 17 (its cables were pulled): nothing can come back, so for the 2 ms
+    // the effect takes to go, the mix is a twin's that never had the effect, bit for bit.
+    let (h, twin) = (Host::new(SR, 1), Host::new(SR, 1));
+    let start = [cmd(CMD_STEP, 9, 0, 1), play()];
+    let mut io = [0f32; LOOP];
+    io[SEND] = 0.5;
+    frame(&h, &[route(1, 1 << 3), start[0], start[1], down(FX), down(3)], &mut io);
+    frame(&twin, &start, &mut [0f32; 17]);
+    for _ in 0..200 {
+        io[SEND] = 0.5;
+        frame(&h, &[], &mut io);
+        frame(&twin, &[], &mut [0f32; 17]);
+    }
+    assert_eq!(unsafe { &(*h.e).bus }.probe(), (0x84, 1.0, 100.0, 0.0, 0.0), "effect 4, outside, full");
+    let (mut ramping, mut sounding) = (0, 0);
+    for f in 0..300 {
+        let (mut a, mut b) = ([0f32; 17], [0f32; 17]);
+        frame(&h, &[], &mut a);
+        frame(&twin, &[], &mut b);
+        assert_eq!(bits(&a), bits(&b), "frame {f}");
+        ramping += (unsafe { &(*h.e).bus }.probe().0 != 0) as u32;
+        sounding += (a[MIX] != 0.0) as u32;
+    }
+    assert!(ramping > 90 && ramping < 100 && sounding > 200, "{ramping} frames ramping out, {sounding} sounding");
+}

@@ -191,6 +191,7 @@ struct Rhythm : Module {
     uint64_t loopFrame = 0;
     uint32_t loopStep = 0, loopActedPass = 0, fires1 = 0;
     float prevVoices[PI_TRACKS] = {}, prevSend = 0.f, prevA[PI_TRACKS] = {}, prevB[PI_TRACKS] = {};
+    float shadowIo[PI_AUDIO_LOOP_SLIDERS] = {}; // the shadow's frame, kept until the outputs are written
     dsp::SchmittTrigger clockTrig, resetTrig;
     uint32_t rate = 0, sinceReset = 0xffffffffu, generation = 0, sincePublish = 0;
     int sourceSent = -1;         // the clock source last sent; -1 sends it on the next frame
@@ -610,6 +611,7 @@ struct Rhythm : Module {
         else if (std::memcmp(io, sio, want * sizeof(float))) loopFail("a frame is not the core's own, given what the cables carry");
         else if (std::memcmp(a, b, PI_VIEW_SIZE)) loopFail("the view is not the core's own, given what the cables carry");
         else loopHeld++;
+        std::memcpy(shadowIo, sio, sizeof shadowIo);
         // Was the loop heard? An effect on returned sound moves the mix off the plain sum of what
         // came back; a slider input shows as a last hit that is not what the output says.
         bool acted = false;
@@ -623,6 +625,20 @@ struct Rhythm : Module {
             loopActedPass++;
             loopActed++;
         }
+    }
+
+    // And what the looped output itself carries, once it is written: the shadow's own channel,
+    // in volts. (Without this a wrong signal on FX SEND came back, was taken, and matched: the
+    // shadow is given the module's own outputs. Found by planting it.)
+    void loopOutputs() {
+        bool ok = true;
+        if (loop == LOOP_FX) ok = outputs[FX_SEND_OUTPUT].getVoltage() == 5.f * shadowIo[PI_LOOP_FX];
+        for (uint32_t t = 0; t < PI_TRACKS; t++) {
+            if (loop == LOOP_RETURN) ok = ok && outputs[VOICES_OUTPUT].getVoltage(t) == 5.f * shadowIo[t];
+            if (loop == LOOP_SLIDERS)
+                ok = ok && outputs[A_OUTPUT].getVoltage(t) == 10.f * shadowIo[PI_LOOP_A + t] && outputs[B_OUTPUT].getVoltage(t) == 10.f * shadowIo[PI_LOOP_B + t];
+        }
+        if (!ok) loopFail("a looped output does not carry the core's own channel, in volts");
     }
 
     void process(const ProcessArgs &args) override {
@@ -860,6 +876,7 @@ struct Rhythm : Module {
             outputs[B_OUTPUT].setChannels(PI_TRACKS);
             jacks.sliderOut(io, PI_LOOP_B, outputs[B_OUTPUT].getVoltages());
         }
+        if (shadowed) loopOutputs();
         if (loop != LOOP_NONE) { // what a cable from each output carries to the next frame's input
             std::memcpy(prevVoices, outputs[VOICES_OUTPUT].getVoltages(), sizeof prevVoices);
             prevSend = outputs[FX_SEND_OUTPUT].getVoltage();
