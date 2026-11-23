@@ -6,6 +6,7 @@
 
     uv run pocket-instruments/design/make_panel.py              writes panel.svg beside this file
     uv run pocket-instruments/design/make_panel.py --positions  prints the widget positions
+    uv run pocket-instruments/design/make_panel.py --check      the wordmark clears RETURN and the plate
 
 The panel holds only what never changes: the body, the display's frame, the stitched
 dividers, the slider threads, the marks round the outputs and the lettering. Keys, slider caps, the display and the jack
@@ -23,9 +24,10 @@ from fontTools.pens.svgPathPen import SVGPathPen
 from fontTools.pens.transformPen import TransformPen
 from fontTools.ttLib import TTFont
 
-# Only the Bold cut is installed on the machine this was first run on. The design asks for
-# ExtraBold (800). Pass another font file as the last argument to change it.
-FONT = "/usr/share/fonts/TTF/JetBrainsMonoNerdFont-Bold.ttf"
+# The design's cut, ExtraBold (800), kept in the repo with its licence (fonts/OFL.txt) since
+# Session 13; the Rack module draws its lettering in the same file. Until then this was the
+# machine's Bold (700), the only cut installed. Pass another font file as the last argument.
+FONT = str(Path(__file__).with_name("fonts") / "JetBrainsMono-ExtraBold.ttf")
 
 W, H = 121.92, 128.5
 
@@ -52,7 +54,8 @@ FN_TOP = ("sound", "pattern", "bpm")
 FN_BOTTOM = ("function", "fx", "play", "write")
 
 JACK_Y = 116.3
-JACKS = {"CLOCK": 10.67, "RESET": 22.33, "TRIGGERS": 80.67, "VOICES": 95.17, "AUDIO": 109.67}
+# RETURN (D62, drawn in Session 13): a sixteen-channel input, so on the dark body beside RESET.
+JACKS = {"CLOCK": 10.67, "RESET": 22.33, "RETURN": 34.00, "TRIGGERS": 80.67, "VOICES": 95.17, "AUDIO": 109.67}
 OUTPUTS = ("TRIGGERS", "VOICES", "AUDIO")
 JACK_LABEL_Y = 109.7
 # One pale plate under all three outputs: VCV's panel guide asks for an inverted background
@@ -60,11 +63,16 @@ JACK_LABEL_Y = 109.7
 # only; that left two outputs on the dark ground, so it went.
 PLATE = (72.6, 106.4, 43.4, 15.6)
 AUDIO_FRAME = (103.0, 107.0, 12.6, 14.6, 0.6)  # x, y, w, h, thickness: marks the main output
-MULTI = ("TRIGGERS", "VOICES")  # sixteen channels on one cable: sixteen stitches round the socket
+MULTI = ("RETURN", "TRIGGERS", "VOICES")  # sixteen channels on one cable: sixteen stitches round the socket
 TICK_IN, TICK_OUT, TICK_W = 4.4, 5.2, 0.5
 
 # It sat at x 63 until the outputs became three (2026-11-19); it moved left to clear them.
-WORDMARK = ("Pocket Instruments", 49.0, 118.2, 3.5)
+# Then at x 49, 3.5 mm, until RETURN (D62): 3.5 mm is about 37.8 mm wide and only about 33 mm
+# is free between RETURN's stitches and the output plate, so by D62 item 4 it drops to 3.0 mm
+# and sits midway between the two. `--check` prints the clearances.
+WORDMARK_SIZE = 3.0
+WORDMARK_GAP = (34.00 + 5.2, 72.6)  # RETURN's outermost stitch (TICK_OUT), the plate's left edge
+WORDMARK = ("Pocket Instruments", sum(WORDMARK_GAP) / 2, 118.2, WORDMARK_SIZE)
 
 # Jack lettering was 2.17 mm. At Rack's 100% zoom (about 2.95 px per mm) that is under 5 px of
 # capital height, and the guide asks for text readable at 100% (R33). 2.6 mm is about 5.6 px.
@@ -121,6 +129,26 @@ def fn_keys():
     return out
 
 
+def advance(font, text, size, tracking=0.0):
+    """The text's width in mm, by its glyphs' advances, as outline() lays it out."""
+    glyphs, cmap = font.getGlyphSet(), font.getBestCmap()
+    scale = size / font["head"].unitsPerEm
+    return sum(glyphs[cmap[ord(c)]].width * scale + tracking * size for c in text) - tracking * size
+
+
+def check(font):
+    """D62 item 4: the wordmark must not touch RETURN's stitches or the output plate."""
+    text, x, _, size = WORDMARK
+    w = advance(font, text, size)
+    left, right = x - w / 2, x + w / 2
+    gap_l, gap_r = left - WORDMARK_GAP[0], WORDMARK_GAP[1] - right
+    print(f"wordmark {size} mm: {left:.2f} to {right:.2f} mm; {gap_l:.2f} mm clear of RETURN's stitches, "
+          f"{gap_r:.2f} mm clear of the plate")
+    at35 = advance(font, text, 3.5)
+    print(f"(at 3.5 mm it would be {at35:.2f} mm wide; the room is {WORDMARK_GAP[1] - WORDMARK_GAP[0]:.2f} mm)")
+    return gap_l > 0 and gap_r > 0
+
+
 def positions():
     rows = ["| Widget | Centre x | Centre y | Width | Height |", "|---|---|---|---|---|"]
 
@@ -162,7 +190,7 @@ def panel(font):
     for r in ((fx, fy, fw, ft), (fx, fy + fh - ft, fw, ft), (fx, fy, ft, fh), (fx + fw - ft, fy, ft, fh)):
         out.append(rect(*r, GROUND))
     for name in MULTI:
-        out.append(ticks(JACKS[name], JACK_Y, GROUND))
+        out.append(ticks(JACKS[name], JACK_Y, GROUND if name in OUTPUTS else ECRU))
     for name, x in JACKS.items():
         fill = GROUND if name in OUTPUTS else ECRU
         size = AUDIO_TYPE if name == "AUDIO" else JACK_TYPE
@@ -177,6 +205,8 @@ if __name__ == "__main__":
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     if "--positions" in sys.argv:
         print(positions())
+    elif "--check" in sys.argv:
+        sys.exit(0 if check(TTFont(args[0] if args else FONT)) else 1)
     else:
         target = Path(__file__).with_name("panel.svg")
         target.write_text(panel(TTFont(args[0] if args else FONT)))
