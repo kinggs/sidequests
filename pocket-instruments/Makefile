@@ -5,6 +5,9 @@ NATIVE := target/release/libpi_core.a
 WASM   := target/wasm32-unknown-unknown/release/pi_core.wasm
 REPORT := $(CURDIR)/target/report
 CXX    ?= c++
+# rack/test/jacks.cpp is built with the plugin's own maths flags (rack/math.mk) and Rack's CPU.
+include rack/math.mk
+RACK_ARCH := $(if $(filter x86_64,$(shell uname -m)),-march=nehalem,-march=armv8-a+fp+simd)
 
 .PHONY: build test check-toolchain check-p1 clean rack-lib race targets web p4 listen play
 
@@ -51,6 +54,8 @@ test: build check-p1
 	$(CXX) -std=c++17 -O2 -Wall -Wextra -Werror -Icore/include harness/harness.cpp $(NATIVE) -o target/harness
 	target/harness fixtures $(REPORT)-cpp.txt
 	PI_REQUIRE_WASM=1 PI_REPORT=$(REPORT)-node.txt PI_RENDER=$(CURDIR)/target/render-node node --test harness/
+	$(CXX) -std=c++11 $(RACK_MATH) $(OUR_MATH) $(RACK_ARCH) -Wall -Wextra -Werror -Icore/include rack/test/jacks.cpp $(NATIVE) -o target/jacks
+	target/jacks
 	cmp $(REPORT)-rust.txt $(REPORT)-cpp.txt
 	cmp $(REPORT)-rust.txt $(REPORT)-node.txt
 	@echo "Pocket Instruments: three harnesses, $$(grep -c '^#' $(REPORT)-rust.txt) runs each, one report ($$(sha256sum < $(REPORT)-rust.txt | cut -c1-16))."
