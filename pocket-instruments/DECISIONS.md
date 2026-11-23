@@ -931,6 +931,153 @@ hour gives its rate.
    small first task of the next session. Why: `apt-get update` takes about 12 of the
    job's 13 minutes.
 
+### D66 — Effects: a lane a pattern, written as it plays, on the sounds that are switched in
+**2026-11-23 · proposed (Session 15, the design loop the owner asked for in O15) · built on from Session 16 · the owner can overrule any item cheaply before then**
+
+What the PO-12 does is R48 to R54, and, the same day, the owner's own unit (`WORKFLOW.md`,
+"The effects: what to check on the PO-12"): items 2 and 3 below were checked on it and two
+first rulings were corrected by it (marked). What we take:
+
+1. **One effect a step, in a lane beside the pattern.** Sixteen entries, none or an effect
+   1 to 16, saved with the pattern. (R51: one a step is the likelier reading of the
+   hardware ⚠.)
+2. **Recorded as it is played, with write off,** as the PO-12 does (R49, and seen in both
+   videos, R53): while playing, each step that arrives with fx and a key held takes that
+   effect, and replays it every bar. **Held alone, fx empties each step that arrives.** The
+   maker later changed this to "only with write on" (R52); we follow the PO-12, because the
+   workflow is the thing kept faithful (D22).
+3. **A punch is heard at once and written by the steps that arrive.** The step being
+   played when the key lands is not written ⚠ (the one part of this item not yet checked):
+   so what the lane replays is exactly what was heard from the sequencer. **Stopped,
+   nothing:** not heard, not written, as the hardware. (First ruled: heard on taps while
+   stopped. The owner's PO-12 does nothing, and D22 keeps the workflow faithful.)
+   **Of two keys held, the last wins, and the first comes back when the last is let go,**
+   as the hardware. (First ruled: letting go leaves none.) **No key lights for an effect;**
+   the display marks a step that has one, with a mark of our own.
+4. **"Per channel" is a switch a sound: through the effects, or not.** All sixteen are in
+   at the start, which is the PO-12 (R50: its effects are on the whole mix; nothing found
+   supports effects per sound there). Switching a sound out keeps it clean and steady
+   while the rest is crushed or repeated. Set from the sounds sheet on the page and the
+   Sounds menu in Rack, beside the sample switch; no key gesture, so nothing collides with
+   the hardware's combinations. The common hardware shape is a send a voice (R62); a switch
+   is the smallest form of it.
+5. **Two kinds of effect.** Sequencer effects change which hits fire (the four repeats);
+   they go out as triggers, so in Rack each sound's TRIGGERS channel carries its repeats:
+   the effect triggers, per channel, that the owner's brief asks for. Sound effects change
+   the bus (crush, filters, distortion).
+6. **Our sixteen keep the hardware's roles on the hardware's keys** (as the sounds do,
+   D31), built by us, named in our words. An effect not built yet still punches, records,
+   shows and sends its gate in Rack; only the sound is unchanged.
+7. **Clear (function + pattern) empties the lane too** ⚠ (not known on the hardware).
+
+Not chosen: recording only with write on (the PO-33's way: cleaner for a mouse, but not
+this instrument's workflow); a lane a sound (sixteen lanes, and no evidence the hardware
+has them); two lanes, one for each kind of effect, so a repeat and a filter could share a
+step (attractive, and cheap to add later: the kinds are already separate in the core).
+`ENGINE.md` §17.
+
+### D67 — The first effects: four repeats in the sequencer, then seven on the bus
+**2026-11-23 · proposed (Session 15) · built in Sessions 16 and 17**
+
+1. **Repeats are sequencer effects, not a loop of stored sound.** Effects 9 to 12 re-fire
+   the step the run began on, 4, 3, 8 and 6 times a beat. No memory, exactly in time, the
+   same on both clocks, in the trace, and out on TRIGGERS. What it cannot do is repeat a
+   tail; a drum machine that owns its sequencer does not need to (R57). ⚠ The rates are our
+   reading of the names.
+2. **Seven sound effects on one bus,** from four small parts: a sample-and-hold (1), a
+   rational soft clip (2), a truncation (3), and one state-variable filter (5 to 8, two
+   fixed and two swept in musical time). `+ − × ÷` only, the same bits on every host,
+   nothing computed while idle. Every constant is a first value for the owner's ear.
+3. **Ported with credit, not linked:** the filter, its polynomial `tan`, the soft clip and
+   the sample-rate reducer are from Émilie Gillet's stmlib and Plaits (MIT, R56), each a
+   few lines, with her notice in our file and a line in the credits. The core stays one
+   crate with no dependencies. Read for ideas only, never ported: `sloop-fm1` (GPL),
+   `fm1-radio` (MPL), Surge's `sst-*` (GPL), DaisySP's LGPL half (R55, R56).
+4. **Waiting:** 4 delay and 14 feedback (they need stored sound: how much, and whose
+   memory, is a design of its own); 13, 15 and 16 (nobody describes them, R48: the hardware
+   first).
+
+`ENGINE.md` §17 and §18.
+
+### D68 — In Rack: FX GATES out, and FX SEND and FX RETURN round the bus
+**2026-11-23 · proposed (Session 15) · built in Session 18 · the panel is the owner's eye**
+
+What stays: CLOCK, RESET, RETURN in; TRIGGERS, VOICES, AUDIO out (D62). Added, three jacks:
+
+1. **FX GATES out, sixteen channels:** 10 V on channel *n* while effect *n* is heard,
+   punched or replayed from the lane. This is how the performance drives Rack effects: a
+   gate into a filter's CV, a delay's send, or stoermelder's STRIP to switch a row of
+   modules on. Bidoo cOPIA's LANES output is the same idea (R59).
+2. **FX SEND out and FX RETURN in, one channel each: the bus.** FX SEND always carries the
+   switched-in sounds, before any effect. With FX RETURN patched, an effect marked "from FX
+   RETURN" is heard from the cable in place of the core's own: the bus crosses over to
+   what came back while that effect is held, and back when it ends. By default the marked
+   ones are those the core has no sound for (the delay, first), so patching a delay round
+   the loop gives effect 4 a sound at once. The menu has a tick an effect, as RETURN has
+   a tick a sound (D62 item 3). So each sound reaches **either** the internal effects
+   **or** a Rack effect, by one cable and a tick.
+3. **A returned sound goes through the effects too.** TRIGGERS to a Rack kick, back in
+   through RETURN, and a punch crushes or repeats it like any other. For that the returns
+   move into the core (`ENGINE.md` §19); the module stops rebuilding the mix itself.
+4. **Two loops, not three.** The owner wondered about three sets of sends and returns.
+   TRIGGERS, VOICES and RETURN are already a loop a sound; FX SEND and FX RETURN are the
+   loop for the bus; AUDIO is the master, and anything after it is a cable. A third set
+   would be a second bus, which nothing yet needs (README rule 5).
+5. **On the panel, not an expander** ⚠ for the owner's eye. Nine jacks fit the row at the
+   inputs' 11.67 mm pitch (inputs at 10.67 to 45.67 mm, outputs at 63.00 to 109.67); the
+   wordmark has to leave the row. Why not an expander: Rack 3 is to rework the expander
+   interface (R60), and a module's showpiece should not need a second module.
+6. **A patched channel cannot be told from a silent one** (R58), so neither new loop
+   guesses from a cable's channels: FX RETURN is one channel, switched by the jack and the
+   menu.
+
+Not chosen: a send and return a sound for effects (VOICES and RETURN are that already); the
+gates as triggers (a held effect is a gate; Rack's standard is 10 V while active, R34); an
+FX GATES input, so another sequencer could play the punches (a good later jack, as cOPIA
+has: it needs only `KEY_DOWN`s from the module).
+
+### D69 — The page has every internal effect and no loop
+**2026-11-23 · proposed (Session 15) · built in Session 19**
+
+On the page fx and a key work as on the hardware, with real fingers; Ctrl+click latches fx
+for a mouse (D61). The sounds sheet gains a switch a sound, "through fx". What the core
+does not sound yet does nothing audible there, and the display still marks it. There is no
+outside effect on a phone: what the page plays is the internal set, and a beat made in
+Rack with outside effects plays there with those steps dry.
+
+### D70 — Sixteen jacks for MixMaster: a breakout expander, later
+**2026-11-23 · proposed, parked (the owner asked: "send all 16 of our voices straight to it") · not planned**
+
+MixMaster cannot take one cable for sixteen tracks, and no trick with its inserts saves a
+cable (R61). Today: VOICES into VCV Split, sixteen cables. One gesture needs sixteen mono
+output jacks, which is D33's expander: a right-hand breakout with a jack a sound and one
+menu item, "Connect to MixMaster", that makes the sixteen cables (R61: about twenty lines
+on the Surge team's MIT helper, which D40 and D41 already chose). ⚠ Not built or tried; it
+leans on MindMeld's module names and port order, and Rack 3 will rework expanders (R60).
+After the effects.
+
+### D71 — Seen on the PO-12: the chosen sound's steps are lit whether write is on or off
+**2026-11-23 · a fact from the owner's hardware; the change is proposed, not decided · would supersede D37's write-off row**
+
+The owner, with the PO-12 in hand: "With write off, it *still* shows the programmed steps
+as active. If I switch to another sound, they are all gone. When switching back to sound
+1, they all show again. When playing, they show steady, and flash when they go active. The
+'play marker' still goes from step 1 through to 16 at the clock speed. When I press write
+again, the screen shows write, but the steps stay *exactly* the same." R53's second video
+shows the same.
+
+So on the hardware the grid always shows the chosen sound's steps, and write changes only
+what a tap does (and the mark on the display). Ours, by D37 and D38, lights no steps with
+write off: the grid "is sounds" there and flashes each key as its sound fires.
+
+Proposed, for the owner to rule: the field shows the chosen sound's steps in both modes;
+write still decides what a tap does. Open inside it: with write off, whether keys still
+flash as *their own* sound fires (what the owner sees flash may be the lit steps as the
+playhead reaches them, or each sound's key: asked, not yet answered), and whether the
+other sounds' stitches (D36) show in both modes. It changes `ENGINE.md` §14's table, the
+three key fixtures' views, the page and the module, so it is a small session of its own
+before the weave, not a fix in passing.
+
 ## Open
 
 | ID | Question | Needs |
@@ -948,5 +1095,6 @@ hour gives its rate.
 | O10 | Probability and a short length are not on the hardware. What gesture sets them without colliding with its combinations? | `WORKFLOW.md`, after the hardware hour. Not in the first build (D52) |
 | O13 | ~~Answered 2026-11-19 for now: D47.~~ Do the hats cut each other off, and which way? `VOICES.md` says the open hat (4) cuts the closed (3) "as a real hat does"; on a real hat it is the closed that cuts the open. The hardware's behaviour is not known. Built 2026-11-19 with neither cutting the other. Recommended: closed cuts open, as a kit does, then checked on the PO-12 (D29). Cost either way: a few lines in `Voices::trigger`; the sixteen-channel layout (D33) shows the cut in track 3's channel | The owner; the hardware when to hand |
 | O14 | ~~Answered 2026-11-19, provisionally: D48.~~ The mix now passes 1: the four drums together peak at 2.1 (+6.6 dB, `harness/render-beat.json`). Where is it kept in bounds: a level and a limiter in the core, or each host saturating (D44's open item; `ENGINE.md` §10 put it "with the second voice")? Meanwhile the Rack Probe bends its output with tanh towards 10 V, so it can be heard; the browser page does nothing. Recommended: a fixed master level in the core (so a phone and Rack sound alike, D22) and each host saturating at its own ceiling. A limiter in the core would have to stay bit-identical (`+ − × ÷` only) | The owner, before the instrument's own output is built |
-| O15 | Effects (next: D65): what the PO-12's fx does (punch-in, layering, per sound), what our first fx in the core is, and how each sound reaches either the internal fx or a Rack effect, with fx triggers out per channel (one, or three, sends and returns?). The owner's brief is in `PLAN.md`, Session 15 | A design loop on Fable 5.2 (Session 15), research first |
+| O15 | ~~Effects (next: D65): what the PO-12's fx does (punch-in, layering, per sound), what our first fx in the core is, and how each sound reaches either the internal fx or a Rack effect, with fx triggers out per channel (one, or three, sends and returns?). The owner's brief is in `PLAN.md`, Session 15~~ | Answered 2026-11-23 by Session 15, as proposals: D66 (the lane), D67 (the first effects), D68 (Rack), D69 (the page). The owner accepts or overrules; the hardware checks are in `WORKFLOW.md` |
+| O16 | The owner's rulings on Session 15: D66 to D69 as proposed? In particular: effects always recorded, as the PO-12 (or only with write on); a switch a sound for "per channel"; three more jacks on the panel and the wordmark moved (or an expander); D70's breakout for MixMaster; D71, the grid's lights as the hardware has them | The owner. Recommended: accept D66 to D69; D71 yes, as a small session before the weave; D70 after the effects |
 | O9 | ~~How do the three blocks stack on a phone, and does one instrument fill the screen or share it?~~ | Answered 2026-11-19: D36 |

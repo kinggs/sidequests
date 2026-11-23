@@ -175,3 +175,50 @@ name then lowercase hex. Never regenerated. It is the proof that a snapshot writ
 old core still loads: `core/src/tests/fixtures.rs` loads each one and holds it to its
 fixture's trace, and `rack/selftest.sh` gives one to a Probe as an old patch would.
 A future version adds its own file beside this one, written before its change.
+
+## Format 3, and `designed/` (Session 15: the effects; not built yet)
+
+`designed/` holds fixtures written for a core that does not exist yet. No harness reads
+the folder: each looks only at the `.json` files beside this one. The session that builds
+what a fixture needs moves it up, unchanged, and only then runs it. If the core then
+disagrees, `ENGINE.md` decides, as ever.
+
+Format 3 is format 2, and:
+
+| Field | Meaning |
+|---|---|
+| `format` | 3 |
+| `commands` | also `fx` (`step`, `value` 0 to 16) and `fxsound` (`track`, `value` 0 or 1): `ENGINE.md` §17's two edits, sent where format 1's edits are |
+| `views` | format 2's line with ` fx=<heard> fxsteps=<four hex digits> fxsounds=<four hex digits>` on its end (the view's bytes 55 to 59) |
+
+From a snapshot, the lane and the sounds' switches set at step 0 come from the snapshot
+(version 3), like every other step-0 edit.
+
+### `fx-repeat-punch`, worked by hand
+
+Written from `ENGINE.md` §17 with no engine and no model: every tick, mask and count was
+typed in. Length 8, so a pass is 768 ticks. A key lands a frame after its step's tick 0.
+
+- **The punch lands late for its own step.** fx and key 11 go down in run step 4, after
+  tick 384. The lane is written only by steps that arrive, so pattern step 4 stays empty and
+  plays its one hit. `heard` is 11 from that frame: the first view says `fx=11` with
+  `fxsteps=0000`. No key lights for it: with write off the grid is still sounds, and
+  `held=100400` is the only sign on the keys. (The first working had `bar=0400` and
+  `sounds=0`; the owner's PO-12 lights nothing for an effect, and §17 changed before any
+  core ran this.)
+- **The run.** Ticks 480, 576 and 672 arrive with the punch held: steps 5, 6 and 7 take
+  effect 11 (`fxsteps=00e0`). The run begins at 480 on step 5, so sound 3's hit there
+  fires at 480, 528, 576, 624, 672 and 720: six lines `trig 2 5`. Sound 1 is in the effects
+  and has nothing on step 5, so it is silent through the run.
+- **A sound outside the effects plays on.** Sound 2's own step 6 fires at 576 as usual,
+  and comes before sound 3 in that tick: rising track order.
+- **Letting go.** Both keys go up after tick 672: step 7 already holds the effect and
+  finishes its hit at 720. The view at 7 still says `fx=11`: nothing is punched, and the
+  playhead's step holds 11.
+- **The replay is the performance.** The second pass gives the same lines 768 ticks later,
+  until fx alone goes down in run step 13 (after tick 1248). Ticks 1344 and 1440 arrive
+  with fx held and nothing punched: steps 6 and 7 are emptied, one at a time (`00a0` at the
+  view in between, `0020` at the end). The run is cut to step 5: two hits, then sound 2
+  alone at 1344.
+- **Counts.** Sound 1 fires twice a pass: 6. Sound 2 once a pass: 3. Sound 3: 6, 2 and 2:
+  10. 43 lines.

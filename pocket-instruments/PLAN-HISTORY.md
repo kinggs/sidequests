@@ -911,3 +911,103 @@ the numbers stay easy to tweak.
     sliders, volume and choice. Entering its pattern by keys from a fresh page gives those,
     so the bytes should match the report's label. A page that moved a slider first will not.
 - **Next: Session 12,** on Opus.
+
+### After Session 12: the page on a phone (2026-11-23)
+
+- **Built: `web/rhythm.html`, the first thing the owner can play.** Live, after the push,
+  at `https://kinggs.github.io/sidequests/pocket-instruments/web/rhythm.html`. The Loom face,
+  lit only from the core's view; several fingers at once; computer keys; the beat kept in
+  the browser; the sounds sheet and the credits below it. The core did not change: ABI 5.
+- **Proven:** `make play` passed in Chromium and Firefox: the worklet's trace is
+  `straight-sixteenths`' after its pattern went in by keys and play was pressed;
+  `keys-bpm-family`'s last view is the fixture's; about 250 drawings a browser read back
+  off the face, each equal to its view; two fingers choose a sound and nothing stays held;
+  a reload brings the beat back; the first touch starts sound and counts. `make p4` (24 of
+  24, both) and `make listen` (both) still pass on the changed worklet. The repo's
+  `make verify` passes. The report and all 276 render files: the same bytes as before.
+- **P6's browser half passed its saved-pattern bar:** the snapshot saved while it played
+  is bytes the wasm host ran `straight-sixteenths` from. P6 stays running for one thing,
+  a dropout by ear on a phone while editing (below).
+- **Every check failed once on purpose:** eight planted faults. One judge bug was found
+  that way first: the keys-bpm-family line compared two missing values and passed
+  (`LEARNINGS.md`).
+- **Opus decided nothing; four readings were built on and marked ⚠** in `design/DESIGN.md`'s
+  "Not done": a slider drags from where its cap shows (a touch alone moves nothing); the
+  bar is ochre with pattern held, madder otherwise; a firing key stays white with reduced
+  motion asked for; the sheet lights a sampled key as a step is lit. Each is a line or
+  two of `web/rhythm.html`. Also: the font comes from Google Fonts, so offline it falls
+  back to the system monospace, which belongs with the offline shell.
+- **For the owner, blocking nothing:** play it on the phone (P8's start), with the PO-12
+  beside it if it is to hand. While it plays, enter steps and move sliders for a few
+  minutes and listen for a dropout: that closes P6. Then the readings above, and D59's
+  (stopped, no key shows the playhead).
+- **For Session 13 (Opus), what will bite:**
+  - The page's checks press keys and read views through the core, so most of what Rack
+    needs is already proven once; what is Rack's own is the latch (D57 item 4) and the
+    parameters. Keep the Probe's `handoff.hpp` scheme: the page's equivalent, a count of
+    queue entries taken beside each view and snapshot, was what made its checks exact
+    rather than timed.
+  - The view's white needs a host-side "last fires seen" per track, not a flag; the page
+    keeps one array and a timer for when the next white goes out.
+  - `rack/fixtures.jq` still leaves format 2 out; Session 13's own filter is in its list.
+- **Later the same day, with the owner (D60, D61):** a mouse latches by **Ctrl+click** (Cmd
+  on a Mac) on sound, pattern, bpm, function and fx; a plain click is a real hold; the next
+  press of any key lets a latch go, a slider move does not. Session 13 builds the same in
+  Rack, which keeps right-click for its own parameter menu (R47). The sounds sheet now
+  plays what it sets: a name plays its sound, the switch changes it and plays it. `make
+  play` has a fourth phase for both; three more planted faults, each caught.
+- **Next: Session 13,** on Opus.
+
+## Session 15 — effects: the PO-12's, ours, and Rack's (design loop, Fable 5.2; next, D65)
+
+(Done 2026-11-23. The heading is as it stood in `PLAN.md`; the list is as written, ticked.
+Its last box became Sessions 16 to 19 there. Its Handover is in `PLAN.md` until two later
+notes push it here.)
+
+- [x] **First, small (D65 item 4): CI's Linux image.** A Docker image with Ubuntu 16.04 and
+      what `rack/ci-linux.sh` installs (build-essential, curl, ca-certificates, jq, zstd
+      1.5.6, rustup), pushed to GitHub's container registry and used by the workflow, so
+      `apt-get update` (12 of 13 minutes) runs once, not every push. Keep glibc 2.23 and
+      gcc 5.4 exactly; `check-dist.sh` still holds the result. Measure the job's time before
+      and after.
+
+The owner's brief, 2026-11-23, in their words: "I think we should possibly have three sets of
+sends and returns? But I really don't quite know yet. At the least triggers out, with voices
+back (like we have now), since that is the main way to get voices out. Additionally we need a
+good way to process those voices with *either* the internal FX or the external FX. But the
+challenge is that we haven't built the internal FX engine to match the PO yet. So we need to
+first-and-foremost make sure we understand those. [...] It's then partly a problem of needing
+to build a *start* of fx processing in our own model (again loosely inspired by the PO
+processing / FX layers for now), and making sure we can take that *workflow* into Rack. The
+thing is that it's a performative workflow. So it sort-of layers the FX effects, and has FX
+triggers that are very specific per channel as well. So we would need to take out the FX
+triggers plus the voices inside of VCV Rack." And: "go into an FX-specific design and
+implementation loop on Fable 5.2". O15.
+
+A design loop, then builds: Fable rules where the brief is silent, as in Sessions 9 and 10.
+Order against Session 14 is the owner's call; neither needs the other.
+
+- [x] **Research first, written to `REFERENCES.md` with sources and dates:** Teenage
+      Engineering's PO-12 guide (R23) on fx: the sixteen effects, punch-in (fx + key while
+      playing), clearing (fx alone), whether effects are recorded per step (parameter
+      locks) and per sound or on the master. Other written guides and manuals. Open-source
+      PO-12 clones and how they built effects: `ulnd/po-12` (R30, MIT, already read once:
+      re-read for fx) and any other. Facts, intentions and guesses kept apart (⚠). No
+      Teenage Engineering material copied (README rule 6).
+- [x] **What the PO-12's fx does, as a workflow:** which effects layer, which are
+      performance (held) and which are written into the pattern, and what "per channel" means
+      there. Questions the hardware hour must answer go into `WORKFLOW.md`.
+- [x] **Our first fx in the core, loosely inspired:** a small set, `+ − × ÷` only and the same
+      bits everywhere (ENGINE.md §11's rule); per sound or on the mix; how the fx key and a
+      grid key drive it; what the view shows; what the snapshot keeps. ENGINE.md sections, a
+      D-number, fixtures worked by hand.
+- [x] **Rack, the routing:** what stays (TRIGGERS and VOICES out, RETURN in, D62), and what is
+      added so each sound can be processed by *either* the internal fx *or* a Rack effect.
+      The candidates sketched on 2026-11-23: a send and return per bus (the owner wondered
+      about three sets); fx + key as per-channel gates or triggers out, so the
+      performance drives Rack effects; or both. The fx triggers per channel go out beside the
+      voices. The panel's room (24 HP, six jacks) is part of the answer, as is D33's expander.
+- [x] **The same workflow on the page,** where there is no external fx: what the internal fx
+      covers there.
+- [x] Build sessions, planned with lists like Sessions 10 to 13, each efficient and measured
+      (Ground rules).

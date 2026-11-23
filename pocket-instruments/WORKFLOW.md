@@ -27,8 +27,8 @@ hardware business with no meaning in software.
 | ☐ | Swing | hold bpm + turn A | in |
 | ☐ | Master volume, sixteen levels | hold bpm + a grid key | in |
 | ☐ | Repeat a step within itself (2, 4, 8, 16) | hold a grid key + bpm, again to cycle | later |
-| ☐ | Punch in an effect | while playing, hold fx + a grid key | later |
-| ☐ | Clear the effects | hold fx alone | later |
+| ☐ | Punch in an effect | while playing, hold fx + a grid key. It is recorded on the steps that pass, write on or off (R49, R53) | designed (D66; Session 16) |
+| ☐ | Clear the effects | hold fx alone while it plays: each step that passes is emptied | designed (D66; Session 16) |
 | ☐ | Chain patterns, up to sixteen, repeats allowed | hold pattern + grid keys in order | later |
 | ☐ | Copy the pattern to another slot | hold write + pattern + a grid key | later |
 | ☐ | Clear the pattern | function + pattern | in |
@@ -57,6 +57,8 @@ instrument must choose first, it takes the plainest reading and says so below.
    The engine restarts.
 8. **The step repeat:** the guide gives two different key combinations. Which is true?
 9. **Effects nine and ten:** the guide lists them two ways (stutter 4 and 3, or 3 and 8).
+   (2026-11-23: the sibling guides say 4 and 3, R48. What the numbers count is still not
+   known; the effects' own checks are in their section below.)
 10. **The key positions.** Which key sits where, row by row, for the keyboard mapping (D23).
 11. **Sizes, for D16:** board width and height, key pitch, jack spacing.
 
@@ -132,6 +134,50 @@ Two checks on the hardware, about three minutes, settle what the search could no
    Hold sound + 1 again and tap key 1 without touching the knob: is its pitch where you left
    it? Now nudge A a hair: does the pitch jump?
 
+## What two videos and the owner's PO-12 showed (2026-11-23)
+
+R53 is two videos of a PO-12 in use, read from their captions; the last column says what
+is now a fact from the owner's own hardware. Where a row disagrees with what is built, it
+is a mismatch (D29), listed until ruled on.
+
+| What | Seen | Ours now |
+|---|---|---|
+| The lights with write off | **Fact (the owner, D71):** the chosen sound's steps are lit, steady, write on or off; they flash as the playhead reaches them; choosing another sound shows that sound's steps; write changes only the display's mark and what a tap does | **Mismatch.** D37: with write off no step is lit. D71 proposes following the hardware |
+| Effects are recorded with write off | Both videos; four reviews (R49) | Designed so (D66) |
+| Clearing effects | Hold fx through the steps; a whole pass clears all | Designed so |
+| Effects belong to a pattern | Written across four chained patterns and cleared across them; a copied pattern given its own (R53) ⚠ | One pattern; the lane is saved with it |
+| Effects only while playing | "the only way this works is while you're doing play" (R53) ⚠ | Stopped, a punch is heard on taps and writes nothing (D66 item 3) |
+| Live record | Hold write + keys while playing; each key records its own sound, snapped to the grid | Later row; agrees with R27 |
+| Recording a knob | Hold write and turn A or B while playing: the movement is kept over the sixteen steps | Later row |
+| The tempo presets | bpm steps 140 (techno), 80 (hip hop), 120 (disco) | 80, 120, 140 rising: the same cycle |
+| The step multiplier | Hold the step + bpm; shown cycling 2, 3, 4, 6, 8 and then none (R53); the guide says 2, 4, 8, 16 ⚠ | Later row. Question 8 is settled on the keys, not on the values |
+| Removing a multiplier | Cycle round to none, or turn the step off and on | Later |
+| Chains | Hold pattern, tap patterns in order, repeats allowed, up to sixteen | Later row; agrees |
+| Copy a pattern | write + pattern + key | Later row; agrees |
+| Battery | sound + bpm | never |
+
+## The effects: what to check on the PO-12
+
+`ENGINE.md` §17 and §18 are built on R48 to R54, which are second-hand on every point but
+the maker's two sentences. Each line below is one ⚠ in the design. Play a pattern with a
+kick and a hat.
+
+| ☐ | Do | Look or listen for | It decides |
+|---|---|---|---|
+| ☑ | Write off. Hold fx + key 3 for four steps, let go. Wait a bar | **Yes** (owner, 2026-11-23): "The crush comes back in exactly the same step" | D66 item 2: recorded without write. Holds |
+| ☑ | Punch key 3 between two hits | **At once** (owner): between two kicks with only kicks playing, nothing is heard, because nothing is sounding | §17: heard at once. Holds |
+| ☐ | Punch for exactly one step and listen to the next bar | Is the step you pressed on recorded, or only the ones after? | D66 item 3 |
+| ☑ | Hold fx alone for half a bar | **Yes, cleared** (owner) | §17: the lane is written by arriving steps. Holds |
+| ☑ | Hold fx + 3, add key 5 without letting 3 go; then let 5 go | **Only the last; and the first comes back** when the last is let go (owner) | One effect at a time (D66 item 1) holds. §17 first said letting go leaves none: corrected |
+| ☑ | Stopped: hold fx + 3 | **Nothing** (owner) | D66 item 3 first let a punch sound while stopped: corrected |
+| ☑ | fx held, playing | **No light does anything; the display's sewing machine sparks when an effect plays** (owner; as R51) | §17 first put a bar on the effect's key: removed. The display gets a mark of our own |
+| ☐ | (tried 2026-11-23, not certain; again when the unit is to hand) Punch 9, 10, 11 and 12 for a bar each | Fresh hits or a looped slice with cut tails? How many a beat for each? Which step repeats: the one pressed on, or each as it comes? | D67 item 1 and its rates |
+| ☐ | Mute nothing; punch a repeat over a bar with kick and hat | Do all the sounds repeat, or some? | D66 item 4: all sounds in, as the PO-12 |
+| ☐ | (not tried yet) Record an effect, then function + pattern, put a kick back | Is the effect still there? | D66 item 7 |
+| ☐ | Record an effect on a step, then take that step's note off | Does the effect stay? (R51 says yes) | the lane is beside the steps |
+| ☐ | Punch 4, 13, 14, 15 and 16 in turn | What does each do, in a sentence? Does the delay's tail carry past the step? Does 15 touch every sound or the chosen one? | the effects not designed yet (D67 item 4) |
+| ☐ | Punch 6 or 8 over two bars | Does the sweep start again on each step, or run on across steps? Up or down? | §18's sweeps |
+
 ## Deliberate differences from the hardware
 
 D22 asks for every one to be listed and explained. So far:
@@ -148,4 +194,7 @@ D22 asks for every one to be listed and explained. So far:
 | A length under sixteen | same |
 | One pattern at first | D12: the tiny rhythm machine comes first. Sixteen sounds from the start (D30) |
 | Our own sixteen sounds, in the same roles on the same keys | D31: synthesised by us, close in character, never sampled. (Since D35 and D50: or a public-domain sample, per key. Still nothing from the hardware) |
+| Each sound has a switch, through the effects or not; the hardware's effects are on everything (R50) | D66 item 4: the owner's "per channel". All in at the start, so untouched it is the hardware |
+| In Rack the effect being heard goes out as a gate, and the effects' bus goes out and comes back | D68: so a punch can drive, or be, a Rack effect |
+| ⚠ Not deliberate: with write off no step is lit; the hardware lights the chosen sound's steps in both modes | D37 guessed it; D71 has the fact and proposes the change |
 | No sync modes, clock, alarm or battery | hardware business |

@@ -32,6 +32,11 @@ nothing else: `pi_save` writes §15's 388 bytes, `pi_load` takes them and versio
 render is as it was (the 114 render pairs and the seven fixtures' traces and views, the
 same bytes); only the snapshots' bytes differ, by the new fields at their starting values.
 
+**Designed, not built (Session 15, D66 to D68):** §17 to §19 are the effects: the lane, the
+fx key and the four repeats (§17), the bus and the first sound effects (§18), and sound
+coming in from Rack (§19). Sessions 16 to 18 build them (`PLAN.md`), each moving
+`PI_ABI_VERSION` by one, as the weave will whenever it is built.
+
 **Designed, not built (Session 9, D51 to D57):** §16 is the rest of the instrument: the
 weave. Session 14 builds it (`PLAN.md`) and moves `PI_ABI_VERSION` by one. Until then the
 code does not do it. (§13 and §14 were in this list until Session 10 built them, §15 until
@@ -425,7 +430,7 @@ it is not, as the hardware runs alone.
 | A master level, a limiter, a mute mask for D33's expander | nothing summed until the drums | the level is done (D48). A master volume, a level per track and the mute mask: with the instrument |
 | ~~Keys and sliders doing anything~~ | ~~the workflow is not confirmed on hardware~~ | Done in Session 10: §13, ABI 4. Built from `WORKFLOW.md` as it stands (D29) |
 | Sixteen patterns, chains | scope to decide | snapshot version 2 |
-| Parameter locks, step multiplier, effects | same | same |
+| Parameter locks, step multiplier, ~~effects~~ | same | same. Effects: designed in Session 15, §17 to §19 |
 | A command in the middle of a step, in a fixture | on edges, a flush is one indivisible burst, so the position cannot be matched | with live recording: fixture format 3. (Format 2, Session 10, puts a key one frame after its step's boundary, no further) |
 | A tempo change inside a fixture | the harness would need to re-anchor its step frames, as it now does for a reset (`fixtures/README.md`) | when a fixture needs one. Until then the Rust rule tests cover it (`core/src/tests/rules.rs`) |
 
@@ -529,7 +534,7 @@ all). A new press of bpm starts unused.
 |---|---|
 | bpm is held | `volume` becomes *n* + 1. Uses bpm |
 | sound is held | the chosen sound becomes track *n*, and it fires as `FIRE` does ⚠ |
-| pattern, fx or function is held | nothing (later rows of `WORKFLOW.md`) |
+| pattern, fx or function is held | nothing (later rows of `WORKFLOW.md`). Designed, not built: fx held punches an effect (§17) |
 | write is on | step *n* of the chosen sound flips, as `STEP` would. No sound |
 | otherwise | track *n* fires, as `FIRE` does. The chosen sound does not change |
 
@@ -759,3 +764,256 @@ cells = pi_weave(view, len, flags, out, cap)    /* PI_WEAVE_W × PI_WEAVE_H, or 
   already there, `DESIGN.md`'s seven rules are a function of the block.
 - The host draws the rest of the display itself, from the view: the tempo, `bpm`, the write
   mark, the step number, the sixteen step marks.
+
+## 17. Effects: the lane, the keys and the repeats (designed in Session 15; D66, D67; not built)
+
+The fx key comes alive. What the PO-12 does is in `REFERENCES.md` R48 to R54; what we take
+from it is D66. One more thing a pattern holds: **the lane**, one effect number for each of
+the sixteen steps, 0 for none, 1 to 16 for the effect on key 1 to 16. And one setting:
+**which sounds go through the effects**, a bit a sound, all sixteen at `pi_init`.
+
+State. Saved (§17's snapshot, below): `fx[16]`, `fx_sounds`. The moment's: the grid keys
+punched, in the order they went down, of which `punch` is the last still held (0 if none),
+and in the sequencer `eff` (the effect it read at the last step boundary), `run_step` and
+`run_tick`.
+
+**Checked on the owner's PO-12, 2026-11-23** (`WORKFLOW.md`): recorded with write off;
+heard at once; cleared a step at a time by fx alone; of two keys held the last wins and
+the first comes back when it is let go; nothing happens while stopped; no key lights for
+an effect. Each is marked "(hardware)" below. The rest of this section is still a reading.
+
+### Commands
+
+| Type | Name | Arguments |
+|---|---|---|
+| 23 | `FX` | `a` step, `value` 0 to 16: the lane's entry for that step. A value past 16 is ignored, as an index is |
+| 24 | `FXSOUND` | `a` track, `value` 0 or 1: whether that sound goes through the effects |
+
+Both are edits (§6): a host's sheet or menu sends them, and a fixture can. Each moves
+`pi_generation` when it changes a value.
+
+### Keys (§13's tables, changed)
+
+`KEY_DOWN` on grid key *n*: the row "pattern, fx or function is held: nothing" loses fx,
+and this row goes in after "sound is held":
+
+| When | It does |
+|---|---|
+| fx is held | key *n* is punched: `punch` becomes *n* + 1. No sound, no step, whether write is on or off |
+
+`KEY_UP` on a punched grid key: it is no longer punched, and `punch` becomes the key
+punched last among those still down, or 0. So the last key held wins, and letting it go
+brings the one before back (hardware). `KEY_UP` on fx: nothing is punched any more, and a
+grid key still down is not a press. `KEY_DOWN` on fx: only held.
+(Session 15's first draft had "letting the second go leaves none"; the hardware says
+otherwise.)
+
+Function + pattern (clear) also empties the lane. `fx_sounds` stays, as the sliders do.
+
+### The lane is written by the steps that arrive
+
+At every step boundary while playing, after the playhead has moved (§5):
+
+```
+if fx is held:  fx[cur] = punch          # a punched effect is written; fx alone writes 0
+eff = fx[cur]
+```
+
+That is the whole of recording and clearing: hold fx with a key and each step that arrives
+takes that effect; hold fx alone and each step that arrives is emptied. Nothing is written
+between boundaries, and nothing while stopped. Write mode plays no part (hardware; R49).
+
+**What is heard** (it is also what Rack's FX GATES say, D68):
+
+```
+heard = 0, unless a step has played since play (the view's flag 3)
+        punch, if punch is not 0
+        fx[cur], otherwise
+```
+
+Stopped, nothing is heard and nothing is written (hardware; the first draft let a punch
+sound on taps while stopped). Playing, a punch is heard from the frame its key lands
+(hardware), and to the end of the step it is let go on (that step holds it by then). The sequencer reads `eff` at a boundary only: a repeat
+punched in the middle of a step begins with the next step. One rule each: the sound path
+reads `heard` every frame; the sequencer reads the lane at a boundary. Why the split: a
+trace then depends only on ticks and commands (§1), and what the lane replays next bar is
+exactly what the sequencer did this bar.
+
+### The four repeats (effects 9 to 12)
+
+A repeat re-fires one step's sounds on a grid of its own. It is a sequencer effect: no
+audio is stored, every repeat is a fresh hit, and each goes out as a `TRIG` like any other,
+so in Rack the TRIGGERS cable carries it (R57 on why not a buffer).
+
+| Effect | Period | In a beat |
+|---|---|---|
+| 9 | 96 ticks | 4 |
+| 10 | 128 | 3 |
+| 11 | 48 | 8 |
+| 12 | 64 | 6 |
+
+⚠ The numbers are our reading of the names "stutter 4, stutter 3, repeat 8, repeat 6" as
+hits in a beat (R48: the guide gives 9 and 10 two ways and explains none).
+
+```
+at a step boundary, after eff is read:
+  if eff is 9..12 and eff != last:  run_step = cur;  run_tick = k
+  last = eff                           # play from stopped, and reset, set last = 0
+
+at tick k, playing, for track 0..15 in order:
+  if eff is 9..12 and track is in fx_sounds:
+    fires when (k - run_tick) % period == 0, from column run_step
+  else:
+    fires as §5 says (pending, at the swing offset), from column cur
+```
+
+- **A run** is consecutive steps holding the same repeat. It keeps the step it began on and
+  its own grid of ticks across those steps, so effect 10 over four steps is three even hits
+  a beat, not one a step.
+- A sound in `fx_sounds` does not play its own steps while a repeat is on; a sound outside
+  it plays on as if nothing were held.
+- A repeated hit is not swung. It takes its draw like any firing (§5): once, in track
+  order, when it fires, from column `run_step`'s probability.
+- `TRIG`'s step is the column that fired: `run_step` for a repeated hit. Within a tick the
+  order is still `STEP`, then `TRIG` by rising track, repeats and plain firings together.
+- The playhead and `STEP` are untouched: the pattern runs on underneath and the beat comes
+  back in place when the run ends.
+
+**Effects the core does nothing for yet** (4, 13, 14, 15, 16 after the first build, and 1
+to 8 until §18 is built): the key still punches, the lane still records it, `heard` and the
+view still say it, and Rack's FX GATES still send it. Only the sound is unchanged. So all
+sixteen are usable in Rack from the first build, through D68's loop.
+
+### The view (§14, changed)
+
+| Offset | Size | Field |
+|---|---|---|
+| 55 | 1 | `heard`: 0, or the effect sounding now, 1 to 16 |
+| 56 | 2 | fx steps: bit *s*, step *s* of the lane holds an effect |
+| 58 | 2 | fx sounds: bit *t*, sound *t* goes through the effects |
+
+Bytes 48 to 54 stay the weave's (§16) and 60 to 63 stay zero. **The grid's table does not
+change:** holding fx lights nothing and hides nothing, as on the hardware, where no key
+lights for an effect. (The first draft put the bar on the heard effect's key.) The fx key
+itself shows pressed while held, like any function key.
+
+The display says it instead: a host draws a mark while `heard` is not 0, and may draw the
+lane on its step marks from the fx steps. `design/DESIGN.md` decides both. The hardware
+flashes a spark on its sewing machine there; that picture is its own (R6), so ours is a
+mark of Loom's.
+
+**As text:** fixture format 3 (`fixtures/README.md`) is format 2's line with
+` fx=<heard> fxsteps=<four hex digits> fxsounds=<four hex digits>` on its end. Formats 1
+and 2 are unchanged, so every existing fixture's views stay the same bytes.
+
+### Snapshot version 3
+
+408 bytes. Bytes 0 to 383 are version 2's (§15) with version 3 and payload size 392. Then:
+
+| Offset | Size | Field |
+|---|---|---|
+| 384 | 16 | the lane: a byte a step, 0 to 16 |
+| 400 | 2 | fx sounds |
+| 402 | 2 | zero |
+| 404 | 4 | CRC-32 of bytes 0 to 403 |
+
+The core writes version 3 and loads all three. A version 1 or 2 load empties the lane and
+sets `fx_sounds` to all sixteen. A lane byte past 16 loads as 0. `punch` is the moment's
+and is not saved.
+
+### What must not move, and what it costs
+
+- With an empty lane and nothing punched, every trace and every render is the same bytes
+  as before: the seven fixtures, their views, the 276 render files.
+- The sequencer's cost with an empty lane: one comparison at each step boundary and one at
+  each tick that fires. The build measures `pi_process` before and after (PLAN's ground
+  rule).
+
+**Proven when built by:** `fixtures/designed/fx-repeat-punch.json`, worked by hand in
+Session 15 before any code (`fixtures/README.md`), on both sources; a rule test for each
+row and bullet above; a version 2 snapshot file kept from before the change, as
+`snapshots-v1.txt` was.
+
+## 18. The bus and the first sound effects (designed in Session 15; D67; not built)
+
+- **The bus** is the sum of the sounds in `fx_sounds`, in track order; **the rest** is the
+  sum of the others. The effects act on the bus only. That one switch a sound is what "per
+  channel" means here (D66 item 4).
+- **Idle is today's path.** While `heard` is not an effect the core sounds and the ramp
+  below is at 0, the mix is §13's: every track summed in order, times the volume. The same
+  bytes as before, at the cost of one comparison a frame.
+- **Otherwise** `mix = (rest + bus + w × (wet − bus)) × volume gain`, where `wet` is the
+  effect's output for this frame's bus, and `w` runs from 0 to 1 in 2 ms (`500 / rate` a
+  frame) when such an effect starts, and back when it ends; the effect keeps running until
+  `w` is 0. From one effect straight to another, the new one starts at once with `w` as it
+  is. Why a ramp: every engine read does this and nothing else (R55, R57).
+- **The sixteen track channels are not touched** by any effect: direct outputs, before the
+  effects and the master, as with the volume (D57).
+- **Musical time moves the sweeps.** A sweep's place is the ticks since `heard` became that
+  effect, so it restarts with each run and is the same on both clocks. Its cutoff is
+  multiplied by a constant once a tick, never computed from an exponential.
+- **The same bits on every host** (§11): `+ − × ÷` and casts only. The filter's `tan` is a
+  polynomial (R56).
+
+The first set. Every number is a first value for the owner's ear (⚠), as the voices' were:
+
+| Effect | Role (R48) | Built as |
+|---|---|---|
+| 1 | low sample rate | sample and hold at 6 kHz on a phase accumulator (`acc += 6000`; at `acc ≥ rate` take a new sample), so it is 6 kHz at every rate |
+| 2 | distortion | `SoftLimit(6 × bus) × 0.7`, where `SoftLimit(x) = x (27 + x²) / (27 + 9 x²)`, held to ±1 beyond ±3 |
+| 3 | bit crush | twelve levels a unit, towards zero: `trunc(12 × bus) / 12`. Silent on silence |
+| 5 | lowpass filter | the state-variable filter's low output at 600 Hz |
+| 6 | lowpass sweep | the same, from 8 kHz down to 200 Hz over sixteen steps, then again |
+| 7 | hipass filter | its high output at 2 kHz |
+| 8 | hipass sweep | the same, from 100 Hz up to 4 kHz over sixteen steps, then again |
+
+The filter is one zero-delay-feedback state-variable filter, damping 0.5, serving all four:
+`h = 1 / (1 + r g + g²)`, `hp = (in − r s1 − g s1 − s2) h`, `bp = g hp + s1`,
+`s1 = g hp + bp`, `lp = g bp + s2`, `s2 = g bp + lp`, with
+`g = f (π + f² (0.3260 π³ + 0.1823 π⁵ f²))`, `f = cutoff / rate`, held to 0.3 at most.
+Ported from stmlib (MIT, © Émilie Gillet; R56) with its notice in the file's header, as the
+sample-rate reducer and `SoftLimit` are; the credits on the page and in the plugin gain a
+line. Its state is cleared when an effect starts from idle, and kept from one filter effect
+to the next.
+
+Not in the first set, and why: 4 delay and 14 feedback need a stretch of stored sound, and
+the engine's memory is the host's and fixed (§8): how long, at what rate, and whether the
+host lends the room as it lends samples (§12) is its own design. 13 note shuffle, 15
+parameter lfo and 16 vibrato wait for the hardware to say what they are (R48: nobody
+describes them).
+
+**Proven when built by:** render pairs (native and `.wasm`, the same bytes) for each
+effect punched over the minimum beat at three rates; the 276 existing render files
+unchanged; a rule test that a sound outside `fx_sounds` is the same in the mix with and
+without an effect; the cost of a frame measured idle and with each effect on.
+
+## 19. Sound in: the returns and the effects loop (designed in Session 15; D68; not built)
+
+For Rack. Until now a host only took sound from the core, and the Rhythm module rebuilt
+the mix itself when RETURN was patched (D62, `rack/src/jacks.hpp`). The effects have to
+reach a returned sound too (TRIGGERS to a Rack kick, back in through RETURN, then a punch
+on it), so the returns move into the core, and one more pair of channels makes a loop for
+the bus.
+
+- **A fourth layout, `PI_AUDIO_LOOP`, 18 channels,** read and written in place. Before the
+  call the host fills, for each frame, channels 0 to 15 with what its RETURN cable carries
+  and channel 17 with its FX RETURN. After it: 0 to 15 are the sixteen sounds as layout 16
+  gives them, 16 is the mix, 17 is the bus before any effect and before the volume (FX
+  SEND). Channel 16's input is not read.
+- **Command 25, `ROUTE`.** `a` 0: `value` is a mask of sounds taken from the input: that
+  sound's input channel takes its own voice's place in the bus or the rest, and so in the
+  mix. Its output channel is still its own voice. `a` 1: `value` is a mask of effects whose
+  sound comes from outside: while `heard` is one of them, `wet` is input channel 17, with
+  §18's ramp, whether or not the core has a sound for that effect. Neither is saved or
+  moves the generation: which cables are in is the patch's to keep. In the other three
+  layouts nothing is read in and `ROUTE` changes nothing heard.
+- **Nothing routed, nothing punched:** channel 16 is layout 17's mix, the same bytes.
+- **The loop is an insert, not a second copy.** When an outside effect is heard the bus
+  crosses over to what came back; it is never summed with itself, so the two samples a
+  cable loop costs in Rack 2 (R60) cannot comb, and no rule here depends on that number.
+- The repeats (§17) are not sound and cannot go outside: they go out as triggers.
+
+**Proven when built by:** `rack/test/jacks.cpp`'s cases as core tests (unpatched is the
+mix bit for bit; a silent return takes the sound out bit for bit); a returned sound in
+`fx_sounds` is in the bus and one outside it is not; an outside effect's `wet` is the
+input, ramped.

@@ -6,8 +6,8 @@ bottom of this file.
 
 **Start every session with:** "Read `pocket-instruments/PLAN.md` and do Session N."
 Design sessions run on Fable; build sessions on Opus, on the laptop (Arch, Omarchy). A build
-session whose heading says Fable is one where a contract first meets code (2, 3, 10) or is
-drawn by eye (14): there the session may rule on a gap; on Opus it stops and asks.
+session whose heading says Fable is one where a contract first meets code (2, 3, 10, 18) or is
+drawn by eye (14, 18): there the session may rule on a gap; on Opus it stops and asks.
 
 ## Read first, every session
 
@@ -19,7 +19,8 @@ are about 300 KB, and a session that reads them all has spent its attention befo
 3. `ENGINE.md`: the sections your session's list names, and §3 and §8 if you have not built
    on the engine before.
 4. `DECISIONS.md`: the decisions your list and those sections cite, and the **Open** table
-   at its end. For Sessions 12 to 15 that is D51 onwards. Not the whole log.
+   at its end. For Sessions 12 to 15 that is D51 onwards; for 16 to 20, D62 onwards. Not
+   the whole log.
 5. `PROOFS.md`: the ladder table at its top, and the proof your session runs, if it runs
    one. Do not change a pass bar to make it pass; record the failure.
 
@@ -84,6 +85,12 @@ done, and the latest two Handover notes. A session that finishes:
   a scratch user folder's `plugins-lin-x64/PocketInstruments/`, give it a patch, and run
   `perf record ... ./Rack -h -u <folder>`; then `perf report --sort sym -n` and `perf
   annotate`. Compare runs by sample counts over the same seconds and patch.
+- Since Session 15: CI's Linux build runs in our own image on GitHub's container registry
+  (`rack/ci-linux.Dockerfile`). A change to it, to `rack/ci-linux-setup.sh` or to
+  `rust-toolchain.toml` makes a new tag, and the next push builds it once (about 12
+  minutes, in apt). It cannot be built here: Docker is installed but the user is not in
+  its group. `yt-dlp` is present: `yt-dlp --skip-download --write-auto-subs --sub-langs en
+  --sub-format vtt <url>` fetches a video's captions (how R53 was read).
 - Found in Session 10: `cargo` only works with this folder as the working directory. From
   anywhere else the mise shim fails with "No version is set". To build a scratch copy, stay
   here and pass `--manifest-path` and `CARGO_TARGET_DIR`. `jq` (1.8) is present; the Rack
@@ -112,11 +119,17 @@ Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
 | 11, snapshot version 2 (Opus) | ABI 5: the snapshot holds the sliders, switches, volume and choice; version 1 still loads, in the core and the Probe; `PI_AUDIO_BOTH` | 2026-11-20 |
 | 12, the page on a phone (Opus) | `web/rhythm.html`, playable; `make play`; P6's browser snapshot passed | 2026-11-23 |
 | 13, the Rack module (Opus) | the Rhythm module, RETURN (D62) and its test, the panel's sixth jack, a format 2 self-test in Rack | 2026-11-23 |
+| 15, the effects researched and designed (Fable) | CI's Linux image (28 s, from 78 s or worse); R48 to R62; `ENGINE.md` §17 to §19; D66 to D71; a fixture by hand; Sessions 16 to 20 | 2026-11-23 |
 
 ## Still the owner's hands
 
 Unticked in the finished lists. None blocks a build session.
 
+- [ ] **Session 15's rulings (O16):** D66 to D69 as proposed, or changed; D70; D71. This
+      one does come before Session 16.
+- [ ] The seven effects checks left on the PO-12 (`WORKFLOW.md`, "The effects: what to check
+      on the PO-12"; six were done on 2026-11-23), and D71's open point: with write off, do keys flash for their own
+      sound as it fires?
 - [ ] P4: iOS Safari (no iPhone yet), and the tap pad filmed for latency. `PROOFS.md` P4.
 - [ ] P5: the four loads in Rack, one a platform. `PROOFS.md` P5, "What the full proof
       still needs". CI has the four artefacts. ~~And VCV's answer (O2).~~ Answered
@@ -202,7 +215,7 @@ push; no Teenage Engineering material. And for these five:
       Session 13, "Profiled with perf"). The module's time fell 31%: the big one was an
       atomic store, a full memory barrier, every frame. The engine is now about half of it.
 - [x] CI's Linux job is slow in `apt-get update` (12.5 of 13 minutes): a prebuilt image is
-      Session 15's small first task (D65 item 4).
+      Session 15's small first task (D65 item 4). Done in Session 15: the job is 28 s.
 - [ ] The self-test failed once in 32 runs (96 kHz: a module on the LFO never saw its clock).
       Not reproduced in 14 more. If it fails again, its log is kept in `rack/build/`
       (`LEARNINGS.md`, Session 13). Read it before changing anything.
@@ -223,7 +236,7 @@ None blocks anything; each is done when wanted, profiled before and after (Machi
 - [ ] Next for efficiency, when wanted: the core itself (`pi_process` is about half the
       module now). That one speeds up the phone too. Profile first (Machine state).
 
-## Session 14 — the weave (build, with the owner's eye; after Session 15, D65)
+## Session 14 — the weave (build, with the owner's eye; when the owner says, D65)
 
 Recommended on Fable: which cells each of the seven rules lights is not designed, only its
 inputs and its tests. That is drawing by judgment, with the owner watching.
@@ -246,55 +259,105 @@ ABI 6. `ENGINE.md` §16, `design/DESIGN.md` "The animation", `design/loom/frames
       picture to hold to.
 - [ ] `DESIGN.md`'s "Not done" list brought up to date.
 
-## Session 15 — effects: the PO-12's, ours, and Rack's (design loop, Fable 5.2; next, D65)
+## Sessions 16 to 19 — the effects, built (designed in Session 15: D66 to D69)
 
-- [ ] **First, small (D65 item 4): CI's Linux image.** A Docker image with Ubuntu 16.04 and
-      what `rack/ci-linux.sh` installs (build-essential, curl, ca-certificates, jq, zstd
-      1.5.6, rustup), pushed to GitHub's container registry and used by the workflow, so
-      `apt-get update` (12 of 13 minutes) runs once, not every push. Keep glibc 2.23 and
-      gcc 5.4 exactly; `check-dist.sh` still holds the result. Measure the job's time before
-      and after.
+`ENGINE.md` §17 to §19 are the brief, with D66 to D69 and `REFERENCES.md` R48 to R62 behind
+them. The rules for Sessions 10 to 14 above hold for these four: decide nothing on Opus;
+expected output before the core runs it; what exists does not move; a planted fault counts
+only if it built and a named test failed. And the ground rule: each says what it costs a
+frame, measured before and after. Each takes the next `PI_ABI_VERSION`, whatever the weave
+has done by then. In order; the weave (Session 14) and the lights (Session 20) fit anywhere
+the owner says.
 
-The owner's brief, 2026-11-23, in their words: "I think we should possibly have three sets of
-sends and returns? But I really don't quite know yet. At the least triggers out, with voices
-back (like we have now), since that is the main way to get voices out. Additionally we need a
-good way to process those voices with *either* the internal FX or the external FX. But the
-challenge is that we haven't built the internal FX engine to match the PO yet. So we need to
-first-and-foremost make sure we understand those. [...] It's then partly a problem of needing
-to build a *start* of fx processing in our own model (again loosely inspired by the PO
-processing / FX layers for now), and making sure we can take that *workflow* into Rack. The
-thing is that it's a performative workflow. So it sort-of layers the FX effects, and has FX
-triggers that are very specific per channel as well. So we would need to take out the FX
-triggers plus the voices inside of VCV Rack." And: "go into an FX-specific design and
-implementation loop on Fable 5.2". O15.
+**Before Session 16: the owner's rulings (O16).** D66 to D69 are proposals. If a ruling
+changes one, change `ENGINE.md` first, then build.
 
-A design loop, then builds: Fable rules where the brief is silent, as in Sessions 9 and 10.
-Order against Session 14 is the owner's call; neither needs the other.
+### Session 16 — the lane and the repeats, in the core (build, Opus)
 
-- [ ] **Research first, written to `REFERENCES.md` with sources and dates:** Teenage
-      Engineering's PO-12 guide (R23) on fx: the sixteen effects, punch-in (fx + key while
-      playing), clearing (fx alone), whether effects are recorded per step (parameter
-      locks) and per sound or on the master. Other written guides and manuals. Open-source
-      PO-12 clones and how they built effects: `ulnd/po-12` (R30, MIT, already read once:
-      re-read for fx) and any other. Facts, intentions and guesses kept apart (⚠). No
-      Teenage Engineering material copied (README rule 6).
-- [ ] **What the PO-12's fx does, as a workflow:** which effects layer, which are
-      performance (held) and which are written into the pattern, and what "per channel" means
-      there. Questions the hardware hour must answer go into `WORKFLOW.md`.
-- [ ] **Our first fx in the core, loosely inspired:** a small set, `+ − × ÷` only and the same
-      bits everywhere (ENGINE.md §11's rule); per sound or on the mix; how the fx key and a
-      grid key drive it; what the view shows; what the snapshot keeps. ENGINE.md sections, a
-      D-number, fixtures worked by hand.
-- [ ] **Rack, the routing:** what stays (TRIGGERS and VOICES out, RETURN in, D62), and what is
-      added so each sound can be processed by *either* the internal fx *or* a Rack effect.
-      The candidates sketched on 2026-11-23: a send and return per bus (the owner wondered
-      about three sets); fx + key as per-channel gates or triggers out, so the
-      performance drives Rack effects; or both. The fx triggers per channel go out beside the
-      voices. The panel's room (24 HP, six jacks) is part of the answer, as is D33's expander.
-- [ ] **The same workflow on the page,** where there is no external fx: what the internal fx
-      covers there.
-- [ ] Build sessions, planned with lists like Sessions 10 to 13, each efficient and measured
-      (Ground rules).
+`ENGINE.md` §17; D66; D67 item 1. No sound path changes: this session is the sequencer.
+
+- [ ] Before any change: `target/report-rust.txt` and a `sha256sum` of `target/render-*.f32`
+      kept; `fixtures/snapshots-v2.txt` written by today's core (each fixture's version 2
+      snapshot, as `snapshots-v1.txt` was in Session 11) and committed.
+- [ ] `make bench`, new: nanoseconds a frame of `pi_process` for an idle engine, the minimum
+      beat and all sixteen sounds, a release build, the best of five. Run it before the
+      change; the number goes in `LEARNINGS.md`.
+- [ ] A second fixture by hand, before code, into `fixtures/designed/`: effect 10 (128
+      ticks) over four steps with swing on and one step at a probability under 100, so the
+      run's own grid, the unswung repeats and the draw order are each in a trace.
+- [ ] Commands 23 `FX` and 24 `FXSOUND`; the lane and `fx_sounds` in the pattern; clear
+      empties the lane.
+- [ ] The keys: fx + key punches; the last key held wins and the one before comes back;
+      fx let go ends them all; stopped, nothing (§17).
+- [ ] The sequencer: the lane written by arriving steps; `eff`; the four repeats.
+- [ ] The view's bytes 55 to 59 (the grid's table does not change). `harness/race.cpp`'s `look()` and
+      `the_view_follows_edits…` in `core/src/tests/keys.rs` hold bytes 48 to 63 to zero:
+      now 48 to 54 and 60 to 63.
+- [ ] Snapshot version 3; versions 1 and 2 still load (the two files of old snapshots).
+- [ ] Fixture format 3 in the three harnesses; both designed fixtures moved up unchanged
+      and run. A disagreement is settled in `ENGINE.md`, not in the trace.
+- [ ] A rule test for each row and bullet of §17; the 20 000-press generation test with fx
+      in it. Planted faults.
+- [ ] `core/include/pi_engine.h`; the page's worklet and the Rack module still build and
+      pass their checks. Nothing is drawn yet, but fx + 9 to 12 already repeats on both,
+      because the keys reach the core: say so in the Handover so the owner can try it.
+- [ ] `make bench` again: an empty lane costs nothing measurable, or the Handover says what.
+
+### Session 17 — the bus and seven sound effects (build, Opus, then the owner's ear)
+
+`ENGINE.md` §18; D67 items 2 and 3.
+
+- [ ] Before: the report, the render hashes, `make bench`.
+- [ ] The bus and the rest; idle is today's path, the same bytes (all 276 render files).
+- [ ] The ramp; effects 1, 2, 3; the filter and effects 5 to 8, the sweeps in ticks.
+      The stmlib and Plaits notices in the file's header; a credits line on the page and in
+      the plugin's manifest (D67 item 3).
+- [ ] Render pairs, native and `.wasm` the same bytes: each effect punched over the minimum
+      beat, at three rates. A sound switched out of the effects is the same in the mix with
+      and without one.
+- [ ] `web/listen.html` gains the seven, each over the beat, so the owner can hear them
+      beside the dry beat. Every constant in §18's table is a first value: the owner's ear
+      moves them, as it did the voices.
+- [ ] `make bench`: idle, and each effect on. Planted faults.
+
+### Session 18 — Rack: the loop, the gates, the panel (build, Fable)
+
+On Fable because a contract first meets code (the returns move into the core) and the
+panel is drawn by eye. `ENGINE.md` §19; D68.
+
+- [ ] `PI_AUDIO_LOOP` and `ROUTE` in the core; `rack/test/jacks.cpp`'s cases become core
+      tests; `jacks.hpp` shrinks to volts in and out. Unpatched, AUDIO is still the mix
+      bit for bit.
+- [ ] FX GATES, FX SEND, FX RETURN; the menu's tick an effect, with its default (D68 item
+      2); the Sounds menu's "through fx" tick a sound.
+- [ ] The panel redrawn by `design/make_panel.py` with nine jacks and the wordmark moved;
+      seen in Rack's screenshot mode (Machine state) and by the owner. If nine do not sit
+      well, stop and ask: the fallback is D68 item 5's expander.
+- [ ] The self-test plays the format 3 fixtures and holds FX GATES to each view's `fx`.
+      One module plays through its own FX SEND and FX RETURN.
+- [ ] perf, before and after, as Session 13's profile (Machine state).
+- [ ] `RACK-RULES.md` and `design/DESIGN.md`'s jack table brought up to date.
+
+### Session 19 — the page (build, Opus)
+
+D69.
+
+- [ ] fx + key by touch and by keys; the display's mark while an effect is heard, and the
+      lane on its step marks (`design/DESIGN.md` says how: decide it with the owner
+      first). No key lights for an effect.
+- [ ] The sounds sheet's "through fx" switch.
+- [ ] `make play` holds every drawing to its view, format 3 included; planted faults.
+
+## Session 20 — the grid's lights, as the hardware has them (D71; waits for the owner's ruling)
+
+Small, and before the weave if the owner says yes: the weave's rules read the same view.
+
+- [ ] The ruling, and the answer to D71's open point (do keys flash for their own sound
+      with write off).
+- [ ] `ENGINE.md` §14's table changed first; the three key fixtures' views worked again by
+      hand from it and their change explained in `fixtures/README.md` (a trace is not
+      edited to pass a build; a view changed by a decision is).
+- [ ] The core, the page and the module follow; `make play` and the self-test.
 
 ## After Session 14
 
@@ -331,52 +394,6 @@ Decided when P1 to P4 are in, not before:
 ## Handover
 
 The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
-
-### After Session 12: the page on a phone (2026-11-23)
-
-- **Built: `web/rhythm.html`, the first thing the owner can play.** Live, after the push,
-  at `https://kinggs.github.io/sidequests/pocket-instruments/web/rhythm.html`. The Loom face,
-  lit only from the core's view; several fingers at once; computer keys; the beat kept in
-  the browser; the sounds sheet and the credits below it. The core did not change: ABI 5.
-- **Proven:** `make play` passed in Chromium and Firefox: the worklet's trace is
-  `straight-sixteenths`' after its pattern went in by keys and play was pressed;
-  `keys-bpm-family`'s last view is the fixture's; about 250 drawings a browser read back
-  off the face, each equal to its view; two fingers choose a sound and nothing stays held;
-  a reload brings the beat back; the first touch starts sound and counts. `make p4` (24 of
-  24, both) and `make listen` (both) still pass on the changed worklet. The repo's
-  `make verify` passes. The report and all 276 render files: the same bytes as before.
-- **P6's browser half passed its saved-pattern bar:** the snapshot saved while it played
-  is bytes the wasm host ran `straight-sixteenths` from. P6 stays running for one thing,
-  a dropout by ear on a phone while editing (below).
-- **Every check failed once on purpose:** eight planted faults. One judge bug was found
-  that way first: the keys-bpm-family line compared two missing values and passed
-  (`LEARNINGS.md`).
-- **Opus decided nothing; four readings were built on and marked ⚠** in `design/DESIGN.md`'s
-  "Not done": a slider drags from where its cap shows (a touch alone moves nothing); the
-  bar is ochre with pattern held, madder otherwise; a firing key stays white with reduced
-  motion asked for; the sheet lights a sampled key as a step is lit. Each is a line or
-  two of `web/rhythm.html`. Also: the font comes from Google Fonts, so offline it falls
-  back to the system monospace, which belongs with the offline shell.
-- **For the owner, blocking nothing:** play it on the phone (P8's start), with the PO-12
-  beside it if it is to hand. While it plays, enter steps and move sliders for a few
-  minutes and listen for a dropout: that closes P6. Then the readings above, and D59's
-  (stopped, no key shows the playhead).
-- **For Session 13 (Opus), what will bite:**
-  - The page's checks press keys and read views through the core, so most of what Rack
-    needs is already proven once; what is Rack's own is the latch (D57 item 4) and the
-    parameters. Keep the Probe's `handoff.hpp` scheme: the page's equivalent, a count of
-    queue entries taken beside each view and snapshot, was what made its checks exact
-    rather than timed.
-  - The view's white needs a host-side "last fires seen" per track, not a flag; the page
-    keeps one array and a timer for when the next white goes out.
-  - `rack/fixtures.jq` still leaves format 2 out; Session 13's own filter is in its list.
-- **Later the same day, with the owner (D60, D61):** a mouse latches by **Ctrl+click** (Cmd
-  on a Mac) on sound, pattern, bpm, function and fx; a plain click is a real hold; the next
-  press of any key lets a latch go, a slider move does not. Session 13 builds the same in
-  Rack, which keeps right-click for its own parameter menu (R47). The sounds sheet now
-  plays what it sets: a name plays its sound, the switch changes it and plays it. `make
-  play` has a fourth phase for both; three more planted faults, each caught.
-- **Next: Session 13,** on Opus.
 
 ### After Session 13: the Rack module (2026-11-23)
 
@@ -457,3 +474,58 @@ The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
   task. The idle CPU (0.6% stopped) is in "Later: efficiency".
 - **Next: Session 15, on Fable 5.2:** the effects design loop, research first, with CI's
   image as its small first task. Then Session 14 (the weave), which should also plan D64.
+
+### After Session 15: the effects, researched and designed (2026-11-23)
+
+- **CI's Linux image is in, measured.** `rack/ci-linux.Dockerfile` (Ubuntu 16.04 by digest)
+  and `rack/ci-linux-setup.sh`; the workflow pulls
+  `ghcr.io/kinggs/sidequests/pi-rack-linux:<hash of the three files it is made from>`, or
+  builds and pushes it once if that tag is not there. The Linux job: 78 s on a good day and
+  14 min 35 s that morning before; 12 min 18 s the one run that built the image (727 s of
+  it apt); **28 s after** (pull 11 s, build 11 s; run 45170623935). `ci-linux.sh` now
+  refuses any gcc but 5.4 and any glibc but 2.23, and still works in a bare `ubuntu:16.04`.
+  `check-dist.sh` passed on all four as before.
+- **Researched, with sources, in `REFERENCES.md` R48 to R62:** the PO-12's effects (the
+  maker's two sentences; reviews; the sibling guides; two videos read from their captions);
+  open-source effects engines and what may be ported; Rack's conventions for sends,
+  returns and gates; MixMaster.
+- **What the research changed in the brief:** the PO-12's effects are on the whole mix,
+  not a channel (R50), and they are always recorded, a step at a time, with write off
+  (R49, R53). No open-source clone implements them (R55).
+- **Designed, as proposals for the owner (O16):** D66, a lane a pattern, written by the
+  steps that arrive, and a switch a sound for "per channel"; D67, four repeats in the
+  sequencer (they go out on TRIGGERS) and seven sound effects on one bus, the filter and
+  two more ported from stmlib and Plaits (MIT) with credit; D68, Rack: FX GATES out and FX
+  SEND and FX RETURN round the bus, with the returns moved into the core so a returned
+  sound takes the effects too; D69, the page. `ENGINE.md` §17 to §19.
+- **A fixture worked by hand before any code:** `fixtures/designed/fx-repeat-punch.json`,
+  format 3 (`fixtures/README.md`). No harness reads `designed/`. `make verify` passes with
+  it there.
+- **From the owner's PO-12, the same day (D71):** the chosen sound's steps are lit whether
+  write is on or off. Ours lights none with write off (D37). A fact; the change is
+  proposed, as Session 20.
+- **MixMaster (D70, parked):** one cable cannot reach sixteen tracks. Today VCV Split and
+  sixteen cables; one gesture needs a breakout expander with sixteen jacks.
+- **Not done, and why:** nothing was built in the core (a design session). The delay and
+  feedback (4, 14) and effects 13, 15 and 16 are not designed: the first two need a ruling
+  on stored sound, the rest need the hardware (`WORKFLOW.md`, "The effects: what to check
+  on the PO-12"). The panel with nine jacks is a claim from arithmetic (D68 item 5 ⚠), not
+  drawn.
+- **Checked on the owner's PO-12 the same day,** six of the thirteen rows in
+  `WORKFLOW.md`: recorded with write off, heard at once, cleared by the steps that pass,
+  the last of two keys wins and the first comes back, stopped does nothing, no key lights
+  and the display marks it. The last three corrected the design before anything was built
+  (`ENGINE.md` §17 says where; `LEARNINGS.md`).
+- **For the owner:** O16's rulings; the seven checks left in `WORKFLOW.md` (the repeats and
+  clear were tried and not certain); D71's open point.
+- **For Session 16 (Opus), what will bite:**
+  - The fixture's keys land a frame after a boundary, so a punch never writes its own
+    step: read `fixtures/README.md`'s notes on it before the code.
+  - `seq.tick` needs to know whether fx is held and what is punched: pass them in, do not
+    reach into the keys from the sequencer.
+  - The punched keys are kept in the order they went down (the last still held wins, and
+    the one before comes back): sixteen keys at most, so a small fixed array.
+  - A repeat fires on ticks that are not a step's tick 0. On an external clock those ticks
+    come in a burst when an edge is early (§4): the trace is the same, the frames are not.
+  - There is no bench yet; the list starts by making one.
+- **Next: the owner's rulings, then Session 16,** on Opus.

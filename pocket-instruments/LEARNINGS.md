@@ -453,3 +453,59 @@ belongs in `PROOFS.md`, a change of course in `DECISIONS.md`, an outside fact in
   (⚠ a guess: the order Rack loads modules and cables in). It now keeps the log as
   `rack/build/selftest-<rate>.log` when it fails. Read that log first if it happens again.
 
+
+## Session 15: the effects, researched and designed (2026-11-23)
+
+- **The owner's brief had one thing the sources do not support, and research first is what
+  caught it.** The brief says the PO-12's effects have "FX triggers that are very specific
+  per channel". Three reviews say the opposite: one effect over the whole mix (R50). What
+  is per sound on the hardware is the step multiplier. Designing from the brief alone
+  would have built sixteen lanes. What the brief wants is still met, two ways the hardware
+  does not have: a switch a sound, and repeats that go out on each sound's TRIGGERS channel.
+- **A text extraction hid the guide's contradiction; the page's own HTML showed where it
+  comes from.** Read with `curl` and stripped to text, the guide prints the effects list
+  twice. The 2015 printed manual has "stutter 3, stutter 8" in both; the web page's
+  overview was later changed to "stutter 4, stutter 3" and its section 4 was not (R48).
+  Session 1's extraction (R23) saw only "it contradicts itself".
+- **A video's captions are a cheap second witness.** `yt-dlp --skip-download
+  --write-auto-subs` and twenty lines of Python gave two tutorials as text with time marks
+  in a minute. They showed effects being recorded with write off on a real unit, which
+  every written source had only asserted, and one thing nobody was looking for: the
+  lights with write off (D71). The captions are the authors' words and are not kept here;
+  R53 is our summary with the time marks.
+- **One sentence from the owner's hardware overturned a decision three sessions had built
+  on.** D37 guessed that with write off the grid shows no steps; the PO-12 shows them in
+  both modes. The guess was marked as one, so the cost is a known list (§14's table, three
+  fixtures' views, two hosts), not a hunt. That is D29 working as meant: build on the
+  plainest reading, mark it, change it when the hardware speaks.
+- **Writing the lane so that only arriving steps are written came from working the fixture
+  by hand.** The first rule wrote the step being played when the key landed. Working the
+  trace showed the replay then starts a repeat one step earlier than the performance did,
+  because the sequencer had already read that step: the bug a PO-28 owner reports on the
+  hardware (R49's forum thread). With "only arriving steps", the second pass of
+  `fx-repeat-punch` is the first pass 768 ticks later, line for line.
+- **Ten minutes with the hardware corrected two rulings an hour old.** The owner tried
+  eight checks while the design was being written. Five readings held (recorded with write
+  off, heard at once, cleared by the steps that pass, one effect at a time, the display
+  marks it). Two rulings were wrong: letting go of the last of two keys brings the first
+  back, and stopped does nothing. A third guess, a bar on the effect's key, went too: no
+  key lights. All three were changed in `ENGINE.md` §17 and the hand-worked fixture before
+  any code existed, which is the cheapest a wrong ruling can ever be. The lesson for the
+  next design loop: write the checks for the hardware first and hand them over early,
+  while the design is still text.
+- **The effects need sound to come into the core.** D62 kept the core unchanged by
+  rebuilding the mix in the module. An effect on a returned sound cannot work that way:
+  the module would need the core's filter. So §19 moves the returns in. The earlier choice
+  was right for what it knew; the record of why it changes is D68 item 3.
+- **CI's image: tag by content, build in the job that needs it.** The first sketch was a
+  second workflow that builds the image when its files change; the build job would then
+  race it on the same push and need a fallback. Hashing the three files the image is made
+  from into its tag, and building in the Linux job when that tag is missing, has no race
+  and no stale image. Measured: 727 s to build it once, then 11 s to pull and 11 s to
+  build the plugin, against 76 s of setup and build on a good day and 14 min 33 s on a bad
+  one. The package is private by default; the job logs in with its own token.
+- **Licences were the trap in the libraries, not the code.** The obvious names are the
+  unusable ones: Surge's effects and filters are GPL-3 though its Rack helper is MIT;
+  DaisySP is MIT but its bitcrush, reverb and compressor sit in an LGPL repository; the
+  one engine already written in four-operation arithmetic is MPL. What ports cleanly is a
+  few dozen lines of Émilie Gillet's (R56).
