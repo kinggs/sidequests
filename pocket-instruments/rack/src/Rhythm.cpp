@@ -8,21 +8,36 @@
 //
 //   CLOCK     patched: the core follows its edges, one edge a step. Unpatched: the table clock.
 //   RESET     starts from step 1. CLOCK is ignored for 1 ms after it (RACK-RULES.md).
-//   RETURN    sixteen channels; channel n takes sound n's place in AUDIO's mix (D62; jacks.hpp).
 //   TRIGGERS  sixteen channels, 10 V for 1 ms a firing. VOICES: sixteen channels, 5 V to 1.0.
+//   RETURN    sixteen channels; channel n takes sound n's place in the mix, and in the effects'
+//             bus if that sound is switched into them (D62, D68 item 3).
+//   A OUT, B OUT  sixteen channels, 0 to 10 V: the slider each sound was last hit with.
+//   A IN, B IN    sixteen channels: channel n's voltage at sound n's hit is that slider (D76).
+//   FX GATES  sixteen channels: 10 V on channel n while effect n is heard (D68).
+//   FX SEND   the sounds switched into the effects, before any effect. FX RETURN: what an
+//             effect ticked in the menu is heard from while it is held (by default the ones
+//             the core has no sound for, the delay first).
 //   AUDIO     the mix, 5 V to 1.0, bent by tanh towards 10 V.
 //
+// Since Session 18 the mix is the core's whatever is patched (ENGINE.md §19): the module
+// hands it the inputs and scales what comes out (jacks.hpp), and asks for the loop's
+// eighteen or fifty channels only while a jack that needs them is in use.
+//
 // A mouse holds a key while the button is down; Ctrl+click (Cmd on a Mac) latches sound,
-// pattern, bpm, function or fx until the next press of any key ends, or a second Ctrl+click
-// (D60, D61). Right-click keeps Rack's own parameter menu (R47). The computer keys of D57 item 5
+// pattern, bpm or function until the next press of any key ends, or a second Ctrl+click
+// (D60, D61). Ctrl+click on fx latches it until it is Ctrl+clicked again, and while latched
+// fx is down only while a grid key is (D78). Right-click keeps Rack's own parameter menu (R47). The computer keys of D57 item 5
 // play while the pointer is over the module. A double-click on a slider puts it back where it
 // started, from the view (D63). The sliders are the hand's (ENGINE.md §20, D75): a cap moves
 // by itself only while bpm is held or after a load, and a thin second mark on each slider
 // shows what the chosen sound was last hit with (the view's bytes 60 to 63).
 //
-// The self-test (PLAN.md, Session 13): a patch whose module data names a format 2 or 4 fixture makes
-// the module press its own parameters and send the fixture's edits, and hold its events and
-// views to the fixture, pass after pass, as the Probe does with format 1. rack/selftest.sh.
+// The self-test (PLAN.md, Session 13): a patch whose module data names a format 2, 3 or 4 fixture
+// makes the module press its own parameters and send the fixture's edits, and hold its events,
+// its views and (Session 18) its FX GATES to the fixture, pass after pass, as the Probe does
+// with format 1. A patch whose data names a loop ("return", "fx", "sliders") plays a short
+// performance through the module's own cables and holds every frame to a second engine given
+// what those cables should carry; "latch" plays D78's gestures. rack/selftest.sh.
 //
 // Nothing on the audio thread allocates, locks or logs.
 // SPDX-License-Identifier: MIT
@@ -72,6 +87,14 @@ const std::vector<RhythmFixture> FIXTURES = {
 const char *const SOUND_NAMES[PI_TRACKS] = {"Bass drum", "Snare", "Closed hat", "Open hat", "Synth snare", "Sticks",
     "Cymbal", "Noise", "Clap", "Click", "Low tom", "High tom", "Cow bell", "Blip", "Tone", "Bass tone"};
 const char *const FN_NAMES[7] = {"sound", "pattern", "bpm", "function", "fx", "play", "write"};
+// What each effect key is, in our words (ENGINE.md §17 and §18; 4 and 13 to 16 have no sound in
+// the core yet, so they are the ones FX RETURN takes by default).
+const char *const FX_NAMES[PI_TRACKS] = {"low sample rate", "distortion", "bit crush", "delay (no sound here yet)", "lowpass", "lowpass sweep",
+    "hipass", "hipass sweep", "repeat, 4 a beat", "repeat, 3 a beat", "repeat, 8 a beat", "repeat, 6 a beat", "13 (no sound here yet)",
+    "14 (no sound here yet)", "15 (no sound here yet)", "16 (no sound here yet)"};
+// The loop self-tests (selftest.sh): which of the module's own cables a patch has looped.
+const char *const LOOP_NAMES[5] = {"none", "return", "fx", "sliders", "latch"};
+enum Loop { LOOP_NONE, LOOP_RETURN, LOOP_FX, LOOP_SLIDERS, LOOP_LATCH };
 const uint32_t LATCHING = 1u << PI_KEY_SOUND | 1u << PI_KEY_PATTERN | 1u << PI_KEY_BPM | 1u << PI_KEY_FUNCTION | 1u << PI_KEY_FX;
 const uint32_t SEED = 1; // keys cannot set a probability, so no draw depends on it (as the page)
 
@@ -87,7 +110,7 @@ uint32_t u32(const uint8_t *v, unsigned i) {
 
 // ENGINE.md §14's text line for a view, the edges flag written as 0 (the fixtures' table text);
 // the caller checks the flag itself. The same line as harness/fixture.hpp's view_text: for a
-// format 4 fixture (§20) with §17's three fields and §20's two on its end.
+// format 3 fixture with §17's three fields on its end, and for format 4 (§20) two more.
 void viewText(const uint8_t *b, char *out, size_t cap, uint32_t format = 2) {
     unsigned flags = b[PI_VIEW_FLAGS];
     char step[4] = "-";
@@ -101,10 +124,11 @@ void viewText(const uint8_t *b, char *out, size_t cap, uint32_t format = 2) {
                           unsigned(u16(b, PI_VIEW_BAR)), unsigned(u16(b, PI_VIEW_SAMPLED)), unsigned(u16(b, PI_VIEW_A)), unsigned(u16(b, PI_VIEW_B)));
     for (unsigned t = 0; t < PI_TRACKS && n > 0 && size_t(n) < cap; t++)
         n += std::snprintf(out + n, cap - size_t(n), t ? ",%u" : "%u", unsigned(b[PI_VIEW_FIRES + t]));
+    if (format >= 3 && n > 0 && size_t(n) < cap)
+        n += std::snprintf(out + n, cap - size_t(n), " fx=%u fxsteps=%04x fxsounds=%04x", unsigned(b[PI_VIEW_HEARD]),
+                           unsigned(u16(b, PI_VIEW_FX_STEPS)), unsigned(u16(b, PI_VIEW_FX_SOUNDS)));
     if (format >= 4 && n > 0 && size_t(n) < cap)
-        std::snprintf(out + n, cap - size_t(n), " fx=%u fxsteps=%04x fxsounds=%04x ea=%u eb=%u", unsigned(b[PI_VIEW_HEARD]),
-                      unsigned(u16(b, PI_VIEW_FX_STEPS)), unsigned(u16(b, PI_VIEW_FX_SOUNDS)), unsigned(u16(b, PI_VIEW_HIT_A)),
-                      unsigned(u16(b, PI_VIEW_HIT_B)));
+        std::snprintf(out + n, cap - size_t(n), " ea=%u eb=%u", unsigned(u16(b, PI_VIEW_HIT_A)), unsigned(u16(b, PI_VIEW_HIT_B)));
 }
 
 // A snapshot, how many of its bytes are real, and how many loads the audio thread had taken
@@ -121,19 +145,23 @@ struct View {
 
 struct Rhythm : Module {
     enum ParamId { KEY_PARAMS = 0, SLIDER_A = 23, SLIDER_B = 24, PARAMS_LEN };
-    enum InputId { CLOCK_INPUT, RESET_INPUT, RETURN_INPUT, INPUTS_LEN };
-    enum OutputId { TRIGGERS_OUTPUT, VOICES_OUTPUT, AUDIO_OUTPUT, OUTPUTS_LEN };
+    // Rack ties a cable to a port's number: new ports go after the old ones, always (D76 item 2).
+    enum InputId { CLOCK_INPUT, RESET_INPUT, RETURN_INPUT, FX_RETURN_INPUT, A_INPUT, B_INPUT, INPUTS_LEN };
+    enum OutputId { TRIGGERS_OUTPUT, VOICES_OUTPUT, AUDIO_OUTPUT, FX_GATES_OUTPUT, FX_SEND_OUTPUT, A_OUTPUT, B_OUTPUT, OUTPUTS_LEN };
     enum LightId { LIGHTS_LEN };
     enum Holder : uint8_t { MOUSE = 1, KEYBOARD = 2, LATCH = 4 };
 
     // ---- Shared between threads: atomics, and the handoff.hpp schemes. ----
     std::atomic<int> fixtureWanted{-1};  // -1: the instrument; otherwise the self-test's fixture
     std::atomic<int32_t> returnChosen{-1}; // D62 item 3: -1 "As the cable carries", else a mask
+    std::atomic<int32_t> aChosen{-1}, bChosen{-1}; // the same for A IN and B IN (D76 item 4)
+    std::atomic<int32_t> fxChosen{-1};   // D68 item 2: -1 the effects the core has no sound for, else a mask
+    std::atomic<int> loopWanted{LOOP_NONE}; // a loop self-test (selftest.sh), or none
     std::atomic<bool> sliderHeld[2];     // a pointer is on the slider: its cap does not follow
     std::atomic<bool> freshWanted{false}; // Rack's Initialize: an empty beat
     std::atomic<uint32_t> passed{0}, failed{0}, aborted{0}, viewsHeld{0}, viewsNot{0}, dropped{0}, published{0},
         loadsOk{0}, loadsRefused{0}, lastRate{0}, peakMillivolts{0}, notFinite{0}, pulses{0}, returnFrames{0},
-        loadsTaken{0};
+        loadsTaken{0}, gatesHeld{0}, gatesNot{0}, loopPassed{0}, loopFailed{0}, loopHeld{0}, loopNot{0}, loopActed{0};
     std::atomic<int> testedFixture{-1}, testedEdges{0};
     char firstMismatch[900] = {}; // written once by the audio thread, read when the module goes
     std::atomic<bool> haveMismatch{false};
@@ -144,7 +172,7 @@ struct Rhythm : Module {
 
     // ---- Rack's other threads only. ----
     uint8_t holders[23] = {};    // who holds each key down (Holder bits)
-    uint32_t latched = 0;        // keys held by a Ctrl+click (D61)
+    uint32_t latched = 0;        // keys latched by a Ctrl+click (D61); fx stays until the next one (D78)
     std::vector<uint8_t> pendingLoad; // the last snapshot a patch gave, until a save holds it
     uint32_t loadsAsked = 0;
 
@@ -154,6 +182,15 @@ struct Rhythm : Module {
     int packLoaded = 0;
     pi_engine *e = nullptr;
     pi::Jacks jacks;
+    uint32_t routeSent[4] = {};  // the masks ROUTE last gave the core (§19): sounds, effects, A, B
+    // The loop self-tests: a second engine, given what the module's own cables should carry.
+    alignas(16) uint8_t mem2[4096];
+    pi_engine *shadow = nullptr;
+    int loop = LOOP_NONE;
+    bool loopRunning = false, loopBad = false;
+    uint64_t loopFrame = 0;
+    uint32_t loopStep = 0, loopActedPass = 0, fires1 = 0;
+    float prevVoices[PI_TRACKS] = {}, prevSend = 0.f, prevA[PI_TRACKS] = {}, prevB[PI_TRACKS] = {};
     dsp::SchmittTrigger clockTrig, resetTrig;
     uint32_t rate = 0, sinceReset = 0xffffffffu, generation = 0, sincePublish = 0;
     int sourceSent = -1;         // the clock source last sent; -1 sends it on the next frame
@@ -194,9 +231,16 @@ struct Rhythm : Module {
         configInput(CLOCK_INPUT, "Clock");
         configInput(RESET_INPUT, "Reset");
         configInput(RETURN_INPUT, "Return (sixteen channels: each takes its sound's place in the mix)");
+        configInput(FX_RETURN_INPUT, "FX return (heard in place of the effects ticked in the menu)");
+        configInput(A_INPUT, "Slider A (sixteen channels, 0 to 10 V: read as each sound is hit)");
+        configInput(B_INPUT, "Slider B (sixteen channels, 0 to 10 V: read as each sound is hit)");
         configOutput(TRIGGERS_OUTPUT, "Triggers (sixteen channels, one a sound)");
         configOutput(VOICES_OUTPUT, "Voices (sixteen channels, one a sound, before the volume)");
         configOutput(AUDIO_OUTPUT, "Audio");
+        configOutput(FX_GATES_OUTPUT, "FX gates (sixteen channels: 10 V while that effect is heard)");
+        configOutput(FX_SEND_OUTPUT, "FX send (the sounds through the effects, before any effect)");
+        configOutput(A_OUTPUT, "Slider A (sixteen channels, 0 to 10 V: what each sound was last hit with)");
+        configOutput(B_OUTPUT, "Slider B (sixteen channels, 0 to 10 V: what each sound was last hit with)");
         if (pi_abi_version() != PI_ABI_VERSION || pi_size() > sizeof mem) {
             WARN("Pocket Instruments: the core is not the one this plugin was built for");
             return;
@@ -222,20 +266,23 @@ struct Rhythm : Module {
         if (packLoaded != int(PI_TRACKS))
             WARN("Pocket Instruments: %d of 16 samples found; the rest play their code voices", packLoaded);
     }
-    void givePack() {
+    void givePack() { givePack(e); }
+    void givePack(pi_engine *to) {
         for (uint32_t t = 0; t < PI_TRACKS; t++)
-            if (!pack[t].empty()) pi_set_sample(e, t, pack[t].data(), uint32_t(pack[t].size()));
+            if (!pack[t].empty()) pi_set_sample(to, t, pack[t].data(), uint32_t(pack[t].size()));
     }
 
     void report(const char *when) {
         int fx = testedFixture.load();
         INFO("Pocket Instruments rhythm (%s): fixture %s%s: %u passes matched, %u did not, %u cut short, %u views held, %u not; "
              "rate %u Hz, %u events dropped, %u snapshots published, %u loaded, %u refused; audio peak %.2f V, %u samples not finite, "
-             "%u trigger pulses, %u frames with RETURN; %d of 16 samples found",
+             "%u trigger pulses, %u frames with RETURN; %u gates held, %u not; loop %s: %u passes held to the core, %u not, %u frames "
+             "the same, %u not, %u where the loop was heard; %d of 16 samples found",
              when, fx >= 0 ? FIXTURES[fx].name : "none", fx >= 0 ? (testedEdges.load() ? " on edges" : " on the table") : "",
              passed.load(), failed.load(), aborted.load(), viewsHeld.load(), viewsNot.load(), lastRate.load(), dropped.load(),
              published.load(), loadsOk.load(), loadsRefused.load(), peakMillivolts.load() / 1000.0, notFinite.load(), pulses.load(),
-             returnFrames.load(), packLoaded);
+             returnFrames.load(), gatesHeld.load(), gatesNot.load(), LOOP_NAMES[clamp(loopWanted.load(), 0, 4)], loopPassed.load(),
+             loopFailed.load(), loopHeld.load(), loopNot.load(), loopActed.load(), packLoaded);
         if (haveMismatch.load()) INFO("Pocket Instruments rhythm: first mismatch: %s", firstMismatch);
     }
 
@@ -246,24 +293,41 @@ struct Rhythm : Module {
     }
 
     // ---- Holding keys: Rack's other threads. A key is down while anything holds it. ----
+    bool gridHeld() const {
+        for (int j = 0; j < 16; j++)
+            if (holders[j]) return true;
+        return false;
+    }
+    void set(int k, uint8_t who, bool on) {
+        holders[k] = on ? uint8_t(holders[k] | who) : uint8_t(holders[k] & ~who);
+        params[KEY_PARAMS + k].setValue(holders[k] ? 1.f : 0.f);
+    }
     void hold(int k, uint8_t who, bool on) {
         uint8_t before = holders[k];
-        holders[k] = on ? uint8_t(before | who) : uint8_t(before & ~who);
-        params[KEY_PARAMS + k].setValue(holders[k] ? 1.f : 0.f);
-        // D60: a press that ends finishes the gesture, and every latched key lets go.
-        if (!on && (before & who) && who != LATCH && latched)
+        bool fxLatched = latched >> PI_KEY_FX & 1;
+        // D78: while fx is latched it is down only while a grid key is. It goes down before the
+        // first grid key and comes up after the last, so each click punches for as long as it
+        // is held and, between clicks, no arriving step is emptied. (process() sends a frame's
+        // changes in that order too, should both land on one frame.)
+        if (on && k < 16 && fxLatched) set(PI_KEY_FX, LATCH, true);
+        set(k, who, on);
+        if (!on && k < 16 && fxLatched && !gridHeld()) set(PI_KEY_FX, LATCH, false);
+        // D60: a press that ends finishes the gesture, and every latched key lets go. But fx:
+        // its latch stays until it is Ctrl+clicked again (D78).
+        if (!on && (before & who) && who != LATCH && (latched & ~(1u << PI_KEY_FX)))
             for (int j = 0; j < 23; j++)
-                if (latched >> j & 1) unlatch(j);
+                if ((latched >> j & 1) && j != int(PI_KEY_FX)) unlatch(j);
     }
     void unlatch(int k) {
         latched &= ~(1u << k);
-        hold(k, LATCH, false);
+        set(k, LATCH, false);
     }
     void toggleLatch(int k) {
         if (latched >> k & 1) unlatch(k);
         else {
             latched |= 1u << k;
-            hold(k, LATCH, true);
+            // D78: fx latched holds nothing by itself; a grid key already down brings it down.
+            if (k != int(PI_KEY_FX) || gridHeld()) set(k, LATCH, true);
         }
     }
 
@@ -287,6 +351,7 @@ struct Rhythm : Module {
         sourceSent = -1;
         viewNow = true;
         mustPublish = true;
+        for (uint32_t &r : routeSent) r = 0; // a new engine routes nothing (§19): say it again
     }
 
     static uint64_t stepFrame(uint64_t n, uint32_t rate, uint32_t mbpm) {
@@ -309,6 +374,19 @@ struct Rhythm : Module {
                 std::snprintf(caps, sizeof caps, "caps at %.0f and %.0f", double(params[SLIDER_A].getValue()), double(params[SLIDER_B].getValue()));
                 std::strncat(text, ", but ", sizeof text - std::strlen(text) - 1);
                 std::strncat(text, caps, sizeof text - std::strlen(text) - 1);
+            }
+            // Session 18: FX GATES, as the jack carries it, held to the fixture's own `fx=`: 10 V on
+            // that effect's channel and 0 V on the other fifteen.
+            if (const char *want = std::strstr(fx.views[viewAt].text, " fx=")) {
+                uint32_t heard = uint32_t(std::atoi(want + 4));
+                bool ok = true; // (an unpatched output keeps no channel count in Rack: the volts are what is held)
+                for (uint32_t t = 0; t < PI_TRACKS; t++) ok = ok && outputs[FX_GATES_OUTPUT].getVoltage(t) == (heard == t + 1 ? 10.f : 0.f);
+                if (ok) gatesHeld++;
+                else {
+                    gatesNot++;
+                    mismatch = true;
+                    noteMismatch("FX GATES is not 10 V on the heard effect's channel alone, at the view \"%s\"%s", fx.views[viewAt].text, "");
+                }
             }
             if (edgesOk && capsOk && std::strcmp(text, fx.views[viewAt].text) == 0) viewsHeld++;
             else {
@@ -385,6 +463,168 @@ struct Rhythm : Module {
         }
     }
 
+    // ---- The loop self-tests (Session 18; rack/selftest.sh patches the cables). ----
+    //
+    // "return", "fx" and "sliders": the minimum beat at 120 bpm on the table clock, sixteen
+    // steps a pass, with fx and a grid key pressed on the module's own parameters at step 5
+    // and let go at step 9 ("return": effect 2, the distortion, on drums that come back through
+    // RETURN from the module's own VOICES, which is the owner's patch with the module's own
+    // voices for the drums; "fx": effect 4, heard from FX RETURN, patched from FX SEND;
+    // "sliders": no effect, the bass drum's steps keeping four pairs of values, A OUT into A IN
+    // and B OUT into B IN). Every frame, a second engine (`shadow`) is given the same commands
+    // and, for its inputs, what the module wrote to its own outputs the frame before, which is
+    // what a Rack cable carries; its layout and its routes are what the patch should give, not
+    // what process() worked out. The module's frame and view must be the shadow's, bit for bit.
+    // A pass also needs the loop to have been heard: frames where an effect changed a mix made
+    // of returned sound, or a hit that took its slider from the input.
+    //
+    // "latch": D78's gestures, by the same functions a mouse calls (no widget exists in a
+    // headless Rack, so the audio thread calls them here and nothing else does), each checked
+    // against the core's view at a step's boundary.
+    static bool loopHasShadow(int kind) { return kind == LOOP_RETURN || kind == LOOP_FX || kind == LOOP_SLIDERS; }
+
+    void loopFail(const char *what) {
+        loopBad = true;
+        loopNot++;
+        noteMismatch("loop: %s%s", what, "");
+    }
+    void loopExpect(bool ok, const char *what) {
+        if (ok) {
+            loopHeld++;
+            loopActedPass++;
+        } else loopFail(what);
+    }
+
+    void loopTest(pi_cmd *cmds, uint32_t &n) {
+        const uint32_t MBPM = 120000, STEPS = loop == LOOP_LATCH ? 32 : 16;
+        if (!loopRunning) {
+            // A pass starts once the looped inputs carry what the outputs sent.
+            bool ready = loop == LOOP_RETURN ? inputs[RETURN_INPUT].getChannels() == int(PI_TRACKS)
+                         : loop == LOOP_FX ? inputs[FX_RETURN_INPUT].isConnected()
+                         : loop == LOOP_SLIDERS ? inputs[A_INPUT].getChannels() == int(PI_TRACKS) && inputs[B_INPUT].getChannels() == int(PI_TRACKS)
+                         : true;
+            if (!ready || !rate) return;
+            fresh(SEED);
+            shadow = pi_init(mem2, sizeof mem2, rate, SEED);
+            if (shadow) givePack(shadow);
+            for (int k = 0; k < 23; k++) holders[k] = 0;
+            latched = 0;
+            cmds[n++] = pi_cmd{0, PI_CMD_TEMPO, 0, 0, 0, MBPM};
+            cmds[n++] = pi_cmd{0, PI_CMD_SOURCE, 0, 0, 0, PI_SOURCE_TABLE};
+            sourceSent = 0;
+            for (uint8_t st = 0; st < 16; st++) {
+                if (st % 4 == 0) cmds[n++] = pi_cmd{0, PI_CMD_STEP, 0, st, 0, 1};
+                if (st % 8 == 4) cmds[n++] = pi_cmd{0, PI_CMD_STEP, 1, st, 0, 1};
+                if (st % 2 == 0 && st % 8 != 6) cmds[n++] = pi_cmd{0, PI_CMD_STEP, 2, st, 0, 1};
+                if (st % 8 == 6) cmds[n++] = pi_cmd{0, PI_CMD_STEP, 3, st, 0, 1};
+            }
+            if (loop == LOOP_SLIDERS) {
+                const uint32_t kept[4][2] = {{10000, 20000}, {30000, 40000}, {50000, 60000}, {60000, 10000}};
+                for (uint8_t i = 0; i < 4; i++) cmds[n++] = pi_cmd{0, PI_CMD_KEEP, 0, uint8_t(4 * i), 0, kept[i][0] << 16 | kept[i][1]};
+            }
+            cmds[n++] = pi_cmd{0, PI_CMD_PLAY, 0, 0, 0, 1};
+            loopRunning = true;
+            loopBad = false;
+            loopFrame = 0;
+            loopStep = 0;
+            loopActedPass = 0;
+            return;
+        }
+        loopFrame++;
+        uint8_t v[PI_VIEW_SIZE];
+        bool boundary = loopFrame == stepFrame(loopStep + 1, rate, MBPM);
+        if (boundary) loopStep++; // the step whose boundary this frame is; its ticks come in this frame's pi_process
+        bool after = loopFrame == stepFrame(loopStep, rate, MBPM) + 1; // a frame after it, where a fixture's keys land
+        if (boundary) pi_view(e, v, sizeof v); // as the step before left it
+        uint32_t held = boundary ? u32(v, PI_VIEW_HELD) : 0, fxBit = 1u << PI_KEY_FX;
+        if (loop == LOOP_LATCH) {
+            bool fxLatched = latched >> PI_KEY_FX & 1;
+            if (after) switch (loopStep) {
+                case 2: toggleLatch(PI_KEY_FX); break;        // Ctrl+click fx
+                case 4: hold(1, MOUSE, true); break;          // a click on key 2, held for two steps
+                case 6: hold(1, MOUSE, false); break;
+                case 26: hold(2, MOUSE, true); break;         // a second click, on key 3: no Ctrl+click between
+                case 27: hold(2, MOUSE, false); break;
+                case 28: toggleLatch(PI_KEY_FX); break;       // Ctrl+click fx again: off
+                case 29: hold(1, MOUSE, true); break;         // now key 2 is a tap
+                case 30: hold(1, MOUSE, false); break;
+            }
+            if (boundary) switch (loopStep) {
+                case 3: loopExpect(fxLatched && !(held & fxBit), "fx latched sent fx down with no grid key down"); break;
+                case 5: loopExpect(held == (fxBit | 1u << 1) && v[PI_VIEW_HEARD] == 2, "a click with fx latched did not punch effect 2"); break;
+                case 7: loopExpect(fxLatched && held == 0 && u16(v, PI_VIEW_FX_STEPS) == 0x0060, "after the click fx was not let go, or the latch went, or the lane is not steps 6 and 7"); break;
+                case 22: loopExpect(fxLatched && v[PI_VIEW_HEARD] == 2 && u16(v, PI_VIEW_FX_STEPS) == 0x0060, "the lane did not replay under the latch: the latch emptied it"); break;
+                case 24: loopExpect(u16(v, PI_VIEW_FX_STEPS) == 0x0060 && v[PI_VIEW_HEARD] == 0, "the latch changed the lane between clicks"); break;
+                case 27: loopExpect(held == (fxBit | 1u << 2) && v[PI_VIEW_HEARD] == 3, "the second click did not punch: the latch let go after the first"); break;
+                case 28: loopExpect(fxLatched && held == 0 && u16(v, PI_VIEW_FX_STEPS) == 0x0860, "the second click did not write step 12 alone"); break;
+                case 29: fires1 = v[PI_VIEW_FIRES + 1]; break;
+                case 30: loopExpect(!fxLatched && held == 1u << 1 && v[PI_VIEW_HEARD] == 0 && v[PI_VIEW_FIRES + 1] == uint8_t(fires1 + 1), "with the latch off key 2 was not a plain tap"); break;
+            }
+        } else if (loop != LOOP_SLIDERS && after && (loopStep == 4 || loopStep == 8)) {
+            // fx and the key on one frame: process() sends fx down first and up last (D78's order).
+            float to = loopStep == 4 ? 1.f : 0.f;
+            params[KEY_PARAMS + PI_KEY_FX].setValue(to);
+            params[KEY_PARAMS + (loop == LOOP_RETURN ? 1 : 3)].setValue(to);
+        }
+        if (boundary && loopStep == STEPS) {
+            uint32_t need = loop == LOOP_LATCH ? 8u : 1u;
+            if (!loopBad && loopActedPass >= need) loopPassed++;
+            else {
+                if (!loopBad) noteMismatch("loop: %s%s", "the pass ended without the loop being heard", "");
+                loopFailed++;
+            }
+            loopRunning = false; // the next frame starts again, fresh
+        }
+    }
+
+    // The shadow's frame, and the module's held to it. `in` is what the module gave the core,
+    // `io` what came back, `channels` the layout it asked for.
+    void loopShadow(const pi_cmd *cmds, uint32_t n, const float *in, const float *io, uint32_t channels) {
+        if (!shadow) return;
+        pi_cmd sc[PI_EVENTS_MIN + 48];
+        uint32_t sn = 0;
+        if (loopFrame == 0) { // the routes this patch should give
+            if (loop == LOOP_RETURN) sc[sn++] = pi_cmd{0, PI_CMD_ROUTE, PI_ROUTE_SOUNDS, 0, 0, 0xffffu};
+            if (loop == LOOP_FX) sc[sn++] = pi_cmd{0, PI_CMD_ROUTE, PI_ROUTE_FX, 0, 0, pi::FX_OUTSIDE_DEFAULT};
+            if (loop == LOOP_SLIDERS) {
+                sc[sn++] = pi_cmd{0, PI_CMD_ROUTE, PI_ROUTE_A, 0, 0, 0xffffu};
+                sc[sn++] = pi_cmd{0, PI_CMD_ROUTE, PI_ROUTE_B, 0, 0, 0xffffu};
+            }
+        }
+        for (uint32_t i = 0; i < n; i++)
+            if (cmds[i].type != PI_CMD_ROUTE) sc[sn++] = cmds[i];
+        float sio[PI_AUDIO_LOOP_SLIDERS] = {};
+        uint32_t want = loop == LOOP_SLIDERS ? PI_AUDIO_LOOP_SLIDERS : PI_AUDIO_LOOP;
+        if (loop == LOOP_RETURN) pi::returnIn(sio, prevVoices, 0xffffu);
+        if (loop == LOOP_FX) pi::fxReturnIn(sio, prevSend);
+        if (loop == LOOP_SLIDERS) {
+            pi::sliderIn(sio, PI_LOOP_A, prevA, 0xffffu);
+            pi::sliderIn(sio, PI_LOOP_B, prevB, 0xffffu);
+        }
+        pi_event sev[PI_EVENTS_MIN];
+        pi_process(shadow, 1, sc, sn, sev, PI_EVENTS_MIN, sio, want);
+        uint8_t a[PI_VIEW_SIZE], b[PI_VIEW_SIZE];
+        pi_view(e, a, sizeof a);
+        pi_view(shadow, b, sizeof b);
+        if (channels != want) loopFail("the module asked the core for another layout than its cables need");
+        else if (std::memcmp(io, sio, want * sizeof(float))) loopFail("a frame is not the core's own, given what the cables carry");
+        else if (std::memcmp(a, b, PI_VIEW_SIZE)) loopFail("the view is not the core's own, given what the cables carry");
+        else loopHeld++;
+        // Was the loop heard? An effect on returned sound moves the mix off the plain sum of what
+        // came back; a slider input shows as a last hit that is not what the output says.
+        bool acted = false;
+        if (loop == LOOP_SLIDERS) acted = u16(a, PI_VIEW_HIT_A) != uint32_t(std::lround(io[PI_LOOP_A + a[PI_VIEW_SEL]] * 65535.f));
+        else if (a[PI_VIEW_HEARD]) {
+            float sum = 0.f;
+            for (uint32_t t = 0; t < PI_TRACKS; t++) sum += loop == LOOP_RETURN ? in[t] : io[t];
+            acted = std::fabs(io[PI_LOOP_MIX] - sum) > 1e-3f;
+        }
+        if (acted) {
+            loopActedPass++;
+            loopActed++;
+        }
+    }
+
     void process(const ProcessArgs &args) override {
         if (!e) return;
         // Efficiency (PLAN.md's ground rules; measured with perf in Session 13): nothing below
@@ -399,6 +639,10 @@ struct Rhythm : Module {
             if (rate != 0 && fixture >= 0 && running && !edgesRun) { // the table's frames start again
                 aborted++;
                 running = false;
+            }
+            if (rate != 0 && loopRunning) { // and a loop pass
+                aborted++;
+                loopRunning = false;
             }
             rate = r;
             lastRate = r;
@@ -421,10 +665,16 @@ struct Rhythm : Module {
         else if (sinceReset < 0xffffffffu) sinceReset++;
         if (sinceReset < msFrames) clockIn = false;
 
-        pi_cmd cmds[PI_EVENTS_MIN + 32];
+        pi_cmd cmds[PI_EVENTS_MIN + 40];
         uint32_t n = 0;
         int wanted = fixtureWanted.load(std::memory_order_relaxed);
         if (wanted >= int(FIXTURES.size())) wanted = -1;
+        int loopNow = wanted >= 0 ? int(LOOP_NONE) : loopWanted.load(std::memory_order_relaxed);
+        if (loopNow != loop) {
+            if (loopRunning) aborted++;
+            loopRunning = false;
+            loop = loopNow;
+        }
         if (wanted >= 0) {
             if (fixture != wanted || edgesRun != edges) {
                 if (running) aborted++;
@@ -436,6 +686,12 @@ struct Rhythm : Module {
             pi_cmd drop;
             while (menu.pop(drop)) {
             } // the self-test plays alone
+        } else if (loop != LOOP_NONE) {
+            fixture = -1;
+            loopTest(cmds, n);
+            pi_cmd drop;
+            while (menu.pop(drop)) {
+            } // a loop self-test plays alone too
         } else {
             if (fixture >= 0) { // the self-test was left: the instrument, empty
                 fixture = -1;
@@ -463,12 +719,20 @@ struct Rhythm : Module {
                 hand[s] = sliderSent[s];
             }
         }
-        for (int k = 0; k < 23; k++) {
-            bool down = params[KEY_PARAMS + k].getValue() > 0.5f;
-            if (down != keyDown[k] && n < PI_EVENTS_MIN + 30) {
-                cmds[n++] = pi_cmd{0, uint8_t(down ? PI_CMD_KEY_DOWN : PI_CMD_KEY_UP), uint8_t(k), 0, 0, 0};
-                keyDown[k] = down;
-            }
+        uint32_t changed = 0;
+        for (int k = 0; k < 23; k++) changed |= uint32_t((params[KEY_PARAMS + k].getValue() > 0.5f) != keyDown[k]) << k;
+        if (changed) {
+            // In key order, but for this: on one frame a function key goes down before any grid
+            // key and comes up after them, as a hand holds one (and as D78's latch needs: fx down,
+            // then the key; the key up, then fx).
+            for (int pass = 0; pass < 3; pass++)
+                for (int k = pass == 1 ? 0 : 16; k < (pass == 1 ? 16 : 23); k++) {
+                    bool down = !keyDown[k];
+                    if (!(changed >> k & 1) || (pass == 0 && !down) || (pass == 2 && down) || n >= PI_EVENTS_MIN + 30) continue;
+                    cmds[n++] = pi_cmd{0, uint8_t(down ? PI_CMD_KEY_DOWN : PI_CMD_KEY_UP), uint8_t(k), 0, 0, 0};
+                    keyDown[k] = down;
+                    changed &= ~(1u << k); // sent: the last pass must not send it back up
+                }
         }
         for (int s = 0; s < 2; s++) {
             float pv = params[SLIDER_A + s].getValue();
@@ -482,13 +746,41 @@ struct Rhythm : Module {
             }
         }
 
-        float both[PI_AUDIO_BOTH];
+        // Sound in (ENGINE.md §19; jacks.hpp). Which inputs are taken is ROUTE's, sent when it
+        // changes; and the layout is the smallest that carries what is patched: with none of the
+        // seven new jacks or RETURN in use it is PI_AUDIO_BOTH, the frame this module always asked for.
+        uint32_t route[4];
+        route[PI_ROUTE_SOUNDS] = pi::returnMask(returnChosen.load(std::memory_order_relaxed), inputs[RETURN_INPUT].getChannels());
+        route[PI_ROUTE_FX] = pi::fxMask(fxChosen.load(std::memory_order_relaxed), inputs[FX_RETURN_INPUT].isConnected());
+        route[PI_ROUTE_A] = pi::returnMask(aChosen.load(std::memory_order_relaxed), inputs[A_INPUT].getChannels());
+        route[PI_ROUTE_B] = pi::returnMask(bChosen.load(std::memory_order_relaxed), inputs[B_INPUT].getChannels());
+        bool slidersOn = route[PI_ROUTE_A] || route[PI_ROUTE_B] || outputs[A_OUTPUT].isConnected() || outputs[B_OUTPUT].isConnected();
+        bool loopOn = route[PI_ROUTE_SOUNDS] || route[PI_ROUTE_FX] || outputs[FX_SEND_OUTPUT].isConnected();
+        uint32_t channels = pi::layout(slidersOn, loopOn);
+        for (uint8_t a = 0; a < 4; a++)
+            if (route[a] != routeSent[a] && n < PI_EVENTS_MIN + 36) {
+                cmds[n++] = pi_cmd{0, PI_CMD_ROUTE, a, 0, 0, route[a]};
+                routeSent[a] = route[a];
+            }
+        float io[PI_AUDIO_LOOP_SLIDERS];
+        if (channels != PI_AUDIO_BOTH) {
+            if (route[PI_ROUTE_SOUNDS]) pi::returnIn(io, inputs[RETURN_INPUT].getVoltages(), route[PI_ROUTE_SOUNDS]);
+            // Always given: the core reads it while an outside effect is heard and for the 2 ms
+            // it ramps out, which can outlast its tick in the menu. Unpatched it is 0 V.
+            pi::fxReturnIn(io, inputs[FX_RETURN_INPUT].getVoltage()); // one channel (D68 item 6)
+            if (route[PI_ROUTE_A]) pi::sliderIn(io, PI_LOOP_A, inputs[A_INPUT].getVoltages(), route[PI_ROUTE_A]);
+            if (route[PI_ROUTE_B]) pi::sliderIn(io, PI_LOOP_B, inputs[B_INPUT].getVoltages(), route[PI_ROUTE_B]);
+        }
+        float given[PI_TRACKS];
+        bool shadowed = loopRunning && loopHasShadow(loop);
+        if (shadowed) std::memcpy(given, io, sizeof given);
         pi_event ev[PI_EVENTS_MIN];
-        uint32_t count = pi_process(e, 1, cmds, n, ev, PI_EVENTS_MIN, both, PI_AUDIO_BOTH);
+        uint32_t count = pi_process(e, 1, cmds, n, ev, PI_EVENTS_MIN, io, channels);
+        if (shadowed) loopShadow(cmds, n, given, io, channels);
         // The view: on any frame a command or a load could have moved it, so the volume and the
         // caps below are exact, and every self-test frame; else every 16th, for the drawing
         // (the playhead and the counts move with the clock, and 16 frames is under 0.4 ms).
-        bool viewRead = viewNow || n || count || fixture >= 0 || (++frames & 15) == 0;
+        bool viewRead = viewNow || n || count || fixture >= 0 || loop != LOOP_NONE || (++frames & 15) == 0;
         if (viewRead) pi_view(e, view, sizeof view);
         viewNow = false;
 
@@ -534,18 +826,13 @@ struct Rhythm : Module {
         }
         if (viewRead) reseat = false;
 
-        // The jacks (jacks.hpp): RETURN rebuilds the mix only where it takes a sound.
-        Input &ret = inputs[RETURN_INPUT];
-        int channels = ret.isConnected() ? ret.getChannels() : 0;
-        uint32_t mask = pi::returnMask(returnChosen.load(std::memory_order_relaxed), channels);
-        float rv[PI_TRACKS] = {};
-        for (int c = 0; c < channels && c < int(PI_TRACKS); c++) rv[c] = ret.getVoltage(c);
-        if (mask) returnFrames.store(++returnFramesSeen, std::memory_order_relaxed);
+        // The jacks, out (jacks.hpp). An unpatched output is left alone.
+        if (route[PI_ROUTE_SOUNDS]) returnFrames.store(++returnFramesSeen, std::memory_order_relaxed);
         uint32_t before = 0;
         for (uint32_t t = 0; t < PI_TRACKS; t++) before |= (jacks.trigLeft[t] ? 1u : 0u) << t;
         pi::JackFrame out;
-        jacks.frame(both, ev, count, msFrames, mask ? rv : nullptr, mask, view[PI_VIEW_VOLUME], out);
-        // An unpatched output is left alone; the self-test writes TRIGGERS anyway, to count it.
+        jacks.frame(io, ev, count, msFrames, out);
+        // The self-test writes TRIGGERS and FX GATES anyway, to count and to hold them.
         if (outputs[TRIGGERS_OUTPUT].isConnected() || fixture >= 0) {
             outputs[TRIGGERS_OUTPUT].setChannels(PI_TRACKS);
             for (uint32_t t = 0; t < PI_TRACKS; t++) {
@@ -558,6 +845,27 @@ struct Rhythm : Module {
             for (uint32_t t = 0; t < PI_TRACKS; t++) outputs[VOICES_OUTPUT].setVoltage(out.voices[t], t);
         }
         outputs[AUDIO_OUTPUT].setVoltage(out.audio);
+        // FX GATES (D68 item 1): what is heard is the view's, which is read on every frame a
+        // command or a step could have changed it.
+        if (outputs[FX_GATES_OUTPUT].isConnected() || fixture >= 0) {
+            outputs[FX_GATES_OUTPUT].setChannels(PI_TRACKS);
+            for (uint32_t t = 0; t < PI_TRACKS; t++) outputs[FX_GATES_OUTPUT].setVoltage(pi::gate(view[PI_VIEW_HEARD], t), t);
+        }
+        if (outputs[FX_SEND_OUTPUT].isConnected()) outputs[FX_SEND_OUTPUT].setVoltage(jacks.send(io));
+        if (outputs[A_OUTPUT].isConnected()) {
+            outputs[A_OUTPUT].setChannels(PI_TRACKS);
+            jacks.sliderOut(io, PI_LOOP_A, outputs[A_OUTPUT].getVoltages());
+        }
+        if (outputs[B_OUTPUT].isConnected()) {
+            outputs[B_OUTPUT].setChannels(PI_TRACKS);
+            jacks.sliderOut(io, PI_LOOP_B, outputs[B_OUTPUT].getVoltages());
+        }
+        if (loop != LOOP_NONE) { // what a cable from each output carries to the next frame's input
+            std::memcpy(prevVoices, outputs[VOICES_OUTPUT].getVoltages(), sizeof prevVoices);
+            prevSend = outputs[FX_SEND_OUTPUT].getVoltage();
+            std::memcpy(prevA, outputs[A_OUTPUT].getVoltages(), sizeof prevA);
+            std::memcpy(prevB, outputs[B_OUTPUT].getVoltages(), sizeof prevB);
+        }
         if (jacks.notFinite != notFiniteSeen) notFinite.store(notFiniteSeen = jacks.notFinite, std::memory_order_relaxed);
         uint32_t mv = uint32_t(std::fabs(outputs[AUDIO_OUTPUT].getVoltage()) * 1000.f);
         if (mv > peakMillivolts.load(std::memory_order_relaxed)) peakMillivolts.store(mv, std::memory_order_relaxed);
@@ -597,6 +905,9 @@ struct Rhythm : Module {
         for (int k = 0; k < 23; k++) holders[k] = 0;
         latched = 0;
         returnChosen = -1;
+        aChosen = -1;
+        bChosen = -1;
+        fxChosen = -1;
         freshWanted = true;
     }
 
@@ -610,6 +921,11 @@ struct Rhythm : Module {
         else if (!pendingLoad.empty())
             json_object_set_new(root, "snapshot", json_string(string::toBase64(pendingLoad.data(), pendingLoad.size()).c_str()));
         json_object_set_new(root, "return", json_integer(returnChosen.load()));
+        json_object_set_new(root, "a", json_integer(aChosen.load()));
+        json_object_set_new(root, "b", json_integer(bChosen.load()));
+        json_object_set_new(root, "fx", json_integer(fxChosen.load()));
+        int lp = loopWanted.load();
+        if (lp > LOOP_NONE && lp <= LOOP_LATCH) json_object_set_new(root, "loop", json_string(LOOP_NAMES[lp]));
         int fx = fixtureWanted.load();
         if (fx >= 0 && fx < int(FIXTURES.size())) json_object_set_new(root, "fixture", json_string(FIXTURES[fx].name));
         return root;
@@ -617,6 +933,12 @@ struct Rhythm : Module {
 
     void dataFromJson(json_t *root) override {
         if (json_t *j = json_object_get(root, "return")) returnChosen = int32_t(clamp(int(json_integer_value(j)), -1, 0xffff));
+        if (json_t *j = json_object_get(root, "a")) aChosen = int32_t(clamp(int(json_integer_value(j)), -1, 0xffff));
+        if (json_t *j = json_object_get(root, "b")) bChosen = int32_t(clamp(int(json_integer_value(j)), -1, 0xffff));
+        if (json_t *j = json_object_get(root, "fx")) fxChosen = int32_t(clamp(int(json_integer_value(j)), -1, 0xffff));
+        if (json_t *j = json_object_get(root, "loop"))
+            for (int i = LOOP_RETURN; i <= LOOP_LATCH; i++)
+                if (json_is_string(j) && std::string(LOOP_NAMES[i]) == json_string_value(j)) loopWanted = i;
         if (json_t *j = json_object_get(root, "fixture"))
             for (size_t i = 0; i < FIXTURES.size(); i++)
                 if (json_is_string(j) && FIXTURES[i].name == std::string(json_string_value(j))) fixtureWanted = int(i);
@@ -950,12 +1272,21 @@ struct RhythmWidget : ModuleWidget {
             sl->which = s;
             addParam(sl);
         }
-        addInput(createInputCentered<RhythmPort<false>>(mm2px(Vec(10.67f, 116.3f)), module, Rhythm::CLOCK_INPUT));
-        addInput(createInputCentered<RhythmPort<false>>(mm2px(Vec(22.33f, 116.3f)), module, Rhythm::RESET_INPUT));
-        addInput(createInputCentered<RhythmPort<false>>(mm2px(Vec(34.f, 116.3f)), module, Rhythm::RETURN_INPUT));
-        addOutput(createOutputCentered<RhythmPort<true>>(mm2px(Vec(80.67f, 116.3f)), module, Rhythm::TRIGGERS_OUTPUT));
-        addOutput(createOutputCentered<RhythmPort<true>>(mm2px(Vec(95.17f, 116.3f)), module, Rhythm::VOICES_OUTPUT));
-        addOutput(createOutputCentered<RhythmPort<true>>(mm2px(Vec(109.67f, 116.3f)), module, Rhythm::AUDIO_OUTPUT));
+        // Two rows, grouped by what they carry (D76; design/make_panel.py --positions).
+        const float UP = 97.5f, LOW = 116.3f;
+        addInput(createInputCentered<RhythmPort<false>>(mm2px(Vec(12.4f, UP)), module, Rhythm::CLOCK_INPUT));
+        addInput(createInputCentered<RhythmPort<false>>(mm2px(Vec(25.4f, UP)), module, Rhythm::RESET_INPUT));
+        addOutput(createOutputCentered<RhythmPort<true>>(mm2px(Vec(40.f, UP)), module, Rhythm::A_OUTPUT));
+        addInput(createInputCentered<RhythmPort<false>>(mm2px(Vec(51.67f, UP)), module, Rhythm::A_INPUT));
+        addOutput(createOutputCentered<RhythmPort<true>>(mm2px(Vec(63.33f, UP)), module, Rhythm::B_OUTPUT));
+        addInput(createInputCentered<RhythmPort<false>>(mm2px(Vec(75.f, UP)), module, Rhythm::B_INPUT));
+        addOutput(createOutputCentered<RhythmPort<true>>(mm2px(Vec(90.f, UP)), module, Rhythm::FX_GATES_OUTPUT));
+        addOutput(createOutputCentered<RhythmPort<true>>(mm2px(Vec(12.4f, LOW)), module, Rhythm::TRIGGERS_OUTPUT));
+        addOutput(createOutputCentered<RhythmPort<true>>(mm2px(Vec(25.4f, LOW)), module, Rhythm::VOICES_OUTPUT));
+        addInput(createInputCentered<RhythmPort<false>>(mm2px(Vec(38.4f, LOW)), module, Rhythm::RETURN_INPUT));
+        addOutput(createOutputCentered<RhythmPort<true>>(mm2px(Vec(84.f, LOW)), module, Rhythm::FX_SEND_OUTPUT));
+        addInput(createInputCentered<RhythmPort<false>>(mm2px(Vec(96.f, LOW)), module, Rhythm::FX_RETURN_INPUT));
+        addOutput(createOutputCentered<RhythmPort<true>>(mm2px(Vec(109.67f, LOW)), module, Rhythm::AUDIO_OUTPUT));
     }
 
     void addKey(int k, float cx, float cy, float w, float h) {
@@ -1016,24 +1347,63 @@ struct RhythmWidget : ModuleWidget {
                                                       m->menu.push(pi_cmd{0, PI_CMD_VOICE, uint8_t(t), 0, 0, on ? 0u : 1u});
                                                       m->menu.push(pi_cmd{0, PI_CMD_FIRE, uint8_t(t), 0, 0, 0});
                                                   }));
+            // D66 item 4, D68: which sounds go through the effects (and so to FX SEND). The
+            // page's sheet has the same switch.
+            sub->addChild(new MenuSeparator);
+            sub->addChild(createSubmenuItem("Through fx", "", [=](Menu *fxs) {
+                fxs->addChild(createMenuItem("All", "", [=]() {
+                    for (uint8_t t = 0; t < PI_TRACKS; t++) m->menu.push(pi_cmd{0, PI_CMD_FXSOUND, t, 0, 0, 1});
+                }));
+                fxs->addChild(createMenuItem("None", "", [=]() {
+                    for (uint8_t t = 0; t < PI_TRACKS; t++) m->menu.push(pi_cmd{0, PI_CMD_FXSOUND, t, 0, 0, 0});
+                }));
+                fxs->addChild(new MenuSeparator);
+                for (int t = 0; t < int(PI_TRACKS); t++)
+                    fxs->addChild(createCheckMenuItem(string::f("%d %s: through fx", t + 1, SOUND_NAMES[t]), "",
+                                                      [=]() { return !face.have || (u16(face.v, PI_VIEW_FX_SOUNDS) >> t & 1); },
+                                                      [=]() {
+                                                          uint32_t on = face.have ? u16(face.v, PI_VIEW_FX_SOUNDS) >> t & 1 : 1;
+                                                          m->menu.push(pi_cmd{0, PI_CMD_FXSOUND, uint8_t(t), 0, 0, on ? 0u : 1u});
+                                                      }));
+            }));
         }));
-        // D62 item 3: which sounds RETURN replaces.
-        menu->addChild(createSubmenuItem("RETURN", "", [=](Menu *sub) {
-            sub->addChild(createCheckMenuItem("As the cable carries", "", [=]() { return m->returnChosen.load() < 0; },
-                                              [=]() { m->returnChosen = -1; }));
+        // D62 item 3: which sounds RETURN replaces; and the same for A IN and B IN (D76 item 4).
+        auto channelsMenu = [=](const char *name, const char *what, int input, std::atomic<int32_t> Rhythm::*chosen) {
+            menu->addChild(createSubmenuItem(name, "", [=](Menu *sub) {
+                sub->addChild(createCheckMenuItem("As the cable carries", "", [=]() { return (m->*chosen).load() < 0; }, [=]() { (m->*chosen) = -1; }));
+                sub->addChild(new MenuSeparator);
+                for (int t = 0; t < int(PI_TRACKS); t++)
+                    sub->addChild(createCheckMenuItem(string::f("Sound %d %s", t + 1, what), SOUND_NAMES[t],
+                                                      [=]() {
+                                                          int32_t c = (m->*chosen).load();
+                                                          return ((c < 0 ? pi::returnMask(-1, m->inputs[input].getChannels()) : uint32_t(c)) >> t & 1) != 0;
+                                                      },
+                                                      [=]() {
+                                                          int32_t c = (m->*chosen).load();
+                                                          uint32_t now = c < 0 ? pi::returnMask(-1, m->inputs[input].getChannels()) : uint32_t(c);
+                                                          (m->*chosen) = int32_t((now ^ (1u << t)) & 0xffffu);
+                                                      }));
+            }));
+        };
+        channelsMenu("RETURN", "from RETURN", Rhythm::RETURN_INPUT, &Rhythm::returnChosen);
+        channelsMenu("A IN", "takes slider A from A IN", Rhythm::A_INPUT, &Rhythm::aChosen);
+        channelsMenu("B IN", "takes slider B from B IN", Rhythm::B_INPUT, &Rhythm::bChosen);
+        // D68 item 2: which effects are heard from FX RETURN while they are held, in place of
+        // the core's own. By default the ones the core has no sound for.
+        menu->addChild(createSubmenuItem("FX RETURN", "", [=](Menu *sub) {
+            sub->addChild(createCheckMenuItem("The effects with no sound here yet", "4, 13 to 16", [=]() { return m->fxChosen.load() < 0; },
+                                              [=]() { m->fxChosen = -1; }));
             sub->addChild(new MenuSeparator);
             for (int t = 0; t < int(PI_TRACKS); t++)
-                sub->addChild(createCheckMenuItem(string::f("Sound %d from RETURN", t + 1), SOUND_NAMES[t],
+                sub->addChild(createCheckMenuItem(string::f("Effect %d from FX RETURN", t + 1), FX_NAMES[t],
                                                   [=]() {
-                                                      int ch = m->inputs[Rhythm::RETURN_INPUT].isConnected() ? m->inputs[Rhythm::RETURN_INPUT].getChannels() : 0;
-                                                      int32_t c = m->returnChosen.load();
-                                                      return ((c < 0 ? pi::returnMask(-1, ch) : uint32_t(c)) >> t & 1) != 0;
+                                                      int32_t c = m->fxChosen.load();
+                                                      return ((c < 0 ? pi::FX_OUTSIDE_DEFAULT : uint32_t(c)) >> t & 1) != 0;
                                                   },
                                                   [=]() {
-                                                      int ch = m->inputs[Rhythm::RETURN_INPUT].isConnected() ? m->inputs[Rhythm::RETURN_INPUT].getChannels() : 0;
-                                                      int32_t c = m->returnChosen.load();
-                                                      uint32_t now = c < 0 ? pi::returnMask(-1, ch) : uint32_t(c);
-                                                      m->returnChosen = int32_t((now ^ (1u << t)) & 0xffffu);
+                                                      int32_t c = m->fxChosen.load();
+                                                      uint32_t now = c < 0 ? pi::FX_OUTSIDE_DEFAULT : uint32_t(c);
+                                                      m->fxChosen = int32_t((now ^ (1u << t)) & 0xffffu);
                                                   }));
         }));
         // The self-test (rack/selftest.sh runs it headless): choose a fixture, or play.
