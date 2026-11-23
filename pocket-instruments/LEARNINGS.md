@@ -791,3 +791,62 @@ belongs in `PROOFS.md`, a change of course in `DECISIONS.md`, an outside fact in
   of seven times twenty million: write off 6.56 to 6.82 ns old, 6.48 to 6.53 new; write on
   12.77 to 12.98 old, 12.89 to 12.90 new. No difference to see; Rack calls it at most every
   16th frame. The `.wasm` is 39 832 bytes (from 39 836).
+
+## Session 14, a first attempt: the weave (2026-11-23)
+
+- **A rule can ask for something a screen cannot show.** Rule 6 flashes "for a sixteenth of
+  a step": 6 ticks, 7.8 ms at 120 bpm, less than one frame at 60 Hz. Built as written it
+  would have shown on some steps and not others, and looked like a fault. Working a rule
+  out in milliseconds at an ordinary tempo, before drawing it, found this in a minute. Built
+  as a quarter of a step and ruled (D84 item 11); the rule's own words are kept, annotated.
+- **The designed picture and the designed interface disagreed, and only drawing found it.**
+  §16 names five palette numbers; `frames.html`'s cloth is tile with madder diamonds. Seven
+  were needed. Likewise the picture's beater for one kick is 3 mm and for a hat 1 mm, which
+  is loudness, and the view carries only a count. A picture is not a specification until
+  someone tries to produce it from the inputs.
+- **Printing the cells as text was the first look, and enough to judge a lot.** A test
+  writes every view's cells as digits; turned into characters in a terminal it showed the
+  loom before any host painted it, and the same file is what the three harnesses compare.
+- **A thread every other row read as a wall of stripes once painted;** as text it had
+  looked fine. A cell is a whole mm and a thin line cannot be a cell. Five threads now.
+  The look was judged from a host's screenshot, not from the text.
+- **`make bench` moved 3.5 ns a frame with no change on the audio path.** After `weave.rs`
+  was rewritten as one pass (to save 3 KB of `.wasm`: 44 192 bytes to 41 154), every bench
+  case was 3 to 4 ns slower, idle too, steadily, though the first build with the same
+  sequencer changes had measured the same as before. Marking `weave` `#[inline(never)]`
+  brought every case back. With one codegen unit and LTO, a new function elsewhere moves
+  where `pi_process`'s loops land. So: a bench difference of a few ns is not evidence about
+  the lines that changed until the old and new binaries are run back to back more than
+  once, and a difference that appears in the idle case from a change idle never runs is
+  layout. The kept old binary (`target/bench` copied aside before the first change) is what
+  made the comparison possible. ⚠ The Rack build has its own flags and layout; not measured.
+- **The first version of `weave.rs` cost 4.4 KB of `.wasm`, the second 1.3 KB,** for the
+  same cells (the three reports' hash did not change): the first filled the grid, then
+  drew each part over it through a bounds-checked `put`; the second works each cell's
+  colour out in one loop. P1's bar is 50 KB and the module is at 41.
+- **`spawnSync` of a browser from the process that serves it the page hangs both.** A
+  scratch script served the folder and launched Chromium synchronously; the server could
+  not answer while it waited, and Chromium wrote a white screenshot or none. An async
+  `spawn` fixed it. (`web/play.mjs` already does this; the scratch script did not.)
+- **To see the page draw a hand-made view without touching the tree:** a scratch server
+  that serves the folder and adds one `<script type="module">` to `rhythm.html` on the way
+  out, setting `rhythm.latest.view` and firing `resize`. Chromium's
+  `--virtual-time-budget` then screenshots it (no AudioWorklet runs, as Session 12 found).
+- **Reading a canvas back by colour holds a painting to its cells.** One pixel a cell,
+  two fifths of the way in, turned to a palette number from the tokens written out in the
+  checker. It caught all seven planted page faults: a wrong palette entry, a cell a column
+  out, a stale view, the flag not passed, painting when nothing changed, not painting when
+  something did. "Painted if and only if the cells changed" is checked from one drawing to
+  the next, so it needs no count from the page's start.
+- **Both browsers can be launched asking for reduced motion:** Chromium
+  `--force-prefers-reduced-motion`, Firefox the pref `ui.prefersReducedMotion` 1. So the
+  media query itself was tested, not only the page's hook.
+- **Planted:** 22 in the core, the unplanted copy passing first, 22 caught by named tests
+  at the first run (no test had to be added); one each in the C++ and Node harnesses'
+  weave; 7 on the page. A script planted each, ran its check, recorded the failing names
+  and put the file back.
+- **The Rack display still has no checker.** It was seen in screenshot mode from scratch
+  builds that fill the face by hand, five moments; the script copies the real file aside,
+  plants one marked line, builds into a scratch user folder, and restores on exit.
+  Screenshot mode shows the real build's bare loom, since the display now weaves an
+  all-zero view when it has none.

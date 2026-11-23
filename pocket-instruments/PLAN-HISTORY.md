@@ -1541,3 +1541,61 @@ three key fixtures.
   the delay to FX RETURN, and hold fx and 4. Right-click: FX RETURN, A IN, B IN, and
   Sounds, Through fx.
 - **Next:** Session 19 (Opus), the page; or the owner's eye on the panel first.
+
+### After Session 19: the page's effects; the display says the effect and the lane (2026-11-23)
+
+- **Built (D69, D78, D81; no change to the core):** on `web/rhythm.html`, fx and a key
+  punch by touch, by mouse and by the computer keys (`i` and the grid's letters), as the
+  core already allowed; the display's effect block (madder, `fx 3`, just above the write
+  mark's place, from byte 55) and a madder tick over the step mark of each step in the lane
+  (bytes 56 and 57); the sounds sheet's third switch a row, "through fx" (`FXSOUND`, drawn
+  from bytes 58 and 59); D78's latch: Ctrl+click fx stays until Ctrl+clicked again, fx goes
+  down before a grid key and up after the last, and the other four keys' latches still go
+  after one key. The Rack display draws the same block and ticks from the same bytes
+  (`RhythmDisplay::draw`). `design/DESIGN.md` has the look, "The effects on the display",
+  marked ⚠, and its "Not done".
+- **Proven:** before the first change, `make test` (204 Rust tests, 300 runs a harness),
+  its report and the sha256 of all 408 render files kept; at the end the report and all 408
+  files the same bytes, and `web/pi_core.wasm` unchanged (not rebuilt, not recommitted).
+  `make play` in Chromium and Firefox: eight phases (three new), about 730 drawings checked
+  in each, every one also held to bytes 55 to 59 (the block's text, the ticks read with
+  their colour, the switches); `fx-repeat-punch` (format 3) played on the page, the first
+  pass by touch, the second by the computer key: its four views as text and its 43-line
+  trace are the fixture's; `keeps-what-it-was-written-with` (format 4) by touch: its five
+  views; fx + key 11 by the computer keys; D78 by mouse, eight checks, each held to the
+  commands the page sent (`rhythm.onPost`). Planted on the page, the unplanted copy passing
+  first: 15 faults, 15 caught by named checks (`LEARNINGS.md`). `make p4` (24 of 24 traces,
+  both browsers), `make listen` (both), `make test`, the repo's `make verify`. Rack: `make
+  install` and `make selftest` at 44.1, 48 and 96 kHz (12 Rhythm modules on the six
+  fixtures, both clocks; three through their own cables; D78's latch), all clean. The Rack
+  drawing seen in screenshot mode from a scratch build that fills the face by hand:
+  `design/rack-face-lit-100.png` and `-200.png` now show `fx 3` heard and the lane on steps
+  6, 7, 8 and 13. CI run 45205345348 (b22d4bf) green on all four platforms.
+- **Measured:** nothing on an audio path changed (the page's main thread and Rack's drawing
+  thread only), so there is no frame cost to give.
+- **Opus decided nothing. Readings built on, each ⚠ in `design/DESIGN.md`:**
+  1. "Beside the write mark in the display's column": the block sits just above the write
+     mark's place and keeps it whether write is on or not; Rack 11 by 3.6 mm, 0.8 mm above;
+     the page the write mark's width, directly above.
+  2. The ticks sit on one line clear of the tallest mark (Rack 0.67 mm tall, 0.6 mm above;
+     the page 4 px, 4 px above), the mark's width, not on each mark's own top.
+  3. The switch always reads `through fx`, lit (ecru) while the sound goes through, and a
+     tap plays nothing (D60 item 4's "plays the result" is the sample switch's).
+  4. With fx latched, any holder of a grid key (finger, mouse, computer key) brings fx down,
+     as Rack's module does (D80's build).
+- **Questions for the owner:**
+  1. **Madder or ecru?** D81 says madder, "the fx key's own colour", but the fx key's band
+     and latched face are ecru here; madder is the sound key's. Built madder, as D81 names
+     it twice. Which did you mean?
+  2. The look of the block and the ticks (a stand-in, D81): keep, or draw it with your eye?
+  3. The four readings above: accept as built?
+- **Not done, and limits:** nothing on the list is left. The Rack display has no checker:
+  its two drawings were only seen in screenshot mode, so no fault could be planted in them.
+  The page was seen in a headless screenshot, never on a phone. Nothing was heard.
+- **For the owner to try now:** on `web/rhythm.html` (a phone, or a desktop with `i` for fx):
+  play, hold fx and tap 2: `fx 2` shows above `write`, the steps that pass get a red tick,
+  and the next bar replays them. With a mouse, Ctrl+click fx, then click and hold 3 as it
+  plays; Ctrl+click fx again to end. In the sheet, tap a sound's `through fx` to keep it
+  clean. In Rack (`make install`), the same block and ticks on the display.
+- **Next:** Session 20 (the grid's lights), then a first weave (Session 14, D79); or the
+  owner's eye on the block, the ticks and the madder question first.

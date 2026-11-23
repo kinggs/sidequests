@@ -127,6 +127,7 @@ Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
 | 18, Rack's jacks (Fable; D68, D76, D78, D80) | ABI 9: sound in (`PI_AUDIO_LOOP`, `ROUTE`), so a returned sound goes through the effects; FX GATES, FX SEND, FX RETURN, A and B out and in; the fx latch that stays; the panel in two rows of thirteen jacks; self-tests through the module's own cables; `make bench`'s loop cases | 2026-11-23 |
 | 19, the page's effects (Opus; D69, D78, D81) | fx and a key on the page by touch, mouse and keys; the display's effect block and lane ticks on the page and in Rack (D81's stand-in); the sheet's "through fx"; D78's latch on the page; `make play`'s three new phases, format 3 and 4 fixtures played on the page; the lit Rack screenshots again | 2026-11-23 |
 | 20, the grid's lights (Opus; D71, D72, D82) | with write off the grid lights the chosen sound's steps, as the hardware does: one line of the core, twelve fixture views worked again by hand; `make play` holds every key's white; `design/rack-face-writeoff-*.png` | 2026-11-23 |
+| 14, the weave: a **first attempt** (Fable; D53, D84), not finished | ABI 10: the view's bytes 48 to 54, `pi_weave` (78 by 15 cells) and its rule tests, the page and the Rack display painting the same cells, `make play` holding every painting to `pi_weave`; `fixtures/weave-views.txt`; `design/rack-weave-*.png`. The owner has not watched it: its list stays below | 2026-11-23 |
 
 ## Still the owner's hands
 
@@ -156,6 +157,9 @@ Unticked in the finished lists. None blocks a build session.
 - [ ] Session 20's grid with write off, on the phone and in Rack (`design/rack-face-writeoff-100.png`
       first): the chosen sound's steps lit, a lit key white as it fires and lit again, no
       stitch (D82 item 3); and Session 20's three ⚠ readings (its Handover).
+- [ ] **The weave, watched** (Session 14's fourth box; O19; D84's sixteen items): on the
+      phone and in Rack, and the pictures first (`design/rack-weave-*.png`). The Handover
+      "After Session 14's first attempt" lists what to look at and the choices least sure.
 - [ ] Session 22's recording: ten minutes with the PO-12 and the Scarlett, when it suits.
 - [ ] The four effects checks left on the PO-12 (`WORKFLOW.md`, "The effects: what to check
       on the PO-12"; nine were done on 2026-11-23): what 9 to 12 do (9 gave no repeat the
@@ -281,21 +285,26 @@ The next ABI number (this line said 6, from before the effects: D83). `ENGINE.md
 `design/DESIGN.md` "The animation", `design/loom/frames.html`. A first attempt while the
 owner is away (D79, D83): the fourth box stays open for the owner.
 
-- [ ] The view's bytes 48 to 54 (§16: a u32, a u16, a u8; this line said 48 to 55), filled
+**Where this stands (2026-11-23): a first attempt is built and waits for the owner.** Boxes
+1, 2, 3 and 5 are done (D84 has the rulings; the Handover at the bottom says what to look
+at). Box 4 is open, so the session is not finished and this list stays here. Whoever takes
+it up changes the drawing in `core/src/weave.rs`, once, with the owner watching.
+
+- [x] The view's bytes 48 to 54 (§16: a u32, a u16, a u8; this line said 48 to 55), filled
       by the sequencer; fixtures' view text is unchanged (it leaves them out). Rust tests
       for the three fields. `harness/race.cpp`'s `look()` and `the_view_follows_edits…` in
       `core/src/tests/keys.rs` both hold bytes 48 to 63 to zero: change them with it.
-- [ ] `pi_weave`: the seven rules as cells. Tests of the rules, not of a picture: stopped,
+- [x] `pi_weave`: the seven rules as cells. Tests of the rules, not of a picture: stopped,
       the cells do not depend on the tick; the beater is 1 cell wide at no firings and 4 at
       sixteen; a beat with nothing set weaves one stitch; reduced motion never draws white
       rows. Natively and from the `.wasm`, the same bytes for a set of views.
-- [ ] The page paints the cells (its own instance of the `.wasm`), the Rack display paints
+- [x] The page paints the cells (its own instance of the `.wasm`), the Rack display paints
       the same cells. Neither holds a rule. (Rack: `RhythmDisplay::draw` in
       `rack/src/Rhythm.cpp` leaves the weave's area dark; a self-test writes its name there.)
 - [ ] The owner watches it move, on the phone and in Rack. What is wrong is changed in the
       core, once. When it is accepted, three views and their cells are committed as the
       picture to hold to.
-- [ ] `DESIGN.md`'s "Not done" list brought up to date.
+- [x] `DESIGN.md`'s "Not done" list brought up to date.
 
 ## Sessions 16 to 19 — the effects, built (designed in Session 15: D66 to D69)
 
@@ -380,64 +389,6 @@ Decided when P1 to P4 are in, not before:
 
 The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
 
-### After Session 19: the page's effects; the display says the effect and the lane (2026-11-23)
-
-- **Built (D69, D78, D81; no change to the core):** on `web/rhythm.html`, fx and a key
-  punch by touch, by mouse and by the computer keys (`i` and the grid's letters), as the
-  core already allowed; the display's effect block (madder, `fx 3`, just above the write
-  mark's place, from byte 55) and a madder tick over the step mark of each step in the lane
-  (bytes 56 and 57); the sounds sheet's third switch a row, "through fx" (`FXSOUND`, drawn
-  from bytes 58 and 59); D78's latch: Ctrl+click fx stays until Ctrl+clicked again, fx goes
-  down before a grid key and up after the last, and the other four keys' latches still go
-  after one key. The Rack display draws the same block and ticks from the same bytes
-  (`RhythmDisplay::draw`). `design/DESIGN.md` has the look, "The effects on the display",
-  marked ⚠, and its "Not done".
-- **Proven:** before the first change, `make test` (204 Rust tests, 300 runs a harness),
-  its report and the sha256 of all 408 render files kept; at the end the report and all 408
-  files the same bytes, and `web/pi_core.wasm` unchanged (not rebuilt, not recommitted).
-  `make play` in Chromium and Firefox: eight phases (three new), about 730 drawings checked
-  in each, every one also held to bytes 55 to 59 (the block's text, the ticks read with
-  their colour, the switches); `fx-repeat-punch` (format 3) played on the page, the first
-  pass by touch, the second by the computer key: its four views as text and its 43-line
-  trace are the fixture's; `keeps-what-it-was-written-with` (format 4) by touch: its five
-  views; fx + key 11 by the computer keys; D78 by mouse, eight checks, each held to the
-  commands the page sent (`rhythm.onPost`). Planted on the page, the unplanted copy passing
-  first: 15 faults, 15 caught by named checks (`LEARNINGS.md`). `make p4` (24 of 24 traces,
-  both browsers), `make listen` (both), `make test`, the repo's `make verify`. Rack: `make
-  install` and `make selftest` at 44.1, 48 and 96 kHz (12 Rhythm modules on the six
-  fixtures, both clocks; three through their own cables; D78's latch), all clean. The Rack
-  drawing seen in screenshot mode from a scratch build that fills the face by hand:
-  `design/rack-face-lit-100.png` and `-200.png` now show `fx 3` heard and the lane on steps
-  6, 7, 8 and 13. CI run 45205345348 (b22d4bf) green on all four platforms.
-- **Measured:** nothing on an audio path changed (the page's main thread and Rack's drawing
-  thread only), so there is no frame cost to give.
-- **Opus decided nothing. Readings built on, each ⚠ in `design/DESIGN.md`:**
-  1. "Beside the write mark in the display's column": the block sits just above the write
-     mark's place and keeps it whether write is on or not; Rack 11 by 3.6 mm, 0.8 mm above;
-     the page the write mark's width, directly above.
-  2. The ticks sit on one line clear of the tallest mark (Rack 0.67 mm tall, 0.6 mm above;
-     the page 4 px, 4 px above), the mark's width, not on each mark's own top.
-  3. The switch always reads `through fx`, lit (ecru) while the sound goes through, and a
-     tap plays nothing (D60 item 4's "plays the result" is the sample switch's).
-  4. With fx latched, any holder of a grid key (finger, mouse, computer key) brings fx down,
-     as Rack's module does (D80's build).
-- **Questions for the owner:**
-  1. **Madder or ecru?** D81 says madder, "the fx key's own colour", but the fx key's band
-     and latched face are ecru here; madder is the sound key's. Built madder, as D81 names
-     it twice. Which did you mean?
-  2. The look of the block and the ticks (a stand-in, D81): keep, or draw it with your eye?
-  3. The four readings above: accept as built?
-- **Not done, and limits:** nothing on the list is left. The Rack display has no checker:
-  its two drawings were only seen in screenshot mode, so no fault could be planted in them.
-  The page was seen in a headless screenshot, never on a phone. Nothing was heard.
-- **For the owner to try now:** on `web/rhythm.html` (a phone, or a desktop with `i` for fx):
-  play, hold fx and tap 2: `fx 2` shows above `write`, the steps that pass get a red tick,
-  and the next bar replays them. With a mouse, Ctrl+click fx, then click and hold 3 as it
-  plays; Ctrl+click fx again to end. In the sheet, tap a sound's `through fx` to keep it
-  clean. In Rack (`make install`), the same block and ticks on the display.
-- **Next:** Session 20 (the grid's lights), then a first weave (Session 14, D79); or the
-  owner's eye on the block, the ticks and the madder question first.
-
 ### After Session 20: the grid's lights, as the hardware has them (2026-11-23)
 
 - **Built (D71, D72 item 3, D82; ABI 9, no byte moved):** with write off the grid's field is
@@ -492,3 +443,94 @@ The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
   another sound (sound + its key): its steps light instead. In Rack (`make install`), the same.
 - **Next:** a first weave (Session 14, D79), which reads the same view; or the owner's eye on
   the write-off grid first.
+
+### After Session 14's first attempt: the display weaves; the owner has not watched it (2026-11-23)
+
+- **What this is:** a first attempt, made while the owner was away (D79, D83). Boxes 1, 2, 3
+  and 5 of the list are done. **Box 4 is open:** nothing is accepted, and no view is kept as
+  the picture to hold to. Session 14 is not finished.
+- **Built (ABI 10; D84):** the sequencer fills the view's bytes 48 to 54 (steps woven since
+  play, which of the last sixteen had a sound set, tracks fired on this step);
+  `pi_weave(view, len, flags, out, cap)` in `core/src/weave.rs`, a pure function from a view
+  to 78 by 15 cells of seven palette numbers, integers only, no engine. The page paints the
+  cells on a canvas, only when they change, with `prefers-reduced-motion` as the flag; the
+  Rack display paints the same cells, with "Display: reduced motion" in its menu. Neither
+  host holds a rule. `ENGINE.md` §16 is marked built as a first attempt, with a table of
+  what turned out different; `design/DESIGN.md` has "How each rule is drawn" and its "Not
+  done"; `web/pi_core.wasm` rebuilt and committed (41 170 bytes, from 39 832).
+- **How each rule is drawn** (the table in `design/DESIGN.md`): a beat is 16 columns of
+  cloth with a diamond in it, 4 columns a step; four beats show and the cloth jumps left a
+  beat at a time; the diamond reaches 0, 2, 4, 6 or 7 cells by how many of the beat's steps
+  had a sound set (ecru, then ochre, then madder); the beater is an ochre bar 1 to 4 cells
+  wide at the cloth's edge; the shuttle is a 3 by 4 ecru block crossing the warp once a
+  step, down then back, with a thread behind; two sounds together turn the three newest
+  columns white for a quarter of a step; stopped, nothing reads the clock and the shuttle
+  rests at the top.
+- **Proven:** before the first change, `make test` (205 Rust tests, 300 runs a harness), its
+  report and the sha256 of all 408 render files kept, and `make bench`. At the end: 228 Rust
+  tests (23 new, in `core/src/tests/weave.rs`: 8 for the three fields, 15 for `pi_weave`,
+  one or more a rule); the report and all 408 render files the same bytes as before; the
+  three harnesses weave `fixtures/weave-views.txt`'s 60 views to the same bytes (Rust's
+  tests, C++ on the static library, Node on the `.wasm`). `make play` in Chromium and
+  Firefox: 9 phases (one new, `still`), about 1 040 drawings each, every one's cells read
+  back off the canvas by colour and held to `pi_weave` in the checker's own instance of the
+  `.wasm`, and painted if and only if the cells changed; played with two sounds a step, 37
+  drawings with a flash and 7 drawings inside one step; with reduced motion asked for, 0 and
+  1; stopped, 0 paints. The same with both browsers launched asking for reduced motion
+  themselves (`PI_REDUCED=1 node web/play.mjs target/report-node.txt`): 0 flashes, 1 drawing
+  a step, in every phase. `make p4` (24 of 24, both browsers, ABI 10). Rack: `make install`,
+  `make selftest` at 44.1, 48 and 96 kHz, all clean (12 Rhythm modules on the six fixtures,
+  three through their own cables, D78's latch; the self-test's name still shows where the
+  weave is). Planted, the unplanted copy passing first: 22 faults in the core, 22 caught by
+  named tests; one each in the C++ and Node harnesses' weave (the comparison failed); 7 on
+  the page (`make play` failed on each, by a named line). The repo's `make verify`. CI: see
+  the last line of this note.
+- **Measured:** `pi_process`, old and new back to back, twice: idle 25.6 and 26.2 ns a frame
+  old, 25.0 and 25.3 new; the minimum beat 27.8 and 28.2 old, 27.8 and 27.6 new; all sixteen
+  42.2 and 44.1 old, 41.2 and 41.4 new. No difference to see. ⚠ One build in between
+  measured 3.5 ns a frame slower in every case, idle too, from the weave's code changing
+  where the compiler put `pi_process`; keeping the weave out of line brought it back
+  (`LEARNINGS.md`). One `pi_weave` call: about 1.9 µs natively, on the drawing side, called
+  only when the view changes (sixty times a second at most). The engine is 3 712 bytes
+  (from 3 704).
+- **Rulings (D84, sixteen items; Fable's, a first attempt, each the owner's to overrule):**
+  ABI 10; a reset while playing starts a new cloth; "set" is set, not fired; byte 54 counts
+  tracks and is 0 unless a step has arrived; 78 by 15 cells; palette 5 tile and 6 madder;
+  the beat's and the diamond's sizes; the beat on the loom drawn from its steps so far; the
+  jump a beat; the beater's four widths; **the flash a quarter of a step, not a sixteenth**
+  (a sixteenth is 7.8 ms at 120 bpm, under a frame); five warp threads; the shuttle's size,
+  place and direction; a cell painted as a square five sixths of its place; reduced motion
+  in Rack's menu; no weave during a self-test.
+- **For the owner to look at** (O19), in this order:
+  1. `design/rack-weave-bare-200.png`, `-step07-200.png`, `-step13-200.png`,
+     `-busy-200.png`, `-stopped-200.png`, then the `-100.png` ones at the size Rack shows;
+     `design/phone-weave-step13.png`. `DESIGN.md`'s file table says what each shows.
+  2. On the phone, `web/rhythm.html`: write a kick on 1, 5, 9, 13 and a hat between, and
+     play. Does it read as a cloth being woven? Then add a snare on 5 and 13 and watch
+     those steps flash. Then fill a beat's four steps and watch its diamond grow.
+  3. In Rack (`make install`), the same beat. Right-click, "Display: reduced motion".
+  4. On the phone with the system's reduced motion on: no flash, the shuttle jumping.
+- **The choices least sure, most first:**
+  1. A diamond grows after its first columns are woven (D84 item 8). With steps set late
+     in a beat, cloth already woven changes. Honest to the inputs, odd for a cloth.
+  2. Every cell is a square with a gap, the beater, warp and shuttle too (item 14). The
+     picture has the grid on the cloth only and thin warp lines.
+  3. The flash's quarter step (item 11), and whether a flash on every step of a busy beat
+     is too much.
+  4. The cloth jumping a whole beat every beat (item 9), not creeping.
+  5. The half diamond's ochre running into the ochre beater (`rack-weave-busy-200.png`).
+  6. Whether the shuttle and its thread could be read as a needle and thread (R6, D20): it
+     is a block crossing bare warp, but it is the part nearest the original's subject.
+  7. On the phone the weave is 42 px tall in a place 72 px tall.
+- **Not done, and why:** box 4 (the owner's). The Rack drawing has no checker and was seen
+  only in screenshot mode, from scratch builds that fill the face by hand (kept out of the
+  tree; `grep SCRATCH rack/src` is clean); its drawing cost in Rack was not measured.
+  Nothing was seen on a real phone or a real Rack window, so nothing was seen moving except
+  by `make play`'s counts. `harness/race.cpp`'s `look()` holds the three new fields to what
+  any view is, and no fault was planted for that. D64 (the clock menu), which PLAN once
+  tied to this session's ABI number, was not touched.
+- **Next:** the owner watches it. What is wrong is changed in `core/src/weave.rs`, once
+  (each number is a constant under "THE DRAWING"), then `make web`, `make test`, `make
+  play`. When it is accepted: three views and their cells committed beside
+  `fixtures/weave-views.txt`, box 4 ticked, the list moved to `PLAN-HISTORY.md`.
+- **CI:** run 45217909351 (a24f85b, the push with the core and `rack/` changes) green on win-x64, lin-x64, mac-x64 and mac-arm64.
