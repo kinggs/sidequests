@@ -589,7 +589,8 @@ No fixture sends it, so no trace moved.
   workflow's.
 - **The plugin needs macOS 10.12 on Intel Macs.** Rack asks for 10.9 and rustc will not go
   below 10.12 (R38). P5's bar stays as written and is recorded as not met on that line,
-  with this ruling beside it. It does not count against Rust under D13.
+  with this ruling beside it. It does not count against Rust under D13. (2026-11-23: VCV says
+  10.12 is fine, R46.)
 
 D44's own open list (a limiter, the sliders in snapshot version 2, a slider moving a
 sounding voice) was not part of the interview and is still open. (Annotated 2026-11-20: the
@@ -817,7 +818,7 @@ which Session 10's list did not ask for and Session 13 will need.
 | ID | Question | Needs |
 |---|---|---|
 | O1 | ~~What do the front-face drawings of the design patents actually claim?~~ | Answered 2026-11-18: R4, R5, R6. Led to D20 |
-| O2 | Will the VCV Library build or accept a plugin with Rust in it? | Watch Phona (R16a, R16b: not submitted yet, 2026-11-19). **Asked 2026-11-19:** the owner emailed support@vcvrack.com with four questions (can the Library build a Rust part; would prebuilt static libraries do; is macOS 10.12 a problem; is self-hosting the route) and P3's results. No reply yet |
+| O2 | Will the VCV Library build or accept a plugin with Rust in it? | Watch Phona (R16a, R16b: not submitted yet, 2026-11-19). **Asked 2026-11-19:** the owner emailed support@vcvrack.com with four questions (can the Library build a Rust part; would prebuilt static libraries do; is macOS 10.12 a problem; is self-hosting the route) and P3's results. ~~No reply yet~~ **Answered 2026-11-23: R46.** The Library will not build it; it takes binary packages from an identity-verified author, by email. 10.12 is fine. Left: whether to ask VCV for the submission details (the owner's) |
 | O3 | Is the name "Pocket Instruments" free, and is it too close to POCKET OPERATOR? | A register search; a decision on a family name |
 | O4 | ~~How does swing behave on an external clock?~~ | Answered 2026-11-19: D24 |
 | O5 | ~~Saved state: one readable format shared by both hosts, or a versioned binary snapshot each host wraps?~~ | Answered 2026-11-19: D25 |

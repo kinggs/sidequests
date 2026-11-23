@@ -101,8 +101,11 @@ Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
 Unticked in the finished lists. None blocks a build session.
 
 - [ ] P4: iOS Safari (no iPhone yet), and the tap pad filmed for latency. `PROOFS.md` P4.
-- [ ] P5: the four loads in Rack, one a platform, and VCV's answer (O2, asked 2026-11-19).
-      `PROOFS.md` P5, "What the full proof still needs". CI has the four artefacts.
+- [ ] P5: the four loads in Rack, one a platform. `PROOFS.md` P5, "What the full proof
+      still needs". CI has the four artefacts. ~~And VCV's answer (O2).~~ Answered
+      2026-11-23 (R46): binary packages from an identity-verified author, by email.
+- [ ] Reply to VCV: ask for the binary submission and identity verification details (R46).
+      Recommended: ask now; it costs nothing and nothing is submitted until the gate.
 - [ ] The hour with the PO-12: tick or correct each row of `WORKFLOW.md` and answer its
       eleven questions. By D29 this is done as mismatches turn up, not in one sitting.
 - [ ] Measure the PO-12 (width, height, key pitch, jack spacing) for D16.
@@ -265,7 +268,8 @@ In the order they are likely wanted; none is planned in detail yet.
 - **Live record,** the first "later" row: fixture format 3 for a press inside a step.
 - A gesture for probability and a short length (O10). The hat cut (D47). A player's own
   samples (D34). The neighbour connection (D40). The expander (D33).
-- Still the owner's hands: P4 on an iPhone and the tap film; P5's loads and VCV's reply.
+- Still the owner's hands: P4 on an iPhone and the tap film; P5's loads ~~and VCV's reply~~
+  (VCV replied 2026-11-23, R46: the submission details are the owner's to ask for).
 
 ## After the gate
 
@@ -326,7 +330,7 @@ The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
 - **Not done, on purpose:** a view in the worklet or the Probe (Sessions 12 and 13); the
   weave's three fields, which stay zero (Session 14).
 - **Waits for the owner, blocking nothing:** a look at D59. Still open from before: P4 on
-  an iPhone, P5's loads and VCV's reply, which keys become samples.
+  an iPhone, P5's loads ~~and VCV's reply~~ (answered 2026-11-23, R46), which keys become samples.
 - **Next: Session 11,** on Opus.
 
 ### After Session 11: snapshot version 2 (2026-11-20)

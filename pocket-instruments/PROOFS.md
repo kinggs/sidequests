@@ -17,7 +17,7 @@ engineering gate the brief asks for (its D2). Nothing visual is built before P3 
 | P2 | Same trace everywhere | passed 2026-11-19 |
 | P3 | It runs in Rack | passed 2026-11-19 |
 | P4 | It runs in a phone browser | running: both desktop browsers, Android Chrome and the ten minutes passed 2026-11-19; iOS Safari and the tap latency are left |
-| P5 | It ships to other people's machines | running: CI builds and checks all four plugins (2026-11-19, Session 6); none loaded in Rack off this laptop yet; no answer from VCV; macOS 10.9 not met (the owner accepts 10.12, D46) |
+| P5 | It ships to other people's machines | running: CI builds and checks all four plugins (2026-11-19, Session 6); none loaded in Rack off this laptop yet; VCV answered 2026-11-23 (R46: binaries from a verified author, not built by the Library); macOS 10.9 not met (the owner accepts 10.12, D46) |
 | P6 | Editing while playing is safe | running: ThreadSanitizer half and the save in Rack passed 2026-11-19, with a finding (D43); the browser is left |
 | P7 | Shared sound is worth sharing | passed 2026-11-19 |
 | P8 | It feels like the real thing | open |
@@ -317,11 +317,15 @@ library offered as the Windows one failed on its format; 128-bit arithmetic fail
 4. A written answer from VCV on the Library: will its build server take a plugin with a
    Rust part, or a prebuilt static library, or neither (O2). **Asked 2026-11-19** by the
    owner, by email to support@vcvrack.com, the one address VCV's support page gives for
-   Library questions. No reply yet. The forum's Development category is the fallback.
+   Library questions. ~~No reply yet. The forum's Development category is the fallback.~~
+   **Answered 2026-11-23 (R46):** neither is built by the Library. Its toolchain has no Rust,
+   so the plugin goes in as binary packages (CI's four artefacts are that), sent by email by
+   an author VCV has identity-verified. macOS 10.12 is fine. What the submission needs is
+   not known until the owner asks VCV for the details.
 
 **Session 6, 2026-11-19: four artefacts from CI.** Item 1 above is done; item 2 is
 answered. Still not passed: none of the four has been loaded in Rack on its platform, and
-VCV has not answered.
+~~VCV has not answered~~ (VCV answered 2026-11-23: item 4).
 
 `.github/workflows/pocket-instruments-rack.yml` links the plugin on each platform's own
 toolchain, checks the finished `.vcvplugin` with `rack/check-dist.sh`, and uploads it. It
