@@ -487,6 +487,35 @@ fn a_sweep_starts_again_with_each_run() {
     c.extend([(2 * STEP + 1, down(FX)), (2 * STEP + 1, down(5))]);
     render(&mut h, 3 * STEP as usize + 1, 128, 1, &c);
     assert!(bus(&h).probe().2 < 7000.0);
+    // Heard 6, then none, then 6 again a millisecond later, while the first is still ramping
+    // out: heard became 6 again, so the sweep starts again, though the bus never went idle.
+    let mut h = Host::new(SR, 1);
+    let mut c = at_zero(&[fx(1, 6)]);
+    c.extend([(2 * STEP + 48, down(FX)), (2 * STEP + 48, down(5))]);
+    render(&mut h, 2 * STEP as usize + 49, 128, 1, &c);
+    let (on, w, cutoff, ..) = bus(&h).probe();
+    assert!(on == 6 && w > 0.0 && w < 1.0, "still ramping: {on} at {w}");
+    assert_eq!(cutoff, 8000.0);
+}
+
+#[test]
+fn the_repeats_and_the_effects_not_built_leave_the_mix_the_plain_sum() {
+    // §18's seven only: with 4 and 9 to 16 on every step the bus never runs, and the mix is
+    // the sum of the sixteen channels in track order, bit for bit.
+    for effect in [4u32, 9, 10, 11, 12, 13, 14, 15, 16] {
+        let mut edits = beat();
+        edits.extend((0..16).map(|s| fx(s, effect)));
+        let mut h = Host::new(SR, 1);
+        let out = render(&mut h, 2 * STEP as usize, 128, 17, &at_zero(&edits)).0;
+        for f in out.chunks(17) {
+            let mut sum = f[0];
+            for x in &f[1..16] {
+                sum += *x;
+            }
+            assert_eq!(f[16].to_bits(), sum.to_bits(), "effect {effect}");
+        }
+        assert_eq!(bus(&h).probe().0, 0, "effect {effect}: the bus never ran");
+    }
 }
 
 #[test]
