@@ -1247,9 +1247,6 @@ impl Voices {
     /// A and B it was hit with (§20: `hit`, the engine's reckoning of step or tap).
     #[inline]
     pub fn trigger(&mut self, fired: u16, hit: &[[u16; 2]; TRACKS], rate: u32) {
-        if fired == 0 {
-            return;
-        }
         for t in 0..TRACKS {
             if fired >> t & 1 == 1 {
                 let p = hit[t];

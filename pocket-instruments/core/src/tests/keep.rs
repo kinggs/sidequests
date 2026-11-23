@@ -399,11 +399,13 @@ fn version_4_holds_which_steps_keep_and_their_values_after_version_3_s_fields() 
 }
 
 #[test]
-fn a_version_4_load_keeps_what_it_says_and_reads_no_value_whose_bit_is_clear() {
+fn a_version_4_load_keeps_what_it_says_and_no_value_whose_bit_is_clear() {
     let mut src = fresh();
     src.block(1, &[step(2, 2, 1), step(2, 3, 1), keep(2, 3, 10, 20)]);
     let mut s = src.save();
-    // Garbage where step 2 of track 2 keeps nothing (it is on, but this is version 4).
+    // Garbage where step 2 of track 2 keeps nothing (it is on, but this is version 4). Whether
+    // the core reads such a value at all cannot be seen: with its bit clear it is never used
+    // and never saved (a plant of "it is read" was not a fault, LEARNINGS.md Session 21).
     let at = 436 + 4 * (16 * 2 + 2);
     s[at..at + 4].copy_from_slice(&[9, 9, 9, 9]);
     recrc(&mut s);

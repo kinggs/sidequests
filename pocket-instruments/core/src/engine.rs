@@ -111,15 +111,18 @@ impl Engine {
             });
 
             // §20: what each track that fired on this frame is hit with, sound or no sound,
-            // so the view says the same either way.
-            if out.fired != 0 {
-                self.hits(out.fired, out.stepped, &out.col);
+            // so the view says the same either way. Then (§11) whatever fired on this frame,
+            // by an edge or by the clock, sounds from this frame. One comparison on a frame
+            // where nothing fired. With no audio buffer the voices do not run at all.
+            let fired = out.fired;
+            if fired != 0 {
+                self.hits(fired, out.stepped, &out.col);
+                if audio.is_some() {
+                    self.voices.trigger(fired, &self.hit, self.sample_rate);
+                }
             }
-            // §11: whatever fired on this frame, by an edge or by the clock, sounds from this
-            // frame. With no audio buffer the voices do not run at all.
             if let Some(audio) = audio.as_deref_mut() {
                 let at = f as usize * channels;
-                self.voices.trigger(out.fired, &self.hit, self.sample_rate);
                 // §18: what is heard, as of this frame's ticks. Idle (no sound effect heard,
                 // the ramp at 0) costs a comparison in `advance` and one in the mix.
                 if stale || out.ticks != 0 {
