@@ -8,8 +8,8 @@
 <!-- The tiny rhythm machine on a phone (Session 12): the worklet that P4 proved, and a face in
      the Loom look (design/DESIGN.md, "The phone"; design/loom/phone.html is the picture).
      The page keeps no copy of the workflow: it sends what a finger did (KEY_DOWN, KEY_UP,
-     PARAM; ENGINE.md §13) and draws the view the core posts back (§14). Nothing latches:
-     a phone has real multi-touch (D23). ?auto runs its own checks (web/play.mjs).
+     PARAM; ENGINE.md §13) and draws the view the core posts back (§14). A touch never latches:
+     a phone has real multi-touch (D23). A mouse's right-click latches (D60). ?auto runs its own checks (web/play.mjs).
      SPDX-License-Identifier: MIT -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -87,6 +87,8 @@
   .f span { writing-mode: vertical-rl; transform: rotate(180deg); }
   .f.latch { background: var(--latch, var(--ecru)); color: var(--ground); }
   .f.press { background: var(--white); color: var(--ground); border-top-width: 0; box-shadow: inset 0 0 0 var(--frame) var(--ground); }
+  /* Latched by a right-click (D60): the whole face lit in its own colour, held or not. */
+  .f.latched, .f.latched.press { background: var(--latch, var(--ecru)); color: var(--ground); border-top-width: 12px; box-shadow: none; }
 
   /* Below the instrument: the sounds sheet (D57 item 8) and the credits. */
   .sheet { width: min(100vw, 430px); margin: 0 auto; padding: 16px 16px 48px; font-size: 18px; }
@@ -94,13 +96,16 @@
   .sheet p { margin: 8px 0; color: var(--lilac); font-size: 16px; line-height: 1.5; }
   .sheet a { color: var(--ecru); }
   .two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0; }
-  .sounds { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
   .sheet button { min-height: 64px; padding: 6px 10px; background: var(--tile); text-align: left; font-size: 16px; }
-  .sounds button { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-  .sounds button i { font-style: normal; color: var(--lilac); }
+  /* A row a sound: its name plays it; its switch sets code or sample and plays the result. */
+  .sounds { display: flex; flex-direction: column; gap: 6px; }
+  .sounds .row { display: flex; gap: 4px; }
+  .sounds .name { flex: 1; }
+  .sounds .sw { width: 112px; text-align: center; }
   /* A sample shows as a lit face, as a step does, so it does not depend on hue. */
-  .sounds button.sampled { background: var(--ecru); color: var(--ground); }
-  .sounds button.sampled i { color: var(--ground); }
+  .sounds .sw.sampled { background: var(--ecru); color: var(--ground); }
+  /* The row's sound firing, from the view's counts, as a grid key goes white. */
+  .sounds .name.fire { background: var(--white); color: var(--ground); }
   #status { min-height: 1.5em; }
 
   /* A short screen: the function keys' words still fit up the key. */
@@ -140,7 +145,8 @@
 <section class="sheet">
   <h2>Sounds</h2>
   <p>Each key plays the sound the engine builds in code, or a sample from the starter pack. A
-  lit button plays its sample. The beat, these choices and the sliders stay in this browser.</p>
+  lit switch plays its sample. Tap a name to hear it; tap its switch to change it and hear the
+  change. The beat, these choices and the sliders stay in this browser.</p>
   <div class="two"><button id="allCode">All code</button><button id="allSample">All samples</button></div>
   <div class="sounds" id="sounds"></div>
   <p id="status">Loading…</p>
@@ -150,7 +156,9 @@
   chosen sound's sixteen steps. <b>play</b> starts and stops. Hold <b>bpm</b>: a key sets the
   volume, slider A the swing, slider B the tempo; tap it alone for 80, 120 and 140. Hold
   <b>function</b> and press <b>pattern</b> to clear. With a keyboard: <b>1234 qwer asdf zxcv</b>
-  are the keys, <b>7 8 9</b> sound, pattern and bpm, <b>u i o p</b> function, fx, play and write.</p>
+  are the keys, <b>7 8 9</b> sound, pattern and bpm, <b>u i o p</b> function, fx, play and write.
+  With a mouse: <b>right-click</b> sound, pattern, bpm, function or fx to hold it down; the next
+  click on a key lets it go (so right-click sound, click 16), or right-click it again.</p>
 
   <h2>Credits</h2>
   <p>Pocket Instruments: small calculator-format musical instruments, free and open source,
@@ -168,7 +176,7 @@
 <script type="module">
 const NAMES = ["Bass drum", "Snare", "Closed hat", "Open hat", "Synth snare", "Sticks", "Cymbal", "Noise",
   "Clap", "Click", "Low tom", "High tom", "Cow bell", "Blip", "Tone", "Bass tone"];
-const CMD = { voice: 22, keyDown: 32, keyUp: 33, param: 34 };
+const CMD = { fire: 21, voice: 22, keyDown: 32, keyUp: 33, param: 34 };
 const KEY = { sound: 16, pattern: 17, bpm: 18, function: 19, fx: 20, play: 21, write: 22 };
 // Function keys: their band and, latched, their face (design/DESIGN.md, "Function key").
 const FKEYS = [["sound", "var(--madder)"], ["pattern", "var(--ochre)"], ["bpm", "var(--sky)"],
@@ -210,10 +218,11 @@ FKEYS.forEach(([name, colour], i) => {
   fkeys.push(b);
 });
 NAMES.forEach((name, t) => {
-  const b = document.createElement("button");
-  b.innerHTML = `<span>${t + 1} ${name}</span><i>code</i>`;
-  $("sounds").appendChild(b);
-  sounds.push(b);
+  const row = document.createElement("div");
+  row.className = "row";
+  row.innerHTML = `<button class="name">${t + 1} ${name}</button><button class="sw" aria-label="${name}: code or sample">code</button>`;
+  $("sounds").appendChild(row);
+  sounds.push({ name: row.children[0], sw: row.children[1] });
 });
 const sliders = [$("slA"), $("slB")];
 
@@ -293,7 +302,15 @@ function press(k, who) {
 function release(k, who) {
   if (!holders[k].delete(who)) return;
   if (holders[k].size === 0) send([CMD.keyUp, k, 0, 0]);
+  // D60: any other press that ends finishes the gesture, and every latched key lets go.
+  if (who !== "L" && latched.size) [...latched].forEach(unlatch);
 }
+// D60: a mouse's right-click holds sound, pattern, bpm, function or fx down ("L") until a
+// press ends or it is right-clicked again. Play and write are left out: they stay on alone.
+const LATCHING = new Set([KEY.sound, KEY.pattern, KEY.bpm, KEY.function, KEY.fx]);
+const latched = new Set();
+function latch(k) { latched.add(k); press(k, "L"); schedule(); }
+function unlatch(k) { latched.delete(k); release(k, "L"); schedule(); }
 function releaseAll(prefix) {
   holders.forEach((set, k) => [...set].forEach((who) => { if (!prefix || who.startsWith(prefix)) release(k, who); }));
 }
@@ -303,6 +320,11 @@ for (const el of [...keys, ...fkeys]) {
   el.addEventListener("pointerdown", (e) => {
     e.preventDefault();
     wake();
+    if (e.button === 2) {
+      if (e.pointerType === "mouse" && LATCHING.has(k)) (latched.has(k) ? unlatch : latch)(k);
+      return;
+    }
+    if (e.button !== 0) return;
     try { el.setPointerCapture(e.pointerId); } catch {}
     press(k, `p${e.pointerId}`);
   });
@@ -367,10 +389,17 @@ function placeCap(which, v) {
 }
 
 // --- The sheet: each key's code or sample (D50), drawn from the view like the rest. ---
-sounds.forEach((b, t) => b.addEventListener("click", () => {
-  const on = latest.view ? (u16(latest.view, 18) >> t) & 1 : 0;
-  send([CMD.voice, t, 0, on ? 0 : 1]);
-}));
+sounds.forEach((row, t) => {
+  // FIRE is an edit (§6): it sounds the track without choosing it, playing or stopped.
+  row.name.addEventListener("click", () => { wake(); send([CMD.fire, t, 0, 0]); });
+  // The switch, then the sound as it now is: in one message, so it lands in one frame,
+  // and VOICE comes first (§3: in array order).
+  row.sw.addEventListener("click", () => {
+    wake();
+    const on = latest.view ? (u16(latest.view, 18) >> t) & 1 : 0;
+    send([CMD.voice, t, 0, on ? 0 : 1], [CMD.fire, t, 0, 0]);
+  });
+});
 $("allCode").addEventListener("click", () => send(...NAMES.map((_, t) => [CMD.voice, t, 0, 0])));
 $("allSample").addEventListener("click", () => send(...NAMES.map((_, t) => [CMD.voice, t, 0, 1])));
 
@@ -380,6 +409,7 @@ const u32 = (v, i) => (v[i] | (v[i + 1] << 8) | (v[i + 2] << 16) | (v[i + 3] << 
 const shown = (v, which) => u16(v, 20 + 2 * which);
 const lastFires = new Array(16).fill(null);
 const whiteUntil = new Array(16).fill(0);
+const sheetUntil = new Array(16).fill(0); // the sheet's names go white on any firing, in either mode
 let queued = false, wakeAt = 0;
 function schedule() {
   if (queued) return;
@@ -398,7 +428,10 @@ function draw() {
   const hold = Math.max(40, Math.min(120, 7500000 / Math.max(1, mbpm)));
   for (let n = 0; n < 16; n++) {
     const fires = v[32 + n];
-    if (sounds_ && lastFires[n] !== null && fires !== lastFires[n]) whiteUntil[n] = now + hold;
+    if (lastFires[n] !== null && fires !== lastFires[n]) {
+      sheetUntil[n] = now + hold;
+      if (sounds_) whiteUntil[n] = now + hold;
+    }
     lastFires[n] = fires;
     const c = keys[n].classList;
     c.toggle("on", !!((field >> n) & 1));
@@ -414,21 +447,23 @@ function draw() {
     const k = 16 + i;
     el.classList.toggle("press", !!((held >> k) & 1));
     el.classList.toggle("latch", (k === KEY.play && !!playing) || (k === KEY.write && !!(flags & 2)));
+    el.classList.toggle("latched", latched.has(k));
   });
   $("tempo").textContent = Math.floor(mbpm / 1000);
   $("stepno").textContent = stepped ? `step ${String(step + 1).padStart(2, "0")}` : "step --";
   $("write").hidden = !(flags & 2);
   $("weave").textContent = "";
   for (const which of [0, 1]) if (!finger[which]) placeCap(which, shown(v, which));
-  sounds.forEach((b, t) => {
+  sounds.forEach((row, t) => {
     const on = !!((sampled >> t) & 1);
-    b.classList.toggle("sampled", on);
-    b.querySelector("i").textContent = on ? "sample" : "code";
+    row.sw.classList.toggle("sampled", on);
+    row.sw.textContent = on ? "sample" : "code";
+    row.name.classList.toggle("fire", now < sheetUntil[t]);
   });
   rhythm.drawn = v;
   rhythm.afterDraw?.(v);
   // Wake again when the next white is due to go out.
-  const next = Math.min(...whiteUntil.filter((t) => t > now));
+  const next = Math.min(...whiteUntil.filter((t) => t > now), ...sheetUntil.filter((t) => t > now));
   if (Number.isFinite(next) && next !== wakeAt) { wakeAt = next; setTimeout(schedule, next - now + 1); }
 }
 addEventListener("resize", schedule);
@@ -436,7 +471,7 @@ schedule();
 
 // What the checks reach (web/play.mjs). The page itself uses none of it.
 const rhythm = {
-  ctx, keys, fkeys, sliders, latest, listeners, slide, send, drawn: null, afterDraw: null,
+  ctx, keys, fkeys, sliders, sounds, latched, latest, listeners, slide, send, drawn: null, afterDraw: null,
   get sent() { return sent; },
   post: (msg) => post(msg, msg.load || msg.mark ? 1 : 0),
   ready: null,

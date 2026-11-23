@@ -19,6 +19,12 @@
 //     and when both lift, nothing stays held;
 //   - a reload brings the beat back: the page loads the kept snapshot (result 0) and saves
 //     the same bytes;
+//   - a mouse's right-click latch (D60, added 2026-11-23): right-click sound, click key 16:
+//     sound held and lit as latched, then key 16 chosen and nothing held or lit; right-click
+//     bpm, two slider moves leave it held, right-click it again: the tempo is B's 170 bpm,
+//     not a preset; right-click function, click pattern: cleared; right-click play: nothing;
+//   - the sounds sheet (D60): a name fires its sound once and switches nothing; the switch
+//     turns it to its sample and fires it once more;
 //   - P6's browser half: the pattern entered by keys while it plays, the snapshot the page
 //     saved is byte for byte one the wasm host loaded and got straight-sixteenths' trace from
 //     (a "# straight-sixteenths ... snapshot <hex>" label in the Node report), and is what
@@ -80,7 +86,7 @@ function judge(phases) {
   const bad = [];
   const p = Object.fromEntries(phases.map((r) => [r.phase, r]));
   for (const r of phases) for (const f of r.failed) bad.push(`phase ${r.phase}: ${f}`);
-  for (const name of ["1", "reload", "bpm"]) if (!p[name]) bad.push(`phase ${name} never reported`);
+  for (const name of ["1", "reload", "bpm", "latch"]) if (!p[name]) bad.push(`phase ${name} never reported`);
   // Each phase reports under its own name: p.reload.reload, p.bpm.bpm. (A first draft read
   // p.bpm.last, and undefined equalled undefined: the bpm line passed with nothing checked.)
   const one = p["1"] || {}, reload = p.reload?.reload || {}, bpm = p.bpm?.bpm || {};
@@ -98,6 +104,13 @@ function judge(phases) {
   for (const d of drawnBad) bad.push(`a drawing is not its view: ${d}`);
   if (!(one.two?.sel === 5 && (one.two.held & 0x10020) === 0x10020 && one.two.after === 0)) bad.push(`two pointers: ${JSON.stringify(one.two)}`);
   if (!(reload.loaded === 0 && reload.hex && reload.hex === reload.before)) bad.push(`reload: loaded ${reload.loaded}; saved ${reload.hex?.slice(0, 32)}…, kept ${reload.before?.slice(0, 32)}…`);
+  const L = p.latch?.latch || {};
+  const latchOk = L.soundHeld === 1 << 16 && L.soundLit === true && L.chosen === 15 && L.afterLit === false &&
+    L.bpmStillHeld === true && L.tempo === 170000 && L.fieldAfterClear === 0 &&
+    L.playAfterRight?.playing === 0 && L.playAfterRight?.held === 0;
+  if (!latchOk) bad.push(`right-click latch: ${JSON.stringify({ ...L, nameFired: undefined, nameSampled: undefined, switchFired: undefined, switchSampled: undefined, switchLabel: undefined })}`);
+  if (!(L.nameFired === 1 && L.nameSampled === 0 && L.switchFired === 2 && L.switchSampled === 4 && L.switchLabel === "sample"))
+    bad.push(`sounds sheet: name fired ${L.nameFired} (sampled ${L.nameSampled}); switch fired ${L.switchFired} (sampled ${L.switchSampled}, "${L.switchLabel}")`);
   const p6 = one.p6 || {};
   const label = p6.hex && new RegExp(`^# straight-sixteenths .* snapshot ${p6.hex}$`, "m").test(report);
   if (!p6.playing) bad.push("P6: it was not playing while the keys went in");
