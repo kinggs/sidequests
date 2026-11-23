@@ -1,6 +1,7 @@
 //! §3. One engine: commands in, the clock advanced a frame at a time, events out.
 
 use crate::abi::*;
+use crate::bus::{Bus, is_sound_effect};
 use crate::clock::Clock;
 use crate::keys::Keys;
 use crate::seq::{FX_MAX, Pattern, Rng, SWING_MAX, STEPS, Seq, TRACKS};
@@ -24,6 +25,8 @@ pub struct Engine {
     pub(crate) keys: Keys,
     /// §14: firings per track since `pi_init`, wrapping.
     pub(crate) fires: [u8; TRACKS],
+    /// §18: the bus and its seven sound effects. Not saved: the moment's.
+    pub(crate) bus: Bus,
 }
 
 impl Engine {
@@ -41,6 +44,7 @@ impl Engine {
             voices: Voices::new(),
             keys: Keys::new(),
             fires: [0; TRACKS],
+            bus: Bus::new(),
         }
     }
 
@@ -73,6 +77,11 @@ impl Engine {
         let last = frames - 1;
         let mut out = Out::new(events, self.fires);
         let mut next = 0;
+        // §18: what is heard changes only by a command or a tick (and by a load, between
+        // calls), so it is read again only on a frame that has one. The same value as reading
+        // it every frame, for a comparison on the frames that have neither.
+        let mut effect = 0u8;
+        let mut stale = true;
 
         for f in 0..frames {
             out.frame = f;
@@ -84,10 +93,12 @@ impl Engine {
                 }
                 self.apply(c, &mut out);
                 next += 1;
+                stale = true;
             }
             let Engine { clock, seq, pat, rng, generation, keys, .. } = self;
             let write = keys.lane_write;
             clock.frame(thr, &mut |k| {
+                out.ticks += 1;
                 if seq.tick(k, pat, rng, &mut out, write) {
                     *generation = generation.wrapping_add(1); // §17: the lane is in the snapshot ⚠
                 }
@@ -98,12 +109,21 @@ impl Engine {
             if let Some(audio) = audio.as_deref_mut() {
                 let at = f as usize * channels;
                 self.voices.trigger(out.fired, self.sample_rate);
+                // §18: what is heard, as of this frame's ticks. Idle (no sound effect heard,
+                // the ramp at 0) costs a comparison in `advance` and one in the mix.
+                if stale || out.ticks != 0 {
+                    let heard = self.heard();
+                    effect = if is_sound_effect(heard) { heard } else { 0 };
+                    stale = false;
+                }
+                self.bus.advance(effect, out.ticks, self.sample_rate);
                 if let Some(frame) = audio.get_mut(at..at + channels) {
                     // §13: the master volume, read on each frame, so a key changes it at once.
-                    self.voices.render(frame, self.keys.gain());
+                    self.voices.render(frame, self.keys.gain(), &mut self.bus, self.pat.fx_sounds);
                 }
             }
             out.fired = 0;
+            out.ticks = 0;
         }
 
         self.fires = out.fires;
@@ -118,6 +138,7 @@ impl Engine {
                 let Engine { clock, seq, pat, rng, generation, keys, .. } = self;
                 let write = keys.lane_write;
                 clock.edge(&mut |k| {
+                    out.ticks += 1;
                     if seq.tick(k, pat, rng, out, write) {
                         *generation = generation.wrapping_add(1);
                     }

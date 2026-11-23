@@ -13,6 +13,7 @@
 //! Every voice keeps the slider values it was triggered with, so a rate change retunes it to
 //! the same pitch and length in hertz and seconds, whatever the sliders say since (§11).
 
+use crate::bus::Bus;
 use crate::seq::TRACKS;
 
 pub const KICK_TRACK: usize = 0;
@@ -1275,8 +1276,10 @@ impl Voices {
     /// from track 0, times `gain`: the master volume (§13), which is exactly 1 at volume 16.
     /// The sixteen tracks are not scaled: they are the direct outputs, before the master
     /// (D57). Each layout's channels are the same bits whichever layout carries them.
+    /// §18: while the bus runs an effect the mix is the bus's; idle, it is exactly the sum
+    /// above. The sixteen tracks are never touched by an effect.
     #[inline]
-    pub fn render(&mut self, frame: &mut [f32], gain: f32) {
+    pub fn render(&mut self, frame: &mut [f32], gain: f32, bus: &mut Bus, fx_sounds: u16) {
         let mut v = [0.0f32; TRACKS];
         for (t, out) in v.iter_mut().enumerate() {
             let code = on_voice!(self, t, next());
@@ -1285,7 +1288,10 @@ impl Voices {
             let s = &mut self.samples[t];
             *out = (if s.sounding() { code + s.next() } else { code }) * LEVEL;
         }
-        let mix = |v: &[f32; TRACKS]| {
+        let mut mix = |v: &[f32; TRACKS]| {
+            if !bus.idle() {
+                return bus.mix(v, fx_sounds, gain);
+            }
             let mut sum = v[0];
             for s in &v[1..] {
                 sum += *s;

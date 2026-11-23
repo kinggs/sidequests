@@ -6,7 +6,7 @@ use crate::keys;
 use crate::seq::TRACKS;
 use crate::snapshot;
 
-pub const ABI_VERSION: u32 = 6;
+pub const ABI_VERSION: u32 = 7;
 
 pub const CMD_CLOCK: u8 = 1;
 pub const CMD_RESET: u8 = 2;
@@ -74,11 +74,14 @@ pub struct Out<'a> {
     /// §14: how many times each track has fired, wrapping. The engine's count, carried
     /// through the block and handed back at its end. Counted like `fired`: room or not.
     pub fires: [u8; TRACKS],
+    /// §18: ticks the clock emitted on this frame, by an edge or by the table. A sweep moves
+    /// by them. Cleared each frame, like `fired`.
+    pub ticks: u32,
 }
 
 impl<'a> Out<'a> {
     pub fn new(buf: &'a mut [Event], fires: [u8; TRACKS]) -> Self {
-        Out { buf, n: 0, frame: 0, dropped: 0, fired: 0, fires }
+        Out { buf, n: 0, frame: 0, dropped: 0, fired: 0, fires, ticks: 0 }
     }
 
     #[inline]

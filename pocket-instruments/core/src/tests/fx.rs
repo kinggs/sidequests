@@ -401,9 +401,11 @@ fn a_repeat_waits_for_the_first_step_after_play() {
 
 #[test]
 fn effects_the_core_does_not_sound_yet_change_nothing_but_the_lane_and_heard() {
-    // Every effect but the four repeats, on every step: the same events and the same sound.
+    // Every effect but the four repeats and §18's seven, on every step: the same events and
+    // the same sound. (Session 16 held 1 to 8 here too, "until §18 is built"; Session 17
+    // built it, and `the_seven_sound_effects_change_the_mix_and_nothing_else` holds them.)
     let beat: Vec<Cmd> = (0..16).flat_map(|t| [on(t, t), on(t, (t + 5) % 16)]).collect();
-    for effect in [1u32, 2, 3, 4, 5, 6, 7, 8, 13, 14, 15, 16] {
+    for effect in [4u32, 13, 14, 15, 16] {
         let mut lane: Vec<Cmd> = beat.clone();
         lane.extend((0..16).map(|s| fx(s, effect)));
         let mut cmds: Vec<(u64, Cmd)> = lane.iter().map(|c| (0, *c)).collect();
@@ -423,6 +425,32 @@ fn effects_the_core_does_not_sound_yet_change_nothing_but_the_lane_and_heard() {
         let (z, tz) = render(&mut c, 17 * STEP as usize, 128, 17, &punched);
         assert_eq!(tz, ty, "effect {effect} punched");
         assert!(z.iter().zip(&y).all(|(p, q)| p.to_bits() == q.to_bits()), "effect {effect} punched: the same samples");
+    }
+}
+
+#[test]
+fn the_seven_sound_effects_change_the_mix_and_nothing_else() {
+    // §18: the same events, the same sixteen track channels (direct outputs, D57), and a
+    // mix that is not the plain one.
+    let beat: Vec<Cmd> = (0..16).flat_map(|t| [on(t, t), on(t, (t + 5) % 16)]).collect();
+    let mut plain: Vec<(u64, Cmd)> = beat.iter().map(|c| (0, *c)).collect();
+    plain.push((0, play()));
+    let mut b = Host::new(SR, 1);
+    let (y, ty) = render(&mut b, 17 * STEP as usize, 128, 17, &plain);
+    for effect in [1u32, 2, 3, 5, 6, 7, 8] {
+        let mut cmds: Vec<(u64, Cmd)> = beat.iter().chain(&(0..16).map(|s| fx(s, effect)).collect::<Vec<_>>()).map(|c| (0, *c)).collect();
+        cmds.push((0, play()));
+        let mut a = Host::new(SR, 1);
+        let (x, tx) = render(&mut a, 17 * STEP as usize, 128, 17, &cmds);
+        assert_eq!(tx, ty, "effect {effect}: the same events");
+        let (mut tracks_same, mut mix_differs) = (true, 0);
+        for f in 0..x.len() / 17 {
+            tracks_same &= x[f * 17..f * 17 + 16].iter().zip(&y[f * 17..f * 17 + 16]).all(|(p, q)| p.to_bits() == q.to_bits());
+            mix_differs += (x[f * 17 + 16].to_bits() != y[f * 17 + 16].to_bits()) as usize;
+        }
+        assert!(tracks_same, "effect {effect}: the sixteen tracks are untouched");
+        assert!(mix_differs > x.len() / 17 / 2, "effect {effect}: the mix differs on {mix_differs} frames");
+        assert_eq!(heard(&a), effect as u8);
     }
 }
 

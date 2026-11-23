@@ -3,11 +3,12 @@
 //!
 //! One engine is one clock feeding one sequencer, in memory the host provides, and since
 //! ABI 2 the voices it plays, and since ABI 4 the keys that play it (`keys.rs`). No standard library, no allocator, no globals. Floats are in
-//! `voice.rs` only: they shape a sample and never decide when one starts. SPDX-License-Identifier: MIT
+//! `voice.rs` and `bus.rs` only: they shape a sample and never decide when one starts. SPDX-License-Identifier: MIT
 #![cfg_attr(not(test), no_std)]
 #![deny(unsafe_op_in_unsafe_fn)]
 
 mod abi;
+mod bus;
 mod clock;
 mod crc;
 mod engine;

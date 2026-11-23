@@ -1,6 +1,7 @@
-/* Pocket Instruments: the engine's C ABI, version 6 (1 plus sound: D44; 3 adds samples: D50;
+/* Pocket Instruments: the engine's C ABI, version 7 (1 plus sound: D44; 3 adds samples: D50;
  * 4 adds keys and the view: D51; 5 adds snapshot version 2 and PI_AUDIO_BOTH: D55, D57;
- * 6 adds the lane, the fx key, the four repeats and snapshot version 3: D66, D67).
+ * 6 adds the lane, the fx key, the four repeats and snapshot version 3: D66, D67;
+ * 7 adds the bus and seven sound effects on the mix, with no new call or command: D67).
  *
  * The contract both hosts link. ENGINE.md beside the crate is the specification; this file is
  * the same thing in C. Where they disagree, ENGINE.md is right.
@@ -22,7 +23,7 @@
 extern "C" {
 #endif
 
-#define PI_ABI_VERSION 6u
+#define PI_ABI_VERSION 7u
 
 #define PI_TICKS_PER_STEP 96u /* a step is a sixteenth note */
 #define PI_TRACKS 16u         /* one per grid key: key n plays track n (D30) */
@@ -42,8 +43,12 @@ extern "C" {
 
 /* What pi_process writes to `audio`, by its `channels` argument. Any other value: no sound. */
 #define PI_AUDIO_NONE 0u    /* the voices do not run at all */
-#define PI_AUDIO_MIX 1u     /* one float a frame: every voice, summed, times the master volume */
-#define PI_AUDIO_TRACKS 16u /* PI_TRACKS floats a frame: track n alone in channel n, before the master */
+#define PI_AUDIO_MIX 1u     /* one float a frame: every voice, summed, times the master volume.
+                               While a sound effect is heard (ABI 7; ENGINE.md section 18) the
+                               sounds through the effects are a bus, the effect acts on it, and the
+                               mix is the rest plus the bus, ramped to the effect's output in 2 ms */
+#define PI_AUDIO_TRACKS 16u /* PI_TRACKS floats a frame: track n alone in channel n, before the master
+                               and before any effect */
 #define PI_AUDIO_BOTH 17u   /* PI_AUDIO_TRACKS's sixteen, then PI_AUDIO_MIX's one: the same bits as each */
 
 /* Clock sources (PI_CMD_SOURCE). */
