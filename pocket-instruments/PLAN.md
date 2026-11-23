@@ -125,6 +125,7 @@ Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
 | 17, the bus and seven sound effects (Opus) | ABI 7: the bus, effects 1, 2, 3 and 5 to 8 ported with credit from stmlib and Plaits; seven render pairs; the effects on `web/listen.html`, `make hear` | 2026-11-23 |
 | 21, the sliders are the hand's (Opus; D75) | ABI 8: `KEEP`, a step keeps what it was written with, the view's second mark, snapshot version 4; the caps the hand's on the page and in Rack; `snapshots-v3.txt`; fixture format 4; the plugin ships the stmlib and Plaits notice (D77 item 5) | 2026-11-23 |
 | 18, Rack's jacks (Fable; D68, D76, D78, D80) | ABI 9: sound in (`PI_AUDIO_LOOP`, `ROUTE`), so a returned sound goes through the effects; FX GATES, FX SEND, FX RETURN, A and B out and in; the fx latch that stays; the panel in two rows of thirteen jacks; self-tests through the module's own cables; `make bench`'s loop cases | 2026-11-23 |
+| 19, the page's effects (Opus; D69, D78, D81) | fx and a key on the page by touch, mouse and keys; the display's effect block and lane ticks on the page and in Rack (D81's stand-in); the sheet's "through fx"; D78's latch on the page; `make play`'s three new phases, format 3 and 4 fixtures played on the page; the lit Rack screenshots again | 2026-11-23 |
 
 ## Still the owner's hands
 
@@ -147,6 +148,10 @@ Unticked in the finished lists. None blocks a build session.
       on the returned drums; the fx latch by mouse (D78); FX SEND through a Rack delay to FX
       RETURN with effect 4 held; A OUT and A IN. And D80's eighteen items and three open
       points (O18).
+- [ ] Session 19's look, on the phone and in Rack (`design/DESIGN.md`, "The effects on the
+      display" and "Not done"): the madder `fx` block and the lane's ticks, D81's stand-in;
+      whether madder or the fx key's ecru (Session 19's Handover); the sheet's "through fx"
+      switch; D78 on the page by mouse (Ctrl+click fx, then click and hold keys while it plays).
 - [ ] Session 22's recording: ten minutes with the PO-12 and the Scarlett, when it suits.
 - [ ] The four effects checks left on the PO-12 (`WORKFLOW.md`, "The effects: what to check
       on the PO-12"; nine were done on 2026-11-23): what 9 to 12 do (9 gave no repeat the
@@ -299,20 +304,6 @@ the owner says.
 **Ruled 2026-11-23 (D72):** D66 to D69 accepted; the jacks on the panel; D71 yes; D70
 after the effects.
 
-### Session 19 — the page (build, Opus)
-
-D69.
-
-- [ ] fx + key by touch and by keys; the display's mark while an effect is heard, and the
-      lane on its step marks, as D81 says (a stand-in for the owner's eye: write it into
-      `design/DESIGN.md` and mark it ⚠ in its "Not done"). No key lights for an effect.
-- [ ] The same two drawings on the Rack module's display, from the same bytes (D81 item
-      4); seen in Rack's screenshot mode, the lit screenshot in `design/` taken again.
-- [ ] The sounds sheet's "through fx" switch.
-- [ ] D78 on the page: the fx latch stays on and holds fx only while a grid key is down;
-      `make play`'s latch phase holds it.
-- [ ] `make play` holds every drawing to its view, format 3 included; planted faults.
-
 ## Session 22 — the hardware's effects, measured from a recording (with the owner, Fable)
 
 No open-source project got close to the PO-12's effects and nobody has measured them (R55,
@@ -395,78 +386,6 @@ Decided when P1 to P4 are in, not before:
 
 The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
 
-### After Session 21: the sliders are the hand's; a step keeps what it was written with (2026-11-23)
-
-- **Built, ABI 8 (`ENGINE.md` §20, now marked built; D75):** command 26 `KEEP`; `STEP` 0
-  forgets what a step kept; `PARAM` sets that slider for all sixteen sounds; a write-mode
-  key that turns a step on keeps the chosen sound's own A and B as they are on that frame;
-  clear forgets every step's values. A step's hit and a repeated hit play what the step
-  keeps, a tap or `FIRE` the sound's own (`Engine::hits`, out of line). The view's bytes 60
-  to 63, the second mark. Snapshot version 4 (1464 bytes); versions 1 to 3 load with each
-  step that is on keeping its sound's own (D75 item 6). Fixture format 4 in the three
-  harnesses. The page and the Rack module: the cap is the hand's and moves by itself only
-  with bpm held or after a load; the second mark is drawn from bytes 60 to 63. D77 item 5:
-  the plugin ships `res/stmlib-plaits-MIT.txt` (from `core/stmlib-plaits-MIT.txt`) beside
-  the font's OFL, and `check-dist.sh` refuses a plugin without it.
-- **Proven, in the order PLAN asked:** the report, the render hashes and `make bench` kept
-  first; `fixtures/snapshots-v3.txt` written by the ABI 7 core and committed (93f2583);
-  `keys-tap-and-choose`'s views worked again by hand and committed before any code
-  (5b09010): six lines, the views at 6, 7, 10, 12, 13 and 15, change in `a=` and `b=` only,
-  because a slider now sets every sound and choosing moves no cap (`fixtures/README.md` has
-  the table). No other fixture's line changed and no trace did. The designed fixture moved
-  up as a pure rename (1c2cb73) and passed at its first run. At the end: every trace the
-  same lines, the report different from the day's start only in those 144 view lines (six
-  a run), the snapshot labels' hex and the new runs; all 360 existing render files the same
-  bytes; 12 new (`render-keep`, native and `.wasm` the same bytes; the tone's step 1 and 9
-  give 6 and 15 crossings in 50 ms). 181 Rust tests (19 of them §20's in
-  `core/src/tests/keep.rs`). 300 runs a harness, one report. Planted: 23 faults in the core,
-  the unplanted copy passing first, 23 caught by named tests (a 24th, "a value whose keep
-  bit is clear is read", is not a fault: nothing can see it; `LEARNINGS.md`); two on the
-  page (`make play` failed on each), one in each harness's view or command, one in Rack's
-  view text (the self-test failed), one plugin without the notice (`check-dist.sh` refused
-  it). `make test` (P6's race and its six plants), `make play` (five phases, both
-  browsers), `make p4`, `make listen`, the repo's `make verify`; Rack's `make install` and
-  `make selftest` at 44.1, 48 and 96 kHz (eight Rhythm modules, the format 4 fixture on both
-  clocks). The second mark seen in Rack's screenshot mode on a face filled by hand. CI run 45189993571 (a597ff0) green on all four platforms, `check-dist.sh` holding the notice in each.
-- **Measured (`LEARNINGS.md`):** ns a frame, best of five, three runs each, before → after:
-  idle 26.2–27.0 → 26.2–27.4; the minimum beat 27.8–29.0 → 28.4–29.7; all sixteen
-  43.4–45.1 → 41.7–42.4; repeat 31.5–32.2 → 30.5–30.8. Back to back with the old build, six
-  pairs: idle 25.0–26.9 against 26.2–26.8, perhaps half a nanosecond; the rest within the
-  noise. The engine is 3 568 bytes (from 2 448), the `.wasm` 36 963 (from 32 783).
-- **Opus decided nothing. Readings built on, each ⚠ in `ENGINE.md` §20, each a line or two:**
-  1. ABI 8: §20 names no number; the rule for Sessions 16 to 19 was followed.
-  2. Two firings of one sound on one frame (a tap and its step): the later decides which
-     values, read after the frame's commands, as a slider always was.
-  3. `KEEP` on a step that is off keeps; `STEP` 1 later plays it so.
-  4. A load leaves each sound's last hit (bytes 60 to 63) alone: the moment's, like `fires`.
-  5. Hosts: with bpm let go the cap goes back to the hand; "after a load" is the first view
-     that holds it, and a host's first view counts as one.
-  6. Hosts: the second mark is PLAN's stand-in, a thin `loom/thread` line across the track
-     over the cap, always shown (`design/DESIGN.md`, "Not done").
-- **Harness changes, not readings:** every harness also plays each fixture from a "kept
-  snapshot" (each step that is on keeping its sound's own, as keys save it), because P6's
-  browser check looks for the page's bytes in the report and a beat entered by keys now
-  keeps (`PROOFS.md` P6); the worklet's snapshot room is 1472 bytes and the Node harness's
-  1536 (both were under 1464); `race.cpp` forgets every step before entering a fixture and
-  its churn sends `KEEP`; Rack's self-test plays the format 4 fixture (format 3 still waits
-  for Session 18). `make play` has a fifth phase, `keep`: an old beat with two sounds'
-  sliders apart, the cap staying put when the other sound is chosen, and the mark stepping
-  between a kept and a written value.
-- **Questions for the owner:**
-  1. How should the second mark look? Built as a stand-in (above); `design/DESIGN.md`
-     draws it with your eye.
-  2. The six readings above: accept as built?
-- **Not done, and a limit:** nothing on the list is left. Rack's self-test holds each cap
-  and the mark's bytes to the view, but cannot hold "the cap stays when another sound is
-  chosen": under keys every sound shares the sliders, so they never differ there. `make
-  play` holds it with an old beat; Rack's drawing was only seen, in screenshot mode.
-- **For the owner to try now:** on `web/rhythm.html` or the Rhythm module: write on, slider
-  A low, key 1; A high, key 9; write off, play: two pitches, and the thin line on A steps
-  between them while the cap stays where you left it. Choose another sound: the caps do not
-  move. A beat saved before today sounds as it did.
-- **Next:** Session 18 (Fable): the slider jacks carry what §20 makes. Or the owner's eye on
-  the second mark first.
-
 ### After Session 18: Rack's jacks, sound in, the panel in two rows (2026-11-23)
 
 - **Built, ABI 9 (`ENGINE.md` §19, now marked built; D68, D76, D78; the builder's rulings
@@ -539,3 +458,61 @@ The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
   the delay to FX RETURN, and hold fx and 4. Right-click: FX RETURN, A IN, B IN, and
   Sounds, Through fx.
 - **Next:** Session 19 (Opus), the page; or the owner's eye on the panel first.
+
+### After Session 19: the page's effects; the display says the effect and the lane (2026-11-23)
+
+- **Built (D69, D78, D81; no change to the core):** on `web/rhythm.html`, fx and a key
+  punch by touch, by mouse and by the computer keys (`i` and the grid's letters), as the
+  core already allowed; the display's effect block (madder, `fx 3`, just above the write
+  mark's place, from byte 55) and a madder tick over the step mark of each step in the lane
+  (bytes 56 and 57); the sounds sheet's third switch a row, "through fx" (`FXSOUND`, drawn
+  from bytes 58 and 59); D78's latch: Ctrl+click fx stays until Ctrl+clicked again, fx goes
+  down before a grid key and up after the last, and the other four keys' latches still go
+  after one key. The Rack display draws the same block and ticks from the same bytes
+  (`RhythmDisplay::draw`). `design/DESIGN.md` has the look, "The effects on the display",
+  marked ⚠, and its "Not done".
+- **Proven:** before the first change, `make test` (204 Rust tests, 300 runs a harness),
+  its report and the sha256 of all 408 render files kept; at the end the report and all 408
+  files the same bytes, and `web/pi_core.wasm` unchanged (not rebuilt, not recommitted).
+  `make play` in Chromium and Firefox: eight phases (three new), about 730 drawings checked
+  in each, every one also held to bytes 55 to 59 (the block's text, the ticks read with
+  their colour, the switches); `fx-repeat-punch` (format 3) played on the page, the first
+  pass by touch, the second by the computer key: its four views as text and its 43-line
+  trace are the fixture's; `keeps-what-it-was-written-with` (format 4) by touch: its five
+  views; fx + key 11 by the computer keys; D78 by mouse, eight checks, each held to the
+  commands the page sent (`rhythm.onPost`). Planted on the page, the unplanted copy passing
+  first: 15 faults, 15 caught by named checks (`LEARNINGS.md`). `make p4` (24 of 24 traces,
+  both browsers), `make listen` (both), `make test`, the repo's `make verify`. Rack: `make
+  install` and `make selftest` at 44.1, 48 and 96 kHz (12 Rhythm modules on the six
+  fixtures, both clocks; three through their own cables; D78's latch), all clean. The Rack
+  drawing seen in screenshot mode from a scratch build that fills the face by hand:
+  `design/rack-face-lit-100.png` and `-200.png` now show `fx 3` heard and the lane on steps
+  6, 7, 8 and 13. CI run 45205345348 (b22d4bf) green on all four platforms.
+- **Measured:** nothing on an audio path changed (the page's main thread and Rack's drawing
+  thread only), so there is no frame cost to give.
+- **Opus decided nothing. Readings built on, each ⚠ in `design/DESIGN.md`:**
+  1. "Beside the write mark in the display's column": the block sits just above the write
+     mark's place and keeps it whether write is on or not; Rack 11 by 3.6 mm, 0.8 mm above;
+     the page the write mark's width, directly above.
+  2. The ticks sit on one line clear of the tallest mark (Rack 0.67 mm tall, 0.6 mm above;
+     the page 4 px, 4 px above), the mark's width, not on each mark's own top.
+  3. The switch always reads `through fx`, lit (ecru) while the sound goes through, and a
+     tap plays nothing (D60 item 4's "plays the result" is the sample switch's).
+  4. With fx latched, any holder of a grid key (finger, mouse, computer key) brings fx down,
+     as Rack's module does (D80's build).
+- **Questions for the owner:**
+  1. **Madder or ecru?** D81 says madder, "the fx key's own colour", but the fx key's band
+     and latched face are ecru here; madder is the sound key's. Built madder, as D81 names
+     it twice. Which did you mean?
+  2. The look of the block and the ticks (a stand-in, D81): keep, or draw it with your eye?
+  3. The four readings above: accept as built?
+- **Not done, and limits:** nothing on the list is left. The Rack display has no checker:
+  its two drawings were only seen in screenshot mode, so no fault could be planted in them.
+  The page was seen in a headless screenshot, never on a phone. Nothing was heard.
+- **For the owner to try now:** on `web/rhythm.html` (a phone, or a desktop with `i` for fx):
+  play, hold fx and tap 2: `fx 2` shows above `write`, the steps that pass get a red tick,
+  and the next bar replays them. With a mouse, Ctrl+click fx, then click and hold 3 as it
+  plays; Ctrl+click fx again to end. In the sheet, tap a sound's `through fx` to keep it
+  clean. In Rack (`make install`), the same block and ticks on the display.
+- **Next:** Session 20 (the grid's lights), then a first weave (Session 14, D79); or the
+  owner's eye on the block, the ticks and the madder question first.

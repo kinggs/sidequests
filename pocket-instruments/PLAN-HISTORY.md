@@ -1366,3 +1366,89 @@ slider jacks carry what §20 makes.
   move are the "TUNING THE EFFECTS" block of `core/src/bus.rs`; then `make test` (a test
   that pins the old number fails and says which), `make web`, and listen.
 - **Next:** Session 18 (Fable), or the owner's ear on the seven first.
+
+## Session 19 — the page (build, Opus; done 2026-11-23)
+
+D69.
+
+- [x] fx + key by touch and by keys; the display's mark while an effect is heard, and the
+      lane on its step marks, as D81 says (a stand-in for the owner's eye: write it into
+      `design/DESIGN.md` and mark it ⚠ in its "Not done"). No key lights for an effect.
+- [x] The same two drawings on the Rack module's display, from the same bytes (D81 item
+      4); seen in Rack's screenshot mode, the lit screenshot in `design/` taken again.
+- [x] The sounds sheet's "through fx" switch.
+- [x] D78 on the page: the fx latch stays on and holds fx only while a grid key is down;
+      `make play`'s latch phase holds it. (Done in a phase of its own, `fxlatch`, beside D61's.)
+- [x] `make play` holds every drawing to its view, format 3 included; planted faults.
+
+### After Session 21: the sliders are the hand's; a step keeps what it was written with (2026-11-23)
+
+- **Built, ABI 8 (`ENGINE.md` §20, now marked built; D75):** command 26 `KEEP`; `STEP` 0
+  forgets what a step kept; `PARAM` sets that slider for all sixteen sounds; a write-mode
+  key that turns a step on keeps the chosen sound's own A and B as they are on that frame;
+  clear forgets every step's values. A step's hit and a repeated hit play what the step
+  keeps, a tap or `FIRE` the sound's own (`Engine::hits`, out of line). The view's bytes 60
+  to 63, the second mark. Snapshot version 4 (1464 bytes); versions 1 to 3 load with each
+  step that is on keeping its sound's own (D75 item 6). Fixture format 4 in the three
+  harnesses. The page and the Rack module: the cap is the hand's and moves by itself only
+  with bpm held or after a load; the second mark is drawn from bytes 60 to 63. D77 item 5:
+  the plugin ships `res/stmlib-plaits-MIT.txt` (from `core/stmlib-plaits-MIT.txt`) beside
+  the font's OFL, and `check-dist.sh` refuses a plugin without it.
+- **Proven, in the order PLAN asked:** the report, the render hashes and `make bench` kept
+  first; `fixtures/snapshots-v3.txt` written by the ABI 7 core and committed (93f2583);
+  `keys-tap-and-choose`'s views worked again by hand and committed before any code
+  (5b09010): six lines, the views at 6, 7, 10, 12, 13 and 15, change in `a=` and `b=` only,
+  because a slider now sets every sound and choosing moves no cap (`fixtures/README.md` has
+  the table). No other fixture's line changed and no trace did. The designed fixture moved
+  up as a pure rename (1c2cb73) and passed at its first run. At the end: every trace the
+  same lines, the report different from the day's start only in those 144 view lines (six
+  a run), the snapshot labels' hex and the new runs; all 360 existing render files the same
+  bytes; 12 new (`render-keep`, native and `.wasm` the same bytes; the tone's step 1 and 9
+  give 6 and 15 crossings in 50 ms). 181 Rust tests (19 of them §20's in
+  `core/src/tests/keep.rs`). 300 runs a harness, one report. Planted: 23 faults in the core,
+  the unplanted copy passing first, 23 caught by named tests (a 24th, "a value whose keep
+  bit is clear is read", is not a fault: nothing can see it; `LEARNINGS.md`); two on the
+  page (`make play` failed on each), one in each harness's view or command, one in Rack's
+  view text (the self-test failed), one plugin without the notice (`check-dist.sh` refused
+  it). `make test` (P6's race and its six plants), `make play` (five phases, both
+  browsers), `make p4`, `make listen`, the repo's `make verify`; Rack's `make install` and
+  `make selftest` at 44.1, 48 and 96 kHz (eight Rhythm modules, the format 4 fixture on both
+  clocks). The second mark seen in Rack's screenshot mode on a face filled by hand. CI run 45189993571 (a597ff0) green on all four platforms, `check-dist.sh` holding the notice in each.
+- **Measured (`LEARNINGS.md`):** ns a frame, best of five, three runs each, before → after:
+  idle 26.2–27.0 → 26.2–27.4; the minimum beat 27.8–29.0 → 28.4–29.7; all sixteen
+  43.4–45.1 → 41.7–42.4; repeat 31.5–32.2 → 30.5–30.8. Back to back with the old build, six
+  pairs: idle 25.0–26.9 against 26.2–26.8, perhaps half a nanosecond; the rest within the
+  noise. The engine is 3 568 bytes (from 2 448), the `.wasm` 36 963 (from 32 783).
+- **Opus decided nothing. Readings built on, each ⚠ in `ENGINE.md` §20, each a line or two:**
+  1. ABI 8: §20 names no number; the rule for Sessions 16 to 19 was followed.
+  2. Two firings of one sound on one frame (a tap and its step): the later decides which
+     values, read after the frame's commands, as a slider always was.
+  3. `KEEP` on a step that is off keeps; `STEP` 1 later plays it so.
+  4. A load leaves each sound's last hit (bytes 60 to 63) alone: the moment's, like `fires`.
+  5. Hosts: with bpm let go the cap goes back to the hand; "after a load" is the first view
+     that holds it, and a host's first view counts as one.
+  6. Hosts: the second mark is PLAN's stand-in, a thin `loom/thread` line across the track
+     over the cap, always shown (`design/DESIGN.md`, "Not done").
+- **Harness changes, not readings:** every harness also plays each fixture from a "kept
+  snapshot" (each step that is on keeping its sound's own, as keys save it), because P6's
+  browser check looks for the page's bytes in the report and a beat entered by keys now
+  keeps (`PROOFS.md` P6); the worklet's snapshot room is 1472 bytes and the Node harness's
+  1536 (both were under 1464); `race.cpp` forgets every step before entering a fixture and
+  its churn sends `KEEP`; Rack's self-test plays the format 4 fixture (format 3 still waits
+  for Session 18). `make play` has a fifth phase, `keep`: an old beat with two sounds'
+  sliders apart, the cap staying put when the other sound is chosen, and the mark stepping
+  between a kept and a written value.
+- **Questions for the owner:**
+  1. How should the second mark look? Built as a stand-in (above); `design/DESIGN.md`
+     draws it with your eye.
+  2. The six readings above: accept as built?
+- **Not done, and a limit:** nothing on the list is left. Rack's self-test holds each cap
+  and the mark's bytes to the view, but cannot hold "the cap stays when another sound is
+  chosen": under keys every sound shares the sliders, so they never differ there. `make
+  play` holds it with an old beat; Rack's drawing was only seen, in screenshot mode.
+- **For the owner to try now:** on `web/rhythm.html` or the Rhythm module: write on, slider
+  A low, key 1; A high, key 9; write off, play: two pitches, and the thin line on A steps
+  between them while the cap stays where you left it. Choose another sound: the caps do not
+  move. A beat saved before today sounds as it did.
+- **Next:** Session 18 (Fable): the slider jacks carry what §20 makes. Or the owner's eye on
+  the second mark first.
