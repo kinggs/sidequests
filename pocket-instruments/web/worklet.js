@@ -13,9 +13,29 @@
 // With `copies` (P7's count) that many whole engines run side by side on the same commands,
 // each sequencing and sounding its own voice, and the block's cost is timed.
 //
+// With `instrument` (web/rhythm.html, Session 12) it is also the instrument's audio thread
+// (ENGINE.md §8, §13, §14):
+//   in   { cmds }: keys, sliders and edits, [type, a, b, value] each, as before.
+//        { load }: snapshot bytes, loaded between blocks, in the same queue as the cmds (§8:
+//                  on a channel of its own a load and an edit sent together can swap).
+//        { mark }: also queued: the trace starts again here (the page's checks only).
+//        { save }: post a snapshot now, whether or not the generation moved.
+//        { trace }: post the trace since the last mark.
+//   out  { view, taken }: the 64 bytes, when anything past the tick has changed, and at least
+//                  sixty times a second while playing (§14).
+//        { snapshot, taken, result }: when the generation has moved, at most four a second
+//                  (§8); `result` is the load's, on the first one after a load.
+//   `taken` counts queue entries (each command, load and mark) taken so far: a page that
+//   counts what it sent knows when a view or snapshot holds all of it (§8).
+//   `snapshot` in processorOptions is loaded before the first block, by its length read.
+//
 // SPDX-License-Identifier: MIT
 const PAGE = 65536;
 const EVENTS = 4096, CAP = 256, AUDIO = 7168, CMDS = 8192, CMDS_MAX = (PAGE - CMDS) / 12;
+// The instrument's: the view (64 bytes) and a snapshot's room, between the mix (one channel,
+// 128 frames, so 512 bytes from AUDIO) and the commands.
+const VIEW = 7680, VIEW_SIZE = 64, SNAP = 7744, SNAP_ROOM = CMDS - SNAP;
+const TRACE_MAX = 65536; // numbers kept since a mark: four an event
 
 class Engine extends AudioWorkletProcessor {
   constructor(options) {
@@ -65,10 +85,67 @@ class Engine extends AudioWorkletProcessor {
     this.trace = [];         // tick, type, track, step: four numbers an event
     this.inbox = [];
     this.done = false;
+    this.instrument = !!o.instrument;
+    this.taken = 0;          // queue entries taken: commands, loads and marks
+    this.tracing = false;
+    this.wantSave = false;
+    this.wantTrace = false;
+    this.lastView = null;
+    this.viewAt = 0;         // the frame the last view was posted at
+    this.snapAt = -Infinity; // the frame the last snapshot was posted at
+    this.loadResult = null;  // the last load's result, until a snapshot carries it
+    if (this.instrument) {
+      if (o.snapshot) this.load(o.snapshot);
+      this.gen = this.pi.pi_generation(this.e);
+    }
     this.port.onmessage = (m) => {
-      if (m.data.stop) this.done = true;
-      else if (m.data.cmds) this.inbox.push(...m.data.cmds);
+      const d = m.data;
+      if (d.stop) this.done = true;
+      else if (d.cmds) this.inbox.push(...d.cmds);
+      else if (d.load) this.inbox.push({ load: d.load });
+      else if (d.mark) this.inbox.push({ mark: true });
+      else if (d.save) this.wantSave = true;
+      else if (d.trace) this.wantTrace = true;
     };
+  }
+
+  // Between blocks only (§8). The length read is passed, not PI_SNAPSHOT_SIZE: bytes past a
+  // version's size are the host's (§8), so a longer buffer is cut to the room, which holds
+  // a version 2 whole.
+  load(buffer) {
+    const bytes = new Uint8Array(buffer);
+    const n = Math.min(bytes.length, SNAP_ROOM);
+    new Uint8Array(this.pi.memory.buffer, this.base + SNAP, n).set(bytes.subarray(0, n));
+    this.loadResult = this.pi.pi_load(this.e, this.base + SNAP, n);
+  }
+
+  // The view and the snapshot, after a block (§14, §8).
+  publish() {
+    const pi = this.pi;
+    if (pi.pi_view(this.e, this.base + VIEW, VIEW_SIZE) !== VIEW_SIZE) throw new Error("pi_view wrote nothing");
+    const view = new Uint8Array(pi.memory.buffer, this.base + VIEW, VIEW_SIZE);
+    const playing = view[24] & 1;
+    let moved = !this.lastView;
+    for (let i = 4; !moved && i < VIEW_SIZE; i++) moved = view[i] !== this.lastView[i];
+    if (moved || (playing && this.now - this.viewAt >= sampleRate / 60)) {
+      this.lastView = view.slice();
+      this.viewAt = this.now;
+      this.port.postMessage({ view: this.lastView.buffer.slice(0), taken: this.taken });
+    }
+    const gen = pi.pi_generation(this.e);
+    if (this.wantSave || this.loadResult !== null || (gen !== this.gen && this.now - this.snapAt >= sampleRate / 4)) {
+      const n = pi.pi_save(this.e, this.base + SNAP, SNAP_ROOM);
+      const snapshot = new Uint8Array(pi.memory.buffer, this.base + SNAP, n).slice().buffer;
+      this.port.postMessage({ snapshot, taken: this.taken, result: this.loadResult });
+      this.gen = gen;
+      this.snapAt = this.now;
+      this.wantSave = false;
+      this.loadResult = null;
+    }
+    if (this.wantTrace) {
+      this.wantTrace = false;
+      this.port.postMessage({ trace: this.trace.slice() });
+    }
   }
 
   put(v, i, c) {
@@ -89,7 +166,23 @@ class Engine extends AudioWorkletProcessor {
     const began = this.clock();
     const v = new DataView(this.pi.memory.buffer);
     let count = 0;
-    for (const c of this.inbox.splice(0, CMDS_MAX / 2)) this.put(v, count++, [0, c[0], c[1], c[2], c[3]]);
+    if (this.instrument) {
+      // A load at the front runs now, between blocks; one behind commands waits for the next
+      // block (§8: pi_process with no frames applies nothing, so they cannot be flushed first).
+      while (this.inbox.length && this.inbox[0].load) {
+        this.load(this.inbox.shift().load);
+        this.taken++;
+      }
+      let i = 0;
+      for (; i < this.inbox.length && count < CMDS_MAX / 2; i++) {
+        const c = this.inbox[i];
+        if (c.load) break;
+        if (c.mark) { this.trace = []; this.tracing = true; continue; }
+        this.put(v, count++, [0, c[0], c[1], c[2], c[3]]);
+      }
+      this.inbox.splice(0, i);
+      this.taken += i;
+    } else for (const c of this.inbox.splice(0, CMDS_MAX / 2)) this.put(v, count++, [0, c[0], c[1], c[2], c[3]]);
     for (; this.next < this.cmds.length && this.cmds[this.next][0] < this.now + frames && count < CMDS_MAX; this.next++) {
       const c = this.cmds[this.next];
       this.put(v, count++, [c[0] - this.now, c[1], c[2], c[3], c[4]]);
@@ -110,7 +203,7 @@ class Engine extends AudioWorkletProcessor {
     for (let i = 0; i < got; i++) {
       const p = this.base + EVENTS + 12 * i;
       const type = v.getUint8(p + 8);
-      if (this.end) this.trace.push(v.getUint32(p + 4, true), type, v.getUint8(p + 9), v.getUint8(p + 10));
+      if (this.end || (this.tracing && this.trace.length < TRACE_MAX)) this.trace.push(v.getUint32(p + 4, true), type, v.getUint8(p + 9), v.getUint8(p + 10));
       if (type === 1) steps.push(v.getUint32(p, true));
     }
     if (this.tick) {
@@ -131,6 +224,7 @@ class Engine extends AudioWorkletProcessor {
     }
     this.now += frames;
     this.blocks++;
+    if (this.instrument) this.publish();
     if (this.end && this.now >= this.end) {
       this.done = true;
       this.port.postMessage({
