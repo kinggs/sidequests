@@ -133,6 +133,22 @@ Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
 
 Unticked in the finished lists. None blocks a build session.
 
+**First, the morning after 2026-11-23** (eight sessions were built while the owner was away
+for part of the day; each of these is a look or a ruling only the owner can give):
+
+- [ ] Restart Rack and play the owner's own patch: a punch (fx + key) on the returned Rack
+      drums; the sticky fx latch by mouse (D78); the sliders (move one, tap any key: D75).
+- [ ] The panel at 100% with cables in (D76, O18): `design/rack-face-lit-200.png` first.
+- [ ] On the phone: the effects with their display block and ticks (D81; madder or ecru,
+      D82 item 1); the second mark on the sliders (D79 item 3); the grid with write off
+      (D82).
+- [ ] The weave (O19): the pictures in `design/rack-weave-*.png`, then the live page, then
+      Rack. The builder's seven doubts are in the Handover, most doubtful first.
+- [ ] O18: A OUT back to A IN is one hit late; FX RETURN's default effects; D80's items.
+- [ ] Session 22's recording, with the PO-12 and the Scarlett.
+- [ ] By ear on `web/listen.html`: the seven sound effects against the hardware's.
+- [ ] The rulings made while away, to accept or overrule: D73, D77, D79, D81 to D83.
+
 - [ ] In Rack, by hand: the sliders by mouse. The owner heard no change dragging A or B and
       tapping key 1 (2026-11-23). The engine does change the kick (tested the same day:
       44, 67 and 90 zero crossings in half a second for A low, middle and high; 131 ms

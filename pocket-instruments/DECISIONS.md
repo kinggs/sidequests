@@ -1536,6 +1536,21 @@ ahead so a beat's diamond is its final size from its first step (the view would 
 pattern); a smooth scroll (cells are a whole mm); a beater that springs back inside the
 step (rule 4 says the width is the step's loudness).
 
+### D85 — The weave's first attempt verified; where the day ends
+**2026-11-23 · recorded (Fable) · nothing decided here**
+
+Verified: the repo's `make verify` re-run by this session (228 Rust tests, 300 harness
+runs, none failed); CI run 45217909351 green on all four platforms; the weave looked at in
+`design/rack-weave-busy-200.png`: diamonds of cloth, an ochre beater at the cloth's edge,
+a pale shuttle on five warp threads. It reads as a loom, not as the hardware's machine
+(R6); the builder's own doubt, whether the shuttle and its thread could be taken for a
+needle and thread, is the owner's and then O7's to judge.
+
+D84's sixteen items and the weave's look are a first attempt and wait for the owner (O19).
+Built and verified on this one day, each before the next began: Sessions 15, 16, 17, 21,
+18, 19, 20 and 14's first attempt. Not started, by D79: the recording (Session 22),
+tuning by ear, the repeat's rule for an empty step, accepting the weave.
+
 ## Open
 
 | ID | Question | Needs |
