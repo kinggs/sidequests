@@ -178,6 +178,20 @@ kick and a hat.
 | ☐ | Punch 4, 13, 14, 15 and 16 in turn | What does each do, in a sentence? Does the delay's tail carry past the step? Does 15 touch every sound or the chosen one? | the effects not designed yet (D67 item 4) |
 | ☐ | Punch 6 or 8 over two bars | Does the sweep start again on each step, or run on across steps? Up or down? | §18's sweeps |
 
+## Sliders a step: what to check on the PO-12
+
+For D74. Pick a pattern with a kick on steps 1, 5, 9 and 13 and a snare on 5 and 13.
+
+| ☐ | Do | Look or listen for | It decides |
+|---|---|---|---|
+| ☐ | Write on, stopped, kick chosen. Hold step 5 (lit) and turn A. Play | Does only step 5's kick change pitch? Did holding it turn the step off? | D74 item 2, and when a step flips |
+| ☐ | The same on an unlit step | Does it become lit? | the same |
+| ☐ | Playing, write off: hold write and turn A for a bar, let go | Recorded on every step, or only where the kick has a note? Put a kick on an empty step afterwards: does it have the recorded pitch? | D74 item 2: written by arriving steps |
+| ☐ | Then turn A without holding write | Does every step change, or only the ones not recorded? | whether a plain move is the sound's own value under the locks |
+| ☐ | Take a recorded step off and put it back | Is its value gone? Does anything but clear remove one? | D74 item 5 |
+| ☐ | Record A on the kick at step 5, then listen to the snare on step 5 | Did the snare change? | D74 item 1: a lock belongs to a sound |
+| ☐ | Tap write quickly; then hold it for a bar and let go without touching anything | Does write turn on at the press or the release? Does a long hold with nothing done still turn it on? | D74 item 3 |
+
 ## Deliberate differences from the hardware
 
 D22 asks for every one to be listed and explained. So far:

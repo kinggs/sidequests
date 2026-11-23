@@ -126,6 +126,13 @@ Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
 
 Unticked in the finished lists. None blocks a build session.
 
+- [ ] O17: D74, sliders a step, as proposed? And the seven checks for it in `WORKFLOW.md`.
+- [ ] In Rack, by hand: the sliders by mouse. The owner heard no change dragging A or B and
+      tapping key 1 (2026-11-23). The engine does change the kick (tested the same day:
+      44, 67 and 90 zero crossings in half a second for A low, middle and high; 131 ms
+      against over 500 for B). ⚠ Not found yet: the likeliest cause is that key 1 was not
+      the chosen sound (hold sound and see which key has the bar); if it was, the drag
+      path has a bug the self-test cannot see, because it sets the sliders directly.
 - [ ] The four effects checks left on the PO-12 (`WORKFLOW.md`, "The effects: what to check
       on the PO-12"; nine were done on 2026-11-23): what 9 to 12 do (9 gave no repeat the
       owner could hear), whether every sound repeats, the sweeps, and effects 4 and 13 to
@@ -318,6 +325,14 @@ D69.
       first). No key lights for an effect.
 - [ ] The sounds sheet's "through fx" switch.
 - [ ] `make play` holds every drawing to its view, format 3 included; planted faults.
+
+## Session 21 — sliders a step: locks and live record (D74; proposed, not accepted)
+
+Not ready to build. First: the owner's answer to O17 and the seven checks in `WORKFLOW.md`
+("Sliders a step: what to check on the PO-12"). Then a short Fable pass writes it into
+`ENGINE.md` (a new section: the locks, write as a held key, live record, the view, snapshot
+version 4) with a fixture by hand, and an Opus session builds it. The Rack half (A and B
+out and in, D74 items 6 and 7) goes with Session 18.
 
 ## Session 20 — the grid's lights, as the hardware has them (D71; decided, D72)
 

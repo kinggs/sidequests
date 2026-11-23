@@ -1097,6 +1097,62 @@ before the weave, not a fix in passing.
    the chosen sound's steps, and the white and the frame stay as they are.
 4. **D70, the breakout for MixMaster, waits until after the effects.**
 
+### D73 — Session 16's three readings stand
+**2026-11-23 · decided (Fable, as the design loop's author; `PLAN.md` lets a Fable session rule on a gap) · the owner can overrule**
+
+Session 16 built `ENGINE.md` §17 on Opus, decided nothing, and marked three readings. Each
+is ruled as built:
+
+1. **A step that writes the lane moves the generation,** when it changes the entry. Why:
+   the generation exists so a host knows the snapshot's bytes have changed (§8, §13), and
+   they have, whoever wrote them.
+2. **A repeat waits for the first step after play;** play from stopped and reset clear
+   what the sequencer last read. It is §17's "play from stopped, and reset, set last = 0"
+   carried to the effect itself.
+3. **Bytes 402 and 403 of a version 3 snapshot are not read,** as 381 to 383 are not (§15).
+
+Verified before ruling: the repo's `make verify` re-run by this session (143 Rust tests,
+216 harness runs, 0 failed), `fx-repeat-punch.json` moved up with no change (git shows a
+pure rename), CI run 45179129088 green on all four platforms.
+
+### D74 — Sliders a step: locks, live record, and their CV in Rack
+**2026-11-23 · proposed (the owner asked for the design: "The hardware modules save the position of these relative to each step. Whether in write mode or live-recording mode") · not accepted yet · the hardware checks come first**
+
+What exists: each sound has its own sliders A and B, read when the sound is hit and saved
+with the beat (D54 to D56). A is pitch (filter pitch on the hats, cymbal and noise;
+semitones on the two tones, D49) and B is length, each over a range of the sound's own
+(`VOICES.md`); on a sample A is the playback pitch and B the length (`ENGINE.md` §12). The
+owner's ear on the PO-12 agrees: "They *seem* to do pitch and release". What is missing is
+a value for one step.
+
+1. **A lock is a value of A or B on one step of one sound,** used in place of the sound's
+   own slider when that step fires. A byte each: 512 in all, saved with the beat. D56
+   already reads a slider at the hit "as a per-step slider lock will be".
+2. **Recorded two ways, as the hardware** (R26, R28, R53; `WORKFLOW.md`'s two "later"
+   rows): with write on, hold a step and move a slider, and that step alone takes the
+   value; playing, hold write and move a slider, and every step that arrives takes the
+   slider's value for the chosen sound. The second is the effects lane's rule (D66).
+3. **Live record comes with it.** Holding write is also how notes are played in, so write
+   has to turn on or off when it is let go, and only if nothing used it, as bpm does (the
+   ⚠ row "Write turns on at the press" in `WORKFLOW.md` said it would be asked again).
+4. **The caps follow the locks as it plays** ⚠ the owner's eye: D54 already moves a cap to
+   what is heard.
+5. **Clearing** ⚠ not known on the hardware: taking a step off clears its locks; clear
+   empties them all.
+6. **In Rack, sliders out and back:** A OUT and B OUT, sixteen channels each, hold each
+   sound's value at its latest hit, 0 to 10 V; with TRIGGERS that is a sixteen-channel
+   sequencer of triggers and two voltages for any Rack voice. A IN and B IN, sixteen
+   channels each: a returned channel takes that slider's place at the sound's next hit,
+   chosen as RETURN's channels are (D62 item 3; R58). Read only on a hit, through
+   `ENGINE.md` §19's layout, so it costs next to nothing.
+7. **Four more jacks do not fit a panel that is full at nine** (D68, D72). Recommended: one
+   right-hand expander for these four and D70's sixteen voice jacks, which then has two
+   jobs. The other way is a second row of jacks. The owner's call. ⚠ Rack 3 is to rework
+   expanders (R60).
+
+Order proposed: after Session 17, a Session 21 for items 1 to 5 in the core; Rack's part
+with Session 18, so the panel and the expander are decided once.
+
 ## Open
 
 | ID | Question | Needs |
@@ -1116,4 +1172,5 @@ before the weave, not a fix in passing.
 | O14 | ~~Answered 2026-11-19, provisionally: D48.~~ The mix now passes 1: the four drums together peak at 2.1 (+6.6 dB, `harness/render-beat.json`). Where is it kept in bounds: a level and a limiter in the core, or each host saturating (D44's open item; `ENGINE.md` §10 put it "with the second voice")? Meanwhile the Rack Probe bends its output with tanh towards 10 V, so it can be heard; the browser page does nothing. Recommended: a fixed master level in the core (so a phone and Rack sound alike, D22) and each host saturating at its own ceiling. A limiter in the core would have to stay bit-identical (`+ − × ÷` only) | The owner, before the instrument's own output is built |
 | O15 | ~~Effects (next: D65): what the PO-12's fx does (punch-in, layering, per sound), what our first fx in the core is, and how each sound reaches either the internal fx or a Rack effect, with fx triggers out per channel (one, or three, sends and returns?). The owner's brief is in `PLAN.md`, Session 15~~ | Answered 2026-11-23 by Session 15, as proposals: D66 (the lane), D67 (the first effects), D68 (Rack), D69 (the page). The owner accepts or overrules; the hardware checks are in `WORKFLOW.md` |
 | O16 | ~~The owner's rulings on Session 15: D66 to D69 as proposed? In particular: effects always recorded, as the PO-12 (or only with write on); a switch a sound for "per channel"; three more jacks on the panel and the wordmark moved (or an expander); D70's breakout for MixMaster; D71, the grid's lights as the hardware has them~~ | Answered 2026-11-23: D72. (Was recommended: accept D66 to D69; D71 yes, as a small session before the weave; D70 after the effects) |
+| O17 | Sliders a step (D74): the design as proposed? The four CV jacks on an expander with D70's voice jacks, or a second jack row? | The owner, after the six checks in `WORKFLOW.md`, "Sliders a step: what to check on the PO-12". Recommended: accept; the expander |
 | O9 | ~~How do the three blocks stack on a phone, and does one instrument fill the screen or share it?~~ | Answered 2026-11-19: D36 |

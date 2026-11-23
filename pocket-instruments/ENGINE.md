@@ -959,15 +959,15 @@ loaded against every fixture's trace; 24 faults planted in the core, each caught
 named test. Cost, measured (`make bench`, `LEARNINGS.md`): none that the bench can see
 with an empty lane. The design held. What it did not say, built on and marked:
 
-- ⚠ **A step that writes the lane moves the generation.** §8 says the generation moves
+- (Ruled as built, D73.) **A step that writes the lane moves the generation.** §8 says the generation moves
   when "a command" changes what a snapshot holds; a lane written by an arriving step is a
   tick, not a command. Built: it moves, so a host saves a performance as it does an edit.
   `pi_generation`'s line in the header says so.
-- ⚠ **A repeat waits for the first step after play.** Play from stopped and reset clear
+- (Ruled as built, D73.) **A repeat waits for the first step after play.** Play from stopped and reset clear
   `eff` with `last`: between a play and the first boundary after it nothing has been read
   since play, so no repeat fires there, as no plain firing does (`pending`). Only the
   `PLAY` edit in the middle of a step, or the play key on edges, can reach that stretch.
-- ⚠ Bytes 402 and 403 of a version 3 snapshot are not read, as 381 to 383 are not (§15).
+- (Ruled as built, D73.) Bytes 402 and 403 of a version 3 snapshot are not read, as 381 to 383 are not (§15).
 - Not a reading: a punch made while stopped is kept, unheard and unwritten, and is heard
   and written from the first step once play starts (the keys' row applies whether playing
   or not; "stopped, nothing" is what `heard` and the lane say).
