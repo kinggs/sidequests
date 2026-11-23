@@ -748,6 +748,35 @@ fn write_off_the_field_is_the_chosen_sound_s_steps_with_no_stitch_and_the_grid_i
     assert_eq!(V::of(&h).fires()[5], 1);
 }
 
+/// D82 item 2, "lit in both modes": whatever the pattern, its length and the chosen sound,
+/// write off lights exactly the field write on lights. A step past a short length too, as
+/// the write-on row has always shown it (§14 names the same steps in both rows).
+#[test]
+fn the_field_is_the_same_with_write_off_as_with_write_on() {
+    let mut h = patterned();
+    send(&mut h, &[cmd(CMD_LENGTH, 0, 0, 4)]);
+    assert_eq!(V::of(&h).field(), MINE, "step 6 lit past a length of 4");
+    let mut rng = 0x2545_f491u32;
+    for round in 0..400 {
+        rng ^= rng << 13;
+        rng ^= rng >> 17;
+        rng ^= rng << 5;
+        let (t, s) = ((rng & 15) as u8, (rng >> 4 & 15) as u8);
+        match rng >> 8 & 3 {
+            0 => send(&mut h, &[cmd(CMD_STEP, t, s, rng >> 12 & 1)]),
+            1 => send(&mut h, &[down(SOUND), down(t), up(t), up(SOUND)]),
+            2 => send(&mut h, &[cmd(CMD_LENGTH, 0, 0, 1 + s as u32)]),
+            _ => send(&mut h, &[]),
+        };
+        let off = V::of(&h);
+        send(&mut h, &[down(WRITE), up(WRITE)]);
+        let on = V::of(&h);
+        send(&mut h, &[down(WRITE), up(WRITE)]);
+        assert!(!off.write() && on.write());
+        assert_eq!(off.field(), on.field(), "round {round}: length {}, sound {}", off.length(), off.sel());
+    }
+}
+
 #[test]
 fn write_on_the_field_is_the_chosen_sound_s_steps_and_the_stitch_every_other_sound_s() {
     let mut h = patterned();
