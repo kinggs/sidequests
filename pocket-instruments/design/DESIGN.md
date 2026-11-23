@@ -2,7 +2,8 @@
 
 **Status:** chosen by the owner on 2026-11-19 (D36) from three directions drawn in Claude
 Design to `PROMPT.md`. The phone is built (`web/rhythm.html`, Session 12), and the Rack module
-(`rack/src/Rhythm.cpp`, Session 13), both without the animation. ⚠ marks a proposal the owner has not ruled on.
+(`rack/src/Rhythm.cpp`, Session 13), ~~both without the animation~~ and since Session 14 both weave,
+as a first attempt the owner has not yet watched (D84). ⚠ marks a proposal the owner has not ruled on.
 
 The idea in one line: a pattern is a cloth. The grid is a tight woven swatch, the dividers are
 stitches, the sliders are shuttles on a thread, and the display weaves as the pattern plays.
@@ -27,6 +28,15 @@ The owner's brief for it: dark, high contrast, easy to read with weak eyes.
 | `rack-face-unlit-200.png` | The same at 200%, to judge the lettering and the plates |
 | `rack-face-lit-100.png`, `rack-face-lit-200.png` | The same from a scratch build whose face was filled by hand (never shipped): playing on step 5 with write on, steps 1, 5, 7, 9, 11 and 13 lit, key 10 pressed, the stitch on key 3, the bar on key 1, fx latched (D78: its face lit like play and write), and each slider's second mark at 20000 and 50000. Taken again in Session 19 with effect 3 heard (the madder `fx 3` block above `write`) and the lane on steps 6, 7, 8 and 13 (four madder ticks over the step marks). Not taken again in Session 20: they show write on, which did not change |
 | `rack-face-writeoff-100.png`, `rack-face-writeoff-200.png` | The same kind of scratch build, taken in Session 20 for the owner to judge write off (D82): playing on step 5 with write off (no write mark, play lit), sound 1 chosen with steps 1, 5, 7, 9 and 13 lit in ecru and no stitch; key 5 white inside the ochre frame (a lit step firing on the playhead: it comes back lit when its half step is over), and key 3 white (another sound firing, on a key that is not lit). The whites are held on by hand for the picture |
+| `rack-weave-bare-200.png` | Session 14, the weave's first attempt (D84), from Rack's screenshot mode at 200%. No module runs there, so this is the real build with nothing played: the bare loom. The beater one cell wide at the left edge, five warp threads across, the shuttle resting at the top |
+| `rack-weave-step07-100.png`, `-200.png` | The same from a scratch build whose face was filled by hand (never shipped), as the three below. Step 7 of a first bar, write off, a kick on the beats and a hat between: one finished diamond and most of the second (two of four steps set: ochre round ecru), the beater two cells wide (one sound on this step), the shuttle half way down trailing its thread from the top. Keys 1, 5, 9 and 13 lit, the frame on 7 |
+| `rack-weave-step13-100.png`, `-200.png` | Step 13 of the same bar as two sounds fire together: three diamonds, the three newest columns of cloth white (rule 6's flash), the beater three cells wide, the shuttle just leaving the top |
+| `rack-weave-busy-100.png`, `-200.png` | The third bar of a busier pattern, write on, four sounds on this step: the cloth has scrolled, so three woven beats and the one on the loom. Diamonds for four, three and one step set (madder round ochre round ecru; the same a size smaller; a small ecru one), then half of the next meeting the beater at its widest, four cells; the shuttle on its way back up, its thread below it. ⚠ The half diamond's ochre runs into the ochre beater: one of the things to judge |
+| `rack-weave-stopped-200.png` | Stopped after seven steps: the cloth as it was left, the beater back to one cell, the shuttle at the top with no thread, `step --` |
+| `phone-weave-step13.png` | The phone page's display at three device pixels a CSS pixel (a headless browser, the view filled by hand): the same moment as `rack-weave-step13`, to compare the two hosts' painting of the same cells |
+
+The four `rack-face-*` pairs above were taken before the weave and show its area dark; they
+were not taken again.
 
 The `.html` files are pictures, not code to build from: open one in a browser. They are the
 Claude Design artboards with the canvas wrapper removed. They load the typeface from Google
@@ -163,7 +173,12 @@ effect (D66 item 3), and there is no picture of a machine and no spark (D81 item
   not change. Rack: 0.67 mm tall, 0.6 mm above the tallest mark. Phone: 4 px tall, 4 px above.
 - Neither moves, so reduced motion changes nothing (D81 item 4).
 
-### The animation ⚠ (proposed, not built)
+### The animation ⚠ (~~proposed, not built~~ built in Session 14 as a first attempt, D84; not accepted)
+
+**Where it stands (2026-11-23):** the seven rules below are drawn, once, in the core
+(`core/src/weave.rs`; `ENGINE.md` §16), and the page and the Rack display paint the same
+cells. The owner has not watched it move. Until they have, nothing below "How each rule is
+drawn" is settled, and no frame is kept as the picture to hold to.
 
 The subject is a cloth being woven. Flat colour on a 1 mm weave grid: no gradients.
 
@@ -184,12 +199,41 @@ the parts that would go.
 5. **The shuttle crosses once a step,** top to bottom on odd steps and back on even ones,
    trailing one pale thread.
 6. **When two or more sounds fire together** the three newest rows flash white for a
-   sixteenth of a step.
+   sixteenth of a step. (Built as a quarter of a step ⚠, D84 item 11: a sixteenth is 7.8 ms
+   at 120 bpm, less than one frame of a screen.)
 7. **Stopped,** the cloth holds still and the shuttle rests at the top.
 
 With reduced motion asked for, rule 6 is off and the shuttle jumps instead of travelling.
 
 `loom/frames.html` shows steps 1, 7 and 13.
+
+#### How each rule is drawn ⚠ (Session 14; every line is D84's, a first attempt)
+
+The weave's area is 78 by 15 cells of 1 mm. Left to right: the cloth, the beater at its
+edge, then the bare warp, which the shuttle crosses. Seven palette numbers: display (not
+painted), thread, ecru, white, ochre, tile, madder. Each host paints a cell as a flat square
+five sixths of its place, so every part reads as woven; `frames.html` has that grid on the
+cloth only, and thin warp lines a cell cannot draw.
+
+| Rule | Drawn as |
+|---|---|
+| 1, a diamond is a beat | A beat is 16 columns of tile-coloured cloth, 4 a step, with a diamond centred in it: up to 15 cells wide and tall, so a cell of plain cloth parts it from the next |
+| 2, the cloth grows to the right | Four beats show: three woven and the one on the loom. From the fifth beat the cloth jumps left a whole beat as each new beat starts, so the edge moves between a quarter and four quarters of the last place and never leaves the area |
+| 3, size is density | The diamond reaches 0, 2, 4, 6 or 7 cells from its middle for 0 to 4 of the beat's steps with any sound set: a single ecru stitch; a small ecru diamond; ochre round ecru; madder round both; the same to the full height. The beat on the loom is drawn from its steps so far, so it can grow as it is woven |
+| 4, the beater | An ochre bar the whole height at the cloth's edge: 1 cell with nothing fired on this step, 2 for one sound, 3 for two, 4 for three or more. Taps count |
+| 5, the shuttle | An ecru block 3 by 4 cells, its middle 7 cells right of the cloth's edge, crossing in one step: down on the first, third, fifth step since play, back up on the others, with a thread one cell wide behind it |
+| 6, the flash | The three columns of cloth next to the beater go white, the whole height, for a quarter of a step from the tick the step's sounds fire (so a swung step flashes late, with its sound) |
+| 7, stopped | Nothing reads the clock: the cloth as it was left, the beater 1 cell, the shuttle at the top with no thread. Before any play, a bare loom: beater, warp, shuttle |
+| Reduced motion | No flash. The shuttle is at the far side for the whole step with its thread the whole height, so it jumps once a step. On the page from `prefers-reduced-motion`; in Rack from the menu's "Display: reduced motion" |
+
+The warp is five thread-coloured rows from the cloth's edge to the right. Play starts a new
+cloth, and so does a reset while playing.
+
+**What it must stay clear of (R6, D20):** the original's display shows a sewing machine and
+thread spools. Nothing here is a machine, a needle or a spool: the parts are a loom's (warp,
+cloth, beater, shuttle), drawn as cells. ⚠ The shuttle is a block crossing bare warp with a
+thread behind it; whether that could be read as a needle and thread is for the owner's eye
+and then O7.
 
 ## The Rack panel
 
@@ -402,7 +446,20 @@ the function keys side by side.
   letters) while the sound goes through the effects. A tap sends `FXSOUND` and plays nothing
   (D60 item 4's "and plays the result" is the sample switch's; D69 is silent). On a 360 px
   screen the longest names wrap to two lines inside the 64 px row.
-- The animation is seven rules and three frames, not a running thing. Nobody has seen it move.
+- ~~The animation is seven rules and three frames, not a running thing. Nobody has seen it move.~~
+  ⚠ Since Session 14 it runs, on the page and in Rack, as a first attempt (D84, O19): seen
+  moving only by `make play`'s checks, and as still pictures (`rack-weave-*.png`,
+  `phone-weave-step13.png`). **The owner has not watched it.** Not done: the acceptance, and
+  the three views and their cells to keep as the picture to hold to (`PLAN.md`, Session 14's
+  fourth box). The drawing choices least sure, for the owner's eye: a diamond growing after
+  its first columns are woven (D84 item 8); the cloth jumping a whole beat (item 9); the
+  flash's quarter step (item 11); every cell a square with a gap, the beater and shuttle too
+  (item 14); the half diamond's ochre meeting the ochre beater (`rack-weave-busy-200.png`);
+  five warp threads where the picture has nine; on the phone the weave is 15 cells tall in a
+  place about 26 tall, so it sits with dark above and below it.
+- In Rack the weave is painted every frame Rack draws (about 1 170 small rectangles at
+  most, one path a colour); it is not in a framebuffer and its cost was not measured ⚠.
+  `pi_weave` itself is called only when the view changes.
 - Contrast is by arithmetic. Nobody has looked at it on a phone in daylight or in Rack at
   normal zoom.
 - O3 (the name) and O7 (a lawyer's view of the mock-up) are as open as they were.
