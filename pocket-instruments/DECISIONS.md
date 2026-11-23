@@ -813,6 +813,31 @@ stay on the four format 1 fixtures (neither has keys; Sessions 12 and 13 run for
 their own hosts), and `harness/race.cpp` hands a view between its threads as well as keys,
 which Session 10's list did not ask for and Session 13 will need.
 
+### D60 — A mouse latches by right-click, on the page and in Rack; the sheet plays what it sets
+**2026-11-23 · decided (owner: "a mouse-latching pattern of right-click latching", "I would prefer to have the same behaviour in Rack"; the sheet: "the key intent here is to be able to hear the sound you are configuring") · supersedes D57 item 4 · extends D57 item 8**
+
+1. **Left-click is a real hold, everywhere.** It works with the computer keys (hold sound
+   with the mouse, press `v`) and keeps the tempo preset to one click on bpm.
+2. **Right-click latches** sound, pattern, bpm, function and fx: held, its face lit in its
+   own colour, until a press of any key ends (the gesture is done: right-click sound, click
+   16) or it is right-clicked again. A slider move lets nothing go, so right-click bpm, set
+   swing and tempo, right-click bpm to finish (used, so no preset step). Play and write
+   ignore it: they stay on alone. A right-click on a grid key does nothing. Touch never
+   latches (D23).
+3. **Rack follows the same rule** (Session 13). ⚠ The cost there: a right-click on a Rack
+   control opens its parameter menu (R47), so the five function keys lose theirs. MIDI-Map
+   learns by a left-click on the control, which stays; mapping helpers that work from the
+   menu (stoermelder's CTX) would not reach those five. To try in Session 13, with
+   Ctrl+click (Cmd on a Mac) as the fallback latch if the menu is missed.
+4. **The sounds sheet** (D57 item 8): a row a sound. Its name plays it (`FIRE`, which
+   chooses nothing); its switch turns it to code or sample and plays the result, in one
+   message so the switch lands first. A name goes white when its sound fires, from the
+   view's counts.
+
+Why: one pointer cannot hold two keys, and D57 item 4's left-click latch took away the
+plain hold that a mouse and keyboard together can do. Right-click keeps both. Not chosen:
+D57 item 4 as written; a modifier-click on the page.
+
 ## Open
 
 | ID | Question | Needs |

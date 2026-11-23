@@ -265,8 +265,10 @@ the function keys side by side.
 - On the phone, readings the design did not settle (Session 12, ⚠): a slider is dragged
   from where its cap shows, so a touch alone moves nothing; the bar is ochre while pattern
   is held and madder otherwise; a key whose sound fires stays white with reduced motion
-  asked for, because it is a state and not movement; the sounds sheet lights a key that
-  plays its sample as a step is lit (ecru face, dark letters). Below 720 px tall the
+  asked for, because it is a state and not movement; the sounds sheet's switch is lit
+  as a step is lit (ecru face, dark letters) when it plays the sample, and a name goes white
+  when its sound fires. A right-click latch (D60) lights the whole face in the key's colour,
+  as `states.html`'s "latched". Below 720 px tall the
   function keys' words drop from 18 to 16 px to fit up the key.
 - The animation is seven rules and three frames, not a running thing. Nobody has seen it move.
 - Contrast is by arithmetic. Nobody has looked at it on a phone in daylight or in Rack at

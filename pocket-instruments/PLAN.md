@@ -114,6 +114,7 @@ Unticked in the finished lists. None blocks a build session.
 - [ ] Play `web/rhythm.html` on the phone (P8's start), and listen for a dropout while
       editing it as it plays: the last of P6 (`PROOFS.md`).
 - [ ] A look at Session 12's four ⚠ readings on the phone (`design/DESIGN.md`, "Not done").
+- [ ] Try D60 by mouse on the desktop: right-click sound, click a key; the sheet's names and switches.
 - [ ] A look at D59, Session 10's eight rulings.
 - [ ] Two readings Session 11 built on (⚠ in `ENGINE.md` §15): a loaded chosen sound past
       15 becomes 15; snapshot bytes 381 to 383 are not read.
@@ -186,8 +187,10 @@ Probe is its template and stays as it is.
       function keys idle, pressed, latched; slider caps that follow the shown value unless
       held; sockets; the plain display. JetBrains Mono ExtraBold in `res/`, with its
       licence (OFL).
-- [ ] The latch (D57 item 4) and the computer keys while the pointer is over the module
-      (item 5). ⚠ R25: whether Rack reports several keys held at once is found out here.
+- [ ] The latch, by D60 (right-click, as the page does; it supersedes D57 item 4), and the
+      computer keys while the pointer is over the module (D57 item 5). Check first whether
+      losing the parameter menu on the five function keys is acceptable (R47); if not,
+      Ctrl+click as D60 item 3 says, and ask. ⚠ R25: whether Rack reports several keys held at once is found out here.
 - [ ] The menu: each key's code or sample, All code, All samples.
 - [ ] **A self-test in Rack itself:** a patch that names a format 2 fixture makes the module
       press its own parameters (and send the fixture's `play` edit) and hold its events and
