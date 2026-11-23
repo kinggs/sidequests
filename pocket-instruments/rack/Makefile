@@ -2,6 +2,11 @@
 # Rack's user folder: P3's one step. The Rack SDK lives outside the repo (PLAN.md, Machine state).
 RACK_DIR ?= $(HOME)/.local/opt/Rack-SDK-2.6.6
 
+# The maths flags, shared with rack/test/jacks.cpp (math.mk says why). compile.mk appends
+# EXTRA_FLAGS after its own, so ours win.
+include math.mk
+EXTRA_FLAGS += $(OUR_MATH)
+
 # Which Rust target goes with the Rack target the SDK is about to pick (its arch.mk).
 include $(RACK_DIR)/arch.mk
 RUST_TARGET_lin-x64   := x86_64-unknown-linux-gnu
@@ -22,6 +27,8 @@ OBJECTS += $(PI_LIB)
 # D50: the starter pack ships inside the plugin, as the engine reads it (samples/raw/),
 # copied in at build time so the repo holds one copy.
 PACK := $(patsubst ../samples/raw/%,res/samples/%,$(wildcard ../samples/raw/*.s16)) res/samples/tracks.txt
+# The Rhythm module's panel (design/make_panel.py draws it) and its typeface with the licence.
+PACK += res/panel.svg res/fonts/JetBrainsMono-ExtraBold.ttf res/fonts/OFL.txt
 DISTRIBUTABLES += res
 
 include $(RACK_DIR)/plugin.mk
@@ -33,6 +40,12 @@ res/samples/%: ../samples/raw/%
 	cp $< $@
 res/samples/tracks.txt: ../samples/tracks.txt
 	@mkdir -p res/samples
+	cp $< $@
+res/panel.svg: ../design/panel.svg
+	@mkdir -p res
+	cp $< $@
+res/fonts/%: ../design/fonts/%
+	@mkdir -p res/fonts
 	cp $< $@
 
 # cargo decides for itself whether anything changed, so always ask it.
@@ -50,6 +63,14 @@ build/fixtures.inc: fixtures.jq $(wildcard ../fixtures/*.json)
 	for f in ../fixtures/*.json; do jq -r -f fixtures.jq "$$f" || exit 1; done > $@.tmp
 	mv $@.tmp $@
 build/src/Probe.cpp.o: build/fixtures.inc
+
+# The same for the Rhythm module's self-test: the format 2 fixtures, with their views.
+build/rhythm-fixtures.inc: rhythm.jq $(wildcard ../fixtures/*.json)
+	@mkdir -p build
+	@rm -f $@
+	for f in ../fixtures/*.json; do jq -r -f rhythm.jq "$$f" || exit 1; done > $@.tmp
+	mv $@.tmp $@
+build/src/Rhythm.cpp.o: build/rhythm-fixtures.inc
 
 # P3 ⚠ (PROOFS.md P1): the plugin must not need Rust's unwinder, and the core must be inside it.
 # On every target CI links (P5). Linux asks the dynamic table. A DLL has none to ask, but the

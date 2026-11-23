@@ -13,6 +13,8 @@ on:
       - pocket-instruments/core/**
       - pocket-instruments/fixtures/**
       - pocket-instruments/rack/**
+      - pocket-instruments/design/panel.svg
+      - pocket-instruments/design/fonts/**
       - pocket-instruments/Cargo.*
       - pocket-instruments/rust-toolchain.toml
       - pocket-instruments/mise.toml

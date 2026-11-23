@@ -7,6 +7,7 @@
 #
 #   - the archive holds the manifest and one plugin binary of the right kind;
 #   - and the starter pack (D50): res/samples/tracks.txt and the sixteen samples it names;
+#   - and the Rhythm module's panel, font and font licence (Session 13);
 #   - lin-x64: needs no glibc newer than 2.23 and nothing from the system's libstdc++;
 #   - win-x64: needs no DLL that neither Windows nor Rack's own folder provides;
 #   - mac-*: one architecture, the right one; libRack found where Rack puts it
@@ -42,6 +43,10 @@ list=$dir/res/samples/tracks.txt
 while read -r s; do
     [ -s "$dir/res/samples/$s.s16" ] || fail "no res/samples/$s.s16"
 done < "$list"
+# The Rhythm module's panel and its typeface, with the font's licence (OFL) beside it.
+for f in panel.svg fonts/JetBrainsMono-ExtraBold.ttf fonts/OFL.txt; do
+    [ -s "$dir/res/$f" ] || fail "no res/$f: the Rhythm module would draw no panel or no lettering"
+done
 
 case $platform in
 lin-x64)
