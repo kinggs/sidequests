@@ -47,6 +47,14 @@
 //     Ctrl+click fx again lets it go and sends nothing, and a click is then a plain press;
 //   - the sheet's "through fx" (D69): a tap sends FXSOUND 0 for that sound alone, the view
 //     says so and the switch goes dark; a second tap sends 1;
+//   - the weave (added in Session 14; ENGINE.md §16): in every phase, every drawing's cells,
+//     read back off the canvas by colour, are pi_weave's for the view they were drawn from
+//     (the checker's own instance of the .wasm), and the page painted if and only if the
+//     cells changed; played with two sounds a step, the shuttle travels (four or more
+//     drawings in one step) and a white flash is seen; with reduced motion asked for, no
+//     white is drawn and a step is one drawing; stopped, nothing is painted. With
+//     PI_REDUCED=1 the browsers are launched with reduced motion as their own setting, and
+//     nothing may flash or travel in any phase;
 //   - P6's browser half: the pattern entered by keys while it plays, the snapshot the page
 //     saved is byte for byte one the wasm host loaded and got straight-sixteenths' trace from
 //     (a "# straight-sixteenths ... snapshot <hex>" label in the Node report), and is what
@@ -95,12 +103,14 @@ const server = createServer((req, res) => {
 await new Promise((r) => server.listen(0, "127.0.0.1", r));
 const url = `http://127.0.0.1:${server.address().port}/web/rhythm.html?auto=1`;
 
+const REDUCED = !!process.env.PI_REDUCED; // the browser's own prefers-reduced-motion, on
 function launch(name, profile) {
   if (name === "chromium")
     return spawn("chromium", ["--headless=new", "--autoplay-policy=no-user-gesture-required", "--no-first-run", "--disable-gpu",
-      `--user-data-dir=${profile}`, url], { stdio: "ignore" });
+      ...(REDUCED ? ["--force-prefers-reduced-motion"] : []), `--user-data-dir=${profile}`, url], { stdio: "ignore" });
   writeFileSync(join(profile, "user.js"),
-    'user_pref("media.autoplay.default", 0);\nuser_pref("media.autoplay.blocking_policy", 0);\nuser_pref("datareporting.policy.dataSubmissionEnabled", false);\n');
+    'user_pref("media.autoplay.default", 0);\nuser_pref("media.autoplay.blocking_policy", 0);\nuser_pref("datareporting.policy.dataSubmissionEnabled", false);\n' +
+    (REDUCED ? 'user_pref("ui.prefersReducedMotion", 1);\n' : ""));
   return spawn("firefox", ["--headless", "--no-remote", "--profile", profile, url], { stdio: "ignore" });
 }
 
@@ -108,7 +118,7 @@ function judge(phases) {
   const bad = [];
   const p = Object.fromEntries(phases.map((r) => [r.phase, r]));
   for (const r of phases) for (const f of r.failed) bad.push(`phase ${r.phase}: ${f}`);
-  for (const name of ["1", "reload", "bpm", "latch", "keep", "punch", "written", "fxlatch"]) if (!p[name]) bad.push(`phase ${name} never reported`);
+  for (const name of ["1", "reload", "bpm", "latch", "keep", "punch", "written", "fxlatch", "still"]) if (!p[name]) bad.push(`phase ${name} never reported`);
   // Each phase reports under its own name: p.reload.reload, p.bpm.bpm. (A first draft read
   // p.bpm.last, and undefined equalled undefined: the bpm line passed with nothing checked.)
   const one = p["1"] || {}, reload = p.reload?.reload || {}, bpm = p.bpm?.bpm || {};
@@ -173,13 +183,28 @@ function judge(phases) {
       X.through?.pressed === "false" && X.through?.on === 0xffff && sent(X.through?.sentOn, ["24 3 0 1"]),
   };
   for (const [name, ok] of Object.entries(fxChecks)) if (!ok) bad.push(`${name}: ${JSON.stringify(X)}`);
+  // Session 14: the weave. Every drawing's cells held to pi_weave; then what moves.
+  const woven = phases.reduce((n, r) => n + (r.weave?.checked ?? 0), 0);
+  if (woven <= 50) bad.push(`only ${woven} drawings of the weave checked`);
+  for (const r of phases) for (const d of r.weave?.bad || []) bad.push(`phase ${r.phase}: the weave is not pi_weave's: ${d}`);
+  const S = p.still?.still || {}, prefers = phases.some((r) => r.weave?.prefers);
+  if (prefers !== REDUCED) bad.push(`the browser's prefers-reduced-motion is ${prefers}, and this run asked for ${REDUCED}`);
+  if (!(S.moving?.drawings > 20 && S.reduced?.drawings > 20)) bad.push(`the weave was not seen moving: ${JSON.stringify(S)}`);
+  else {
+    if (!prefers && !(S.moving.whites > 0)) bad.push(`two sounds a step and no white flash drawn: ${JSON.stringify(S.moving)}`);
+    if (!prefers && !(S.moving.travel >= 4)) bad.push(`the shuttle did not travel inside a step: ${JSON.stringify(S.moving)}`);
+    if (prefers && !(S.moving.whites === 0 && S.moving.travel === 1)) bad.push(`the browser asks for reduced motion and the weave moved: ${JSON.stringify(S.moving)}`);
+    if (S.reduced.whites !== 0) bad.push(`reduced motion drew white rows: ${JSON.stringify(S.reduced)}`);
+    if (S.reduced.travel !== 1) bad.push(`reduced motion and the weave moved inside a step: ${JSON.stringify(S.reduced)}`);
+    if (S.stoppedPaints !== 0) bad.push(`stopped, the weave was painted ${S.stoppedPaints} times`);
+  }
   const p6 = one.p6 || {};
   const label = p6.hex && new RegExp(`^# straight-sixteenths .* snapshot ${p6.hex}$`, "m").test(report);
   if (!p6.playing) bad.push("P6: it was not playing while the keys went in");
   if (!label) bad.push(`P6: the page's snapshot is not one the wasm host ran straight-sixteenths from: ${p6.hex}`);
   if (p6.stored !== p6.hex) bad.push("P6: what the browser kept is not the snapshot the page was sent");
   const whites = phases.reduce((n, r) => n + (r.white ? 1 : 0), 0);
-  return { bad, drawn, p6, pw, whites };
+  return { bad, drawn, p6, pw, whites, woven, S };
 }
 
 let ran = 0, failed = 0;
@@ -198,14 +223,16 @@ for (const name of browsers) {
   child.kill();
   await new Promise((r) => setTimeout(r, 500));
   rmSync(profile, { recursive: true, force: true });
-  const { bad, drawn, p6, pw, whites } = judge(results);
+  const { bad, drawn, p6, pw, whites, woven, S } = judge(results);
   if (!ok) bad.unshift("the page did not finish within two minutes");
   if (bad.length) failed++;
   if (process.env.PI_DEBUG) console.log(JSON.stringify(results.map((r) => ({ ...r, trace: undefined })), null, 1));
   const one = results.find((r) => r.phase === "1");
   console.log(`play ${name} at ${one?.rate} Hz: ${bad.length ? "FAILED" : "passed"}; ${results.length} phases, ${drawn} drawings checked; ` +
     `P6: ${p6.hex ? "snapshot " + p6.hex.slice(32, 48) + "…" : "no snapshot"}, audio ${p6.behindMs} ms behind the page's clock over ${p6.seconds} s; ` +
-    `whites held to §14 in ${whites} phases; write off, a lit key white ${pw.lit ?? 0} times and lit again ${pw.back ?? 0}`);
+    `whites held to §14 in ${whites} phases; write off, a lit key white ${pw.lit ?? 0} times and lit again ${pw.back ?? 0}; ` +
+    `the weave held to pi_weave in ${woven} drawings${REDUCED ? " (the browser asking for reduced motion)" : ""}: moving, ${S.moving?.whites} with a flash and ${S.moving?.travel} drawings in a step; ` +
+    `reduced, ${S.reduced?.whites} and ${S.reduced?.travel}; stopped, ${S.stoppedPaints} paints`);
   for (const b of bad) console.log(`  ${b}`);
 }
 server.close();

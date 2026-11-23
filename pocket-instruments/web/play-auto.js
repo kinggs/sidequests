@@ -18,6 +18,11 @@
 //   written keeps-what-it-was-written-with (format 4) by touch: its views.
 //   fxlatch D78 by a mouse, fx + key by the computer keys, and the sounds sheet's "through
 //           fx" switch (D69); each gesture held to the commands it sent.
+//   still   the weave (Session 14, ENGINE.md §16): two sounds a step played as it is, then
+//           with reduced motion asked for, then stopped.
+// And in every phase, every drawing's weave: the cells read back off the canvas by their
+// colour and held to pi_weave for the view they were drawn from, from this file's own
+// instance of the .wasm.
 //
 // SPDX-License-Identifier: MIT
 const r = window.rhythm;
@@ -37,6 +42,59 @@ function viewText(v, format = 2) {
     `sampled=${h4(u16(v, 18))} a=${u16(v, 20)} b=${u16(v, 22)} fires=${[...v.slice(32, 48)].join(",")}` +
     (format >= 3 ? ` fx=${v[55]} fxsteps=${h4(u16(v, 56))} fxsounds=${h4(u16(v, 58))}` : "") +
     (format >= 4 ? ` ea=${u16(v, 60)} eb=${u16(v, 62)}` : "");
+}
+
+// The weave (ENGINE.md §16). Every drawing's canvas is read back, a pixel a cell, turned to
+// palette numbers by colour (design/DESIGN.md's tokens, written out here), and held to
+// pi_weave for the view it was drawn from, called in this file's own instance of the .wasm.
+// It shares nothing with the page's weave() but the core. Reduced motion is the browser's
+// setting, or a phase asks for it (`askStill`, with the page's rhythm.reduced).
+// It also holds "painted only when the cells change": from one drawing to the next the page
+// painted if and only if the cells, or the canvas's size, changed.
+// `travel`: the most different drawings seen for one step of the cloth with the same sounds
+// fired (the shuttle travelling); `whites`: drawings with a white cell (rule 6's flash).
+const WEAVE_W = 78, WEAVE_H = 15, CELLS = WEAVE_W * WEAVE_H;
+const TOKENS = { "110,106,146": 1, "242,232,208": 2, "255,255,255": 3, "240,180,41": 4, "43,41,66": 5, "240,101,74": 6 };
+const mine = (await WebAssembly.instantiate(await (await fetch("pi_core.wasm")).arrayBuffer(), {})).instance.exports;
+const mineBase = mine.memory.grow(1) * 65536;
+function weaveOf(v, flags) {
+  const mem = new Uint8Array(mine.memory.buffer);
+  mem.set(v, mineBase);
+  if (mine.pi_weave(mineBase, 64, flags, mineBase + 64, CELLS) !== CELLS) throw new Error("pi_weave wrote nothing");
+  return mem.slice(mineBase + 64, mineBase + 64 + CELLS);
+}
+const prefers = matchMedia("(prefers-reduced-motion: reduce)").matches;
+let askStill = false;
+const tally = () => ({ drawings: 0, whites: 0, travel: 0, steps: new Map() });
+let seen = tally();
+out.weave = { checked: 0, bad: [], prefers };
+let lastWant = null, lastWidth = 0, lastPaints = 0;
+function cloth(v) {
+  const c = r.cloth, w = out.weave;
+  const fail = (s) => { if (w.bad.length < 5) w.bad.push(`${s} (woven ${u32(v, 48)}, wove ${u16(v, 52).toString(16)}, fired ${v[54]}, tick ${u32(v, 0)}; ${viewText(v, 4)})`); };
+  if (c.hidden || !c.width || !c.height) return fail("the weave is not shown");
+  const want = weaveOf(v, prefers || askStill ? 1 : 0);
+  const cw = c.width / WEAVE_W, px = c.getContext("2d").getImageData(0, 0, c.width, c.height).data;
+  const got = new Uint8Array(CELLS);
+  for (let i = 0; i < CELLS; i++) {
+    const x = Math.floor((i % WEAVE_W + 0.4) * cw), y = Math.floor((Math.floor(i / WEAVE_W) + 0.4) * cw);
+    const o = 4 * (y * c.width + x);
+    got[i] = y >= c.height ? 98 : px[o + 3] === 0 ? 0 : TOKENS[`${px[o]},${px[o + 1]},${px[o + 2]}`] ?? 99;
+  }
+  w.checked++;
+  const at = got.findIndex((g, i) => g !== want[i]);
+  if (at >= 0) fail(`cell ${at % WEAVE_W},${Math.floor(at / WEAVE_W)} is painted ${got[at]} and pi_weave says ${want[at]}; ${got.filter((g, i) => g !== want[i]).length} cells differ`);
+  // Painted if and only if something changed since the drawing before.
+  const changed = !lastWant || c.width !== lastWidth || want.some((x, i) => x !== lastWant[i]);
+  if (lastWant && changed !== (r.paints !== lastPaints)) fail(changed ? "the cells changed and the page did not paint" : "the page painted and no cell had changed");
+  lastWant = want; lastWidth = c.width; lastPaints = r.paints;
+  seen.drawings++;
+  if (got.includes(3)) seen.whites++;
+  if (v[24] & 1 && v[24] & 8) {
+    const key = `${u32(v, 48)} ${v[54]}`, set = seen.steps.get(key) || new Set();
+    seen.steps.set(key, set.add(got.join("")));
+    seen.travel = Math.max(seen.travel, set.size);
+  }
 }
 
 // Where a slider's cap sits for a value, from the track's height (design/DESIGN.md: the cap
@@ -93,6 +151,7 @@ r.afterDraw = (v) => {
   const bad = Object.keys(want).filter((k) => (typeof want[k] === "number" && k.includes(" ") ? Math.abs(want[k] - got[k]) > 0.01 : want[k] !== got[k]));
   if (bad.length && out.drawn.bad.length < 5) out.drawn.bad.push(`${bad.map((k) => `${k} drawn ${got[k]}, view ${want[k]}`).join("; ")} (${viewText(v, 4)})`);
   white(v);
+  cloth(v);
 };
 
 // Session 20 (D82 item 4): the white, read off the face by its colour. ENGINE.md §14: a key
@@ -592,8 +651,38 @@ async function phaseFxLatch() {
   r.onPost = null;
 }
 
+// The weave moving (ENGINE.md §16; design/DESIGN.md, "The animation"). Two sounds on every
+// step, played: the shuttle travels (several drawings a step) and the newest rows flash white.
+// Then with reduced motion asked for: no white, and one drawing a step. Then stopped: nothing
+// is painted. What each drawing shows is held to pi_weave by cloth(), as in every phase.
+async function phaseStill() {
+  await r.ready;
+  await r.ctx.resume();
+  const S = (out.still = {});
+  const take = () => { const t = seen; seen = tally(); return { drawings: t.drawings, whites: t.whites, travel: t.travel }; };
+  r.send(...Array.from({ length: 16 }, (_, s) => [16, 0, s, 1]), ...Array.from({ length: 16 }, (_, s) => [16, 1, s, 1]));
+  await settle();
+  take();
+  tap(r.fkeys[5], pid++);
+  await settle((v) => v[24] & 1 && u32(v, 48) >= 20, "twenty steps woven", 15000);
+  S.moving = take();
+  askStill = true;
+  r.reduced = () => true;
+  await settle((v) => u32(v, 48) >= 22, "the page asked for reduced motion", 15000);
+  take(); // the step the change fell in
+  await settle((v) => u32(v, 48) >= 42, "twenty more steps woven", 15000);
+  S.reduced = take();
+  tap(r.fkeys[5], pid++);
+  await settle((v) => !(v[24] & 1), "stopped");
+  await frames2();
+  await sleep(100);
+  const paints = r.paints;
+  await sleep(600);
+  S.stoppedPaints = r.paints - paints;
+}
+
 const PHASES = { 1: [phase1, "reload"], reload: [phaseReload, "bpm"], bpm: [phaseBpm, "latch"], latch: [phaseLatch, "keep"],
-  keep: [phaseKeep, "punch"], punch: [phasePunch, "written"], written: [phaseWritten, "fxlatch"], fxlatch: [phaseFxLatch, null] };
+  keep: [phaseKeep, "punch"], punch: [phasePunch, "written"], written: [phaseWritten, "fxlatch"], fxlatch: [phaseFxLatch, "still"], still: [phaseStill, null] };
 const [run, then] = PHASES[phase] || [async () => { throw new Error(`no phase ${phase}`); }, null];
 try {
   await run();

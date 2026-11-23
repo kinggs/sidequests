@@ -10,7 +10,9 @@
      The page keeps no copy of the workflow: it sends what a finger did (KEY_DOWN, KEY_UP,
      PARAM; ENGINE.md §13) and draws the view the core posts back (§14). A touch never latches:
      a phone has real multi-touch (D23). Ctrl+click (Cmd+click on a Mac) latches (D60, D61; fx by D78). The display says
-     the effect heard and the lane (D81). ?auto runs its own checks (web/play.mjs).
+     the effect heard and the lane (D81), and weaves as the pattern plays: the cells are the
+     core's (pi_weave, ENGINE.md §16; a first attempt, D84) and the page only paints them.
+     ?auto runs its own checks (web/play.mjs).
      SPDX-License-Identifier: MIT -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -36,10 +38,13 @@
           display: flex; flex-direction: column; gap: 12px;
           user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 
-  /* The display: the weave's area (bare until Session 14) over the step marks; the readouts. */
+  /* The display: the weave over the step marks; the readouts. The weave is a canvas the size
+     of the core's cells (78 by 15), painted only when they change. */
   .display { height: 124px; flex: none; background: var(--display); border: 2px solid var(--ecru); padding: 8px 10px; display: flex; gap: 12px; }
   .display .left { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
-  .weave { flex: 1; display: flex; align-items: center; color: var(--lilac); font-size: 16px; }
+  .weave { flex: 1; min-height: 0; display: flex; align-items: center; color: var(--lilac); font-size: 16px; }
+  .weave canvas { display: block; }
+  .weave canvas[hidden] { display: none; }
   .marks, .lane { display: grid; grid-template-columns: repeat(16, minmax(0, 1fr)); gap: 4px; height: 16px; flex: none; }
   /* D81 item 2: the lane (the view's bytes 56 and 57), a small madder tick above the mark of
      each step that holds an effect, on one line clear of the tallest mark. ⚠ A stand-in. */
@@ -134,7 +139,7 @@
   <div class="body" id="body">
     <div class="display" aria-live="off">
       <div class="left">
-        <div class="weave" id="weave">touch a key to start</div>
+        <div class="weave" id="weave"><span id="hint">touch a key to start</span><canvas id="cloth" hidden role="img" aria-label="A cloth being woven as the pattern plays"></canvas></div>
         <div class="lane" id="lane" aria-hidden="true"></div>
         <div class="marks" id="marks" aria-hidden="true"></div>
       </div>
@@ -302,6 +307,7 @@ function kept() {
 
 async function start() {
   const [wasm, pack] = await Promise.all([fetch("pi_core.wasm").then((r) => r.arrayBuffer()), samples()]);
+  loom = await weaver(wasm);
   await ctx.audioWorklet.addModule("worklet.js");
   const snapshot = kept();
   node = new AudioWorkletNode(ctx, "pi-engine", {
@@ -484,6 +490,69 @@ sounds.forEach((row, t) => row.fx.addEventListener("click", () => {
 $("allCode").addEventListener("click", () => send(...NAMES.map((_, t) => [CMD.voice, t, 0, 0])));
 $("allSample").addEventListener("click", () => send(...NAMES.map((_, t) => [CMD.voice, t, 0, 1])));
 
+// --- The weave (ENGINE.md §16): the core's cells for a view, painted and nothing more. ---
+// pi_weave is a pure function of a view, so the page calls it in its own instance of the same
+// .wasm the worklet runs; no engine is made here. Which cells are lit, and why, is the core's
+// (core/src/weave.rs): this holds a palette and a square.
+const WEAVE_W = 78, WEAVE_H = 15, CELLS = WEAVE_W * WEAVE_H;
+// pi_engine.h's PI_WEAVE_*: design/DESIGN.md's tokens by number. 0, the display, is not painted.
+const PALETTE = [null, "--thread", "--ecru", "--white", "--ochre", "--tile", "--madder"]
+  .map((name) => name && getComputedStyle(document.documentElement).getPropertyValue(name).trim());
+let loom = null;
+async function weaver(wasm) {
+  const { instance } = await WebAssembly.instantiate(wasm, {});
+  const pi = instance.exports, base = pi.memory.grow(1) * 65536; // the host's own page (§8)
+  return (view, flags) => {
+    const mem = new Uint8Array(pi.memory.buffer);
+    mem.set(view, base);
+    if (pi.pi_weave(base, 64, flags, base + 64, CELLS) !== CELLS) throw new Error("pi_weave wrote nothing");
+    return mem.subarray(base + 64, base + 64 + CELLS);
+  };
+}
+// design/DESIGN.md: with reduced motion asked for, the core is told (the shuttle jumps and
+// nothing flashes). Read each time, and a change redraws.
+const still = matchMedia("(prefers-reduced-motion: reduce)");
+still.addEventListener("change", () => schedule());
+const cloth = $("cloth"), pen = cloth.getContext("2d");
+const painted = new Uint8Array(CELLS).fill(255); // the cells on the canvas now
+let clothW = 0;
+// The canvas is as wide as its place, in the screen's own pixels, and 15 cells of that tall.
+function fit() {
+  const w = Math.round($("weave").clientWidth * devicePixelRatio);
+  if (!w || w === clothW) return false;
+  clothW = w;
+  cloth.width = w;
+  cloth.height = Math.round((w * WEAVE_H) / WEAVE_W);
+  cloth.style.width = `${w / devicePixelRatio}px`;
+  cloth.style.height = `${cloth.height / devicePixelRatio}px`;
+  return true;
+}
+// A cell is a flat square five sixths of its place, so the whole display reads as woven
+// (design/DESIGN.md, "The animation": flat colour on a 1 mm weave grid).
+function paint(cells) {
+  const cw = cloth.width / WEAVE_W, gap = cw >= 4 ? Math.max(1, Math.round(cw / 6)) : 0;
+  pen.clearRect(0, 0, cloth.width, cloth.height);
+  for (let c = 1; c < PALETTE.length; c++) {
+    pen.fillStyle = PALETTE[c];
+    for (let i = 0; i < CELLS; i++) {
+      if (cells[i] !== c) continue;
+      const x = Math.round((i % WEAVE_W) * cw), y = Math.round(Math.floor(i / WEAVE_W) * cw);
+      pen.fillRect(x, y, Math.round((i % WEAVE_W + 1) * cw) - x - gap, Math.round((Math.floor(i / WEAVE_W) + 1) * cw) - y - gap);
+    }
+  }
+  painted.set(cells);
+  rhythm.paints++;
+}
+// Painted only when the cells change (or the canvas was resized, which clears it).
+function weave(v) {
+  if (!loom) return;
+  $("hint").hidden = true;
+  cloth.hidden = false;
+  const resized = fit();
+  const cells = loom(v, rhythm.reduced() ? 1 : 0);
+  if (resized || cells.some((c, i) => c !== painted[i])) paint(cells);
+}
+
 // --- Drawing: from the latest view only (§14, "What a host does with it"). ---
 const u16 = (v, i) => v[i] | (v[i + 1] << 8);
 const u32 = (v, i) => (v[i] | (v[i + 1] << 8) | (v[i + 2] << 16) | (v[i + 3] << 24)) >>> 0;
@@ -538,7 +607,7 @@ function draw() {
   $("write").hidden = !(flags & 2);
   $("fxmark").hidden = !heard;
   $("fxmark").textContent = heard ? `fx ${heard}` : "fx";
-  $("weave").textContent = "";
+  weave(v);
   // §20: after a load, the hand is what was loaded; until the first view, likewise.
   if (latest.taken >= reseatAt) { hand.fill(null); reseatAt = Infinity; }
   for (const which of [0, 1]) {
@@ -567,6 +636,8 @@ schedule();
 // What the checks reach (web/play.mjs). The page itself uses none of it.
 const rhythm = {
   ctx, keys, fkeys, ticks, sliders, sounds, latched, latest, listeners, slide, send, drawn: null, afterDraw: null, onPost: null,
+  cloth, paints: 0,                    // the weave's canvas, and how often it has been painted
+  reduced: () => still.matches,        // a check may ask for reduced motion without the browser's setting
   get sent() { return sent; },
   post: (msg) => post(msg, msg.load || msg.mark ? 1 : 0),
   ready: null,
