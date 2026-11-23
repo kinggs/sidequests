@@ -154,6 +154,9 @@ struct Rhythm : Module {
     // ---- Shared between threads: atomics, and the handoff.hpp schemes. ----
     std::atomic<int> fixtureWanted{-1};  // -1: the instrument; otherwise the self-test's fixture
     std::atomic<int32_t> returnChosen{-1}; // D62 item 3: -1 "As the cable carries", else a mask
+    // §16 (D84): the menu's "Reduced motion" for the display's weave: the shuttle jumps and
+    // nothing flashes. Rack has no setting of its own to follow, as a browser has. In the patch.
+    std::atomic<bool> stillWeave{false};
     std::atomic<int32_t> aChosen{-1}, bChosen{-1}; // the same for A IN and B IN (D76 item 4)
     std::atomic<int32_t> fxChosen{-1};   // D68 item 2: -1 the effects the core has no sound for, else a mask
     std::atomic<int> loopWanted{LOOP_NONE}; // a loop self-test (selftest.sh), or none
@@ -941,6 +944,7 @@ struct Rhythm : Module {
         json_object_set_new(root, "a", json_integer(aChosen.load()));
         json_object_set_new(root, "b", json_integer(bChosen.load()));
         json_object_set_new(root, "fx", json_integer(fxChosen.load()));
+        if (stillWeave.load()) json_object_set_new(root, "reducedMotion", json_true());
         int lp = loopWanted.load();
         if (lp > LOOP_NONE && lp <= LOOP_LATCH) json_object_set_new(root, "loop", json_string(LOOP_NAMES[lp]));
         int fx = fixtureWanted.load();
@@ -949,6 +953,7 @@ struct Rhythm : Module {
     }
 
     void dataFromJson(json_t *root) override {
+        stillWeave = json_is_true(json_object_get(root, "reducedMotion"));
         if (json_t *j = json_object_get(root, "return")) returnChosen = int32_t(clamp(int(json_integer_value(j)), -1, 0xffff));
         if (json_t *j = json_object_get(root, "a")) aChosen = int32_t(clamp(int(json_integer_value(j)), -1, 0xffff));
         if (json_t *j = json_object_get(root, "b")) bChosen = int32_t(clamp(int(json_integer_value(j)), -1, 0xffff));
@@ -1211,13 +1216,45 @@ struct RhythmPort : app::PortWidget {
     }
 };
 
-// The plain display (D53): the tempo, bpm, the write mark, the step number and the sixteen step
-// marks; and since Session 19 (D81) the effect heard and the lane, from the same bytes the page
-// draws them from. The weave's area is left dark for Session 14. In a self-test it says how it
-// is going.
+// The display (D53): the tempo, bpm, the write mark, the step number and the sixteen step
+// marks; since Session 19 (D81) the effect heard and the lane, from the same bytes the page
+// draws them from; and since Session 14 the weave: the core's cells for the view (pi_weave,
+// ENGINE.md §16; a first attempt, D84), painted and nothing more. Which cells are lit is the
+// core's (core/src/weave.rs); this holds a palette and a square, as the page does. pi_weave
+// takes no engine, so this thread may call it (§8). In a self-test the weave's area says how
+// the test is going instead.
 struct RhythmDisplay : widget::Widget {
     Rhythm *rm = nullptr;
     const Face *face = nullptr;
+    uint8_t wove[PI_VIEW_SIZE] = {}; // the view the cells below were woven from
+    uint32_t woveFlags = ~0u;
+    uint8_t cells[PI_WEAVE_CELLS] = {};
+
+    // The cells, 1 mm each from the area's top left, each a flat square five sixths of its
+    // place (design/DESIGN.md, "The animation"). One path a colour. Woven again only when the
+    // view or the menu's choice has changed; Rack draws every frame whatever we do.
+    void drawWeave(NVGcontext *vg, float x0, float y0, float areaW) {
+        const NVGcolor palette[PI_WEAVE_COLOURS] = {DISPLAY, THREAD, ECRU, WHITE, OCHRE, TILE, MADDER};
+        uint32_t flags = rm && rm->stillWeave.load() ? PI_WEAVE_REDUCED : 0;
+        if (flags != woveFlags || std::memcmp(wove, face->v, PI_VIEW_SIZE) != 0) {
+            if (pi_weave(face->v, PI_VIEW_SIZE, flags, cells, sizeof cells) != PI_WEAVE_CELLS) return;
+            std::memcpy(wove, face->v, PI_VIEW_SIZE);
+            woveFlags = flags;
+        }
+        float cell = areaW / PI_WEAVE_W, side = cell * 5.f / 6.f;
+        for (uint32_t c = 1; c < PI_WEAVE_COLOURS; c++) {
+            bool any = false;
+            nvgBeginPath(vg);
+            for (uint32_t i = 0; i < PI_WEAVE_CELLS; i++)
+                if (cells[i] == c) {
+                    nvgRect(vg, x0 + (i % PI_WEAVE_W) * cell, y0 + (i / PI_WEAVE_W) * cell, side, side);
+                    any = true;
+                }
+            if (!any) continue;
+            nvgFillColor(vg, palette[c]);
+            nvgFill(vg);
+        }
+    }
 
     void draw(const DrawArgs &args) override {
         NVGcontext *vg = args.vg;
@@ -1265,8 +1302,10 @@ struct RhythmDisplay : widget::Widget {
             std::snprintf(s, sizeof s, "fx %u", unsigned(v[PI_VIEW_HEARD]));
             text(vg, rx - right + bw / 2, fxLow, 2.67f, GROUND, NVG_ALIGN_CENTER | NVG_ALIGN_BASELINE, s);
         }
-        // A self-test: its name and its count where the weave will be, and a light.
+        // A self-test: its name and its count where the weave is, and a light. Otherwise the weave.
         int fx = rm ? rm->fixtureWanted.load() : -1;
+        // (With no view yet, or in Rack's module browser, the view is all zeros: a bare loom.)
+        if (face && !(rm && fx >= 0)) drawWeave(vg, px, py, leftW);
         if (rm && fx >= 0 && fx < int(FIXTURES.size())) {
             bool bad = rm->failed.load() != 0, good = !bad && rm->passed.load() != 0;
             fillRect(vg, px, py, mm2px(3.f), mm2px(3.f), bad ? MADDER : good ? nvgRGB(0x4C, 0xC2, 0x6E) : THREAD);
@@ -1402,6 +1441,9 @@ struct RhythmWidget : ModuleWidget {
                                                       }));
             }));
         }));
+        // §16 (D84): the display's weave with reduced motion: the shuttle jumps, nothing flashes.
+        menu->addChild(createCheckMenuItem("Display: reduced motion", "", [=]() { return m->stillWeave.load(); },
+                                           [=]() { m->stillWeave = !m->stillWeave.load(); }));
         // D62 item 3: which sounds RETURN replaces; and the same for A IN and B IN (D76 item 4).
         auto channelsMenu = [=](const char *name, const char *what, int input, std::atomic<int32_t> Rhythm::*chosen) {
             menu->addChild(createSubmenuItem(name, "", [=](Menu *sub) {
