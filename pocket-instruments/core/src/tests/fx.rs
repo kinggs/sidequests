@@ -550,3 +550,12 @@ fn the_generation_moves_exactly_when_the_snapshot_does_over_20_000_presses_with_
     }
     assert!(moved > 500 && still > 500 && by_time > 100, "{moved} moved, {still} did not, {by_time} by arriving steps");
 }
+
+#[test]
+fn a_sound_outside_the_effects_stays_swung_through_a_run() {
+    // Swing 24; track 1 out of the effects, on step 1; effect 11 on step 1. Its own step plays
+    // at 120, as without the run (planting "not swung during a run" was first caught only by
+    // fx-repeat-swing; LEARNINGS.md, Session 10: a fixture should not hold a rule alone).
+    let (_, ev) = from_zero(&[cmd(CMD_SWING, 0, 0, 24), on(1, 1), fxsound(1, 0), on(0, 1), fx(1, 11)], 2 * STEP - 2);
+    assert_eq!(trigs(&ev), [(96, 0, 1), (120, 1, 1), (144, 0, 1)]);
+}
