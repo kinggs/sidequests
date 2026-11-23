@@ -1418,6 +1418,31 @@ Why now and not with the owner: the owner asked for as much as can be built with
 (D79). Everything here is drawing in the two hosts; the core does not change, so a
 different look later costs a few lines in each.
 
+### D82 — Session 19 verified; the grid with write off, exactly, for Session 20
+**2026-11-23 · decided (Fable; the owner is away and can overrule: D79) · completes D71 and D72 item 3**
+
+Session 19 verified first: the repo's `make verify` re-run by this session (204 Rust
+tests, 300 harness runs, none failed); CI run 45205345348 green on all four platforms; the
+display looked at in `design/rack-face-lit-200.png`: the `fx 3` block above the write mark
+and four ticks over the step marks.
+
+1. **A mistake of D81's, left as built for the owner's eye.** D81 called madder "the fx
+   key's own colour". It is the sound key's; the fx key's band is ecru. The block and the
+   ticks were built madder, as D81 said twice. They stay madder until the owner looks:
+   they read clearly against the ochre write mark, and an ecru block would look like a
+   lit key. Session 19's other four readings stand as built.
+2. **With write off, the grid's row in `ENGINE.md` §14 becomes:** field, the chosen
+   sound's steps; stitch, none; bar, none; the grid is still sounds. So the chosen sound's
+   steps are lit in both modes (the owner's PO-12, D71), every key still goes white as its
+   own sound fires, and the frame still marks the playhead (D72 item 3).
+3. **Why no stitches with write off:** the hardware shows only the chosen sound's steps;
+   the stitch is ours, for seeing the other sounds' steps while editing, and with write
+   off each sound already shows itself by going white as it fires. Three kinds of light
+   on a grid nobody is editing is one too many.
+4. **A field key that fires goes white** for its half step and comes back lit, as any key
+   does: the host's rule for white already says so.
+5. The other rows (bpm, sound, pattern held; write on) do not change.
+
 ## Open
 
 | ID | Question | Needs |

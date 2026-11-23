@@ -336,13 +336,17 @@ tuned by ear and before the delay is designed. It needs no build to have happene
       on 9 at all. Decide from the recording what a repeat should hold when the step is
       empty (the last step that had a hit is the obvious candidate).
 
-## Session 20 — the grid's lights, as the hardware has them (D71; decided, D72)
+## Session 20 — the grid's lights, as the hardware has them (build, Opus; D71, D72, D82)
 
-Small, and before the weave if the owner says yes: the weave's rules read the same view.
+Small, and before the weave: the weave's rules read the same view. Every fixture with a
+view taken while write is off changes in its `field`; check all of them, not only the
+three key fixtures.
 
 - [x] D71's open point, answered by the owner's PO-12: every sound's key flashes as it
       fires and the playhead's as it passes. So the field becomes the chosen sound's steps
       in both modes, and the white and the frame stay (D72 item 3).
+- [ ] The write-off row is D82 items 2 to 4: field, the chosen sound's steps; no stitch; no
+      bar; the grid still sounds.
 - [ ] `ENGINE.md` §14's table changed first; the three key fixtures' views worked again by
       hand from it and their change explained in `fixtures/README.md` (a trace is not
       edited to pass a build; a view changed by a decision is).
