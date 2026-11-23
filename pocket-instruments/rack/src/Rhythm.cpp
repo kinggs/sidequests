@@ -16,9 +16,11 @@
 // pattern, bpm, function or fx until the next press of any key ends, or a second Ctrl+click
 // (D60, D61). Right-click keeps Rack's own parameter menu (R47). The computer keys of D57 item 5
 // play while the pointer is over the module. A double-click on a slider puts it back where it
-// started, from the view (D63).
+// started, from the view (D63). The sliders are the hand's (ENGINE.md §20, D75): a cap moves
+// by itself only while bpm is held or after a load, and a thin second mark on each slider
+// shows what the chosen sound was last hit with (the view's bytes 60 to 63).
 //
-// The self-test (PLAN.md, Session 13): a patch whose module data names a format 2 fixture makes
+// The self-test (PLAN.md, Session 13): a patch whose module data names a format 2 or 4 fixture makes
 // the module press its own parameters and send the fixture's edits, and hold its events and
 // views to the fixture, pass after pass, as the Probe does with format 1. rack/selftest.sh.
 //
@@ -58,7 +60,7 @@ struct FixView {
 };
 struct RhythmFixture {
     const char *name;
-    uint32_t seed, mbpm, steps;
+    uint32_t format, seed, mbpm, steps;
     std::vector<FixCmd> cmds;
     std::vector<pi_event> expect;
     std::vector<FixView> views;
@@ -84,8 +86,9 @@ uint32_t u32(const uint8_t *v, unsigned i) {
 }
 
 // ENGINE.md §14's text line for a view, the edges flag written as 0 (the fixtures' table text);
-// the caller checks the flag itself. The same line as harness/fixture.hpp's view_text.
-void viewText(const uint8_t *b, char *out, size_t cap) {
+// the caller checks the flag itself. The same line as harness/fixture.hpp's view_text: for a
+// format 4 fixture (§20) with §17's three fields and §20's two on its end.
+void viewText(const uint8_t *b, char *out, size_t cap, uint32_t format = 2) {
     unsigned flags = b[PI_VIEW_FLAGS];
     char step[4] = "-";
     if (flags & PI_VIEW_FLAG_STEP) std::snprintf(step, sizeof step, "%u", unsigned(b[PI_VIEW_STEP]));
@@ -98,6 +101,10 @@ void viewText(const uint8_t *b, char *out, size_t cap) {
                           unsigned(u16(b, PI_VIEW_BAR)), unsigned(u16(b, PI_VIEW_SAMPLED)), unsigned(u16(b, PI_VIEW_A)), unsigned(u16(b, PI_VIEW_B)));
     for (unsigned t = 0; t < PI_TRACKS && n > 0 && size_t(n) < cap; t++)
         n += std::snprintf(out + n, cap - size_t(n), t ? ",%u" : "%u", unsigned(b[PI_VIEW_FIRES + t]));
+    if (format >= 4 && n > 0 && size_t(n) < cap)
+        std::snprintf(out + n, cap - size_t(n), " fx=%u fxsteps=%04x fxsounds=%04x ea=%u eb=%u", unsigned(b[PI_VIEW_HEARD]),
+                      unsigned(u16(b, PI_VIEW_FX_STEPS)), unsigned(u16(b, PI_VIEW_FX_SOUNDS)), unsigned(u16(b, PI_VIEW_HIT_A)),
+                      unsigned(u16(b, PI_VIEW_HIT_B)));
 }
 
 // A snapshot, how many of its bytes are real, and how many loads the audio thread had taken
@@ -142,7 +149,7 @@ struct Rhythm : Module {
     uint32_t loadsAsked = 0;
 
     // ---- The audio thread's own. ----
-    alignas(16) uint8_t mem[4096]; // the engine is 2 352 bytes (ENGINE.md §8)
+    alignas(16) uint8_t mem[4096]; // the engine is 3 568 bytes (ENGINE.md §8; 2 352 until §20)
     std::vector<int16_t> pack[PI_TRACKS]; // read once, before any audio; never changed (pi_set_sample)
     int packLoaded = 0;
     pi_engine *e = nullptr;
@@ -153,6 +160,8 @@ struct Rhythm : Module {
     bool keyDown[23] = {};       // what the core was last told of each key
     uint32_t sliderSent[2] = {32768, 32768}; // the value each slider parameter last had
     float sliderSeen[2] = {32768.f, 32768.f}; // the same, as the float last read: rounded only on a change
+    uint32_t hand[2] = {32768, 32768}; // §20: where the hand left each slider; the cap unless bpm is held
+    bool reseat = true;          // after a load or a fresh engine: the hand is what the next view shows
     float rateSeen = 0.f;
     uint32_t msFrames = 48;      // 1 ms at the rate: a trigger's length, and RESET's mask on CLOCK
     uint32_t viewFrames = 800;   // a sixtieth of a second at the rate: the view's longest gap while playing
@@ -272,7 +281,9 @@ struct Rhythm : Module {
             params[SLIDER_A + s].setValue(32768.f);
             sliderSent[s] = 32768;
             sliderSeen[s] = 32768.f;
+            hand[s] = 32768;
         }
+        reseat = true;
         sourceSent = -1;
         viewNow = true;
         mustPublish = true;
@@ -286,11 +297,12 @@ struct Rhythm : Module {
         for (; viewAt < fx.views.size() && fx.views[viewAt].at <= at; viewAt++) {
             if (fx.views[viewAt].at != at) continue;
             uint8_t v[PI_VIEW_SIZE];
-            char text[480];
+            char text[560];
             pi_view(e, v, sizeof v);
-            viewText(v, text, sizeof text);
+            viewText(v, text, sizeof text, fx.format);
             bool edgesOk = ((v[PI_VIEW_FLAGS] & PI_VIEW_FLAG_EDGES) != 0) == edgesRun;
-            // D54: the slider parameters, which are the caps, show what the view says.
+            // The slider parameters, which are the caps, show what the view says: since §20 the
+            // hand's, which a slider sets for every sound, or swing and tempo with bpm held.
             bool capsOk = params[SLIDER_A].getValue() == float(u16(v, PI_VIEW_A)) && params[SLIDER_B].getValue() == float(u16(v, PI_VIEW_B));
             if (!capsOk) {
                 char caps[64];
@@ -397,6 +409,7 @@ struct Rhythm : Module {
         if (const Snap *s = inbox.take()) {
             (pi_load(e, s->b, s->len) == PI_OK ? loadsOk : loadsRefused)++;
             loadsTaken++;
+            reseat = true; // §20: a load is the one time a cap moves to what the beat holds
             mustPublish = true;
             viewNow = true;
         }
@@ -447,6 +460,7 @@ struct Rhythm : Module {
             for (int s = 0; s < 2; s++) {
                 sliderSeen[s] = params[SLIDER_A + s].getValue();
                 sliderSent[s] = uint32_t(clamp(int(std::lround(sliderSeen[s])), 0, 65535));
+                hand[s] = sliderSent[s];
             }
         }
         for (int k = 0; k < 23; k++) {
@@ -464,6 +478,7 @@ struct Rhythm : Module {
             if (v != sliderSent[s] && n < PI_EVENTS_MIN + 32) {
                 cmds[n++] = pi_cmd{0, PI_CMD_PARAM, uint8_t(s), 0, 0, v};
                 sliderSent[s] = v;
+                if (!keyDown[PI_KEY_BPM]) hand[s] = v; // with bpm held it is swing or tempo (§13)
             }
         }
 
@@ -473,7 +488,8 @@ struct Rhythm : Module {
         // The view: on any frame a command or a load could have moved it, so the volume and the
         // caps below are exact, and every self-test frame; else every 16th, for the drawing
         // (the playhead and the counts move with the clock, and 16 frames is under 0.4 ms).
-        if (viewNow || n || count || fixture >= 0 || (++frames & 15) == 0) pi_view(e, view, sizeof view);
+        bool viewRead = viewNow || n || count || fixture >= 0 || (++frames & 15) == 0;
+        if (viewRead) pi_view(e, view, sizeof view);
         viewNow = false;
 
         if (fixture >= 0 && running) {
@@ -500,16 +516,23 @@ struct Rhythm : Module {
             frameInRun++;
         }
 
-        // D54: a cap follows the slider as the view shows it, unless a pointer is on it. The
-        // parameter moves, and the frame's scan above will not hear it as a press.
+        // §20 (D75; until Session 21, D54's caps that followed the chosen sound): a cap is the
+        // hand. It moves by itself only while bpm is held, to show swing and tempo, and after a
+        // load, to what was loaded; then back to the hand when bpm is let go. Never while a
+        // pointer is on it. The parameter moves, and the frame's scan above will not hear it
+        // as a press.
+        bool bpmHeld = u32(view, PI_VIEW_HELD) >> PI_KEY_BPM & 1;
         for (int s = 0; s < 2; s++) {
             uint32_t shown = u16(view, PI_VIEW_A + 2 * s);
-            if (!sliderHeld[s].load(std::memory_order_relaxed) && shown != sliderSent[s]) {
-                params[SLIDER_A + s].setValue(float(shown));
-                sliderSent[s] = shown;
-                sliderSeen[s] = float(shown);
+            if (reseat && viewRead) hand[s] = shown;
+            uint32_t want = bpmHeld ? shown : hand[s];
+            if (!sliderHeld[s].load(std::memory_order_relaxed) && want != sliderSent[s]) {
+                params[SLIDER_A + s].setValue(float(want));
+                sliderSent[s] = want;
+                sliderSeen[s] = float(want);
             }
         }
+        if (viewRead) reseat = false;
 
         // The jacks (jacks.hpp): RETURN rebuilds the mix only where it takes a sound.
         Input &ret = inputs[RETURN_INPUT];
@@ -783,7 +806,8 @@ struct RhythmKey : app::ParamWidget {
 };
 
 // A slider: Rack's own vertical drag (so Rack's knob settings apply), a cap drawn from the
-// parameter, which the module moves to the view's value unless the pointer is on it (D54).
+// parameter, which is the hand's (§20: the module moves it only with bpm held or after a
+// load), and a second mark from the view's bytes 60 to 63.
 struct RhythmSlider : app::SliderKnob {
     Rhythm *rm = nullptr;
     const Face *face = nullptr;
@@ -817,6 +841,14 @@ struct RhythmSlider : app::SliderKnob {
         float x = (box.size.x - capW) / 2;
         fillRect(args.vg, x, y, capW, capH, c);
         fillRect(args.vg, x, y + capH * 0.385f, capW, capH * 0.23f, GROUND); // the slot across the middle
+        // §20: the second mark, what the chosen sound was last hit with: a thin line across the
+        // track at that value, where the cap's middle would be. ⚠ design/DESIGN.md does not
+        // draw it yet; a thread-coloured line is PLAN.md's stand-in (Session 21).
+        if (face && face->have) {
+            float h = u16(face->v, PI_VIEW_HIT_A + 2 * which) / 65535.f, th = mm2px(0.35f);
+            float ym = (1.f - h) * (box.size.y - capH) + capH / 2;
+            fillRect(args.vg, x - mm2px(0.5f), ym - th / 2, capW + mm2px(1.f), th, THREAD);
+        }
     }
 };
 

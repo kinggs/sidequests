@@ -79,7 +79,7 @@ struct Probe : Module {
     pi::Latest<Snap> inbox; // Rack's loading thread writes, audio thread reads
 
     // The audio thread's own.
-    alignas(16) uint8_t mem[4096]; // the engine is 2 328 bytes with a sample beside each voice
+    alignas(16) uint8_t mem[4096]; // the engine is 3 568 bytes since §20 (2 328 with a sample beside each voice)
     // The starter pack, read once when the module is made, before any audio. The engine reads
     // these for as long as the module lives (pi_set_sample's contract); nothing changes them.
     std::vector<int16_t> pack[PI_TRACKS];

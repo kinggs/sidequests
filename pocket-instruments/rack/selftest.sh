@@ -7,7 +7,8 @@
 # no sample NaN or infinite. One probe is given a saved snapshot of version 1 (§15: an old
 # patch), which it must load: "1 loaded, 0 refused".
 #
-# Then the Rhythm module's own self-test (Session 13): each format 2 fixture on a Rhythm module
+# Then the Rhythm module's own self-test (Session 13): each format 2 fixture, and since Session
+# 21 the format 4 one (§20: a step keeps what it was written with, the second mark), on a Rhythm module
 # twice, once on its table clock and once on a second LFO's square at 8 Hz (slow enough for a
 # step's presses, one a frame, to land inside its first tick). Each module presses its own
 # parameters and holds its events and views to its fixture; each must match at least one pass
@@ -55,8 +56,9 @@ cat > "$user/autosave/patch.json" <<JSON
  {"id":6,"plugin":"Fundamental","model":"LFO","version":"2.6.4","params":[{"id":2,"value":3.0}],"pos":[0,2]},
  $(rhythm 7 '"fixture":"keys-bpm-family"'),$(rhythm 8 '"fixture":"keys-tap-and-choose"'),$(rhythm 9 '"fixture":"keys-write-a-beat"'),
  $(rhythm 10 '"fixture":"keys-bpm-family"'),$(rhythm 11 '"fixture":"keys-tap-and-choose"'),$(rhythm 12 '"fixture":"keys-write-a-beat"'),
- $(rhythm 13 "\"snapshot\":\"$old\"")],
- "cables":[$(cable 2),$(cable 3),$(cable 4),$(edge 10 10),$(edge 11 11),$(edge 12 12),$(loop 20 9),$(loop 21 13)]}
+ $(rhythm 13 "\"snapshot\":\"$old\""),
+ $(rhythm 14 '"fixture":"keeps-what-it-was-written-with"'),$(rhythm 15 '"fixture":"keeps-what-it-was-written-with"')],
+ "cables":[$(cable 2),$(cable 3),$(cable 4),$(edge 10 10),$(edge 11 11),$(edge 12 12),$(edge 15 15),$(loop 20 9),$(loop 21 13)]}
 JSON
 (cd "$app" && (sleep "$secs"; echo) | ./Rack -h -u "$user" >/dev/null 2>&1) || { echo "selftest: Rack exited badly"; tail -5 "$user/log.txt"; exit 1; }
 lines=$(grep 'Pocket Instruments probe' "$user/log.txt" || true)
@@ -77,7 +79,7 @@ echo "$rl" | sed 's/^.*report\] //'
 rgood() { # fixture, where: one clean module
     echo "$rl" | grep -E "\(removed\): fixture $1 $2: [1-9][0-9]* passes matched, 0 did not, [0-9]+ cut short, [1-9][0-9]* views held, 0 not; rate $rate Hz, 0 events dropped, .* 0 samples not finite, .* 16 of 16 samples found" | grep -c . || true
 }
-for f in keys-bpm-family keys-tap-and-choose keys-write-a-beat; do
+for f in keys-bpm-family keys-tap-and-choose keys-write-a-beat keeps-what-it-was-written-with; do
     for w in "on the table" "on edges"; do
         [ "$(rgood $f "$w")" = 1 ] || { echo "selftest: FAILED (Rhythm on $f $w at $rate Hz)"; exit 1; }
     done
@@ -91,4 +93,4 @@ echo "$rl" | grep 'fixture keys-write-a-beat on the table' | grep -qE ' [1-9][0-
 # §15 on the instrument: the old patch's beat loaded.
 echo "$rl" | grep -E '\(removed\): fixture none: .* 1 loaded, 0 refused; .* 0 samples not finite, .* [1-9][0-9]* frames with RETURN' | grep -q . || { echo "selftest: FAILED (the Rhythm instrument did not load the version 1 snapshot, or RETURN was not taken)"; exit 1; }
 echo "selftest: 4 probes clean in Rack at $rate Hz, each sounding; one on the sixteen samples, from a version 1 snapshot."
-echo "selftest: 6 Rhythm modules held to the three format 2 fixtures on both clocks at $rate Hz, by their own parameters; one through RETURN; the instrument loaded a version 1 snapshot."
+echo "selftest: 8 Rhythm modules held to the three format 2 fixtures and the format 4 one on both clocks at $rate Hz, by their own parameters; one through RETURN; the instrument loaded a version 1 snapshot."
