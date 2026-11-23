@@ -9,7 +9,8 @@
      the Loom look (design/DESIGN.md, "The phone"; design/loom/phone.html is the picture).
      The page keeps no copy of the workflow: it sends what a finger did (KEY_DOWN, KEY_UP,
      PARAM; ENGINE.md §13) and draws the view the core posts back (§14). A touch never latches:
-     a phone has real multi-touch (D23). Ctrl+click (Cmd+click on a Mac) latches (D60, D61). ?auto runs its own checks (web/play.mjs).
+     a phone has real multi-touch (D23). Ctrl+click (Cmd+click on a Mac) latches (D60, D61; fx by D78). The display says
+     the effect heard and the lane (D81). ?auto runs its own checks (web/play.mjs).
      SPDX-License-Identifier: MIT -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -39,17 +40,24 @@
   .display { height: 124px; flex: none; background: var(--display); border: 2px solid var(--ecru); padding: 8px 10px; display: flex; gap: 12px; }
   .display .left { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
   .weave { flex: 1; display: flex; align-items: center; color: var(--lilac); font-size: 16px; }
-  .marks { display: grid; grid-template-columns: repeat(16, minmax(0, 1fr)); gap: 4px; height: 16px; flex: none; }
+  .marks, .lane { display: grid; grid-template-columns: repeat(16, minmax(0, 1fr)); gap: 4px; height: 16px; flex: none; }
+  /* D81 item 2: the lane (the view's bytes 56 and 57), a small madder tick above the mark of
+     each step that holds an effect, on one line clear of the tallest mark. ⚠ A stand-in. */
+  .lane { height: 4px; margin-bottom: -4px; }
+  .lane span.on { background: var(--madder); }
   .marks span { height: 6px; background: var(--thread); align-self: end; }
   .marks span.q { height: 10px; }
   .marks span.now { height: 16px; background: var(--ochre); }
   .display .right { width: 104px; display: flex; flex-direction: column; justify-content: space-between; align-items: flex-end; }
   .tempo { display: flex; align-items: baseline; gap: 5px; }
   .tempo b { font-size: 42px; line-height: .9; }
-  .tempo span, .stepno, .write { font-size: 16px; }
+  .tempo span, .stepno, .write, .fxmark { font-size: 16px; }
   .tempo span { color: var(--lilac); }
-  .write { background: var(--ochre); color: var(--ground); padding: 1px 8px; }
-  .write[hidden] { display: block; visibility: hidden; }
+  .write, .fxmark { background: var(--ochre); color: var(--ground); padding: 0 8px; line-height: 1.2; width: calc(5ch + 16px); text-align: center; }
+  /* D81 item 1: while an effect is heard (the view's byte 55), a block like the write mark,
+     fx and its number, in madder, just above the write mark's place. ⚠ A stand-in. */
+  .fxmark { background: var(--madder); }
+  .write[hidden], .fxmark[hidden] { display: block; visibility: hidden; }
 
   /* Grid keys: square (a column's width) while the screen is tall enough, shorter when it is
      not, never under 60 px. Not aspect-ratio: with a max-height it narrows the key instead. */
@@ -105,6 +113,10 @@
   .sounds .row { display: flex; gap: 4px; }
   .sounds .name { flex: 1; }
   .sounds .sw { width: 112px; text-align: center; }
+  /* D69: whether the sound goes through the effects (the view's bytes 58 and 59): lit, as a
+     sample is, while it does. */
+  .sounds .fxsw { width: 120px; text-align: center; }
+  .sounds .fxsw.through { background: var(--ecru); color: var(--ground); }
   /* A sample shows as a lit face, as a step does, so it does not depend on hue. */
   .sounds .sw.sampled { background: var(--ecru); color: var(--ground); }
   /* The row's sound firing, from the view's counts, as a grid key goes white. */
@@ -123,11 +135,13 @@
     <div class="display" aria-live="off">
       <div class="left">
         <div class="weave" id="weave">touch a key to start</div>
+        <div class="lane" id="lane" aria-hidden="true"></div>
         <div class="marks" id="marks" aria-hidden="true"></div>
       </div>
       <div class="right">
         <div class="tempo"><b id="tempo">120</b><span>bpm</span></div>
         <span class="stepno" id="stepno">step --</span>
+        <span class="fxmark" id="fxmark" hidden>fx</span>
         <span class="write" id="write" hidden>write</span>
       </div>
     </div>
@@ -149,7 +163,8 @@
   <h2>Sounds</h2>
   <p>Each key plays the sound the engine builds in code, or a sample from the starter pack. A
   lit switch plays its sample. Tap a name to hear it; tap its switch to change it and hear the
-  change. The beat, these choices and the sliders stay in this browser.</p>
+  change. <b>through fx</b> is lit while the sound goes through the effects; tap it to keep the
+  sound clean. The beat, these choices and the sliders stay in this browser.</p>
   <div class="two"><button id="allCode">All code</button><button id="allSample">All samples</button></div>
   <div class="sounds" id="sounds"></div>
   <p id="status">Loading…</p>
@@ -164,9 +179,13 @@
   was written. The thin line on a slider is what the chosen sound was last played with.
   Double-click (or double-tap) a slider to put it back to the middle; with bpm held, to swing
   0 and 120 bpm.
-  With a mouse: <b>Ctrl+click</b> (<b>Cmd+click</b> on a Mac) sound, pattern, bpm, function or fx
+  While it plays, hold <b>fx</b> and a key for an effect: it is heard at once, the display says
+  <b>fx</b> and its number, and the steps it plays over keep it (a small mark above each). Hold
+  <b>fx</b> alone to take the effects off the steps it passes.
+  With a mouse: <b>Ctrl+click</b> (<b>Cmd+click</b> on a Mac) sound, pattern, bpm or function
   to hold it down; the next click on a key lets it go (so Ctrl+click sound, click 16), or
-  Ctrl+click it again.</p>
+  Ctrl+click it again. <b>Ctrl+click fx</b> stays on until you Ctrl+click it again: each click
+  on a key then plays that effect for as long as you hold it.</p>
 
   <h2>Credits</h2>
   <p>Pocket Instruments: small calculator-format musical instruments, free and open source,
@@ -188,7 +207,7 @@
 <script type="module">
 const NAMES = ["Bass drum", "Snare", "Closed hat", "Open hat", "Synth snare", "Sticks", "Cymbal", "Noise",
   "Clap", "Click", "Low tom", "High tom", "Cow bell", "Blip", "Tone", "Bass tone"];
-const CMD = { fire: 21, voice: 22, keyDown: 32, keyUp: 33, param: 34 };
+const CMD = { fire: 21, voice: 22, fxsound: 24, keyDown: 32, keyUp: 33, param: 34 };
 const KEY = { sound: 16, pattern: 17, bpm: 18, function: 19, fx: 20, play: 21, write: 22 };
 // Function keys: their band and, latched, their face (design/DESIGN.md, "Function key").
 const FKEYS = [["sound", "var(--madder)"], ["pattern", "var(--ochre)"], ["bpm", "var(--sky)"],
@@ -206,7 +225,7 @@ const auto = params.get("auto");                 // web/play.mjs's checks; see t
 const $ = (id) => document.getElementById(id);
 
 // --- The face, built once. Every light on it is set by draw(), from a view. ---
-const keys = [], marks = [], fkeys = [], sounds = [];
+const keys = [], marks = [], ticks = [], fkeys = [], sounds = [];
 for (let n = 0; n < 16; n++) {
   const b = document.createElement("button");
   b.className = "k";
@@ -219,6 +238,9 @@ for (let n = 0; n < 16; n++) {
   if (n % 4 === 0) m.className = "q";
   $("marks").appendChild(m);
   marks.push(m);
+  const t = document.createElement("span");
+  $("lane").appendChild(t);
+  ticks.push(t);
 }
 FKEYS.forEach(([name, colour], i) => {
   const b = document.createElement("button");
@@ -232,9 +254,10 @@ FKEYS.forEach(([name, colour], i) => {
 NAMES.forEach((name, t) => {
   const row = document.createElement("div");
   row.className = "row";
-  row.innerHTML = `<button class="name">${t + 1} ${name}</button><button class="sw" aria-label="${name}: code or sample">code</button>`;
+  row.innerHTML = `<button class="name">${t + 1} ${name}</button><button class="sw" aria-label="${name}: code or sample">code</button>` +
+    `<button class="fxsw" aria-label="${name}: through the effects" aria-pressed="true">through fx</button>`;
   $("sounds").appendChild(row);
-  sounds.push({ name: row.children[0], sw: row.children[1] });
+  sounds.push({ name: row.children[0], sw: row.children[1], fx: row.children[2] });
 });
 const sliders = [$("slA"), $("slB")];
 
@@ -249,6 +272,7 @@ let reseatAt = Infinity;              // the queue entry count at which a load h
 
 function post(msg, entries) {
   sent += entries;                    // queue entries, as the worklet counts `taken`
+  window.rhythm?.onPost?.(msg);       // web/play.mjs's checks read what was sent
   if (msg.load) reseatAt = sent;      // §20: a cap moves to what a load holds, once taken
   if (node) node.port.postMessage(msg);
   else early.push(msg);
@@ -309,22 +333,31 @@ const wake = () => { if (ctx.state !== "running") ctx.resume(); };
 
 // --- Holding keys: a finger, a pointer or a computer key. A key is down while anything holds it. ---
 const holders = Array.from({ length: 23 }, () => new Set());
+const gridDown = () => holders.slice(0, 16).some((s) => s.size > 0);
 function press(k, who) {
   if (holders[k].has(who)) return;
+  // D78: while fx is latched it goes down before a grid key, so each press punches.
+  if (k < 16 && latched.has(KEY.fx)) press(KEY.fx, "L");
   holders[k].add(who);
   if (holders[k].size === 1) send([CMD.keyDown, k, 0, 0]);
 }
 function release(k, who) {
   if (!holders[k].delete(who)) return;
   if (holders[k].size === 0) send([CMD.keyUp, k, 0, 0]);
-  // D60: any other press that ends finishes the gesture, and every latched key lets go.
-  if (who !== "L" && latched.size) [...latched].forEach(unlatch);
+  // D78: and comes up after the last grid key, so between presses no arriving step is emptied.
+  if (k < 16 && latched.has(KEY.fx) && !gridDown()) release(KEY.fx, "L");
+  // D60: any other press that ends finishes the gesture, and every latched key lets go. But
+  // fx: its latch stays until it is Ctrl+clicked again (D78).
+  if (who !== "L") [...latched].filter((j) => j !== KEY.fx).forEach(unlatch);
 }
-// D60, D61: Ctrl+click (Cmd+click on a Mac, as Rack reads Ctrl) holds sound, pattern, bpm,
-// function or fx down ("L") until a press ends or it is Ctrl+clicked again. Play and write are left out: they stay on alone.
+// D60, D61: Ctrl+click (Cmd+click on a Mac, as Rack reads Ctrl) holds sound, pattern, bpm or
+// function down ("L") until a press ends or it is Ctrl+clicked again. Play and write are left
+// out: they stay on alone. D78: Ctrl+click on fx latches it until it is Ctrl+clicked again,
+// and holds nothing by itself: fx is down only while a grid key is (a key already down
+// brings it down at once).
 const LATCHING = new Set([KEY.sound, KEY.pattern, KEY.bpm, KEY.function, KEY.fx]);
 const latched = new Set();
-function latch(k) { latched.add(k); press(k, "L"); schedule(); }
+function latch(k) { latched.add(k); if (k !== KEY.fx || gridDown()) press(k, "L"); schedule(); }
 function unlatch(k) { latched.delete(k); release(k, "L"); schedule(); }
 function releaseAll(prefix) {
   holders.forEach((set, k) => [...set].forEach((who) => { if (!prefix || who.startsWith(prefix)) release(k, who); }));
@@ -442,6 +475,12 @@ sounds.forEach((row, t) => {
     send([CMD.voice, t, 0, on ? 0 : 1], [CMD.fire, t, 0, 0]);
   });
 });
+// D69, D66 item 4: through the effects or not (FXSOUND), drawn from the view's bytes 58 and 59.
+// It plays nothing: the difference is heard only while an effect is.
+sounds.forEach((row, t) => row.fx.addEventListener("click", () => {
+  const on = latest.view ? (u16(latest.view, 58) >> t) & 1 : 1;
+  send([CMD.fxsound, t, 0, on ? 0 : 1]);
+}));
 $("allCode").addEventListener("click", () => send(...NAMES.map((_, t) => [CMD.voice, t, 0, 0])));
 $("allSample").addEventListener("click", () => send(...NAMES.map((_, t) => [CMD.voice, t, 0, 1])));
 
@@ -466,6 +505,8 @@ function draw() {
   const held = u32(v, 8), field = u16(v, 12), stitch = u16(v, 14), bar = u16(v, 16), sampled = u16(v, 18);
   const flags = v[24], step = v[25], playing = flags & 1, stepped = flags & 8, sounds_ = flags & 16;
   const mbpm = u32(v, 4);
+  // §17, D81: the effect heard (byte 55), the lane (56, 57), the sounds through it (58, 59).
+  const heard = v[55], lane = u16(v, 56), through = u16(v, 58);
   // A firing holds the white for half a step at the view's tempo, 40 to 120 ms.
   const hold = Math.max(40, Math.min(120, 7500000 / Math.max(1, mbpm)));
   for (let n = 0; n < 16; n++) {
@@ -484,6 +525,7 @@ function draw() {
     c.toggle("press", !!((held >> n) & 1));
     c.toggle("fire", !!(sounds_ && now < whiteUntil[n]));
     marks[n].classList.toggle("now", !!(playing && stepped && step === n));
+    ticks[n].classList.toggle("on", !!((lane >> n) & 1));
   }
   fkeys.forEach((el, i) => {
     const k = 16 + i;
@@ -494,6 +536,8 @@ function draw() {
   $("tempo").textContent = Math.floor(mbpm / 1000);
   $("stepno").textContent = stepped ? `step ${String(step + 1).padStart(2, "0")}` : "step --";
   $("write").hidden = !(flags & 2);
+  $("fxmark").hidden = !heard;
+  $("fxmark").textContent = heard ? `fx ${heard}` : "fx";
   $("weave").textContent = "";
   // §20: after a load, the hand is what was loaded; until the first view, likewise.
   if (latest.taken >= reseatAt) { hand.fill(null); reseatAt = Infinity; }
@@ -507,6 +551,9 @@ function draw() {
     row.sw.classList.toggle("sampled", on);
     row.sw.textContent = on ? "sample" : "code";
     row.name.classList.toggle("fire", now < sheetUntil[t]);
+    const fx = !!((through >> t) & 1);
+    row.fx.classList.toggle("through", fx);
+    row.fx.setAttribute("aria-pressed", fx);
   });
   rhythm.drawn = v;
   rhythm.afterDraw?.(v);
@@ -519,7 +566,7 @@ schedule();
 
 // What the checks reach (web/play.mjs). The page itself uses none of it.
 const rhythm = {
-  ctx, keys, fkeys, sliders, sounds, latched, latest, listeners, slide, send, drawn: null, afterDraw: null,
+  ctx, keys, fkeys, ticks, sliders, sounds, latched, latest, listeners, slide, send, drawn: null, afterDraw: null, onPost: null,
   get sent() { return sent; },
   post: (msg) => post(msg, msg.load || msg.mark ? 1 : 0),
   ready: null,
