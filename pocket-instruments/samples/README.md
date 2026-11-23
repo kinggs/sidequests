@@ -9,7 +9,7 @@ byte as Sonic Pi ships them (commit on its `dev` branch, fetched 2026-11-19), na
 
 Chosen without ears: by measuring length, pitch and brightness against each role, preferring
 short electronic sounds. The owner's ear overrides any row; a swap is a new file, a new row
-and a line in `LEARNINGS.md` if it taught something. 377 KB in all.
+and a line in `LEARNINGS.md` if it taught something. 377 KB in all at first; 413 KB since key 16's swap (2026-11-23).
 
 | Key | Role | File | Freesound author | Original | Why this one | SHA-256, first 12 |
 |---|---|---|---|---|---|---|
@@ -28,7 +28,7 @@ and a line in `LEARNINGS.md` if it taught something. 377 KB in all.
 | 13 | Cow bell | `drum_cowbell.flac` | Neotone | http://freesound.org/people/Neotone/sounds/75338/ | 1.6 kHz, 250 ms | `e2ee5f732b67` |
 | 14 | Blip | `elec_blip.flac` | looppool | http://www.freesound.org/people/looppool/sounds/13121/ | 1.8 kHz, 150 ms | `6d082528d45f` |
 | 15 | Tone | `elec_ping.flac` | looppool | http://www.freesound.org/people/looppool/sounds/13119/ | a pure tone near 880 Hz; slider A will tune it | `3a9d36527116` |
-| 16 | Bass tone | `elec_bong.flac` | looppool | http://www.freesound.org/people/looppool/sounds/13137/ | a low tone near 310 Hz; slider A will tune it | `e4f76c4bff74` |
+| 16 | Bass tone | `bass_voxy_hit_c.flac` | ani_music | http://freesound.org/people/ani_music/sounds/165327/ | a short bass hit on C2 (65 Hz), three semitones above the code voice's A1; slider A tunes it an octave either way. Swapped 2026-11-23 for `elec_bong` (looppool, 13137), which sat 1½ to 2½ octaves higher than any note the code voice plays: the owner heard it as no bass at all | `958adf1e0a5b` |
 
 ## As the engine reads them (D50)
 

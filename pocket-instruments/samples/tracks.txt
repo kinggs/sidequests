@@ -13,4 +13,4 @@ drum_tom_hi_hard
 drum_cowbell
 elec_blip
 elec_ping
-elec_bong
+bass_voxy_hit_c

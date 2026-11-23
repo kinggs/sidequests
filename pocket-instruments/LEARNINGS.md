@@ -375,3 +375,10 @@ belongs in `PROOFS.md`, a change of course in `DECISIONS.md`, an outside fact in
 - **Firefox reports `AudioContext.state` as "running" a moment after audio has run.** The
   first view had already come from the worklet while the state still said "suspended".
   Judge "sound started" by what the worklet sent, or wait for the state, not both at once.
+- **A sample chosen by measurement has to be measured against its code voice's range.**
+  Key 16's "bass tone" sample, picked without ears in Session 8 as "a low tone near 310 Hz",
+  sat 1½ to 2½ octaves above anything the code voice plays (A0 to A2), and slider A moves a
+  sample only an octave either way. The owner heard no bass. Swapped for Sonic Pi's
+  `bass_voxy_hit_c` (C2). An autocorrelation read the old file at 157 Hz, the README said
+  310: one of them is an octave out, which is why a pitch from a script is a guess (⚠)
+  and the ear decides.
