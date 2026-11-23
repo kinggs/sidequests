@@ -312,7 +312,14 @@ impl Engine {
         b[28] = self.pat.length;
         b[29] = self.pat.swing;
         b[32..48].copy_from_slice(&self.fires);
-        // 48 to 54: zero until the weave (§16).
+        // §16, the weave's: steps woven since play, which of the last sixteen had a sound
+        // set, and how many tracks have fired on the playhead's step so far, taps included.
+        // That last is 0 unless a step has arrived since play (D84): stopped, a tap does not
+        // move the beater, because nothing would ever bring it back.
+        let (woven, wove) = self.seq.cloth();
+        b[48..52].copy_from_slice(&woven.to_le_bytes());
+        b[52..54].copy_from_slice(&wove.to_le_bytes());
+        b[54] = if self.seq.started() { self.on_step.count_ones() as u8 } else { 0 };
         b[55] = self.heard();
         let mut steps = 0u16;
         for (s, e) in self.pat.fx.iter().enumerate() {

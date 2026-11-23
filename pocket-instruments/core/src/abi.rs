@@ -1,4 +1,4 @@
-//! §6 to §8, §11, §14, §17 and §20: the records and the C functions. Only `u32`, `i32` and pointers cross.
+//! §6 to §8, §11, §14, §16, §17 and §20: the records and the C functions. Only `u32`, `i32` and pointers cross.
 //! Sound crosses as a pointer to the host's floats, never as a float argument (D44).
 
 use crate::engine::Engine;
@@ -6,8 +6,9 @@ use crate::keys;
 use crate::seq::TRACKS;
 use crate::voice::{LOOP, LOOP_SLIDERS};
 use crate::snapshot;
+use crate::weave;
 
-pub const ABI_VERSION: u32 = 9;
+pub const ABI_VERSION: u32 = 10;
 
 pub const CMD_CLOCK: u8 = 1;
 pub const CMD_RESET: u8 = 2;
@@ -85,19 +86,25 @@ pub struct Out<'a> {
     /// plays the sound's own. Read only for the tracks in `fired`, so never cleared.
     pub stepped: u16,
     pub col: [u8; TRACKS],
+    /// §16: bit `t`, track `t` has fired since the last step arrived, by the sequencer or a
+    /// tap. The engine's, carried through the block like `fires`. The view's byte 54 counts it.
+    pub on_step: u16,
 }
 
 impl<'a> Out<'a> {
-    pub fn new(buf: &'a mut [Event], fires: [u8; TRACKS]) -> Self {
-        Out { buf, n: 0, frame: 0, dropped: 0, fired: 0, fires, ticks: 0, stepped: 0, col: [0; TRACKS] }
+    pub fn new(buf: &'a mut [Event], fires: [u8; TRACKS], on_step: u16) -> Self {
+        Out { buf, n: 0, frame: 0, dropped: 0, fired: 0, fires, ticks: 0, stepped: 0, col: [0; TRACKS], on_step }
     }
 
     #[inline]
     pub fn push(&mut self, tick: u32, kind: u8, track: u8, step: u8) {
         if kind == EV_TRIG {
             self.fired |= 1 << (track & 15);
+            self.on_step |= 1 << (track & 15);
             let count = &mut self.fires[track as usize & 15];
             *count = count.wrapping_add(1);
+        } else if kind == EV_STEP {
+            self.on_step = 0; // §16: a new step; its own firings come after this event
         }
         match self.buf.get_mut(self.n) {
             Some(slot) => {
@@ -304,4 +311,26 @@ pub unsafe extern "C" fn pi_set_sample(engine: *mut Engine, track: u32, data: *c
     }
     s.set(data, frames);
     1
+}
+
+/// §16: the display's weave, as cells. A pure function of a view block: no engine, so §8's
+/// one-thread rule does not reach it and any thread may call it. `view` is `len` bytes of a
+/// view (at least `VIEW_SIZE`); `flags` bit 0 is reduced motion. Writes `WEAVE_W × WEAVE_H`
+/// palette numbers to `out`, row by row from the top left, and returns that count; 0, and
+/// nothing written, if a pointer is null, `len` is short or `cap` is too small.
+///
+/// # Safety
+/// `view` is null or points to `len` readable bytes; `out` is null or points to `cap`
+/// writable bytes; they do not overlap.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pi_weave(view: *const u8, len: u32, flags: u32, out: *mut u8, cap: u32) -> u32 {
+    if view.is_null() || out.is_null() || (len as usize) < keys::VIEW_SIZE || (cap as usize) < weave::CELLS {
+        return 0;
+    }
+    // SAFETY: non-null and at least VIEW_SIZE readable bytes, checked above.
+    let view = unsafe { &*view.cast::<[u8; keys::VIEW_SIZE]>() };
+    // SAFETY: non-null and at least CELLS writable bytes, checked above; u8 has no alignment.
+    let out = unsafe { &mut *out.cast::<[u8; weave::CELLS]>() };
+    weave::weave(view, flags, out);
+    weave::CELLS as u32
 }

@@ -16,6 +16,7 @@ mod keys;
 mod seq;
 mod snapshot;
 mod voice;
+mod weave;
 
 #[cfg(test)]
 mod tests;

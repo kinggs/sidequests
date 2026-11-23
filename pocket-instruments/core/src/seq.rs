@@ -100,11 +100,21 @@ pub struct Seq {
     period: u32,
     run_step: u8,
     run_tick: u32,
+    /// §16: steps woven since play began, or since a reset while playing (D84). Held when
+    /// stopped. The view's bytes 48 to 51. Not saved: the moment's.
+    woven: u32,
+    /// §16: bit `i`, the step woven `i` steps ago had a sound set as it arrived. Bytes 52, 53.
+    wove: u16,
 }
 
 impl Seq {
     pub const fn new() -> Self {
-        Seq { playing: false, fresh: false, pending: false, cur: 0, offset: 0, eff: 0, last: 0, period: 0, run_step: 0, run_tick: 0 }
+        Seq { playing: false, fresh: false, pending: false, cur: 0, offset: 0, eff: 0, last: 0, period: 0, run_step: 0, run_tick: 0, woven: 0, wove: 0 }
+    }
+
+    /// §16: how many steps the cloth holds, and which of the last sixteen had a sound set.
+    pub fn cloth(&self) -> (u32, u16) {
+        (self.woven, self.wove)
     }
 
     /// §17: a new run begins at the next step that holds a repeat. And until a step has
@@ -122,6 +132,9 @@ impl Seq {
                 self.playing = true;
                 self.fresh = true;
                 self.end_run();
+                // §16: play starts a new cloth; stop leaves the old one as it is.
+                self.woven = 0;
+                self.wove = 0;
             }
         } else {
             self.playing = false;
@@ -147,6 +160,12 @@ impl Seq {
         self.fresh = true;
         self.pending = false;
         self.end_run();
+        // §16 (D84): a reset while playing starts a new cloth, as play does, so a diamond
+        // still begins on step 1. Stopped, the cloth holds still: play will start the new one.
+        if self.playing {
+            self.woven = 0;
+            self.wove = 0;
+        }
     }
 
     /// One tick. `write` is what an arriving step takes into the lane (`NO_WRITE` while fx
@@ -170,6 +189,15 @@ impl Seq {
             out.push(k, EV_STEP, 0, self.cur);
             self.offset = if g & 1 == 1 { pat.swing } else { 0 };
             self.pending = true;
+
+            // §16: the step is woven as it arrives, with whether any sound is set on it now.
+            // Set, not fired: a probability or a repeat does not change the cloth. Once a step.
+            let mut set = 0u16;
+            for on in &pat.on {
+                set |= *on;
+            }
+            self.woven = self.woven.wrapping_add(1);
+            self.wove = self.wove << 1 | (set >> (self.cur & 15) & 1);
 
             // §17: the lane is written by the steps that arrive, then read.
             let cur = (self.cur & 15) as usize;

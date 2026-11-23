@@ -1467,6 +1467,75 @@ attempt at a weave"). Its list's "ABI 6" is from before the effects: it takes th
 number. Its fourth box, the owner watching it move and three frames kept as the picture
 to hold to, stays open until the owner has seen it.
 
+### D84 — The weave's first attempt: what `ENGINE.md` §16 and `design/DESIGN.md` did not say
+**2026-11-23 · decided (Fable, building Session 14 while the owner is away; D79, D83) · a first attempt · every item is the owner's to overrule, and none is accepted until the owner has watched it move**
+
+§16 gave the weave its inputs and `DESIGN.md` its seven rules. Which cells each rule lights
+was not designed. These are the rulings made to draw it once, in `core/src/weave.rs`, where
+every number is a named constant under "THE DRAWING". Nothing here re-decides D36, D53, D20
+or the seven rules; item 11 changes one number of rule 6 and says why.
+
+The view's three fields (bytes 48 to 54):
+
+1. **ABI 10.** Bytes 48 to 54 are filled and `pi_weave` is new (D83: the next number).
+2. **A reset while playing starts a new cloth,** as play does, so a diamond still begins on
+   step 1. A reset while stopped leaves the cloth alone (rule 7: stopped, it holds still);
+   the next play starts the new one. §16 said only "0 at play; held when stopped".
+3. **"Had any sound set" is set, not fired:** a step at probability 0 counts, a repeat adds
+   nothing, and a step taken off afterwards does not unpick what was woven.
+4. **Byte 54 counts tracks, not firings** (§16's words: "how many tracks have fired"): a
+   sound a repeat fires four times on a step counts once, so sixteen is the most. **And it
+   is 0 unless a step has arrived since play:** stopped, a tap does not widen the beater,
+   because no step would ever bring it back.
+
+The drawing:
+
+5. **78 by 15 cells,** the weave's area in whole mm (`frames.html`: 468 by 92 px at 6 px a
+   mm; Rack's display leaves 77.96 by 15.3 mm).
+6. **Two more palette numbers: 5 tile, 6 madder.** §16 named five (display, thread, ecru,
+   white, ochre). The designed picture's cloth is tile, and its diamonds madder outside
+   ochre outside ecru, so the picture needs seven.
+7. **A beat is 16 cells:** a diamond 15 wide and 15 tall at its largest, one cell of plain
+   cloth before the next, so a step weaves 4 columns. The diamond's reach from its middle
+   cell, by how many of the beat's four steps had a sound set: 0, 2, 4, 6, 7 cells (rule 3);
+   ecru to 2, ochre to 4, madder beyond. Which steps are set does not matter, only how many.
+8. **The beat being woven is drawn at the size its steps so far give it,** so it can grow
+   as its later steps arrive: the function knows only what has been woven.
+9. **Four beats show: three woven and the one on the loom. Past the fourth the cloth jumps
+   left a whole beat at each new beat** (rule 2: "scrolls left one diamond a beat"); it
+   does not creep a step at a time. The sixteen bits of history are exactly those four.
+10. **The beater is 1 cell, and a cell more for each sound that has fired on the step, to
+    4:** none 1, one 2, two 3, three or more 4 (rule 4 gives only the ends). It is ochre,
+    the whole height, at the cloth's edge.
+11. **The flash is a quarter of a step, not a sixteenth** (24 ticks of 96). A sixteenth of
+    a step at 120 bpm is 7.8 ms, less than one frame of a 60 Hz screen: it would show on
+    some steps and not on others. A quarter is 31 ms at 120 bpm, two frames. It is the
+    three cloth columns nearest the beater, the whole height, **and it starts on the tick
+    the step's sounds fire,** so a swung step flashes when it sounds.
+12. **The warp is five threads** (rows 2, 5, 8, 11 and 14 of 15) from the cloth's edge to
+    the right. The picture has nine thin lines; a cell is a whole mm, and a thread every
+    other row read as a wall of stripes.
+13. **The shuttle is 3 by 4 cells, ecru, its middle column 7 cells right of the cloth's
+    edge** (clear of the widest beater), trailing a thread one cell wide from the side it
+    left. It goes down on the cloth's odd steps (the first step after play) and back on
+    its even ones, by the count of steps woven, not the playhead's number, so a pattern of
+    odd length still alternates. Stopped, it rests at the top with no thread. With reduced
+    motion it is at the side it was going to for the whole step, its thread the whole height.
+14. **A cell is painted as a flat square five sixths of its place, and nothing is painted
+    for 0.** One rule for every cell on both hosts, so the whole display reads as woven
+    (`DESIGN.md`: "flat colour on a 1 mm weave grid"). The picture has the grid lines on
+    the cloth only.
+15. **In Rack, reduced motion is a tick in the module's menu,** "Display: reduced motion",
+    kept in the patch. Rack has no setting of its own to follow, as a browser has.
+16. **In a self-test the Rack display shows the test's name where the weave is,** as it
+    did, and no weave.
+
+Why these and not others: each is the plainest reading that makes the seven rules true of
+cells, and each is one constant or one line to change. Not chosen: reading the pattern
+ahead so a beat's diamond is its final size from its first step (the view would need the
+pattern); a smooth scroll (cells are a whole mm); a beater that springs back inside the
+step (rule 4 says the width is the step's loudness).
+
 ## Open
 
 | ID | Question | Needs |
@@ -1489,3 +1558,4 @@ to hold to, stays open until the owner has seen it.
 | O17 | ~~Sliders a step (D74): the design as proposed? The four CV jacks on an expander with D70's voice jacks, or a second jack row?~~ | Answered 2026-11-23: D75 (the simpler rule) and D76 (a second row on the panel) |
 | O9 | ~~How do the three blocks stack on a phone, and does one instrument fill the screen or share it?~~ | Answered 2026-11-19: D36 |
 | O18 | Session 18's rulings (D80): the eighteen items as built? And its three open points: the two-row panel judged with cables in; A OUT to A IN being one hit late; a marked repeat crossing the bus | The owner, in Rack. Recommended: accept the items; play the slider loop before ruling on the lateness |
+| O19 | The weave's first attempt (Session 14, D84): does it read as a cloth being woven when it moves, on the phone and in Rack? D84's sixteen items as built? Above all item 8 (a diamond growing as its beat fills), item 9 (the jump a beat), item 11 (the flash's length) and item 14 (every cell a square) | The owner, watching it play: `web/rhythm.html` and the Rhythm module. `PLAN.md`, "After Session 14's first attempt", lists what to look at. When accepted, three views and their cells are committed as the picture to hold to (Session 14's fourth box) |

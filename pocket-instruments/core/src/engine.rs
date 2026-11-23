@@ -32,6 +32,8 @@ pub struct Engine {
     /// been hit. The view's bytes 60 to 63 show the chosen sound's. Not saved: the moment's.
     pub(crate) hit: [[u16; 2]; TRACKS],
     pub(crate) hit_any: u16,
+    /// §16: bit `t`, track `t` has fired on the playhead's step so far. Not saved.
+    pub(crate) on_step: u16,
 }
 
 impl Engine {
@@ -52,6 +54,7 @@ impl Engine {
             bus: Bus::new(),
             hit: [[0; 2]; TRACKS],
             hit_any: 0,
+            on_step: 0,
         }
     }
 
@@ -82,7 +85,7 @@ impl Engine {
         }
         let thr = 625 * self.sample_rate as u64;
         let last = frames - 1;
-        let mut out = Out::new(events, self.fires);
+        let mut out = Out::new(events, self.fires, self.on_step);
         let mut next = 0;
         // §18: what is heard changes only by a command or a tick (and by a load, between
         // calls), so it is read again only on a frame that has one. The same value as reading
@@ -153,6 +156,7 @@ impl Engine {
         }
 
         self.fires = out.fires;
+        self.on_step = out.on_step;
         self.dropped = self.dropped.saturating_add(out.dropped);
         out.len()
     }

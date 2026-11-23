@@ -206,7 +206,7 @@ const hex = (bytes) => Array.from(bytes, (b) => b.toString(16).padStart(2, "0"))
 test("the module imports nothing and its memory grows by a page for the host", { skip }, () => {
   const m = load();
   assert.deepEqual(m.imports, [], "no imports: no glue to write");
-  assert.equal(m.pi.pi_abi_version(), 9);
+  assert.equal(m.pi.pi_abi_version(), 10);
   assert.equal(m.pi.memory.buffer.byteLength, m.base + PAGE);
   // Memory the module was not given is refused, not written.
   assert.equal(m.pi.pi_init(0, m.pi.pi_size(), 48000, 1), 0, "null");
@@ -267,6 +267,34 @@ test("every fixture gives its trace on both sources, at every rate and block siz
   }
   assert.equal(runs, names.length * 2 * 3 * 5);
   if (process.env.PI_REPORT) writeFileSync(process.env.PI_REPORT, report);
+});
+
+// §16: the weave from the .wasm, for the set of views in fixtures/weave-views.txt, as text: a
+// digit a cell. The Rust tests and harness.cpp write the same file natively, and `make test`
+// holds the three to the same bytes. It needs no engine: the view and the cells sit in the
+// host's page.
+test("the set of views weaves, from the .wasm", { skip }, () => {
+  const m = load();
+  const W = 78, H = 15, CELLS = W * H;
+  const lines = readFileSync(here("../fixtures/weave-views.txt"), "utf8").split("\n").filter((l) => l && !l.startsWith("#"));
+  assert.ok(lines.length >= 40, `the set is ${lines.length} views`);
+  let report = "";
+  for (const l of lines) {
+    const [name, flags, hex] = l.split(" ");
+    assert.equal(hex.length, 128, name);
+    const mem = new Uint8Array(m.pi.memory.buffer);
+    for (let i = 0; i < 64; i++) mem[m.base + i] = parseInt(hex.slice(2 * i, 2 * i + 2), 16);
+    mem.fill(0xee, m.base + 64, m.base + 64 + CELLS + 1);
+    // Refused, and nothing written: a short view, too little room.
+    assert.equal(m.pi.pi_weave(m.base, 63, +flags, m.base + 64, CELLS), 0);
+    assert.equal(m.pi.pi_weave(m.base, 64, +flags, m.base + 64, CELLS - 1), 0);
+    assert.ok(mem.subarray(m.base + 64, m.base + 64 + CELLS).every((b) => b === 0xee));
+    assert.equal(m.pi.pi_weave(m.base, 64, +flags, m.base + 64, CELLS), CELLS);
+    assert.equal(mem[m.base + 64 + CELLS], 0xee, "nothing past the cells");
+    report += `# ${name} ${flags}\n`;
+    for (let y = 0; y < H; y++) report += Array.from(mem.subarray(m.base + 64 + y * W, m.base + 64 + (y + 1) * W), (c) => String(c)).join("") + "\n";
+  }
+  if (process.env.PI_WEAVE) writeFileSync(process.env.PI_WEAVE, report);
 });
 
 // P7: the same scenarios harness.cpp renders (every harness/render-*.json), from the .wasm.

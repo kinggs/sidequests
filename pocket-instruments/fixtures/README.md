@@ -355,3 +355,17 @@ chosen sound's steps in every view whatever D71 does to the write-off row.
   it kept: `a=50000 b=20000` beside `ea=10000 eb=32768`. Step 5 fires at tick 768:
   `ea=50000 eb=32768`. Eight lines of trace, two of them hits.
 
+## `weave-views.txt` (Session 14: the weave, `ENGINE.md` §16)
+
+Not a fixture of the engine: a set of 60 view blocks for `pi_weave`, which takes a view and
+no engine. A line is a name, `pi_weave`'s flags (1: reduced motion) and the view's 64 bytes
+in hex. Each was made by setting the fields the weave reads (the tick, flags 0 and 3, the
+swing, bytes 48 to 54), not by playing. Rust's tests, `harness --weave` and the Node harness
+each weave every line and write the cells as text, a digit a cell, and `make test` holds the
+three files (`target/weave-rust.txt`, `-cpp.txt`, `-node.txt`) to the same bytes: natively
+and from the `.wasm`, the same cells.
+
+It holds no expected cells, on purpose. The weave is a first attempt the owner has not
+accepted (D84), so there is no picture to hold to yet; when there is, three views and their
+cells are committed beside this file (`PLAN.md`, Session 14's fourth box). The rules
+themselves are tested in `core/src/tests/weave.rs`.

@@ -885,9 +885,10 @@ fn the_view_follows_edits_as_well_as_keys() {
     assert_eq!((v.tempo(), v.length(), v.swing(), v.sampled(), v.a(), v.b()), (97_500, 12, 33, 1 << 3 | 1 << 15, 77, 88));
     assert!(v.edges());
     assert_eq!(v.0[30..32], [0, 0]);
-    // Session 16: 55 to 59 are §17's (held in tests/fx.rs); 48 to 54 stay zero. Since
-    // Session 21, 60 to 63 are §20's: no hit yet, so the chosen sound's own, set by edit.
-    assert_eq!(v.0[48..55], [0; 7], "zero until the weave");
+    // Session 16: 55 to 59 are §17's (held in tests/fx.rs). Since Session 21, 60 to 63 are
+    // §20's: no hit yet, so the chosen sound's own, set by edit. Since Session 14, 48 to 54
+    // are the weave's (§16; held in tests/weave.rs): nothing has played, so nothing is woven.
+    assert_eq!(v.0[48..55], [0; 7], "no cloth before any play");
     assert_eq!(v.0[55..60], [0, 0, 0, 0xff, 0xff], "nothing heard, an empty lane, every sound in");
     assert_eq!(v.0[60..], [77, 0, 88, 0], "the second mark: its own until hit");
 }

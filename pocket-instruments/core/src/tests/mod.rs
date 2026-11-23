@@ -12,6 +12,7 @@ mod rules;
 mod samples;
 mod snapshot;
 mod sound;
+mod weave;
 
 use crate::abi::*;
 use crate::engine::Engine;

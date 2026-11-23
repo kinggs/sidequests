@@ -329,10 +329,10 @@ Two runs agree when their traces are the same bytes.
   harness, the worklet and the Rack Probe; `core/src/tests/rules.rs` holds `pi_size` to it).
   With a sample beside each voice (§12) it is 2 328 bytes, natively and in WebAssembly, and
   the room is 4 KiB. With the keys (§13) it is 2 352 bytes, in the same room, and snapshot
-  version 2 (§15) added nothing to it. With the lane and the repeats (§17) it is 2 400; with the bus (§18), 2 448; with what each step keeps (§20), 3 568, natively and in WebAssembly, still inside every host's 4 KiB (Session 21); with the routes and the slider outputs (§19), 3 704 (Session 18). The samples
+  version 2 (§15) added nothing to it. With the lane and the repeats (§17) it is 2 400; with the bus (§18), 2 448; with what each step keeps (§20), 3 568, natively and in WebAssembly, still inside every host's 4 KiB (Session 21); with the routes and the slider outputs (§19), 3 704 (Session 18); with the weave's three fields (§16), 3 712 (Session 14). The samples
   themselves are in pages of their own after the host's.
   A host that can should ask `pi_size` instead.
-- **One thread.** Every function on an engine is called from the audio thread only. That
+- **One thread.** Every function on an engine is called from the audio thread only (`pi_weave`, §16, takes no engine, so any thread may call it). That
   includes the ones that only read: `pi_save` on another thread while `pi_process` runs is a
   data race (P6 planted it and the sanitizer found it).
 
@@ -637,7 +637,7 @@ function on an engine (§8). It moves nothing: not the generation, not a counter
 | 29 | 1 | swing |
 | 30 | 2 | zero |
 | 32 | 16 | fires: for each track, how many times it has fired, wrapping at 256 |
-| 48 | 16 | zero until §16 (since ABI 6, 55 to 59 are §17's; since ABI 8, 60 to 63 are §20's) |
+| 48 | 16 | zero until §16 (since ABI 6, 55 to 59 are §17's; since ABI 8, 60 to 63 are §20's; since ABI 10, 48 to 54 are §16's: steps woven, a u32; which of the last sixteen had a sound set, a u16; tracks fired on this step, a u8) |
 
 **What the grid shows** (`design/DESIGN.md`; D37, extended by D51 to the held keys). The
 first row that applies:
@@ -784,7 +784,7 @@ fixture's trace on both sources at three rates. `harness/render-both.json` holds
 layouts to each other in each harness and each layout's native render to its `.wasm` one.
 The Rack Probe loads a patch with a version 1 snapshot (`rack/selftest.sh`).
 
-## 16. The weave (designed in Session 9; D53; built in Session 14)
+## 16. The weave (ABI 10; designed in Session 9; D53; built in Session 14 as a first attempt, not yet accepted: D84)
 
 The display's animation is drawn once, in the core, as cells: both hosts paint the same
 grid and neither holds a drawing rule.
@@ -807,6 +807,50 @@ cells = pi_weave(view, len, flags, out, cap)    /* PI_WEAVE_W × PI_WEAVE_H, or 
   already there, `DESIGN.md`'s seven rules are a function of the block.
 - The host draws the rest of the display itself, from the view: the tempo, `bpm`, the write
   mark, the step number, the sixteen step marks.
+
+**Built (Session 14, 2026-11-23; a first attempt, D84).** The owner has not watched it move
+and nothing here is accepted (`PLAN.md`, Session 14's fourth box; O19). As built:
+
+```
+cells = pi_weave(view, len, flags, out, cap)    /* PI_WEAVE_CELLS (78 × 15 = 1170), or 0 */
+```
+
+- `core/src/weave.rs`, one pass over the cells, integers only, `#[inline(never)]`. It reads
+  the view's tick (bytes 0 to 3), flags 0 and 3 (byte 24), the swing (29) and bytes 48 to
+  54, and nothing else; a test holds that. `len` under 64, `cap` under 1170 or a null
+  pointer: 0, and nothing written. Only bit 0 of `flags` is read.
+- The three fields are the sequencer's (`core/src/seq.rs`, `Seq::cloth`; `Out::on_step` in
+  `core/src/abi.rs`), filled in `Engine::view`. `PI_VIEW_WOVEN` 48, `PI_VIEW_WOVE` 52,
+  `PI_VIEW_ON_STEP` 54. None is in a snapshot: they belong to the moment.
+- The engine is 3 712 bytes (from 3 704). `pi_process` costs what it did (`make bench`,
+  old and new back to back). One `pi_weave` call is about 1.9 µs natively (1 170 cells),
+  on the drawing side; a host calls it only when the view has changed.
+- **The same bytes natively and from the `.wasm`:** `fixtures/weave-views.txt` is a set of
+  60 views; Rust's tests, the C++ harness (`harness --weave`) and the Node harness each
+  write the cells as text (`target/weave-*.txt`) and `make test` compares the three.
+- **Tests of the rules, not of a picture** (`core/src/tests/weave.rs`): one or more for each
+  of the seven rules, for reduced motion, for the three fields, and for what the function
+  reads. No test says which cell a diamond lights.
+
+**What turned out different from the design above (each ruled in D84, the owner's to overrule):**
+
+| The design said | Built |
+|---|---|
+| Palette 0 to 4 | Also 5 tile and 6 madder: the designed picture's cloth is tile and its diamonds madder, ochre and ecru (D84 item 6) |
+| 48: "0 at play; held when stopped" | Also 0 at a reset while playing; a reset while stopped leaves it (item 2) |
+| 52: "had any sound set when it was woven" | Set, not fired: a probability or a repeat does not change it, and a later edit does not unpick it (item 3) |
+| 54: "how many tracks have fired on the playhead's step so far" | Tracks, not firings; and 0 unless a step has arrived since play, so stopped it is 0 (item 4) |
+| Rule 6's flash "for a sixteenth of a step" (`DESIGN.md`) | A quarter of a step: a sixteenth is 7.8 ms at 120 bpm, under one frame of a 60 Hz screen (item 11). It starts on the tick a swung step's sounds fire |
+| Rule 3: the diamond's size is the beat's density | True of a finished beat. The beat being woven is drawn at the size its steps so far give, so it can grow (item 8) |
+| "ABI 6" (PLAN's list, from before the effects) | ABI 10 (D83) |
+
+Both hosts paint a cell as a flat square five sixths of its place and paint nothing for 0
+(D84 item 14): `web/rhythm.html` on a canvas, only when the cells change, with
+`prefers-reduced-motion` as bit 0; `rack/src/Rhythm.cpp` (`RhythmDisplay::drawWeave`) in
+NanoVG, weaving again only when the view changes, with the menu's "Display: reduced motion"
+as bit 0 (item 15). `make play` reads every drawing's cells back off the page by colour and
+holds them to `pi_weave` for the view they came from. The Rack drawing has no checker; it
+was seen in screenshot mode (`design/rack-weave-*.png`).
 
 ## 17. Effects: the lane, the keys and the repeats (ABI 6; designed in Session 15; D66, D67; built in Session 16)
 

@@ -4,6 +4,7 @@
 // same and write the same report.
 //
 //   harness <fixtures dir> [report file]        exits 0 only if every trace matched
+//   harness --weave <views file> <report file>  pi_weave for each view (ENGINE.md §16)
 //   harness --render <scenario.json> <prefix>   P7: writes <prefix>-<source>-<rate>.f32, the mix,
 //                                               and <...>-16ch.f32 / -17ch.f32 for its "layouts"
 //
@@ -188,9 +189,37 @@ static int render(const std::string &scenario, const std::string &prefix) {
     return 0;
 }
 
+// §16: the weave for each view of fixtures/weave-views.txt, as text: a digit a cell. The Rust
+// tests and the Node harness write the same file, and the Makefile compares the three.
+static int weave(const char *views, const char *out) {
+    std::ifstream in(views);
+    if (!in) die("cannot read the views");
+    std::string line, report;
+    int n = 0;
+    while (std::getline(in, line)) {
+        if (line.empty() || line[0] == '#') continue;
+        size_t a = line.find(' '), b = line.find(' ', a + 1);
+        if (a == std::string::npos || b == std::string::npos || line.size() - b - 1 != 2 * PI_VIEW_SIZE) die("a line of the views is not a name, flags and 64 bytes");
+        std::string name = line.substr(0, a), flags = line.substr(a + 1, b - a - 1);
+        uint8_t view[PI_VIEW_SIZE], cells[PI_WEAVE_CELLS];
+        for (unsigned i = 0; i < PI_VIEW_SIZE; i++) view[i] = uint8_t(std::stoul(line.substr(b + 1 + 2 * i, 2), nullptr, 16));
+        if (pi_weave(view, PI_VIEW_SIZE, uint32_t(std::stoul(flags)), cells, sizeof cells) != PI_WEAVE_CELLS) die("pi_weave refused a view");
+        report += "# " + name + " " + flags + "\n";
+        for (unsigned y = 0; y < PI_WEAVE_H; y++) {
+            for (unsigned x = 0; x < PI_WEAVE_W; x++) report += char('0' + cells[y * PI_WEAVE_W + x]);
+            report += "\n";
+        }
+        n++;
+    }
+    if (n < 40) die("expected the set of views");
+    std::ofstream(out, std::ios::binary) << report;
+    return 0;
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) die("usage: harness <fixtures dir> [report file]");
     if (pi_abi_version() != PI_ABI_VERSION) die("the library's ABI is not the header's");
+    if (std::string(argv[1]) == "--weave") return argc == 4 ? weave(argv[2], argv[3]) : (die("usage: harness --weave <views file> <report file>"), 1);
     if (std::string(argv[1]) == "--render") return argc == 4 ? render(argv[2], argv[3]) : (die("usage: harness --render <scenario.json> <prefix>"), 1);
 
     std::vector<std::filesystem::path> files;

@@ -4,6 +4,8 @@
 NATIVE := target/release/libpi_core.a
 WASM   := target/wasm32-unknown-unknown/release/pi_core.wasm
 REPORT := $(CURDIR)/target/report
+# The weave's cells for fixtures/weave-views.txt, written by each harness and compared (§16).
+WEAVE  := $(CURDIR)/target/weave
 CXX    ?= c++
 # rack/test/jacks.cpp is built with the plugin's own maths flags (rack/math.mk) and Rack's CPU.
 include rack/math.mk
@@ -53,15 +55,19 @@ LAYOUTS := $(patsubst harness/render-%.json,%,$(shell grep -l '"layouts"' harnes
 # 18 and 50 channels, which are read as well as written: each harness gives them the same inputs.
 LOOPS := $(patsubst harness/render-%.json,%,$(shell grep -l '"loops"' harness/render-*.json))
 test: build check-p1
-	PI_REPORT=$(REPORT)-rust.txt cargo test -p pi-core --locked -q
+	PI_REPORT=$(REPORT)-rust.txt PI_WEAVE=$(WEAVE)-rust.txt cargo test -p pi-core --locked -q
 	$(CXX) -std=c++17 -O2 -Wall -Wextra -Werror -Icore/include harness/harness.cpp $(NATIVE) -o target/harness
 	target/harness fixtures $(REPORT)-cpp.txt
-	PI_REQUIRE_WASM=1 PI_REPORT=$(REPORT)-node.txt PI_RENDER=$(CURDIR)/target/render-node node --test harness/
+	target/harness --weave fixtures/weave-views.txt $(WEAVE)-cpp.txt
+	PI_REQUIRE_WASM=1 PI_REPORT=$(REPORT)-node.txt PI_WEAVE=$(WEAVE)-node.txt PI_RENDER=$(CURDIR)/target/render-node node --test harness/
 	$(CXX) -std=c++11 $(RACK_MATH) $(OUR_MATH) $(RACK_ARCH) -Wall -Wextra -Werror -Icore/include rack/test/jacks.cpp $(NATIVE) -o target/jacks
 	target/jacks
 	cmp $(REPORT)-rust.txt $(REPORT)-cpp.txt
 	cmp $(REPORT)-rust.txt $(REPORT)-node.txt
 	@echo "Pocket Instruments: three harnesses, $$(grep -c '^#' $(REPORT)-rust.txt) runs each, one report ($$(sha256sum < $(REPORT)-rust.txt | cut -c1-16))."
+	cmp $(WEAVE)-rust.txt $(WEAVE)-cpp.txt
+	cmp $(WEAVE)-rust.txt $(WEAVE)-node.txt
+	@echo "The weave (ENGINE.md section 16): $$(grep -c '^#' $(WEAVE)-rust.txt) views, the same cells natively (Rust's tests, C++) and from the .wasm ($$(sha256sum < $(WEAVE)-rust.txt | cut -c1-16))."
 	@for s in $(SCENARIOS); do target/harness --render harness/render-$$s.json target/render-cpp-$$s || exit 1; done
 	node harness/compare.mjs --same $(foreach n,$(SCENARIOS),$(foreach s,table edges,$(foreach r,44100 48000 96000,target/render-cpp-$(n)-$(s)-$(r).f32 target/render-node-$(n)-$(s)-$(r).f32))) \
 	  $(foreach n,$(LAYOUTS),$(foreach s,table edges,$(foreach r,44100 48000 96000,$(foreach c,16ch 17ch,target/render-cpp-$(n)-$(s)-$(r)-$(c).f32 target/render-node-$(n)-$(s)-$(r)-$(c).f32)))) \

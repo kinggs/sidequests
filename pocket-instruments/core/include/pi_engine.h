@@ -1,11 +1,12 @@
-/* Pocket Instruments: the engine's C ABI, version 9 (1 plus sound: D44; 3 adds samples: D50;
+/* Pocket Instruments: the engine's C ABI, version 10 (1 plus sound: D44; 3 adds samples: D50;
  * 4 adds keys and the view: D51; 5 adds snapshot version 2 and PI_AUDIO_BOTH: D55, D57;
  * 6 adds the lane, the fx key, the four repeats and snapshot version 3: D66, D67;
  * 7 adds the bus and seven sound effects on the mix, with no new call or command: D67;
  * 8 makes the sliders the hand's and lets a step keep them: KEEP, view bytes 60 to 63 and
  * snapshot version 4: D75;
  * 9 adds sound in: the loop layouts and ROUTE, for Rack's returns, effects loop and slider
- * jacks: D68, D76, D80).
+ * jacks: D68, D76, D80;
+ * 10 adds the weave: view bytes 48 to 54 and pi_weave, a first attempt: D53, D84).
  *
  * The contract both hosts link. ENGINE.md beside the crate is the specification; this file is
  * the same thing in C. Where they disagree, ENGINE.md is right.
@@ -28,7 +29,7 @@
 extern "C" {
 #endif
 
-#define PI_ABI_VERSION 9u
+#define PI_ABI_VERSION 10u
 
 #define PI_TICKS_PER_STEP 96u /* a step is a sixteenth note */
 #define PI_TRACKS 16u         /* one per grid key: key n plays track n (D30) */
@@ -155,7 +156,12 @@ extern "C" {
 #define PI_VIEW_LENGTH 28u  /* u8 */
 #define PI_VIEW_SWING 29u   /* u8 */
 #define PI_VIEW_FIRES 32u   /* PI_TRACKS u8s: how often each track has fired, wrapping at 256 */
-/* 48 to 54: the weave's (section 16), zero until it is built. */
+/* 48 to 54: the weave's (ABI 10, section 16). */
+#define PI_VIEW_WOVEN 48u     /* u32: steps woven since play began, or since a reset while playing;
+                                 held when stopped */
+#define PI_VIEW_WOVE 52u      /* u16: bit i, the step woven i steps ago had a sound set as it arrived */
+#define PI_VIEW_ON_STEP 54u   /* u8: how many tracks have fired on the playhead's step so far, taps
+                                 included; 0 unless PI_VIEW_FLAG_STEP */
 #define PI_VIEW_HEARD 55u     /* u8: the effect heard now, 1..16, or 0 (section 17) */
 #define PI_VIEW_FX_STEPS 56u  /* u16: bit s, step s of the lane holds an effect */
 #define PI_VIEW_FX_SOUNDS 58u /* u16: bit t, track t goes through the effects */
@@ -234,6 +240,30 @@ uint32_t pi_process(pi_engine *engine, uint32_t frames,
 /* Everything a host draws, as one block. Returns PI_VIEW_SIZE, or 0 if cap is too small.
  * On the audio thread, like every function on an engine. Moves nothing. */
 uint32_t pi_view(const pi_engine *engine, uint8_t *buf, uint32_t cap);
+
+/* The display's animation (ABI 10; ENGINE.md section 16): a cloth being woven, as cells of
+ * 1 mm, row by row from the top left, one byte each, a palette number. A host paints the cells
+ * and holds no drawing rule. */
+#define PI_WEAVE_W 78u
+#define PI_WEAVE_H 15u
+#define PI_WEAVE_CELLS (PI_WEAVE_W * PI_WEAVE_H)
+#define PI_WEAVE_REDUCED 1u /* pi_weave's flags: reduced motion. The shuttle jumps; nothing flashes */
+/* The palette: design/DESIGN.md's tokens. A host paints nothing for 0. */
+#define PI_WEAVE_DISPLAY 0u
+#define PI_WEAVE_THREAD 1u
+#define PI_WEAVE_ECRU 2u
+#define PI_WEAVE_WHITE 3u
+#define PI_WEAVE_OCHRE 4u
+#define PI_WEAVE_TILE 5u
+#define PI_WEAVE_MADDER 6u
+#define PI_WEAVE_COLOURS 7u
+
+/* The weave for a view: PI_WEAVE_CELLS palette numbers to `out`. A pure function of the view's
+ * bytes: it takes no engine, so any thread may call it (a drawing thread; the page, in its own
+ * instance of the .wasm). `len` is the view's length, at least PI_VIEW_SIZE. Returns
+ * PI_WEAVE_CELLS, or 0 with nothing written if a pointer is null, `len` is short or `cap` is
+ * too small. */
+uint32_t pi_weave(const uint8_t *view, uint32_t len, uint32_t flags, uint8_t *out, uint32_t cap);
 
 /* D50: track `track`'s sample: `frames` 16-bit mono frames at PI_SAMPLE_RATE, native byte
  * order. `data` must stay readable and unchanged until this track's sample is set again, or

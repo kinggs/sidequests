@@ -243,10 +243,12 @@ struct Other {
 
     // A view has no checksum, so hold it to what any view is: a volume and a chosen sound in
     // range, no key past 22, its zero bytes zero, and the grid's rows as ENGINE.md §14 gives
-    // them (a bar is one key; with bpm held the field is the volume's row). Since ABI 6 the
-    // zero bytes are 48 to 54 (the weave's, §16); 55 is the effect heard, 0 to 16 (§17).
+    // them (a bar is one key; with bpm held the field is the volume's row). 55 is the effect
+    // heard, 0 to 16 (§17). Since ABI 10, 48 to 54 are the weave's (§16): a cloth of fewer
+    // than sixteen steps has no step older than its first, at most sixteen tracks have fired
+    // on a step, and none unless a step has arrived since play.
     // (Until Session 16 all of 48 to 63 were zero; until Session 21, 60 to 63, which are now
-    // §20's second mark, any two u16s.)
+    // §20's second mark, any two u16s; until Session 14, 48 to 54.)
     void look() {
         const Seen *v = s.seen.take();
         if (!v) return;
@@ -257,7 +259,10 @@ struct Other {
         unsigned volume = b[PI_VIEW_VOLUME];
         bool ok = volume >= 1 && volume <= PI_VOLUME_MAX && b[PI_VIEW_SEL] < PI_TRACKS && held >> 23 == 0 && b[30] == 0 && b[31] == 0
                && (bar & (bar - 1)) == 0 && b[PI_VIEW_LENGTH] >= 1 && b[PI_VIEW_LENGTH] <= PI_STEPS && b[PI_VIEW_SWING] <= PI_SWING_MAX;
-        for (unsigned i = 48; i < PI_VIEW_HEARD; i++) ok = ok && b[i] == 0;
+        uint32_t woven = uint32_t(b[PI_VIEW_WOVEN]) | uint32_t(b[PI_VIEW_WOVEN + 1]) << 8 | uint32_t(b[PI_VIEW_WOVEN + 2]) << 16 | uint32_t(b[PI_VIEW_WOVEN + 3]) << 24;
+        unsigned wove = b[PI_VIEW_WOVE] | b[PI_VIEW_WOVE + 1] << 8;
+        ok = ok && (woven >= 16 || wove >> woven == 0) && b[PI_VIEW_ON_STEP] <= PI_TRACKS;
+        if (!(b[PI_VIEW_FLAGS] & PI_VIEW_FLAG_STEP)) ok = ok && b[PI_VIEW_ON_STEP] == 0;
         ok = ok && b[PI_VIEW_HEARD] <= PI_FX_MAX;
         if (held >> PI_KEY_BPM & 1) ok = ok && field == (1u << volume) - 1 && bar == 0;
         if (!ok) torn++;
