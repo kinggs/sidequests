@@ -670,8 +670,10 @@ above says, and posts it from the worklet when bytes 4 to 63 change and at least
 times a second while playing. `make play` reads every drawing back off the page and holds
 it to the view it came from. Nothing in this section changed.
 
-**Drawn in Rack (Session 13):** `rack/src/Rhythm.cpp` calls `pi_view` after every frame
-and hands it to the drawing thread through `pi::Latest` by the same rule. The slider
+**Drawn in Rack (Session 13):** `rack/src/Rhythm.cpp` calls `pi_view` after any frame
+where a command, an event or a load could have moved it, on every self-test frame, and
+otherwise every 16th (a trim measured with perf: it had been 9% of the module). It hands
+the view to the drawing thread through `pi::Latest` by the same rule. The slider
 parameters are the caps: the audio thread moves each to its shown value unless the pointer
 is on it, and the self-test holds both to every fixture view. Nothing in this section
 changed.

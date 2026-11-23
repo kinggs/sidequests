@@ -7,6 +7,7 @@ fact and its source are in `REFERENCES.md` under the number given. Re-read the s
 leaning on a line that is old.
 
 **must** is something Rack will not draw or run correctly without. **should** is VCV's advice.
+**ours** is what we measured ourselves (PLAN.md: efficient, measured).
 
 ## The panel
 
@@ -46,6 +47,8 @@ A dark panel needs no second, dark variant (R35).
 | | Rule | Source |
 |---|---|---|
 | should | Name a port in code without the words input or output: the tooltip adds them | R35 |
+| ours | On the audio thread, store to an atomic with `memory_order_relaxed`, and only when the value changed. A default store is a full barrier on x86, every sample | Measured, `LEARNINGS.md` Session 13 |
+| ours | Call nothing from libm, and divide by nothing, on a frame where its input has not changed; skip an output that is not patched | Measured, `LEARNINGS.md` Session 13 |
 
 ⚠ R35 also says static text may be written on an SVG panel. R33 says it must be outlined. We
 follow R33.

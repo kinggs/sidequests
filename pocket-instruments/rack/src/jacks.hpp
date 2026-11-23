@@ -72,7 +72,8 @@ struct Jacks {
             mix = sum * (float(volume * volume) / 256.f);
         }
         out.mix = mix;
-        out.audio = 10.f * std::tanh(safe(5.f * mix) / 10.f);
+        float v = safe(5.f * mix);
+        out.audio = v == 0.f ? v : 10.f * std::tanh(v / 10.f); // silence (±0) costs no tanh; tanh(±0) is ±0
     }
 };
 

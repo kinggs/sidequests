@@ -152,6 +152,12 @@ struct Rhythm : Module {
     int sourceSent = -1;         // the clock source last sent; -1 sends it on the next frame
     bool keyDown[23] = {};       // what the core was last told of each key
     uint32_t sliderSent[2] = {32768, 32768}; // the value each slider parameter last had
+    float sliderSeen[2] = {32768.f, 32768.f}; // the same, as the float last read: rounded only on a change
+    float rateSeen = 0.f;
+    uint32_t msFrames = 48;      // 1 ms at the rate: a trigger's length, and RESET's mask on CLOCK
+    uint32_t viewFrames = 800;   // a sixtieth of a second at the rate: the view's longest gap while playing
+    uint32_t frames = 0, droppedSeen = 0, notFiniteSeen = 0, returnFramesSeen = 0;
+    bool viewNow = true;         // something may have moved the view: read it this frame
     bool firstFrame = true, mustPublish = true;
     uint8_t view[PI_VIEW_SIZE] = {}, shownView[PI_VIEW_SIZE] = {};
     bool viewEverShown = false;
@@ -265,8 +271,10 @@ struct Rhythm : Module {
         for (int s = 0; s < 2; s++) {
             params[SLIDER_A + s].setValue(32768.f);
             sliderSent[s] = 32768;
+            sliderSeen[s] = 32768.f;
         }
         sourceSent = -1;
+        viewNow = true;
         mustPublish = true;
     }
 
@@ -367,7 +375,13 @@ struct Rhythm : Module {
 
     void process(const ProcessArgs &args) override {
         if (!e) return;
-        uint32_t r = uint32_t(std::lround(args.sampleRate));
+        // Efficiency (PLAN.md's ground rules; measured with perf in Session 13): nothing below
+        // calls libm, takes a lock or makes a full memory barrier on a frame where nothing moved.
+        uint32_t r = rate;
+        if (args.sampleRate != rateSeen) {
+            rateSeen = args.sampleRate;
+            r = uint32_t(std::lround(rateSeen));
+        }
         if (r != rate) {
             pi_set_sample_rate(e, r);
             if (rate != 0 && fixture >= 0 && running && !edgesRun) { // the table's frames start again
@@ -376,12 +390,15 @@ struct Rhythm : Module {
             }
             rate = r;
             lastRate = r;
+            msFrames = std::max<uint32_t>(1, r / 1000);
+            viewFrames = r / 60;
         }
-        if (freshWanted.exchange(false)) fresh(SEED);
+        if (freshWanted.load(std::memory_order_relaxed) && freshWanted.exchange(false)) fresh(SEED);
         if (const Snap *s = inbox.take()) {
             (pi_load(e, s->b, s->len) == PI_OK ? loadsOk : loadsRefused)++;
             loadsTaken++;
             mustPublish = true;
+            viewNow = true;
         }
 
         bool edges = inputs[CLOCK_INPUT].isConnected();
@@ -389,7 +406,7 @@ struct Rhythm : Module {
         bool clockIn = clockTrig.process(inputs[CLOCK_INPUT].getVoltage(), 0.1f, 2.f);
         if (resetIn) sinceReset = 0;
         else if (sinceReset < 0xffffffffu) sinceReset++;
-        if (sinceReset < r / 1000) clockIn = false;
+        if (sinceReset < msFrames) clockIn = false;
 
         pi_cmd cmds[PI_EVENTS_MIN + 32];
         uint32_t n = 0;
@@ -427,7 +444,10 @@ struct Rhythm : Module {
         if (firstFrame) { // what a patch saved is where the parameters start, not a press
             firstFrame = false;
             for (int k = 0; k < 23; k++) keyDown[k] = params[KEY_PARAMS + k].getValue() > 0.5f;
-            for (int s = 0; s < 2; s++) sliderSent[s] = uint32_t(clamp(int(std::lround(params[SLIDER_A + s].getValue())), 0, 65535));
+            for (int s = 0; s < 2; s++) {
+                sliderSeen[s] = params[SLIDER_A + s].getValue();
+                sliderSent[s] = uint32_t(clamp(int(std::lround(sliderSeen[s])), 0, 65535));
+            }
         }
         for (int k = 0; k < 23; k++) {
             bool down = params[KEY_PARAMS + k].getValue() > 0.5f;
@@ -437,7 +457,10 @@ struct Rhythm : Module {
             }
         }
         for (int s = 0; s < 2; s++) {
-            uint32_t v = uint32_t(clamp(int(std::lround(params[SLIDER_A + s].getValue())), 0, 65535));
+            float pv = params[SLIDER_A + s].getValue();
+            if (pv == sliderSeen[s]) continue;
+            sliderSeen[s] = pv;
+            uint32_t v = uint32_t(clamp(int(std::lround(pv)), 0, 65535));
             if (v != sliderSent[s] && n < PI_EVENTS_MIN + 32) {
                 cmds[n++] = pi_cmd{0, PI_CMD_PARAM, uint8_t(s), 0, 0, v};
                 sliderSent[s] = v;
@@ -447,7 +470,11 @@ struct Rhythm : Module {
         float both[PI_AUDIO_BOTH];
         pi_event ev[PI_EVENTS_MIN];
         uint32_t count = pi_process(e, 1, cmds, n, ev, PI_EVENTS_MIN, both, PI_AUDIO_BOTH);
-        pi_view(e, view, sizeof view);
+        // The view: on any frame a command or a load could have moved it, so the volume and the
+        // caps below are exact, and every self-test frame; else every 16th, for the drawing
+        // (the playhead and the counts move with the clock, and 16 frames is under 0.4 ms).
+        if (viewNow || n || count || fixture >= 0 || (++frames & 15) == 0) pi_view(e, view, sizeof view);
+        viewNow = false;
 
         if (fixture >= 0 && running) {
             const RhythmFixture &fx = FIXTURES[fixture];
@@ -480,6 +507,7 @@ struct Rhythm : Module {
             if (!sliderHeld[s].load(std::memory_order_relaxed) && shown != sliderSent[s]) {
                 params[SLIDER_A + s].setValue(float(shown));
                 sliderSent[s] = shown;
+                sliderSeen[s] = float(shown);
             }
         }
 
@@ -489,20 +517,25 @@ struct Rhythm : Module {
         uint32_t mask = pi::returnMask(returnChosen.load(std::memory_order_relaxed), channels);
         float rv[PI_TRACKS] = {};
         for (int c = 0; c < channels && c < int(PI_TRACKS); c++) rv[c] = ret.getVoltage(c);
-        if (mask) returnFrames++;
+        if (mask) returnFrames.store(++returnFramesSeen, std::memory_order_relaxed);
         uint32_t before = 0;
         for (uint32_t t = 0; t < PI_TRACKS; t++) before |= (jacks.trigLeft[t] ? 1u : 0u) << t;
         pi::JackFrame out;
-        jacks.frame(both, ev, count, std::max<uint32_t>(1, r / 1000), mask ? rv : nullptr, mask, view[PI_VIEW_VOLUME], out);
-        outputs[TRIGGERS_OUTPUT].setChannels(PI_TRACKS);
-        outputs[VOICES_OUTPUT].setChannels(PI_TRACKS);
-        for (uint32_t t = 0; t < PI_TRACKS; t++) {
-            outputs[TRIGGERS_OUTPUT].setVoltage(out.triggers[t], t);
-            outputs[VOICES_OUTPUT].setVoltage(out.voices[t], t);
-            if (outputs[TRIGGERS_OUTPUT].getVoltage(t) != 0.f && !(before >> t & 1)) pulses++; // what left, counted
+        jacks.frame(both, ev, count, msFrames, mask ? rv : nullptr, mask, view[PI_VIEW_VOLUME], out);
+        // An unpatched output is left alone; the self-test writes TRIGGERS anyway, to count it.
+        if (outputs[TRIGGERS_OUTPUT].isConnected() || fixture >= 0) {
+            outputs[TRIGGERS_OUTPUT].setChannels(PI_TRACKS);
+            for (uint32_t t = 0; t < PI_TRACKS; t++) {
+                outputs[TRIGGERS_OUTPUT].setVoltage(out.triggers[t], t);
+                if (outputs[TRIGGERS_OUTPUT].getVoltage(t) != 0.f && !(before >> t & 1)) pulses++; // what left, counted
+            }
+        }
+        if (outputs[VOICES_OUTPUT].isConnected()) {
+            outputs[VOICES_OUTPUT].setChannels(PI_TRACKS);
+            for (uint32_t t = 0; t < PI_TRACKS; t++) outputs[VOICES_OUTPUT].setVoltage(out.voices[t], t);
         }
         outputs[AUDIO_OUTPUT].setVoltage(out.audio);
-        notFinite = jacks.notFinite;
+        if (jacks.notFinite != notFiniteSeen) notFinite.store(notFiniteSeen = jacks.notFinite, std::memory_order_relaxed);
         uint32_t mv = uint32_t(std::fabs(outputs[AUDIO_OUTPUT].getVoltage()) * 1000.f);
         if (mv > peakMillivolts.load(std::memory_order_relaxed)) peakMillivolts.store(mv, std::memory_order_relaxed);
 
@@ -510,7 +543,7 @@ struct Rhythm : Module {
         // sixty times a second while playing.
         sincePublish++;
         bool playing = view[PI_VIEW_FLAGS] & PI_VIEW_FLAG_PLAYING;
-        if (!viewEverShown || std::memcmp(view + 4, shownView + 4, PI_VIEW_SIZE - 4) || (playing && sincePublish >= r / 60)) {
+        if (!viewEverShown || std::memcmp(view + 4, shownView + 4, PI_VIEW_SIZE - 4) || (playing && sincePublish >= viewFrames)) {
             std::memcpy(viewOut.write().b, view, PI_VIEW_SIZE);
             viewOut.publish();
             std::memcpy(shownView, view, PI_VIEW_SIZE);
@@ -532,7 +565,8 @@ struct Rhythm : Module {
                 published++;
             }
         }
-        dropped = pi_dropped(e);
+        uint32_t d = pi_dropped(e);
+        if (d != droppedSeen) dropped.store(droppedSeen = d, std::memory_order_relaxed);
     }
 
     void onReset(const ResetEvent &ev) override {
