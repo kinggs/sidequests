@@ -850,6 +850,37 @@ Why: one rule on both hosts (D22) without taking Rack's menu off five controls. 
 nearest precedent, the monome grid modules, latches with a modified click too. "For now":
 to be tried by hand at P8.
 
+### D62 — In Rack, the sounds go out and come back: a sixteen-channel RETURN
+**2026-11-23 · decided (owner: "we want to be able to route individual sound triggers to modules and then route the individual sounds back. Way more so than samples. It shows off the power of Rack. And is probably the main thing we want to be able to show off to Teenage Engineering"; "Yes please" to this proposal) · extends D33 · for Session 13**
+
+The Rack module's showpiece is routing, not samples: each sound's trigger out to any Rack
+module, each sound's audio out, and each sound back into the instrument's own mix.
+
+1. **TRIGGERS and VOICES out,** sixteen channels each, as D33 and Session 13's list say.
+2. **RETURN in,** a sixth jack, sixteen channels: channel *n* (5 V is 1.0, as VOICES) takes
+   sound *n*'s place in AUDIO's mix, and the master volume still applies:
+   `mix = Σ (returned or own) × (volume / 16)²`, then the tanh the Probe uses. The core
+   does not change: `PI_AUDIO_BOTH` already gives every track and the mix, and the view
+   gives the volume, so the module rebuilds the mix only when RETURN is patched; unpatched,
+   AUDIO is the core's mix as it is. VOICES and TRIGGERS are untouched by RETURN.
+   Process a sound: VOICES ch 2 → a filter → RETURN ch 2. Replace one: TRIGGERS ch 1 → any
+   Rack kick → RETURN ch 1.
+3. **Which sounds it replaces:** by default, the channels the cable carries (channel 1 up
+   to its count). The right-click menu has a tick per sound, "Sound *n* from RETURN", with
+   "As the cable carries" to go back to the default; saved with the patch. Why: a cable
+   carrying channel 5 also carries 1 to 4, silent, and would mute those sounds.
+4. **On the panel:** an input, so on the dark body beside RESET, at x = 34.00 mm, with
+   sixteen stitches round it as the other sixteen-channel jacks have, labelled RETURN.
+   The wordmark moves right to clear it (it is centred at 49 mm and spans about 30 to 68);
+   if `make_panel.py` shows it still touching RETURN or the output plate, it drops from
+   3.5 to 3.0 mm. Redrawn by `make_panel.py`, never by hand.
+5. **Samples step back:** Session 13 keeps only the starter pack and the per-key menu it
+   already plans. A player's own samples (D34) stay parked.
+
+Not chosen: D33's expander first (a jack per sound is the cleanest return, but a second
+module before the first is shown); a return that replaces a sound only while it is
+loud (silence between hits would bring the own voice back).
+
 ## Open
 
 | ID | Question | Needs |

@@ -192,7 +192,9 @@ Positions in mm from the top-left corner (`uv run pocket-instruments/design/make
 
 ### The jack row
 
-Left to right: CLOCK and RESET in, then TRIGGERS, VOICES and AUDIO out (D33).
+Left to right: CLOCK and RESET in, then TRIGGERS, VOICES and AUDIO out (D33). ⚠ D62 adds
+a sixth, RETURN in (sixteen channels, beside RESET at 34.00 mm, the wordmark moved to clear
+it): decided, drawn in Session 13.
 
 - **Two groups at a glance.** The inputs sit on the dark body at the left. The three outputs
   sit together on one pale plate at the right, with dark lettering. Why a plate: VCV's guide

@@ -181,6 +181,15 @@ Probe is its template and stays as it is.
       `PI_AUDIO_BOTH`: VOICES sixteen channels at 5 V to 1.0; AUDIO the mix, bent by tanh
       towards 10 V as the Probe does; TRIGGERS 10 V for 1 ms a firing, sixteen channels.
       Never a non-finite sample (`RACK-RULES.md`).
+- [ ] **RETURN (D62), the showpiece:** a sixteen-channel input; channel *n* takes sound
+      *n*'s place in AUDIO's mix, master volume and tanh still applied; by default the
+      channels the cable carries, or the menu's ticks. A test in the module's self-test or
+      a unit test beside it: unpatched, AUDIO is the core's mix bit for bit; RETURN carrying
+      sound 1's own VOICES channel back gives the same mix; a return of silence on channel
+      1 removes the bass drum from AUDIO and leaves VOICES and TRIGGERS as they were. Each
+      fails once on a planted fault.
+- [ ] The panel's sixth jack (D62 item 4): `design/make_panel.py` redrawn, `panel.svg`
+      regenerated, `design/DESIGN.md`'s positions table and jack row updated.
 - [ ] The view to the drawing thread through `pi::Latest`; the snapshot saved and loaded as
       the Probe does (D43). The starter pack loaded as the Probe does.
 - [ ] The widgets, drawn from the view: keys with field, frame, white, stitch and bar;
@@ -190,7 +199,8 @@ Probe is its template and stays as it is.
 - [ ] The latch, by D60 and D61: Ctrl+click (Cmd on a Mac), as the page does; right-click
       keeps Rack's parameter menu. It supersedes D57 item 4. And the computer keys while the
       pointer is over the module (D57 item 5). ⚠ R25: whether Rack reports several keys held at once is found out here.
-- [ ] The menu: each key's code or sample, All code, All samples.
+- [ ] The menu: each key's code or sample, All code, All samples; and D62's "Sound *n* from
+      RETURN" ticks with "As the cable carries".
 - [ ] **A self-test in Rack itself:** a patch that names a format 2 fixture makes the module
       press its own parameters (and send the fixture's `play` edit) and hold its events and
       views to the fixture, with a light, as the Probe does. `rack/selftest.sh` runs it
@@ -201,7 +211,8 @@ Probe is its template and stays as it is.
 - [ ] Not built: sliders under CV, the neighbour connection (D40), the tempo-voltage clock,
       a player's own samples (D34), the expander.
 - [ ] For the owner after it: the look in Rack at 100% (the ⚠ rows of `DESIGN.md`'s table);
-      the latch by hand; MIDI-Map on a slider (D54's ⚠).
+      the latch by hand; MIDI-Map on a slider (D54's ⚠); the round trip by ear: a sound out
+      through a Rack module and back through RETURN (D62).
 
 ## Session 14 — the weave (build, with the owner's eye)
 
