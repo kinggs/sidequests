@@ -1197,3 +1197,83 @@ Order against Session 14 is the owner's call; neither needs the other.
   - There is no bench yet; the list starts by making one.
 - **Ruled the same day: D72.** All accepted; the jacks on the panel; D71 yes; D70 later.
 - **Next: Session 16,** on Opus.
+
+## Session 21 — the sliders are the hand's; a step keeps what it was written with (build, Opus; D75; done 2026-11-23)
+
+`ENGINE.md` §20; D75. After Session 17. Small in the core; it changes what three fixtures'
+views say, by decision, so the order below matters.
+
+- [x] Before any change: the report, the render hashes, `make bench`;
+      `fixtures/snapshots-v3.txt` written by today's core and committed.
+- [x] By hand, before code: `keys-tap-and-choose`'s views worked again from §20 (a slider
+      now shows the same for every sound), and any other view line that §20 changes, each
+      explained in `fixtures/README.md`. A view changed by a decision is not a trace edited
+      to pass a build; say which lines and why. No trace changes.
+- [x] Command 26 `KEEP`; `STEP` 0 forgets; `PARAM` sets all sixteen; a write-mode key that
+      turns a step on keeps the sliders; clear forgets all.
+- [x] A step's hit, and a repeated hit, use what the step keeps.
+- [x] The view's bytes 60 to 63; fixture format 4 in the three harnesses;
+      `fixtures/designed/keeps-what-it-was-written-with.json` moved up unchanged and run.
+- [x] Snapshot version 4; versions 1 to 3 load, each step that is on keeping its sound's
+      own values.
+- [x] A render pair: two steps of one sound written at two slider positions sound at two
+      pitches, native and `.wasm` the same bytes. Every existing render file unchanged.
+- [x] The page and the Rack module: the cap is the hand and moves by itself only with bpm
+      held or after a load; the second mark from bytes 60 to 63, drawn as
+      `design/DESIGN.md` says (⚠ if it does not say yet, draw a thin thread-coloured line
+      across the slider's track at that value, mark it ⚠ in DESIGN.md's "Not done", and
+      ask in the Handover). `make play` and the Rack self-test hold both.
+- [x] D77 item 5: the stmlib and Plaits MIT notice as a file in the plugin's `res/`,
+      beside the font's OFL; `check-dist.sh` holds it there; CI green on all four.
+- [x] `WORKFLOW.md`'s deliberate differences brought up to date. Rule tests; planted
+      faults; `make bench` after.
+
+Later, not planned: holding a step and moving a slider; holding write to record a
+slider's movement; live record of notes (D75 item 3). The sliders out and back in Rack
+are in Session 18 (D76).
+
+### After Session 16: the lane and the repeats, in the core (2026-11-23)
+
+- **Built, ABI 6 (`ENGINE.md` §17, now marked built):** commands 23 `FX` and 24 `FXSOUND`;
+  the lane and the sounds' fx switches in the pattern; clear empties the lane; fx + a grid
+  key punches (the last held wins, the one before comes back, fx let go ends them all,
+  stopped nothing is heard or written); the lane written by the steps that arrive; `eff`;
+  the four repeats (9: every 96 ticks, 10: 128, 11: 48, 12: 64), each run on its own grid
+  from the step it began on, unswung, a draw a hit, out on `TRIG`; the view's bytes 55 to
+  59; snapshot version 3 (408 bytes), loading versions 1 and 2 with the lane empty and
+  every sound in; `pi_engine.h`. `make bench`, new (`harness/bench.cpp`).
+- **Proven:** `fixtures/snapshots-v2.txt` written by the ABI 5 core and committed first;
+  then `fx-repeat-swing` worked by hand and committed before any §17 code. Both format 3
+  fixtures moved up unchanged and passed at the first run in all three harnesses (216
+  runs each, the three reports the same bytes). The seven older fixtures' traces and views
+  are the same lines and all 276 render files the same bytes as before the session (only
+  the 42 snapshot labels' hex differs). 143 Rust tests, 30 of them §17's in
+  `core/src/tests/fx.rs`, the 20 000-press generation test with fx among them; every v1
+  and v2 snapshot ever written loads to its fixture's trace. 24 faults planted in the core,
+  the unplanted copy passing first: 24 caught, each by a named test; a wrong format 3 view
+  planted fails the C++ harness (24 mismatches) and the Node test. `make test` (with P6's
+  race and its six plants), `make play`, `make p4`, `make listen`, and Rack's `make
+  install` and `make selftest` at 44.1, 48 and 96 kHz all passed.
+- **Measured (`LEARNINGS.md`):** ns a frame, best of five, three runs each, before → after:
+  idle 26.1–27.0 → 25.5–26.0; the minimum beat 28.3–29.5 → 27.9–29.4; all sixteen
+  41.7–42.7 → 42.3–44.8. An empty lane costs nothing the bench can see.
+- **Opus decided nothing. Three readings built on, each ⚠ in `ENGINE.md` §17, each a line
+  or two to change:**
+  1. A step that writes the lane moves the generation (§8 says "a command"); so a host
+     saves a performance as it saves an edit.
+  2. A repeat waits for the first step after play: play from stopped and reset clear `eff`,
+     so the old run's grid never fires between a play and the next boundary.
+  3. Bytes 402 and 403 of a version 3 snapshot are not read, as 381 to 383 are not.
+- **Harness changes, not readings:** `harness/race.cpp`'s churn no longer presses fx (the
+  lane would be written at the audio thread's pace, which its model cannot keep; the lane
+  goes in by `FX`), and its `look()` holds 48 to 54 and 60 to 63 to zero and 55 to at most
+  16. Rack's self-tests leave format 3 out until Session 18 (`rack/*.jq`).
+- **For the owner to try now:** nothing is drawn yet, but both hosts carry ABI 6, so on
+  the page and in Rack, while playing, hold fx and press key 9, 10, 11 or 12: the steps
+  that arrive repeat (and record into the lane; fx alone wipes them as they pass). In Rack
+  the repeats go out on TRIGGERS. Effects 1 to 8 and 13 to 16 punch and record but make no
+  sound until Session 17. With a mouse (page or Rack): Ctrl+click fx, then hold the mouse
+  down on a grid key; both let go when the button is released (D60). On a phone, two
+  fingers; in Rack, the computer keys held together also work.
+- **Next: Session 17,** the bus and seven sound effects (Opus). The bench is there to say
+  what each costs; idle is the number to watch.
