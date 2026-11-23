@@ -238,7 +238,9 @@ typed in. Length 8, so a pass is 768 ticks. A key lands a frame after its step's
   `fxsteps=0000`. No key lights for it: with write off the grid is still sounds, and
   `held=100400` is the only sign on the keys. (The first working had `bar=0400` and
   `sounds=0`; the owner's PO-12 lights nothing for an effect, and §17 changed before any
-  core ran this.)
+  core ran this.) (Session 20: still nothing lights for the effect, but with write off the
+  field now shows the chosen sound's steps, so every view here says `field=0011`, sound 1's
+  steps 1 and 5. Below, "The views worked again for the write-off row".)
 - **The run.** Ticks 480, 576 and 672 arrive with the punch held: steps 5, 6 and 7 take
   effect 11 (`fxsteps=00e0`). The run begins at 480 on step 5, so sound 3's hit there
   fires at 480, 528, 576, 624, 672 and 720: six lines `trig 2 5`. Sound 1 is in the effects
@@ -282,6 +284,32 @@ snapshot" run holds it to snapshot version 3 as well.
 - **Counts.** Track 0: 0, 96, 352, 768, 992, 1120: 6. Track 1: 312, 1080: 2. Track 2: four
   a pass: 8. 32 lines. The view in step 2 says `fx=10` (nothing punched; the playhead's step
   holds 10) and `fxsteps=001e`; the last, on step 7, `fx=0`.
+
+## The views worked again for the write-off row (Session 20; D71, D72 item 3, D82)
+
+A view changed by an owner's decision, as Session 21's were: worked by hand from
+`ENGINE.md` §14's changed table and committed before any code of Session 20; not a trace
+edited to pass a build. The write-off row (write off, and none of bpm, sound or pattern
+held) was `field none, stitch none, bar none, sounds yes`; it is now the chosen sound's
+steps in `field`, the rest the same. Every view of every fixture was checked against the
+row: sixteen lines in four fixtures take it, and twelve of them change, in `field=` only.
+No `expect` line changed, no `about`, and nothing else on any view line. `keys-bpm-family`
+and `keeps-what-it-was-written-with` have write on in every view, and the views taken with
+bpm, sound or pattern held take an earlier row, so none of those moved.
+
+| Fixture | View `at` | Was | Now | Why |
+|---|---|---|---|---|
+| `fx-repeat-punch` | 4, 7, 14, 23 | `field=0000` | `field=0011` | sound 1 chosen (from `pi_init`), on steps 1 and 5 (the trace's 0 and 4) by the step-0 edits; nothing changes a step after |
+| `fx-repeat-swing` | 2, 15 | `field=0000` | `field=0007` | sound 1 chosen, on steps 1, 2 and 3 by the step-0 edits; step 2's probability of 70 does not change that it is on |
+| `keys-tap-and-choose` | 7, 10 | `field=0000` | `field=0004` | key 4 chosen (sound + key 4 at run step 7); track 3 has step 3 (the trace's 2) from the step-0 edit; taps with write off set nothing |
+| `keys-write-a-beat` | 11, 15, 27, 31 | `field=0000` | `field=1010` | the snare (key 2) chosen since run step 7, on steps 5 and 13 (bits 4 and 12): step 6 went on at run step 8 and off at 9. View 31 is stopped and still takes the row |
+
+Unchanged, and checked: `keys-tap-and-choose` at 1, 4, 12 and 15 take the row with sound 1
+chosen, which has no step, so `field=0000` is still the working (5, 6 and 13 hold sound or
+pattern and take earlier rows). The stitch stays `0000` on all sixteen, though other sounds
+have steps (`keys-write-a-beat`'s kick and hat, `fx-repeat-punch`'s sounds 2 and 3): D82
+item 3. `sounds=1` stays on all sixteen: the grid is still sounds, so a key still goes
+white as its own sound fires.
 
 ## Format 4 (2026-11-23: the sliders, D75; built in Session 21)
 

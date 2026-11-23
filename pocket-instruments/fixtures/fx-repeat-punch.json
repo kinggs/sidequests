@@ -67,9 +67,9 @@
     "2208 step 7"
   ],
   "views": [
-    {"at": 4, "view": "view play=1 write=0 edges=0 sounds=1 step=4 sel=0 vol=16 tempo=120000 len=8 swing=0 held=100400 field=0000 stitch=0000 bar=0000 sampled=0000 a=32768 b=32768 fires=2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 fx=11 fxsteps=0000 fxsounds=fffd"},
-    {"at": 7, "view": "view play=1 write=0 edges=0 sounds=1 step=7 sel=0 vol=16 tempo=120000 len=8 swing=0 held=000000 field=0000 stitch=0000 bar=0000 sampled=0000 a=32768 b=32768 fires=2,1,6,0,0,0,0,0,0,0,0,0,0,0,0,0 fx=11 fxsteps=00e0 fxsounds=fffd"},
-    {"at": 14, "view": "view play=1 write=0 edges=0 sounds=1 step=6 sel=0 vol=16 tempo=120000 len=8 swing=0 held=100000 field=0000 stitch=0000 bar=0000 sampled=0000 a=32768 b=32768 fires=4,2,8,0,0,0,0,0,0,0,0,0,0,0,0,0 fx=0 fxsteps=00a0 fxsounds=fffd"},
-    {"at": 23, "view": "view play=1 write=0 edges=0 sounds=1 step=7 sel=0 vol=16 tempo=120000 len=8 swing=0 held=000000 field=0000 stitch=0000 bar=0000 sampled=0000 a=32768 b=32768 fires=6,3,10,0,0,0,0,0,0,0,0,0,0,0,0,0 fx=0 fxsteps=0020 fxsounds=fffd"}
+    {"at": 4, "view": "view play=1 write=0 edges=0 sounds=1 step=4 sel=0 vol=16 tempo=120000 len=8 swing=0 held=100400 field=0011 stitch=0000 bar=0000 sampled=0000 a=32768 b=32768 fires=2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 fx=11 fxsteps=0000 fxsounds=fffd"},
+    {"at": 7, "view": "view play=1 write=0 edges=0 sounds=1 step=7 sel=0 vol=16 tempo=120000 len=8 swing=0 held=000000 field=0011 stitch=0000 bar=0000 sampled=0000 a=32768 b=32768 fires=2,1,6,0,0,0,0,0,0,0,0,0,0,0,0,0 fx=11 fxsteps=00e0 fxsounds=fffd"},
+    {"at": 14, "view": "view play=1 write=0 edges=0 sounds=1 step=6 sel=0 vol=16 tempo=120000 len=8 swing=0 held=100000 field=0011 stitch=0000 bar=0000 sampled=0000 a=32768 b=32768 fires=4,2,8,0,0,0,0,0,0,0,0,0,0,0,0,0 fx=0 fxsteps=00a0 fxsounds=fffd"},
+    {"at": 23, "view": "view play=1 write=0 edges=0 sounds=1 step=7 sel=0 vol=16 tempo=120000 len=8 swing=0 held=000000 field=0011 stitch=0000 bar=0000 sampled=0000 a=32768 b=32768 fires=6,3,10,0,0,0,0,0,0,0,0,0,0,0,0,0 fx=0 fxsteps=0020 fxsounds=fffd"}
   ]
 }

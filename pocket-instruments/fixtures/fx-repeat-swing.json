@@ -58,7 +58,7 @@
     "1440 step 7"
   ],
   "views": [
-    {"at": 2, "view": "view play=1 write=0 edges=0 sounds=1 step=2 sel=0 vol=16 tempo=120000 len=8 swing=24 held=000000 field=0000 stitch=0000 bar=0000 sampled=0000 a=32768 b=32768 fires=2,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0 fx=10 fxsteps=001e fxsounds=fffd"},
-    {"at": 15, "view": "view play=1 write=0 edges=0 sounds=1 step=7 sel=0 vol=16 tempo=120000 len=8 swing=24 held=000000 field=0000 stitch=0000 bar=0000 sampled=0000 a=32768 b=32768 fires=6,2,8,0,0,0,0,0,0,0,0,0,0,0,0,0 fx=0 fxsteps=001e fxsounds=fffd"}
+    {"at": 2, "view": "view play=1 write=0 edges=0 sounds=1 step=2 sel=0 vol=16 tempo=120000 len=8 swing=24 held=000000 field=0007 stitch=0000 bar=0000 sampled=0000 a=32768 b=32768 fires=2,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0 fx=10 fxsteps=001e fxsounds=fffd"},
+    {"at": 15, "view": "view play=1 write=0 edges=0 sounds=1 step=7 sel=0 vol=16 tempo=120000 len=8 swing=24 held=000000 field=0007 stitch=0000 bar=0000 sampled=0000 a=32768 b=32768 fires=6,2,8,0,0,0,0,0,0,0,0,0,0,0,0,0 fx=0 fxsteps=001e fxsounds=fffd"}
   ]
 }
