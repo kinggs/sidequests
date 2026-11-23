@@ -29,6 +29,8 @@ OBJECTS += $(PI_LIB)
 PACK := $(patsubst ../samples/raw/%,res/samples/%,$(wildcard ../samples/raw/*.s16)) res/samples/tracks.txt
 # The Rhythm module's panel (design/make_panel.py draws it) and its typeface with the licence.
 PACK += res/panel.svg res/fonts/JetBrainsMono-ExtraBold.ttf res/fonts/OFL.txt
+# D77 item 5: the MIT notice of the stmlib and Plaits code the effects port, beside the OFL.
+PACK += res/stmlib-plaits-MIT.txt
 DISTRIBUTABLES += res
 
 include $(RACK_DIR)/plugin.mk
@@ -46,6 +48,9 @@ res/panel.svg: ../design/panel.svg
 	cp $< $@
 res/fonts/%: ../design/fonts/%
 	@mkdir -p res/fonts
+	cp $< $@
+res/stmlib-plaits-MIT.txt: ../core/stmlib-plaits-MIT.txt
+	@mkdir -p res
 	cp $< $@
 
 # cargo decides for itself whether anything changed, so always ask it.

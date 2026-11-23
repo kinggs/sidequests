@@ -8,6 +8,7 @@
 #   - the archive holds the manifest and one plugin binary of the right kind;
 #   - and the starter pack (D50): res/samples/tracks.txt and the sixteen samples it names;
 #   - and the Rhythm module's panel, font and font licence (Session 13);
+#   - and the MIT notice of the stmlib and Plaits code the effects port (D77 item 5);
 #   - lin-x64: needs no glibc newer than 2.23 and nothing from the system's libstdc++;
 #   - win-x64: needs no DLL that neither Windows nor Rack's own folder provides;
 #   - mac-*: one architecture, the right one; libRack found where Rack puts it
@@ -47,6 +48,9 @@ done < "$list"
 for f in panel.svg fonts/JetBrainsMono-ExtraBold.ttf fonts/OFL.txt; do
     [ -s "$dir/res/$f" ] || fail "no res/$f: the Rhythm module would draw no panel or no lettering"
 done
+# D77 item 5: the notice MIT asks for in every copy, and a .vcvplugin is a copy with no source.
+grep -q 'Copyright 2014 Emilie Gillet' "$dir/res/stmlib-plaits-MIT.txt" 2>/dev/null ||
+    fail "no res/stmlib-plaits-MIT.txt with Emilie Gillet's notice: the plugin ships her MIT code without it"
 
 case $platform in
 lin-x64)
