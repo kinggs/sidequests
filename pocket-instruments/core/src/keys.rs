@@ -276,6 +276,10 @@ impl Engine {
                 stitch |= self.pat.on[t];
             }
         } else {
+            // Since Session 20 (D82): the chosen sound's steps, as the hardware lights them
+            // in both modes (D71); no stitch, no bar, and still sounds, so each key goes white
+            // as its own sound fires. Until then the field was dark here (D37).
+            field = self.pat.on[sel];
             sounds = true;
         }
 

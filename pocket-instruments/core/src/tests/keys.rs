@@ -716,10 +716,36 @@ fn patterned() -> Host {
 const MINE: u16 = 1 << 0 | 1 << 5;
 const OTHERS: u16 = 1 << 5 | 1 << 15;
 
+// Until Session 20 this was `write_off_the_grid_is_sounds_and_nothing_is_lit`, holding the
+// row to (0, 0, 0, true) as D37 had it. D71 and D82 changed the row: the field is the chosen
+// sound's steps in both modes.
 #[test]
-fn write_off_the_grid_is_sounds_and_nothing_is_lit() {
-    let h = patterned();
-    assert_eq!(V::of(&h).grid(), (0, 0, 0, true));
+fn write_off_the_field_is_the_chosen_sound_s_steps_with_no_stitch_and_the_grid_is_sounds() {
+    let mut h = patterned();
+    assert_eq!(V::of(&h).grid(), (MINE, 0, 0, true), "no stitch, though tracks 0 and 9 have steps");
+    // The same field as with write on: write changes what a tap does, not the lights.
+    send(&mut h, &[down(WRITE), up(WRITE)]);
+    assert_eq!(V::of(&h).field(), MINE);
+    send(&mut h, &[down(WRITE), up(WRITE)]);
+    assert_eq!(V::of(&h).grid(), (MINE, 0, 0, true));
+    // It follows the choice, and an edit, like any other change.
+    send(&mut h, &[down(SOUND), down(9), up(9), up(SOUND)]);
+    assert_eq!(V::of(&h).grid(), (1 << 15, 0, 0, true), "track 9 chosen");
+    send(&mut h, &[cmd(CMD_STEP, 9, 3, 1)]);
+    assert_eq!(V::of(&h).grid(), (1 << 15 | 1 << 3, 0, 0, true));
+    send(&mut h, &[down(SOUND), down(4), up(4), up(SOUND)]);
+    assert_eq!(V::of(&h).grid(), (0, 0, 0, true), "a sound with no steps lights nothing");
+    // fx and function held take this row too: nothing lights for them.
+    let mut h = patterned();
+    for key in [FX, FUNCTION] {
+        send(&mut h, &[down(key)]);
+        assert_eq!(V::of(&h).grid(), (MINE, 0, 0, true), "key {key} held");
+        send(&mut h, &[up(key)]);
+    }
+    // A tap fires its own sound and changes no light: the white is the host's, from `fires`.
+    send(&mut h, &[down(5), up(5)]);
+    assert_eq!(V::of(&h).grid(), (MINE, 0, 0, true));
+    assert_eq!(V::of(&h).fires()[5], 1);
 }
 
 #[test]
