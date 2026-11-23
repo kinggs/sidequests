@@ -9,6 +9,8 @@
 //   beat    the minimum beat playing: bass drum, snare and the two hats (tracks 0 to 3)
 //   all     all sixteen sounds playing, each on four steps of its own
 //   repeat  "all" with effect 11 (eight a beat) on every step of the lane (ABI 6 on)
+//   fx N    "beat" with sound effect N on every step of the lane, all four drums through it
+//           (ABI 7 on: ENGINE.md section 18; N is 1, 2, 3, 5, 6, 7, 8)
 //
 // Numbers move between machines and between runs by a few percent: compare runs made on the
 // same machine, one after the other. LEARNINGS.md keeps the ones a session measured.
@@ -81,6 +83,16 @@ int main() {
     repeat.insert(repeat.end() - 2, 16, cmd(PI_CMD_FX));
     for (uint8_t s = 0; s < PI_STEPS; s++) repeat[repeat.size() - 18 + s] = cmd(PI_CMD_FX, s, 0, 11);
     report("repeat", repeat);
+#endif
+#if PI_ABI_VERSION >= 7
+    for (uint32_t effect : {1u, 2u, 3u, 5u, 6u, 7u, 8u}) {
+        std::vector<pi_cmd> lane = beat;
+        lane.insert(lane.end() - 2, 16, cmd(PI_CMD_FX));
+        for (uint8_t s = 0; s < PI_STEPS; s++) lane[lane.size() - 18 + s] = cmd(PI_CMD_FX, s, 0, effect);
+        char name[8];
+        std::snprintf(name, sizeof name, "fx %u", effect);
+        report(name, lane);
+    }
 #endif
     return 0;
 }
