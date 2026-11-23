@@ -1450,6 +1450,23 @@ and four ticks over the step marks.
    does: the host's rule for white already says so.
 5. The other rows (bpm, sound, pattern held; write on) do not change.
 
+### D83 — Session 20 verified; its three readings stand; the weave's first attempt begins
+**2026-11-23 · decided (Fable; the owner is away and can overrule: D79)**
+
+Verified: the repo's `make verify` re-run by this session (205 Rust tests, 300 harness
+runs, none failed); CI run 45209366419 green on all four platforms; the fixtures changed
+in view lines only, no line of trace.
+
+1. No ABI number for Session 20: no byte of the view moved or changed its meaning.
+2. With write on, a firing still does not whiten a key: white is for the grid as sounds
+   (§14), which D82 item 5 left alone.
+3. A step past a short length is lit with write off as with write on.
+
+Session 14 starts as a first attempt (the owner: "you can even start a first prototype /
+attempt at a weave"). Its list's "ABI 6" is from before the effects: it takes the next
+number. Its fourth box, the owner watching it move and three frames kept as the picture
+to hold to, stays open until the owner has seen it.
+
 ## Open
 
 | ID | Question | Needs |

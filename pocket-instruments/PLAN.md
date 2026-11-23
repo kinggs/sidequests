@@ -277,7 +277,9 @@ None blocks anything; each is done when wanted, profiled before and after (Machi
 Recommended on Fable: which cells each of the seven rules lights is not designed, only its
 inputs and its tests. That is drawing by judgment, with the owner watching.
 
-ABI 6. `ENGINE.md` §16, `design/DESIGN.md` "The animation", `design/loom/frames.html`.
+The next ABI number (this line said 6, from before the effects: D83). `ENGINE.md` §16,
+`design/DESIGN.md` "The animation", `design/loom/frames.html`. A first attempt while the
+owner is away (D79, D83): the fourth box stays open for the owner.
 
 - [ ] The view's bytes 48 to 54 (§16: a u32, a u16, a u8; this line said 48 to 55), filled
       by the sequencer; fixtures' view text is unchanged (it leaves them out). Rust tests
