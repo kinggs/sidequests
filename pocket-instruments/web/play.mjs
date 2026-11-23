@@ -19,10 +19,11 @@
 //     and when both lift, nothing stays held;
 //   - a reload brings the beat back: the page loads the kept snapshot (result 0) and saves
 //     the same bytes;
-//   - a mouse's right-click latch (D60, added 2026-11-23): right-click sound, click key 16:
-//     sound held and lit as latched, then key 16 chosen and nothing held or lit; right-click
-//     bpm, two slider moves leave it held, right-click it again: the tempo is B's 170 bpm,
-//     not a preset; right-click function, click pattern: cleared; right-click play: nothing;
+//   - Ctrl+click latches (D60, D61; added 2026-11-23): Ctrl+click sound, click key 16:
+//     sound held and lit as latched, then key 16 chosen and nothing held or lit; Ctrl+click
+//     bpm, two slider moves leave it held, Ctrl+click it again: the tempo is B's 170 bpm,
+//     not a preset; Ctrl+click function, click pattern: cleared; a right-click: nothing;
+//     Ctrl+click on play: a plain press, it plays;
 //   - the sounds sheet (D60): a name fires its sound once and switches nothing; the switch
 //     turns it to its sample and fires it once more;
 //   - P6's browser half: the pattern entered by keys while it plays, the snapshot the page
@@ -107,8 +108,8 @@ function judge(phases) {
   const L = p.latch?.latch || {};
   const latchOk = L.soundHeld === 1 << 16 && L.soundLit === true && L.chosen === 15 && L.afterLit === false &&
     L.bpmStillHeld === true && L.tempo === 170000 && L.fieldAfterClear === 0 &&
-    L.playAfterRight?.playing === 0 && L.playAfterRight?.held === 0;
-  if (!latchOk) bad.push(`right-click latch: ${JSON.stringify({ ...L, nameFired: undefined, nameSampled: undefined, switchFired: undefined, switchSampled: undefined, switchLabel: undefined })}`);
+    L.afterRight?.held === 0 && L.afterRight?.lit === false && L.playAfterCtrl?.playing === 1;
+  if (!latchOk) bad.push(`Ctrl+click latch: ${JSON.stringify({ ...L, nameFired: undefined, nameSampled: undefined, switchFired: undefined, switchSampled: undefined, switchLabel: undefined })}`);
   if (!(L.nameFired === 1 && L.nameSampled === 0 && L.switchFired === 2 && L.switchSampled === 4 && L.switchLabel === "sample"))
     bad.push(`sounds sheet: name fired ${L.nameFired} (sampled ${L.nameSampled}); switch fired ${L.switchFired} (sampled ${L.switchSampled}, "${L.switchLabel}")`);
   const p6 = one.p6 || {};

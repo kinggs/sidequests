@@ -9,7 +9,7 @@
      the Loom look (design/DESIGN.md, "The phone"; design/loom/phone.html is the picture).
      The page keeps no copy of the workflow: it sends what a finger did (KEY_DOWN, KEY_UP,
      PARAM; ENGINE.md §13) and draws the view the core posts back (§14). A touch never latches:
-     a phone has real multi-touch (D23). A mouse's right-click latches (D60). ?auto runs its own checks (web/play.mjs).
+     a phone has real multi-touch (D23). Ctrl+click (Cmd+click on a Mac) latches (D60, D61). ?auto runs its own checks (web/play.mjs).
      SPDX-License-Identifier: MIT -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -87,7 +87,7 @@
   .f span { writing-mode: vertical-rl; transform: rotate(180deg); }
   .f.latch { background: var(--latch, var(--ecru)); color: var(--ground); }
   .f.press { background: var(--white); color: var(--ground); border-top-width: 0; box-shadow: inset 0 0 0 var(--frame) var(--ground); }
-  /* Latched by a right-click (D60): the whole face lit in its own colour, held or not. */
+  /* Latched by Ctrl+click (D60, D61): the whole face lit in its own colour, held or not. */
   .f.latched, .f.latched.press { background: var(--latch, var(--ecru)); color: var(--ground); border-top-width: 12px; box-shadow: none; }
 
   /* Below the instrument: the sounds sheet (D57 item 8) and the credits. */
@@ -157,8 +157,9 @@
   volume, slider A the swing, slider B the tempo; tap it alone for 80, 120 and 140. Hold
   <b>function</b> and press <b>pattern</b> to clear. With a keyboard: <b>1234 qwer asdf zxcv</b>
   are the keys, <b>7 8 9</b> sound, pattern and bpm, <b>u i o p</b> function, fx, play and write.
-  With a mouse: <b>right-click</b> sound, pattern, bpm, function or fx to hold it down; the next
-  click on a key lets it go (so right-click sound, click 16), or right-click it again.</p>
+  With a mouse: <b>Ctrl+click</b> (<b>Cmd+click</b> on a Mac) sound, pattern, bpm, function or fx
+  to hold it down; the next click on a key lets it go (so Ctrl+click sound, click 16), or
+  Ctrl+click it again.</p>
 
   <h2>Credits</h2>
   <p>Pocket Instruments: small calculator-format musical instruments, free and open source,
@@ -305,8 +306,8 @@ function release(k, who) {
   // D60: any other press that ends finishes the gesture, and every latched key lets go.
   if (who !== "L" && latched.size) [...latched].forEach(unlatch);
 }
-// D60: a mouse's right-click holds sound, pattern, bpm, function or fx down ("L") until a
-// press ends or it is right-clicked again. Play and write are left out: they stay on alone.
+// D60, D61: Ctrl+click (Cmd+click on a Mac, as Rack reads Ctrl) holds sound, pattern, bpm,
+// function or fx down ("L") until a press ends or it is Ctrl+clicked again. Play and write are left out: they stay on alone.
 const LATCHING = new Set([KEY.sound, KEY.pattern, KEY.bpm, KEY.function, KEY.fx]);
 const latched = new Set();
 function latch(k) { latched.add(k); press(k, "L"); schedule(); }
@@ -320,11 +321,8 @@ for (const el of [...keys, ...fkeys]) {
   el.addEventListener("pointerdown", (e) => {
     e.preventDefault();
     wake();
-    if (e.button === 2) {
-      if (e.pointerType === "mouse" && LATCHING.has(k)) (latched.has(k) ? unlatch : latch)(k);
-      return;
-    }
-    if (e.button !== 0) return;
+    if (e.button !== 0) return; // a right-click does nothing (D61)
+    if ((e.ctrlKey || e.metaKey) && LATCHING.has(k)) return (latched.has(k) ? unlatch : latch)(k);
     try { el.setPointerCapture(e.pointerId); } catch {}
     press(k, `p${e.pointerId}`);
   });

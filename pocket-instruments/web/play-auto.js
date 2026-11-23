@@ -9,7 +9,7 @@
 //           snapshot the page saved.
 //   reload  the beat kept in the browser is back.
 //   bpm     keys-bpm-family's edits and keys; the last view, as text.
-//   latch   a mouse's right-click latch (D60), and the sounds sheet's two halves.
+//   latch   Ctrl+click latches (D60, D61), and the sounds sheet's two halves.
 //
 // SPDX-License-Identifier: MIT
 const r = window.rhythm;
@@ -188,21 +188,23 @@ async function phaseBpm() {
   out.bpm = { last: viewText(await settle()), want: fx.views.at(-1).view };
 }
 
-// D60, by a mouse: right-click latches, a left-click on a key finishes. Each gesture's view
+// D61, by a mouse: Ctrl+click latches, a left-click on a key finishes. Each gesture's view
 // is recorded as text; play.mjs holds each to what ENGINE.md §13 says it should be.
-const mouse = (el, type, button) => el.dispatchEvent(new PointerEvent(type, {
-  pointerId: 1, bubbles: true, cancelable: true, isPrimary: true, pointerType: "mouse", button, buttons: type === "pointerdown" ? 1 << (button === 2 ? 1 : 0) : 0,
+const mouse = (el, type, button, ctrlKey = false) => el.dispatchEvent(new PointerEvent(type, {
+  pointerId: 1, bubbles: true, cancelable: true, isPrimary: true, pointerType: "mouse", button, ctrlKey,
+  buttons: type === "pointerdown" ? 1 << (button === 2 ? 1 : 0) : 0,
 }));
 // The latched light is the page's own state, drawn on the next frame: wait two frames.
 const frames2 = () => new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res)));
-const right = (el) => { mouse(el, "pointerdown", 2); mouse(el, "pointerup", 2); };
+const ctrl = (el) => { mouse(el, "pointerdown", 0, true); mouse(el, "pointerup", 0, true); };
+const rightClick = (el) => { mouse(el, "pointerdown", 2); mouse(el, "pointerup", 2); };
 const click = (el) => { mouse(el, "pointerdown", 0); mouse(el, "pointerup", 0); };
 async function phaseLatch() {
   await r.ready;
   await r.ctx.resume();
   const L = (out.latch = {});
-  // Right-click sound: held, and lit as latched. Click key 16: chosen, and nothing held.
-  right(r.fkeys[0]);
+  // Ctrl+click sound: held, and lit as latched. Click key 16: chosen, and nothing held.
+  ctrl(r.fkeys[0]);
   let v = await settle((x) => u32(x, 8) & (1 << 16), "sound latched");
   L.soundHeld = u32(v, 8);
   await frames2();
@@ -212,31 +214,37 @@ async function phaseLatch() {
   L.chosen = v[26];
   await frames2();
   L.afterLit = r.fkeys[0].classList.contains("latched");
-  // Right-click bpm, two slider moves (they let nothing go), right-click bpm again: the tempo
+  // Ctrl+click bpm, two slider moves (they let nothing go), Ctrl+click bpm again: the tempo
   // is the slider's, not the next preset, because bpm was used.
-  right(r.fkeys[2]);
+  ctrl(r.fkeys[2]);
   await settle((x) => u32(x, 8) & (1 << 18), "bpm latched");
   r.slide(1, 40000);
   r.slide(0, 20000);
   v = await settle((x) => x[29] === 15, "swing 15");
   L.bpmStillHeld = !!(u32(v, 8) & (1 << 18));
-  right(r.fkeys[2]);
+  ctrl(r.fkeys[2]);
   v = await settle((x) => u32(x, 8) === 0, "bpm let go");
   L.tempo = u32(v, 4);
-  // Clear by mouse: a step set, write on; right-click function, click pattern.
+  // Clear by mouse: a step set, write on; Ctrl+click function, click pattern.
   r.send([16, 15, 0, 1]);
   click(r.fkeys[6]);
   v = await settle((x) => x[24] & 2 && u16(x, 12) === 1, "write on, step 1 of sound 16 lit");
-  right(r.fkeys[3]);
+  ctrl(r.fkeys[3]);
   click(r.fkeys[1]);
   v = await settle((x) => u32(x, 8) === 0, "function let go");
   L.fieldAfterClear = u16(v, 12);
-  // Right-click play does nothing: not playing, nothing held.
-  right(r.fkeys[5]);
-  v = await settle();
+  // A right-click does nothing (D61): nothing held, nothing latched.
+  rightClick(r.fkeys[0]);
   await sleep(50);
   v = await settle();
-  L.playAfterRight = { playing: v[24] & 1, held: u32(v, 8) };
+  await frames2();
+  L.afterRight = { held: u32(v, 8), lit: r.fkeys[0].classList.contains("latched") };
+  // Ctrl+click on play is a plain press: it starts. Ctrl+click again stops it.
+  ctrl(r.fkeys[5]);
+  v = await settle((x) => x[24] & 1, "Ctrl+click on play started it");
+  L.playAfterCtrl = { playing: v[24] & 1, held: u32(v, 8) };
+  ctrl(r.fkeys[5]);
+  await settle((x) => !(x[24] & 1), "stopped");
   // The sheet: the name plays its sound and changes nothing; the switch changes it and plays it.
   const f = (x) => x[32 + 2];
   const before = f(await settle());
