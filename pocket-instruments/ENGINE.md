@@ -648,7 +648,16 @@ first row that applies:
 | sound held | none | none | the chosen sound | yes |
 | pattern held | none | none | key 1 (the one pattern) | no |
 | write on | the chosen sound's steps | steps of any other sound | none | no |
-| write off | none | none | none | yes |
+| write off | the chosen sound's steps (D82; was none) | none | none | yes |
+
+**The write-off row, changed 2026-11-23 (D71, D72 item 3, D82; built in Session 20).** It
+was `none | none | none | yes`: D37 guessed from a search that the hardware's fields are dark
+with write off. The owner's PO-12 lights the chosen sound's steps in both modes (D71), so the
+field is now the chosen sound's steps whether write is on or off. Still no stitch and no bar
+(D82 item 3: the stitch is ours, for editing), and the grid is still sounds, so every key
+goes white as its own sound fires and the frame marks the playhead, as before. A field key
+that fires goes white for its half step and comes back lit (D82 item 4): the host's rule for
+white below already says so. The other four rows did not change.
 
 **Flag 3, exactly (D59):** set when the first step arrives after play, or after a reset
 while playing; clear from play or reset until that step, and clear whenever the sequencer
