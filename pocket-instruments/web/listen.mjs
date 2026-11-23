@@ -3,6 +3,8 @@
 // core/src/tests/sound.rs; this proves the page reaches all sixteen, and the samples load.
 //
 //   node web/listen.mjs [chromium] [firefox]     exits 0 only if every browser passed
+//   node web/listen.mjs --serve [port]            only serves the folder, to listen by ear in a
+//                                                 desktop browser: open the address it prints
 //
 // Served and launched as web/desktop.mjs does: no Playwright, a throwaway profile each, a
 // browser that is not installed is skipped, none at all is exit 2.
@@ -18,7 +20,11 @@
 //     one, and the first wording, 14 keys and 0.3, let it through);
 //   - "All code" brings the code voices back: keys 1, 10 and 16 peak as they first did;
 //   - slider B reaches the engine: the bass drum at B = 100 % lasts over twice B = 0 %.
-// (Added in Session 8 with the samples: the three lines on samples and code.)
+//   - the seven sound effects reach the engine (Session 17, ENGINE.md section 18): over a bar of
+//     the minimum beat, the dry beat sounds (its loudest sample over 0.05), and each of the
+//     seven sounds too and gives a loudest sample that is not the dry beat's.
+// (Added in Session 8 with the samples: the three lines on samples and code. The last added
+// in Session 17, before the page had the effects.)
 //
 // SPDX-License-Identifier: MIT
 import { createServer } from "node:http";
@@ -29,7 +35,8 @@ import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("..", import.meta.url)); // pocket-instruments/
-const asked = process.argv.slice(2);
+const serveOnly = process.argv[2] === "--serve";
+const asked = serveOnly ? [] : process.argv.slice(2);
 const browsers = asked.length ? asked : ["chromium", "firefox"];
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".wasm": "application/wasm", ".s16": "application/octet-stream", ".txt": "text/plain" };
 
@@ -51,7 +58,11 @@ const server = createServer((req, res) => {
   }
   res.writeHead(200, { "content-type": TYPES[extname(path)], "cache-control": "no-store" }).end(readFileSync(path));
 });
-await new Promise((r) => server.listen(0, "127.0.0.1", r));
+await new Promise((r) => server.listen(serveOnly ? Number(process.argv[3] || 8417) : 0, "127.0.0.1", r));
+if (serveOnly) {
+  console.log(`Serving pocket-instruments/ until Ctrl+C. Listen at http://127.0.0.1:${server.address().port}/web/listen.html`);
+  await new Promise(() => {});
+}
 const url = `http://127.0.0.1:${server.address().port}/web/listen.html?auto`;
 
 function launch(name, profile) {
@@ -80,6 +91,16 @@ function judge(r) {
   const distinct = new Set(r.peaks.map((p) => p.toFixed(4))).size;
   if (distinct < 14) bad.push(`only ${distinct} different voices behind the sixteen keys`);
   if (!(r.kick.short > 0 && r.kick.long > 2 * r.kick.short)) bad.push(`slider B: the bass drum lasted ${r.kick.short} reports at 0 % and ${r.kick.long} at 100 %`);
+  const fx = r.fx || [];
+  if (fx.length !== 8 || fx[0][0] !== 0) bad.push(`${fx.length} effect runs, not the dry beat and seven`);
+  else {
+    const dry = fx[0][1];
+    if (!(dry > 0.05)) bad.push(`the dry beat: no sound (loudest ${dry})`);
+    for (const [e, p] of fx.slice(1)) {
+      if (!(p > 0.05)) bad.push(`effect ${e}: no sound (loudest ${p})`);
+      else if (p.toFixed(4) === dry.toFixed(4)) bad.push(`effect ${e}: loudest ${p}, the dry beat's: not heard`);
+    }
+  }
   return bad;
 }
 
@@ -108,6 +129,7 @@ for (const name of browsers) {
   console.log(`  loudest per key: ${result.peaks.map((p) => p.toFixed(3)).join(" ")}`);
   console.log(`  as samples:      ${result.samplePeaks.map((p) => p.toFixed(3)).join(" ")}`);
   console.log(`  bass drum: ${result.kick.short} reports at B 0 %, ${result.kick.long} at 100 %; ${result.samples} samples`);
+  console.log(`  effects, loudest over a bar (0 is dry): ${(result.fx || []).map(([e, p]) => `${e}: ${p.toFixed(4)}`).join(", ")}`);
   for (const b of bad) console.log(`  ${b}`);
 }
 server.close();

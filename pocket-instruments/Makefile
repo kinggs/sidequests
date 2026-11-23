@@ -9,7 +9,7 @@ CXX    ?= c++
 include rack/math.mk
 RACK_ARCH := $(if $(filter x86_64,$(shell uname -m)),-march=nehalem,-march=armv8-a+fp+simd)
 
-.PHONY: build test check-toolchain check-p1 clean rack-lib race targets web p4 listen play bench
+.PHONY: build test check-toolchain check-p1 clean rack-lib race targets web p4 listen hear play bench
 
 # Both targets from one crate, one crate type each: a static library for Rack and the C++
 # harness, a bare module for the browser and Node.
@@ -125,6 +125,11 @@ p4:
 # voice, slider B reaches the engine, the sixteen samples load. About ten seconds a browser.
 listen:
 	node web/listen.mjs
+
+# The same server, left running, to listen by ear in a desktop browser (the voices, the samples,
+# and the seven effects over the minimum beat): open the address it prints. Ctrl+C to stop.
+hear:
+	node web/listen.mjs --serve
 
 # The phone page (web/rhythm.html) in the same two browsers: keys entered by pointer events,
 # the worklet's trace and views held to the format 2 fixtures, every drawing held to its
