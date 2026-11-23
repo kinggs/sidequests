@@ -1316,6 +1316,81 @@ please." So Sessions 18, 19 and 20 run in turn, each verified before the next, a
 first attempt at Session 14. Not started without the owner: Session 22 (the recording),
 any tuning by ear, the repeat's rule for an empty step, and the acceptance of the weave.
 
+### D80 — What §19, D68, D76 and D78 did not say, as Rack's jacks were built
+**2026-11-23 · decided by the builder (Fable, Session 18, which PLAN.md lets rule on a gap); each item is the owner's to overrule · nothing the owner decided (D72, D75, D76, D78) is changed · `ENGINE.md` §19 marks each ⚠**
+
+Verified first: `make test` before the first change (181 Rust tests, 300 runs a harness),
+with its report, the hashes of all 372 render files, `make bench` and a perf profile of the
+module kept; at the end the report and the 372 files are the same bytes.
+
+In the core:
+
+1. **ABI 9,** by the rule for Sessions 16 to 19.
+2. **Two loop layouts, chosen by the channel count:** `PI_AUDIO_LOOP`, 18, and
+   `PI_AUDIO_LOOP_SLIDERS`, 50. §19's addition left "how it is asked" to the builder. Why a
+   layout and not a `ROUTE` bit: the layout is already how a host says what it wants
+   written, and a host that needs less asks for less. The Rack module asks for the smallest
+   that carries what is patched, and for `PI_AUDIO_BOTH`, as before, when nothing is.
+3. **`ROUTE` 1 may mark any of the sixteen effects** (bit *n* − 1 is effect *n*), one the
+   core sounds and a repeat among them. §19 says the repeats "cannot go outside": the
+   repeating cannot (it is the sequencer's, and goes out as triggers), but while a marked
+   repeat is held the bus crosses to FX RETURN as for any other. So "repeat, with a Rack
+   delay on it" is one tick.
+4. **An input that is not a number is silence, in the core.** The module cleaned RETURN
+   itself until now; with the returns in the bus, one NaN would stay in a filter's state.
+   One guard, in one place, for every host.
+5. **Channel 17 is read while an outside effect is heard and for the 2 ms it ramps out.**
+   A host that leaves the loop layout meanwhile (its cables pulled) hears the bus as it is
+   for those 2 ms.
+6. **Changing which effects are marked while one is held** starts it again as the other
+   kind, with the ramp as it is: §18's rule for one effect straight to another.
+7. **A slider's input is turned to 0 to 65535 to the nearest.** §19 said "rounded down".
+   Measured: rounded down, 5 116 of the 65 536 values come back one less after Rack's
+   volts (× 10 out, ÷ 10 in), so A OUT patched to A IN would shift a sound; to the nearest,
+   all 65 536 come back exact, plainly and through the volts (a test tries them all).
+8. **A sound not yet hit shows its own on A OUT and B OUT,** following a slider or a load
+   until its first hit (§19 says "shows its own"; this says it keeps following).
+
+In the module:
+
+9. **FX RETURN's default ticks are effects 4 and 13 to 16,** "those the core has no sound
+   for" (D68 item 2), and none of the repeats. With FX RETURN unpatched no effect is heard
+   from outside, whatever is ticked.
+10. **FX RETURN reads one channel:** the cable's first (D68 item 6 says it is one channel).
+11. **FX GATES says every effect that is heard,** the ones with no sound yet as well: 10 V
+    on channel *n* while the view's `heard` is *n* (D68 item 1, `ENGINE.md` §17).
+12. **A IN's and B IN's ticks, and FX RETURN's, are saved with the patch** beside RETURN's
+    (`"a"`, `"b"`, `"fx"`), and Rack's Initialize puts all four back to their defaults.
+13. **On one frame a function key goes down before any grid key, and comes up after them.**
+    The module read its keys in number order, so fx (key number 20) and a grid key landing on one
+    audio frame was a tap, not a punch. D78's latch sets both together, and so can MIDI.
+14. **The Sounds menu's "through fx" is a submenu,** with All and None above the sixteen
+    ticks: thirty-five lines in one menu was too long to read.
+15. **The module's mix is the core's, always.** `jacks.hpp` keeps only volts in and out;
+    its test holds those, and that the whole path is the core's own render.
+
+The panel (D76's positions were arithmetic; `design/make_panel.py --check` now holds
+them):
+
+16. **The left three columns are at 12.4, 25.4 and 38.4 mm,** not 10.67, 22.33 and 34.00.
+    TRIGGERS is 13.3 mm of lettering at the 2.6 mm the guide's 100% zoom needs: 11.67 mm
+    apart it touched VOICES. CLOCK and RESET sit on the same two columns above.
+17. **FX SEND and FX RETURN are at 84.0 and 96.0 mm with FX over the word,** not 80.67 and
+    92.33 on one line, where the two labels overlapped by 1.5 mm. **FX GATES is at 90.0,**
+    midway over them. The wordmark keeps 3.0 mm, 1.2 mm clear each side.
+18. **Each output has its own plate,** as wide as its stitches or its label. TRIGGERS' and
+    VOICES' meet, so they read as one; FX SEND's and AUDIO's are the taller, for the second
+    line, and AUDIO keeps its frame.
+
+**Left open, for the owner:**
+
+- The look, at 100% zoom and with cables in (D76 says it is judged in use):
+  `design/rack-face-*.png`.
+- **A OUT through a module to A IN is one hit late** (`ENGINE.md` §19, "Found"). Is that
+  the instrument wanted? The other reading: the output says the value the *coming* hit
+  will use, which the core cannot know for a tap, and can for a step only a tick ahead.
+- Whether a marked repeat should cross the bus (item 3), and the default ticks (item 9).
+
 ## Open
 
 | ID | Question | Needs |
@@ -1337,3 +1412,4 @@ any tuning by ear, the repeat's rule for an empty step, and the acceptance of th
 | O16 | ~~The owner's rulings on Session 15: D66 to D69 as proposed? In particular: effects always recorded, as the PO-12 (or only with write on); a switch a sound for "per channel"; three more jacks on the panel and the wordmark moved (or an expander); D70's breakout for MixMaster; D71, the grid's lights as the hardware has them~~ | Answered 2026-11-23: D72. (Was recommended: accept D66 to D69; D71 yes, as a small session before the weave; D70 after the effects) |
 | O17 | ~~Sliders a step (D74): the design as proposed? The four CV jacks on an expander with D70's voice jacks, or a second jack row?~~ | Answered 2026-11-23: D75 (the simpler rule) and D76 (a second row on the panel) |
 | O9 | ~~How do the three blocks stack on a phone, and does one instrument fill the screen or share it?~~ | Answered 2026-11-19: D36 |
+| O18 | Session 18's rulings (D80): the eighteen items as built? And its three open points: the two-row panel judged with cables in; A OUT to A IN being one hit late; a marked repeat crossing the bus | The owner, in Rack. Recommended: accept the items; play the slider loop before ruling on the lateness |

@@ -204,7 +204,9 @@ A future version adds its own file beside this one, written before its change.
 **Session 16:** both fixtures below were moved up out of `designed/`, unchanged (git shows
 each as a rename with no change), and only then run. Both passed at the first run on all
 three harnesses. `designed/` is empty until the next session that designs ahead of a core.
-The Rack self-tests leave format 3 out until Session 18. Since Session 16,
+The Rack self-tests left format 3 out until Session 18; since then the Rhythm module plays
+both format 3 fixtures on both clocks and holds its FX GATES to each view's `fx=`
+(`rack/rhythm.jq`, `rack/selftest.sh`). Since Session 16,
 `snapshots-v2.txt` sits beside `snapshots-v1.txt`: each of the seven older fixtures'
 version 2 snapshot, written by the ABI 5 core before version 3 existed, loaded in
 `core/src/tests/fixtures.rs` against the fixture's trace.

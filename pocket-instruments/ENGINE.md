@@ -39,10 +39,17 @@ three versions. Every trace and view of the seven older fixtures and all 276 ren
 are as they were; only the snapshots' bytes differ, by the new fields at their starting
 values.
 
-**Designed, not built (Session 15, D66 to D68):** §18 and §19 are the rest of the effects:
+~~**Designed, not built (Session 15, D66 to D68):** §18 and §19 are the rest of the effects:
 the bus and the first sound effects (§18), and sound coming in from Rack (§19). Sessions
 17 and 18 build them (`PLAN.md`), each moving `PI_ABI_VERSION` by one, as the weave will
-whenever it is built. (§17 was in this list until Session 16.)
+whenever it is built. (§17 was in this list until Session 16.)~~ Both are built: §18 in
+Session 17 (ABI 7), §19 in Session 18 (ABI 9).
+
+**ABI 9 (Session 18, D68, D76, D80)** adds §19, sound in, and changes nothing else: two
+audio layouts that are read as well as written (`PI_AUDIO_LOOP`, 18 channels, and
+`PI_AUDIO_LOOP_SLIDERS`, 50) and command 25 `ROUTE`. Every trace, view and snapshot and
+every earlier render file is as it was (the report and all 372 render files, the same
+bytes); in the three older layouts nothing is read in and `ROUTE` changes nothing heard.
 
 **ABI 8 (Session 21, D75)** adds §20: the sliders are the hand's, for every sound, and a
 step keeps what it was written with. Command 26 `KEEP`, `STEP` 0 forgets, `PARAM` sets all
@@ -322,7 +329,7 @@ Two runs agree when their traces are the same bytes.
   harness, the worklet and the Rack Probe; `core/src/tests/rules.rs` holds `pi_size` to it).
   With a sample beside each voice (§12) it is 2 328 bytes, natively and in WebAssembly, and
   the room is 4 KiB. With the keys (§13) it is 2 352 bytes, in the same room, and snapshot
-  version 2 (§15) added nothing to it. With the lane and the repeats (§17) it is 2 400; with the bus (§18), 2 448; with what each step keeps (§20), 3 568, natively and in WebAssembly, still inside every host's 4 KiB (Session 21). The samples
+  version 2 (§15) added nothing to it. With the lane and the repeats (§17) it is 2 400; with the bus (§18), 2 448; with what each step keeps (§20), 3 568, natively and in WebAssembly, still inside every host's 4 KiB (Session 21); with the routes and the slider outputs (§19), 3 704 (Session 18). The samples
   themselves are in pages of their own after the host's.
   A host that can should ask `pi_size` instead.
 - **One thread.** Every function on an engine is called from the audio thread only. That
@@ -460,7 +467,8 @@ the `TRIG` events they already make.
   the module's memory.
 - **Layouts.** `channels` is 1 for the mix, or 16 for each track alone in its own channel
   (D33: Rack's sixteen-channel cable, and later the expander). Since ABI 5 also 17, both
-  (`PI_AUDIO_BOTH`, §15). Any other value, or a null
+  (`PI_AUDIO_BOTH`, §15). Since ABI 9 also 18 and 50, the loops, which are read as well
+  (§19). Any other value, or a null
   buffer, is no sound: nothing is written and no voice runs.
 - **Sound changes no event.** The trace, `pi_dropped`, the snapshot and `pi_generation` are
   the same with and without a buffer. A host that only sequences passes null and pays nothing.
@@ -1076,7 +1084,7 @@ over the dry beat. What it did not say, built on and marked:
   channels (`rack/src/jacks.hpp`, D62), which are before the effects. Session 18 moves the
   returns into the core (§19).
 
-## 19. Sound in: the returns and the effects loop (designed in Session 15; D68; not built)
+## 19. Sound in: the returns and the effects loop (ABI 9; designed in Session 15; D68; built in Session 18)
 
 For Rack. Until now a host only took sound from the core, and the Rhythm module rebuilt
 the mix itself when RETURN was patched (D62, `rack/src/jacks.hpp`). The effects have to
@@ -1106,6 +1114,50 @@ the bus.
 mix bit for bit; a silent return takes the sound out bit for bit); a returned sound in
 `fx_sounds` is in the bus and one outside it is not; an outside effect's `wet` is the
 input, ramped.
+
+**Built (Session 18, on Fable, ABI 9):** the loop's frame is mixed in `Bus::looped`
+(`core/src/bus.rs`), out of line, which also holds what `ROUTE` set and what the slider
+outputs say; `Engine::process` decides whether what is heard comes from outside, and
+`Engine::hits` reads a slider's input (`core/src/engine.rs`); the two layouts in
+`core/src/abi.rs`; the header's `PI_AUDIO_LOOP`, `PI_AUDIO_LOOP_SLIDERS`, `PI_CMD_ROUTE`,
+`PI_ROUTE_*` and `PI_LOOP_*`. Proven: the report and all 372 earlier render files the same
+bytes as before the session; 23 rule tests in `core/src/tests/route.rs`, among them
+`rack/test/jacks.cpp`'s four cases, and §18's model given what came back, which the loop's
+mix and send equal bit for bit on every frame of a tour through every kind of change, at
+three rates and on edges; `harness/render-loop.json`, the 18 and 50 channel layouts with
+every input given, native and `.wasm` the same bytes (36 new render files); 30 faults
+planted in the core, each caught by a named test. Cost (`make bench`, `LEARNINGS.md`):
+nothing in the three older layouts (the bench reads a shade faster than before); with every
+sound returned, about 9 ns a frame over the unpatched 28; the fifty channels about 4. The
+design held. What it did not say, or said wrongly, ruled in D80 and marked:
+
+- ⚠ (D80 item 1) **ABI 9**, by the rule for Sessions 16 to 19.
+- ⚠ (D80 item 2) **Two layouts, chosen by the channel count:** 18, and 50 with the sliders
+  (the addition below left the choice to the builder). A host asks for the smallest that
+  carries what is patched; Rack's module asks for `PI_AUDIO_BOTH` when nothing is.
+- ⚠ (D80 item 3) **`ROUTE` 1's mask: bit *n* − 1 is effect *n*, and any of the sixteen may
+  be marked,** an effect the core sounds and a repeat too. A marked repeat still repeats
+  (that is the sequencer's, and cannot go outside); the bus crosses over as well.
+- ⚠ (D80 item 4) **An input that is not a number is silence,** in the core: a NaN let into a
+  filter would stay. (The Rack module did this for RETURN until now.)
+- ⚠ (D80 item 5) **When channel 17 is read:** while an outside effect is heard and for the
+  2 ms it ramps out after, even if `ROUTE` has unmarked it by then. A host that goes back
+  to a layout with no input while one is ramping out hears the bus as it is for those 2 ms.
+- ⚠ (D80 item 6) **Changing what `ROUTE` marks while an effect is held** starts it again as
+  the other kind (a sweep from its start, a filter's state cleared), with the ramp as it is:
+  §18's rule for one effect straight to another.
+- Not readings: a returned sound's output channel is still its own voice, so VOICES and
+  TRIGGERS do not change when RETURN is patched; channels 0 to 15 are read only for the
+  sounds `ROUTE` names, and what else is in the buffer does not matter; `ROUTE` with `a`
+  past 3 is ignored, and bits past the sixteenth are not sounds; a load leaves the routes
+  and `pi_init` clears them. The routes and the slider outputs are kept inside the bus's
+  own memory and not beside the engine's other fields: where the sixteen voices sit in
+  memory is worth over a nanosecond a frame (`LEARNINGS.md`, Session 18).
+- Rack (`rack/src/Rhythm.cpp`, `rack/src/jacks.hpp`): the module no longer rebuilds the mix;
+  it turns volts to the loop's inputs and back. Its self-test holds a module with VOICES
+  patched into RETURN and effect 2 punched, one with FX SEND into FX RETURN, and one with A
+  OUT and B OUT into A IN and B IN, each frame to a second engine given what those cables
+  should carry.
 
 ## 20. The sliders are the hand's; a step keeps what it was written with (ABI 8; designed 2026-11-23; D75; built in Session 21)
 
@@ -1228,7 +1280,7 @@ marked:
   thread-coloured line across the track at the value, drawn over the cap, always (with bpm
   held too): `design/DESIGN.md` does not draw it yet (its "Not done").
 
-### §19, added 2026-11-23: the sliders out and in (D76 item 4; designed, not built)
+### §19, added 2026-11-23: the sliders out and in (D76 item 4; built in Session 18)
 
 `PI_AUDIO_LOOP` is 50 channels, not 18. After the eighteen above: 18 to 33 are A for
 sounds 1 to 16, and 34 to 49 are B.
@@ -1247,4 +1299,26 @@ sounds 1 to 16, and 34 to 49 are B.
 - A host that patches none of the four passes the first eighteen channels' worth of
   attention: the core writes the thirty-two outputs only when asked. How it is asked (a
   fifth layout of 18 beside this one of 50, or a `ROUTE` bit) is the builder's, measured.
+
+**Built (Session 18):** as above, with these marked:
+
+- ⚠ (D80 item 2) Asked by the layout: `PI_AUDIO_LOOP` is the 18 and `PI_AUDIO_LOOP_SLIDERS`
+  the 50.
+- ⚠ (D80 item 7) **The input is turned to 0 to 65535 to the nearest, not rounded down.**
+  Rounded down, an output read straight back in is exact, but through Rack's volts (times
+  10, divided by 10) 5 116 of the 65 536 values come back one less, so a cable from A OUT to
+  A IN would move the sound. To the nearest, every value comes back as it went, both ways
+  (a test tries all 65 536).
+- ⚠ (D80 item 8) **A sound not yet hit** shows its own on its outputs, and they follow
+  whatever sets its own until its first hit: `SOUND` (and so a slider), and a load.
+- Not readings: with the 18-channel layout, or any older one, `ROUTE` 2 and 3 change
+  nothing: there is no input to read. An input past 1 is 65535 and one below 0, or not a
+  number, is 0. The outputs are written on every frame, including the frame of the hit that
+  changes them.
+- ⚠ **Found, for the owner (D80, "Left open"):** out, through a module, and back in is one
+  hit late. The output says what the sound was last hit with, and the input is read on the
+  next hit, so a step played through A OUT to A IN sounds with the values of the hit before
+  it. With steps that all keep the same values nothing is heard of it; with steps written
+  at different positions the sequence of values is shifted by one hit. It follows from the
+  two rules above and is built as designed.
 

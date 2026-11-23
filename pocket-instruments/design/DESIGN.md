@@ -22,7 +22,10 @@ The owner's brief for it: dark, high contrast, easy to read with weak eyes.
 | `loom/tokens.html` | The colours and type, as swatches |
 | `directions/` | The three directions the owner chose between. A and C were not taken |
 | `panel.svg` | The static Rack panel, flat, in mm. Made by `make_panel.py` |
-| `make_panel.py` | Draws `panel.svg` and prints the widget positions |
+| `make_panel.py` | Draws `panel.svg`, prints the widget positions, and (`--check`) holds every jack's label, plate and stitches clear of its neighbour's |
+| `rack-face-unlit-100.png` | The Rhythm module as Rack draws it, from Rack's own screenshot mode at 100% zoom (360 px wide: what a player sees without zooming). Nothing lit: no module runs in that mode. Taken in Session 18, with the two jack rows |
+| `rack-face-unlit-200.png` | The same at 200%, to judge the lettering and the plates |
+| `rack-face-lit-100.png`, `rack-face-lit-200.png` | The same from a scratch build whose face was filled by hand (never shipped): playing on step 5 with write on, steps 1, 5, 7, 9, 11 and 13 lit, key 10 pressed, the stitch on key 3, the bar on key 1, fx latched (D78: its face lit like play and write), and each slider's second mark at 20000 and 50000 |
 
 The `.html` files are pictures, not code to build from: open one in a browser. They are the
 Claude Design artboards with the canvas wrapper removed. They load the typeface from Google
@@ -164,10 +167,10 @@ With reduced motion asked for, rule 6 is off and the shuttle jumps instead of tr
 
 24 HP: 121.92 mm wide, 128.5 mm tall. `panel.svg` holds only what never changes: the body,
 the display's frame, the two stitched dividers, the slider threads, A and B, the jack labels,
-the pale plate under the outputs with its marks, and the wordmark.
+the pale plate under each output with its marks, and the wordmark.
 
 Everything else is a widget the module draws: the display, sixteen keys, seven function keys,
-two slider caps, three sockets. Why: they change, and Rack's SVG reader draws no text, no
+two slider caps, thirteen sockets (six until Session 18). Why: they change, and Rack's SVG reader draws no text, no
 dashes and no filters. For the same reason `make_panel.py` turns lettering into outlines and
 draws each stitch as its own rectangle.
 
@@ -186,29 +189,78 @@ Positions in mm from the top-left corner (`uv run pocket-instruments/design/make
 | fx | 91.93 | 74.15 | 9.55 | 23.70 |
 | play | 102.08 | 74.15 | 9.55 | 23.70 |
 | write | 112.23 | 74.15 | 9.55 | 23.70 |
-| jack CLOCK (in) | 10.67 | 116.30 | | |
-| jack RESET (in) | 22.33 | 116.30 | | |
-| jack RETURN (in, 16 channels) | 34.00 | 116.30 | | |
-| jack TRIGGERS (out, 16 channels) | 80.67 | 116.30 | | |
-| jack VOICES (out, 16 channels) | 95.17 | 116.30 | | |
+| jack CLOCK (in) | 12.40 | 97.50 | | |
+| jack RESET (in) | 25.40 | 97.50 | | |
+| jack A OUT (out, 16 channels) | 40.00 | 97.50 | | |
+| jack A IN (in, 16 channels) | 51.67 | 97.50 | | |
+| jack B OUT (out, 16 channels) | 63.33 | 97.50 | | |
+| jack B IN (in, 16 channels) | 75.00 | 97.50 | | |
+| jack FX GATES (out, 16 channels) | 90.00 | 97.50 | | |
+| jack TRIGGERS (out, 16 channels) | 12.40 | 116.30 | | |
+| jack VOICES (out, 16 channels) | 25.40 | 116.30 | | |
+| jack RETURN (in, 16 channels) | 38.40 | 116.30 | | |
+| jack FX SEND (out) | 84.00 | 116.30 | | |
+| jack FX RETURN (in) | 96.00 | 116.30 | | |
 | jack AUDIO (out) | 109.67 | 116.30 | | |
 
-### The jack row
+Until Session 18 there were six, in one row at y 116.30: CLOCK 10.67, RESET 22.33, RETURN
+34.00, TRIGGERS 80.67, VOICES 95.17, AUDIO 109.67. Every one but AUDIO moved (D76 item 2);
+a patch keeps its cables, because Rack ties a cable to a port's number, and the numbers
+did not change.
 
-Left to right: CLOCK, RESET and RETURN in, then TRIGGERS, VOICES and AUDIO out (D33, D62).
-RETURN was drawn in Session 13: sixteen ecru stitches round it, as the two sixteen-channel
-outputs have dark ones. The wordmark moved right to clear it and, by D62 item 4, dropped from
-3.5 to 3.0 mm: at 3.5 mm it is 37.8 mm wide and the room between RETURN's stitches and the
-plate is 33.4 mm. At 3.0 mm it is 0.5 mm clear of each (`make_panel.py --check`).
+### The jack rows
 
-- **Two groups at a glance.** The inputs sit on the dark body at the left. The three outputs
-  sit together on one pale plate at the right, with dark lettering. Why a plate: VCV's guide
-  asks for an inverted background on output ports (R33).
-- **Sixteen channels.** RETURN, TRIGGERS and VOICES each have sixteen stitches round the
-  socket, one for each key. AUDIO has none.
-- **AUDIO is the main output.** It alone has a solid frame round its cell, and its label is a
-  size larger.
-- A first draft drew a stitched box round the outputs with a plate under AUDIO only. It left
+Two rows, thirteen jacks, grouped by what they carry (D76, the owner: "inputs and outputs
+for the same kinds of things close together"). Drawn in Session 18, and "accepted for now":
+judged in use, with cables in.
+
+```
+upper row, y 97.5 (voltages that steer):
+  CLOCK  RESET  |  A OUT  A IN  B OUT  B IN  |  FX GATES
+lower row, y 116.3 (triggers and sound):
+  TRIGGERS  VOICES  RETURN  |  wordmark  |  FX SEND  FX RETURN  |  AUDIO
+```
+
+| Jack | Carries |
+|---|---|
+| CLOCK, RESET (in) | one edge a step; reset to step 1 |
+| A OUT, B OUT (out, 16 channels) | 0 to 10 V: the slider each sound was last hit with, by the instrument's own reckoning (the hand's, or what the step keeps) |
+| A IN, B IN (in, 16 channels) | 0 to 10 V: channel *n*'s voltage at sound *n*'s hit takes that slider's place. Which sounds: the channels the cable carries, or the menu's ticks |
+| FX GATES (out, 16 channels) | 10 V on channel *n* while effect *n* is heard, punched or replayed |
+| TRIGGERS (out, 16 channels) | 10 V for 1 ms as each sound fires |
+| VOICES (out, 16 channels) | each sound alone, 5 V to 1.0, before the effects and the volume |
+| RETURN (in, 16 channels) | channel *n* takes sound *n*'s place in the mix and, if that sound is switched in, in the effects |
+| FX SEND (out) | the sounds switched into the effects, before any effect and before the volume |
+| FX RETURN (in) | what an effect ticked in the menu is heard from, while it is held |
+| AUDIO (out) | the mix |
+
+- **Each group reads as it is patched.** The sounds' loop left to right: TRIGGERS out,
+  VOICES out, RETURN in. Each slider a pair: out, then in. The effects one column group at
+  the right: FX GATES over FX SEND and FX RETURN. The clock top left, where a patch starts;
+  AUDIO bottom right, where it ends.
+- **An output is told by its plate, not by its side:** each has its own patch of the pale
+  ground with dark lettering, as wide as its stitches or its label (R33 asks for an
+  inverted background on outputs). TRIGGERS' and VOICES' meet and read as one. An input
+  sits on the dark body with pale lettering.
+- **Sixteen channels:** eight of the thirteen have sixteen stitches round the socket, one
+  for each key, dark on a plate and pale on the body. CLOCK, RESET, FX SEND, FX RETURN and
+  AUDIO have none.
+- **AUDIO is the main output.** It alone has a solid frame inside its plate, and its label
+  is a size larger.
+- **FX SEND and FX RETURN have FX on a line of its own** over the word. Why: on one line,
+  at 2.6 mm, the two labels are 11.5 and 14.8 mm wide and overlapped.
+- **What moved from D76's proposal, and why** (D80 items 16 to 18): the left three columns
+  from 10.67, 22.33 and 34.00 to 12.4, 25.4 and 38.4 (TRIGGERS' lettering touched
+  VOICES'); FX SEND and FX RETURN from 80.67 and 92.33 to 84.0 and 96.0, and FX GATES from
+  86.5 to 90.0 to stay over them; the rest as proposed. `make_panel.py --check` prints
+  every clearance: the tightest are 0.87 mm from a slider output's plate to the next
+  input's stitches, and 1.2 mm each side of the wordmark, which keeps its 3.0 mm.
+- The single row it replaced (Session 13): three inputs on the dark body at the left, the
+  three outputs on one plate at the right, the wordmark between at 0.5 mm clear. RETURN was
+  drawn then with sixteen pale stitches, as the two sixteen-channel outputs had dark ones,
+  and by D62 item 4 the wordmark dropped from 3.5 to 3.0 mm: at 3.5 mm it is 37.8 mm wide
+  and the room was 33.4 mm. A first
+  draft of that had a stitched box round the outputs with a plate under AUDIO only; it left
   two outputs on the dark body, against R33, so it went.
 
 Also to draw as widgets:
@@ -237,9 +289,9 @@ The rules themselves are in `../RACK-RULES.md`. This is Loom against them.
 | All text as paths | Yes: `make_panel.py` outlines it |
 | No complex gradients, no CSS | Yes: flat fills only |
 | Component graphics off the panel, on a hidden `components` layer | Partly: the panel is static only, but it has no `components` layer. The positions table above stands in; the builder adds the layer if Rack's helper script is used |
-| An inverted background for output ports | Yes, since the jack row was redrawn |
-| Room for thumbs between knobs and ports | Sockets are 11.67 mm apart or more; keys are at 12 mm; the sliders are 10 mm apart (they were 7; the owner widened them, and the dividers closed in to make the room) |
-| Text readable at 100% on an ordinary monitor | ⚠ Jack labels were raised to 2.6 mm for this, about 5.6 px of capital height at 100%. Rendered and read at that size here, not in Rack |
+| An inverted background for output ports | Yes: each output on its own plate (Session 18; one plate under all three before) |
+| Room for thumbs between knobs and ports | Sockets are 11.67 mm apart or more (12, 13 and 13.67 in the lower row); the two rows are 18.8 mm apart; keys are at 12 mm; the sliders are 10 mm apart (they were 7; the owner widened them, and the dividers closed in to make the room) |
+| Text readable at 100% on an ordinary monitor | ⚠ Jack labels were raised to 2.6 mm for this, about 5.6 px of capital height at 100%. Read at that size in Rack's own screenshot in Session 18 (`rack-face-unlit-100.png`): every label reads; TRIGGERS and VOICES, 1.5 mm apart, are the closest. The owner's eye has not judged it |
 | Roughly the density and text sizes of VCV's own modules | ⚠ Not compared against one |
 | Do not use others' intellectual property | D20's avoid list; O7 at P9 |
 | A dark panel may be offered | Not needed: it is already dark |
@@ -303,6 +355,15 @@ the function keys side by side.
   filled by hand (A at 20000, B at 50000, the caps in the middle): visible on the ecru
   thread and on the cap. To be drawn with the owner's eye (Surge XT's way of showing a
   modulated value is the idea, D40; none of theirs).
+- ⚠ The two jack rows (Session 18) are drawn and seen only in Rack's screenshot mode,
+  never with cables in. D76 says the grouping is judged in use. For the owner's eye: the
+  plates of three heights in the lower row (TRIGGERS and VOICES one line of label, FX SEND
+  and AUDIO two); FX over SEND and over RETURN; the empty corner right of FX GATES; whether
+  0.87 mm between a slider output's plate and the next input's stitches is enough.
+- ⚠ In Rack the display says nothing of the effects yet: no mark while one is heard, no
+  lane on the step marks. `ENGINE.md` §17 leaves both to this file, and Session 19 decides
+  them for the page with the owner first; the module follows. A latched fx key lights its
+  face in its own colour, ecru, like play and write when they are on.
 - The animation is seven rules and three frames, not a running thing. Nobody has seen it move.
 - Contrast is by arithmetic. Nobody has looked at it on a phone in daylight or in Rack at
   normal zoom.
