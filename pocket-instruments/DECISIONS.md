@@ -1057,7 +1057,7 @@ leans on MindMeld's module names and port order, and Rack 3 will rework expander
 After the effects.
 
 ### D71 — Seen on the PO-12: the chosen sound's steps are lit whether write is on or off
-**2026-11-23 · a fact from the owner's hardware; the change is proposed, not decided · would supersede D37's write-off row**
+**2026-11-23 · a fact from the owner's hardware; the change was proposed here and decided in D72 · supersedes D37's write-off row**
 
 The owner, with the PO-12 in hand: "With write off, it *still* shows the programmed steps
 as active. If I switch to another sound, they are all gone. When switching back to sound
@@ -1078,6 +1078,19 @@ other sounds' stitches (D36) show in both modes. It changes `ENGINE.md` §14's t
 three key fixtures' views, the page and the module, so it is a small session of its own
 before the weave, not a fix in passing.
 
+### D72 — The owner's rulings on Session 15
+**2026-11-23 · decided (owner: "Accept D66 to D69, panel jacks, D71 yes, D70 later. Lets start with more jacks on panel (for now)") · settles O16**
+
+1. **D66 to D69 stand as written,** with the three corrections the owner's PO-12 made the
+   same day already in them. What is still a reading of the hardware stays ⚠ until checked
+   (`WORKFLOW.md`).
+2. **The three new jacks go on the panel** (D68 item 5), "for now": an expander is still
+   the fallback if nine do not sit well when drawn.
+3. **D71 is decided: the grid shows the chosen sound's steps whether write is on or off,**
+   as the hardware does. Session 20 builds it; its open point (do keys flash for their own
+   sound with write off) is asked of the hardware first.
+4. **D70, the breakout for MixMaster, waits until after the effects.**
+
 ## Open
 
 | ID | Question | Needs |
@@ -1096,5 +1109,5 @@ before the weave, not a fix in passing.
 | O13 | ~~Answered 2026-11-19 for now: D47.~~ Do the hats cut each other off, and which way? `VOICES.md` says the open hat (4) cuts the closed (3) "as a real hat does"; on a real hat it is the closed that cuts the open. The hardware's behaviour is not known. Built 2026-11-19 with neither cutting the other. Recommended: closed cuts open, as a kit does, then checked on the PO-12 (D29). Cost either way: a few lines in `Voices::trigger`; the sixteen-channel layout (D33) shows the cut in track 3's channel | The owner; the hardware when to hand |
 | O14 | ~~Answered 2026-11-19, provisionally: D48.~~ The mix now passes 1: the four drums together peak at 2.1 (+6.6 dB, `harness/render-beat.json`). Where is it kept in bounds: a level and a limiter in the core, or each host saturating (D44's open item; `ENGINE.md` §10 put it "with the second voice")? Meanwhile the Rack Probe bends its output with tanh towards 10 V, so it can be heard; the browser page does nothing. Recommended: a fixed master level in the core (so a phone and Rack sound alike, D22) and each host saturating at its own ceiling. A limiter in the core would have to stay bit-identical (`+ − × ÷` only) | The owner, before the instrument's own output is built |
 | O15 | ~~Effects (next: D65): what the PO-12's fx does (punch-in, layering, per sound), what our first fx in the core is, and how each sound reaches either the internal fx or a Rack effect, with fx triggers out per channel (one, or three, sends and returns?). The owner's brief is in `PLAN.md`, Session 15~~ | Answered 2026-11-23 by Session 15, as proposals: D66 (the lane), D67 (the first effects), D68 (Rack), D69 (the page). The owner accepts or overrules; the hardware checks are in `WORKFLOW.md` |
-| O16 | The owner's rulings on Session 15: D66 to D69 as proposed? In particular: effects always recorded, as the PO-12 (or only with write on); a switch a sound for "per channel"; three more jacks on the panel and the wordmark moved (or an expander); D70's breakout for MixMaster; D71, the grid's lights as the hardware has them | The owner. Recommended: accept D66 to D69; D71 yes, as a small session before the weave; D70 after the effects |
+| O16 | ~~The owner's rulings on Session 15: D66 to D69 as proposed? In particular: effects always recorded, as the PO-12 (or only with write on); a switch a sound for "per channel"; three more jacks on the panel and the wordmark moved (or an expander); D70's breakout for MixMaster; D71, the grid's lights as the hardware has them~~ | Answered 2026-11-23: D72. (Was recommended: accept D66 to D69; D71 yes, as a small session before the weave; D70 after the effects) |
 | O9 | ~~How do the three blocks stack on a phone, and does one instrument fill the screen or share it?~~ | Answered 2026-11-19: D36 |

@@ -125,8 +125,6 @@ Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
 
 Unticked in the finished lists. None blocks a build session.
 
-- [ ] **Session 15's rulings (O16):** D66 to D69 as proposed, or changed; D70; D71. This
-      one does come before Session 16.
 - [ ] The seven effects checks left on the PO-12 (`WORKFLOW.md`, "The effects: what to check
       on the PO-12"; six were done on 2026-11-23), and D71's open point: with write off, do keys flash for their own
       sound as it fires?
@@ -269,8 +267,8 @@ frame, measured before and after. Each takes the next `PI_ABI_VERSION`, whatever
 has done by then. In order; the weave (Session 14) and the lights (Session 20) fit anywhere
 the owner says.
 
-**Before Session 16: the owner's rulings (O16).** D66 to D69 are proposals. If a ruling
-changes one, change `ENGINE.md` first, then build.
+**Ruled 2026-11-23 (D72):** D66 to D69 accepted; the jacks on the panel; D71 yes; D70
+after the effects.
 
 ### Session 16 — the lane and the repeats, in the core (build, Opus)
 
@@ -348,12 +346,12 @@ D69.
 - [ ] The sounds sheet's "through fx" switch.
 - [ ] `make play` holds every drawing to its view, format 3 included; planted faults.
 
-## Session 20 — the grid's lights, as the hardware has them (D71; waits for the owner's ruling)
+## Session 20 — the grid's lights, as the hardware has them (D71; decided, D72)
 
 Small, and before the weave if the owner says yes: the weave's rules read the same view.
 
-- [ ] The ruling, and the answer to D71's open point (do keys flash for their own sound
-      with write off).
+- [ ] The answer to D71's open point (do keys flash for their own sound with write off).
+      The ruling itself is D72.
 - [ ] `ENGINE.md` §14's table changed first; the three key fixtures' views worked again by
       hand from it and their change explained in `fixtures/README.md` (a trace is not
       edited to pass a build; a view changed by a decision is).
@@ -528,4 +526,5 @@ The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
   - A repeat fires on ticks that are not a step's tick 0. On an external clock those ticks
     come in a burst when an edge is early (§4): the trace is the same, the frames are not.
   - There is no bench yet; the list starts by making one.
-- **Next: the owner's rulings, then Session 16,** on Opus.
+- **Ruled the same day: D72.** All accepted; the jacks on the panel; D71 yes; D70 later.
+- **Next: Session 16,** on Opus.
