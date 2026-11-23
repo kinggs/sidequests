@@ -69,7 +69,7 @@ fn as_v1(v2: &[u8; SNAP]) -> [u8; SNAP_V1] {
 #[test]
 fn version_2_holds_the_sliders_the_switches_the_volume_and_the_chosen_sound() {
     let s = dressed(1).save();
-    assert_eq!(s[4..12], [3, 0, 1, 0, 0x88, 1, 0, 0], "version 3 (since §17), kind 1, payload 392");
+    assert_eq!(s[4..12], [4, 0, 1, 0, 0xa8, 5, 0, 0], "version 4 (since §20), kind 1, payload 1448");
     let mut sliders = [0u8; 64];
     for t in 0..16 {
         sliders[4 * t..4 * t + 4].copy_from_slice(&[0x00, 0x80, 0x00, 0x80]); // 32768, 32768
@@ -81,7 +81,7 @@ fn version_2_holds_the_sliders_the_switches_the_volume_and_the_chosen_sound() {
     assert_eq!(s[376..378], ((1u16 << 3) | (1 << 15)).to_le_bytes());
     assert_eq!((s[378], s[379]), (5, 7), "volume 5, key 8 chosen");
     assert_eq!(s[380..384], [0, 0, 0, 0], "the hat cut, then zero");
-    assert_eq!(s[404..408], crc32(&s[..404]).to_le_bytes());
+    assert_eq!(s[1460..1464], crc32(&s[..1460]).to_le_bytes());
     // And at pi_init: the middles, all code, volume 16, key 1.
     let s = Host::new(SR, 1).save();
     assert!(s[312..376].chunks(2).all(|v| v == [0x00, 0x80]));
@@ -169,23 +169,24 @@ fn every_corrupted_byte_of_a_version_1_snapshot_is_refused_and_changes_nothing()
 }
 
 #[test]
-fn a_version_3_is_refused_short_and_a_version_4_or_0_is_refused_however_good() {
-    // (Until Session 16 this held version 2 and refused 3.)
+fn a_version_4_is_refused_short_and_a_version_5_or_0_is_refused_however_good() {
+    // (Until Session 16 this held version 2 and refused 3; until Session 21, version 3 and 4.)
     let s = dressed(1).save();
     let mut h = Host::new(SR, 1);
     let before = h.save();
-    // Cut to an older version's size, with every byte there right: version 3 is longer.
+    // Cut to an older version's size, with every byte there right: version 4 is longer.
     assert_eq!(h.load(&s[..SNAP_V1]), ERR_SIZE);
     assert_eq!(h.load(&s[..SNAP_V2]), ERR_SIZE);
+    assert_eq!(h.load(&s[..SNAP_V3]), ERR_SIZE);
     assert_eq!(h.load(&s[..SNAP - 1]), ERR_SIZE);
-    // A version 3 that says it is version 1 or 2 is read as that version, and its payload
+    // A version 4 that says it is version 1, 2 or 3 is read as that version, and its payload
     // size is wrong for it.
-    for older in [1u8, 2] {
+    for older in [1u8, 2, 3] {
         let mut lied = s;
         lied[4] = older;
-        assert_eq!(h.load(&lied), ERR_SIZE, "the payload size is version 3's, not {older}'s");
+        assert_eq!(h.load(&lied), ERR_SIZE, "the payload size is version 4's, not {older}'s");
     }
-    for version in [0u16, 4, 0xffff] {
+    for version in [0u16, 5, 0xffff] {
         let mut t = s;
         t[4..6].copy_from_slice(&version.to_le_bytes());
         recrc(&mut t);
@@ -245,13 +246,16 @@ fn the_generation_moves_on_each_new_saved_thing_and_only_when_its_value_changes(
         (vec![down(SOUND), down(6), up(6)], true, "the chosen sound"),
         (vec![down(6), up(6)], false, "the same sound again"),
         (vec![up(SOUND)], false, "letting sound go"),
-        (vec![cmd(CMD_PARAM, 0, 0, 500)], true, "a slider by PARAM, on the chosen sound"),
+        // Since §20 a PARAM is a SOUND on each of the sixteen: it moves the generation once
+        // for each sound whose value changes. Sound 4's A is 100 here, the rest 32768.
+        (vec![cmd(CMD_PARAM, 0, 0, 500)], true, "a slider by PARAM, on every sound"),
         (vec![cmd(CMD_PARAM, 0, 0, 500)], false, "the value it shows"),
     ];
     for (cmds, moves, what) in lines {
         let (snap, g) = (h.save(), h.generation());
         h.block(1, &cmds);
-        assert_eq!(h.generation().wrapping_sub(g), moves as u32, "{what}");
+        let by = if what.contains("on every sound") { 16 } else { 1 };
+        assert_eq!(h.generation().wrapping_sub(g), if moves { by } else { 0 }, "{what}");
         assert_eq!(h.save() != snap, moves, "{what}: the snapshot's bytes change exactly then");
     }
 }

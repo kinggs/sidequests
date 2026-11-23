@@ -25,13 +25,14 @@ fn trigs(ev: &[(u64, Event)]) -> Vec<(u64, u32, u8)> {
 
 #[test]
 fn the_records_and_the_engine_have_the_sizes_the_header_says() {
-    assert_eq!(pi_abi_version(), 7);
+    assert_eq!(pi_abi_version(), 8);
     assert_eq!(size_of::<Cmd>(), 12);
     assert_eq!(size_of::<Event>(), 12);
     // The upper bound is the hosts' fixed room for one engine: 4 KiB before the snapshot in
     // harness/trace.test.mjs and before the events in web/worklet.js, and Probe.cpp's buffer.
     // It was 512 until the drums (752 bytes), 1 KiB until all sixteen voices (1 416), and
-    // 2 KiB until each track had a sample beside its voice (D50).
+    // 2 KiB until each track had a sample beside its voice (D50). Session 21 (§20: what
+    // each step keeps, about 1 KiB) took it from 2 448 to the number in ENGINE.md §8.
     assert!(pi_size() >= 316 - 16 && pi_size() <= 4096, "pi_size is {}", pi_size());
     assert!(pi_align() <= 8);
 }
@@ -362,7 +363,7 @@ fn crc32_is_the_zip_one() {
 fn the_snapshot_has_the_layout_the_spec_gives() {
     let s = busy().save();
     assert_eq!(&s[0..4], b"PKIN");
-    assert_eq!(s[4..12], [3, 0, 1, 0, 0x88, 1, 0, 0]); // version 3, kind 1, payload 392 (§17)
+    assert_eq!(s[4..12], [4, 0, 1, 0, 0xa8, 5, 0, 0]); // version 4, kind 1, payload 1448 (§20)
     assert_eq!(s[12..16], 77u32.to_le_bytes());
     assert_eq!(s[16..20], 133_700u32.to_le_bytes());
     assert_eq!(s[20..24], [11, 17, 0, 0]);
@@ -376,8 +377,8 @@ fn the_snapshot_has_the_layout_the_spec_gives() {
     prob[255] = 1;
     assert_eq!(s[56..312], prob);
     // 312 to 383, what version 2 adds, and 384 to 403, what version 3 adds, are held in
-    // tests/snapshot.rs.
-    assert_eq!(s[404..408], crc32(&s[..404]).to_le_bytes());
+    // tests/snapshot.rs; 404 to 1459, version 4's, in tests/keep.rs.
+    assert_eq!(s[1460..1464], crc32(&s[..1460]).to_le_bytes());
 }
 
 #[test]
@@ -420,9 +421,9 @@ fn every_corrupted_byte_is_refused_and_changes_nothing() {
             bad[i] ^= bit;
             let r = h.load(&bad);
             let want = match (i, bit) {
-                // Version 3 with its low bit flipped says 2: a version this core wrote, so it
-                // is refused by version 2's payload size, before its CRC (§8's order).
-                (4, 0x01) => ERR_SIZE,
+                // Until Session 21, version 3 with its low bit flipped said 2, a version this
+                // core wrote, and was refused by version 2's payload size (§8's order).
+                // Version 4 with it flipped says 5, which no core wrote.
                 (0..4 | 6..8, _) => ERR_MAGIC,
                 (4..6, _) => ERR_VERSION,
                 (8..12, _) => ERR_SIZE,
@@ -431,7 +432,7 @@ fn every_corrupted_byte_is_refused_and_changes_nothing() {
             assert_eq!(r, want, "byte {i} bit {bit:#x}");
         }
     }
-    for len in [0, 11, 12, 100, 315, SNAP_V1, SNAP_V2, SNAP - 1] {
+    for len in [0, 11, 12, 100, 315, SNAP_V1, SNAP_V2, SNAP_V3, SNAP - 1] {
         assert_eq!(h.load(&snap[..len]), ERR_SIZE, "length {len}");
     }
     assert_eq!(unsafe { pi_load(h.e, core::ptr::null(), SNAP as u32) }, ERR_SIZE);
@@ -442,9 +443,9 @@ fn every_corrupted_byte_is_refused_and_changes_nothing() {
 #[test]
 fn a_newer_version_is_refused_even_with_a_good_checksum() {
     let mut s = busy().save();
-    s[4] = 4;
-    let crc = crc32(&s[..404]);
-    s[404..].copy_from_slice(&crc.to_le_bytes());
+    s[4] = 5;
+    let crc = crc32(&s[..SNAP - 4]);
+    s[SNAP - 4..].copy_from_slice(&crc.to_le_bytes());
     assert_eq!(Host::new(SR, 1).load(&s), ERR_VERSION);
 }
 
@@ -456,8 +457,8 @@ fn values_no_core_writes_are_clamped_on_load() {
     s[21] = 200; // swing
     s[56] = 255; // a probability
     s[12..16].copy_from_slice(&0u32.to_le_bytes()); // seed
-    let crc = crc32(&s[..404]);
-    s[404..].copy_from_slice(&crc.to_le_bytes());
+    let crc = crc32(&s[..SNAP - 4]);
+    s[SNAP - 4..].copy_from_slice(&crc.to_le_bytes());
     let mut h = Host::new(SR, 1);
     assert_eq!(h.load(&s), OK);
     let t = h.save();

@@ -44,7 +44,7 @@ pub struct Keys {
     /// Bit `k`: key `k` is down.
     pub held: u32,
     pub write: bool,
-    /// The chosen sound: the track write mode edits and the sliders move.
+    /// The chosen sound: the track write mode edits. Since §20 the sliders move every sound.
     pub sel: u8,
     /// 1 to 16. The mix is multiplied by `(volume / 16)²`.
     pub volume: u8,
@@ -152,6 +152,12 @@ impl Engine {
             let sel = self.keys.sel as usize;
             let on = self.pat.on[sel] >> n & 1;
             self.edit(CMD_STEP, sel, n, 1 - on as u32, out); // a second tap takes it off ⚠
+            if on == 0 {
+                // §20: the step keeps the chosen sound's own A and B as they are now, which
+                // are the hand's. Off is `STEP` 0, which forgets.
+                let [a, b] = self.voices.params[sel];
+                self.edit(CMD_KEEP, sel, n, (a as u32) << 16 | b as u32, out);
+            }
         } else {
             self.edit(CMD_FIRE, n, 0, 0, out); // a tap plays key n's sound and chooses nothing
         }
@@ -165,10 +171,13 @@ impl Engine {
         }
     }
 
-    /// Function + pattern. Every step off, every probability back to 100 ⚠, and the lane
-    /// emptied (§17). Length, swing, tempo, sliders, volume and the sounds' fx switches stay.
+    /// Function + pattern. Every step off, every probability back to 100 ⚠, the lane
+    /// emptied (§17), and every step's kept values forgotten (§20). Length, swing, tempo,
+    /// sliders, volume and the sounds' fx switches stay.
     fn clear(&mut self) {
-        let mut changed = false;
+        let mut changed = self.pat.keep != [0; TRACKS];
+        self.pat.keep = [0; TRACKS];
+        self.pat.kept = [[[0; 2]; STEPS]; TRACKS];
         for t in 0..TRACKS {
             changed |= self.pat.on[t] != 0 || self.pat.prob[t] != [100; STEPS];
             self.pat.on[t] = 0;
@@ -225,12 +234,15 @@ impl Engine {
                 self.edit(CMD_TEMPO, 0, 0, bpm * 1000, out);
             }
         } else {
-            self.edit(CMD_SOUND, self.keys.sel as usize, slider, v, out);
+            // §20 (D75): the sliders are the hand's. A move sets that slider for every sound.
+            for t in 0..TRACKS {
+                self.edit(CMD_SOUND, t, slider, v, out);
+            }
         }
     }
 
     /// §14: where slider `slider`'s cap should sit. With bpm held, swing and the tempo;
-    /// otherwise the chosen sound's own.
+    /// otherwise the chosen sound's own, which since §20 are the hand's.
     fn shown(&self, slider: usize) -> u16 {
         if !self.keys.down(KEY_BPM) {
             return self.voices.params[self.keys.sel as usize & 15][slider & 1];
@@ -306,7 +318,10 @@ impl Engine {
         }
         b[56..58].copy_from_slice(&steps.to_le_bytes());
         b[58..60].copy_from_slice(&self.pat.fx_sounds.to_le_bytes());
-        // 60 to 63: zero.
+        // §20: the second mark: what the chosen sound was last hit with, its own until then.
+        let [ea, eb] = if self.hit_any >> sel & 1 == 1 { self.hit[sel] } else { self.voices.params[sel] };
+        b[60..62].copy_from_slice(&ea.to_le_bytes());
+        b[62..64].copy_from_slice(&eb.to_le_bytes());
     }
 
     /// §17: the effect sounding now. Nothing until a step has played since play; then the

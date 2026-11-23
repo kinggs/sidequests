@@ -1,0 +1,25 @@
+{
+  "format": 1,
+  "name": "render-keep",
+  "about": "ENGINE.md section 20 (D75): two steps of one sound written at two slider positions sound at two pitches, for the native and WebAssembly renders to be compared. Stopped, a frame after step 0: sound + key 15 chooses the tone (and plays it at its own A, the middle), write goes on, slider A to 10000 and key 1 writes step 1, A to 50000 and key 9 writes step 9, then A to 30000, where the hand is left. Play lands on run step 1, so step 1 plays at tick 96. Two bars: step 1 sounds low and step 9 high, each twice, and the hand's 30000 is never heard from a step. Not a trace fixture: it has no expect.",
+  "ticks_per_step": 96,
+  "seed": 1,
+  "mbpm": 120000,
+  "steps": 33,
+  "commands": [
+    {"at": 0, "cmd": "key_down", "key": 16},
+    {"at": 0, "cmd": "key_down", "key": 14},
+    {"at": 0, "cmd": "key_up", "key": 14},
+    {"at": 0, "cmd": "key_up", "key": 16},
+    {"at": 0, "cmd": "key_down", "key": 22},
+    {"at": 0, "cmd": "key_up", "key": 22},
+    {"at": 0, "cmd": "param", "slider": 0, "value": 10000},
+    {"at": 0, "cmd": "key_down", "key": 0},
+    {"at": 0, "cmd": "key_up", "key": 0},
+    {"at": 0, "cmd": "param", "slider": 0, "value": 50000},
+    {"at": 0, "cmd": "key_down", "key": 8},
+    {"at": 0, "cmd": "key_up", "key": 8},
+    {"at": 0, "cmd": "param", "slider": 0, "value": 30000},
+    {"at": 1, "cmd": "play", "value": 1}
+  ]
+}

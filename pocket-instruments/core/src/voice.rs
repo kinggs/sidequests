@@ -1178,7 +1178,8 @@ pub struct Voices {
     blip: Blip,
     tone: Tone,
     bass: Tone,
-    /// The two sliders of each track, 0 to 65535.
+    /// The two sliders of each track, 0 to 65535: the sound's own. Since §20 a `PARAM` sets
+    /// all sixteen alike (the hand's); `SOUND` still sets one.
     pub params: [[u16; 2]; TRACKS],
     /// Each track's sample, if the host gave one (D50).
     pub samples: [Sample; TRACKS],
@@ -1242,15 +1243,16 @@ impl Voices {
         }
     }
 
-    /// The tracks that fired on this frame start their voices on this frame.
+    /// The tracks that fired on this frame start their voices on this frame, each with the
+    /// A and B it was hit with (§20: `hit`, the engine's reckoning of step or tap).
     #[inline]
-    pub fn trigger(&mut self, fired: u16, rate: u32) {
+    pub fn trigger(&mut self, fired: u16, hit: &[[u16; 2]; TRACKS], rate: u32) {
         if fired == 0 {
             return;
         }
         for t in 0..TRACKS {
             if fired >> t & 1 == 1 {
-                let p = self.params[t];
+                let p = hit[t];
                 // A track switched to its sample with none given plays its code voice.
                 if self.sampled >> t & 1 == 1 && self.samples[t].loaded() {
                     self.samples[t].trigger(p, rate);

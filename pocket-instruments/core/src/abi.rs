@@ -1,4 +1,4 @@
-//! §6 to §8, §11, §14 and §17: the records and the C functions. Only `u32`, `i32` and pointers cross.
+//! §6 to §8, §11, §14, §17 and §20: the records and the C functions. Only `u32`, `i32` and pointers cross.
 //! Sound crosses as a pointer to the host's floats, never as a float argument (D44).
 
 use crate::engine::Engine;
@@ -6,7 +6,7 @@ use crate::keys;
 use crate::seq::TRACKS;
 use crate::snapshot;
 
-pub const ABI_VERSION: u32 = 7;
+pub const ABI_VERSION: u32 = 8;
 
 pub const CMD_CLOCK: u8 = 1;
 pub const CMD_RESET: u8 = 2;
@@ -22,6 +22,7 @@ pub const CMD_FIRE: u8 = 21;
 pub const CMD_VOICE: u8 = 22;
 pub const CMD_FX: u8 = 23;
 pub const CMD_FXSOUND: u8 = 24;
+pub const CMD_KEEP: u8 = 26;
 pub const CMD_KEY_DOWN: u8 = 32;
 pub const CMD_KEY_UP: u8 = 33;
 pub const CMD_PARAM: u8 = 34;
@@ -77,11 +78,16 @@ pub struct Out<'a> {
     /// §18: ticks the clock emitted on this frame, by an edge or by the table. A sweep moves
     /// by them. Cleared each frame, like `fired`.
     pub ticks: u32,
+    /// §20: bit `t`, track `t`'s latest firing came from the sequencer (a step or a repeat),
+    /// from column `col[t]`, so it plays what that step keeps; clear, a tap or `FIRE`, which
+    /// plays the sound's own. Read only for the tracks in `fired`, so never cleared.
+    pub stepped: u16,
+    pub col: [u8; TRACKS],
 }
 
 impl<'a> Out<'a> {
     pub fn new(buf: &'a mut [Event], fires: [u8; TRACKS]) -> Self {
-        Out { buf, n: 0, frame: 0, dropped: 0, fired: 0, fires, ticks: 0 }
+        Out { buf, n: 0, frame: 0, dropped: 0, fired: 0, fires, ticks: 0, stepped: 0, col: [0; TRACKS] }
     }
 
     #[inline]
@@ -98,6 +104,20 @@ impl<'a> Out<'a> {
             }
             None => self.dropped = self.dropped.saturating_add(1),
         }
+    }
+
+    /// §20: a firing, and where its A and B come from. `column` is a step of the pattern
+    /// when `from_seq` (the sequencer's, or a repeat's `run_step`), and the event's step.
+    #[inline]
+    pub fn trig(&mut self, tick: u32, track: u8, column: u8, from_seq: bool) {
+        let t = track as usize & 15;
+        if from_seq {
+            self.stepped |= 1 << t;
+            self.col[t] = column;
+        } else {
+            self.stepped &= !(1 << t);
+        }
+        self.push(tick, EV_TRIG, track, column);
     }
 
     pub fn len(&self) -> u32 {

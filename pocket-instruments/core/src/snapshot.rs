@@ -1,5 +1,5 @@
-//! §8, §15 and §17. The snapshot: version 3, 408 bytes, little-endian. Written and read only
-//! here. This core writes version 3 and loads all three versions it has ever written.
+//! §8, §15, §17 and §20. The snapshot: version 4, 1464 bytes, little-endian. Written and read
+//! only here. This core writes version 4 and loads all four versions it has ever written.
 
 use crate::abi::{ERR_CRC, ERR_MAGIC, ERR_SIZE, ERR_VERSION, OK};
 use crate::clock::{MBPM_MAX, MBPM_MIN};
@@ -9,16 +9,17 @@ use crate::keys::VOLUME_MAX;
 use crate::seq::{FX_MAX, STEPS, SWING_MAX, TRACKS};
 use crate::voice::PARAM_DEFAULT;
 
-/// What this core writes: version 3 (§17).
-pub const SIZE: usize = 408;
-/// Versions 2 (§15) and 1 (§8), which it still loads.
+/// What this core writes: version 4 (§20).
+pub const SIZE: usize = 1464;
+/// Versions 3 (§17), 2 (§15) and 1 (§8), which it still loads.
+pub const SIZE_V3: usize = 408;
 pub const SIZE_V2: usize = 388;
 pub const SIZE_V1: usize = 316;
 const MAGIC: [u8; 4] = *b"PKIN";
-const VERSION: u16 = 3;
+const VERSION: u16 = 4;
 const KIND_RHYTHM: u16 = 1;
 const HEADER: usize = 12;
-/// The payload size field counts what is between the header and the CRC: 300, 372 and 392.
+/// The payload size field counts what is between the header and the CRC: 300, 372, 392 and 1448.
 const fn payload(size: usize) -> u32 {
     (size - HEADER - 4) as u32
 }
@@ -28,7 +29,8 @@ fn size_of_version(version: u16) -> Option<usize> {
     match version {
         1 => Some(SIZE_V1),
         2 => Some(SIZE_V2),
-        3 => Some(SIZE),
+        3 => Some(SIZE_V3),
+        4 => Some(SIZE),
         _ => None, // newer than this core, or 0, which no core has written
     }
 }
@@ -73,6 +75,17 @@ pub fn save(e: &Engine, b: &mut [u8; SIZE]) {
     // §17: the lane, a byte a step, and the sounds that go through the effects. 402, 403: zero.
     put(b, 384, &e.pat.fx);
     put(b, 400, &e.pat.fx_sounds.to_le_bytes());
+    // §20: which steps keep values, then the values, A then B; zero where nothing is kept.
+    for t in 0..TRACKS {
+        put(b, 404 + 2 * t, &e.pat.keep[t].to_le_bytes());
+        for s in 0..STEPS {
+            if e.pat.keep[t] >> s & 1 == 1 {
+                let at = 436 + 4 * (STEPS * t + s);
+                put(b, at, &e.pat.kept[t][s][0].to_le_bytes());
+                put(b, at + 2, &e.pat.kept[t][s][1].to_le_bytes());
+            }
+        }
+    }
     let crc = crc32(&b[..SIZE - 4]);
     put(b, SIZE - 4, &crc.to_le_bytes());
 }
@@ -141,6 +154,20 @@ pub fn load(e: &mut Engine, buf: &[u8]) -> i32 {
         }
         e.pat.fx_sounds = u16_at(b, 400);
         // 402 and 403 are not read, like 381 to 383 ⚠ (§15's reading carried on).
+    }
+    // §20. An older version: every step that is on keeps its sound's own A and B (D75 item
+    // 6), so the hand cannot change an old beat. Version 4: what it says, no more; values
+    // where the keep bit is clear are not read.
+    for t in 0..TRACKS {
+        e.pat.keep[t] = if version < 4 { e.pat.on[t] } else { u16_at(b, 404 + 2 * t) };
+        for s in 0..STEPS {
+            let at = 436 + 4 * (STEPS * t + s);
+            e.pat.kept[t][s] = match (e.pat.keep[t] >> s & 1 == 1, version < 4) {
+                (false, _) => [0; 2],
+                (true, true) => e.voices.params[t],
+                (true, false) => [u16_at(b, at), u16_at(b, at + 2)],
+            };
+        }
     }
     e.generation = e.generation.wrapping_add(1);
     OK

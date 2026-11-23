@@ -18,16 +18,18 @@ const skip = built || process.env.PI_REQUIRE_WASM ? false : "pi_core.wasm is not
 const RATES = [44100, 48000, 96000];
 const BLOCKS = [1, 128, 512];
 const SOURCES = [["table", 0], ["edges", 1]];
-const CMD = { clock: 1, reset: 2, source: 3, tempo: 4, play: 5, step: 16, prob: 17, swing: 18, length: 19, sound: 20, voice: 22, fx: 23, fxsound: 24, key_down: 32, key_up: 33, param: 34 };
+const CMD = { clock: 1, reset: 2, source: 3, tempo: 4, play: 5, step: 16, prob: 17, swing: 18, length: 19, sound: 20, voice: 22, fx: 23, fxsound: 24, keep: 26, key_down: 32, key_up: 33, param: 34 };
 // Format 2: what a finger did. These land a frame after their step's boundary.
 const KEYS = new Set(["key_down", "key_up", "param"]);
-const EDITS = new Set(["step", "prob", "swing", "length", "fx", "fxsound"]);
+const EDITS = new Set(["step", "prob", "swing", "length", "fx", "fxsound", "keep"]);
 const PAGE = 65536;
 // Where things sit in the one page the host adds (ENGINE.md §8).
 // The engine gets the first 4 KiB (core/src/tests/rules.rs holds pi_size to it). The snapshot
-// has 512 bytes (version 3 is 408: §17; version 2 was 388). The audio has room for a 128-frame block at 17
-// channels (PI_AUDIO_BOTH); it had 768 floats, and the commands began at 11264, until then.
-const SNAP = 4096, SNAP_SIZE = 408, VIEW = 4608, EVENTS = 5120, CAP = 256, AUDIO = 8192, AUDIO_MAX = 128 * 17;
+// has 1536 bytes (version 4 is 1464: §20; it had 512 until then, for version 3's 408). The
+// audio has room for a 128-frame block at 17 channels (PI_AUDIO_BOTH); it had 768 floats, and
+// the commands began at 11264, until then. Session 21 moved the view, the events and the audio
+// up to make the snapshot's room.
+const SNAP = 4096, SNAP_SIZE = 1464, VIEW = 5632, EVENTS = 5760, CAP = 256, AUDIO = 9216, AUDIO_MAX = 128 * 17;
 const CMDS = AUDIO + 4 * AUDIO_MAX, CMDS_MAX = Math.floor((PAGE - CMDS) / 12);
 
 function load() {
@@ -71,6 +73,8 @@ function toCmd(c) {
   assert.ok(type && c.cmd !== "clock" && c.cmd !== "source" && c.cmd !== "tempo", `fixture command ${c.cmd}`);
   // Format 3's fx names a step and nothing else: the step goes in `a` (ENGINE.md §17).
   if (c.cmd === "fx") return { type, a: c.step ?? 0, b: 0, value: c.value ?? 0 };
+  // Format 4's keep: A in the high sixteen bits of the value, B in the low (ENGINE.md §20).
+  if (c.cmd === "keep") return { type, a: c.track, b: c.step, value: ((c.a << 16) | c.b) >>> 0 };
   return { type, a: c.track ?? c.key ?? c.slider ?? 0, b: c.step ?? c.param ?? 0, value: c.value ?? 0 };
 }
 
@@ -105,9 +109,9 @@ function schedule(fx, rate, source, fromSnapshot) {
   return { cmds, end, views };
 }
 
-// ENGINE.md §14's text line for the view block at `p`: what a format 2 fixture holds. With
-// `effects`, format 3's: §17's three fields on its end.
-function viewText(v, p, effects = false) {
+// ENGINE.md §14's text line for the view block at `p`: what a format 2 fixture holds. For
+// format 3, §17's three fields on its end; for format 4, then §20's two.
+function viewText(v, p, format = 2) {
   const flags = v.getUint8(p + 24), flag = (bit) => (flags >> bit) & 1;
   const hex = (n, width) => n.toString(16).padStart(width, "0");
   const fires = Array.from({ length: 16 }, (_, t) => v.getUint8(p + 32 + t)).join(",");
@@ -115,14 +119,15 @@ function viewText(v, p, effects = false) {
     ` sel=${v.getUint8(p + 26)} vol=${v.getUint8(p + 27)} tempo=${v.getUint32(p + 4, true)} len=${v.getUint8(p + 28)} swing=${v.getUint8(p + 29)}` +
     ` held=${hex(v.getUint32(p + 8, true), 6)} field=${hex(v.getUint16(p + 12, true), 4)} stitch=${hex(v.getUint16(p + 14, true), 4)}` +
     ` bar=${hex(v.getUint16(p + 16, true), 4)} sampled=${hex(v.getUint16(p + 18, true), 4)} a=${v.getUint16(p + 20, true)} b=${v.getUint16(p + 22, true)} fires=${fires}` +
-    (effects ? ` fx=${v.getUint8(p + 55)} fxsteps=${hex(v.getUint16(p + 56, true), 4)} fxsounds=${hex(v.getUint16(p + 58, true), 4)}` : "");
+    (format >= 3 ? ` fx=${v.getUint8(p + 55)} fxsteps=${hex(v.getUint16(p + 56, true), 4)} fxsounds=${hex(v.getUint16(p + 58, true), 4)}` : "") +
+    (format >= 4 ? ` ea=${v.getUint16(p + 60, true)} eb=${v.getUint16(p + 62, true)}` : "");
 }
 
 // With `audio` (a Float32Array of `end * channels` samples) sound is rendered into it as well,
 // in that layout (1 the mix, 16 the tracks, 17 both).
 // With `views` a block ends wherever one is to be read; each is held to its text, labelled
 // `label`, and added to the lines after the trace, as the report has it.
-function run(m, e, cmds, end, block, audio, views = [], label = "", channels = 1, effects = false) {
+function run(m, e, cmds, end, block, audio, views = [], label = "", channels = 1, format = 2) {
   const lines = [], seen = [];
   assert.ok(!audio || block * channels <= AUDIO_MAX);
   let next = 0, view = 0;
@@ -154,7 +159,7 @@ function run(m, e, cmds, end, block, audio, views = [], label = "", channels = 1
     start += n;
     for (; view < views.length && views[view][0] === start; view++) {
       assert.equal(m.pi.pi_view(e, m.base + VIEW, 64), 64);
-      const got = viewText(m.view(), m.base + VIEW, effects);
+      const got = viewText(m.view(), m.base + VIEW, format);
       assert.equal(got, views[view][1], `${label}: the view at frame ${start}`);
       seen.push(got + "\n");
     }
@@ -179,7 +184,7 @@ const hex = (bytes) => Array.from(bytes, (b) => b.toString(16).padStart(2, "0"))
 test("the module imports nothing and its memory grows by a page for the host", { skip }, () => {
   const m = load();
   assert.deepEqual(m.imports, [], "no imports: no glue to write");
-  assert.equal(m.pi.pi_abi_version(), 7);
+  assert.equal(m.pi.pi_abi_version(), 8);
   assert.equal(m.pi.memory.buffer.byteLength, m.base + PAGE);
   // Memory the module was not given is refused, not written.
   assert.equal(m.pi.pi_init(0, m.pi.pi_size(), 48000, 1), 0, "null");
@@ -189,14 +194,14 @@ test("the module imports nothing and its memory grows by a page for the host", {
 test("every fixture gives its trace on both sources, at every rate and block size", { skip }, () => {
   const m = load();
   const names = readdirSync(FIXTURES).filter((n) => n.endsWith(".json")).sort();
-  assert.ok(names.length >= 9);
+  assert.ok(names.length >= 10);
   let report = "", runs = 0;
   for (const file of names) {
     const fx = JSON.parse(readFileSync(FIXTURES + file, "utf8"));
     const name = file.replace(/\.json$/, "");
-    assert.ok(fx.format === 1 || fx.format === 2 || fx.format === 3);
-    assert.ok(fx.format >= 2 || !fx.views, "views are format 2's and 3's");
-    const effects = fx.format >= 3; // format 3's views carry §17's fields
+    assert.ok([1, 2, 3, 4].includes(fx.format));
+    assert.ok(fx.format >= 2 || !fx.views, "views are format 2's to 4's");
+    const format = fx.format; // format 3's views carry §17's fields, format 4's §20's too
     assert.equal(fx.ticks_per_step, 96);
     // A run's text is its trace, then its views: run() holds each view to its own line.
     const trace = fx.expect.map((l) => l + "\n").join("");
@@ -206,7 +211,7 @@ test("every fixture gives its trace on both sources, at every rate and block siz
         for (const block of BLOCKS) {
           const label = `${name} ${sourceName} ${rate} ${block}`;
           const { cmds, end, views } = schedule(fx, rate, source, false);
-          const got = run(m, engine(m, rate, fx.seed), cmds, end, block, null, views, label, 1, effects);
+          const got = run(m, engine(m, rate, fx.seed), cmds, end, block, null, views, label, 1, format);
           assert.equal(got, wanted(views), label);
           report += `# ${name} ${sourceName} ${rate} ${block}\n${got}`;
           runs++;
@@ -217,7 +222,7 @@ test("every fixture gives its trace on both sources, at every rate and block siz
         new Uint8Array(m.pi.memory.buffer, m.base + SNAP, SNAP_SIZE).set(snap);
         assert.equal(m.pi.pi_load(e, m.base + SNAP, SNAP_SIZE), 0);
         const { cmds, end, views } = schedule(fx, rate, source, true);
-        const got = run(m, e, cmds, end, 128, null, views, `${name} ${sourceName} ${rate} from a snapshot`, 1, effects);
+        const got = run(m, e, cmds, end, 128, null, views, `${name} ${sourceName} ${rate} from a snapshot`, 1, format);
         assert.equal(got, wanted(views), `${name} ${sourceName} ${rate} from a snapshot`);
         report += `# ${name} ${sourceName} ${rate} snapshot ${hex(snap)}\n${got}`;
         runs++;

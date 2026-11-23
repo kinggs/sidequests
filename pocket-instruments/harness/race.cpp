@@ -244,8 +244,9 @@ struct Other {
     // A view has no checksum, so hold it to what any view is: a volume and a chosen sound in
     // range, no key past 22, its zero bytes zero, and the grid's rows as ENGINE.md §14 gives
     // them (a bar is one key; with bpm held the field is the volume's row). Since ABI 6 the
-    // zero bytes are 48 to 54 (the weave's, §16) and 60 to 63; 55 is the effect heard, 0 to
-    // 16 (§17). (Until Session 16 all of 48 to 63 were zero.)
+    // zero bytes are 48 to 54 (the weave's, §16); 55 is the effect heard, 0 to 16 (§17).
+    // (Until Session 16 all of 48 to 63 were zero; until Session 21, 60 to 63, which are now
+    // §20's second mark, any two u16s.)
     void look() {
         const Seen *v = s.seen.take();
         if (!v) return;
@@ -257,7 +258,6 @@ struct Other {
         bool ok = volume >= 1 && volume <= PI_VOLUME_MAX && b[PI_VIEW_SEL] < PI_TRACKS && held >> 23 == 0 && b[30] == 0 && b[31] == 0
                && (bar & (bar - 1)) == 0 && b[PI_VIEW_LENGTH] >= 1 && b[PI_VIEW_LENGTH] <= PI_STEPS && b[PI_VIEW_SWING] <= PI_SWING_MAX;
         for (unsigned i = 48; i < PI_VIEW_HEARD; i++) ok = ok && b[i] == 0;
-        for (unsigned i = PI_VIEW_FX_SOUNDS + 2; i < PI_VIEW_SIZE; i++) ok = ok && b[i] == 0;
         ok = ok && b[PI_VIEW_HEARD] <= PI_FX_MAX;
         if (held >> PI_KEY_BPM & 1) ok = ok && field == (1u << volume) - 1 && bar == 0;
         if (!ok) torn++;
@@ -323,7 +323,11 @@ struct Other {
                     break;
                 case 7: edit(pi_cmd{0, PI_CMD_PARAM, uint8_t(rnd() % 2), 0, 0, rnd() % 65536}); break;
                 case 0: edit(pi_cmd{0, PI_CMD_STEP, a, b, 0, rnd() % 2}); break;
-                case 1: edit(pi_cmd{0, PI_CMD_PROB, a, b, 0, rnd() % 101}); break;
+                case 1:
+                    // A probability, or (ABI 8) what a step keeps.
+                    if (rnd() % 4) edit(pi_cmd{0, PI_CMD_PROB, a, b, 0, rnd() % 101});
+                    else edit(pi_cmd{0, PI_CMD_KEEP, a, b, 0, rnd()});
+                    break;
                 case 2:
                     // Swing, or (ABI 6) one of the effects' two edits.
                     if (rnd() % 2) edit(pi_cmd{0, PI_CMD_SWING, 0, 0, 0, rnd() % 49});
@@ -343,7 +347,9 @@ struct Other {
     // (§15) also what the churn left in the sliders, the switches, the volume and the chosen
     // sound: every key let go, volume 16 and key 1 by their keys, then each track's sliders
     // at their middles and back on code. (Until Session 11 the pattern alone was enough.)
-    // Since version 3 (§17) also the whole lane and every sound's fx switch.
+    // Since version 3 (§17) also the whole lane and every sound's fx switch. Since version 4
+    // (§20) what every step keeps: each step goes off first, which forgets, then on as the
+    // fixture has it, then the fixture's own keeps.
     Snap enter(const Json &fx) {
         for (uint8_t k = 0; k <= PI_KEY_WRITE; k++) edit(pi_cmd{0, PI_CMD_KEY_UP, k, 0, 0, 0});
         for (uint8_t k : {PI_KEY_BPM, 15u}) edit(pi_cmd{0, PI_CMD_KEY_DOWN, k, 0, 0, 0});
@@ -361,6 +367,7 @@ struct Other {
         uint32_t swing = 0, length = 16;
         uint8_t lane[16] = {};
         uint16_t through = 0xFFFF;
+        std::vector<pi_cmd> keeps;
         for (const Json &c : fx.at("commands").arr) {
             const std::string &name = c.at("cmd").str;
             if (c.n("at") != 0 || !is_edit(name)) continue;
@@ -371,17 +378,20 @@ struct Other {
             else if (name == "fx") lane[k.a] = uint8_t(k.value);
             else if (name == "fxsound") through = uint16_t(k.value ? through | 1u << k.a : through & ~(1u << k.a));
             else if (name == "length") length = k.value;
+            else if (name == "keep") keeps.push_back(k);
             else die("race.cpp does not know how to enter the edit " + name);
         }
         for (uint8_t t = 0; t < 16; t++)
             for (uint8_t st = 0; st < 16; st++) {
-                edit(pi_cmd{0, PI_CMD_STEP, t, st, 0, uint32_t(on[t] >> st & 1)});
+                edit(pi_cmd{0, PI_CMD_STEP, t, st, 0, 0});
+                if (on[t] >> st & 1) edit(pi_cmd{0, PI_CMD_STEP, t, st, 0, 1});
                 edit(pi_cmd{0, PI_CMD_PROB, t, st, 0, prob[t][st]});
             }
         for (uint8_t i = 0; i < 16; i++) {
             edit(pi_cmd{0, PI_CMD_FX, i, 0, 0, lane[i]});
             edit(pi_cmd{0, PI_CMD_FXSOUND, i, 0, 0, uint32_t(through >> i & 1)});
         }
+        for (const pi_cmd &k : keeps) edit(k);
         edit(pi_cmd{0, PI_CMD_SWING, 0, 0, 0, swing});
         edit(pi_cmd{0, PI_CMD_LENGTH, 0, 0, 0, length});
         edit(pi_cmd{0, PI_CMD_TEMPO, 0, 0, 0, uint32_t(fx.n("mbpm"))});

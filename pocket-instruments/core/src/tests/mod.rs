@@ -5,6 +5,7 @@ mod bus;
 mod fixtures;
 mod fx;
 mod json;
+mod keep;
 mod keys;
 mod rules;
 mod samples;
@@ -15,9 +16,10 @@ use crate::abi::*;
 use crate::engine::Engine;
 
 pub const CAP: usize = 256;
-/// §17: what `pi_save` writes (version 3), and versions 2's and 1's sizes, which `pi_load`
-/// still takes.
-pub const SNAP: usize = 408;
+/// §20: what `pi_save` writes (version 4), and versions 3's, 2's and 1's sizes, which
+/// `pi_load` still takes.
+pub const SNAP: usize = 1464;
+pub const SNAP_V3: usize = 408;
 pub const SNAP_V2: usize = 388;
 pub const SNAP_V1: usize = 316;
 
@@ -110,6 +112,13 @@ pub fn line(ev: &Event) -> String {
 
 pub fn trace(events: &[(u64, Event)]) -> String {
     events.iter().map(|(_, e)| line(e)).collect()
+}
+
+/// §20's text line for a view block: format 4's, which is format 3's with the second mark,
+/// bytes 60 to 63, on its end.
+pub fn view_text_keep(b: &[u8; 64]) -> String {
+    let u16_at = |i: usize| u16::from_le_bytes([b[i], b[i + 1]]);
+    format!("{} ea={} eb={}", view_text_fx(b), u16_at(60), u16_at(62))
 }
 
 /// §17's text line for a view block: format 3's, which is §14's with the effects on its end.

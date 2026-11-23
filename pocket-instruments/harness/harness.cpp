@@ -75,7 +75,7 @@ static uint64_t schedule(const Json &fx, uint32_t rate, uint32_t source, bool fr
 // if any is not the text expected.
 static std::string run(Host &h, const std::vector<Timed> &cmds, uint64_t end, uint32_t block, std::vector<float> *audio = nullptr,
                        const std::vector<View> *views = nullptr, std::string *seen = nullptr, bool *ok = nullptr,
-                       uint32_t channels = PI_AUDIO_MIX, bool effects = false) {
+                       uint32_t channels = PI_AUDIO_MIX, uint64_t format = 2) {
     if (audio) audio->assign(end * channels, 0.f);
     std::string out;
     std::vector<pi_cmd> these;
@@ -103,7 +103,7 @@ static std::string run(Host &h, const std::vector<Timed> &cmds, uint64_t end, ui
         while (views && view < views->size() && (*views)[view].first == start) {
             uint8_t b[PI_VIEW_SIZE];
             if (pi_view(h.e, b, sizeof b) != PI_VIEW_SIZE) die("pi_view");
-            std::string got = view_text(b, effects);
+            std::string got = view_text(b, format);
             if (got != (*views)[view].second) *ok = false;
             *seen += got + "\n";
             view++;
@@ -196,7 +196,7 @@ int main(int argc, char **argv) {
         Json fx = read_fixture(path.string());
         std::string name = path.stem().string();
         uint32_t seed = uint32_t(fx.n("seed"));
-        bool effects = fx.n("format") >= 3; // format 3's views carry section 17's fields
+        uint64_t format = fx.n("format"); // format 3's views carry section 17's fields, 4's section 20's too
         std::string want;
         for (const Json &l : fx.at("expect").arr) want += l.str + "\n";
 
@@ -220,7 +220,7 @@ int main(int argc, char **argv) {
                     Host h(rate, seed);
                     std::string seen;
                     bool ok = true;
-                    std::string got = run(h, cmds, end, block, nullptr, &views, &seen, &ok, PI_AUDIO_MIX, effects);
+                    std::string got = run(h, cmds, end, block, nullptr, &views, &seen, &ok, PI_AUDIO_MIX, format);
                     check(where + " " + std::to_string(block), got, seen, ok);
                 }
 
@@ -247,7 +247,7 @@ int main(int argc, char **argv) {
                 }
                 std::string seen;
                 bool ok = true;
-                std::string got = run(b, cmds, end, 128, nullptr, &views, &seen, &ok, PI_AUDIO_MIX, effects);
+                std::string got = run(b, cmds, end, 128, nullptr, &views, &seen, &ok, PI_AUDIO_MIX, format);
                 check(where + " snapshot " + hex, got, seen, ok);
 
                 // One flipped bit is refused.

@@ -1,7 +1,8 @@
 //! P2, natively: every fixture, on both clock sources, at three sample rates and three block
 //! sizes, compared byte for byte. `fixtures/README.md` says how a harness runs one; the Node
 //! and C++ harnesses in `harness/` do the same and write the same report.
-//! Format 2 adds keys, sliders and views (Session 10); format 3 the effects (Session 16).
+//! Format 2 adds keys, sliders and views (Session 10); format 3 the effects (Session 16);
+//! format 4 a step's own sliders (Session 21).
 
 use super::json::{Json, parse};
 use super::*;
@@ -19,13 +20,13 @@ fn fixtures() -> Vec<(String, Json)> {
         .filter(|n| n.ends_with(".json"))
         .collect();
     names.sort();
-    assert!(names.len() >= 9, "expected the nine fixtures, found {names:?}");
+    assert!(names.len() >= 10, "expected the ten fixtures, found {names:?}");
     names
         .into_iter()
         .map(|n| {
             let j = parse(&std::fs::read_to_string(format!("{dir}/{n}")).unwrap());
-            assert!(matches!(j.num("format"), 1..=3), "{n}");
-            assert!(j.num("format") >= 2 || j.get("views").is_none(), "{n}: views are format 2's and 3's");
+            assert!(matches!(j.num("format"), 1..=4), "{n}");
+            assert!(j.num("format") >= 2 || j.get("views").is_none(), "{n}: views are format 2's to 4's");
             assert_eq!(j.num("ticks_per_step"), 96, "{n}");
             (n.trim_end_matches(".json").to_string(), j)
         })
@@ -33,7 +34,7 @@ fn fixtures() -> Vec<(String, Json)> {
 }
 
 fn is_edit(name: &str) -> bool {
-    matches!(name, "step" | "prob" | "swing" | "length" | "fx" | "fxsound")
+    matches!(name, "step" | "prob" | "swing" | "length" | "fx" | "fxsound" | "keep")
 }
 
 /// Format 2: what a finger did. These land a frame after their step's boundary.
@@ -53,6 +54,7 @@ fn to_cmd(c: &Json) -> Cmd {
         "length" => cmd(CMD_LENGTH, 0, 0, v),
         "fx" => cmd(CMD_FX, t("step"), 0, v),
         "fxsound" => cmd(CMD_FXSOUND, t("track"), 0, v),
+        "keep" => cmd(CMD_KEEP, t("track"), t("step"), (c.num("a") as u32) << 16 | c.num("b") as u32),
         "key_down" => cmd(CMD_KEY_DOWN, t("key"), 0, 0),
         "key_up" => cmd(CMD_KEY_UP, t("key"), 0, 0),
         "param" => cmd(CMD_PARAM, t("slider"), 0, v),
@@ -131,7 +133,11 @@ fn play(h: &mut Host, plan: &Plan, block: u32, label: &str) -> (Vec<(u64, Event)
     let mut views = String::new();
     for (frame, want) in &plan.views {
         events.extend(h.run(frame - h.now, block, &plan.cmds));
-        let got = if plan.format >= 3 { view_text_fx(&h.view()) } else { view_text(&h.view()) };
+        let got = match plan.format {
+            4.. => view_text_keep(&h.view()),
+            3 => view_text_fx(&h.view()),
+            _ => view_text(&h.view()),
+        };
         assert_eq!(&got, want, "{label}: the view at frame {frame}");
         views.push_str(&got);
         views.push('\n');
@@ -224,8 +230,8 @@ fn every_fixture_everywhere() {
     }
 }
 
-/// `fixtures/snapshots-v1.txt` and `-v2.txt`: each fixture's snapshot, as the core of the
-/// day wrote it before the next version existed (Sessions 11 and 16).
+/// `fixtures/snapshots-v1.txt`, `-v2.txt` and `-v3.txt`: each fixture's snapshot, as the core
+/// of the day wrote it before the next version existed (Sessions 11, 16 and 21).
 fn old_snapshots(file: &str) -> Vec<(String, Vec<u8>)> {
     let path = format!("{}/../fixtures/{file}", env!("CARGO_MANIFEST_DIR"));
     std::fs::read_to_string(path)
@@ -246,7 +252,7 @@ fn old_snapshots(file: &str) -> Vec<(String, Vec<u8>)> {
 fn old_snapshots_still_load(file: &str, version: u8, size: usize) {
     let all = fixtures();
     let old = old_snapshots(file);
-    assert_eq!(old.len(), 7, "one a fixture of its day");
+    assert_eq!(old.len(), if version < 3 { 7 } else { 9 }, "one a fixture of its day");
     let mut d = Host::new(48_000, 3);
     let mut dress: Vec<Cmd> = (0..16u8).flat_map(|t| [cmd(CMD_SOUND, t, 0, 100 + t as u32), cmd(CMD_SOUND, t, 1, 9000), cmd(CMD_VOICE, t, 0, 1)]).collect();
     let (down, up) = (|k| cmd(CMD_KEY_DOWN, k, 0, 0), |k| cmd(CMD_KEY_UP, k, 0, 0));
@@ -254,10 +260,13 @@ fn old_snapshots_still_load(file: &str, version: u8, size: usize) {
     dress.extend([down(16), down(9), up(9), up(16)]); // sound + key 10: key 10 chosen
     dress.extend((0..16u8).map(|s| cmd(CMD_FX, s, 0, 1 + s as u32))); // §17: a full lane
     dress.extend([cmd(CMD_FXSOUND, 0, 0, 0), cmd(CMD_FXSOUND, 15, 0, 0)]);
+    // §20: every step of every sound keeps values, the step off or on.
+    dress.extend((0..16u8).flat_map(|t| (0..16u8).map(move |s| cmd(CMD_KEEP, t, s, 0x1234_5678))));
     d.block(1, &dress);
     let dressed = d.save();
     assert_eq!((dressed[378], dressed[379]), (4, 9), "volume 4, key 10 chosen");
     assert_eq!((dressed[399], dressed[400], dressed[401]), (16, 0xfe, 0x7f), "a full lane, two sounds out");
+    assert!(dressed[404..436].iter().all(|b| *b == 0xff), "every step keeps");
 
     for (name, bytes) in &old {
         assert_eq!(bytes.len(), size, "{name}");
@@ -273,9 +282,28 @@ fn old_snapshots_still_load(file: &str, version: u8, size: usize) {
                 let s = h.save();
                 assert!(s[312..376].chunks(2).all(|v| v == [0x00, 0x80]), "{label}: sliders at their middles");
                 assert_eq!(s[376..384], [0, 0, 16, 0, 0, 0, 0, 0], "{label}: all code, volume 16, key 1");
-                assert_eq!(s[384..404], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 0, 0], "{label}: the lane empty, every sound in");
-                // What today's core saves for the same fixture is the old one, grown.
-                assert_eq!(s, snapshot_of(fx, rate), "{label}");
+                if version < 3 {
+                    assert_eq!(s[384..404], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 0, 0], "{label}: the lane empty, every sound in");
+                }
+                // What today's core saves for the same fixture is the old one, grown: up to
+                // byte 404 the same bytes. The fixture's step-0 edits are `STEP`s, which keep
+                // nothing (§20); the old load keeps, for every step that is on, its sound's own
+                // A and B (D75 item 6), and nothing for the rest.
+                let today = snapshot_of(fx, rate);
+                assert_eq!(s[..404], today[..404], "{label}");
+                assert!(today[404..SNAP - 4].iter().all(|b| *b == 0), "{label}: an edit keeps nothing");
+                let mut kept = [0u8; SNAP - 4 - 404];
+                for t in 0..16 {
+                    kept[2 * t..2 * t + 2].copy_from_slice(&s[24 + 2 * t..26 + 2 * t]); // keep = on
+                    let on = u16::from_le_bytes([s[24 + 2 * t], s[25 + 2 * t]]);
+                    for st in 0..16 {
+                        if on >> st & 1 == 1 {
+                            let at = 32 + 4 * (16 * t + st);
+                            kept[at..at + 4].copy_from_slice(&s[312 + 4 * t..316 + 4 * t]);
+                        }
+                    }
+                }
+                assert_eq!(s[404..SNAP - 4], kept[..], "{label}: each step that is on keeps its sound's own");
                 let plan = schedule(fx, rate, source, true);
                 let (events, _) = play(&mut h, &plan, 128, &label);
                 assert_eq!(trace(&events), want, "{label}");
@@ -292,4 +320,9 @@ fn every_version_1_snapshot_ever_written_still_loads_and_gives_its_fixture_s_tra
 #[test]
 fn every_version_2_snapshot_ever_written_still_loads_and_gives_its_fixture_s_trace() {
     old_snapshots_still_load("snapshots-v2.txt", 2, SNAP_V2);
+}
+
+#[test]
+fn every_version_3_snapshot_ever_written_still_loads_and_gives_its_fixture_s_trace() {
+    old_snapshots_still_load("snapshots-v3.txt", 3, SNAP_V3);
 }

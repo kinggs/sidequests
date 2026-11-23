@@ -1,7 +1,9 @@
-/* Pocket Instruments: the engine's C ABI, version 7 (1 plus sound: D44; 3 adds samples: D50;
+/* Pocket Instruments: the engine's C ABI, version 8 (1 plus sound: D44; 3 adds samples: D50;
  * 4 adds keys and the view: D51; 5 adds snapshot version 2 and PI_AUDIO_BOTH: D55, D57;
  * 6 adds the lane, the fx key, the four repeats and snapshot version 3: D66, D67;
- * 7 adds the bus and seven sound effects on the mix, with no new call or command: D67).
+ * 7 adds the bus and seven sound effects on the mix, with no new call or command: D67;
+ * 8 makes the sliders the hand's and lets a step keep them: KEEP, view bytes 60 to 63 and
+ * snapshot version 4: D75).
  *
  * The contract both hosts link. ENGINE.md beside the crate is the specification; this file is
  * the same thing in C. Where they disagree, ENGINE.md is right.
@@ -23,7 +25,7 @@
 extern "C" {
 #endif
 
-#define PI_ABI_VERSION 7u
+#define PI_ABI_VERSION 8u
 
 #define PI_TICKS_PER_STEP 96u /* a step is a sixteenth note */
 #define PI_TRACKS 16u         /* one per grid key: key n plays track n (D30) */
@@ -33,8 +35,9 @@ extern "C" {
 #define PI_MBPM_MIN 30000u    /* tempo is in thousandths of a bpm */
 #define PI_MBPM_MAX 300000u
 #define PI_EVENTS_MIN 64u     /* the least room a host gives pi_process for events */
-#define PI_SNAPSHOT_VERSION 3u   /* what pi_save writes; pi_load also takes versions 1 and 2 */
-#define PI_SNAPSHOT_SIZE 408u    /* bytes, for PI_SNAPSHOT_VERSION */
+#define PI_SNAPSHOT_VERSION 4u   /* what pi_save writes; pi_load also takes versions 1 to 3 */
+#define PI_SNAPSHOT_SIZE 1464u   /* bytes, for PI_SNAPSHOT_VERSION */
+#define PI_SNAPSHOT_SIZE_V3 408u /* version 3 */
 #define PI_SNAPSHOT_SIZE_V2 388u /* version 2 */
 #define PI_SNAPSHOT_SIZE_V1 316u /* version 1: the least a host should keep and pass to pi_load */
 #define PI_FX_MAX 16u            /* a lane entry: 0 none, or the effect on key 1..16 */
@@ -61,7 +64,8 @@ extern "C" {
 #define PI_CMD_SOURCE 3u    /* value: PI_SOURCE_*. The source already in use: nothing happens */
 #define PI_CMD_TEMPO 4u     /* value: thousandths of a bpm, clamped */
 #define PI_CMD_PLAY 5u      /* value: 0 stop, 1 play from the next step boundary */
-#define PI_CMD_STEP 16u     /* a: track, b: step, value: 0 or 1 */
+#define PI_CMD_STEP 16u     /* a: track, b: step, value: 0 or 1. 0 also forgets what the step
+                               kept (PI_CMD_KEEP); 1 keeps nothing by itself */
 #define PI_CMD_PROB 17u     /* a: track, b: step, value: 0..100 */
 #define PI_CMD_SWING 18u    /* value: 0..PI_SWING_MAX, clamped */
 #define PI_CMD_LENGTH 19u   /* value: 1..PI_STEPS, clamped */
@@ -77,13 +81,18 @@ extern "C" {
                                A value past PI_FX_MAX is ignored */
 #define PI_CMD_FXSOUND 24u  /* a: track, value: 0 or 1, whether it goes through the effects.
                                All sixteen at pi_init */
+/* A step's own sliders (ABI 8; ENGINE.md section 20). An edit; in snapshot version 4. */
+#define PI_CMD_KEEP 26u     /* a: track, b: step, value: A in the high 16 bits, B in the low. That
+                               step plays with these from now on. PI_CMD_STEP 0 forgets them */
 /* What a finger did (ABI 4; ENGINE.md section 13). The core runs the workflow and turns each
  * into the edits above; a host sends these and draws pi_view. */
 #define PI_CMD_KEY_DOWN 32u /* a: PI_KEY_*. A key already down, or a number past 22: ignored */
 #define PI_CMD_KEY_UP 33u   /* a: PI_KEY_*. A key not down: ignored */
-#define PI_CMD_PARAM 34u    /* a: 0 slider A, 1 slider B; value: 0..65535, clamped. The chosen
-                               sound's slider; with bpm held, swing (A) and tempo (B). A value
-                               equal to the one pi_view shows for that slider changes nothing */
+#define PI_CMD_PARAM 34u    /* a: 0 slider A, 1 slider B; value: 0..65535, clamped. That slider
+                               of every sound (ABI 8: the hand's); with bpm held, swing (A) and
+                               tempo (B). A value equal to the one pi_view shows for that slider
+                               changes nothing. A grid key in write mode that turns a step on
+                               also keeps the chosen sound's A and B for it */
 
 /* Keys. 0..15 are the grid, left to right, top to bottom. */
 #define PI_KEY_SOUND 16u
@@ -102,8 +111,8 @@ extern "C" {
 #define PI_VIEW_STITCH 14u  /* u16: bit n puts the corner stitch on key n */
 #define PI_VIEW_BAR 16u     /* u16: bit n puts the bar on key n */
 #define PI_VIEW_SAMPLED 18u /* u16: bit t, track t plays its sample */
-#define PI_VIEW_A 20u       /* u16: slider A as it should show */
-#define PI_VIEW_B 22u       /* u16: slider B as it should show */
+#define PI_VIEW_A 20u       /* u16: slider A's cap: the hand's (ABI 8), or swing with bpm held */
+#define PI_VIEW_B 22u       /* u16: slider B's cap: the hand's, or the tempo with bpm held */
 #define PI_VIEW_FLAGS 24u   /* u8: PI_VIEW_FLAG_* */
 #define PI_VIEW_STEP 25u    /* u8: the playhead's step; means something while PI_VIEW_FLAG_STEP */
 #define PI_VIEW_SEL 26u     /* u8: the chosen sound */
@@ -111,10 +120,13 @@ extern "C" {
 #define PI_VIEW_LENGTH 28u  /* u8 */
 #define PI_VIEW_SWING 29u   /* u8 */
 #define PI_VIEW_FIRES 32u   /* PI_TRACKS u8s: how often each track has fired, wrapping at 256 */
-/* 48 to 54: the weave's (section 16), zero until it is built. 60 to 63: zero. */
+/* 48 to 54: the weave's (section 16), zero until it is built. */
 #define PI_VIEW_HEARD 55u     /* u8: the effect heard now, 1..16, or 0 (section 17) */
 #define PI_VIEW_FX_STEPS 56u  /* u16: bit s, step s of the lane holds an effect */
 #define PI_VIEW_FX_SOUNDS 58u /* u16: bit t, track t goes through the effects */
+#define PI_VIEW_HIT_A 60u     /* u16: the A the chosen sound was last hit with, its own until then
+                                 (ABI 8, section 20): a slider's second mark */
+#define PI_VIEW_HIT_B 62u     /* u16: the same for B */
 
 #define PI_VIEW_FLAG_PLAYING 1u
 #define PI_VIEW_FLAG_WRITE 2u

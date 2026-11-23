@@ -470,7 +470,9 @@ fn the_view_says_heard_the_lane_and_the_sounds_and_the_grid_does_not_change() {
         assert_eq!(a[..48], b[..48], "the grid, case {i}");
         assert_eq!(a[56..58], (1u16 << 1 | 1 << 9).to_le_bytes());
         assert_eq!(a[58..60], (0xFFFFu16 & !(1 << 4) & !(1 << 12)).to_le_bytes());
-        assert_eq!(a[60..], [0; 4]);
+        // §20 (Session 21): 60 to 63 are no longer zero but the second mark; it too is the
+        // same with and without the lane.
+        assert_eq!(a[60..], b[60..], "the second mark, case {i}");
         for h in [&mut with, &mut without] {
             h.block(1, &[up(5), up(FX), up(SOUND), up(PATTERN), up(BPM)]);
         }
@@ -487,14 +489,15 @@ fn version_3_holds_the_lane_and_the_sounds_after_version_2_s_fields() {
     let mut h = Host::new(SR, 1);
     h.block(1, &[fx(0, 1), fx(7, 9), fx(15, 16), fxsound(0, 0), fxsound(13, 0), down(FX), down(4)]);
     let s = h.save();
-    assert_eq!(s.len(), 408);
-    assert_eq!(s[4..12], [3, 0, 1, 0, 0x88, 1, 0, 0], "version 3, kind 1, payload 392");
+    // Since Session 21 the core writes version 4 (§20), which keeps version 3's bytes here.
+    assert_eq!(s.len(), SNAP);
+    assert_eq!(s[4..12], [4, 0, 1, 0, 0xa8, 5, 0, 0], "version 4, kind 1, payload 1448");
     let mut want = [0u8; 16];
     (want[0], want[7], want[15]) = (1, 9, 16);
     assert_eq!(s[384..400], want);
     assert_eq!(s[400..402], (0xFFFFu16 & !1 & !(1 << 13)).to_le_bytes());
     assert_eq!(s[402..404], [0, 0]);
-    assert_eq!(s[404..408], crc32(&s[..404]).to_le_bytes());
+    assert_eq!(s[SNAP - 4..], crc32(&s[..SNAP - 4]).to_le_bytes());
     // The punch is the moment's: not saved.
     h.block(1, &[up(4), up(FX)]);
     assert_eq!(h.save(), s);
@@ -521,7 +524,14 @@ fn an_older_snapshot_empties_the_lane_and_puts_every_sound_through() {
     let g = h.generation();
     assert_eq!(h.load(&v2), OK);
     assert_ne!(h.generation(), g);
-    assert_eq!(h.save(), v3, "the lane empty, every sound in: today's bytes for that pattern");
+    // Today's bytes for that pattern, the lane empty and every sound in; and since §20 the
+    // one step that is on keeps its sound's own A and B (D75 item 6), which an edit's
+    // `STEP` does not.
+    let t = h.save();
+    assert_eq!(t[..404], v3[..404], "the lane empty, every sound in: today's bytes for that pattern");
+    assert_eq!(t[404 + 4..404 + 6], (1u16 << 2).to_le_bytes(), "track 2 keeps step 2");
+    let at = 436 + 4 * (16 * 2 + 2);
+    assert_eq!(t[at..at + 4], [0, 0x80, 0, 0x80]);
 }
 
 #[test]
@@ -529,8 +539,8 @@ fn a_lane_byte_past_16_loads_as_0_and_402_403_are_not_read() {
     let mut s = Host::new(SR, 1).save();
     s[384..400].copy_from_slice(&[0, 1, 16, 17, 255, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 200]);
     s[402..404].copy_from_slice(&[7, 7]);
-    let crc = crc32(&s[..404]);
-    s[404..].copy_from_slice(&crc.to_le_bytes());
+    let crc = crc32(&s[..SNAP - 4]);
+    s[SNAP - 4..].copy_from_slice(&crc.to_le_bytes());
     let mut h = Host::new(SR, 1);
     assert_eq!(h.load(&s), OK);
     let t = h.save();

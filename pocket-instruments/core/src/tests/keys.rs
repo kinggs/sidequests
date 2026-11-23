@@ -193,20 +193,21 @@ fn write_on_a_grid_key_flips_that_step_of_the_chosen_sound_in_silence() {
     let ev = send(&mut h, &[down(9), up(9)]);
     assert!(ev.is_empty(), "no sound");
     assert_eq!(V::of(&h).field(), 1 << 9);
-    assert_eq!(h.generation(), g + 1, "a step is in the snapshot");
-    // Exactly what the STEP edit would have done.
-    // (Sound 4 chosen in both: version 2 holds the choice.)
+    // Two edits, each a change: the step, and since §20 the values it keeps.
+    assert_eq!(h.generation(), g + 2, "a step and what it keeps are in the snapshot");
+    // Exactly what the STEP edit would have done, and (§20) KEEP with the chosen sound's
+    // own A and B. (Sound 4 chosen in both: version 2 holds the choice.)
     let chosen = [down(SOUND), down(3), up(3), up(SOUND)];
     let mut by_edit = fresh();
     send(&mut by_edit, &chosen);
     let unwritten = by_edit.save();
-    send(&mut by_edit, &[cmd(CMD_STEP, 3, 9, 1)]);
+    send(&mut by_edit, &[cmd(CMD_STEP, 3, 9, 1), cmd(CMD_KEEP, 3, 9, 32768 << 16 | 32768)]);
     assert_eq!(h.save(), by_edit.save());
-    // A second press takes it off.
+    // A second press takes it off, and forgets what it kept: one edit.
     send(&mut h, &[down(9), up(9)]);
     assert_eq!(V::of(&h).field(), 0);
     assert_eq!(h.save(), unwritten);
-    assert_eq!(h.generation(), g + 2);
+    assert_eq!(h.generation(), g + 3);
     // It flips on the press: the release does nothing more.
     send(&mut h, &[down(4)]);
     assert_eq!(V::of(&h).field(), 1 << 4);
@@ -467,21 +468,37 @@ fn a_repeated_key_down_a_stray_key_up_and_a_key_past_22_do_nothing() {
 
 // ---- §13: PARAM ----
 
+// Until Session 21 (D54) this test was `a_slider_moves_the_chosen_sound_s_own_value`: key 6
+// chosen showed its own 32768, and key 1 chosen again its 1000 and 2000. D75 (§20) made the
+// sliders the hand's, for every sound, and choosing a sound moves no cap.
 #[test]
-fn a_slider_moves_the_chosen_sound_s_own_value() {
+fn a_slider_moves_that_value_for_every_sound_and_choosing_moves_nothing() {
     let mut h = fresh();
     send(&mut h, &[param(0, 1000), param(1, 2000)]);
     let v = V::of(&h);
     assert_eq!((v.a(), v.b()), (1000, 2000));
     send(&mut h, &[down(SOUND), down(5), up(5), up(SOUND)]);
     let v = V::of(&h);
-    assert_eq!((v.a(), v.b()), (32768, 32768), "key 6 has its own, untouched");
+    assert_eq!((v.a(), v.b()), (1000, 2000), "key 6 chosen: the hand's, not its own of before");
     send(&mut h, &[param(0, 70_000), param(1, 0)]);
     let v = V::of(&h);
     assert_eq!((v.a(), v.b()), (65535, 0), "clamped to 65535");
     send(&mut h, &[down(SOUND), down(0), up(0), up(SOUND)]);
     let v = V::of(&h);
-    assert_eq!((v.a(), v.b()), (1000, 2000), "and key 1's are as they were left");
+    assert_eq!((v.a(), v.b()), (65535, 0), "and key 1's moved with it");
+    let s = h.save();
+    for t in 0..16 {
+        assert_eq!(s[312 + 4 * t..316 + 4 * t], [0xff, 0xff, 0, 0], "sound {t}'s own A and B are the hand's");
+    }
+    // An edit still sets one sound apart; the view shows it while that sound is chosen, and
+    // the next move of the hand sets all sixteen again.
+    send(&mut h, &[cmd(CMD_SOUND, 0, 0, 500)]);
+    assert_eq!(V::of(&h).a(), 500);
+    send(&mut h, &[down(SOUND), down(5), up(5), up(SOUND)]);
+    assert_eq!(V::of(&h).a(), 65535);
+    send(&mut h, &[param(0, 600)]);
+    let s = h.save();
+    assert!((0..16).all(|t| s[312 + 4 * t..314 + 4 * t] == 600u16.to_le_bytes()), "all sixteen at 600");
 
     // It is the SOUND edit on the chosen track: the next hit is the same sound, bit for bit.
     let hit = |by_param: bool| {
@@ -594,16 +611,17 @@ fn the_generation_moves_exactly_when_a_key_changes_what_a_snapshot_holds() {
     // Until Session 11 this list also held a sound chosen, a volume set and both sliders
     // moved, which snapshot version 1 did not hold (D59 item 1). Version 2 holds them (§15),
     // so each now moves it once.
+    // Since §20 a slider is a SOUND edit on each of the sixteen: sixteen changes.
     let movers = [
-        vec![down(SOUND), down(5), up(5), up(SOUND)],
-        vec![down(BPM), down(2), up(2), up(BPM)],
-        vec![param(0, 9)],
-        vec![param(1, 9)],
+        (vec![down(SOUND), down(5), up(5), up(SOUND)], 1),
+        (vec![down(BPM), down(2), up(2), up(BPM)], 1),
+        (vec![param(0, 9)], 16),
+        (vec![param(1, 9)], 16),
     ];
-    for (i, cmds) in movers.iter().enumerate() {
+    for (i, (cmds, by)) in movers.iter().enumerate() {
         let g = h.generation();
         send(&mut h, cmds);
-        assert_eq!(h.generation(), g + 1, "mover {i}");
+        assert_eq!(h.generation(), g + by, "mover {i}");
     }
 
     // Any sequence at all: the generation moves on exactly the commands that change the
@@ -783,6 +801,8 @@ fn the_view_at_pi_init() {
     want[27] = 16; // volume
     want[28] = 16; // length
     want[58..60].copy_from_slice(&0xFFFFu16.to_le_bytes()); // §17: every sound through the effects
+    want[60..62].copy_from_slice(&32768u16.to_le_bytes()); // §20: no hit yet, so its own
+    want[62..64].copy_from_slice(&32768u16.to_le_bytes());
     assert_eq!(h.view(), want);
     assert_eq!(
         view_text(&h.view()),
@@ -810,10 +830,11 @@ fn the_view_follows_edits_as_well_as_keys() {
     assert_eq!((v.tempo(), v.length(), v.swing(), v.sampled(), v.a(), v.b()), (97_500, 12, 33, 1 << 3 | 1 << 15, 77, 88));
     assert!(v.edges());
     assert_eq!(v.0[30..32], [0, 0]);
-    // Session 16: 55 to 59 are §17's (held in tests/fx.rs); 48 to 54 and 60 to 63 stay zero.
+    // Session 16: 55 to 59 are §17's (held in tests/fx.rs); 48 to 54 stay zero. Since
+    // Session 21, 60 to 63 are §20's: no hit yet, so the chosen sound's own, set by edit.
     assert_eq!(v.0[48..55], [0; 7], "zero until the weave");
     assert_eq!(v.0[55..60], [0, 0, 0, 0xff, 0xff], "nothing heard, an empty lane, every sound in");
-    assert_eq!(v.0[60..], [0; 4], "zero");
+    assert_eq!(v.0[60..], [77, 0, 88, 0], "the second mark: its own until hit");
 }
 
 #[test]

@@ -2,7 +2,7 @@
 //! commands. Since ABI 6 (§17) it also writes the lane as steps arrive and plays the four
 //! repeats.
 
-use crate::abi::{EV_STEP, EV_TRIG, Out};
+use crate::abi::{EV_STEP, Out};
 use crate::clock::TICKS_PER_STEP;
 
 pub const TRACKS: usize = 16;
@@ -37,9 +37,22 @@ pub struct Pattern {
     pub fx: [u8; STEPS],
     /// §17: bit `t`, track `t` goes through the effects. All sixteen at `pi_init`.
     pub fx_sounds: u16,
+    /// §20: bit `s` of track `t`, step `s` keeps the A and B it was written with,
+    /// `kept[t][s]`. Zero where nothing is kept, so two patterns that play alike are equal.
+    pub keep: [u16; TRACKS],
+    pub kept: [[[u16; 2]; STEPS]; TRACKS],
 }
 
 impl Pattern {
+    /// §20: step `s` of track `t` forgets what it kept. Says whether it kept anything.
+    pub fn forget(&mut self, t: usize, s: usize) -> bool {
+        let bit = 1u16 << (s & 15);
+        let had = self.keep[t & 15] & bit != 0;
+        self.keep[t & 15] &= !bit;
+        self.kept[t & 15][s & 15] = [0; 2];
+        had
+    }
+
     pub const fn new() -> Self {
         Pattern {
             on: [0; TRACKS],
@@ -48,6 +61,8 @@ impl Pattern {
             swing: 0,
             fx: [0; STEPS],
             fx_sounds: 0xFFFF,
+            keep: [0; TRACKS],
+            kept: [[[0; 2]; STEPS]; TRACKS],
         }
     }
 }
@@ -182,7 +197,7 @@ impl Seq {
                     if pat.on[track] >> cur & 1 == 1 {
                         let p = pat.prob[track][cur] as u32;
                         if p >= 100 || rng.draw() % 100 < p {
-                            out.push(k, EV_TRIG, track as u8, cur as u8);
+                            out.trig(k, track as u8, cur as u8, true);
                         }
                     }
                 }
@@ -221,7 +236,7 @@ impl Seq {
             if pat.on[track] >> column & 1 == 1 {
                 let p = pat.prob[track][column] as u32;
                 if p >= 100 || rng.draw() % 100 < p {
-                    out.push(k, EV_TRIG, track as u8, column as u8);
+                    out.trig(k, track as u8, column as u8, true);
                 }
             }
         }

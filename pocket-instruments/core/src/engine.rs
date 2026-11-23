@@ -27,6 +27,10 @@ pub struct Engine {
     pub(crate) fires: [u8; TRACKS],
     /// §18: the bus and its seven sound effects. Not saved: the moment's.
     pub(crate) bus: Bus,
+    /// §20: the A and B each track was last hit with, and bit `t` set once track `t` has
+    /// been hit. The view's bytes 60 to 63 show the chosen sound's. Not saved: the moment's.
+    pub(crate) hit: [[u16; 2]; TRACKS],
+    pub(crate) hit_any: u16,
 }
 
 impl Engine {
@@ -45,6 +49,8 @@ impl Engine {
             keys: Keys::new(),
             fires: [0; TRACKS],
             bus: Bus::new(),
+            hit: [[0; 2]; TRACKS],
+            hit_any: 0,
         }
     }
 
@@ -104,11 +110,16 @@ impl Engine {
                 }
             });
 
+            // §20: what each track that fired on this frame is hit with, sound or no sound,
+            // so the view says the same either way.
+            if out.fired != 0 {
+                self.hits(out.fired, out.stepped, &out.col);
+            }
             // §11: whatever fired on this frame, by an edge or by the clock, sounds from this
             // frame. With no audio buffer the voices do not run at all.
             if let Some(audio) = audio.as_deref_mut() {
                 let at = f as usize * channels;
-                self.voices.trigger(out.fired, self.sample_rate);
+                self.voices.trigger(out.fired, &self.hit, self.sample_rate);
                 // §18: what is heard, as of this frame's ticks. Idle (no sound effect heard,
                 // the ramp at 0) costs a comparison in `advance` and one in the mix.
                 if stale || out.ticks != 0 {
@@ -129,6 +140,25 @@ impl Engine {
         self.fires = out.fires;
         self.dropped = self.dropped.saturating_add(out.dropped);
         out.len()
+    }
+
+    /// §20's table: a tap plays its sound's own A and B; a step from the sequencer, or a
+    /// repeated hit, what its column keeps, or the sound's own if it keeps nothing. Read at
+    /// the end of the frame's commands, as a slider always was (§11), so a voice that is
+    /// sounding is never moved (D56).
+    #[inline(never)]
+    fn hits(&mut self, fired: u16, stepped: u16, col: &[u8; TRACKS]) {
+        for t in 0..TRACKS {
+            if fired >> t & 1 == 1 {
+                let s = col[t] as usize & 15;
+                self.hit[t] = if stepped >> t & 1 == 1 && self.pat.keep[t] >> s & 1 == 1 {
+                    self.pat.kept[t][s]
+                } else {
+                    self.voices.params[t]
+                };
+            }
+        }
+        self.hit_any |= fired;
     }
 
     pub(crate) fn apply(&mut self, c: &Cmd, out: &mut Out) {
@@ -163,7 +193,18 @@ impl Engine {
                 let old = self.pat.on[a];
                 let bit = 1u16 << b;
                 self.pat.on[a] = if v != 0 { old | bit } else { old & !bit };
-                self.pat.on[a] != old
+                // §20: off forgets what the step kept; on keeps nothing by itself.
+                let forgot = v == 0 && self.pat.forget(a, b);
+                self.pat.on[a] != old || forgot
+            }
+            // §20: that step keeps these A (high sixteen bits) and B (low) from now on.
+            CMD_KEEP if a < TRACKS && b < STEPS => {
+                let ab = [(v >> 16) as u16, v as u16];
+                let bit = 1u16 << b;
+                let old = (self.pat.keep[a] & bit != 0, self.pat.kept[a][b]);
+                self.pat.keep[a] |= bit;
+                self.pat.kept[a][b] = ab;
+                old != (true, ab)
             }
             CMD_PROB if a < TRACKS && b < STEPS => {
                 let p = v.min(100) as u8;
@@ -185,7 +226,7 @@ impl Engine {
             // A tap: the track fires now, playing or stopped, as if its step had come round.
             // The pattern is not touched (D45).
             CMD_FIRE if a < TRACKS => {
-                out.push(self.clock.now(), EV_TRIG, a as u8, self.seq.step());
+                out.trig(self.clock.now(), a as u8, self.seq.step(), false);
                 false
             }
             // Which a track plays when it fires: 0 its code voice, 1 its sample (D50). In
