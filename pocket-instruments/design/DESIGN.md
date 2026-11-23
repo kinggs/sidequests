@@ -25,7 +25,7 @@ The owner's brief for it: dark, high contrast, easy to read with weak eyes.
 | `make_panel.py` | Draws `panel.svg`, prints the widget positions, and (`--check`) holds every jack's label, plate and stitches clear of its neighbour's |
 | `rack-face-unlit-100.png` | The Rhythm module as Rack draws it, from Rack's own screenshot mode at 100% zoom (360 px wide: what a player sees without zooming). Nothing lit: no module runs in that mode. Taken in Session 18, with the two jack rows |
 | `rack-face-unlit-200.png` | The same at 200%, to judge the lettering and the plates |
-| `rack-face-lit-100.png`, `rack-face-lit-200.png` | The same from a scratch build whose face was filled by hand (never shipped): playing on step 5 with write on, steps 1, 5, 7, 9, 11 and 13 lit, key 10 pressed, the stitch on key 3, the bar on key 1, fx latched (D78: its face lit like play and write), and each slider's second mark at 20000 and 50000 |
+| `rack-face-lit-100.png`, `rack-face-lit-200.png` | The same from a scratch build whose face was filled by hand (never shipped): playing on step 5 with write on, steps 1, 5, 7, 9, 11 and 13 lit, key 10 pressed, the stitch on key 3, the bar on key 1, fx latched (D78: its face lit like play and write), and each slider's second mark at 20000 and 50000. Taken again in Session 19 with effect 3 heard (the madder `fx 3` block above `write`) and the lane on steps 6, 7, 8 and 13 (four madder ticks over the step marks) |
 
 The `.html` files are pictures, not code to build from: open one in a browser. They are the
 Claude Design artboards with the canvas wrapper removed. They load the typeface from Google
@@ -105,7 +105,9 @@ Function key:
 Play is latched while the sequencer runs. Write is latched while write mode is on. ~~In Rack a
 click latches any function key until the next grid press or a second click (D23).~~ With a
 mouse, in Rack and on the page, a click is a real hold and Ctrl+click (Cmd on a Mac) latches
-sound, pattern, bpm, function or fx until a press of any key ends (D60, D61).
+sound, pattern, bpm, function or fx until a press of any key ends (D60, D61). Since Session 19
+fx keeps its latch until it is Ctrl+clicked again, and is down only while a grid key is (D78),
+on the page as in Rack.
 
 ### What the grid shows, by mode (D37, accepted by D38)
 
@@ -134,6 +136,22 @@ playing step is the tallest and is ochre.
 
 The write mark is a solid ochre block with the word `write` in it. It is absent when write
 is off, so its presence does not depend on colour.
+
+### The effects on the display (D81; a stand-in for the owner's eye, ⚠)
+
+Drawn in Session 19 on the page and in Rack, from the same view bytes. No key lights for an
+effect (D66 item 3), and there is no picture of a machine and no spark (D81 item 3).
+
+- **The effect heard** (byte 55): a solid madder block the size of the write mark, with `fx`
+  and the number in it in ground (`fx 3`, `fx 11`). It sits just above the write mark's place
+  in the column and keeps that place whether write is on or off; absent when nothing is
+  heard, so, like the write mark, its presence does not depend on colour. Rack: 11 by 3.6 mm,
+  0.8 mm above the write mark. Phone: the write mark's width (five characters and 8 px each
+  side), directly above it.
+- **The lane** (bytes 56 and 57): a madder tick over the step mark of each step that holds an
+  effect, the mark's width, on one line clear of the tallest mark, so the marks themselves do
+  not change. Rack: 0.67 mm tall, 0.6 mm above the tallest mark. Phone: 4 px tall, 4 px above.
+- Neither moves, so reduced motion changes nothing (D81 item 4).
 
 ### The animation ⚠ (proposed, not built)
 
@@ -360,10 +378,20 @@ the function keys side by side.
   plates of three heights in the lower row (TRIGGERS and VOICES one line of label, FX SEND
   and AUDIO two); FX over SEND and over RETURN; the empty corner right of FX GATES; whether
   0.87 mm between a slider output's plate and the next input's stitches is enough.
-- ⚠ In Rack the display says nothing of the effects yet: no mark while one is heard, no
-  lane on the step marks. `ENGINE.md` §17 leaves both to this file, and Session 19 decides
-  them for the page with the owner first; the module follows. A latched fx key lights its
-  face in its own colour, ecru, like play and write when they are on.
+- ⚠ The display's effect block and the lane's ticks (Session 19, "The effects on the
+  display" above) are D81's stand-in, built on both hosts and not yet seen by the owner. The
+  readings built on: the block sits just above the write mark's place, keeping it whether or
+  not write is on ("beside the write mark in the display's column"); the ticks sit on one
+  line above the tallest mark rather than on each mark's own top; the sizes are the
+  builder's. ⚠ **Madder:** D81 calls madder "the fx key's own colour", but the fx key's band
+  and latched face are ecru here (madder is the sound key's). Built in madder, as D81 names
+  it twice; the owner's to rule. Seen on the phone in a headless screenshot and in Rack's
+  screenshot mode (`rack-face-lit-*.png`), never on a real screen.
+- ⚠ The sounds sheet's "through fx" switch (D69, Session 19): a third button in each row,
+  120 px wide, always reading `through fx`, lit as the sample switch is (ecru face, dark
+  letters) while the sound goes through the effects. A tap sends `FXSOUND` and plays nothing
+  (D60 item 4's "and plays the result" is the sample switch's; D69 is silent). On a 360 px
+  screen the longest names wrap to two lines inside the 64 px row.
 - The animation is seven rules and three frames, not a running thing. Nobody has seen it move.
 - Contrast is by arithmetic. Nobody has looked at it on a phone in daylight or in Rack at
   normal zoom.

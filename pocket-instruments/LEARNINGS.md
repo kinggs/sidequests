@@ -717,3 +717,37 @@ belongs in `PROOFS.md`, a change of course in `DECISIONS.md`, an outside fact in
   at different slider positions the values arrive shifted by one hit. It is §19 as
   designed, and the self-test's "the loop was heard" counts exactly those frames. For the
   owner (D80, "Left open").
+
+## Session 19: the page's effects, and the display's effect block and lane (2026-11-23)
+
+- **A brief can name a fact wrongly; build what it names and ask.** D81 asks for madder,
+  "the fx key's own colour", but the fx key's band and latched face are ecru (madder is the
+  sound key's). Madder is named twice in D81, so that is what was built; the mismatch is a
+  question in the Handover, not a ruling.
+- **A fixture's views can be held on the page without frame timing, if nothing in it hangs
+  on the frame.** fx-repeat-punch's keys land "a frame after" a step begins; on the page they
+  land a few milliseconds after the view says the step began, which is the same run step,
+  and no punch makes a sound of its own. Counting run steps from the views (a new one each
+  time the playhead moves) and keeping the last view of each gave all four of its views and
+  its 43-line trace in both browsers at the first run. The trace's ticks are counted from
+  its first line: the play edit starts at the next step boundary of a clock that has run
+  since the page loaded (§5).
+- **A gesture that sends nothing cannot be checked from the view.** D78's Ctrl+click on fx
+  must send nothing at all, and a click must send fx down *before* the key. Neither is in a
+  view (both orders punch the same), so the page now hands each message to `rhythm.onPost`
+  and `make play` holds the commands. The planted "fx up before the key" failed only there.
+- **Read a drawing's look, not only its class.** A tick with the class but no colour is a
+  lane nobody can see; the lane's check reads the computed background as well, and the
+  planted "ticks not madder" was caught by it. Fifteen faults planted in the page, the
+  unplanted copy passing first: fifteen caught, by the drawing check (six), the switch's
+  check (two, each a timeout and a named line), D78's checks (five) and the computer keys'
+  (one, which also failed fx-repeat-punch's views).
+- **The Rack display has no checker.** Its two new drawings were only seen, in screenshot
+  mode, from a scratch build that fills `Face` by hand when the module is null and lights fx
+  as latched. The scratch lines were kept out of the tree by copying the real file aside
+  first and back after, then `make install` again; `grep SCRATCH` is the check.
+- **Four things fit the page's display column at 1.2 line height.** Tempo, step, the effect
+  block and the write mark are about 99 of the column's 104 px; at the body's 1.3 they did not.
+- **No audio path changed:** the page's main thread and Rack's drawing thread only, so there
+  is no frame cost to measure (the ground rule). The report, all 408 render files and the
+  `.wasm` are the same bytes as before the session.

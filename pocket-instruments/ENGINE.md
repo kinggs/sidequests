@@ -928,6 +928,13 @@ lane on its step marks from the fx steps. `design/DESIGN.md` decides both. The h
 flashes a spark on its sewing machine there; that picture is its own (R6), so ours is a
 mark of Loom's.
 
+**Drawn (Session 19; D81, a stand-in ⚠):** `web/rhythm.html` and the Rack display both draw a
+madder `fx` block with the number while `heard` is not 0, and a madder tick over the step
+mark of each step the fx steps name; the page's sounds sheet draws fx sounds as a "through
+fx" switch a sound, which sends `FXSOUND`. `make play` reads each back off the page and
+holds it to the view it came from, and plays `fx-repeat-punch` on the page. Nothing in this
+section changed.
+
 **As text:** fixture format 3 (`fixtures/README.md`) is format 2's line with
 ` fx=<heard> fxsteps=<four hex digits> fxsounds=<four hex digits>` on its end. Formats 1
 and 2 are unchanged, so every existing fixture's views stay the same bytes.
