@@ -1212,7 +1212,9 @@ struct RhythmPort : app::PortWidget {
 };
 
 // The plain display (D53): the tempo, bpm, the write mark, the step number and the sixteen step
-// marks. The weave's area is left dark for Session 14. In a self-test it says how it is going.
+// marks; and since Session 19 (D81) the effect heard and the lane, from the same bytes the page
+// draws them from. The weave's area is left dark for Session 14. In a self-test it says how it
+// is going.
 struct RhythmDisplay : widget::Widget {
     Rhythm *rm = nullptr;
     const Face *face = nullptr;
@@ -1232,6 +1234,13 @@ struct RhythmDisplay : widget::Widget {
             float mh = mm2px(now ? 2.67f : n % 4 == 0 ? 1.67f : 1.f);
             fillRect(vg, px + n * (mw + markGap), base - mh, mw, mh, now ? OCHRE : THREAD);
         }
+        // D81 item 2: the lane (the view's bytes 56 and 57). A step that holds an effect has a
+        // small madder tick above its mark, on one line clear of the tallest mark, so the marks
+        // themselves do not change. ⚠ The tick's size and line are a stand-in (design/DESIGN.md).
+        uint16_t lane = have ? u16(v, PI_VIEW_FX_STEPS) : 0;
+        float tickH = mm2px(0.67f), tickY = base - mm2px(2.67f) - mm2px(0.6f) - tickH;
+        for (int n = 0; n < 16; n++)
+            if (lane >> n & 1) fillRect(vg, px + n * (mw + markGap), tickY, mw, tickH, MADDER);
         // The right column: tempo and bpm on top; the write mark and the step number below.
         char s[32];
         std::snprintf(s, sizeof s, "%u", have ? u32(v, PI_VIEW_TEMPO) / 1000 : 120u);
@@ -1242,10 +1251,19 @@ struct RhythmDisplay : widget::Widget {
         else std::snprintf(s, sizeof s, "step --");
         float low = H - py - mm2px(0.9f);
         text(vg, rx, low, 2.67f, ECRU, NVG_ALIGN_RIGHT | NVG_ALIGN_BASELINE, s);
+        float bw = mm2px(11.f), bh = mm2px(3.6f);
         if (have && face->flag(PI_VIEW_FLAG_WRITE)) {
-            float bw = mm2px(11.f), bh = mm2px(3.6f);
             fillRect(vg, rx - right, low - bh + mm2px(0.9f), bw, bh, OCHRE);
             text(vg, rx - right + bw / 2, low, 2.67f, GROUND, NVG_ALIGN_CENTER | NVG_ALIGN_BASELINE, "write");
+        }
+        // D81 item 1: while an effect is heard (the view's byte 55), a block like the write mark
+        // with fx and its number, in madder, just above the write mark's place in the column
+        // (whether or not write is on). ⚠ Its place, and madder, are a stand-in (design/DESIGN.md).
+        if (have && v[PI_VIEW_HEARD]) {
+            float fxLow = low - bh - mm2px(0.8f);
+            fillRect(vg, rx - right, fxLow - bh + mm2px(0.9f), bw, bh, MADDER);
+            std::snprintf(s, sizeof s, "fx %u", unsigned(v[PI_VIEW_HEARD]));
+            text(vg, rx - right + bw / 2, fxLow, 2.67f, GROUND, NVG_ALIGN_CENTER | NVG_ALIGN_BASELINE, s);
         }
         // A self-test: its name and its count where the weave will be, and a light.
         int fx = rm ? rm->fixtureWanted.load() : -1;
