@@ -22,7 +22,7 @@
     {
       "slug": "Rhythm",
       "name": "Rhythm",
-      "description": "The tiny rhythm machine: sixteen sounds, sixteen steps. Each sound's trigger and voice out on sixteen channels, and back in through RETURN. Its effects' filter, soft clip and sample-rate reducer are ported from Emilie Gillet's stmlib and Plaits (MIT, (c) Emilie Gillet)",
+      "description": "The tiny rhythm machine: sixteen sounds, sixteen steps. Each sound's trigger and voice out on sixteen channels, and back in through RETURN; a gate for each effect, with a send and return round them; each sound's two slider voltages out and in. Its effects' filter, soft clip and sample-rate reducer are ported from Emilie Gillet's stmlib and Plaits (MIT, (c) Emilie Gillet)",
       "tags": ["Drum", "Sequencer", "Polyphonic"]
     }
   ]

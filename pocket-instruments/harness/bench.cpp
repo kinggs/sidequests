@@ -11,6 +11,11 @@
 //   repeat  "all" with effect 11 (eight a beat) on every step of the lane (ABI 6 on)
 //   fx N    "beat" with sound effect N on every step of the lane, all four drums through it
 //           (ABI 7 on: ENGINE.md section 18; N is 1, 2, 3, 5, 6, 7, 8)
+//   both    "beat" in PI_AUDIO_BOTH, 17 channels: what the Rack module asks for with none of
+//           RETURN and the seven jacks of Session 18 in use (ABI 9 on: section 19)
+//   loop    "beat" in PI_AUDIO_LOOP, 18 channels, every sound taken from the input: RETURN patched
+//   loop fx the same with effect 4 on every step, heard from the input: FX RETURN patched too
+//   sliders "beat" in PI_AUDIO_LOOP_SLIDERS, 50 channels, every sound's A and B from the input
 //
 // Numbers move between machines and between runs by a few percent: compare runs made on the
 // same machine, one after the other. LEARNINGS.md keeps the ones a session measured.
@@ -26,7 +31,7 @@
 
 static pi_cmd cmd(uint8_t type, uint8_t a = 0, uint8_t b = 0, uint32_t value = 0) { return pi_cmd{0, type, a, b, 0, value}; }
 
-static double run(const std::vector<pi_cmd> &setup) {
+static double run(const std::vector<pi_cmd> &setup, uint32_t channels = PI_AUDIO_MIX) {
     const uint32_t rate = 48000, block = 128, blocks = rate * 10 / block;
     std::vector<uint64_t> mem((pi_size() + 7) / 8);
     pi_engine *e = pi_init(mem.data(), uint32_t(mem.size() * 8), rate, 1);
@@ -35,23 +40,26 @@ static double run(const std::vector<pi_cmd> &setup) {
         std::exit(1);
     }
     pi_event ev[256];
-    float audio[block];
-    pi_process(e, 1, setup.data(), uint32_t(setup.size()), ev, 256, audio, PI_AUDIO_MIX);
+    static float audio[block * 50]; // a loop layout is read too: silence comes back
+    std::memset(audio, 0, sizeof audio);
+    pi_process(e, 1, setup.data(), uint32_t(setup.size()), ev, 256, audio, channels);
     float sink = 0;
     auto t0 = std::chrono::steady_clock::now();
     for (uint32_t i = 0; i < blocks; i++) {
-        pi_process(e, block, nullptr, 0, ev, 256, audio, PI_AUDIO_MIX);
-        sink += audio[i % block];
+        pi_process(e, block, nullptr, 0, ev, 256, audio, channels);
+        sink += audio[(i % block) * channels + (channels > 1 ? 16 : 0)];
     }
     auto t1 = std::chrono::steady_clock::now();
     if (sink != sink) std::printf("(a NaN)\n"); // keeps the sound from being optimised away
     return std::chrono::duration<double, std::nano>(t1 - t0).count() / (double(blocks) * block);
 }
 
-static void report(const char *name, const std::vector<pi_cmd> &setup) {
+static void report(const char *name, const std::vector<pi_cmd> &setup, uint32_t channels = PI_AUDIO_MIX) {
     double best = 1e30;
-    for (int i = 0; i < 5; i++) best = std::min(best, run(setup));
-    std::printf("bench %-7s %7.1f ns a frame (best of five, 10 s at 48 kHz, the mix)\n", name, best);
+    for (int i = 0; i < 5; i++) best = std::min(best, run(setup, channels));
+    char what[32] = "the mix";
+    if (channels != PI_AUDIO_MIX) std::snprintf(what, sizeof what, "%u channels", channels);
+    std::printf("bench %-7s %7.1f ns a frame (best of five, 10 s at 48 kHz, %s)\n", name, best, what);
 }
 
 int main() {
@@ -93,6 +101,20 @@ int main() {
         std::snprintf(name, sizeof name, "fx %u", effect);
         report(name, lane);
     }
+#endif
+#if PI_ABI_VERSION >= 9
+    report("both", beat, PI_AUDIO_BOTH);
+    std::vector<pi_cmd> loop = beat;
+    loop.insert(loop.begin(), cmd(PI_CMD_ROUTE, PI_ROUTE_SOUNDS, 0, 0xffff));
+    report("loop", loop, PI_AUDIO_LOOP);
+    std::vector<pi_cmd> loopfx = loop;
+    loopfx.insert(loopfx.begin(), cmd(PI_CMD_ROUTE, PI_ROUTE_FX, 0, 1u << 3));
+    for (uint8_t s = 0; s < PI_STEPS; s++) loopfx.insert(loopfx.begin(), cmd(PI_CMD_FX, s, 0, 4));
+    report("loop fx", loopfx, PI_AUDIO_LOOP);
+    std::vector<pi_cmd> sliders = beat;
+    sliders.insert(sliders.begin(), cmd(PI_CMD_ROUTE, PI_ROUTE_A, 0, 0xffff));
+    sliders.insert(sliders.begin(), cmd(PI_CMD_ROUTE, PI_ROUTE_B, 0, 0xffff));
+    report("sliders", sliders, PI_AUDIO_LOOP_SLIDERS);
 #endif
     return 0;
 }
