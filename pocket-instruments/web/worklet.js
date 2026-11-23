@@ -31,9 +31,10 @@
 //
 // SPDX-License-Identifier: MIT
 const PAGE = 65536;
-const EVENTS = 4096, CAP = 256, AUDIO = 7168, CMDS = 8192, CMDS_MAX = (PAGE - CMDS) / 12;
+const EVENTS = 4096, CAP = 256, AUDIO = 7168, CMDS = 9216, CMDS_MAX = (PAGE - CMDS) / 12;
 // The instrument's: the view (64 bytes) and a snapshot's room, between the mix (one channel,
-// 128 frames, so 512 bytes from AUDIO) and the commands.
+// 128 frames, so 512 bytes from AUDIO) and the commands. 1472 bytes since Session 21, for
+// snapshot version 4's 1464 (§20); the commands began at 8192, and the room was 448, until then.
 const VIEW = 7680, VIEW_SIZE = 64, SNAP = 7744, SNAP_ROOM = CMDS - SNAP;
 const TRACE_MAX = 65536; // numbers kept since a mark: four an event
 
@@ -111,7 +112,7 @@ class Engine extends AudioWorkletProcessor {
 
   // Between blocks only (§8). The length read is passed, not PI_SNAPSHOT_SIZE: bytes past a
   // version's size are the host's (§8), so a longer buffer is cut to the room, which holds
-  // a version 2 whole.
+  // a version 4 whole.
   load(buffer) {
     const bytes = new Uint8Array(buffer);
     const n = Math.min(bytes.length, SNAP_ROOM);

@@ -28,6 +28,11 @@
 //     held, A to swing 0 and B to 120 bpm;
 //   - the sounds sheet (D60): a name fires its sound once and switches nothing; the switch
 //     turns it to its sample and fires it once more;
+//   - §20 (D75; added in Session 21): an old beat with two sounds' sliders apart loads and its
+//     cap goes to the chosen sound's A; choosing the other sound sounds it at its own A
+//     (the mark goes there) and the cap stays; the hand's move and a step written by key
+//     keep what they were written with, and played, the mark shows both; every drawing's
+//     cap and mark are held to the view (or to the hand where the phase moved it apart);
 //   - P6's browser half: the pattern entered by keys while it plays, the snapshot the page
 //     saved is byte for byte one the wasm host loaded and got straight-sixteenths' trace from
 //     (a "# straight-sixteenths ... snapshot <hex>" label in the Node report), and is what
@@ -89,7 +94,7 @@ function judge(phases) {
   const bad = [];
   const p = Object.fromEntries(phases.map((r) => [r.phase, r]));
   for (const r of phases) for (const f of r.failed) bad.push(`phase ${r.phase}: ${f}`);
-  for (const name of ["1", "reload", "bpm", "latch"]) if (!p[name]) bad.push(`phase ${name} never reported`);
+  for (const name of ["1", "reload", "bpm", "latch", "keep"]) if (!p[name]) bad.push(`phase ${name} never reported`);
   // Each phase reports under its own name: p.reload.reload, p.bpm.bpm. (A first draft read
   // p.bpm.last, and undefined equalled undefined: the bpm line passed with nothing checked.)
   const one = p["1"] || {}, reload = p.reload?.reload || {}, bpm = p.bpm?.bpm || {};
@@ -115,6 +120,11 @@ function judge(phases) {
   if (!(L.nameFired === 1 && L.nameSampled === 0 && L.switchFired === 2 && L.switchSampled === 4 && L.switchLabel === "sample"))
     bad.push(`sounds sheet: name fired ${L.nameFired} (sampled ${L.nameSampled}); switch fired ${L.switchFired} (sampled ${L.switchSampled}, "${L.switchLabel}")`);
   if (!(L.dblA === 32768 && L.dblBpm?.swing === 0 && L.dblBpm?.tempo === 120000)) bad.push(`double-click: A ${L.dblA}; with bpm ${JSON.stringify(L.dblBpm)}`);
+  const K = p.keep?.keep || {};
+  const keepOk = K.size === 1464 && K.loadedCap === true && K.chosen?.a === 60000 && K.chosen?.mark === 60000 &&
+    K.chosen?.capStayed === true && K.marks?.join() === "20000,60000" && K.kept?.keep === 0b10001 &&
+    K.kept?.step1?.join() === "60000,32768" && K.kept?.step5?.join() === "20000,32768";
+  if (!keepOk) bad.push(`§20, the hand and what a step keeps: ${JSON.stringify(K)}`);
   const p6 = one.p6 || {};
   const label = p6.hex && new RegExp(`^# straight-sixteenths .* snapshot ${p6.hex}$`, "m").test(report);
   if (!p6.playing) bad.push("P6: it was not playing while the keys went in");

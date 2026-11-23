@@ -78,6 +78,9 @@
   .sl .cap { position: absolute; left: -19px; width: 44px; height: 26px; background: var(--ground);
              border-top: 10px solid var(--ecru); border-bottom: 10px solid var(--ecru); }
   .sl.held .cap { border-color: var(--white); }
+  /* The second mark (ENGINE.md §20, D75): what the chosen sound was last hit with, a thin
+     thread-coloured line across the track. ⚠ design/DESIGN.md does not draw it yet. */
+  .sl .hit { position: absolute; left: -15px; width: 36px; height: 2px; background: var(--thread); pointer-events: none; }
   .fkeys { flex: 1; display: flex; flex-direction: column; gap: 4px; }
   .fkeys .row { flex: 1; min-height: 96px; display: grid; gap: 4px; }
   .fkeys .row.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -131,8 +134,8 @@
     <div class="grid" id="grid"></div>
     <div class="bottom">
       <div class="sliders">
-        <div class="sl" id="slA" role="slider" aria-label="Slider A" aria-valuemin="0" aria-valuemax="65535"><div class="tr"><span class="cap"></span></div><span>A</span></div>
-        <div class="sl" id="slB" role="slider" aria-label="Slider B" aria-valuemin="0" aria-valuemax="65535"><div class="tr"><span class="cap"></span></div><span>B</span></div>
+        <div class="sl" id="slA" role="slider" aria-label="Slider A" aria-valuemin="0" aria-valuemax="65535"><div class="tr"><span class="cap"></span><span class="hit"></span></div><span>A</span></div>
+        <div class="sl" id="slB" role="slider" aria-label="Slider B" aria-valuemin="0" aria-valuemax="65535"><div class="tr"><span class="cap"></span><span class="hit"></span></div><span>B</span></div>
       </div>
       <div class="fkeys">
         <div class="row three" id="fkeys1"></div>
@@ -157,6 +160,8 @@
   volume, slider A the swing, slider B the tempo; tap it alone for 80, 120 and 140. Hold
   <b>function</b> and press <b>pattern</b> to clear. With a keyboard: <b>1234 qwer asdf zxcv</b>
   are the keys, <b>7 8 9</b> sound, pattern and bpm, <b>u i o p</b> function, fx, play and write.
+  The sliders are your hand: they set every sound, and a step keeps where they were when it
+  was written. The thin line on a slider is what the chosen sound was last played with.
   Double-click (or double-tap) a slider to put it back to the middle; with bpm held, to swing
   0 and 120 bpm.
   With a mouse: <b>Ctrl+click</b> (<b>Cmd+click</b> on a Mac) sound, pattern, bpm, function or fx
@@ -239,9 +244,12 @@ let node = null, sent = 0;
 const early = [];                     // messages from before the engine was ready, in order
 const latest = { view: null, taken: 0, snapshot: null, snapTaken: 0, loaded: null };
 const listeners = [];
+const hand = [null, null];            // §20: where the hand left each slider; null: take the view's
+let reseatAt = Infinity;              // the queue entry count at which a load has been taken
 
 function post(msg, entries) {
   sent += entries;                    // queue entries, as the worklet counts `taken`
+  if (msg.load) reseatAt = sent;      // §20: a cap moves to what a load holds, once taken
   if (node) node.port.postMessage(msg);
   else early.push(msg);
 }
@@ -352,9 +360,18 @@ addEventListener("blur", () => releaseAll("c"));
 document.addEventListener("visibilitychange", () => { if (document.hidden) releaseAll(); });
 
 // --- Sliders: a finger drags the cap from where it shows; a touch alone moves nothing. ---
+// §20 (D75): the cap is the hand. It moves by itself only while bpm is held (to show swing
+// and tempo, the view's bytes 20 to 23) and after a load (to what was loaded); otherwise it
+// stays where the hand left it, whichever sound is chosen. The second mark is the view's
+// bytes 60 to 63: what the chosen sound was last hit with.
 const finger = [null, null];          // { id, y, from, value } while a finger is on it
+const bpmHeld = (v) => !!v && !!((u32(v, 8) >> KEY.bpm) & 1);
+const capOf = (v, which) => (bpmHeld(v) || hand[which] === null ? shown(v, which) : hand[which]);
 function slide(which, value) {
-  send([CMD.param, which, 0, Math.max(0, Math.min(65535, Math.round(value)))]);
+  const v = Math.max(0, Math.min(65535, Math.round(value)));
+  // With bpm held (as far as this page has pressed it) a slider is swing or tempo: not the hand.
+  if (!holders[KEY.bpm].size) hand[which] = v;
+  send([CMD.param, which, 0, v]);
 }
 // D63: a double-click (or double-tap) puts a slider back to its starting value, as a Rack
 // knob does: a sound's middle (pi_init's 32768), or with bpm held, swing 0 and 120 bpm
@@ -372,7 +389,7 @@ sliders.forEach((el, which) => {
     wake();
     if (finger[which]) return;
     try { el.setPointerCapture(e.pointerId); } catch {}
-    let from = latest.view ? shown(latest.view, which) : 32768;
+    let from = latest.view ? capOf(latest.view, which) : 32768;
     const now = performance.now();
     if (now - lastDown[which] < DOUBLE_MS) {
       from = home(which);
@@ -407,6 +424,11 @@ function placeCap(which, v) {
   el.querySelector(".cap").style.top = `${(1 - v / 65535) * Math.max(0, tr.clientHeight - 26)}px`;
   el.setAttribute("aria-valuenow", v);
 }
+// The mark's middle is where the cap's middle would be at that value.
+function placeHit(which, v) {
+  const el = sliders[which], tr = el.querySelector(".tr");
+  el.querySelector(".hit").style.top = `${(1 - v / 65535) * Math.max(0, tr.clientHeight - 26) + 12}px`;
+}
 
 // --- The sheet: each key's code or sample (D50), drawn from the view like the rest. ---
 sounds.forEach((row, t) => {
@@ -439,7 +461,7 @@ function schedule() {
 function draw() {
   const v = latest.view;
   // Before the first view (no audio thread yet): the caps at pi_init's middles, nothing lit.
-  if (!v) return [0, 1].forEach((which) => placeCap(which, 32768));
+  if (!v) return [0, 1].forEach((which) => { placeCap(which, 32768); placeHit(which, 32768); });
   const now = performance.now();
   const held = u32(v, 8), field = u16(v, 12), stitch = u16(v, 14), bar = u16(v, 16), sampled = u16(v, 18);
   const flags = v[24], step = v[25], playing = flags & 1, stepped = flags & 8, sounds_ = flags & 16;
@@ -473,7 +495,13 @@ function draw() {
   $("stepno").textContent = stepped ? `step ${String(step + 1).padStart(2, "0")}` : "step --";
   $("write").hidden = !(flags & 2);
   $("weave").textContent = "";
-  for (const which of [0, 1]) if (!finger[which]) placeCap(which, shown(v, which));
+  // §20: after a load, the hand is what was loaded; until the first view, likewise.
+  if (latest.taken >= reseatAt) { hand.fill(null); reseatAt = Infinity; }
+  for (const which of [0, 1]) {
+    if (hand[which] === null) hand[which] = shown(v, which);
+    if (!finger[which]) placeCap(which, capOf(v, which));
+    placeHit(which, u16(v, 60 + 2 * which));
+  }
   sounds.forEach((row, t) => {
     const on = !!((sampled >> t) & 1);
     row.sw.classList.toggle("sampled", on);

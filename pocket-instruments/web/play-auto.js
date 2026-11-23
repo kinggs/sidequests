@@ -10,6 +10,9 @@
 //   reload  the beat kept in the browser is back.
 //   bpm     keys-bpm-family's edits and keys; the last view, as text.
 //   latch   Ctrl+click latches (D60, D61), and the sounds sheet's two halves.
+//   keep    §20 (D75, Session 21): the cap is the hand's and stays put when another sound
+//           is chosen; a load moves it; a step keeps what it was written with, and the
+//           second mark shows what the chosen sound was last hit with.
 //
 // SPDX-License-Identifier: MIT
 const r = window.rhythm;
@@ -28,6 +31,11 @@ function viewText(v) {
     `held=${u32(v, 8).toString(16).padStart(6, "0")} field=${h4(u16(v, 12))} stitch=${h4(u16(v, 14))} bar=${h4(u16(v, 16))} ` +
     `sampled=${h4(u16(v, 18))} a=${u16(v, 20)} b=${u16(v, 22)} fires=${[...v.slice(32, 48)].join(",")}`;
 }
+
+// Where a slider's cap sits for a value, from the track's height (design/DESIGN.md: the cap
+// is 26 px tall and travels the rest).
+const topFor = (which, value) => (1 - value / 65535) * Math.max(0, r.sliders[which].querySelector(".tr").clientHeight - 26);
+let capWant = null; // where the hand is, when a phase moves it apart from the chosen sound's own
 
 // Every drawing is read back off the face and held to the view it was drawn from. This reads
 // the classes the CSS lights and rebuilds the masks; it shares nothing with draw().
@@ -52,7 +60,21 @@ r.afterDraw = (v) => {
     frames: f & 1 && f & 8 ? String(v[25]) : "", latch: (f & 1 ? 1 << 21 : 0) | (f & 2 ? 1 << 22 : 0),
   };
   const got = { field, stitch, bar, held, frames: frames.join(), latch };
-  const bad = Object.keys(want).filter((k) => want[k] !== got[k]);
+  // §20: the second mark is drawn from bytes 60 to 63, always. The cap is drawn from 20 to
+  // 23 while bpm is held; otherwise it is the hand's, which equals 20 to 23 unless a phase
+  // says (capWant) where the hand is. Held only on a view that holds everything sent: a cap
+  // moved by the hand is ahead of the view until then.
+  for (const which of [0, 1]) {
+    const key = which ? "b" : "a";
+    want[`hit ${key}`] = topFor(which, u16(v, 60 + 2 * which)) + 12;
+    got[`hit ${key}`] = parseFloat(r.sliders[which].querySelector(".hit").style.top);
+    if (r.latest.taken >= r.sent) {
+      const hand = !(u32(v, 8) & (1 << 18)) && capWant ? capWant[which] : u16(v, 20 + 2 * which);
+      want[`cap ${key}`] = topFor(which, hand);
+      got[`cap ${key}`] = parseFloat(r.sliders[which].querySelector(".cap").style.top);
+    }
+  }
+  const bad = Object.keys(want).filter((k) => (typeof want[k] === "number" && k.includes(" ") ? Math.abs(want[k] - got[k]) > 0.01 : want[k] !== got[k]));
   if (bad.length && out.drawn.bad.length < 5) out.drawn.bad.push(`${bad.map((k) => `${k} drawn ${got[k]}, view ${want[k]}`).join("; ")} (${viewText(v)})`);
 };
 
@@ -281,7 +303,71 @@ async function phaseLatch() {
   L.switchLabel = r.sounds[2].sw.textContent;
 }
 
-const PHASES = { 1: [phase1, "reload"], reload: [phaseReload, "bpm"], bpm: [phaseBpm, "latch"], latch: [phaseLatch, null] };
+// §20 (D75). A beat saved before Session 21 has each sound's own sliders: here sound 1's A
+// at 1000 and sound 2's at 60000, sound 2 on step 1, as a version 3 snapshot made from this
+// page's own bytes. Loaded, the cap goes to sound 1's 1000 (a load moves it). Choosing
+// sound 2 sounds it (§13) at its own 60000: the mark goes there, the cap stays at 1000. The
+// hand then moves A to 20000 (every sound), write on, key 5 writes sound 2's step 5. Played,
+// step 1 sounds at the 60000 it kept from the old beat and step 5 at 20000: the mark steps
+// between them while the cap stays at 20000.
+const crc32 = (bytes) => {
+  let c = ~0;
+  for (const b of bytes) {
+    c ^= b;
+    for (let k = 0; k < 8; k++) c = (c >>> 1) ^ (0xedb88320 & -(c & 1));
+  }
+  return ~c >>> 0;
+};
+async function phaseKeep() {
+  await r.ready;
+  await r.ctx.resume();
+  const K = (out.keep = {});
+  const saved = next("snapshot");
+  r.post({ save: true });
+  const now = new Uint8Array((await saved).snapshot);
+  K.size = now.length;
+  const v3 = now.slice(0, 408), d = new DataView(v3.buffer);
+  d.setUint16(4, 3, true);
+  d.setUint32(8, 392, true);
+  for (let t = 0; t < 16; t++) d.setUint16(24 + 2 * t, 0, true); // no steps but one
+  d.setUint16(24 + 2 * 1, 1, true);                              // sound 2, step 1
+  for (let t = 0; t < 16; t++) { d.setUint16(312 + 4 * t, 32768, true); d.setUint16(314 + 4 * t, 32768, true); }
+  d.setUint16(312, 1000, true);                                  // sound 1's A
+  d.setUint16(316, 60000, true);                                 // sound 2's A
+  v3[379] = 0;                                                   // sound 1 chosen
+  d.setUint32(404, crc32(v3.subarray(0, 404)), true);
+  r.post({ load: v3.buffer });
+  let v = await settle((x) => u16(x, 20) === 1000 && x[26] === 0, "the old beat loaded");
+  await frames2();
+  K.loadedCap = Math.abs(parseFloat(r.sliders[0].querySelector(".cap").style.top) - topFor(0, 1000)) < 0.01;
+  capWant = [1000, 32768]; // from here the hand is not the chosen sound's own
+  await choose(1);
+  v = await settle((x) => x[26] === 1 && u16(x, 60) === 60000, "sound 2 chosen and sounded");
+  await frames2();
+  K.chosen = { a: u16(v, 20), mark: u16(v, 60), capStayed: Math.abs(parseFloat(r.sliders[0].querySelector(".cap").style.top) - topFor(0, 1000)) < 0.01 };
+  capWant = [20000, 32768];
+  r.slide(0, 20000);
+  tap(r.fkeys[6], pid++); // write on
+  tap(r.keys[4], pid++);  // sound 2's step 5
+  v = await settle((x) => u16(x, 20) === 20000 && x[24] & 2 && u16(x, 12) === 0b10001, "A at 20000, step 5 written");
+  tap(r.fkeys[5], pid++); // play
+  const marks = new Set();
+  for (let i = 0; i < 300 && marks.size < 2; i++) {
+    v = await settle((x) => x[24] & 1, "playing");
+    if (v[32 + 1] > 1) marks.add(u16(v, 60));
+    await sleep(10);
+  }
+  K.marks = [...marks].sort((a, b) => a - b);
+  tap(r.fkeys[5], pid++); // stop
+  await settle((x) => !(x[24] & 1), "stopped");
+  const after = next("snapshot");
+  r.post({ save: true });
+  const s = new DataView((await after).snapshot);
+  K.kept = { keep: s.getUint16(404 + 2, true), step1: [s.getUint16(436 + 4 * 16, true), s.getUint16(438 + 4 * 16, true)],
+    step5: [s.getUint16(436 + 4 * 20, true), s.getUint16(438 + 4 * 20, true)] };
+}
+
+const PHASES = { 1: [phase1, "reload"], reload: [phaseReload, "bpm"], bpm: [phaseBpm, "latch"], latch: [phaseLatch, "keep"], keep: [phaseKeep, null] };
 const [run, then] = PHASES[phase] || [async () => { throw new Error(`no phase ${phase}`); }, null];
 try {
   await run();
