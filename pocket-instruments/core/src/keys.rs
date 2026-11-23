@@ -1,4 +1,5 @@
-//! §13 and §14 (ABI 4; D51). The workflow: what a press does, and what to light.
+//! §13 and §14 (ABI 4; D51). The workflow: what a press does, and what to light. Since ABI 6,
+//! §17's fx key: a punch, and what the view says is heard.
 //!
 //! A host sends what a finger did (`KEY_DOWN`, `KEY_UP`, `PARAM`) and draws the view. Every
 //! press becomes the edits and `FIRE` the engine already had, through `Engine::apply`, so a
@@ -9,7 +10,7 @@
 use crate::abi::*;
 use crate::clock::SOURCE_EDGES;
 use crate::engine::Engine;
-use crate::seq::{STEPS, TRACKS};
+use crate::seq::{NO_WRITE, STEPS, TRACKS};
 
 pub const KEYS: usize = 23;
 pub const KEY_SOUND: usize = 16;
@@ -49,11 +50,38 @@ pub struct Keys {
     pub volume: u8,
     /// Something has used the bpm key since it went down, so letting go is not a press.
     bpm_used: bool,
+    /// §17: the grid keys punched, in the order they went down; the last is `punch`.
+    punched: [u8; 16],
+    npunched: u8,
+    /// §17: what a step arriving now takes into the lane: `NO_WRITE` while fx is up, else
+    /// the punch (0 for fx alone). Kept here so the sequencer is handed one byte.
+    pub lane_write: u8,
 }
 
 impl Keys {
     pub const fn new() -> Self {
-        Keys { held: 0, write: false, sel: 0, volume: VOLUME_MAX, bpm_used: false }
+        Keys {
+            held: 0,
+            write: false,
+            sel: 0,
+            volume: VOLUME_MAX,
+            bpm_used: false,
+            punched: [0; 16],
+            npunched: 0,
+            lane_write: NO_WRITE,
+        }
+    }
+
+    /// §17: the effect punched now, 1 to 16, or 0: the last key punched that is still down.
+    pub fn punch(&self) -> u8 {
+        match self.npunched {
+            0 => 0,
+            n => self.punched[(n as usize - 1) & 15] + 1,
+        }
+    }
+
+    fn update_lane_write(&mut self) {
+        self.lane_write = if self.down(KEY_FX) { self.punch() } else { NO_WRITE };
     }
 
     fn down(&self, key: usize) -> bool {
@@ -96,7 +124,8 @@ impl Engine {
             KEY_WRITE => self.keys.write = !self.keys.write, // on the press, not the release ⚠
             KEY_PATTERN if self.keys.down(KEY_FUNCTION) => self.clear(),
             KEY_BPM => self.keys.bpm_used = false,
-            KEY_SOUND | KEY_PATTERN | KEY_FUNCTION | KEY_FX => {} // only held
+            KEY_FX => self.keys.update_lane_write(), // only held; fx alone empties arriving steps
+            KEY_SOUND | KEY_PATTERN | KEY_FUNCTION => {} // only held
             n => self.grid_down(n, out),
         }
     }
@@ -111,8 +140,14 @@ impl Engine {
             let old = core::mem::replace(&mut self.keys.sel, n as u8);
             self.saved_if(old != self.keys.sel);
             self.edit(CMD_FIRE, n, 0, 0, out); // choosing a sound plays it ⚠
-        } else if self.keys.down(KEY_PATTERN) || self.keys.down(KEY_FX) || self.keys.down(KEY_FUNCTION) {
-            // Later rows of WORKFLOW.md: patterns, effects.
+        } else if self.keys.down(KEY_FX) {
+            // §17: a punch. No sound, no step, whether write is on or off.
+            let k = &mut self.keys;
+            k.punched[k.npunched as usize & 15] = n as u8;
+            k.npunched = (k.npunched + 1).min(16);
+            k.update_lane_write();
+        } else if self.keys.down(KEY_PATTERN) || self.keys.down(KEY_FUNCTION) {
+            // Later rows of WORKFLOW.md: patterns.
         } else if self.keys.write {
             let sel = self.keys.sel as usize;
             let on = self.pat.on[sel] >> n & 1;
@@ -130,8 +165,8 @@ impl Engine {
         }
     }
 
-    /// Function + pattern. Every step off, every probability back to 100 ⚠. Length, swing,
-    /// tempo, sliders and volume stay.
+    /// Function + pattern. Every step off, every probability back to 100 ⚠, and the lane
+    /// emptied (§17). Length, swing, tempo, sliders, volume and the sounds' fx switches stay.
     fn clear(&mut self) {
         let mut changed = false;
         for t in 0..TRACKS {
@@ -139,6 +174,8 @@ impl Engine {
             self.pat.on[t] = 0;
             self.pat.prob[t] = [100; STEPS];
         }
+        changed |= self.pat.fx != [0; STEPS];
+        self.pat.fx = [0; STEPS];
         self.saved_if(changed);
     }
 
@@ -147,6 +184,20 @@ impl Engine {
             return;
         }
         self.keys.held &= !(1 << key);
+        let k = &mut self.keys;
+        if key == KEY_FX {
+            // §17: nothing is punched any more, and a grid key still down is not a press.
+            k.npunched = 0;
+            k.update_lane_write();
+        } else if key < 16 {
+            // §17: a punched key let go; the one punched before it, if still down, comes back.
+            let n = k.npunched as usize;
+            if let Some(i) = k.punched[..n].iter().position(|p| *p as usize == key) {
+                k.punched.copy_within(i + 1..n, i);
+                k.npunched -= 1;
+                k.update_lane_write();
+            }
+        }
         if key == KEY_BPM && !self.keys.bpm_used {
             // A clean press: the next preset, on the release and at once ⚠.
             let now = self.clock.mbpm;
@@ -245,6 +296,28 @@ impl Engine {
         b[28] = self.pat.length;
         b[29] = self.pat.swing;
         b[32..48].copy_from_slice(&self.fires);
-        // 48 to 63: zero until the weave (§16).
+        // 48 to 54: zero until the weave (§16).
+        b[55] = self.heard();
+        let mut steps = 0u16;
+        for (s, e) in self.pat.fx.iter().enumerate() {
+            if *e != 0 {
+                steps |= 1 << s;
+            }
+        }
+        b[56..58].copy_from_slice(&steps.to_le_bytes());
+        b[58..60].copy_from_slice(&self.pat.fx_sounds.to_le_bytes());
+        // 60 to 63: zero.
+    }
+
+    /// §17: the effect sounding now. Nothing until a step has played since play; then the
+    /// punch, or the playhead's step of the lane.
+    pub fn heard(&self) -> u8 {
+        if !self.seq.started() {
+            return 0;
+        }
+        match self.keys.punch() {
+            0 => self.pat.fx[self.seq.step() as usize & 15],
+            p => p,
+        }
     }
 }

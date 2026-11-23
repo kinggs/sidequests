@@ -1,6 +1,8 @@
 //! §15: snapshot version 2 (D55). What it holds beyond version 1, that version 1 still loads,
-//! and that the generation follows what a snapshot holds. The fixtures' own version 1
-//! snapshots (`fixtures/snapshots-v1.txt`) are loaded in `fixtures.rs`, against their traces.
+//! and that the generation follows what a snapshot holds. The fixtures' own version 1 and 2
+//! snapshots (`fixtures/snapshots-v1.txt`, `-v2.txt`) are loaded in `fixtures.rs`, against
+//! their traces. Version 3 (§17) has its own tests in `fx.rs`; since it is what the core
+//! writes, the ones here read version 2's fields at the same places in it.
 
 use super::sound::render;
 use super::*;
@@ -67,7 +69,7 @@ fn as_v1(v2: &[u8; SNAP]) -> [u8; SNAP_V1] {
 #[test]
 fn version_2_holds_the_sliders_the_switches_the_volume_and_the_chosen_sound() {
     let s = dressed(1).save();
-    assert_eq!(s[4..12], [2, 0, 1, 0, 0x74, 1, 0, 0], "version 2, kind 1, payload 372");
+    assert_eq!(s[4..12], [3, 0, 1, 0, 0x88, 1, 0, 0], "version 3 (since §17), kind 1, payload 392");
     let mut sliders = [0u8; 64];
     for t in 0..16 {
         sliders[4 * t..4 * t + 4].copy_from_slice(&[0x00, 0x80, 0x00, 0x80]); // 32768, 32768
@@ -79,7 +81,7 @@ fn version_2_holds_the_sliders_the_switches_the_volume_and_the_chosen_sound() {
     assert_eq!(s[376..378], ((1u16 << 3) | (1 << 15)).to_le_bytes());
     assert_eq!((s[378], s[379]), (5, 7), "volume 5, key 8 chosen");
     assert_eq!(s[380..384], [0, 0, 0, 0], "the hat cut, then zero");
-    assert_eq!(s[384..388], crc32(&s[..384]).to_le_bytes());
+    assert_eq!(s[404..408], crc32(&s[..404]).to_le_bytes());
     // And at pi_init: the middles, all code, volume 16, key 1.
     let s = Host::new(SR, 1).save();
     assert!(s[312..376].chunks(2).all(|v| v == [0x00, 0x80]));
@@ -167,19 +169,23 @@ fn every_corrupted_byte_of_a_version_1_snapshot_is_refused_and_changes_nothing()
 }
 
 #[test]
-fn a_version_2_is_refused_short_and_a_version_3_or_0_is_refused_however_good() {
+fn a_version_3_is_refused_short_and_a_version_4_or_0_is_refused_however_good() {
+    // (Until Session 16 this held version 2 and refused 3.)
     let s = dressed(1).save();
     let mut h = Host::new(SR, 1);
     let before = h.save();
-    // Cut to version 1's size, with every byte there right: version 2 is longer.
+    // Cut to an older version's size, with every byte there right: version 3 is longer.
     assert_eq!(h.load(&s[..SNAP_V1]), ERR_SIZE);
+    assert_eq!(h.load(&s[..SNAP_V2]), ERR_SIZE);
     assert_eq!(h.load(&s[..SNAP - 1]), ERR_SIZE);
-    // A version 2 that says it is version 1 is read as version 1, and its CRC is in the
-    // wrong place for that.
-    let mut lied = s;
-    lied[4] = 1;
-    assert_eq!(h.load(&lied), ERR_SIZE, "the payload size is version 2's");
-    for version in [0u16, 3, 0xffff] {
+    // A version 3 that says it is version 1 or 2 is read as that version, and its payload
+    // size is wrong for it.
+    for older in [1u8, 2] {
+        let mut lied = s;
+        lied[4] = older;
+        assert_eq!(h.load(&lied), ERR_SIZE, "the payload size is version 3's, not {older}'s");
+    }
+    for version in [0u16, 4, 0xffff] {
         let mut t = s;
         t[4..6].copy_from_slice(&version.to_le_bytes());
         recrc(&mut t);

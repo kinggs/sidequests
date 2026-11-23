@@ -782,6 +782,7 @@ fn the_view_at_pi_init() {
     want[24] = 16; // stopped, write off, the table clock, no step yet, the grid is sounds
     want[27] = 16; // volume
     want[28] = 16; // length
+    want[58..60].copy_from_slice(&0xFFFFu16.to_le_bytes()); // §17: every sound through the effects
     assert_eq!(h.view(), want);
     assert_eq!(
         view_text(&h.view()),
@@ -809,7 +810,10 @@ fn the_view_follows_edits_as_well_as_keys() {
     assert_eq!((v.tempo(), v.length(), v.swing(), v.sampled(), v.a(), v.b()), (97_500, 12, 33, 1 << 3 | 1 << 15, 77, 88));
     assert!(v.edges());
     assert_eq!(v.0[30..32], [0, 0]);
-    assert_eq!(v.0[48..], [0; 16], "zero until the weave");
+    // Session 16: 55 to 59 are §17's (held in tests/fx.rs); 48 to 54 and 60 to 63 stay zero.
+    assert_eq!(v.0[48..55], [0; 7], "zero until the weave");
+    assert_eq!(v.0[55..60], [0, 0, 0, 0xff, 0xff], "nothing heard, an empty lane, every sound in");
+    assert_eq!(v.0[60..], [0; 4], "zero");
 }
 
 #[test]

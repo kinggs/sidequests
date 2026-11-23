@@ -3,7 +3,7 @@
 use crate::abi::*;
 use crate::clock::Clock;
 use crate::keys::Keys;
-use crate::seq::{Pattern, Rng, SWING_MAX, STEPS, Seq, TRACKS};
+use crate::seq::{FX_MAX, Pattern, Rng, SWING_MAX, STEPS, Seq, TRACKS};
 use crate::voice::Voices;
 
 /// A seed of 0 would leave xorshift stuck on 0.
@@ -85,8 +85,13 @@ impl Engine {
                 self.apply(c, &mut out);
                 next += 1;
             }
-            let Engine { clock, seq, pat, rng, .. } = self;
-            clock.frame(thr, &mut |k| seq.tick(k, pat, rng, &mut out));
+            let Engine { clock, seq, pat, rng, generation, keys, .. } = self;
+            let write = keys.lane_write;
+            clock.frame(thr, &mut |k| {
+                if seq.tick(k, pat, rng, &mut out, write) {
+                    *generation = generation.wrapping_add(1); // §17: the lane is in the snapshot ⚠
+                }
+            });
 
             // §11: whatever fired on this frame, by an edge or by the clock, sounds from this
             // frame. With no audio buffer the voices do not run at all.
@@ -110,8 +115,13 @@ impl Engine {
         let (a, b, v) = (c.a as usize, c.b as usize, c.value);
         let changed = match c.kind {
             CMD_CLOCK => {
-                let Engine { clock, seq, pat, rng, .. } = self;
-                clock.edge(&mut |k| seq.tick(k, pat, rng, out));
+                let Engine { clock, seq, pat, rng, generation, keys, .. } = self;
+                let write = keys.lane_write;
+                clock.edge(&mut |k| {
+                    if seq.tick(k, pat, rng, out, write) {
+                        *generation = generation.wrapping_add(1);
+                    }
+                });
                 false
             }
             CMD_RESET => {
@@ -164,6 +174,18 @@ impl Engine {
                 let bit = 1u16 << a;
                 self.voices.sampled = if v != 0 { old | bit } else { old & !bit };
                 self.voices.sampled != old
+            }
+            // §17: the lane's entry for a step. A value past 16 is ignored, as an index is.
+            CMD_FX if a < STEPS && v <= FX_MAX as u32 => {
+                let old = core::mem::replace(&mut self.pat.fx[a], v as u8);
+                old != v as u8
+            }
+            // §17: whether a sound goes through the effects.
+            CMD_FXSOUND if a < TRACKS => {
+                let old = self.pat.fx_sounds;
+                let bit = 1u16 << a;
+                self.pat.fx_sounds = if v != 0 { old | bit } else { old & !bit };
+                self.pat.fx_sounds != old
             }
             CMD_LENGTH => {
                 let l = v.clamp(1, STEPS as u32) as u8;

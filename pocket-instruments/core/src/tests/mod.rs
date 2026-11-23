@@ -2,6 +2,7 @@
 //! functions, the way a host does, in memory the test owns.
 
 mod fixtures;
+mod fx;
 mod json;
 mod keys;
 mod rules;
@@ -13,8 +14,10 @@ use crate::abi::*;
 use crate::engine::Engine;
 
 pub const CAP: usize = 256;
-/// §15: what `pi_save` writes, and version 1's size, which `pi_load` still takes.
-pub const SNAP: usize = 388;
+/// §17: what `pi_save` writes (version 3), and versions 2's and 1's sizes, which `pi_load`
+/// still takes.
+pub const SNAP: usize = 408;
+pub const SNAP_V2: usize = 388;
 pub const SNAP_V1: usize = 316;
 
 /// An engine in caller-owned memory, driven through the ABI.
@@ -108,8 +111,14 @@ pub fn trace(events: &[(u64, Event)]) -> String {
     events.iter().map(|(_, e)| line(e)).collect()
 }
 
-/// §14's text line for a view block: what a fixture holds. The tick and bytes 48 to 63 are
-/// left out.
+/// §17's text line for a view block: format 3's, which is §14's with the effects on its end.
+pub fn view_text_fx(b: &[u8; 64]) -> String {
+    let u16_at = |i: usize| u16::from_le_bytes([b[i], b[i + 1]]);
+    format!("{} fx={} fxsteps={:04x} fxsounds={:04x}", view_text(b), b[55], u16_at(56), u16_at(58))
+}
+
+/// §14's text line for a view block: what a format 2 fixture holds. The tick and bytes 48 to
+/// 63 are left out.
 pub fn view_text(b: &[u8; 64]) -> String {
     let u16_at = |i: usize| u16::from_le_bytes([b[i], b[i + 1]]);
     let u32_at = |i: usize| u32::from_le_bytes([b[i], b[i + 1], b[i + 2], b[i + 3]]);

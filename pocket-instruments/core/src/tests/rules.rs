@@ -25,7 +25,7 @@ fn trigs(ev: &[(u64, Event)]) -> Vec<(u64, u32, u8)> {
 
 #[test]
 fn the_records_and_the_engine_have_the_sizes_the_header_says() {
-    assert_eq!(pi_abi_version(), 5);
+    assert_eq!(pi_abi_version(), 6);
     assert_eq!(size_of::<Cmd>(), 12);
     assert_eq!(size_of::<Event>(), 12);
     // The upper bound is the hosts' fixed room for one engine: 4 KiB before the snapshot in
@@ -362,7 +362,7 @@ fn crc32_is_the_zip_one() {
 fn the_snapshot_has_the_layout_the_spec_gives() {
     let s = busy().save();
     assert_eq!(&s[0..4], b"PKIN");
-    assert_eq!(s[4..12], [2, 0, 1, 0, 0x74, 1, 0, 0]); // version 2, kind 1, payload 372 (§15)
+    assert_eq!(s[4..12], [3, 0, 1, 0, 0x88, 1, 0, 0]); // version 3, kind 1, payload 392 (§17)
     assert_eq!(s[12..16], 77u32.to_le_bytes());
     assert_eq!(s[16..20], 133_700u32.to_le_bytes());
     assert_eq!(s[20..24], [11, 17, 0, 0]);
@@ -375,8 +375,9 @@ fn the_snapshot_has_the_layout_the_spec_gives() {
     prob[1] = 99;
     prob[255] = 1;
     assert_eq!(s[56..312], prob);
-    // 312 to 383, what version 2 adds, is held in tests/snapshot.rs.
-    assert_eq!(s[384..388], crc32(&s[..384]).to_le_bytes());
+    // 312 to 383, what version 2 adds, and 384 to 403, what version 3 adds, are held in
+    // tests/snapshot.rs.
+    assert_eq!(s[404..408], crc32(&s[..404]).to_le_bytes());
 }
 
 #[test]
@@ -418,16 +419,19 @@ fn every_corrupted_byte_is_refused_and_changes_nothing() {
             let mut bad = snap;
             bad[i] ^= bit;
             let r = h.load(&bad);
-            let want = match i {
-                0..4 | 6..8 => ERR_MAGIC,
-                4..6 => ERR_VERSION,
-                8..12 => ERR_SIZE,
+            let want = match (i, bit) {
+                // Version 3 with its low bit flipped says 2: a version this core wrote, so it
+                // is refused by version 2's payload size, before its CRC (§8's order).
+                (4, 0x01) => ERR_SIZE,
+                (0..4 | 6..8, _) => ERR_MAGIC,
+                (4..6, _) => ERR_VERSION,
+                (8..12, _) => ERR_SIZE,
                 _ => ERR_CRC,
             };
             assert_eq!(r, want, "byte {i} bit {bit:#x}");
         }
     }
-    for len in [0, 11, 12, 100, 315, SNAP_V1, SNAP - 1] {
+    for len in [0, 11, 12, 100, 315, SNAP_V1, SNAP_V2, SNAP - 1] {
         assert_eq!(h.load(&snap[..len]), ERR_SIZE, "length {len}");
     }
     assert_eq!(unsafe { pi_load(h.e, core::ptr::null(), SNAP as u32) }, ERR_SIZE);
@@ -438,9 +442,9 @@ fn every_corrupted_byte_is_refused_and_changes_nothing() {
 #[test]
 fn a_newer_version_is_refused_even_with_a_good_checksum() {
     let mut s = busy().save();
-    s[4] = 3;
-    let crc = crc32(&s[..384]);
-    s[384..].copy_from_slice(&crc.to_le_bytes());
+    s[4] = 4;
+    let crc = crc32(&s[..404]);
+    s[404..].copy_from_slice(&crc.to_le_bytes());
     assert_eq!(Host::new(SR, 1).load(&s), ERR_VERSION);
 }
 
@@ -452,8 +456,8 @@ fn values_no_core_writes_are_clamped_on_load() {
     s[21] = 200; // swing
     s[56] = 255; // a probability
     s[12..16].copy_from_slice(&0u32.to_le_bytes()); // seed
-    let crc = crc32(&s[..384]);
-    s[384..].copy_from_slice(&crc.to_le_bytes());
+    let crc = crc32(&s[..404]);
+    s[404..].copy_from_slice(&crc.to_le_bytes());
     let mut h = Host::new(SR, 1);
     assert_eq!(h.load(&s), OK);
     let t = h.save();

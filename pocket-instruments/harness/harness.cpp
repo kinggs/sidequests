@@ -75,7 +75,7 @@ static uint64_t schedule(const Json &fx, uint32_t rate, uint32_t source, bool fr
 // if any is not the text expected.
 static std::string run(Host &h, const std::vector<Timed> &cmds, uint64_t end, uint32_t block, std::vector<float> *audio = nullptr,
                        const std::vector<View> *views = nullptr, std::string *seen = nullptr, bool *ok = nullptr,
-                       uint32_t channels = PI_AUDIO_MIX) {
+                       uint32_t channels = PI_AUDIO_MIX, bool effects = false) {
     if (audio) audio->assign(end * channels, 0.f);
     std::string out;
     std::vector<pi_cmd> these;
@@ -103,7 +103,7 @@ static std::string run(Host &h, const std::vector<Timed> &cmds, uint64_t end, ui
         while (views && view < views->size() && (*views)[view].first == start) {
             uint8_t b[PI_VIEW_SIZE];
             if (pi_view(h.e, b, sizeof b) != PI_VIEW_SIZE) die("pi_view");
-            std::string got = view_text(b);
+            std::string got = view_text(b, effects);
             if (got != (*views)[view].second) *ok = false;
             *seen += got + "\n";
             view++;
@@ -185,7 +185,7 @@ int main(int argc, char **argv) {
     for (auto &entry : std::filesystem::directory_iterator(argv[1]))
         if (entry.path().extension() == ".json") files.push_back(entry.path());
     std::sort(files.begin(), files.end());
-    if (files.size() < 7) die("expected the seven fixtures");
+    if (files.size() < 9) die("expected the nine fixtures");
 
     const uint32_t rates[] = {44100, 48000, 96000}, blocks[] = {1, 128, 512};
     const std::pair<const char *, uint32_t> sources[] = {{"table", PI_SOURCE_TABLE}, {"edges", PI_SOURCE_EDGES}};
@@ -196,6 +196,7 @@ int main(int argc, char **argv) {
         Json fx = read_fixture(path.string());
         std::string name = path.stem().string();
         uint32_t seed = uint32_t(fx.n("seed"));
+        bool effects = fx.n("format") >= 3; // format 3's views carry section 17's fields
         std::string want;
         for (const Json &l : fx.at("expect").arr) want += l.str + "\n";
 
@@ -219,7 +220,7 @@ int main(int argc, char **argv) {
                     Host h(rate, seed);
                     std::string seen;
                     bool ok = true;
-                    std::string got = run(h, cmds, end, block, nullptr, &views, &seen, &ok);
+                    std::string got = run(h, cmds, end, block, nullptr, &views, &seen, &ok, PI_AUDIO_MIX, effects);
                     check(where + " " + std::to_string(block), got, seen, ok);
                 }
 
@@ -246,7 +247,7 @@ int main(int argc, char **argv) {
                 }
                 std::string seen;
                 bool ok = true;
-                std::string got = run(b, cmds, end, 128, nullptr, &views, &seen, &ok);
+                std::string got = run(b, cmds, end, 128, nullptr, &views, &seen, &ok, PI_AUDIO_MIX, effects);
                 check(where + " snapshot " + hex, got, seen, ok);
 
                 // One flipped bit is refused.

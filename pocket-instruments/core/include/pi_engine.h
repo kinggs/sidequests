@@ -1,5 +1,6 @@
-/* Pocket Instruments: the engine's C ABI, version 5 (1 plus sound: D44; 3 adds samples: D50;
- * 4 adds keys and the view: D51; 5 adds snapshot version 2 and PI_AUDIO_BOTH: D55, D57).
+/* Pocket Instruments: the engine's C ABI, version 6 (1 plus sound: D44; 3 adds samples: D50;
+ * 4 adds keys and the view: D51; 5 adds snapshot version 2 and PI_AUDIO_BOTH: D55, D57;
+ * 6 adds the lane, the fx key, the four repeats and snapshot version 3: D66, D67).
  *
  * The contract both hosts link. ENGINE.md beside the crate is the specification; this file is
  * the same thing in C. Where they disagree, ENGINE.md is right.
@@ -21,7 +22,7 @@
 extern "C" {
 #endif
 
-#define PI_ABI_VERSION 5u
+#define PI_ABI_VERSION 6u
 
 #define PI_TICKS_PER_STEP 96u /* a step is a sixteenth note */
 #define PI_TRACKS 16u         /* one per grid key: key n plays track n (D30) */
@@ -31,9 +32,11 @@ extern "C" {
 #define PI_MBPM_MIN 30000u    /* tempo is in thousandths of a bpm */
 #define PI_MBPM_MAX 300000u
 #define PI_EVENTS_MIN 64u     /* the least room a host gives pi_process for events */
-#define PI_SNAPSHOT_VERSION 2u   /* what pi_save writes; pi_load also takes version 1 */
-#define PI_SNAPSHOT_SIZE 388u    /* bytes, for PI_SNAPSHOT_VERSION */
+#define PI_SNAPSHOT_VERSION 3u   /* what pi_save writes; pi_load also takes versions 1 and 2 */
+#define PI_SNAPSHOT_SIZE 408u    /* bytes, for PI_SNAPSHOT_VERSION */
+#define PI_SNAPSHOT_SIZE_V2 388u /* version 2 */
 #define PI_SNAPSHOT_SIZE_V1 316u /* version 1: the least a host should keep and pass to pi_load */
+#define PI_FX_MAX 16u            /* a lane entry: 0 none, or the effect on key 1..16 */
 #define PI_VIEW_SIZE 64u      /* bytes pi_view writes */
 #define PI_VOLUME_MAX 16u     /* master volume, 1..16; the mix is times (volume / 16) squared */
 
@@ -64,6 +67,11 @@ extern "C" {
 #define PI_CMD_VOICE 22u    /* a: track; value: 0 its voice built in code, 1 its sample (pi_set_sample).
                                Taken at the track's next hit; a track with no sample plays its code
                                voice. All code at pi_init. In snapshot version 2, not 1 */
+/* The effects (ABI 6; ENGINE.md section 17). Both are edits; in snapshot version 3. */
+#define PI_CMD_FX 23u       /* a: step, value: 0..PI_FX_MAX, the lane's entry for that step.
+                               A value past PI_FX_MAX is ignored */
+#define PI_CMD_FXSOUND 24u  /* a: track, value: 0 or 1, whether it goes through the effects.
+                               All sixteen at pi_init */
 /* What a finger did (ABI 4; ENGINE.md section 13). The core runs the workflow and turns each
  * into the edits above; a host sends these and draws pi_view. */
 #define PI_CMD_KEY_DOWN 32u /* a: PI_KEY_*. A key already down, or a number past 22: ignored */
@@ -98,6 +106,10 @@ extern "C" {
 #define PI_VIEW_LENGTH 28u  /* u8 */
 #define PI_VIEW_SWING 29u   /* u8 */
 #define PI_VIEW_FIRES 32u   /* PI_TRACKS u8s: how often each track has fired, wrapping at 256 */
+/* 48 to 54: the weave's (section 16), zero until it is built. 60 to 63: zero. */
+#define PI_VIEW_HEARD 55u     /* u8: the effect heard now, 1..16, or 0 (section 17) */
+#define PI_VIEW_FX_STEPS 56u  /* u16: bit s, step s of the lane holds an effect */
+#define PI_VIEW_FX_SOUNDS 58u /* u16: bit t, track t goes through the effects */
 
 #define PI_VIEW_FLAG_PLAYING 1u
 #define PI_VIEW_FLAG_WRITE 2u
@@ -179,7 +191,8 @@ uint32_t pi_set_sample(pi_engine *engine, uint32_t track, const int16_t *data, u
 /* Events dropped since pi_init, saturating. Zero in any correct host. */
 uint32_t pi_dropped(const pi_engine *engine);
 
-/* Changes whenever a command changes what a snapshot would hold. */
+/* Changes whenever a command changes what a snapshot would hold, and (ABI 6) whenever a step
+ * arriving with fx held changes the lane. */
 uint32_t pi_generation(const pi_engine *engine);
 
 /* Write a snapshot. Returns PI_SNAPSHOT_SIZE, or 0 if cap is too small. */
@@ -187,7 +200,7 @@ uint32_t pi_save(const pi_engine *engine, uint8_t *buf, uint32_t cap);
 
 /* Read a snapshot of this or any older version. On any error nothing changes. Replaces the
  * pattern and settings and reseeds the random generator; leaves the playhead and clock.
- * A version 1 snapshot sets what it does not hold to pi_init's values. Bytes past that
+ * An older version sets what it does not hold to pi_init's values. Bytes past that
  * version's size are not read: pass the length read, not a fixed size. Moves pi_generation. */
 int32_t pi_load(pi_engine *engine, const uint8_t *buf, uint32_t len);
 

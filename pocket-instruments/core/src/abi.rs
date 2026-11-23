@@ -1,4 +1,4 @@
-//! §6 to §8, §11 and §14: the records and the C functions. Only `u32`, `i32` and pointers cross.
+//! §6 to §8, §11, §14 and §17: the records and the C functions. Only `u32`, `i32` and pointers cross.
 //! Sound crosses as a pointer to the host's floats, never as a float argument (D44).
 
 use crate::engine::Engine;
@@ -6,7 +6,7 @@ use crate::keys;
 use crate::seq::TRACKS;
 use crate::snapshot;
 
-pub const ABI_VERSION: u32 = 5;
+pub const ABI_VERSION: u32 = 6;
 
 pub const CMD_CLOCK: u8 = 1;
 pub const CMD_RESET: u8 = 2;
@@ -20,6 +20,8 @@ pub const CMD_LENGTH: u8 = 19;
 pub const CMD_SOUND: u8 = 20;
 pub const CMD_FIRE: u8 = 21;
 pub const CMD_VOICE: u8 = 22;
+pub const CMD_FX: u8 = 23;
+pub const CMD_FXSOUND: u8 = 24;
 pub const CMD_KEY_DOWN: u8 = 32;
 pub const CMD_KEY_UP: u8 = 33;
 pub const CMD_PARAM: u8 = 34;

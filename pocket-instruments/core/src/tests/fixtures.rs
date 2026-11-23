@@ -1,7 +1,7 @@
 //! P2, natively: every fixture, on both clock sources, at three sample rates and three block
 //! sizes, compared byte for byte. `fixtures/README.md` says how a harness runs one; the Node
 //! and C++ harnesses in `harness/` do the same and write the same report.
-//! Format 2 adds keys, sliders and views (Session 10).
+//! Format 2 adds keys, sliders and views (Session 10); format 3 the effects (Session 16).
 
 use super::json::{Json, parse};
 use super::*;
@@ -19,13 +19,13 @@ fn fixtures() -> Vec<(String, Json)> {
         .filter(|n| n.ends_with(".json"))
         .collect();
     names.sort();
-    assert!(names.len() >= 7, "expected the seven fixtures, found {names:?}");
+    assert!(names.len() >= 9, "expected the nine fixtures, found {names:?}");
     names
         .into_iter()
         .map(|n| {
             let j = parse(&std::fs::read_to_string(format!("{dir}/{n}")).unwrap());
-            assert!(matches!(j.num("format"), 1 | 2), "{n}");
-            assert!(j.num("format") == 2 || j.get("views").is_none(), "{n}: views are format 2's");
+            assert!(matches!(j.num("format"), 1..=3), "{n}");
+            assert!(j.num("format") >= 2 || j.get("views").is_none(), "{n}: views are format 2's and 3's");
             assert_eq!(j.num("ticks_per_step"), 96, "{n}");
             (n.trim_end_matches(".json").to_string(), j)
         })
@@ -33,7 +33,7 @@ fn fixtures() -> Vec<(String, Json)> {
 }
 
 fn is_edit(name: &str) -> bool {
-    matches!(name, "step" | "prob" | "swing" | "length")
+    matches!(name, "step" | "prob" | "swing" | "length" | "fx" | "fxsound")
 }
 
 /// Format 2: what a finger did. These land a frame after their step's boundary.
@@ -51,6 +51,8 @@ fn to_cmd(c: &Json) -> Cmd {
         "prob" => cmd(CMD_PROB, t("track"), t("step"), v),
         "swing" => cmd(CMD_SWING, 0, 0, v),
         "length" => cmd(CMD_LENGTH, 0, 0, v),
+        "fx" => cmd(CMD_FX, t("step"), 0, v),
+        "fxsound" => cmd(CMD_FXSOUND, t("track"), 0, v),
         "key_down" => cmd(CMD_KEY_DOWN, t("key"), 0, 0),
         "key_up" => cmd(CMD_KEY_UP, t("key"), 0, 0),
         "param" => cmd(CMD_PARAM, t("slider"), 0, v),
@@ -62,6 +64,7 @@ fn to_cmd(c: &Json) -> Cmd {
 /// on, the frame the run ends before, and each view to read: the frame its block ends on and
 /// the text expected there.
 struct Plan {
+    format: u64,
     cmds: Vec<(u64, Cmd)>,
     step_frames: Vec<u64>,
     end: u64,
@@ -118,7 +121,7 @@ fn schedule(fx: &Json, rate: u32, source: u32, from_snapshot: bool) -> Plan {
             (frame, text)
         })
         .collect();
-    Plan { cmds, step_frames, end, views }
+    Plan { format: fx.num("format"), cmds, step_frames, end, views }
 }
 
 /// Runs a plan in blocks of `block`, ending a block wherever a view is to be read. Returns
@@ -128,7 +131,7 @@ fn play(h: &mut Host, plan: &Plan, block: u32, label: &str) -> (Vec<(u64, Event)
     let mut views = String::new();
     for (frame, want) in &plan.views {
         events.extend(h.run(frame - h.now, block, &plan.cmds));
-        let got = view_text(&h.view());
+        let got = if plan.format >= 3 { view_text_fx(&h.view()) } else { view_text(&h.view()) };
         assert_eq!(&got, want, "{label}: the view at frame {frame}");
         views.push_str(&got);
         views.push('\n');
@@ -168,7 +171,9 @@ fn hex(b: &[u8]) -> String {
 fn every_fixture_everywhere() {
     let mut report = String::new();
     let mut runs = 0;
-    for (name, fx) in fixtures() {
+    let all = fixtures();
+    let count = all.len();
+    for (name, fx) in all {
         let want = expect(&fx);
         for (source_name, source) in SOURCES {
             for rate in RATES {
@@ -212,17 +217,17 @@ fn every_fixture_everywhere() {
             }
         }
     }
-    assert_eq!(runs, 7 * 2 * 3 * 4);
+    assert_eq!(runs, count * 2 * 3 * 4);
     // The Makefile compares this file with the ones the Node and C++ harnesses write.
     if let Ok(path) = std::env::var("PI_REPORT") {
         std::fs::write(path, report).unwrap();
     }
 }
 
-/// `fixtures/snapshots-v1.txt`: each fixture's version 1 snapshot, as the ABI 4 core wrote
-/// it before version 2 existed (Session 11).
-fn snapshots_v1() -> Vec<(String, Vec<u8>)> {
-    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../fixtures/snapshots-v1.txt");
+/// `fixtures/snapshots-v1.txt` and `-v2.txt`: each fixture's snapshot, as the core of the
+/// day wrote it before the next version existed (Sessions 11 and 16).
+fn old_snapshots(file: &str) -> Vec<(String, Vec<u8>)> {
+    let path = format!("{}/../fixtures/{file}", env!("CARGO_MANIFEST_DIR"));
     std::fs::read_to_string(path)
         .unwrap()
         .lines()
@@ -235,36 +240,40 @@ fn snapshots_v1() -> Vec<(String, Vec<u8>)> {
         .collect()
 }
 
-#[test]
-fn every_version_1_snapshot_ever_written_still_loads_and_gives_its_fixture_s_trace() {
+/// Loads each old snapshot over an engine with every field a newer version adds moved from
+/// its starting value, so a load that left one alone shows in the saved bytes; then holds it
+/// to today's snapshot of the same fixture and to the fixture's trace on both sources.
+fn old_snapshots_still_load(file: &str, version: u8, size: usize) {
     let all = fixtures();
-    let old = snapshots_v1();
-    assert_eq!(old.len(), 7, "one a fixture");
-    // An engine with every field version 2 adds away from its starting value, so a load
-    // that left one alone would show in the views and the saved bytes.
+    let old = old_snapshots(file);
+    assert_eq!(old.len(), 7, "one a fixture of its day");
     let mut d = Host::new(48_000, 3);
     let mut dress: Vec<Cmd> = (0..16u8).flat_map(|t| [cmd(CMD_SOUND, t, 0, 100 + t as u32), cmd(CMD_SOUND, t, 1, 9000), cmd(CMD_VOICE, t, 0, 1)]).collect();
     let (down, up) = (|k| cmd(CMD_KEY_DOWN, k, 0, 0), |k| cmd(CMD_KEY_UP, k, 0, 0));
     dress.extend([down(18), down(3), up(3), up(18)]); // bpm + key 4: volume 4
     dress.extend([down(16), down(9), up(9), up(16)]); // sound + key 10: key 10 chosen
+    dress.extend((0..16u8).map(|s| cmd(CMD_FX, s, 0, 1 + s as u32))); // §17: a full lane
+    dress.extend([cmd(CMD_FXSOUND, 0, 0, 0), cmd(CMD_FXSOUND, 15, 0, 0)]);
     d.block(1, &dress);
     let dressed = d.save();
     assert_eq!((dressed[378], dressed[379]), (4, 9), "volume 4, key 10 chosen");
+    assert_eq!((dressed[399], dressed[400], dressed[401]), (16, 0xfe, 0x7f), "a full lane, two sounds out");
 
-    for (name, v1) in &old {
-        assert_eq!(v1.len(), SNAP_V1, "{name}");
-        assert_eq!(v1[4..6], [1, 0], "{name}: version 1");
+    for (name, bytes) in &old {
+        assert_eq!(bytes.len(), size, "{name}");
+        assert_eq!(bytes[4..6], [version, 0], "{name}: version {version}");
         let (_, fx) = all.iter().find(|(n, _)| n == name).unwrap_or_else(|| panic!("no fixture {name}"));
         let want = expect(fx);
         for (source_name, source) in SOURCES {
             for rate in RATES {
-                let label = format!("{name} {source_name} {rate} from its version 1 snapshot");
+                let label = format!("{name} {source_name} {rate} from its version {version} snapshot");
                 let mut h = Host::new(rate, fx.num("seed") as u32 + 777);
                 assert_eq!(h.load(&dressed), OK);
-                assert_eq!(h.load(v1), OK, "{label}");
+                assert_eq!(h.load(bytes), OK, "{label}");
                 let s = h.save();
                 assert!(s[312..376].chunks(2).all(|v| v == [0x00, 0x80]), "{label}: sliders at their middles");
                 assert_eq!(s[376..384], [0, 0, 16, 0, 0, 0, 0, 0], "{label}: all code, volume 16, key 1");
+                assert_eq!(s[384..404], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 0, 0], "{label}: the lane empty, every sound in");
                 // What today's core saves for the same fixture is the old one, grown.
                 assert_eq!(s, snapshot_of(fx, rate), "{label}");
                 let plan = schedule(fx, rate, source, true);
@@ -273,4 +282,14 @@ fn every_version_1_snapshot_ever_written_still_loads_and_gives_its_fixture_s_tra
             }
         }
     }
+}
+
+#[test]
+fn every_version_1_snapshot_ever_written_still_loads_and_gives_its_fixture_s_trace() {
+    old_snapshots_still_load("snapshots-v1.txt", 1, SNAP_V1);
+}
+
+#[test]
+fn every_version_2_snapshot_ever_written_still_loads_and_gives_its_fixture_s_trace() {
+    old_snapshots_still_load("snapshots-v2.txt", 2, SNAP_V2);
 }
