@@ -45,6 +45,10 @@ done, and the latest two Handover notes. A session that finishes:
   to 14. No framework before a second instrument (README rule 5).
 - Stable Rust only. A nightly feature would block every reproducible build (R13).
 - No secrets. Commit direct to `main`, small commits, `make verify` before a push.
+- **Efficient, measured (the owner, 2026-11-23: "I really want the module (and everything we
+  do) to be pretty efficient").** A change on the audio path says what it costs a frame,
+  before and after, measured, not guessed: cycles in Rack's `process`, nanoseconds in the
+  engine. How it was measured in Session 13 is under "Found in Rack after Session 13".
 
 ## Machine state (checked 2026-11-18)
 
