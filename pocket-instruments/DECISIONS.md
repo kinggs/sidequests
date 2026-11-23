@@ -881,6 +881,18 @@ Not chosen: D33's expander first (a jack per sound is the cleanest return, but a
 module before the first is shown); a return that replaces a sound only while it is
 loud (silence between hits would bring the own voice back).
 
+### D63 — A double-click puts a slider back to where it started
+**2026-11-23 · decided (owner: "double-clicking on a slider or knob resets it to default position. Can you please do that for the sliders?")**
+
+A double-click, or a double-tap on a phone (two presses on one slider within 300 ms), sets
+it to its starting value: a sound's A or B to the middle (32768, `pi_init`'s); with bpm
+held, A to swing 0 and B to 120 bpm (21845, the value the view shows for 120, §14). It is
+sent as an ordinary `PARAM`, so the core decides as for any move.
+
+In Rack (Session 13): Rack's own double-click resets a parameter to its configured
+default, which with bpm held would give 150 bpm. The module sets the parameter to the same
+starting values instead, from the view.
+
 ## Open
 
 | ID | Question | Needs |

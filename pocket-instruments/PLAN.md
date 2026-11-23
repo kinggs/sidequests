@@ -199,6 +199,8 @@ Probe is its template and stays as it is.
 - [ ] The latch, by D60 and D61: Ctrl+click (Cmd on a Mac), as the page does; right-click
       keeps Rack's parameter menu. It supersedes D57 item 4. And the computer keys while the
       pointer is over the module (D57 item 5). ⚠ R25: whether Rack reports several keys held at once is found out here.
+- [ ] Double-click on a slider (D63): the middle, or with bpm held swing 0 and 120 bpm, as
+      the page does; not Rack's fixed default.
 - [ ] The menu: each key's code or sample, All code, All samples; and D62's "Sound *n* from
       RETURN" ticks with "As the cable carries".
 - [ ] **A self-test in Rack itself:** a patch that names a format 2 fixture makes the module
