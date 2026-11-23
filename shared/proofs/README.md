@@ -1,7 +1,8 @@
 # shared/proofs — the browser proofs and the rules guard check
 
-None of these run under a bare `node --test`; `make verify` runs `shared/smoke.mjs`, which
-shares `pw.mjs` with them.
+None of these run under a bare `node --test`. `make verify` runs `shared/smoke.mjs`, which
+shares `pw.mjs` with them, then every `rack-it-*.mjs` here (same-match against `OLD`, by default
+`origin/main`); the rest run by hand.
 
 | File | What it does | Needs |
 | --- | --- | --- |
