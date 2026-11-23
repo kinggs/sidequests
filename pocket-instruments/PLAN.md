@@ -127,13 +127,14 @@ Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
 
 Unticked in the finished lists. None blocks a build session.
 
-- [ ] O17: D74, sliders a step, as proposed? And the seven checks for it in `WORKFLOW.md`.
 - [ ] In Rack, by hand: the sliders by mouse. The owner heard no change dragging A or B and
       tapping key 1 (2026-11-23). The engine does change the kick (tested the same day:
       44, 67 and 90 zero crossings in half a second for A low, middle and high; 131 ms
       against over 500 for B). ⚠ Not found yet: the likeliest cause is that key 1 was not
       the chosen sound (hold sound and see which key has the bar); if it was, the drag
       path has a bug the self-test cannot see, because it sets the sliders directly.
+      (Later the same day: D75 makes the sliders the hand's for every sound, so the trap
+      of tuning a sound that is not the one being tapped goes away with Session 21.)
 - [ ] The four effects checks left on the PO-12 (`WORKFLOW.md`, "The effects: what to check
       on the PO-12"; nine were done on 2026-11-23): what 9 to 12 do (9 gave no repeat the
       owner could hear), whether every sound repeats, the sweeps, and effects 4 and 13 to
@@ -285,22 +286,29 @@ the owner says.
 **Ruled 2026-11-23 (D72):** D66 to D69 accepted; the jacks on the panel; D71 yes; D70
 after the effects.
 
-### Session 18 — Rack: the loop, the gates, the panel (build, Fable)
+### Session 18 — Rack: the loop, the gates, the sliders' voltages, the panel (build, Fable)
 
 On Fable because a contract first meets code (the returns move into the core) and the
-panel is drawn by eye. `ENGINE.md` §19; D68.
+panel is drawn by eye. `ENGINE.md` §19 with its addition; D68, D76. After Session 21: the
+slider jacks carry what §20 makes.
 
 - [ ] `PI_AUDIO_LOOP` and `ROUTE` in the core; `rack/test/jacks.cpp`'s cases become core
       tests; `jacks.hpp` shrinks to volts in and out. Unpatched, AUDIO is still the mix
       bit for bit.
 - [ ] FX GATES, FX SEND, FX RETURN; the menu's tick an effect, with its default (D68 item
       2); the Sounds menu's "through fx" tick a sound.
-- [ ] The panel redrawn by `design/make_panel.py` with nine jacks and the wordmark moved;
-      seen in Rack's screenshot mode (Machine state) and by the owner. If nine do not sit
-      well, stop and ask: the fallback is D68 item 5's expander.
-- [ ] The self-test plays the format 3 fixtures and holds FX GATES to each view's `fx`.
-      One module plays through its own FX SEND and FX RETURN.
-- [ ] perf, before and after, as Session 13's profile (Machine state).
+- [ ] A OUT, A IN, B OUT, B IN (D76 item 4; §19's addition): out is the value before an
+      input replaces it; an input is read on the hit; the menu's ticks as RETURN's.
+- [ ] The panel redrawn by `design/make_panel.py` in two rows, thirteen jacks, grouped as
+      D76 item 1 proposes; each output on its own patch of inverted ground. Seen in Rack's
+      screenshot mode (Machine state) and by the owner before anything else is built on
+      it: D76's positions are arithmetic. The existing jacks keep their port numbers, so
+      old patches keep their cables.
+- [ ] The self-test plays the format 3 and 4 fixtures and holds FX GATES to each view's
+      `fx`. One module plays through its own FX SEND and FX RETURN; one through A OUT to
+      A IN.
+- [ ] perf, before and after, as Session 13's profile (Machine state): unpatched, the new
+      jacks cost nothing measurable.
 - [ ] `RACK-RULES.md` and `design/DESIGN.md`'s jack table brought up to date.
 
 ### Session 19 — the page (build, Opus)
@@ -313,13 +321,39 @@ D69.
 - [ ] The sounds sheet's "through fx" switch.
 - [ ] `make play` holds every drawing to its view, format 3 included; planted faults.
 
-## Session 21 — sliders a step: locks and live record (D74; proposed, not accepted)
+## Session 21 — the sliders are the hand's; a step keeps what it was written with (build, Opus; D75)
 
-Not ready to build. First: the owner's answer to O17 and the seven checks in `WORKFLOW.md`
-("Sliders a step: what to check on the PO-12"). Then a short Fable pass writes it into
-`ENGINE.md` (a new section: the locks, write as a held key, live record, the view, snapshot
-version 4) with a fixture by hand, and an Opus session builds it. The Rack half (A and B
-out and in, D74 items 6 and 7) goes with Session 18.
+`ENGINE.md` §20; D75. After Session 17. Small in the core; it changes what three fixtures'
+views say, by decision, so the order below matters.
+
+- [ ] Before any change: the report, the render hashes, `make bench`;
+      `fixtures/snapshots-v3.txt` written by today's core and committed.
+- [ ] By hand, before code: `keys-tap-and-choose`'s views worked again from §20 (a slider
+      now shows the same for every sound), and any other view line that §20 changes, each
+      explained in `fixtures/README.md`. A view changed by a decision is not a trace edited
+      to pass a build; say which lines and why. No trace changes.
+- [ ] Command 26 `KEEP`; `STEP` 0 forgets; `PARAM` sets all sixteen; a write-mode key that
+      turns a step on keeps the sliders; clear forgets all.
+- [ ] A step's hit, and a repeated hit, use what the step keeps.
+- [ ] The view's bytes 60 to 63; fixture format 4 in the three harnesses;
+      `fixtures/designed/keeps-what-it-was-written-with.json` moved up unchanged and run.
+- [ ] Snapshot version 4; versions 1 to 3 load, each step that is on keeping its sound's
+      own values.
+- [ ] A render pair: two steps of one sound written at two slider positions sound at two
+      pitches, native and `.wasm` the same bytes. Every existing render file unchanged.
+- [ ] The page and the Rack module: the cap is the hand and moves by itself only with bpm
+      held or after a load; the second mark from bytes 60 to 63, drawn as
+      `design/DESIGN.md` says (⚠ if it does not say yet, draw a thin thread-coloured line
+      across the slider's track at that value, mark it ⚠ in DESIGN.md's "Not done", and
+      ask in the Handover). `make play` and the Rack self-test hold both.
+- [ ] D77 item 5: the stmlib and Plaits MIT notice as a file in the plugin's `res/`,
+      beside the font's OFL; `check-dist.sh` holds it there; CI green on all four.
+- [ ] `WORKFLOW.md`'s deliberate differences brought up to date. Rule tests; planted
+      faults; `make bench` after.
+
+Later, not planned: holding a step and moving a slider; holding write to record a
+slider's movement; live record of notes (D75 item 3). The sliders out and back in Rack
+are in Session 18 (D76).
 
 ## Session 20 — the grid's lights, as the hardware has them (D71; decided, D72)
 

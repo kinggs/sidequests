@@ -1116,7 +1116,7 @@ Verified before ruling: the repo's `make verify` re-run by this session (143 Rus
 pure rename), CI run 45179129088 green on all four platforms.
 
 ### D74 — Sliders a step: locks, live record, and their CV in Rack
-**2026-11-23 · proposed (the owner asked for the design: "The hardware modules save the position of these relative to each step. Whether in write mode or live-recording mode") · not accepted yet · the hardware checks come first**
+**2026-11-23 · proposed (the owner asked for the design: "The hardware modules save the position of these relative to each step. Whether in write mode or live-recording mode") · items 1 to 5 superseded the same day by D75, a simpler rule the owner chose; items 6 and 7 still proposed**
 
 What exists: each sound has its own sliders A and B, read when the sound is hit and saved
 with the beat (D54 to D56). A is pitch (filter pitch on the hats, cymbal and noise;
@@ -1153,6 +1153,121 @@ a value for one step.
 Order proposed: after Session 17, a Session 21 for items 1 to 5 in the core; Rack's part
 with Session 18, so the panel and the expander are decided once.
 
+### D75 — The sliders are where the hand left them, for every sound; a step keeps the positions it was written with
+**2026-11-23 · decided (owner: "Yes to a) and b), make it Session 21"; "simplicity wins. Perhaps we just start with 'slider positions matter, and we record with where they are'") · supersedes D54 (the caps following the chosen sound) and D74 items 1 to 5 · D55's sliders a sound stay in the snapshot, with a new meaning**
+
+How we got here: the owner dragged a slider in Rack, tapped the kick and heard no change,
+then saw on the PO-12 that "the knob positions *seem* to affect everything regardless of
+which sound is selected". R53's second video shows the same from the other side: the
+presenter sets the pitch, enters steps, moves the knob, enters more, and each step keeps
+what the knob was when it went in. D54 had each sound own its sliders and the caps jump to
+the chosen sound's; that was a guess, marked as one, and it is not the hardware.
+
+1. **Two positions, the hand's.** Moving A or B sets it for all sixteen sounds. A tap
+   plays its sound at those positions. Choosing a sound no longer moves a cap.
+2. **A step keeps the positions it was written with.** Turning a step on in write mode
+   stores A and B as they are at that moment; the sequencer plays the step with those, and
+   moving the sliders afterwards does not change it. Turning a step off forgets them;
+   clear forgets them all. To change a step: take it off, set the sliders, put it back.
+3. **The first build is exactly that, and no more.** Not in it: holding a step and moving
+   a slider to change that step alone; holding write and moving a slider to record
+   movement as it plays; live record of notes. Those are the hardware's, the owner finds
+   the hardware's own behaviour here confusing ("it feels like it ignores me ... when I
+   re-select the sound ... it records it in the new way"), and they come later, as their
+   own design, once the simple rule has been played.
+4. **Each slider shows two things:** the cap, which is the hand and never moves by itself;
+   and a second, thinner mark at the value the chosen sound was last hit with. With steps
+   written at different positions the mark steps along as the beat plays. The idea is the
+   Surge XT Rack modules' way of showing a modulated value on a control (D40); no code or
+   artwork of theirs. `design/DESIGN.md` draws it, with the owner's eye.
+5. **Holding bpm is unchanged:** the sliders set swing and tempo, and the caps show them
+   while it is held (the one case where a cap still moves by itself).
+6. **A beat saved before this sounds as it did:** on loading an older snapshot every step
+   is given its sound's own slider values, so the hand cannot change an old beat by
+   moving.
+7. **D74 items 6 and 7 stand as proposed:** in Rack, A and B out per sound at each hit and
+   back in, on an expander shared with D70's voice jacks. Not accepted yet (O17).
+   (Decided later the same day: accepted, on the panel in a second row, not an expander: D76.)
+
+Why: one rule a player can hold in the head, the hardware's own rule for taps, and the
+smallest change to the core. ⚠ The owner's PO-12 was not checked for item 2 beyond what
+the video shows; if the hardware turns out to differ, the difference is listed in
+`WORKFLOW.md` as deliberate. `ENGINE.md` §20.
+
+### D76 — Two rows of jacks, grouped by what they carry; the sliders' voltages go out and come back
+**2026-11-23 · decided (owner: "lets start with second Jack Row. And also carefully consider the grouping of the Jacks so that they are logically grouped (inputs and outputs for the same kinds of things close together)") · settles O17 · accepts D74 items 6 and 7, on the panel · supersedes D68 item 5's single row**
+
+Thirteen jacks: the six there are, D68's three, and four for the sliders (A OUT, A IN, B
+OUT, B IN: D74 item 6). No expander; D70's breakout for MixMaster is still later and
+separate.
+
+1. **Grouped by kind, an output beside the input that answers it.** Proposed, for the
+   owner's eye once `make_panel.py` draws it (positions are arithmetic, not a drawing ⚠):
+
+   ```
+   upper row, y about 97.5 mm (voltages that steer):
+     CLOCK  RESET  |  A OUT  A IN  B OUT  B IN  |  FX GATES
+     10.67  22.33     40.00  51.67 63.33  75.00    86.50
+
+   lower row, y 116.30 mm, as now (triggers and sound):
+     TRIGGERS  VOICES  RETURN  |  wordmark  |  FX SEND  FX RETURN  |  AUDIO
+     10.67     22.33   34.00                   80.67    92.33         109.67
+   ```
+
+   - **The sounds' loop** reads left to right as it is patched: TRIGGERS out, VOICES out,
+     RETURN in.
+   - **The effects** are one column group: FX GATES above FX SEND and FX RETURN.
+   - **Each slider** is a pair: out, then in.
+   - **The clock** keeps the top left, where a patch starts; **AUDIO** keeps the bottom
+     right, where it ends.
+   - The wordmark keeps a place in the lower row's gap (about the 33 mm it has now).
+2. **This moves five of the six jacks that exist.** TRIGGERS, VOICES and RETURN change
+   sides and CLOCK and RESET go up a row. Patches keep their cables (Rack ties a cable to
+   a port's number, not its place); only the picture changes. Nothing has been released.
+3. **Inputs and outputs are told apart by the socket and its plate, not by side** (the
+   look's rule, `design/DESIGN.md`): with groups mixed, each output gets its own patch of
+   the inverted ground (R33) in place of one plate at the right.
+4. **What the slider jacks carry.** A OUT and B OUT, sixteen channels: the A and B each
+   sound was last hit with by the instrument's own reckoning (what the step keeps, or the
+   hand: D75), 0 to 10 V, held until its next hit. A IN and B IN, sixteen channels: for a
+   sound chosen as RETURN's are (the channels the cable carries, or ticks in the menu), the
+   voltage on its channel at the moment of its hit takes that slider's place. The outputs
+   say the value *before* an input replaces it, so OUT, through any module, back to IN is
+   a chain and not a loop that holds itself. `ENGINE.md` §19.
+
+**Accepted for now** (owner, the same day: "Lets do that for now. Some of these things you
+have to use for a while to get a real feeling of whether they work. And it affects
+cable-clutter as well"). So the grouping is judged in use, with cables in, not on the
+drawing: a later session may move jacks, and port numbers never change when it does.
+
+Why two rows on the panel and not an expander: the owner's choice; one module shows
+everything, and Rack 3 is to rework expanders (R60). The cost is height: the second row
+takes the band between the keys (to about 86 mm) and the jack labels, which the wordmark
+and stitching use now.
+
+### D77 — Session 17's four readings stand; the plugin ships the notice of the code it ports
+**2026-11-23 · decided (Fable, as the design's author; the owner can overrule) · settles Session 17's questions**
+
+Verified first: the repo's `make verify` re-run by this session (161 Rust tests, 216
+harness runs, none failed); CI run 45184004576 green on all four platforms; `bus.rs`
+carries Émilie Gillet's copyright line and the MIT notice.
+
+1. **An effect's state is cleared when it starts from idle or from another kind of
+   effect;** the four filters are one kind. As built.
+2. **"Damping 0.5" is stmlib's `r`, so Q is 2.** That is what §18's equations say (`r` is
+   in them); the word was loose. A first value for the owner's ear like every other.
+3. **A tick on the very frame a sweep begins is not counted.** At most one tick.
+4. **Heard again while ramping out, the sweep starts again and the filter keeps its
+   state.** It follows from "the ticks since `heard` became that effect".
+5. **The plugin ships the MIT notice as a file,** beside the font's OFL, and
+   `check-dist.sh` holds it there. Why: the licence asks for the notice "in all copies or
+   substantial portions", and a `.vcvplugin` is a copy with no source in it. The sentence
+   in the module's description stays. Session 21 does it.
+
+Known and left for Session 18: in Rack with RETURN patched the effects are not heard,
+because the module rebuilds AUDIO from the sixteen channels (D62). §19 moves that into the
+core.
+
 ## Open
 
 | ID | Question | Needs |
@@ -1172,5 +1287,5 @@ with Session 18, so the panel and the expander are decided once.
 | O14 | ~~Answered 2026-11-19, provisionally: D48.~~ The mix now passes 1: the four drums together peak at 2.1 (+6.6 dB, `harness/render-beat.json`). Where is it kept in bounds: a level and a limiter in the core, or each host saturating (D44's open item; `ENGINE.md` §10 put it "with the second voice")? Meanwhile the Rack Probe bends its output with tanh towards 10 V, so it can be heard; the browser page does nothing. Recommended: a fixed master level in the core (so a phone and Rack sound alike, D22) and each host saturating at its own ceiling. A limiter in the core would have to stay bit-identical (`+ − × ÷` only) | The owner, before the instrument's own output is built |
 | O15 | ~~Effects (next: D65): what the PO-12's fx does (punch-in, layering, per sound), what our first fx in the core is, and how each sound reaches either the internal fx or a Rack effect, with fx triggers out per channel (one, or three, sends and returns?). The owner's brief is in `PLAN.md`, Session 15~~ | Answered 2026-11-23 by Session 15, as proposals: D66 (the lane), D67 (the first effects), D68 (Rack), D69 (the page). The owner accepts or overrules; the hardware checks are in `WORKFLOW.md` |
 | O16 | ~~The owner's rulings on Session 15: D66 to D69 as proposed? In particular: effects always recorded, as the PO-12 (or only with write on); a switch a sound for "per channel"; three more jacks on the panel and the wordmark moved (or an expander); D70's breakout for MixMaster; D71, the grid's lights as the hardware has them~~ | Answered 2026-11-23: D72. (Was recommended: accept D66 to D69; D71 yes, as a small session before the weave; D70 after the effects) |
-| O17 | Sliders a step (D74): the design as proposed? The four CV jacks on an expander with D70's voice jacks, or a second jack row? | The owner, after the six checks in `WORKFLOW.md`, "Sliders a step: what to check on the PO-12". Recommended: accept; the expander |
+| O17 | ~~Sliders a step (D74): the design as proposed? The four CV jacks on an expander with D70's voice jacks, or a second jack row?~~ | Answered 2026-11-23: D75 (the simpler rule) and D76 (a second row on the panel) |
 | O9 | ~~How do the three blocks stack on a phone, and does one instrument fill the screen or share it?~~ | Answered 2026-11-19: D36 |

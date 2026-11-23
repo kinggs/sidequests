@@ -257,3 +257,29 @@ snapshot" run holds it to snapshot version 3 as well.
 - **Counts.** Track 0: 0, 96, 352, 768, 992, 1120: 6. Track 1: 312, 1080: 2. Track 2: four
   a pass: 8. 32 lines. The view in step 2 says `fx=10` (nothing punched; the playhead's step
   holds 10) and `fxsteps=001e`; the last, on step 7, `fx=0`.
+
+## Format 4 (2026-11-23: the sliders, D75; not built yet)
+
+Format 3, and:
+
+| Field | Meaning |
+|---|---|
+| `format` | 4 |
+| `commands` | also `keep` (`track`, `step`, `a`, `b`): `ENGINE.md` §20's edit |
+| `views` | format 3's line with ` ea=<A> eb=<B>` on its end: the values the chosen sound was last hit with (the view's bytes 60 to 63) |
+
+### `keeps-what-it-was-written-with`, worked by hand (in `designed/` until Session 21)
+
+From `ENGINE.md` §20 with no engine. Write is on throughout, so the grid's field is the
+chosen sound's steps in every view whatever D71 does to the write-off row.
+
+- A slider sets all sixteen sounds, so `a=` and `b=` are the hand's: 10000 then 50000 for
+  A, 32768 then 20000 for B.
+- Key 1 lands after A is 10000: step 1 keeps (10000, 32768). Key 5 lands after A is 50000:
+  step 5 keeps (50000, 32768). B moves to 20000 after both, so neither step keeps it.
+- A key in write mode makes no sound: `fires` is all zero until play, and with no hit yet
+  `ea` and `eb` are the sound's own values, which are the hand's.
+- The play edit lands on run step 4, so tick 384 is `step 0`. Step 1 fires there with what
+  it kept: `a=50000 b=20000` beside `ea=10000 eb=32768`. Step 5 fires at tick 768:
+  `ea=50000 eb=32768`. Eight lines of trace, two of them hits.
+

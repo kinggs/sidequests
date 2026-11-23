@@ -44,6 +44,9 @@ the bus and the first sound effects (§18), and sound coming in from Rack (§19)
 17 and 18 build them (`PLAN.md`), each moving `PI_ABI_VERSION` by one, as the weave will
 whenever it is built. (§17 was in this list until Session 16.)
 
+**Designed, not built (2026-11-23, D75):** §20, the sliders as the hand's and a step that
+keeps what it was written with. Session 21 builds it (`PLAN.md`).
+
 **Designed, not built (Session 9, D51 to D57):** §16 is the rest of the instrument: the
 weave. Session 14 builds it (`PLAN.md`) and moves `PI_ABI_VERSION` by one. Until then the
 code does not do it. (§13 and §14 were in this list until Session 10 built them, §15 until
@@ -1044,18 +1047,18 @@ change, at three rates and on edges; 25 faults planted, each caught by a named t
 (`make bench`, `LEARNINGS.md`): idle within the bench's noise; an effect about 6 ns a frame
 over the dry beat. What it did not say, built on and marked:
 
-- ⚠ **What is cleared, and when.** The text says the filter's state "is cleared when an
+- (Ruled as built, D77.) **What is cleared, and when.** The text says the filter's state "is cleared when an
   effect starts from idle, and kept from one filter effect to the next". Built: each
   effect's state is cleared when it starts from idle or from another kind of effect (the
   four filters are one kind; 1, 2 and 3 each their own). So the hold starts with its
   accumulator and sample at 0 (its first new sample comes 8 frames in at 48 kHz, under a
   ramp at 0.08), and a filter effect after 1, 2 or 3 starts clean.
-- ⚠ **"Damping 0.5"** is built as stmlib's `r`, 1 / Q, so Q = 2, as `voice.rs` uses the
+- (Ruled as built, D77.) **"Damping 0.5"** is built as stmlib's `r`, 1 / Q, so Q = 2, as `voice.rs` uses the
   word. Read as a damping ratio it would be `r` = 1.
-- ⚠ **A sweep's first tick.** What is heard is read once a frame, after that frame's ticks
+- (Ruled as built, D77.) **A sweep's first tick.** What is heard is read once a frame, after that frame's ticks
   (§3's order), so a tick on the very frame heard becomes a sweep is not counted: at most
   one tick, only when a punch lands on a frame that also has a tick.
-- ⚠ **Heard again while ramping out** (6, then none, then 6 again within 2 ms): heard
+- (Ruled as built, D77.) **Heard again while ramping out** (6, then none, then 6 again within 2 ms): heard
   became 6, so the sweep starts again; the filter keeps its state, since the bus never went
   idle.
 - Not readings: with no mix in the layout (16 channels) the ramp and the sweeps move and the
@@ -1099,3 +1102,102 @@ the bus.
 mix bit for bit; a silent return takes the sound out bit for bit); a returned sound in
 `fx_sounds` is in the bus and one outside it is not; an outside effect's `wet` is the
 input, ramped.
+
+## 20. The sliders are the hand's; a step keeps what it was written with (designed 2026-11-23; D75; not built)
+
+Until now each sound owned its sliders and a `PARAM` moved the chosen sound's (§13, D54).
+D75 changes what a `PARAM` means and gives a step a memory. The edits (16 to 22) do not
+change: `SOUND` still sets one sound's own A or B, and a step with nothing kept still plays
+with its sound's own values, so every existing trace and render is the same bytes.
+
+State, saved: for each sound and step, whether the step **keeps** values, and the A and B
+it keeps (a u16 each).
+
+### Commands and keys
+
+| Type | Name | Arguments |
+|---|---|---|
+| 26 | `KEEP` | `a` track, `b` step, `value`: A in the high sixteen bits, B in the low. That step keeps those values from now on. An edit; it moves the generation when it changes something |
+
+- **`STEP` with value 0 forgets** what the step kept. `STEP` with value 1 keeps nothing by
+  itself: a host's edit is not a hand.
+- **`PARAM`** with bpm not held: `SOUND` on **all sixteen** sounds, that slider, that
+  value. (With bpm held, and "a value the view already shows is nothing", as §13.)
+- **A grid key in write mode that turns a step on** also sends `KEEP` for it, with the
+  chosen sound's own A and B as they are on that frame. Turning it off is `STEP` 0, which
+  forgets.
+- **Clear** (function + pattern) forgets every step's values.
+- Choosing a sound sets nothing and moves nothing.
+
+### Which values a hit uses
+
+| The hit | A and B |
+|---|---|
+| a tap, or `FIRE` | the sound's own (which are the hand's, unless an edit set them apart) |
+| a step from the sequencer | what the step keeps, or the sound's own if it keeps nothing |
+| a repeated hit (§17) | as a step: column `run_step`'s |
+
+Read at the hit and never moving a voice that is sounding (D56 stands).
+
+### The view
+
+| Offset | Size | Field |
+|---|---|---|
+| 60 | 2 | A as the chosen sound was last hit with; its own A until it has been hit |
+| 62 | 2 | B, the same |
+
+Bytes 20 to 23 are unchanged in code and changed in meaning: the chosen sound's own A and
+B are now the hand's. A host draws the cap from 20 to 23 and the second mark from 60 to
+63, and moves a cap by itself only while bpm is held or after a load. Choosing a sound
+resets 60 to 63 to that sound's last hit.
+
+**As text:** fixture format 4 is format 3's line with ` ea=<A> eb=<B>` on its end.
+
+### Snapshot version 4
+
+1464 bytes. Bytes 0 to 403 are version 3's (§17) with version 4 and payload size 1448. Then:
+
+| Offset | Size | Field |
+|---|---|---|
+| 404 | 32 | keeps: one u16 a track, bit *s* is step *s* |
+| 436 | 1024 | the values: track by track, step by step, A then B, a u16 each; zero where nothing is kept |
+| 1460 | 4 | CRC-32 of bytes 0 to 1459 |
+
+The core writes version 4 and loads all four. **An older version's load keeps, for every
+step that is on, its sound's own A and B** (D75 item 6). A version 4 load keeps what it
+says, no more. Values where the keep bit is clear are not read.
+
+### What must not move
+
+Every existing trace, and all the render files: no fixture or render scenario uses a key
+in write mode with a slider moved apart from its sound's own. **What does move, by this
+decision:** `keys-tap-and-choose`'s views, where a slider moved while one sound was chosen
+shows again when another is (the lines with `a=` and `b=` after a new sound is chosen), and
+any view text that showed a chosen sound's own sliders. They are worked again by hand from
+this section before the code, and `fixtures/README.md` says which lines and why.
+
+**Proven when built by:** `fixtures/designed/keeps-what-it-was-written-with.json`, worked
+by hand on 2026-11-23; a render pair in which two steps of one sound, written at two slider
+positions, sound at two pitches, native and `.wasm` the same bytes; a rule test for each
+row above; `fixtures/snapshots-v3.txt` written before the change.
+
+### §19, added 2026-11-23: the sliders out and in (D76 item 4; designed, not built)
+
+`PI_AUDIO_LOOP` is 50 channels, not 18. After the eighteen above: 18 to 33 are A for
+sounds 1 to 16, and 34 to 49 are B.
+
+- **Out:** each holds the value its sound was last hit with by §20's table, as 0 to 1
+  (the slider's 0 to 65535 divided by 65535), written on every frame; a sound not yet hit
+  shows its own. A host scales it (Rack: 10 V at 1).
+- **In:** read only on the frame a sound is hit, and only for a sound `ROUTE` names:
+  `a` 2, `value` a mask of sounds whose A comes from the input; `a` 3, the same for B. The
+  input, held to 0 to 1 and turned to 0 to 65535 (rounded down), takes that slider's place
+  for that hit, whatever the step keeps. A tap is a hit like any other.
+- **The output is the value before the input replaces it,** so out, through a module, and
+  back in cannot latch on itself.
+- The view's bytes 60 to 63 (§20) show what was used, input and all: what is seen is what
+  was heard.
+- A host that patches none of the four passes the first eighteen channels' worth of
+  attention: the core writes the thirty-two outputs only when asked. How it is asked (a
+  fifth layout of 18 beside this one of 50, or a `ROUTE` bit) is the builder's, measured.
+

@@ -178,19 +178,26 @@ kick and a hat.
 | ☐ | Punch 4, 13, 14, 15 and 16 in turn | What does each do, in a sentence? Does the delay's tail carry past the step? Does 15 touch every sound or the chosen one? | the effects not designed yet (D67 item 4) |
 | ☐ | Punch 6 or 8 over two bars | Does the sweep start again on each step, or run on across steps? Up or down? | §18's sweeps |
 
-## Sliders a step: what to check on the PO-12
+## The sliders: what the hardware does, and what we do (D75)
 
-For D74. Pick a pattern with a kick on steps 1, 5, 9 and 13 and a snare on 5 and 13.
+Seen by the owner on the PO-12, 2026-11-23: "the knob positions *seem* to affect everything
+regardless of which sound is selected", and they "seem to do pitch and release". R53's
+second video (9:40 to 12:04) shows steps keeping the knob positions they were entered
+with. ⚠ The owner's own unit did not behave as plainly as the video: "If I am just in write
+mode, and move the knobs up and down in between recording a spot in the sequence, it feels
+like it ignores me. However, when I re-select the sound, then move them, then e.g. switch
+off and on one of the sounds, it records it in the new way." Not understood; not followed.
 
-| ☐ | Do | Look or listen for | It decides |
-|---|---|---|---|
-| ☐ | Write on, stopped, kick chosen. Hold step 5 (lit) and turn A. Play | Does only step 5's kick change pitch? Did holding it turn the step off? | D74 item 2, and when a step flips |
-| ☐ | The same on an unlit step | Does it become lit? | the same |
-| ☐ | Playing, write off: hold write and turn A for a bar, let go | Recorded on every step, or only where the kick has a note? Put a kick on an empty step afterwards: does it have the recorded pitch? | D74 item 2: written by arriving steps |
-| ☐ | Then turn A without holding write | Does every step change, or only the ones not recorded? | whether a plain move is the sound's own value under the locks |
-| ☐ | Take a recorded step off and put it back | Is its value gone? Does anything but clear remove one? | D74 item 5 |
-| ☐ | Record A on the kick at step 5, then listen to the snare on step 5 | Did the snare change? | D74 item 1: a lock belongs to a sound |
-| ☐ | Tap write quickly; then hold it for a bar and let go without touching anything | Does write turn on at the press or the release? Does a long hold with nothing done still turn it on? | D74 item 3 |
+Ours, by D75: the sliders are where the hand left them, for every sound; a step keeps the
+positions it was written with; nothing else. To look at again on the hardware when there
+is time, none of it blocking:
+
+| ☐ | Do | It would tell us |
+|---|---|---|
+| ☐ | Turn A down, enter a kick on step 1; turn A up, enter a kick on step 5; play, then sweep A without holding write | whether steps keep their positions, and whether the hand changes a written step |
+| ☐ | The same, but choose the sound again (sound + 1) before each change of the knob | what "re-select the sound" does to the knobs |
+| ☐ | Write on, hold a lit step and turn A | the hardware's way to change one step (not in our first build) |
+| ☐ | Playing, hold write and turn A for a bar | recording a knob's movement (not in our first build) |
 
 ## Deliberate differences from the hardware
 
@@ -202,7 +209,8 @@ D22 asks for every one to be listed and explained. So far:
 | ~~In Rack, a click on a function key latches it~~ With a mouse, in Rack and on the page, Ctrl+click (Cmd on a Mac) latches sound, pattern, bpm, function or fx; a click is a real hold | D23: a mouse is one finger. D60, D61 replaced the click latch (built in Rack in Session 13) |
 | ~~In Rack the tempo preset is two clicks on bpm: one latches it, one lets it go~~ The tempo preset is one click on bpm, with a mouse as with a finger | D57 made it two clicks; D60 made the click a hold again |
 | In Rack each sound's trigger and its audio go out on sixteen channels, and come back in through RETURN to take that sound's place in the mix | D62: the module's showpiece. Rack has cables; the hardware does not |
-| The slider caps move by themselves to the chosen sound's settings, and to swing and tempo while bpm is held | D54: what is seen is what is heard. A knob cannot; a drawn slider can |
+| ~~The slider caps move by themselves to the chosen sound's settings, and to swing and tempo while bpm is held~~ The caps are the hand's, as knobs are, and move by themselves only to show swing and tempo while bpm is held. A second mark on each slider shows the value the chosen sound was last hit with | D75 replaced D54 once the hardware was understood: the knobs act on every sound. The second mark is ours: a knob cannot show it (D40's idea from Surge XT) |
+| A step's slider values can only be changed by taking the step off and putting it back; the hardware can also change one held step, and record a knob's movement | D75 item 3: the simple rule first |
 | While bpm is held the grid shows the volume as a row of lit keys | D51: glowing keys can say it; ⚠ what the hardware shows is not known |
 | Probability on a step | not on the hardware; the brief asks for it. It needs a gesture that does not collide with anything above. Open |
 | A length under sixteen | same |
