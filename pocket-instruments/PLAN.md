@@ -125,8 +125,10 @@ Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
 
 Unticked in the finished lists. None blocks a build session.
 
-- [ ] The seven effects checks left on the PO-12 (`WORKFLOW.md`, "The effects: what to check
-      on the PO-12"; six were done on 2026-11-23), and D71's open point: with write off, do keys flash for their own
+- [ ] The four effects checks left on the PO-12 (`WORKFLOW.md`, "The effects: what to check
+      on the PO-12"; nine were done on 2026-11-23): what 9 to 12 do (9 gave no repeat the
+      owner could hear), whether every sound repeats, the sweeps, and effects 4 and 13 to
+      16. ~~And D71's open point~~ (answered): with write off, do keys flash for their own
       sound as it fires?
 - [ ] P4: iOS Safari (no iPhone yet), and the tap pad filmed for latency. `PROOFS.md` P4.
 - [ ] P5: the four loads in Rack, one a platform. `PROOFS.md` P5, "What the full proof
@@ -350,8 +352,9 @@ D69.
 
 Small, and before the weave if the owner says yes: the weave's rules read the same view.
 
-- [ ] The answer to D71's open point (do keys flash for their own sound with write off).
-      The ruling itself is D72.
+- [x] D71's open point, answered by the owner's PO-12: every sound's key flashes as it
+      fires and the playhead's as it passes. So the field becomes the chosen sound's steps
+      in both modes, and the white and the frame stay (D72 item 3).
 - [ ] `ENGINE.md` §14's table changed first; the three key fixtures' views worked again by
       hand from it and their change explained in `fixtures/README.md` (a trace is not
       edited to pass a build; a view changed by a decision is).
@@ -513,9 +516,11 @@ The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
   `WORKFLOW.md`: recorded with write off, heard at once, cleared by the steps that pass,
   the last of two keys wins and the first comes back, stopped does nothing, no key lights
   and the display marks it. The last three corrected the design before anything was built
-  (`ENGINE.md` §17 says where; `LEARNINGS.md`).
-- **For the owner:** O16's rulings; the seven checks left in `WORKFLOW.md` (the repeats and
-  clear were tried and not certain); D71's open point.
+  (`ENGINE.md` §17 says where; `LEARNINGS.md`). Then three more held: the pressed step is
+  not recorded, clear wipes the lane, an effect outlives its note. **Not confirmed: the
+  repeats.** Effect 9 gave no repeat the owner could hear, so Session 16's four repeats
+  are ours, under the hardware's names, until that is known.
+- **For the owner:** the four checks left in `WORKFLOW.md`.
 - **For Session 16 (Opus), what will bite:**
   - The fixture's keys land a frame after a boundary, so a punch never writes its own
     step: read `fixtures/README.md`'s notes on it before the code.

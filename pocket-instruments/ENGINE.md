@@ -780,7 +780,11 @@ and in the sequencer `eff` (the effect it read at the last step boundary), `run_
 **Checked on the owner's PO-12, 2026-11-23** (`WORKFLOW.md`): recorded with write off;
 heard at once; cleared a step at a time by fx alone; of two keys held the last wins and
 the first comes back when it is let go; nothing happens while stopped; no key lights for
-an effect. Each is marked "(hardware)" below. The rest of this section is still a reading.
+an effect; the step being played when a key lands is not recorded and the next ones are;
+clear empties the lane; an effect stays on its step whatever notes are later put there or
+taken off. Each is marked "(hardware)" below where it is a rule. **Not checked: the
+repeats.** With effect 9 held the owner heard no repeat at all, so what 9 to 12 do on the
+hardware is unknown and ours are our own design under its names.
 
 ### Commands
 

@@ -947,7 +947,8 @@ first rulings were corrected by it (marked). What we take:
    maker later changed this to "only with write on" (R52); we follow the PO-12, because the
    workflow is the thing kept faithful (D22).
 3. **A punch is heard at once and written by the steps that arrive.** The step being
-   played when the key lands is not written ⚠ (the one part of this item not yet checked):
+   played when the key lands is not written (checked the same day: a key pressed after
+   the snare on step 5 left it clean the next bar, and the hat on step 7 was crushed):
    so what the lane replays is exactly what was heard from the sequencer. **Stopped,
    nothing:** not heard, not written, as the hardware. (First ruled: heard on taps while
    stopped. The owner's PO-12 does nothing, and D22 keeps the workflow faithful.)
@@ -968,7 +969,7 @@ first rulings were corrected by it (marked). What we take:
 6. **Our sixteen keep the hardware's roles on the hardware's keys** (as the sounds do,
    D31), built by us, named in our words. An effect not built yet still punches, records,
    shows and sends its gate in Rack; only the sound is unchanged.
-7. **Clear (function + pattern) empties the lane too** ⚠ (not known on the hardware).
+7. **Clear (function + pattern) empties the lane too** (checked on the owner's PO-12).
 
 Not chosen: recording only with write on (the PO-33's way: cleaner for a mouse, but not
 this instrument's workflow); a lane a sound (sixteen lanes, and no evidence the hardware
@@ -983,7 +984,9 @@ step (attractive, and cheap to add later: the kinds are already separate in the 
    the step the run began on, 4, 3, 8 and 6 times a beat. No memory, exactly in time, the
    same on both clocks, in the trace, and out on TRIGGERS. What it cannot do is repeat a
    tail; a drum machine that owns its sequencer does not need to (R57). ⚠ The rates are our
-   reading of the names.
+   reading of the names, and the hardware has not confirmed that 9 repeats at all: the
+   owner held it and heard none (`WORKFLOW.md`). Ours is our own effect on that key until
+   it is known.
 2. **Seven sound effects on one bus,** from four small parts: a sample-and-hold (1), a
    rational soft clip (2), a truncation (3), and one state-variable filter (5 to 8, two
    fixed and two swept in musical time). `+ − × ÷` only, the same bits on every host,
@@ -1087,8 +1090,11 @@ before the weave, not a fix in passing.
 2. **The three new jacks go on the panel** (D68 item 5), "for now": an expander is still
    the fallback if nine do not sit well when drawn.
 3. **D71 is decided: the grid shows the chosen sound's steps whether write is on or off,**
-   as the hardware does. Session 20 builds it; its open point (do keys flash for their own
-   sound with write off) is asked of the hardware first.
+   as the hardware does. Session 20 builds it. Its open point was answered the same day:
+   while playing, every sound's key flashes as that sound fires, and the playhead's key
+   as it passes. Ours already tells those two apart, which the hardware cannot: white for
+   a firing, the frame for the playhead (`ENGINE.md` §14). So with write off the field is
+   the chosen sound's steps, and the white and the frame stay as they are.
 4. **D70, the breakout for MixMaster, waits until after the effects.**
 
 ## Open

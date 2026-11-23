@@ -142,7 +142,7 @@ is a mismatch (D29), listed until ruled on.
 
 | What | Seen | Ours now |
 |---|---|---|
-| The lights with write off | **Fact (the owner, D71):** the chosen sound's steps are lit, steady, write on or off; they flash as the playhead reaches them; choosing another sound shows that sound's steps; write changes only the display's mark and what a tap does | **Mismatch.** D37: with write off no step is lit. D71 proposes following the hardware |
+| The lights with write off | **Fact (the owner, D71):** the chosen sound's steps are lit, steady, write on or off; choosing another sound shows that sound's steps; write changes only the display's mark and what a tap does. **While playing, every sound's key flashes as that sound fires, and the playhead's key flashes as it passes;** on one key the two are one flash | **Mismatch.** D37: with write off no step is lit. D71 proposes following the hardware |
 | Effects are recorded with write off | Both videos; four reviews (R49) | Designed so (D66) |
 | Clearing effects | Hold fx through the steps; a whole pass clears all | Designed so |
 | Effects belong to a pattern | Written across four chained patterns and cleared across them; a copied pattern given its own (R53) ⚠ | One pattern; the lane is saved with it |
@@ -166,15 +166,15 @@ kick and a hat.
 |---|---|---|---|
 | ☑ | Write off. Hold fx + key 3 for four steps, let go. Wait a bar | **Yes** (owner, 2026-11-23): "The crush comes back in exactly the same step" | D66 item 2: recorded without write. Holds |
 | ☑ | Punch key 3 between two hits | **At once** (owner): between two kicks with only kicks playing, nothing is heard, because nothing is sounding | §17: heard at once. Holds |
-| ☐ | Punch for exactly one step and listen to the next bar | Is the step you pressed on recorded, or only the ones after? | D66 item 3 |
+| ☑ | Press key 3 just after the snare on step 5, let go just after the hat on step 7; listen to the next bar | **The snare on 5 is not crushed; the hat on 7 is** (owner, 2026-11-23) | D66 item 3 holds: the step being played when the key lands is not written, and a step that arrives while it is held is |
 | ☑ | Hold fx alone for half a bar | **Yes, cleared** (owner) | §17: the lane is written by arriving steps. Holds |
 | ☑ | Hold fx + 3, add key 5 without letting 3 go; then let 5 go | **Only the last; and the first comes back** when the last is let go (owner) | One effect at a time (D66 item 1) holds. §17 first said letting go leaves none: corrected |
 | ☑ | Stopped: hold fx + 3 | **Nothing** (owner) | D66 item 3 first let a punch sound while stopped: corrected |
 | ☑ | fx held, playing | **No light does anything; the display's sewing machine sparks when an effect plays** (owner; as R51) | §17 first put a bar on the effect's key: removed. The display gets a mark of our own |
-| ☐ | (tried 2026-11-23, not certain; again when the unit is to hand) Punch 9, 10, 11 and 12 for a bar each | Fresh hits or a looped slice with cut tails? How many a beat for each? Which step repeats: the one pressed on, or each as it comes? | D67 item 1 and its rates |
+| ☐ | Punch 9, 10, 11 and 12 for a bar each | **Not answered.** The owner, twice on 2026-11-23: with 9 held "I don't hear any repeats. The other FX buttons all do things. But 9 confuses me"; the count for 10 to 12 was not made. So what 9 does on the hardware is unknown, and our four repeats are our own design under the hardware's names ⚠ | D67 item 1 and its rates: still a reading |
 | ☐ | Mute nothing; punch a repeat over a bar with kick and hat | Do all the sounds repeat, or some? | D66 item 4: all sounds in, as the PO-12 |
-| ☐ | (not tried yet) Record an effect, then function + pattern, put a kick back | Is the effect still there? | D66 item 7 |
-| ☐ | Record an effect on a step, then take that step's note off | Does the effect stay? (R51 says yes) | the lane is beside the steps |
+| ☑ | Record an effect, then function + pattern, put a kick back | **Clear wipes the effects** (owner) | D66 item 7 holds |
+| ☑ | Record an effect on a step, then take that step's note off and put it back | **The effect stays** (owner): "it basically applies it there, regardless of what I later program into those spots" | The lane is beside the steps. Holds |
 | ☐ | Punch 4, 13, 14, 15 and 16 in turn | What does each do, in a sentence? Does the delay's tail carry past the step? Does 15 touch every sound or the chosen one? | the effects not designed yet (D67 item 4) |
 | ☐ | Punch 6 or 8 over two bars | Does the sweep start again on each step, or run on across steps? Up or down? | §18's sweeps |
 
