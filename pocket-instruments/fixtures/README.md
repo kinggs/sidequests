@@ -281,7 +281,7 @@ snapshot" run holds it to snapshot version 3 as well.
   a pass: 8. 32 lines. The view in step 2 says `fx=10` (nothing punched; the playhead's step
   holds 10) and `fxsteps=001e`; the last, on step 7, `fx=0`.
 
-## Format 4 (2026-11-23: the sliders, D75; not built yet)
+## Format 4 (2026-11-23: the sliders, D75; built in Session 21)
 
 Format 3, and:
 
@@ -290,6 +290,25 @@ Format 3, and:
 | `format` | 4 |
 | `commands` | also `keep` (`track`, `step`, `a`, `b`): `ENGINE.md` §20's edit |
 | `views` | format 3's line with ` ea=<A> eb=<B>` on its end: the values the chosen sound was last hit with (the view's bytes 60 to 63) |
+
+From a snapshot, a `keep` at step 0 comes from the snapshot (version 4), like every other
+step-0 edit.
+
+**Session 21:** the fixture below was moved up out of `designed/` unchanged (git shows a
+pure rename) and only then run: it passed at the first run in all three harnesses, both
+sources, three rates, three block sizes and from a snapshot. `designed/` is empty again.
+Since Session 21, `snapshots-v3.txt` sits beside the other two: each of the nine fixtures'
+version 3 snapshot, written by the ABI 7 core before version 4 existed and committed first,
+loaded in `core/src/tests/fixtures.rs` against the fixture's trace (each step that is on
+keeping its sound's own A and B, as D75 item 6 asks).
+
+**From a kept snapshot (Session 21).** Every harness also runs each fixture, on both
+sources at three rates, from its snapshot with every step that is on keeping its sound's
+own A and B (a `KEEP` sent for each, then saved): the bytes a page or a module saves when
+the same beat is entered by keys. The report labels the run `# <name> <source> <rate> kept
+snapshot <hex>`, so P6's browser check (`web/play.mjs`) finds the page's bytes there. That
+is 300 runs a harness, from 216 (nine fixtures, four runs a source and rate) before the
+session.
 
 ### `keeps-what-it-was-written-with`, worked by hand (in `designed/` until Session 21)
 

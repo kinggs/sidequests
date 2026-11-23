@@ -44,8 +44,12 @@ the bus and the first sound effects (§18), and sound coming in from Rack (§19)
 17 and 18 build them (`PLAN.md`), each moving `PI_ABI_VERSION` by one, as the weave will
 whenever it is built. (§17 was in this list until Session 16.)
 
-**Designed, not built (2026-11-23, D75):** §20, the sliders as the hand's and a step that
-keeps what it was written with. Session 21 builds it (`PLAN.md`).
+**ABI 8 (Session 21, D75)** adds §20: the sliders are the hand's, for every sound, and a
+step keeps what it was written with. Command 26 `KEEP`, `STEP` 0 forgets, `PARAM` sets all
+sixteen sounds, the view's bytes 60 to 63, snapshot version 4 (1464 bytes; versions 1 to 3
+still load). Every trace and every earlier render file is as it was. By the decision, six
+view lines of `keys-tap-and-choose` changed (`fixtures/README.md`). (ABI 7, Session 17,
+added §18's bus with no new call or command.) (§20 was "designed, not built" until then.)
 
 **Designed, not built (Session 9, D51 to D57):** §16 is the rest of the instrument: the
 weave. Session 14 builds it (`PLAN.md`) and moves `PI_ABI_VERSION` by one. Until then the
@@ -265,7 +269,7 @@ One fixed record, 12 bytes, little-endian, no padding:
 | 22 | `VOICE` | `a` track, `value` 0 its code voice, 1 its sample. ABI 3 (D50). Taken at the track's next hit; a track with no sample plays its code voice. Not in snapshot version 1 (§12) |
 | 32 | `KEY_DOWN` | `a` key. ABI 4: §13. (Reserved and ignored until then) |
 | 33 | `KEY_UP` | `a` key. ABI 4: §13 |
-| 34 | `PARAM` | `a` slider (0 = A, 1 = B), `value` 0 to 65535, clamped. ABI 4: §13 |
+| 34 | `PARAM` | `a` slider (0 = A, 1 = B), `value` 0 to 65535, clamped. ABI 4: §13. Since ABI 8, every sound's slider (§20) |
 
 Two families, on purpose (D26). **Edits** (16 to 19) say what the pattern becomes. **Keys**
 (32 to 34) say what a finger did; the workflow in `WORKFLOW.md` turns them into edits
@@ -318,7 +322,7 @@ Two runs agree when their traces are the same bytes.
   harness, the worklet and the Rack Probe; `core/src/tests/rules.rs` holds `pi_size` to it).
   With a sample beside each voice (§12) it is 2 328 bytes, natively and in WebAssembly, and
   the room is 4 KiB. With the keys (§13) it is 2 352 bytes, in the same room, and snapshot
-  version 2 (§15) added nothing to it. With the lane and the repeats (§17) it is 2 400; with the bus (§18), 2 448. The samples
+  version 2 (§15) added nothing to it. With the lane and the repeats (§17) it is 2 400; with the bus (§18), 2 448; with what each step keeps (§20), 3 568, natively and in WebAssembly, still inside every host's 4 KiB (Session 21). The samples
   themselves are in pages of their own after the host's.
   A host that can should ask `pi_size` instead.
 - **One thread.** Every function on an engine is called from the audio thread only. That
@@ -570,7 +574,7 @@ or 80 if there is none. At once ⚠.
 |---|---|
 | its value is the one the view shows for that slider now (§14) | nothing. This is what lets a host move a cap to follow the view without an echo |
 | bpm is held | A: swing = `(value × 48 + 32767) / 65535`. B: tempo = 60 + `(value × 180 + 32767) / 65535` whole bpm. Uses bpm |
-| otherwise | `SOUND` on the chosen sound: that slider, that value |
+| otherwise | ~~`SOUND` on the chosen sound: that slider, that value~~ Since ABI 8 (§20, D75): `SOUND` on all sixteen sounds, that slider, that value |
 
 A slider is read when its voice is next hit and never moves one that is sounding (§11;
 ruled in D56).
@@ -625,7 +629,7 @@ function on an engine (§8). It moves nothing: not the generation, not a counter
 | 29 | 1 | swing |
 | 30 | 2 | zero |
 | 32 | 16 | fires: for each track, how many times it has fired, wrapping at 256 |
-| 48 | 16 | zero until §16 |
+| 48 | 16 | zero until §16 (since ABI 6, 55 to 59 are §17's; since ABI 8, 60 to 63 are §20's) |
 
 **What the grid shows** (`design/DESIGN.md`; D37, extended by D51 to the held keys). The
 first row that applies:
@@ -906,7 +910,7 @@ sixteen are usable in Rack from the first build, through D68's loop.
 | 56 | 2 | fx steps: bit *s*, step *s* of the lane holds an effect |
 | 58 | 2 | fx sounds: bit *t*, sound *t* goes through the effects |
 
-Bytes 48 to 54 stay the weave's (§16) and 60 to 63 stay zero. **The grid's table does not
+Bytes 48 to 54 stay the weave's (§16) and 60 to 63 stay zero (until ABI 8: §20's second mark). **The grid's table does not
 change:** holding fx lights nothing and hides nothing, as on the hardware, where no key
 lights for an effect. (The first draft put the bar on the heard effect's key.) The fx key
 itself shows pressed while held, like any function key.
@@ -1103,7 +1107,7 @@ mix bit for bit; a silent return takes the sound out bit for bit); a returned so
 `fx_sounds` is in the bus and one outside it is not; an outside effect's `wet` is the
 input, ramped.
 
-## 20. The sliders are the hand's; a step keeps what it was written with (designed 2026-11-23; D75; not built)
+## 20. The sliders are the hand's; a step keeps what it was written with (ABI 8; designed 2026-11-23; D75; built in Session 21)
 
 Until now each sound owned its sliders and a `PARAM` moved the chosen sound's (§13, D54).
 D75 changes what a `PARAM` means and gives a step a memory. The edits (16 to 22) do not
@@ -1180,6 +1184,49 @@ this section before the code, and `fixtures/README.md` says which lines and why.
 by hand on 2026-11-23; a render pair in which two steps of one sound, written at two slider
 positions, sound at two pitches, native and `.wasm` the same bytes; a rule test for each
 row above; `fixtures/snapshots-v3.txt` written before the change.
+
+**Built (Session 21, on Opus):** command 26 `KEEP` and `STEP` 0's forgetting in
+`core/src/engine.rs`, where `Engine::hits` reckons what each firing is hit with (the step's
+column comes from the sequencer through `Out::trig`); `PARAM` on all sixteen, the write-mode
+key's `KEEP` and clear's forgetting in `core/src/keys.rs`, with bytes 60 to 63 in
+`Engine::view`; what a step keeps in the pattern (`core/src/seq.rs`); version 4 in
+`core/src/snapshot.rs`; `PI_CMD_KEEP`, `PI_VIEW_HIT_A`, `PI_VIEW_HIT_B` and
+`PI_SNAPSHOT_SIZE_V3` in the header. ABI 8. Proven: `fixtures/snapshots-v3.txt` written and
+committed first; `keys-tap-and-choose`'s six changed view lines worked by hand and
+committed before any code (`fixtures/README.md` says which and why); the designed fixture
+moved up unchanged (a pure rename) and passed at the first run in all three harnesses;
+every existing trace the same lines, every existing render file the same bytes;
+`harness/render-keep.json`, native and `.wasm` the same bytes; 19 rule tests in
+`core/src/tests/keep.rs`, among them a 20 000-edit generation test with `KEEP` in it; every
+version 1, 2 and 3 snapshot ever written loads to its fixture's trace with each step that is
+on keeping its sound's own. Each fixture also plays from a "kept snapshot" (its pattern with
+every step that is on keeping its sound's own, as keys save it) in every harness: the bytes
+the page saves after a beat entered by keys, which P6's browser check looks for. 23 faults
+planted, each caught by a named test. The design held. What it did not say, built on and
+marked:
+
+- ⚠ **ABI 8.** §20 names no number; the rule for Sessions 16 to 19 (each takes the next) was
+  followed, since a host must know the snapshot's new size.
+- ⚠ **Two firings of one sound on one frame** (a tap and its own step, or an edge's burst):
+  the later one in the frame decides which values are used (commands come before the
+  clock's ticks, §3), and the values are read after the frame's commands, as a slider
+  always was (§11). One voice starts, as before.
+- ⚠ **`KEEP` on a step that is off keeps:** §20 says nothing of the step's state. `STEP` 1
+  later plays it with what it keeps; `STEP` 0 or clear forgets it.
+- ⚠ **A load leaves the last hits alone.** Bytes 60 to 63 remember each sound's last hit;
+  that is the moment's, like `fires` (§14), and a load does not reset it. A sound never hit
+  shows its own, the loaded value.
+- Not a reading: since a slider is `SOUND` on all sixteen, one move can move the generation
+  sixteen times (once a sound whose value changed). And since choosing a sound plays it (§13
+  ⚠), the mark right after choosing by the keys is always that sound's own: "choosing resets
+  60 to 63 to that sound's last hit" is that hit.
+- Hosts (`web/rhythm.html`, `rack/src/Rhythm.cpp`): the cap is the hand's. ⚠ "Moves by
+  itself only while bpm is held or after a load" is read as: it shows swing and tempo while
+  bpm is held and goes back to the hand when bpm is let go; "after a load" is the first view
+  that holds the load (the page counts queue entries; Rack takes it on the frame the load is
+  taken), and a page's or module's first view counts as one. ⚠ The second mark is a thin
+  thread-coloured line across the track at the value, drawn over the cap, always (with bpm
+  held too): `design/DESIGN.md` does not draw it yet (its "Not done").
 
 ### §19, added 2026-11-23: the sliders out and in (D76 item 4; designed, not built)
 

@@ -592,3 +592,48 @@ belongs in `PROOFS.md`, a change of course in `DECISIONS.md`, an outside fact in
   the same places), so the dry beat's loudest sample over a bar is a constant, 0.9037 in
   both browsers, and each effect gives its own. Effect 6 is the closest, 0.9039. A planted
   wrong command number on the page made all seven give 0.9037 and `make listen` failed.
+
+## Session 21: the sliders are the hand's; a step keeps what it was written with (2026-11-23)
+
+- **A view changed by a decision is worked by hand first, then the build agrees or does
+  not.** `keys-tap-and-choose`'s six changed lines (`a=` and `b=` only) were worked from
+  §20 and committed before any code; the core then gave those lines at the first run, and
+  every trace and every other view line was the same as before the session. The report
+  differed from the day's start in exactly 144 lines (six a run, 24 runs) plus the
+  snapshot labels' hex: checked by a script that names each changed line, not by eye.
+- **The designed fixture passed at its first run,** moved up as a pure rename: the third
+  time a fixture worked by hand in a design session has done so (Sessions 16 and 21).
+- **A decision about keys can break a check about edits.** P6's browser check looked for
+  the page's snapshot among the report's labels. The page enters its beat by keys, and since
+  D75 a key keeps the sliders, so the page's bytes were no longer any edit-made snapshot's.
+  Seen before building the page, by asking what each host saves; the fix was to give every
+  harness a run from the snapshot keys would make (`fixtures/README.md`, "From a kept
+  snapshot"), not to loosen the check. `make play` then found the page's bytes there in
+  both browsers.
+- **A planted fault has to be visible to be a fault (Session 7's lesson, met again).** "A
+  version 4 load reads a value whose keep bit is clear" survived every test, rightly: such a
+  value is never used and never saved, so nothing can see it. The test that claimed to hold
+  it was renamed for what it can see. 23 real faults planted in the core, the unplanted copy
+  passing first: 23 caught, each by a named test. Two planted on the page (caps that follow
+  the chosen sound, as D54 had them; the mark drawn from bytes 20 to 23): `make play` failed
+  on each. One in the C++ harness's view text and one in the Node harness's command number:
+  each failed (30 mismatched runs; the reports differed). One in Rack's view text: the
+  self-test failed on the format 4 fixture. A plugin without the MIT notice: `check-dist.sh`
+  refused it.
+- **Every host's fixed room was checked, and two were too small.** The engine grew from
+  2 448 to 3 568 bytes, inside every 4 KiB room (the worklet, the Node harness, the Probe,
+  the Rhythm module, `jacks.cpp`). The snapshot grew from 408 to 1 464: the worklet's room
+  for it was 448 bytes and the Node harness's 512, so both layouts moved (the commands start
+  at 9 216 in the worklet; the view, events and audio moved up in the harness). The C++
+  hosts size theirs by `PI_SNAPSHOT_SIZE` and needed nothing; base64 in a patch and in the
+  browser's storage has no fixed size.
+- **Measured (`make bench`, best of five, 10 s at 48 kHz, the mix, ns a frame).** Before,
+  three runs: idle 26.2–27.0, beat 27.8–29.0, all sixteen 43.4–45.1, repeat 31.5–32.2.
+  After, three runs: idle 26.2–27.4, beat 28.4–29.7, all 41.7–42.4, repeat 30.5–30.8. Back
+  to back with a build of the session's first commit (Session 17's lesson), six pairs: idle
+  old 25.0–26.9 against new 26.2–26.8; beat 27.5–29.7 against 28.4–29.4; all 43.0–44.0
+  against 41.9–43.6; repeat 31.3–32.5 against 30.3–32.9. Within the bench's noise, but the
+  new idle never went under 26.2 where the old reached 25.0: perhaps half a nanosecond (2%),
+  the bigger engine or the new comparison; the hit itself is reckoned out of line
+  (`#[inline(never)]`), only on a frame where something fired, and the voices' own check of
+  that was folded into it. The `.wasm` grew from 32 783 to 36 963 bytes.

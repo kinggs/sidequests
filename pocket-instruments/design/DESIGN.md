@@ -213,7 +213,10 @@ plate is 33.4 mm. At 3.0 mm it is 0.5 mm clear of each (`make_panel.py --check`)
 
 Also to draw as widgets:
 
-- **Slider cap:** 5 by 3 mm, ecru, with a dark slot across the middle.
+- **Slider cap:** 5 by 3 mm, ecru, with a dark slot across the middle. Since Session 21
+  (D75) the cap is the hand's: it moves by itself only while bpm is held or after a load.
+- ⚠ **The second mark** (D75 item 4; `ENGINE.md` §20): not designed yet. Built in Session 21
+  as PLAN.md's stand-in, below in "Not done".
 - **Function key label:** runs up the key, read from the right.
 - **Socket:** an ecru ring 8 mm across round a dark hole for the inputs; a dark ring round a
   pale hole for the outputs.
@@ -291,6 +294,15 @@ the function keys side by side.
   when its sound fires. A Ctrl+click latch (D61) lights the whole face in the key's colour,
   as `states.html`'s "latched". Below 720 px tall the
   function keys' words drop from 18 to 16 px to fit up the key.
+- ⚠ The slider's second mark (D75 item 4: "a second, thinner mark at the value the chosen
+  sound was last hit with", the view's bytes 60 to 63) is not designed. Session 21 drew
+  PLAN.md's stand-in on both hosts: a thin line in `loom/thread` across the slider's track
+  where the cap's middle would be at that value, drawn over the cap and always shown, bpm
+  held or not. In Rack 6 mm by 0.35 mm (the cap's 5 mm and half a millimetre each side); on
+  the phone 36 by 2 px across the 6 px track. Seen in Rack's screenshot mode with a face
+  filled by hand (A at 20000, B at 50000, the caps in the middle): visible on the ecru
+  thread and on the cap. To be drawn with the owner's eye (Surge XT's way of showing a
+  modulated value is the idea, D40; none of theirs).
 - The animation is seven rules and three frames, not a running thing. Nobody has seen it move.
 - Contrast is by arithmetic. Nobody has looked at it on a phone in daylight or in Rack at
   normal zoom.

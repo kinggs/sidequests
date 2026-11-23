@@ -444,6 +444,13 @@ loaded those bytes and gave that fixture's trace (as `harness/race.sh` checks Ra
 Both browsers passed. A page whose seed was 2 was caught (the bytes are in no label), and
 so was one that kept only its first snapshot.
 
+**Since Session 21 (2026-11-23, ABI 8, D75):** a step written by a key keeps the sliders it
+was written with, so the page's snapshot of a beat entered by keys is no longer the bytes of
+the same beat entered by edits. The bar is unchanged; what it looks for grew: every harness
+now also plays each fixture from a "kept snapshot" (each step that is on keeping its
+sound's own values, as keys save it; `fixtures/README.md`), and the page's bytes are such a
+label in the Node report. `make play` passed in Chromium and Firefox with it.
+
 **To finish it:** listen on a phone while editing: play a beat, enter steps, move sliders,
 for a few minutes, and hear no dropout. The owner's, with P8's first sitting. (To repeat the Rack row:
 `node rack/check-patch.mjs ~/.local/share/Rack2/autosave/patch.json target/report-node.txt`
