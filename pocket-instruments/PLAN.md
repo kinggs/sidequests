@@ -19,7 +19,7 @@ are about 300 KB, and a session that reads them all has spent its attention befo
 3. `ENGINE.md`: the sections your session's list names, and §3 and §8 if you have not built
    on the engine before.
 4. `DECISIONS.md`: the decisions your list and those sections cite, and the **Open** table
-   at its end. For Sessions 12 to 14 that is D51 onwards. Not the whole log.
+   at its end. For Sessions 12 to 15 that is D51 onwards. Not the whole log.
 5. `PROOFS.md`: the ladder table at its top, and the proof your session runs, if it runs
    one. Do not change a pass bar to make it pass; record the failure.
 
@@ -139,7 +139,8 @@ Unticked in the finished lists. None blocks a build session.
       RETURN and the plate); the latch (Ctrl+click); the computer keys, several at once (R25);
       a double-click on each slider, with and without bpm held; MIDI-Map on a slider (D54's
       ⚠); the round trip by ear: TRIGGERS ch 1 to any kick, back into RETURN ch 1 (D62); the
-      CPU meter. Session 13's nine readings (its Handover) are for the same sitting.
+      CPU meter. (Played by the owner 2026-11-23: the face, clock and reset, RETURN with
+      Rack drums, clear. Session 13's nine readings accepted, D65.)
 
 ## The instrument's build: Sessions 10 to 14
 
@@ -194,27 +195,35 @@ push; no Teenage Engineering material. And for these five:
 
 ## Found in Rack after Session 13 (2026-11-23), for a session to take
 
-- [ ] D64: the menu's "one edge a beat" for CLOCK, and (proposed) the tempo shown from the
-      edges on an external clock. Both touch `ENGINE.md` §4 and §14, so plan them first.
+- [ ] D64: the menu's "one edge a beat" for CLOCK, and (D65 item 2, decided) the tempo
+      measured from the edges, with "ext", on an external clock. Both touch `ENGINE.md` §4
+      and §14, so plan them first; Session 14 opens the view for ABI 6 anyway.
 - [x] Room to trim in the module: done the same day, measured with perf (`LEARNINGS.md`,
       Session 13, "Profiled with perf"). The module's time fell 31%: the big one was an
       atomic store, a full memory barrier, every frame. The engine is now about half of it.
+- [x] CI's Linux job is slow in `apt-get update` (12.5 of 13 minutes): a prebuilt image is
+      Session 15's small first task (D65 item 4).
+- [ ] The self-test failed once in 32 runs (96 kHz: a module on the LFO never saw its clock).
+      Not reproduced in 14 more. If it fails again, its log is kept in `rack/build/`
+      (`LEARNINGS.md`, Session 13). Read it before changing anything.
+
+## Later: efficiency (measured first, PLAN's ground rules)
+
+None blocks anything; each is done when wanted, profiled before and after (Machine state).
+
+- [ ] **Idle cost:** the module shows about 0.6% in Rack with nothing playing (owner,
+      2026-11-23), where SEQ-3 shows 0.2% and many modules 0.0%. ⚠ Not measured yet; the
+      likely cause is that the engine runs every frame while stopped (the clock keeps
+      counting, so a tap lands on the right tick, §4). A cheap idle path (stopped, every voice
+      silent, nothing patched moving) has to keep that rule; profile it first.
 - [ ] Still a question for the owner: read the parameters every 16 or 32 frames (under 1 ms
       late) rather than on the frame the brief asks for, as VCV's own modules do. Measured
       cost of reading them every frame now: a small part of `Rhythm::process`, no longer the
       biggest.
-- [ ] CI's Linux job is slow in `apt-get update`, not in the build: on 2026-11-23 its new
-      progress lines showed 12.5 minutes in apt, then 30 s for everything else (run
-      45164319887, green on all four). Ubuntu 16.04's archive is slow from GitHub's runners.
-      Options, the owner's call: a prebuilt image with the packages in it, or
-      `old-releases`/a mirror. The 30-minute limit now stops a full stall.
-- [ ] The self-test failed once in 32 runs (96 kHz: a module on the LFO never saw its clock).
-      Not reproduced in 14 more. If it fails again, its log is kept in `rack/build/`
-      (`LEARNINGS.md`, Session 13). Read it before changing anything.
 - [ ] Next for efficiency, when wanted: the core itself (`pi_process` is about half the
       module now). That one speeds up the phone too. Profile first (Machine state).
 
-## Session 14 — the weave (build, with the owner's eye; next)
+## Session 14 — the weave (build, with the owner's eye; after Session 15, D65)
 
 Recommended on Fable: which cells each of the seven rules lights is not designed, only its
 inputs and its tests. That is drawing by judgment, with the owner watching.
@@ -237,7 +246,14 @@ ABI 6. `ENGINE.md` §16, `design/DESIGN.md` "The animation", `design/loom/frames
       picture to hold to.
 - [ ] `DESIGN.md`'s "Not done" list brought up to date.
 
-## Session 15 — effects: the PO-12's, ours, and Rack's (design loop, Fable 5.2)
+## Session 15 — effects: the PO-12's, ours, and Rack's (design loop, Fable 5.2; next, D65)
+
+- [ ] **First, small (D65 item 4): CI's Linux image.** A Docker image with Ubuntu 16.04 and
+      what `rack/ci-linux.sh` installs (build-essential, curl, ca-certificates, jq, zstd
+      1.5.6, rustup), pushed to GitHub's container registry and used by the workflow, so
+      `apt-get update` (12 of 13 minutes) runs once, not every push. Keep glibc 2.23 and
+      gcc 5.4 exactly; `check-dist.sh` still holds the result. Measure the job's time before
+      and after.
 
 The owner's brief, 2026-11-23, in their words: "I think we should possibly have three sets of
 sends and returns? But I really don't quite know yet. At the least triggers out, with voices
@@ -436,6 +452,8 @@ The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
   is in. Questions still open: the nine readings above, the parameter reading rate, and how
   the fx key should reach Rack modules: now Session 15, a design loop on Fable 5.2 with the
   owner's whole brief in it (O15). Session 14 or Session 15 first is the owner's call.
-- **Next: Session 14, on Fable,** with the owner's eye. It opens ABI 6 for the weave (the
-  view's bytes 48 to 54). D64 changes the clock (§4) and the view's tempo (§14), so Fable
-  should plan D64 in the same session and say whether it joins ABI 6.
+- **Then the owner's rulings, D65:** effects first (Session 15); D64's measured tempo with
+  "ext" decided; the nine readings accepted; CI's Linux image as Session 15's first small
+  task. The idle CPU (0.6% stopped) is in "Later: efficiency".
+- **Next: Session 15, on Fable 5.2:** the effects design loop, research first, with CI's
+  image as its small first task. Then Session 14 (the weave), which should also plan D64.

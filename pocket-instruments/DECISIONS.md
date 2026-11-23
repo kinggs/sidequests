@@ -913,6 +913,24 @@ The menu covers the ×1 clock without moving the default. The Pocket Operator's 
 pulse is a third convention, not yet known (R23 ⚠): a later menu entry once the hardware
 hour gives its rate.
 
+### D65 — The owner's rulings at the end of Session 13
+**2026-11-23 · decided (owner, by interview) · settles D64 item 3 and Session 13's readings**
+
+1. **Effects come next:** Session 15 (the effects design loop, O15) before Session 14 (the
+   weave). Why: the effects shape the Rack showpiece, maybe its jacks, so they are settled
+   before more is built.
+2. **D64 item 3 is decided:** on an external clock the display shows the tempo measured from
+   the edges, with a small "ext" mark. Built by the next session that changes the view.
+3. **Session 13's nine readings are accepted as built** (`PLAN-HISTORY.md`, After Session 13;
+   each still a line or two to change): the menu's switch plays the sound; a key saved as
+   held is not a press; sliders drag at Rack's knob speed; Initialize empties the beat and
+   resets RETURN; a RETURN tick starts from what the cable carries; own-return "the same
+   mix" to within rounding; VOICES not bent by tanh; the self-test's green square; the
+   display and key sizes measured off the picture.
+4. **CI's Linux image:** a prebuilt Docker image with Ubuntu 16.04's packages in it, as a
+   small first task of the next session. Why: `apt-get update` takes about 12 of the
+   job's 13 minutes.
+
 ## Open
 
 | ID | Question | Needs |
@@ -930,5 +948,5 @@ hour gives its rate.
 | O10 | Probability and a short length are not on the hardware. What gesture sets them without colliding with its combinations? | `WORKFLOW.md`, after the hardware hour. Not in the first build (D52) |
 | O13 | ~~Answered 2026-11-19 for now: D47.~~ Do the hats cut each other off, and which way? `VOICES.md` says the open hat (4) cuts the closed (3) "as a real hat does"; on a real hat it is the closed that cuts the open. The hardware's behaviour is not known. Built 2026-11-19 with neither cutting the other. Recommended: closed cuts open, as a kit does, then checked on the PO-12 (D29). Cost either way: a few lines in `Voices::trigger`; the sixteen-channel layout (D33) shows the cut in track 3's channel | The owner; the hardware when to hand |
 | O14 | ~~Answered 2026-11-19, provisionally: D48.~~ The mix now passes 1: the four drums together peak at 2.1 (+6.6 dB, `harness/render-beat.json`). Where is it kept in bounds: a level and a limiter in the core, or each host saturating (D44's open item; `ENGINE.md` §10 put it "with the second voice")? Meanwhile the Rack Probe bends its output with tanh towards 10 V, so it can be heard; the browser page does nothing. Recommended: a fixed master level in the core (so a phone and Rack sound alike, D22) and each host saturating at its own ceiling. A limiter in the core would have to stay bit-identical (`+ − × ÷` only) | The owner, before the instrument's own output is built |
-| O15 | Effects: what the PO-12's fx does (punch-in, layering, per sound), what our first fx in the core is, and how each sound reaches either the internal fx or a Rack effect, with fx triggers out per channel (one, or three, sends and returns?). The owner's brief is in `PLAN.md`, Session 15 | A design loop on Fable 5.2 (Session 15), research first |
+| O15 | Effects (next: D65): what the PO-12's fx does (punch-in, layering, per sound), what our first fx in the core is, and how each sound reaches either the internal fx or a Rack effect, with fx triggers out per channel (one, or three, sends and returns?). The owner's brief is in `PLAN.md`, Session 15 | A design loop on Fable 5.2 (Session 15), research first |
 | O9 | ~~How do the three blocks stack on a phone, and does one instrument fill the screen or share it?~~ | Answered 2026-11-19: D36 |
