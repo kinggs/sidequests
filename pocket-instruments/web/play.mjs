@@ -124,6 +124,12 @@ function judge(phases) {
   const drawnBad = phases.flatMap((r) => r.drawn.bad);
   if (drawn <= 50) bad.push(`only ${drawn} drawings checked`);
   for (const d of drawnBad) bad.push(`a drawing is not its view: ${d}`);
+  // Session 20 (D82 item 4): every drawing's white held to ENGINE.md §14's rule; and in the
+  // punch phase, played with write off and sound 1's steps lit, a lit key goes white as its
+  // sound fires and comes back lit.
+  for (const r of phases) for (const d of r.white?.bad || []) bad.push(`phase ${r.phase}: a white is not §14's: ${d}`);
+  const pw = p.punch?.white || {};
+  if (!(pw.lit > 0 && pw.back > 0)) bad.push(`write off: no lit key seen going white and back to lit (${JSON.stringify(pw)})`);
   if (!(one.two?.sel === 5 && (one.two.held & 0x10020) === 0x10020 && one.two.after === 0)) bad.push(`two pointers: ${JSON.stringify(one.two)}`);
   if (!(reload.loaded === 0 && reload.hex && reload.hex === reload.before)) bad.push(`reload: loaded ${reload.loaded}; saved ${reload.hex?.slice(0, 32)}…, kept ${reload.before?.slice(0, 32)}…`);
   const L = p.latch?.latch || {};
@@ -172,7 +178,8 @@ function judge(phases) {
   if (!p6.playing) bad.push("P6: it was not playing while the keys went in");
   if (!label) bad.push(`P6: the page's snapshot is not one the wasm host ran straight-sixteenths from: ${p6.hex}`);
   if (p6.stored !== p6.hex) bad.push("P6: what the browser kept is not the snapshot the page was sent");
-  return { bad, drawn, p6 };
+  const whites = phases.reduce((n, r) => n + (r.white ? 1 : 0), 0);
+  return { bad, drawn, p6, pw, whites };
 }
 
 let ran = 0, failed = 0;
@@ -191,13 +198,14 @@ for (const name of browsers) {
   child.kill();
   await new Promise((r) => setTimeout(r, 500));
   rmSync(profile, { recursive: true, force: true });
-  const { bad, drawn, p6 } = judge(results);
+  const { bad, drawn, p6, pw, whites } = judge(results);
   if (!ok) bad.unshift("the page did not finish within two minutes");
   if (bad.length) failed++;
   if (process.env.PI_DEBUG) console.log(JSON.stringify(results.map((r) => ({ ...r, trace: undefined })), null, 1));
   const one = results.find((r) => r.phase === "1");
   console.log(`play ${name} at ${one?.rate} Hz: ${bad.length ? "FAILED" : "passed"}; ${results.length} phases, ${drawn} drawings checked; ` +
-    `P6: ${p6.hex ? "snapshot " + p6.hex.slice(32, 48) + "…" : "no snapshot"}, audio ${p6.behindMs} ms behind the page's clock over ${p6.seconds} s`);
+    `P6: ${p6.hex ? "snapshot " + p6.hex.slice(32, 48) + "…" : "no snapshot"}, audio ${p6.behindMs} ms behind the page's clock over ${p6.seconds} s; ` +
+    `whites held to §14 in ${whites} phases; write off, a lit key white ${pw.lit ?? 0} times and lit again ${pw.back ?? 0}`);
   for (const b of bad) console.log(`  ${b}`);
 }
 server.close();

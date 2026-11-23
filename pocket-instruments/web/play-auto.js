@@ -92,7 +92,36 @@ r.afterDraw = (v) => {
   }
   const bad = Object.keys(want).filter((k) => (typeof want[k] === "number" && k.includes(" ") ? Math.abs(want[k] - got[k]) > 0.01 : want[k] !== got[k]));
   if (bad.length && out.drawn.bad.length < 5) out.drawn.bad.push(`${bad.map((k) => `${k} drawn ${got[k]}, view ${want[k]}`).join("; ")} (${viewText(v, 4)})`);
+  white(v);
 };
+
+// Session 20 (D82 item 4): the white, read off the face by its colour. ENGINE.md §14: a key
+// is white under a finger, or, while the grid is sounds, for half a step at the view's tempo
+// (40 to 120 ms) after its count in `fires` moves. This keeps its own record of when each
+// count moved, from the views drawn, and shares nothing with draw(). A drawing that falls
+// within 15 ms of a white's end is not judged (the page and this read the clock a moment
+// apart). `white.lit` counts drawings where a key the field lights is white from a firing;
+// `white.back` counts a lit key drawn ecru again after that: lit, white, lit.
+const WHITE = "rgb(255, 255, 255)", ECRU = "rgb(242, 232, 208)";
+const seenFires = new Array(16).fill(null), firedAt = new Array(16).fill(-1e9), wasWhite = new Array(16).fill(false);
+out.white = { lit: 0, back: 0, bad: [] };
+function white(v) {
+  const now = performance.now(), sounds = v[24] & 16, field = u16(v, 12), held = u32(v, 8);
+  const span = Math.max(40, Math.min(120, 7500000 / Math.max(1, u32(v, 4))));
+  r.keys.forEach((el, n) => {
+    const f = v[32 + n];
+    if (seenFires[n] !== null && f !== seenFires[n] && sounds) firedAt[n] = now;
+    seenFires[n] = f;
+    if ((held >> n) & 1) return; // a finger's white is held to `held` above
+    const bg = getComputedStyle(el).backgroundColor, lit = (field >> n) & 1, left = firedAt[n] + span - now;
+    const want = sounds && left > 0;
+    if (Math.abs(left) > 15 && (bg === WHITE) !== !!want && out.white.bad.length < 5)
+      out.white.bad.push(`key ${n + 1} drawn ${bg}, ${want ? "white" : "not white"} wanted (${Math.round(left)} ms of white left; ${viewText(v, 4)})`);
+    if (bg === WHITE && lit) out.white.lit++;
+    if (bg === ECRU && lit && wasWhite[n]) out.white.back++;
+    wasWhite[n] = bg === WHITE && !!lit;
+  });
+}
 
 // Pointers, as a finger gives them.
 function pointer(el, type, id) {
