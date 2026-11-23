@@ -182,6 +182,20 @@ push; no Teenage Engineering material. And for these five:
 - Each session ends by moving its sections of `ENGINE.md` from "designed" to built, with
   what turned out different marked, and by writing `LEARNINGS.md` and the Handover.
 
+## Found in Rack after Session 13 (2026-11-23), for a session to take
+
+- [ ] D64: the menu's "one edge a beat" for CLOCK, and (proposed) the tempo shown from the
+      edges on an external clock. Both touch `ENGINE.md` §4 and §14, so plan them first.
+- [ ] Room to trim in the module (measured 2026-11-23, not yet done; Rack's meter showed
+      1.0%). A frame is about 540 cycles: the engine about 190, scanning 25 parameters and
+      three inputs about 130, the jacks and 33 output voltages about 115, the view and caps
+      about 70. Cheap and safe: write nothing to an unpatched output, ask for the mix alone
+      when VOICES and RETURN are unpatched, read the view every few frames outside a
+      self-test. A question for the owner: read the parameters every 16 or 32 frames (under
+      1 ms late) rather than on the frame the brief asks for. None of it changes the page:
+      the browser already runs 128-frame blocks, and the engine alone is about 0.15% of a
+      core there and here.
+
 ## Session 14 — the weave (build, with the owner's eye; next)
 
 Recommended on Fable: which cells each of the seven rules lights is not designed, only its

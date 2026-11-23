@@ -893,6 +893,26 @@ In Rack (Session 13): Rack's own double-click resets a parameter to its configur
 default, which with bpm held would give 150 bpm. The module sets the parameter to the same
 starting values instead, from the view.
 
+### D64 — The clock stays one edge a step, as SEQ-3's does; the menu offers one edge a beat
+**2026-11-23 · decided (owner: "Lets stick to what rack does with e.g. Seq3 already, and add the right-click config") · keeps `ENGINE.md` §4 · not built yet**
+
+1. **CLOCK in is one edge a sixteenth step by default,** as now and as VCV's SEQ-3 does. A
+   clock module's ×1 output (Impromptu's Clocked) is one pulse a beat, so it needs ×4. Seen
+   by the owner in Rack on 2026-11-23: Clocked at ×1 ran the beat at a quarter of the speed.
+2. **The right-click menu adds "one edge a beat",** saved with the patch, so a ×1 clock plays
+   at its tempo. Where it lives is for the session that builds it. In the core (four steps
+   spread across each edge), the page and Rack cannot disagree; that changes §4 and
+   wants fixtures for both settings.
+3. **Proposed, not decided:** on an external clock the display shows the tempo measured from
+   the edges, marked as not the module's own, in place of the stored tempo. The owner saw the
+   display keep 116 while Clocked ran at 123. The engine already measures the period
+   (§4), so this belongs in the view (§14), for both hosts.
+
+Why: Rack's step sequencers count one edge a step, and a player who knows SEQ-3 expects it.
+The menu covers the ×1 clock without moving the default. The Pocket Operator's own sync
+pulse is a third convention, not yet known (R23 ⚠): a later menu entry once the hardware
+hour gives its rate.
+
 ## Open
 
 | ID | Question | Needs |
