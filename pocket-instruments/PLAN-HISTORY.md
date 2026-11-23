@@ -361,6 +361,71 @@ ABI 5. `ENGINE.md` §15. The list was checked against the code after Session 10
       size check as it is now.
       Done: it failed first ("0 loaded, 0 refused"), then passed at three rates.
 
+---
+
+## Session 12 — the page: playable on a phone (build, Opus; done 2026-11-23)
+
+`web/rhythm.html`, in the Loom look (`design/DESIGN.md`, "The phone"; `design/loom/phone.html`
+is the picture). Finishes P6. This is the first build the owner can play.
+
+- [x] The worklet: `KEY_DOWN`, `KEY_UP`, `PARAM` by message; the view posted back (§14's
+      rule for when); the snapshot posted when the generation moves, a few times a second
+      at most; a load by message, between blocks.
+      Done: `web/worklet.js` behind a new `instrument` option, so the P4 and listening
+      pages run as before. Views when bytes 4 to 63 change and every sixtieth of a second
+      while playing; a snapshot at most every quarter second; a load queued with the keys
+      (§8). Beside each view and snapshot, the count of queue entries taken (§8's "count of
+      the messages taken"), so a page knows when one holds everything it sent.
+- [x] The face: the plain display (tempo, `bpm`, the write mark, the step number, sixteen
+      step marks; the weave's area left as bare display), sixteen keys, seven function
+      keys, two sliders. Everything lit from the view; the page keeps no copy of the
+      workflow. Pointer events with capture, several at once; nothing latches.
+      Done. A key is down while any finger, pointer or computer key holds it. Readings
+      built on are in `design/DESIGN.md`'s "Not done" (⚠): the slider drag, the bar's
+      colour, the white under reduced motion, the sheet's lit sample.
+- [x] Sound starts on the first touch, and that touch counts as a press.
+      Done: the context and the worklet exist before any touch; the touch resumes the
+      context and its press waits in the queue. `make play` suspends the context first.
+- [x] Computer keys (D57 item 5).
+      Done, by the key's place (`event.code`). Repeats ignored. Losing focus lets go of the
+      computer keys; a hidden page lets go of everything.
+- [x] The beat is kept in the browser (the snapshot, base64) and is there after a reload.
+      Done: `localStorage` `pocket-instruments/rhythm/beat`, loaded before the first block
+      by the length read.
+- [x] Below the instrument: the sixteen code-or-sample switches with All code and All
+      samples (from `listen.html`), and the credits (D7, and the README's second paragraph).
+      Done. The switches are lit from the view's `sampled` mask. The credits link Teenage
+      Engineering's own page (no affiliate link), and name the samples (CC0) and the font (OFL).
+- [x] Reduced motion respected; nothing under 16 px; every state without hue, as
+      `loom/states.html` shows.
+      Done: no transition or animation anywhere, and the media query forbids one; type is
+      16 to 42 px; the states are `states.html`'s, checked by eye in a screenshot.
+- [x] `make play` (`web/play.mjs`, both desktop browsers, as `listen.mjs` does): enter
+      `straight-sixteenths`' pattern by keys while stopped, press play, and the worklet's
+      trace is that fixture's (the play key resets, so ticks start at 0); press
+      `keys-bpm-family`'s keys and the last view, as text, is the fixture's last; every
+      key's drawn state equals the view it was drawn from; two pointers held at once choose
+      a sound; a reload brings the beat back. Each fails once on a planted fault.
+      Done: passed in Chromium 155 and Firefox 158. Added: the first touch, with the
+      context suspended, must start sound and turn write on. Eight faults planted in
+      Chromium, each failed: seven at their own line; the eighth (a new touch lets go of the
+      other fingers) during the pattern entry, which needs two fingers to choose a sound,
+      so the two-pointer line never ran (`LEARNINGS.md`). Sliders are moved through the
+      page's own `slide()`: a drag cannot aim at 40000.
+- [x] **P6's browser half:** enter a P2 fixture's pattern by keys while it plays, take the
+      saved snapshot from the page, load it in `target/harness`: that fixture's trace.
+      Fill in `PROOFS.md` P6.
+      (Noted 2026-11-20: `target/harness` has no such mode yet. Either add one, or do as
+      `harness/race.sh` does and look for the page's bytes among the report's "snapshot"
+      labels. Keys cannot set a probability or a length, so the fixture is
+      `straight-sixteenths`; the page's seed must be 1 and its tempo 120.)
+      Done the second way, inside `make play`: both browsers' bytes are a label. P6 is
+      still running: a dropout by ear on a phone is left.
+- [x] Not built: a link that carries a beat, an offline shell, the weave.
+- [ ] For the owner after it: play it on the phone beside the PO-12 and start P8's list;
+      tick or correct `WORKFLOW.md`'s readings, and D59's (stopped, no key shows the
+      playhead).
+
 # The Handover notes
 
 ### After Session 0 (2026-11-18)
@@ -711,3 +776,44 @@ the numbers stay easy to tweak.
   shows. The weave's cell size is to be read off `frames.html` in Session 14.
 - **Next: Session 10.** Nothing waits on the owner. Fable is recommended for 10 and 14,
   Opus for 11, 12 and 13 (the reasons are under each heading).
+
+### After Session 10: the workflow in the core (2026-11-20)
+
+- **Built: ABI 4.** `KEY_DOWN`, `KEY_UP` and `PARAM` do what `ENGINE.md` §13 says, `pi_view`
+  writes §14's 64 bytes, and the master volume is on the mix. No host has a face: nothing
+  can be pressed or seen yet. That is Session 12 (the phone) and Session 13 (Rack).
+- **The contract held.** The three fixtures were worked out by hand, committed, and only
+  then run: all three passed at the first run on all three harnesses, no trace and no view
+  edited. Where §13 and §14 were silent is **D59: eight rulings, built on, for the owner to
+  overrule cheaply.** The one a player would see: stopped, no key shows the playhead.
+- **Proven:** `make test` (103 Rust tests; seven fixtures, 168 runs a harness, one report;
+  114 render pairs; the race harness with keys and views, six planted faults caught),
+  `make p4` (24 of 24 in Chromium and Firefox, ABI 4), `make listen` (both), `make -C rack
+  selftest` (three rates). Nothing older moved: the four fixtures' 96 report sections and
+  every render file are the same bytes as before the session.
+- **Every new check failed once on purpose:** 83 faults planted in the core, each failing a
+  named test (one by aborting the run); 4 in the fixtures and 4 in each harness, each
+  caught by the harness it was in. Two things that taught something are in `LEARNINGS.md`:
+  a plant script that reported every fault caught when cargo had never run, and a rule
+  missing from the rule tests that only a fixture caught.
+- **Fixed beside it:** `rack/Makefile` built the Probe's fixtures with one `jq` over every
+  file, whose exit status is the last file's alone. A fixture it refused was dropped and
+  the build went on. Found when CI went green past three such errors; now one `jq` a file.
+- **Sizes:** the engine is 2 352 bytes (was 2 328), inside the hosts' 4 KiB. The `.wasm` is
+  26 998 bytes (was 23 692).
+- **For Session 11 (Opus), what will bite:**
+  - `the_generation_moves_exactly_when…` in `core/src/tests/keys.rs` has two halves. The
+    random half holds "the generation moves exactly when the snapshot's bytes change" and
+    should pass unchanged on version 2. The first half lists presses that leave the
+    generation alone: the volume, sound + key and `param` lines there become movers
+    (§15), so move them out of that list and say so.
+  - The view's volume row is `(1 << volume) - 1`: a volume past 16 from a loaded snapshot
+    would overflow it. §15's clamp (1 to 16) is what keeps it true; test the clamp.
+  - `Host::save` in `core/src/tests/mod.rs` is a fixed 316, with the rest the plan lists.
+  - `rack/fixtures.jq` leaves format 2 out, and `web/desktop.mjs` counts format 1 only.
+    A new format 1 fixture still reaches both; a format 2 one reaches neither.
+- **Not done, on purpose:** a view in the worklet or the Probe (Sessions 12 and 13); the
+  weave's three fields, which stay zero (Session 14).
+- **Waits for the owner, blocking nothing:** a look at D59. Still open from before: P4 on
+  an iPhone, P5's loads ~~and VCV's reply~~ (answered 2026-11-23, R46), which keys become samples.
+- **Next: Session 11,** on Opus.

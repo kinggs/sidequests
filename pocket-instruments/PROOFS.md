@@ -18,7 +18,7 @@ engineering gate the brief asks for (its D2). Nothing visual is built before P3 
 | P3 | It runs in Rack | passed 2026-11-19 |
 | P4 | It runs in a phone browser | running: both desktop browsers, Android Chrome and the ten minutes passed 2026-11-19; iOS Safari and the tap latency are left |
 | P5 | It ships to other people's machines | running: CI builds and checks all four plugins (2026-11-19, Session 6); none loaded in Rack off this laptop yet; VCV answered 2026-11-23 (R46: binaries from a verified author, not built by the Library); macOS 10.9 not met (the owner accepts 10.12, D46) |
-| P6 | Editing while playing is safe | running: ThreadSanitizer half and the save in Rack passed 2026-11-19, with a finding (D43); the browser is left |
+| P6 | Editing while playing is safe | running: ThreadSanitizer half and the save in Rack passed 2026-11-19, with a finding (D43); the browser's saved pattern passed 2026-11-23 (Session 12); left: listening for a dropout on a phone while editing |
 | P7 | Shared sound is worth sharing | passed 2026-11-19 |
 | P8 | It feels like the real thing | open |
 | P9 | The look is one we may publish | open |
@@ -385,7 +385,7 @@ reordered (a model engine given the same messages must end each round with the s
 | Bar | Measured |
 |---|---|
 | ThreadSanitizer clean | Clean, twice: flat out (about 100 000 blocks, 19 000 publishes, 28 000 snapshots taken) and with an idle audio thread (10 884 blocks, 1.1 million snapshots taken). 3 804 rounds, 19 862 edits and 760 loads each time; 0 torn, 0 rounds where the snapshot was not the model's; 0 events dropped |
-| No dropout | In Rack: none heard in ten minutes, while Rack autosaved the patch every 15 s and the probes published 313 snapshots between them. **Left**: the browser |
+| No dropout | In Rack: none heard in ten minutes, while Rack autosaved the patch every 15 s and the probes published 313 snapshots between them. In the browser (Session 12): headless on the laptop, the audio clock stayed within 1 ms of the page's over 4.3 s of play with keys going in, in Chromium and Firefox. Not heard. **Left**: on a phone, by ear, editing while it plays |
 | A saved pattern reloads to the same P2 trace on the other host | From the harness, yes: each fixture's pattern was entered as edits while the core played, the snapshot taken, and those exact 316 bytes are ones the wasm host loaded in `make test` and got that fixture's trace from (four of four). From a patch saved in Rack while it played: yes. `rack/check-patch.mjs` on Rack's own autosave, taken at 14:37 with Rack still playing: both probes' snapshots are whole, and each is byte for byte one the wasm host loaded and got that fixture's trace from. ⚠ It was Rack's autosave, not File › Save As; both call the module's same `dataToJson` on Rack's thread |
 
 **The findings** (`ENGINE.md` §8 now says all of this):
@@ -421,8 +421,19 @@ messages and 880 loads each time; about 33 000 views read flat out and 14 500 wi
 audio thread, none torn. A sixth planted fault, a view handed over with its volume byte
 cleared, is caught (exit 1). Seven snapshots taken while playing, one a fixture.
 
-**To finish it:** the browser's half, which comes with the instrument: the worklet posts
-a copy, so there is no shared memory to race on. (To repeat the Rack row:
+**Since Session 12 (2026-11-23): the browser's half.** `web/rhythm.html`'s worklet posts
+a copy of the snapshot when the generation moves (at most four a second), so there is no
+shared memory to race on; a load travels in the same queue as the keys (§8). `make play`
+(`web/play.mjs`), in headless Chromium 155 and Firefox 158 at 48 kHz: with the page
+playing, the pattern is cleared and `straight-sixteenths`' pattern entered again by pointer
+events on the drawn keys; the snapshot the page then saved and kept in the browser is byte
+for byte a `# straight-sixteenths … snapshot` label in the Node report, so the wasm host
+loaded those bytes and gave that fixture's trace (as `harness/race.sh` checks Rack's).
+Both browsers passed. A page whose seed was 2 was caught (the bytes are in no label), and
+so was one that kept only its first snapshot.
+
+**To finish it:** listen on a phone while editing: play a beat, enter steps, move sliders,
+for a few minutes, and hear no dropout. The owner's, with P8's first sitting. (To repeat the Rack row:
 `node rack/check-patch.mjs ~/.local/share/Rack2/autosave/patch.json target/report-node.txt`
 while Rack plays.)
 

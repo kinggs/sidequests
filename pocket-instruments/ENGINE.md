@@ -384,6 +384,11 @@ ThreadSanitizer, `harness/race.cpp`). `rack/src/handoff.hpp` is this in C++:
   block and must not offer a save as if it had.
 - In the browser the worklet posts the bytes in a message, at most a few a second. A
   message is a copy, so nothing is shared and none of the above can go wrong there.
+  **Built (Session 12):** `web/worklet.js` with `instrument`: a snapshot when the
+  generation has moved, at most four a second; a load as a marker in the queue with the
+  keys, run between blocks; and beside each snapshot and view a count of queue entries
+  taken, the count this section asks for. `make play` holds a snapshot saved while
+  playing to the bytes the wasm host ran a fixture from (`PROOFS.md` P6).
 
 ## 9. The table, in the browser
 
@@ -651,6 +656,11 @@ view play=1 write=1 edges=0 sounds=0 step=4 sel=0 vol=16 tempo=120000 len=16 swi
 
 `edges` is the one field that differs between a fixture's two runs: a fixture's text is the
 table run's, and the edges run expects `edges=1` in its place (D59; `fixtures/README.md`).
+
+**Drawn (Session 12):** `web/rhythm.html` lights everything from the view, as the list
+above says, and posts it from the worklet when bytes 4 to 63 change and at least sixty
+times a second while playing. `make play` reads every drawing back off the page and holds
+it to the view it came from. Nothing in this section changed.
 
 **Built (Session 10):** `pi_view` and `Engine::view` in `core/src/keys.rs`;
 `PI_VIEW_SIZE` and each field's offset (`PI_VIEW_*`) in the header. Proven by the views in

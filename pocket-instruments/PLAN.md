@@ -95,6 +95,7 @@ Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
 | 9, the instrument planned (Fable) | `ENGINE.md` §13 to §16, D51 to D58, Sessions 10 to 14 | 2026-11-20 |
 | 10, the workflow in the core (Fable) | keys, sliders, the view, the volume: ABI 4; fixture format 2 and three key fixtures; D59 | 2026-11-20 |
 | 11, snapshot version 2 (Opus) | ABI 5: the snapshot holds the sliders, switches, volume and choice; version 1 still loads, in the core and the Probe; `PI_AUDIO_BOTH` | 2026-11-20 |
+| 12, the page on a phone (Opus) | `web/rhythm.html`, playable; `make play`; P6's browser snapshot passed | 2026-11-23 |
 
 ## Still the owner's hands
 
@@ -110,6 +111,9 @@ Unticked in the finished lists. None blocks a build session.
       eleven questions. By D29 this is done as mismatches turn up, not in one sitting.
 - [ ] Measure the PO-12 (width, height, key pitch, jack spacing) for D16.
 - [ ] By ear, on the listening page or in Rack: which keys become samples (D35, D50).
+- [ ] Play `web/rhythm.html` on the phone (P8's start), and listen for a dropout while
+      editing it as it plays: the last of P6 (`PROOFS.md`).
+- [ ] A look at Session 12's four ⚠ readings on the phone (`design/DESIGN.md`, "Not done").
 - [ ] A look at D59, Session 10's eight rulings.
 - [ ] Two readings Session 11 built on (⚠ in `ENGINE.md` §15): a loaded chosen sound past
       15 becomes 15; snapshot bytes 381 to 383 are not read.
@@ -165,44 +169,7 @@ push; no Teenage Engineering material. And for these five:
 - Each session ends by moving its sections of `ENGINE.md` from "designed" to built, with
   what turned out different marked, and by writing `LEARNINGS.md` and the Handover.
 
-## Session 12 — the page: playable on a phone (build, Opus; next)
-
-`web/rhythm.html`, in the Loom look (`design/DESIGN.md`, "The phone"; `design/loom/phone.html`
-is the picture). Finishes P6. This is the first build the owner can play.
-
-- [ ] The worklet: `KEY_DOWN`, `KEY_UP`, `PARAM` by message; the view posted back (§14's
-      rule for when); the snapshot posted when the generation moves, a few times a second
-      at most; a load by message, between blocks.
-- [ ] The face: the plain display (tempo, `bpm`, the write mark, the step number, sixteen
-      step marks; the weave's area left as bare display), sixteen keys, seven function
-      keys, two sliders. Everything lit from the view; the page keeps no copy of the
-      workflow. Pointer events with capture, several at once; nothing latches.
-- [ ] Sound starts on the first touch, and that touch counts as a press.
-- [ ] Computer keys (D57 item 5).
-- [ ] The beat is kept in the browser (the snapshot, base64) and is there after a reload.
-- [ ] Below the instrument: the sixteen code-or-sample switches with All code and All
-      samples (from `listen.html`), and the credits (D7, and the README's second paragraph).
-- [ ] Reduced motion respected; nothing under 16 px; every state without hue, as
-      `loom/states.html` shows.
-- [ ] `make play` (`web/play.mjs`, both desktop browsers, as `listen.mjs` does): enter
-      `straight-sixteenths`' pattern by keys while stopped, press play, and the worklet's
-      trace is that fixture's (the play key resets, so ticks start at 0); press
-      `keys-bpm-family`'s keys and the last view, as text, is the fixture's last; every
-      key's drawn state equals the view it was drawn from; two pointers held at once choose
-      a sound; a reload brings the beat back. Each fails once on a planted fault.
-- [ ] **P6's browser half:** enter a P2 fixture's pattern by keys while it plays, take the
-      saved snapshot from the page, load it in `target/harness`: that fixture's trace.
-      Fill in `PROOFS.md` P6.
-      (Noted 2026-11-20: `target/harness` has no such mode yet. Either add one, or do as
-      `harness/race.sh` does and look for the page's bytes among the report's "snapshot"
-      labels. Keys cannot set a probability or a length, so the fixture is
-      `straight-sixteenths`; the page's seed must be 1 and its tempo 120.)
-- [ ] Not built: a link that carries a beat, an offline shell, the weave.
-- [ ] For the owner after it: play it on the phone beside the PO-12 and start P8's list;
-      tick or correct `WORKFLOW.md`'s readings, and D59's (stopped, no key shows the
-      playhead).
-
-## Session 13 — the Rack module (build, Opus)
+## Session 13 — the Rack module (build, Opus; next)
 
 `rack/src/Rhythm.cpp`, 24 HP, on `design/panel.svg`, at `design/DESIGN.md`'s positions. The
 Probe is its template and stays as it is.
@@ -292,47 +259,6 @@ Decided when P1 to P4 are in, not before:
 
 The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
 
-### After Session 10: the workflow in the core (2026-11-20)
-
-- **Built: ABI 4.** `KEY_DOWN`, `KEY_UP` and `PARAM` do what `ENGINE.md` §13 says, `pi_view`
-  writes §14's 64 bytes, and the master volume is on the mix. No host has a face: nothing
-  can be pressed or seen yet. That is Session 12 (the phone) and Session 13 (Rack).
-- **The contract held.** The three fixtures were worked out by hand, committed, and only
-  then run: all three passed at the first run on all three harnesses, no trace and no view
-  edited. Where §13 and §14 were silent is **D59: eight rulings, built on, for the owner to
-  overrule cheaply.** The one a player would see: stopped, no key shows the playhead.
-- **Proven:** `make test` (103 Rust tests; seven fixtures, 168 runs a harness, one report;
-  114 render pairs; the race harness with keys and views, six planted faults caught),
-  `make p4` (24 of 24 in Chromium and Firefox, ABI 4), `make listen` (both), `make -C rack
-  selftest` (three rates). Nothing older moved: the four fixtures' 96 report sections and
-  every render file are the same bytes as before the session.
-- **Every new check failed once on purpose:** 83 faults planted in the core, each failing a
-  named test (one by aborting the run); 4 in the fixtures and 4 in each harness, each
-  caught by the harness it was in. Two things that taught something are in `LEARNINGS.md`:
-  a plant script that reported every fault caught when cargo had never run, and a rule
-  missing from the rule tests that only a fixture caught.
-- **Fixed beside it:** `rack/Makefile` built the Probe's fixtures with one `jq` over every
-  file, whose exit status is the last file's alone. A fixture it refused was dropped and
-  the build went on. Found when CI went green past three such errors; now one `jq` a file.
-- **Sizes:** the engine is 2 352 bytes (was 2 328), inside the hosts' 4 KiB. The `.wasm` is
-  26 998 bytes (was 23 692).
-- **For Session 11 (Opus), what will bite:**
-  - `the_generation_moves_exactly_when…` in `core/src/tests/keys.rs` has two halves. The
-    random half holds "the generation moves exactly when the snapshot's bytes change" and
-    should pass unchanged on version 2. The first half lists presses that leave the
-    generation alone: the volume, sound + key and `param` lines there become movers
-    (§15), so move them out of that list and say so.
-  - The view's volume row is `(1 << volume) - 1`: a volume past 16 from a loaded snapshot
-    would overflow it. §15's clamp (1 to 16) is what keeps it true; test the clamp.
-  - `Host::save` in `core/src/tests/mod.rs` is a fixed 316, with the rest the plan lists.
-  - `rack/fixtures.jq` leaves format 2 out, and `web/desktop.mjs` counts format 1 only.
-    A new format 1 fixture still reaches both; a format 2 one reaches neither.
-- **Not done, on purpose:** a view in the worklet or the Probe (Sessions 12 and 13); the
-  weave's three fields, which stay zero (Session 14).
-- **Waits for the owner, blocking nothing:** a look at D59. Still open from before: P4 on
-  an iPhone, P5's loads ~~and VCV's reply~~ (answered 2026-11-23, R46), which keys become samples.
-- **Next: Session 11,** on Opus.
-
 ### After Session 11: snapshot version 2 (2026-11-20)
 
 - **Built: ABI 5.** `pi_save` writes §15's 388 bytes: version 1 plus each track's sliders,
@@ -374,3 +300,43 @@ The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
     sliders, volume and choice. Entering its pattern by keys from a fresh page gives those,
     so the bytes should match the report's label. A page that moved a slider first will not.
 - **Next: Session 12,** on Opus.
+
+### After Session 12: the page on a phone (2026-11-23)
+
+- **Built: `web/rhythm.html`, the first thing the owner can play.** Live, after the push,
+  at `https://kinggs.github.io/sidequests/pocket-instruments/web/rhythm.html`. The Loom face,
+  lit only from the core's view; several fingers at once; computer keys; the beat kept in
+  the browser; the sounds sheet and the credits below it. The core did not change: ABI 5.
+- **Proven:** `make play` passed in Chromium and Firefox: the worklet's trace is
+  `straight-sixteenths`' after its pattern went in by keys and play was pressed;
+  `keys-bpm-family`'s last view is the fixture's; about 250 drawings a browser read back
+  off the face, each equal to its view; two fingers choose a sound and nothing stays held;
+  a reload brings the beat back; the first touch starts sound and counts. `make p4` (24 of
+  24, both) and `make listen` (both) still pass on the changed worklet. The repo's
+  `make verify` passes. The report and all 276 render files: the same bytes as before.
+- **P6's browser half passed its saved-pattern bar:** the snapshot saved while it played
+  is bytes the wasm host ran `straight-sixteenths` from. P6 stays running for one thing,
+  a dropout by ear on a phone while editing (below).
+- **Every check failed once on purpose:** eight planted faults. One judge bug was found
+  that way first: the keys-bpm-family line compared two missing values and passed
+  (`LEARNINGS.md`).
+- **Opus decided nothing; four readings were built on and marked ⚠** in `design/DESIGN.md`'s
+  "Not done": a slider drags from where its cap shows (a touch alone moves nothing); the
+  bar is ochre with pattern held, madder otherwise; a firing key stays white with reduced
+  motion asked for; the sheet lights a sampled key as a step is lit. Each is a line or
+  two of `web/rhythm.html`. Also: the font comes from Google Fonts, so offline it falls
+  back to the system monospace, which belongs with the offline shell.
+- **For the owner, blocking nothing:** play it on the phone (P8's start), with the PO-12
+  beside it if it is to hand. While it plays, enter steps and move sliders for a few
+  minutes and listen for a dropout: that closes P6. Then the readings above, and D59's
+  (stopped, no key shows the playhead).
+- **For Session 13 (Opus), what will bite:**
+  - The page's checks press keys and read views through the core, so most of what Rack
+    needs is already proven once; what is Rack's own is the latch (D57 item 4) and the
+    parameters. Keep the Probe's `handoff.hpp` scheme: the page's equivalent, a count of
+    queue entries taken beside each view and snapshot, was what made its checks exact
+    rather than timed.
+  - The view's white needs a host-side "last fires seen" per track, not a flag; the page
+    keeps one array and a timer for when the next white goes out.
+  - `rack/fixtures.jq` still leaves format 2 out; Session 13's own filter is in its list.
+- **Next: Session 13,** on Opus.

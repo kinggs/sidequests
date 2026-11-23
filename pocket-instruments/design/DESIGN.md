@@ -1,7 +1,8 @@
 # The look: Loom
 
 **Status:** chosen by the owner on 2026-11-19 (D36) from three directions drawn in Claude
-Design to `PROMPT.md`. Nothing here is built. ⚠ marks a proposal the owner has not ruled on.
+Design to `PROMPT.md`. The phone is built (`web/rhythm.html`, Session 12), without the
+animation; the Rack panel is Session 13. ⚠ marks a proposal the owner has not ruled on.
 
 The idea in one line: a pattern is a cloth. The grid is a tight woven swatch, the dividers are
 stitches, the sliders are shuttles on a thread, and the display weaves as the pattern plays.
@@ -258,7 +259,15 @@ the function keys side by side.
 
 ## Not done
 
-- The keys, slider caps, sockets and display are not drawn as Rack widgets or web components.
+- ~~The keys, slider caps, sockets and display are not drawn as Rack widgets or web
+  components.~~ On the phone they are (Session 12, `web/rhythm.html`, plain CSS); in Rack,
+  Session 13.
+- On the phone, readings the design did not settle (Session 12, ⚠): a slider is dragged
+  from where its cap shows, so a touch alone moves nothing; the bar is ochre while pattern
+  is held and madder otherwise; a key whose sound fires stays white with reduced motion
+  asked for, because it is a state and not movement; the sounds sheet lights a key that
+  plays its sample as a step is lit (ecru face, dark letters). Below 720 px tall the
+  function keys' words drop from 18 to 16 px to fit up the key.
 - The animation is seven rules and three frames, not a running thing. Nobody has seen it move.
 - Contrast is by arithmetic. Nobody has looked at it on a phone in daylight or in Rack at
   normal zoom.

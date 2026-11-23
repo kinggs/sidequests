@@ -345,3 +345,26 @@ belongs in `PROOFS.md`, a change of course in `DECISIONS.md`, an outside fact in
   show it.** The core loaded version 1 from the first build; Rack would still have dropped
   an old patch's beat unread, because `Probe.cpp` copied exactly `PI_SNAPSHOT_SIZE` bytes or
   none. The self-test failed on "0 loaded" first, as the plan asked, then passed.
+
+## Session 12: the page on a phone (2026-11-23)
+
+- **A check that compares two missing values passes.** `web/play.mjs` first read
+  `p.bpm.last` where the phase had reported `p.bpm.bpm.last`. `undefined !== undefined` is
+  false, so the keys-bpm-family line passed with nothing checked; only the reload line,
+  which tested a value as well, showed the slip. Every comparison now also demands its
+  expected side exists, and the planted faults are run after any change to a judge.
+- **Plant faults at the line, and say when an earlier line catches one.** A page that let go
+  of every other finger on a new touch failed during the pattern entry, because choosing a
+  sound already needs two fingers at once. The two-pointer line never ran. That still
+  proves the fault is caught, but not that the line itself can fail; the record says which.
+- **`aspect-ratio` with a `max-height` narrows the box, it does not shorten it.** On a
+  360 × 640 screen the grid keys kept square and shrank sideways, leaving gaps. The height is
+  now `clamp(60px, min(column width, room / 4), 200px)`, with no aspect ratio. Seen only in
+  a screenshot at that size: the checks read classes, not geometry.
+- **A virtual-time screenshot does not run an AudioWorklet.** Headless Chromium's
+  `--virtual-time-budget` drew the page before any view arrived. To see the lit states, a
+  scratch copy set `rhythm.latest.view` to a hand-made view and redrew. The checks never need
+  that; a look does.
+- **`pkill -f` with a pattern also in its own command line kills the shell running it.**
+  The pattern matched the bash that ran `pkill`, which died with exit 144 before the next
+  command. Stop a server by its port or by the PID taken at its start.
