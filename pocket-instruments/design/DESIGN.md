@@ -267,7 +267,7 @@ the function keys side by side.
   is held and madder otherwise; a key whose sound fires stays white with reduced motion
   asked for, because it is a state and not movement; the sounds sheet's switch is lit
   as a step is lit (ecru face, dark letters) when it plays the sample, and a name goes white
-  when its sound fires. A right-click latch (D60) lights the whole face in the key's colour,
+  when its sound fires. A Ctrl+click latch (D61) lights the whole face in the key's colour,
   as `states.html`'s "latched". Below 720 px tall the
   function keys' words drop from 18 to 16 px to fit up the key.
 - The animation is seven rules and three frames, not a running thing. Nobody has seen it move.

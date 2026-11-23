@@ -838,6 +838,18 @@ Why: one pointer cannot hold two keys, and D57 item 4's left-click latch took aw
 plain hold that a mouse and keyboard together can do. Right-click keeps both. Not chosen:
 D57 item 4 as written; a modifier-click on the page.
 
+### D61 — The latch is Ctrl+click, on the page and in Rack
+**2026-11-23 · decided (owner: "lets go with CTRL+Click for now") · supersedes D60 items 2 and 3 (the right-click); the rest of D60 stands**
+
+Ctrl+click (Cmd+click on a Mac, as Rack reads Ctrl) on sound, pattern, bpm, function or fx
+latches it, by D60's rules: a press of any key that ends lets it go, a slider move does
+not, Ctrl+click again lets it go. Ctrl+click on play, write or a grid key is a plain press.
+A right-click does nothing on the page, and in Rack keeps its own parameter menu (R47).
+
+Why: one rule on both hosts (D22) without taking Rack's menu off five controls. R47's
+nearest precedent, the monome grid modules, latches with a modified click too. "For now":
+to be tried by hand at P8.
+
 ## Open
 
 | ID | Question | Needs |
