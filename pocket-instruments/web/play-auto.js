@@ -195,6 +195,7 @@ const mouse = (el, type, button, ctrlKey = false) => el.dispatchEvent(new Pointe
   buttons: type === "pointerdown" ? 1 << (button === 2 ? 1 : 0) : 0,
 }));
 // The latched light is the page's own state, drawn on the next frame: wait two frames.
+const DOUBLE_GAP = 350; // longer than the page's double-click window, so two pairs stay two
 const frames2 = () => new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res)));
 const ctrl = (el) => { mouse(el, "pointerdown", 0, true); mouse(el, "pointerup", 0, true); };
 const rightClick = (el) => { mouse(el, "pointerdown", 2); mouse(el, "pointerup", 2); };
@@ -245,6 +246,26 @@ async function phaseLatch() {
   L.playAfterCtrl = { playing: v[24] & 1, held: u32(v, 8) };
   ctrl(r.fkeys[5]);
   await settle((x) => !(x[24] & 1), "stopped");
+  // D63: a double-click puts a slider back. The chosen sound's A moved, then double-clicked:
+  // 32768. With bpm held, A double-clicked: swing 0; B: 120 bpm.
+  const dbl = (el) => { click(el); click(el); };
+  r.slide(0, 10000);
+  await settle((x) => u16(x, 20) === 10000, "slider A at 10000");
+  dbl(r.sliders[0]);
+  v = await settle((x) => u16(x, 20) === 32768, "slider A back to the middle");
+  L.dblA = u16(v, 20);
+  hold(r.fkeys[2], 990);
+  r.slide(0, 30000);
+  r.slide(1, 50000);
+  await settle((x) => x[29] > 0 && u32(x, 4) !== 120000, "swing and tempo moved");
+  await sleep(DOUBLE_GAP);
+  dbl(r.sliders[0]);
+  await sleep(DOUBLE_GAP);
+  dbl(r.sliders[1]);
+  v = await settle((x) => x[29] === 0 && u32(x, 4) === 120000, "swing 0 and 120 bpm");
+  L.dblBpm = { swing: v[29], tempo: u32(v, 4) };
+  lift(r.fkeys[2], 990);
+  await settle((x) => u32(x, 8) === 0, "bpm let go");
   // The sheet: the name plays its sound and changes nothing; the switch changes it and plays it.
   const f = (x) => x[32 + 2];
   const before = f(await settle());

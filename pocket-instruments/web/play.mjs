@@ -24,6 +24,8 @@
 //     bpm, two slider moves leave it held, Ctrl+click it again: the tempo is B's 170 bpm,
 //     not a preset; Ctrl+click function, click pattern: cleared; a right-click: nothing;
 //     Ctrl+click on play: a plain press, it plays;
+//   - a double-click puts a slider back (D63): the chosen sound's A to 32768; with bpm
+//     held, A to swing 0 and B to 120 bpm;
 //   - the sounds sheet (D60): a name fires its sound once and switches nothing; the switch
 //     turns it to its sample and fires it once more;
 //   - P6's browser half: the pattern entered by keys while it plays, the snapshot the page
@@ -112,6 +114,7 @@ function judge(phases) {
   if (!latchOk) bad.push(`Ctrl+click latch: ${JSON.stringify({ ...L, nameFired: undefined, nameSampled: undefined, switchFired: undefined, switchSampled: undefined, switchLabel: undefined })}`);
   if (!(L.nameFired === 1 && L.nameSampled === 0 && L.switchFired === 2 && L.switchSampled === 4 && L.switchLabel === "sample"))
     bad.push(`sounds sheet: name fired ${L.nameFired} (sampled ${L.nameSampled}); switch fired ${L.switchFired} (sampled ${L.switchSampled}, "${L.switchLabel}")`);
+  if (!(L.dblA === 32768 && L.dblBpm?.swing === 0 && L.dblBpm?.tempo === 120000)) bad.push(`double-click: A ${L.dblA}; with bpm ${JSON.stringify(L.dblBpm)}`);
   const p6 = one.p6 || {};
   const label = p6.hex && new RegExp(`^# straight-sixteenths .* snapshot ${p6.hex}$`, "m").test(report);
   if (!p6.playing) bad.push("P6: it was not playing while the keys went in");

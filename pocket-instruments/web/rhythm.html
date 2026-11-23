@@ -157,6 +157,8 @@
   volume, slider A the swing, slider B the tempo; tap it alone for 80, 120 and 140. Hold
   <b>function</b> and press <b>pattern</b> to clear. With a keyboard: <b>1234 qwer asdf zxcv</b>
   are the keys, <b>7 8 9</b> sound, pattern and bpm, <b>u i o p</b> function, fx, play and write.
+  Double-click (or double-tap) a slider to put it back to the middle; with bpm held, to swing
+  0 and 120 bpm.
   With a mouse: <b>Ctrl+click</b> (<b>Cmd+click</b> on a Mac) sound, pattern, bpm, function or fx
   to hold it down; the next click on a key lets it go (so Ctrl+click sound, click 16), or
   Ctrl+click it again.</p>
@@ -350,6 +352,15 @@ const finger = [null, null];          // { id, y, from, value } while a finger i
 function slide(which, value) {
   send([CMD.param, which, 0, Math.max(0, Math.min(65535, Math.round(value)))]);
 }
+// D63: a double-click (or double-tap) puts a slider back to its starting value, as a Rack
+// knob does: a sound's middle (pi_init's 32768), or with bpm held, swing 0 and 120 bpm
+// (the values the view shows for them, ENGINE.md §14: B is (120 - 60) × 65535 / 180).
+const DOUBLE_MS = 300;
+const lastDown = [-Infinity, -Infinity];
+function home(which) {
+  const bpm = latest.view && (u32(latest.view, 8) >> KEY.bpm) & 1;
+  return bpm ? [0, 21845][which] : 32768;
+}
 sliders.forEach((el, which) => {
   const travel = () => el.querySelector(".tr").getBoundingClientRect().height - 26;
   el.addEventListener("pointerdown", (e) => {
@@ -357,7 +368,14 @@ sliders.forEach((el, which) => {
     wake();
     if (finger[which]) return;
     try { el.setPointerCapture(e.pointerId); } catch {}
-    const from = latest.view ? shown(latest.view, which) : 32768;
+    let from = latest.view ? shown(latest.view, which) : 32768;
+    const now = performance.now();
+    if (now - lastDown[which] < DOUBLE_MS) {
+      from = home(which);
+      slide(which, from);
+      placeCap(which, from);
+      lastDown[which] = -Infinity; // a third press starts again
+    } else lastDown[which] = now;
     finger[which] = { id: e.pointerId, y: e.clientY, from, value: from };
     el.classList.add("held");
   });
