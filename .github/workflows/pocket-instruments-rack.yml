@@ -3,7 +3,8 @@
 # finished .vcvplugin against what Rack's toolchain builds for (pocket-instruments/rack/
 # check-dist.sh), and uploads it. The four files are under "Artifacts" on the run's page.
 # They are unsigned test builds for loading by hand, not releases.
-# Native runners, as Phona does (REFERENCES.md R16a); Linux inside Ubuntu 16.04 for glibc 2.23.
+# Native runners, as Phona does (REFERENCES.md R16a); Linux inside Ubuntu 16.04 for glibc 2.23,
+# from an image with the tools already in it (pocket-instruments/rack/ci-linux.Dockerfile).
 name: Pocket Instruments Rack plugin
 
 on:
@@ -24,6 +25,7 @@ on:
 
 permissions:
   contents: read
+  packages: write # the Linux job keeps its build image in GitHub's container registry
 
 env:
   RACK_SDK_VERSION: 2.6.6
@@ -70,11 +72,35 @@ jobs:
           echo "${{ matrix.sdk_sha256 }}  sdk/sdk.zip" | $sum -c -
           unzip -q sdk/sdk.zip -d sdk
 
+      # The image is Ubuntu 16.04 with the tools in it (rack/ci-linux.Dockerfile), kept in
+      # GitHub's container registry under a tag that is a hash of the files it is made from.
+      # Pulled if it exists; built and pushed once if not (that run pays for apt).
+      - name: Linux image (pulled, or built once)
+        if: runner.os == 'Linux'
+        id: image
+        working-directory: pocket-instruments
+        run: |
+          tag=$(cat rack/ci-linux.Dockerfile rack/ci-linux-setup.sh rust-toolchain.toml | sha256sum | cut -c1-16)
+          image="ghcr.io/${GITHUB_REPOSITORY,,}/pi-rack-linux:$tag"
+          echo "${{ github.token }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          start=$(date +%s)
+          if docker pull -q "$image"; then
+            how=pulled
+          else
+            docker build -q -f rack/ci-linux.Dockerfile -t "$image" .
+            docker push -q "$image"
+            how="built and pushed"
+          fi
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+          echo "Linux image $how in $(( $(date +%s) - start )) s: $image" | tee -a "$GITHUB_STEP_SUMMARY"
+
       - name: Build (Linux, in Ubuntu 16.04)
         if: runner.os == 'Linux'
         run: |
-          docker run --rm -v "$PWD":/w ubuntu:16.04 sh /w/pocket-instruments/rack/ci-linux.sh /w/sdk/Rack-SDK
+          start=$(date +%s)
+          docker run --rm -v "$PWD":/w "${{ steps.image.outputs.image }}" sh /w/pocket-instruments/rack/ci-linux.sh /w/sdk/Rack-SDK
           sudo chown -R "$(id -u):$(id -g)" .
+          echo "Linux build in the container: $(( $(date +%s) - start )) s" | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Rust (Windows, macOS)
         if: runner.os != 'Linux'

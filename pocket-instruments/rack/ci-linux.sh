@@ -6,31 +6,29 @@
 #
 #   ci-linux.sh <Rack SDK folder>     (from anywhere; it finds the repo from itself)
 #
+# The container is CI's own image (ci-linux.Dockerfile), which has the tools already. In a
+# bare ubuntu:16.04 this installs them first, as it did on every push until Session 15.
+#
 # SPDX-License-Identifier: MIT
 set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 export RACK_DIR=$1
-export DEBIAN_FRONTEND=noninteractive
-# Each step says it has started, so a stall shows where it is (2026-11-23: one sat silent in apt).
-echo "ci-linux: apt-get update"
-apt-get update -q
-echo "ci-linux: apt-get install"
-apt-get install -yq --no-install-recommends build-essential curl ca-certificates jq >/dev/null
-echo "ci-linux: zstd"
-# 16.04's zstd (0.5) is older than the .vcvplugin format; build a pinned release.
-curl -fsSL -o /tmp/zstd.tar.gz https://github.com/facebook/zstd/releases/download/v1.5.6/zstd-1.5.6.tar.gz
-echo '8c29e06cf42aacc1eafc4077ae2ec6c6fcb96a626157e0593d5e82a34fd403c1  /tmp/zstd.tar.gz' | sha256sum -c -
-tar -xzf /tmp/zstd.tar.gz -C /tmp
-make -s -C /tmp/zstd-1.5.6/programs -j4 zstd >/dev/null
-cp /tmp/zstd-1.5.6/programs/zstd /usr/local/bin/
-# rustup with no toolchain; then the one rust-toolchain.toml pins, with its targets.
-echo "ci-linux: rustup"
-curl -fsSL https://sh.rustup.rs | sh -s -- -y -q --profile minimal --default-toolchain none
+if [ -e /usr/local/share/pi-ci-linux-setup ]; then
+    echo "ci-linux: the image has the tools"
+else
+    sh "$here/ci-linux-setup.sh" "$here/.."
+fi
 . "$HOME/.cargo/env"
 # There is no default toolchain: rustc resolves only inside the folder that pins it.
 cd "$here/.."
+# A no-op when the image already holds the pinned Rust; the download if the pin has moved.
 rustup toolchain install
-gcc --version | sed -n 1p
-ldd --version | sed -n 1p
+gcc=$(gcc --version | sed -n 1p)
+libc=$(ldd --version | sed -n 1p)
+echo "$gcc"
+echo "$libc"
 rustc --version
+# Exactly these, whatever image this ran in: a newer glibc builds a plugin Rack cannot load.
+case $gcc in *" 5.4."*) ;; *) echo "ci-linux: gcc is not 5.4"; exit 1 ;; esac
+case $libc in *" 2.23") ;; *) echo "ci-linux: glibc is not 2.23"; exit 1 ;; esac
 make -C "$here" -j4 dist
