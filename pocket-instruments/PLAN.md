@@ -130,7 +130,6 @@ Unticked in the finished lists. None blocks a build session.
       a double-click on each slider, with and without bpm held; MIDI-Map on a slider (D54's
       ⚠); the round trip by ear: TRIGGERS ch 1 to any kick, back into RETURN ch 1 (D62); the
       CPU meter. Session 13's nine readings (its Handover) are for the same sitting.
-- [ ] CI on all four platforms after Session 13's push (its Handover says what was seen).
 
 ## The instrument's build: Sessions 10 to 14
 
@@ -339,7 +338,14 @@ The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
      square. Green is not a Loom token; it marks a test, not the instrument.
   9. The display's and keys' sizes measured off `loom/rack.html` and the page (DESIGN.md,
      "Not done").
-- **CI and `make verify`:** filled in after the push below.
+- **CI and `make verify`:** the repo's `make verify` passed before the push (the smoke test
+  and the Rack It proofs skip: no Playwright). CI run 45153314152: all four platforms built
+  and passed `check-dist.sh`, which now also wants the panel, the font and its licence. So
+  `glfwGetKey` links on Windows and macOS too. ⚠ The first Linux attempt hung for 11
+  minutes before compiling anything: Ubuntu 16.04's archive was slow, and `ci-linux.sh`
+  hides apt's output and the job has no `timeout-minutes`, so a stall is silent for up to six
+  hours. Cancelled and re-run; the re-run passed in 14 minutes (usually 1.5). Recommended: a
+  timeout on the job and apt's progress shown. Not done; it is the owner's call.
 - **For Session 14:** the Rack display's weave area is `RhythmDisplay::draw`; the view
   reaches it through `Face` every frame, so painting cells is a loop there. `harness/race.cpp`
   and `keys.rs` still hold bytes 48 to 63 to zero (Session 14's list). The screenshot route
