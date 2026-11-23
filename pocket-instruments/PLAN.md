@@ -140,6 +140,7 @@ Unticked in the finished lists. None blocks a build session.
 - [ ] Session 21's second mark on each slider, on the phone and in Rack: a stand-in (a thin
       thread-coloured line), to be drawn with the owner's eye (`design/DESIGN.md`, "Not
       done"); and Session 21's readings (its Handover).
+- [ ] Session 22's recording: ten minutes with the PO-12 and the Scarlett, when it suits.
 - [ ] The four effects checks left on the PO-12 (`WORKFLOW.md`, "The effects: what to check
       on the PO-12"; nine were done on 2026-11-23): what 9 to 12 do (9 gave no repeat the
       owner could hear), whether every sound repeats, the sweeps, and effects 4 and 13 to
@@ -255,7 +256,7 @@ None blocks anything; each is done when wanted, profiled before and after (Machi
 - [ ] Next for efficiency, when wanted: the core itself (`pi_process` is about half the
       module now). That one speeds up the phone too. Profile first (Machine state).
 
-## Session 14 — the weave (build, with the owner's eye; when the owner says, D65)
+## Session 14 — the weave (build, with the owner's eye; a first attempt after Session 20, D79)
 
 Recommended on Fable: which cells each of the seven rules lights is not designed, only its
 inputs and its tests. That is drawing by judgment, with the owner watching.
@@ -302,6 +303,7 @@ slider jacks carry what §20 makes.
       bit for bit.
 - [ ] FX GATES, FX SEND, FX RETURN; the menu's tick an effect, with its default (D68 item
       2); the Sounds menu's "through fx" tick a sound.
+- [ ] D78 in the module: the fx latch stays on and holds fx only while a grid key is down.
 - [ ] A OUT, A IN, B OUT, B IN (D76 item 4; §19's addition): out is the value before an
       input replaces it; an input is read on the hit; the menu's ticks as RETURN's.
 - [ ] The panel redrawn by `design/make_panel.py` in two rows, thirteen jacks, grouped as
@@ -324,7 +326,41 @@ D69.
       lane on its step marks (`design/DESIGN.md` says how: decide it with the owner
       first). No key lights for an effect.
 - [ ] The sounds sheet's "through fx" switch.
+- [ ] D78 on the page: the fx latch stays on and holds fx only while a grid key is down;
+      `make play`'s latch phase holds it.
 - [ ] `make play` holds every drawing to its view, format 3 included; planted faults.
+
+## Session 22 — the hardware's effects, measured from a recording (with the owner, Fable)
+
+No open-source project got close to the PO-12's effects and nobody has measured them (R55,
+R57); ours are first guesses from the names, and mild beside the hardware ("Some of theirs
+is rather intense", the owner, 2026-11-23). This session gives the tuning a target. When
+the owner has ten minutes with the PO-12 and the Scarlett; best before the effects are
+tuned by ear and before the delay is designed. It needs no build to have happened.
+
+- [ ] Recording on this laptop, worked out with the owner: the PO-12's output into the
+      Scarlett, captured with PipeWire (`pw-record`, 48 kHz, 24-bit). Check the level
+      first; the PulseAudio and ALSA note in Machine state applies if Rack is open.
+- [ ] The take: at 80 bpm, one bar of kick, snare and hat; two bars dry, then each effect
+      1 to 16 held for two bars, in key order, with a bar dry between. Then the same with
+      only a kick on step 1, for the repeats. One long file.
+- [ ] **The file stays out of the repo** (README rule 6), in a folder of the owner's. We
+      take numbers and character from it, never audio. Measuring a device's sound is not
+      reading its firmware.
+- [ ] Read off it, with a script kept in `harness/` and its plots outside the repo: the
+      hold rate of 1; the levels of 3; the curve and drive of 2; cutoff, resonance, speed
+      and direction of 5 to 8; and what 9 to 12 are (retriggered hits or looped sound, how
+      many a beat, which step). A sentence each for 4 and 13 to 16.
+- [ ] `REFERENCES.md`: the measurements, as measured facts with the date. `WORKFLOW.md`:
+      the effects' rows ticked or corrected. `ENGINE.md` §17 and §18: what changes, as
+      proposals for the owner; the constants in a build session after.
+- [ ] **The repeats, in particular.** The owner: "I find the repeating one the weirdest
+      (especially when there aren't many sounds going, since it just feels like it mutes
+      things)". In ours that is designed behaviour and may be wrong: a repeat re-fires
+      the step its run began on, and if no switched-in sound has a note on that step,
+      those sounds are silent for the run (§17). On the hardware the owner heard no repeat
+      on 9 at all. Decide from the recording what a repeat should hold when the step is
+      empty (the last step that had a hit is the obvious candidate).
 
 ## Session 20 — the grid's lights, as the hardware has them (D71; decided, D72)
 

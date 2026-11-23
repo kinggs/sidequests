@@ -1268,6 +1268,54 @@ Known and left for Session 18: in Rack with RETURN patched the effects are not h
 because the module rebuilds AUDIO from the sixteen channels (D62). §19 moves that into the
 core.
 
+### D78 — The fx latch stays on, and holds fx only while a grid key is down
+**2026-11-23 · decided, to try (owner: "It's frustrating that it clears it after I CTRL+CLICK on FX, then a number (which after the number de-latches)"; "Lets try your plan for the mouse FX latch, and see how it goes") · changes D61 for fx only · hosts only, the core does not change**
+
+1. **Ctrl+click on fx latches it until it is Ctrl+clicked again.** A press of a grid key no
+   longer lets it go.
+2. **While latched, the host sends fx down only while a grid key is down:** the key's
+   press is `KEY_DOWN` fx then `KEY_DOWN` the key; its release is `KEY_UP` the key, then
+   `KEY_UP` fx once no grid key is still down. So each click punches for as long as the
+   mouse holds it, and between clicks fx is not held.
+3. **Why not simply hold fx while latched:** fx held with no key down empties each step
+   that arrives (D66, as the hardware). A latch that held it would wipe the lane between
+   clicks.
+4. **To clear with a mouse,** hold fx itself with a plain click while it plays, as now.
+5. **Sound, pattern, bpm and function keep D61's rule:** their gesture is over after one
+   key. The fx key shows latched in its own colour, as the others do.
+6. The page and the Rack module both; touch never latches (D23).
+
+Tried and judged in use. The owner the same day, after playing the effects on a phone with
+real fingers: "I LOVE the FX stuff ... It brings so much of the fun and playfulness of the
+module to the front. The performative ideas."
+
+### D79 — Session 21's readings stand; the owner hands the next sessions on
+**2026-11-23 · decided (Fable, as the design's author; the owner can overrule) · and the owner's go-ahead, quoted**
+
+Verified first: the repo's `make verify` re-run by this session (181 Rust tests, 300
+harness runs, none failed); CI run 45189993571 green on all four platforms, with the MIT
+notice held in each package; `keys-tap-and-choose` changed in its views and its `about`
+only, no line of trace.
+
+1. Ruled as built: ABI 8; of two firings of one sound on one frame the later decides which
+   values the mark shows; `KEEP` on a step that is off keeps (an edit says what the
+   pattern becomes, and the values sit beside the steps as the lane does); a load leaves
+   each sound's last hit alone; with bpm let go the cap goes back to the hand, and a
+   host's first view counts as after a load.
+2. **Every harness also plays each fixture from a kept snapshot.** Accepted: a beat
+   entered by keys now saves different bytes from the same beat entered by edits, and the
+   pass bar itself did not move.
+3. **Left for the owner's eye:** how the second mark looks, and whether it is drawn over
+   the cap. The thin thread-coloured line stands in.
+
+The owner, the same afternoon, going away from the desk: "Please continue and do more of
+the sessions with sub-agents like you have been doing. I trust your work and progress.
+Make as much progress as we can without me needing to do more of the recordings and
+things"; and "I think you can even start a first prototype / attempt at a weave as well
+please." So Sessions 18, 19 and 20 run in turn, each verified before the next, and then a
+first attempt at Session 14. Not started without the owner: Session 22 (the recording),
+any tuning by ear, the repeat's rule for an empty step, and the acceptance of the weave.
+
 ## Open
 
 | ID | Question | Needs |
