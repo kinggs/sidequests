@@ -637,3 +637,83 @@ belongs in `PROOFS.md`, a change of course in `DECISIONS.md`, an outside fact in
   the bigger engine or the new comparison; the hit itself is reckoned out of line
   (`#[inline(never)]`), only on a frame where something fired, and the voices' own check of
   that was folded into it. The `.wasm` grew from 32 783 to 36 963 bytes.
+
+## Session 18: Rack's jacks, sound in, the panel in two rows (2026-11-23)
+
+- **Where the sixteen voices sit in memory is worth more than a nanosecond a frame.** The
+  first build of §19 kept `ROUTE`'s four masks as a field of the engine. Nothing on the
+  unpatched path read it, yet "all sixteen" went from 42.4 to 44.0 ns and idle moved too.
+  The eight bytes had pushed the voices from offset 80 to 88 of the engine. With the
+  masks (and the slider outputs) inside the bus's own block, the voices are back at 80 and
+  every case reads a shade *faster* than the old build. Found by printing `offset_of!` for
+  the old and new engine after three rewrites of the code had each moved the number the
+  wrong way. Before blaming a branch, check what the change did to the layout.
+- **Three ways to write thirty-two slider outputs, measured.** A call after the sound,
+  taken only in the 50-channel layout: +1.4 ns on "all" in every layout (the frame's slice
+  had to stay live across sixteen inlined voices). Written in runs, up to the next command
+  or hit: idle +1.6 ns (the command loop grew). Kept as ready floats in the bus and copied
+  by the loop's own out-of-line mix: nothing the bench can see. The values change only on
+  a hit, a `SOUND` or a load, so that is where the division is done.
+- **Measured (`make bench`, best of five, 10 s at 48 kHz, ns a frame).** Before, three
+  runs: idle 26.5–26.9, beat 29.0–29.8, all sixteen 42.8–43.7, repeat 31.5–31.7. After,
+  three runs: idle 25.5–27.5, beat 27.8–29.0, all 41.1–42.1, repeat 30.1–30.9. Back to back
+  with a build of the session's first commit, ten pairs, the lowest and the middle of each:
+  idle old 25.2 and 26.1, new 24.9 and 25.6; beat 27.7 and 28.6 against 27.3 and 28.3; all
+  42.4 and 42.7 against 41.3 and 41.8; repeat 31.2 and 32.3 against 30.2 and 30.8. Ten
+  pairs, because three could not tell a real 1.4 ns from the machine's mood. New cases:
+  the beat in 17 channels (what the unpatched module asks for) 27.8–28.5; in the
+  18-channel loop with every sound returned 36.0–37.2; the same with effect 4 heard from
+  the input 37.5–38.3; in 50 channels with every slider from its input 31.6–31.8. So RETURN
+  with all sixteen costs about 9 ns a frame and the slider jacks about 4, only while
+  patched. The loop's mix is plain code (a branch a sound); it is where to look if that
+  matters. The engine grew from 3 568 to 3 704 bytes, the `.wasm` from 36 963 to 39 836.
+- **Profiled with perf, as Session 13 did** (four Rhythm modules playing a beat, nothing
+  patched, 20 s, one sample every 200 000 cycles; a scratch build pressed play). Before,
+  two runs: `pi_process` 3 272 and 3 320, `Rhythm::process` 2 726 and 2 806, `tanhf` 277
+  and 301. After, four runs: `pi_process` 3 144 to 3 518, `Rhythm::process` 2 516 to 2 655,
+  `tanhf` 241 to 374. Unpatched, the seven new jacks cost nothing that can be measured:
+  the runs overlap, and `Rhythm::process` was lower in all four (5 to 9%), which fits the
+  keys now being compared in one pass that writes nothing; a run's spread is as large.
+- **"Rounded down" was right on paper and wrong through a cable.** §19 turned a slider's
+  input to 0 to 65535 rounded down. An output read straight back is exact that way: all
+  65 536 values. Through Rack's volts (× 10 out, ÷ 10 in) 5 116 of them come back one less;
+  with the compiler's reciprocal (× 0.1) 1 539. To the nearest, none, either way. My first
+  test asserted the plain case lost some, and failed: the number was only found by
+  measuring both.
+- **A second engine given the module's own outputs cannot see a wrong output.** The loop
+  self-tests run a shadow engine on what the module wrote to its jacks the frame before,
+  and hold the module's frame to it. FX SEND planted to carry the mix came back, was taken,
+  and matched: both engines were fed the same wrong signal. The outputs are now held to
+  the shadow's own channels as well. 18 faults planted in the module and its jacks, the
+  unplanted tree passing first: 17 caught at once, that one after the check was added.
+- **30 faults planted in the core, 30 caught, each by a named test**, the unplanted copy
+  passing first. Two tests were written before planting because nothing could have seen
+  the fault: a load not showing on the slider outputs, and a host leaving the loop while
+  an outside effect ramps out. The second is also the only test that catches "an effect is
+  heard from outside in every layout": in the mix it is invisible by design (the bus
+  crosses to itself), so the test reads the bus's state.
+- **The self-test caught the session's worst bug in one run.** Sending a frame's key
+  changes in three passes (function keys down, grid keys, function keys up) sent a function
+  key down in the first pass and straight back up in the third. Every format 2 fixture
+  failed at once, with one snapshot a frame. A fixture that presses real parameters is
+  worth more than a model of them.
+- **Three of the first five failing core tests were the tests' own mistakes.** Play sent
+  on frame 3 starts at the *next* step boundary, 6 000 frames on, because the clock counts
+  from `pi_init` (§5); the model fed a NaN the core rightly drops; and the rounding claim
+  above. Session 16's habit (read the test against `ENGINE.md` before believing its
+  failure) held again.
+- **D76's positions were arithmetic, and the arithmetic left out the lettering.** At the
+  2.6 mm the guide's 100% zoom needs, a letter is 1.66 mm: TRIGGERS is 13.3 mm, wider than
+  the 11.67 mm between sockets, and FX SEND and FX RETURN overlapped by 1.5 mm.
+  `make_panel.py --check` now works out every label, plate and stitch and refuses a
+  drawing where two touch, so the next move of a jack is checked before it is looked at.
+- **Rack, small things.** `setChannels` does nothing on an unpatched output (its count
+  stays 0), though its voltages can be written and read: a self-test holds the volts.
+  Screenshot mode does not write over a screenshot that exists: delete the folder first.
+  `-t 2` gives 200%. gcc 16 warns about an array bound inside the SDK's own `setChannels`,
+  once a call; it is the SDK's loop, not ours.
+- **Found, not decided: A OUT through a module to A IN is one hit late.** The output says
+  what the sound was last hit with; the input is read at the next hit. With steps written
+  at different slider positions the values arrive shifted by one hit. It is §19 as
+  designed, and the self-test's "the loop was heard" counts exactly those frames. For the
+  owner (D80, "Left open").
