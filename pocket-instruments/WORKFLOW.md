@@ -142,7 +142,7 @@ is a mismatch (D29), listed until ruled on.
 
 | What | Seen | Ours now |
 |---|---|---|
-| The lights with write off | **Fact (the owner, D71):** the chosen sound's steps are lit, steady, write on or off; choosing another sound shows that sound's steps; write changes only the display's mark and what a tap does. **While playing, every sound's key flashes as that sound fires, and the playhead's key flashes as it passes;** on one key the two are one flash | **Mismatch.** D37: with write off no step is lit. D71 proposes following the hardware |
+| The lights with write off | **Fact (the owner, D71):** the chosen sound's steps are lit, steady, write on or off; choosing another sound shows that sound's steps; write changes only the display's mark and what a tap does. **While playing, every sound's key flashes as that sound fires, and the playhead's key flashes as it passes;** on one key the two are one flash | ~~**Mismatch.** D37: with write off no step is lit. D71 proposes following the hardware~~ **Closed (Session 20, 2026-11-23; D72 item 3, D82):** the chosen sound's steps are lit with write off as with write on; each key still goes white as its own sound fires (a lit one comes back lit) and the frame marks the playhead, so ours keeps the two flashes apart. No stitch with write off (D82 item 3) |
 | Effects are recorded with write off | Both videos; four reviews (R49) | Designed so (D66) |
 | Clearing effects | Hold fx through the steps; a whole pass clears all | Designed so |
 | Effects belong to a pattern | Written across four chained patterns and cleared across them; a copied pattern given its own (R53) ⚠ | One pattern; the lane is saved with it |
@@ -219,5 +219,6 @@ D22 asks for every one to be listed and explained. So far:
 | Our own sixteen sounds, in the same roles on the same keys | D31: synthesised by us, close in character, never sampled. (Since D35 and D50: or a public-domain sample, per key. Still nothing from the hardware) |
 | Each sound has a switch, through the effects or not; the hardware's effects are on everything (R50) | D66 item 4: the owner's "per channel". All in at the start, so untouched it is the hardware |
 | In Rack the effect being heard goes out as a gate, and the effects' bus goes out and comes back | D68: so a punch can drive, or be, a Rack effect |
-| ⚠ Not deliberate: with write off no step is lit; the hardware lights the chosen sound's steps in both modes | D37 guessed it; D71 has the fact and proposes the change |
+| ~~⚠ Not deliberate: with write off no step is lit; the hardware lights the chosen sound's steps in both modes~~ Closed in Session 20: with write off the chosen sound's steps are lit, as on the hardware | D37 guessed it; D71 had the fact; D72 item 3 and D82 decided it; built 2026-11-23 |
+| A firing and the playhead are two lights (white and the frame), where the hardware flashes one key for either | D36's two lights; D72 item 3 keeps them apart with write off too |
 | No sync modes, clock, alarm or battery | hardware business |

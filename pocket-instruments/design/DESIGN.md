@@ -25,7 +25,8 @@ The owner's brief for it: dark, high contrast, easy to read with weak eyes.
 | `make_panel.py` | Draws `panel.svg`, prints the widget positions, and (`--check`) holds every jack's label, plate and stitches clear of its neighbour's |
 | `rack-face-unlit-100.png` | The Rhythm module as Rack draws it, from Rack's own screenshot mode at 100% zoom (360 px wide: what a player sees without zooming). Nothing lit: no module runs in that mode. Taken in Session 18, with the two jack rows |
 | `rack-face-unlit-200.png` | The same at 200%, to judge the lettering and the plates |
-| `rack-face-lit-100.png`, `rack-face-lit-200.png` | The same from a scratch build whose face was filled by hand (never shipped): playing on step 5 with write on, steps 1, 5, 7, 9, 11 and 13 lit, key 10 pressed, the stitch on key 3, the bar on key 1, fx latched (D78: its face lit like play and write), and each slider's second mark at 20000 and 50000. Taken again in Session 19 with effect 3 heard (the madder `fx 3` block above `write`) and the lane on steps 6, 7, 8 and 13 (four madder ticks over the step marks) |
+| `rack-face-lit-100.png`, `rack-face-lit-200.png` | The same from a scratch build whose face was filled by hand (never shipped): playing on step 5 with write on, steps 1, 5, 7, 9, 11 and 13 lit, key 10 pressed, the stitch on key 3, the bar on key 1, fx latched (D78: its face lit like play and write), and each slider's second mark at 20000 and 50000. Taken again in Session 19 with effect 3 heard (the madder `fx 3` block above `write`) and the lane on steps 6, 7, 8 and 13 (four madder ticks over the step marks). Not taken again in Session 20: they show write on, which did not change |
+| `rack-face-writeoff-100.png`, `rack-face-writeoff-200.png` | The same kind of scratch build, taken in Session 20 for the owner to judge write off (D82): playing on step 5 with write off (no write mark, play lit), sound 1 chosen with steps 1, 5, 7, 9 and 13 lit in ecru and no stitch; key 5 white inside the ochre frame (a lit step firing on the playhead: it comes back lit when its half step is over), and key 3 white (another sound firing, on a key that is not lit). The whites are held on by hand for the picture |
 
 The `.html` files are pictures, not code to build from: open one in a browser. They are the
 Claude Design artboards with the canvas wrapper removed. They load the typeface from Google
@@ -109,16 +110,25 @@ sound, pattern, bpm, function or fx until a press of any key ends (D60, D61). Si
 fx keeps its latch until it is Ctrl+clicked again, and is down only while a grid key is (D78),
 on the page as in Rack.
 
-### What the grid shows, by mode (D37, accepted by D38)
+### What the grid shows, by mode (D37, accepted by D38; write off changed by D71, D72 and D82)
 
 | | Write on | Write off |
 |---|---|---|
 | The grid is | sixteen steps | sixteen sounds |
-| Field | the chosen sound's steps | off |
+| Field | the chosen sound's steps | ~~off~~ the chosen sound's steps (since Session 20) |
 | Stitch | other sounds' steps | off |
 | Frame | the playhead | the playhead |
 | White | a finger | a finger, or the key's sound firing |
 | Bar | off | the chosen sound, while sound is held or latched |
+
+**Write off, changed 2026-11-23 (built in Session 20).** D37 had the fields dark with write
+off, from what a search said of the hardware (R26, R27). The owner's PO-12 lights the
+chosen sound's steps in both modes (D71), so the field now does too, and write changes what
+a tap does and the display's write mark, not the grid's fields. With write off a lit key
+whose sound fires goes white for half a step and comes back lit ("step" then "fired" then
+"step" in the key states above); the frame still marks the playhead; there is no stitch
+(D82 item 3: the stitch is for editing). `rack-face-writeoff-100.png` and `-200.png` show
+it.
 
 While a function key is held the grid changes meaning, in either mode (D51; the core
 decides it, `ENGINE.md` §14): **sound held**, the grid is sounds and the bar marks the chosen

@@ -609,7 +609,7 @@ a host's edit, so "as `STEP` would" and "as `FIRE` does" are literally that. Pro
 `fixtures/keys-*.json` (worked by hand before the code; all three passed at the first run,
 on all three harnesses) and `core/src/tests/keys.rs`, a test for each row above.
 
-## 14. The view (ABI 4; designed in Session 9: D51; built in Session 10)
+## 14. The view (ABI 4; designed in Session 9: D51; built in Session 10; the write-off row changed in Session 20, D82)
 
 ```
 bytes = pi_view(engine, buf, cap)        /* PI_VIEW_SIZE (64), or 0 if cap is too small */
@@ -713,6 +713,18 @@ the view to the drawing thread through `pi::Latest` by the same rule. The slider
 parameters are the caps: the audio thread moves each to its shown value unless the pointer
 is on it, and the self-test holds both to every fixture view. Nothing in this section
 changed.
+
+**Built (Session 20, 2026-11-23; D82):** the write-off row, in `Engine::view`
+(`core/src/keys.rs`), one line. No byte moved and the ABI did not change: the field's bits
+mean what they always meant, and only which row fills them changed. Twelve view lines in
+four fixtures were worked again by hand first (`fixtures/README.md`, "The views worked again
+for the write-off row") and the core gave them at the first run; every trace and every
+render file stayed the same bytes. `core/src/tests/keys.rs` holds the row
+(`write_off_the_field_is_…`) and holds write off to the field write on lights
+(`the_field_is_the_same_with_write_off_as_with_write_on`). Neither host changed: the page and
+the Rack module already lit every key from the field and drew a firing's white over it, so
+a lit key goes white and comes back lit. `make play` now holds every drawn key's white to
+the host rule above, and sees it happen on a lit key with write off.
 
 **Built (Session 10):** `pi_view` and `Engine::view` in `core/src/keys.rs`;
 `PI_VIEW_SIZE` and each field's offset (`PI_VIEW_*`) in the header. Proven by the views in
