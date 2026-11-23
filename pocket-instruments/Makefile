@@ -6,7 +6,7 @@ WASM   := target/wasm32-unknown-unknown/release/pi_core.wasm
 REPORT := $(CURDIR)/target/report
 CXX    ?= c++
 
-.PHONY: build test check-toolchain check-p1 clean rack-lib race targets web p4 listen
+.PHONY: build test check-toolchain check-p1 clean rack-lib race targets web p4 listen play
 
 # Both targets from one crate, one crate type each: a static library for Rack and the C++
 # harness, a bare module for the browser and Node.
@@ -113,3 +113,10 @@ p4:
 # voice, slider B reaches the engine, the sixteen samples load. About ten seconds a browser.
 listen:
 	node web/listen.mjs
+
+# The phone page (web/rhythm.html) in the same two browsers: keys entered by pointer events,
+# the worklet's trace and views held to the format 2 fixtures, every drawing held to its
+# view, a reload, and P6's browser half (web/play.mjs says the bar). About twenty seconds a
+# browser. Needs `make test` first, for the Node report.
+play:
+	node web/play.mjs $(REPORT)-node.txt

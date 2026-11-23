@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#07060C">
+<title>Rhythm</title>
+<!-- The tiny rhythm machine on a phone (Session 12): the worklet that P4 proved, and a face in
+     the Loom look (design/DESIGN.md, "The phone"; design/loom/phone.html is the picture).
+     The page keeps no copy of the workflow: it sends what a finger did (KEY_DOWN, KEY_UP,
+     PARAM; ENGINE.md §13) and draws the view the core posts back (§14). Nothing latches:
+     a phone has real multi-touch (D23). ?auto runs its own checks (web/play.mjs).
+     SPDX-License-Identifier: MIT -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@800&display=swap">
+<style>
+  /* design/DESIGN.md's tokens. */
+  :root {
+    color-scheme: dark;
+    --ground: #14131F; --tile: #2B2942; --display: #0B0A12; --table: #07060C;
+    --ecru: #F2E8D0; --white: #FFFFFF; --ochre: #F0B429; --madder: #F0654A; --sky: #8FAAF7;
+    --lilac: #C9C2DD; --thread: #6E6A92;
+    --frame: 7px;                 /* the playhead band: about an eighth of an 88 px key */
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--table); }
+  body { margin: 0; background: var(--table); color: var(--ecru); font: 800 18px/1.3 "JetBrains Mono", ui-monospace, monospace; }
+  button { border: 0; padding: 0; margin: 0; font: inherit; color: inherit; background: none; cursor: pointer; }
+
+  /* The instrument fills the screen; the sheet is below it. */
+  .table { width: min(100vw, 430px); margin: 0 auto; height: 100svh; min-height: 560px; padding: 6px;
+           padding-top: max(6px, env(safe-area-inset-top)); padding-bottom: max(6px, env(safe-area-inset-bottom)); }
+  .body { height: 100%; padding: 8px; background: var(--ground); border: 2px dashed var(--thread);
+          display: flex; flex-direction: column; gap: 12px;
+          user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+
+  /* The display: the weave's area (bare until Session 14) over the step marks; the readouts. */
+  .display { height: 124px; flex: none; background: var(--display); border: 2px solid var(--ecru); padding: 8px 10px; display: flex; gap: 12px; }
+  .display .left { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+  .weave { flex: 1; display: flex; align-items: center; color: var(--lilac); font-size: 16px; }
+  .marks { display: grid; grid-template-columns: repeat(16, minmax(0, 1fr)); gap: 4px; height: 16px; flex: none; }
+  .marks span { height: 6px; background: var(--thread); align-self: end; }
+  .marks span.q { height: 10px; }
+  .marks span.now { height: 16px; background: var(--ochre); }
+  .display .right { width: 104px; display: flex; flex-direction: column; justify-content: space-between; align-items: flex-end; }
+  .tempo { display: flex; align-items: baseline; gap: 5px; }
+  .tempo b { font-size: 42px; line-height: .9; }
+  .tempo span, .stepno, .write { font-size: 16px; }
+  .tempo span { color: var(--lilac); }
+  .write { background: var(--ochre); color: var(--ground); padding: 1px 8px; }
+  .write[hidden] { display: block; visibility: hidden; }
+
+  /* Grid keys: square (a column's width) while the screen is tall enough, shorter when it is
+     not, never under 60 px. Not aspect-ratio: with a max-height it narrows the key instead. */
+  .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2px; flex: none; }
+  .k { height: clamp(60px, min((min(100vw, 430px) - 38px) / 4, (100svh - 390px) / 4), 200px); position: relative;
+       background: var(--tile); color: var(--ecru); font-size: 28px; touch-action: none; }
+  .k.on { background: var(--ecru); color: var(--ground); }
+  .k.play { box-shadow: inset 0 0 0 var(--frame) var(--ochre); }
+  .k.on.play { box-shadow: inset 0 0 0 var(--frame) var(--ochre), inset 0 0 0 calc(var(--frame) + 5px) var(--ground); }
+  /* The stitch: another sound has a step here. Ecru on dark, dark on ecru. */
+  .k.ghost::after { content: ""; position: absolute; top: 9px; right: 9px; width: 13px; height: 13px; background: var(--ecru); }
+  .k.on.ghost::after { background: var(--ground); }
+  /* The bar: the chosen sound (or pattern), in the held key's colour. */
+  .k.bar::before { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 12px; background: var(--madder); }
+  .k.bar.ochre::before { background: var(--ochre); }
+  /* Sounding: full white when its sound fires; white pulled in by the frame under a finger. */
+  .k.fire { background: var(--white); color: var(--ground); }
+  .k.press { background: var(--white); color: var(--ground); box-shadow: inset 0 0 0 var(--frame) var(--ground); }
+  .k.fire::after, .k.press::after { background: var(--ground); }
+
+  /* The bottom block: both sliders on the left, the function keys on the right. */
+  .bottom { flex: 1; min-height: 204px; display: flex; gap: 10px; }
+  .sliders { width: 96px; display: flex; justify-content: space-between; }
+  .sl { width: 44px; display: flex; flex-direction: column; align-items: center; gap: 8px; touch-action: none; }
+  .sl .tr { position: relative; flex: 1; width: 6px; background: var(--ecru); }
+  .sl .cap { position: absolute; left: -19px; width: 44px; height: 26px; background: var(--ground);
+             border-top: 10px solid var(--ecru); border-bottom: 10px solid var(--ecru); }
+  .sl.held .cap { border-color: var(--white); }
+  .fkeys { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+  .fkeys .row { flex: 1; min-height: 96px; display: grid; gap: 4px; }
+  .fkeys .row.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .fkeys .row.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .f { background: var(--tile); color: var(--ecru); border-top: 12px solid var(--band, var(--ecru)); display: flex;
+       align-items: center; justify-content: center; touch-action: none; }
+  .f span { writing-mode: vertical-rl; transform: rotate(180deg); }
+  .f.latch { background: var(--latch, var(--ecru)); color: var(--ground); }
+  .f.press { background: var(--white); color: var(--ground); border-top-width: 0; box-shadow: inset 0 0 0 var(--frame) var(--ground); }
+
+  /* Below the instrument: the sounds sheet (D57 item 8) and the credits. */
+  .sheet { width: min(100vw, 430px); margin: 0 auto; padding: 16px 16px 48px; font-size: 18px; }
+  .sheet h2 { font-size: 22px; margin: 24px 0 8px; }
+  .sheet p { margin: 8px 0; color: var(--lilac); font-size: 16px; line-height: 1.5; }
+  .sheet a { color: var(--ecru); }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0; }
+  .sounds { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .sheet button { min-height: 64px; padding: 6px 10px; background: var(--tile); text-align: left; font-size: 16px; }
+  .sounds button { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .sounds button i { font-style: normal; color: var(--lilac); }
+  /* A sample shows as a lit face, as a step does, so it does not depend on hue. */
+  .sounds button.sampled { background: var(--ecru); color: var(--ground); }
+  .sounds button.sampled i { color: var(--ground); }
+  #status { min-height: 1.5em; }
+
+  /* A short screen: the function keys' words still fit up the key. */
+  @media (max-height: 720px) { .f { font-size: 16px; } }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }
+</style>
+</head>
+<body>
+<main class="table">
+  <div class="body" id="body">
+    <div class="display" aria-live="off">
+      <div class="left">
+        <div class="weave" id="weave">touch a key to start</div>
+        <div class="marks" id="marks" aria-hidden="true"></div>
+      </div>
+      <div class="right">
+        <div class="tempo"><b id="tempo">120</b><span>bpm</span></div>
+        <span class="stepno" id="stepno">step --</span>
+        <span class="write" id="write" hidden>write</span>
+      </div>
+    </div>
+    <div class="grid" id="grid"></div>
+    <div class="bottom">
+      <div class="sliders">
+        <div class="sl" id="slA" role="slider" aria-label="Slider A" aria-valuemin="0" aria-valuemax="65535"><div class="tr"><span class="cap"></span></div><span>A</span></div>
+        <div class="sl" id="slB" role="slider" aria-label="Slider B" aria-valuemin="0" aria-valuemax="65535"><div class="tr"><span class="cap"></span></div><span>B</span></div>
+      </div>
+      <div class="fkeys">
+        <div class="row three" id="fkeys1"></div>
+        <div class="row four" id="fkeys2"></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<section class="sheet">
+  <h2>Sounds</h2>
+  <p>Each key plays the sound the engine builds in code, or a sample from the starter pack. A
+  lit button plays its sample. The beat, these choices and the sliders stay in this browser.</p>
+  <div class="two"><button id="allCode">All code</button><button id="allSample">All samples</button></div>
+  <div class="sounds" id="sounds"></div>
+  <p id="status">Loading…</p>
+
+  <h2>Playing it</h2>
+  <p>Hold <b>sound</b> and tap a key to choose a sound. <b>write</b> turns the keys into the
+  chosen sound's sixteen steps. <b>play</b> starts and stops. Hold <b>bpm</b>: a key sets the
+  volume, slider A the swing, slider B the tempo; tap it alone for 80, 120 and 140. Hold
+  <b>function</b> and press <b>pattern</b> to clear. With a keyboard: <b>1234 qwer asdf zxcv</b>
+  are the keys, <b>7 8 9</b> sound, pattern and bpm, <b>u i o p</b> function, fx, play and write.</p>
+
+  <h2>Credits</h2>
+  <p>Pocket Instruments: small calculator-format musical instruments, free and open source,
+  playable as VCV Rack modules and in a browser, from one shared engine. An affectionate,
+  credited homage to Teenage Engineering's Pocket Operators. Not affiliated with Teenage
+  Engineering. The real thing is theirs:
+  <a href="https://teenage.engineering/products/po">teenage.engineering/products/po</a>.</p>
+  <p>Also inspired by the Surge Synth Team's Surge XT modules for VCV Rack. No code or artwork
+  of theirs is used. Not affiliated with them either.</p>
+  <p>The samples are from Sonic Pi's bundled set, public domain under CC0, from Freesound
+  authors listed in <a href="../samples/">the starter pack</a>. Type: JetBrains Mono, under the
+  SIL Open Font Licence.</p>
+</section>
+
+<script type="module">
+const NAMES = ["Bass drum", "Snare", "Closed hat", "Open hat", "Synth snare", "Sticks", "Cymbal", "Noise",
+  "Clap", "Click", "Low tom", "High tom", "Cow bell", "Blip", "Tone", "Bass tone"];
+const CMD = { voice: 22, keyDown: 32, keyUp: 33, param: 34 };
+const KEY = { sound: 16, pattern: 17, bpm: 18, function: 19, fx: 20, play: 21, write: 22 };
+// Function keys: their band and, latched, their face (design/DESIGN.md, "Function key").
+const FKEYS = [["sound", "var(--madder)"], ["pattern", "var(--ochre)"], ["bpm", "var(--sky)"],
+  ["function"], ["fx"], ["play"], ["write"]];
+// D57 item 5, by the key's place on the keyboard, so another layout plays the same shape.
+const CODES = {
+  Digit1: 0, Digit2: 1, Digit3: 2, Digit4: 3, KeyQ: 4, KeyW: 5, KeyE: 6, KeyR: 7,
+  KeyA: 8, KeyS: 9, KeyD: 10, KeyF: 11, KeyZ: 12, KeyX: 13, KeyC: 14, KeyV: 15,
+  Digit7: 16, Digit8: 17, Digit9: 18, KeyU: 19, KeyI: 20, KeyO: 21, KeyP: 22,
+};
+const STORE = "pocket-instruments/rhythm/beat"; // the snapshot, base64
+const SEED = 1;                                  // keys cannot set a probability, so no draw depends on it
+const params = new URLSearchParams(location.search);
+const auto = params.get("auto");                 // web/play.mjs's checks; see the end
+const $ = (id) => document.getElementById(id);
+
+// --- The face, built once. Every light on it is set by draw(), from a view. ---
+const keys = [], marks = [], fkeys = [], sounds = [];
+for (let n = 0; n < 16; n++) {
+  const b = document.createElement("button");
+  b.className = "k";
+  b.textContent = n + 1;
+  b.dataset.key = n;
+  b.setAttribute("aria-label", `key ${n + 1}`);
+  $("grid").appendChild(b);
+  keys.push(b);
+  const m = document.createElement("span");
+  if (n % 4 === 0) m.className = "q";
+  $("marks").appendChild(m);
+  marks.push(m);
+}
+FKEYS.forEach(([name, colour], i) => {
+  const b = document.createElement("button");
+  b.className = "f";
+  b.dataset.key = 16 + i;
+  b.innerHTML = `<span>${name}</span>`;
+  if (colour) { b.style.setProperty("--band", colour); b.style.setProperty("--latch", colour); }
+  (i < 3 ? $("fkeys1") : $("fkeys2")).appendChild(b);
+  fkeys.push(b);
+});
+NAMES.forEach((name, t) => {
+  const b = document.createElement("button");
+  b.innerHTML = `<span>${t + 1} ${name}</span><i>code</i>`;
+  $("sounds").appendChild(b);
+  sounds.push(b);
+});
+const sliders = [$("slA"), $("slB")];
+
+// --- The engine: the worklet, as listen.html starts it, with the instrument's messages. ---
+const ctx = new AudioContext({ latencyHint: "interactive" });
+let node = null, sent = 0;
+const early = [];                     // messages from before the engine was ready, in order
+const latest = { view: null, taken: 0, snapshot: null, snapTaken: 0, loaded: null };
+const listeners = [];
+
+function post(msg, entries) {
+  sent += entries;                    // queue entries, as the worklet counts `taken`
+  if (node) node.port.postMessage(msg);
+  else early.push(msg);
+}
+const send = (...cmds) => post({ cmds }, cmds.length);
+
+// D50: the starter pack as the engine reads it, in track order.
+async function samples() {
+  const list = (await (await fetch("../samples/tracks.txt")).text()).trim().split("\n");
+  if (list.length !== 16) throw new Error("samples/tracks.txt does not name sixteen samples");
+  return Promise.all(list.map(async (name) => {
+    const r = await fetch(`../samples/raw/${name}.s16`);
+    if (!r.ok) throw new Error(`${name}.s16: ${r.status}`);
+    return r.arrayBuffer();
+  }));
+}
+
+const b64 = {
+  to: (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))),
+  from: (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0)).buffer,
+};
+function kept() {
+  // Under ?auto only the reload check reads what was kept.
+  if (auto && auto !== "reload") return null;
+  try { const s = localStorage.getItem(STORE); return s ? b64.from(s) : null; } catch { return null; }
+}
+
+async function start() {
+  const [wasm, pack] = await Promise.all([fetch("pi_core.wasm").then((r) => r.arrayBuffer()), samples()]);
+  await ctx.audioWorklet.addModule("worklet.js");
+  const snapshot = kept();
+  node = new AudioWorkletNode(ctx, "pi-engine", {
+    numberOfInputs: 0, outputChannelCount: [1],
+    processorOptions: { wasm, seed: SEED, samples: pack, instrument: true, snapshot, every: 64 },
+  });
+  node.connect(new GainNode(ctx, { gain: auto ? 0 : 1 })).connect(ctx.destination);
+  node.port.onmessage = (m) => {
+    const d = m.data;
+    if (d.view) { latest.view = new Uint8Array(d.view); latest.taken = d.taken; schedule(); }
+    if (d.snapshot) {
+      latest.snapshot = d.snapshot;
+      latest.snapTaken = d.taken;
+      if (d.result !== null && d.result !== undefined) latest.loaded = d.result;
+      // The snapshot that reports a refused load is not kept, so the bytes that were refused
+      // stay until the first edit saves over them.
+      if (d.result === null || d.result === undefined || d.result === 0) {
+        try { if (!auto || auto === "reload" || auto === "1") localStorage.setItem(STORE, b64.to(d.snapshot)); } catch {}
+      }
+    }
+    listeners.forEach((f) => f(d));
+  };
+  for (const msg of early.splice(0)) node.port.postMessage(msg);
+}
+
+// Sound starts on the first touch (and that touch is a press: its message is queued for the
+// first block). Called on the way up too: some browsers unlock audio only on a release.
+const wake = () => { if (ctx.state !== "running") ctx.resume(); };
+
+// --- Holding keys: a finger, a pointer or a computer key. A key is down while anything holds it. ---
+const holders = Array.from({ length: 23 }, () => new Set());
+function press(k, who) {
+  if (holders[k].has(who)) return;
+  holders[k].add(who);
+  if (holders[k].size === 1) send([CMD.keyDown, k, 0, 0]);
+}
+function release(k, who) {
+  if (!holders[k].delete(who)) return;
+  if (holders[k].size === 0) send([CMD.keyUp, k, 0, 0]);
+}
+function releaseAll(prefix) {
+  holders.forEach((set, k) => [...set].forEach((who) => { if (!prefix || who.startsWith(prefix)) release(k, who); }));
+}
+
+for (const el of [...keys, ...fkeys]) {
+  const k = +el.dataset.key;
+  el.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    wake();
+    try { el.setPointerCapture(e.pointerId); } catch {}
+    press(k, `p${e.pointerId}`);
+  });
+  const up = (e) => { wake(); release(k, `p${e.pointerId}`); };
+  el.addEventListener("pointerup", up);
+  el.addEventListener("pointercancel", up);
+  el.addEventListener("lostpointercapture", up);
+}
+$("body").addEventListener("contextmenu", (e) => e.preventDefault());
+
+addEventListener("keydown", (e) => {
+  const k = CODES[e.code];
+  if (k === undefined || e.ctrlKey || e.metaKey || e.altKey) return;
+  e.preventDefault();
+  wake();
+  if (!e.repeat) press(k, `c${e.code}`);
+});
+addEventListener("keyup", (e) => { if (CODES[e.code] !== undefined) release(CODES[e.code], `c${e.code}`); });
+// A held key whose release this page will never see: let it go.
+addEventListener("blur", () => releaseAll("c"));
+document.addEventListener("visibilitychange", () => { if (document.hidden) releaseAll(); });
+
+// --- Sliders: a finger drags the cap from where it shows; a touch alone moves nothing. ---
+const finger = [null, null];          // { id, y, from, value } while a finger is on it
+function slide(which, value) {
+  send([CMD.param, which, 0, Math.max(0, Math.min(65535, Math.round(value)))]);
+}
+sliders.forEach((el, which) => {
+  const travel = () => el.querySelector(".tr").getBoundingClientRect().height - 26;
+  el.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    wake();
+    if (finger[which]) return;
+    try { el.setPointerCapture(e.pointerId); } catch {}
+    const from = latest.view ? shown(latest.view, which) : 32768;
+    finger[which] = { id: e.pointerId, y: e.clientY, from, value: from };
+    el.classList.add("held");
+  });
+  el.addEventListener("pointermove", (e) => {
+    const f = finger[which];
+    if (!f || f.id !== e.pointerId) return;
+    const v = Math.max(0, Math.min(65535, Math.round(f.from + ((f.y - e.clientY) / Math.max(1, travel())) * 65535)));
+    if (v === f.value) return;
+    f.value = v;
+    slide(which, v);
+    placeCap(which, v);
+  });
+  const up = (e) => {
+    if (!finger[which] || finger[which].id !== e.pointerId) return;
+    finger[which] = null;
+    el.classList.remove("held");
+    schedule();
+  };
+  el.addEventListener("pointerup", up);
+  el.addEventListener("pointercancel", up);
+  el.addEventListener("lostpointercapture", up);
+});
+function placeCap(which, v) {
+  const el = sliders[which], tr = el.querySelector(".tr");
+  el.querySelector(".cap").style.top = `${(1 - v / 65535) * Math.max(0, tr.clientHeight - 26)}px`;
+  el.setAttribute("aria-valuenow", v);
+}
+
+// --- The sheet: each key's code or sample (D50), drawn from the view like the rest. ---
+sounds.forEach((b, t) => b.addEventListener("click", () => {
+  const on = latest.view ? (u16(latest.view, 18) >> t) & 1 : 0;
+  send([CMD.voice, t, 0, on ? 0 : 1]);
+}));
+$("allCode").addEventListener("click", () => send(...NAMES.map((_, t) => [CMD.voice, t, 0, 0])));
+$("allSample").addEventListener("click", () => send(...NAMES.map((_, t) => [CMD.voice, t, 0, 1])));
+
+// --- Drawing: from the latest view only (§14, "What a host does with it"). ---
+const u16 = (v, i) => v[i] | (v[i + 1] << 8);
+const u32 = (v, i) => (v[i] | (v[i + 1] << 8) | (v[i + 2] << 16) | (v[i + 3] << 24)) >>> 0;
+const shown = (v, which) => u16(v, 20 + 2 * which);
+const lastFires = new Array(16).fill(null);
+const whiteUntil = new Array(16).fill(0);
+let queued = false, wakeAt = 0;
+function schedule() {
+  if (queued) return;
+  queued = true;
+  requestAnimationFrame(() => { queued = false; draw(); });
+}
+function draw() {
+  const v = latest.view;
+  // Before the first view (no audio thread yet): the caps at pi_init's middles, nothing lit.
+  if (!v) return [0, 1].forEach((which) => placeCap(which, 32768));
+  const now = performance.now();
+  const held = u32(v, 8), field = u16(v, 12), stitch = u16(v, 14), bar = u16(v, 16), sampled = u16(v, 18);
+  const flags = v[24], step = v[25], playing = flags & 1, stepped = flags & 8, sounds_ = flags & 16;
+  const mbpm = u32(v, 4);
+  // A firing holds the white for half a step at the view's tempo, 40 to 120 ms.
+  const hold = Math.max(40, Math.min(120, 7500000 / Math.max(1, mbpm)));
+  for (let n = 0; n < 16; n++) {
+    const fires = v[32 + n];
+    if (sounds_ && lastFires[n] !== null && fires !== lastFires[n]) whiteUntil[n] = now + hold;
+    lastFires[n] = fires;
+    const c = keys[n].classList;
+    c.toggle("on", !!((field >> n) & 1));
+    c.toggle("ghost", !!((stitch >> n) & 1));
+    c.toggle("bar", !!((bar >> n) & 1));
+    c.toggle("ochre", !!((held >> KEY.pattern) & 1));
+    c.toggle("play", !!(playing && stepped && step === n));
+    c.toggle("press", !!((held >> n) & 1));
+    c.toggle("fire", !!(sounds_ && now < whiteUntil[n]));
+    marks[n].classList.toggle("now", !!(playing && stepped && step === n));
+  }
+  fkeys.forEach((el, i) => {
+    const k = 16 + i;
+    el.classList.toggle("press", !!((held >> k) & 1));
+    el.classList.toggle("latch", (k === KEY.play && !!playing) || (k === KEY.write && !!(flags & 2)));
+  });
+  $("tempo").textContent = Math.floor(mbpm / 1000);
+  $("stepno").textContent = stepped ? `step ${String(step + 1).padStart(2, "0")}` : "step --";
+  $("write").hidden = !(flags & 2);
+  $("weave").textContent = "";
+  for (const which of [0, 1]) if (!finger[which]) placeCap(which, shown(v, which));
+  sounds.forEach((b, t) => {
+    const on = !!((sampled >> t) & 1);
+    b.classList.toggle("sampled", on);
+    b.querySelector("i").textContent = on ? "sample" : "code";
+  });
+  rhythm.drawn = v;
+  rhythm.afterDraw?.(v);
+  // Wake again when the next white is due to go out.
+  const next = Math.min(...whiteUntil.filter((t) => t > now));
+  if (Number.isFinite(next) && next !== wakeAt) { wakeAt = next; setTimeout(schedule, next - now + 1); }
+}
+addEventListener("resize", schedule);
+schedule();
+
+// What the checks reach (web/play.mjs). The page itself uses none of it.
+const rhythm = {
+  ctx, keys, fkeys, sliders, latest, listeners, slide, send, drawn: null, afterDraw: null,
+  get sent() { return sent; },
+  post: (msg) => post(msg, msg.load || msg.mark ? 1 : 0),
+  ready: null,
+};
+window.rhythm = rhythm;
+
+rhythm.ready = start().then(
+  () => { $("status").textContent = "Ready."; },
+  (e) => { $("status").textContent = `The engine did not start: ${e}`; throw e; });
+
+if (auto) import("./play-auto.js");
+</script>
+</body>
+</html>
