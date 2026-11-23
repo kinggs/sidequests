@@ -423,3 +423,33 @@ belongs in `PROOFS.md`, a change of course in `DECISIONS.md`, an outside fact in
   a `std::shared_ptr` (Rack's font), `__libc_single_threaded` (2.32). CI builds Linux in
   Ubuntu 16.04 for glibc 2.23. The local run checks the archive's contents; CI checks the
   rest.
+- **Profiled with perf (later the same day), the biggest cost was one line nobody would
+  guess.** `notFinite = jacks.notFinite` was a default (sequentially consistent) store to an
+  atomic, every frame. On x86 that compiles to `xchg`, a full memory barrier per sample. It
+  took about 43% of `Rhythm::process`'s samples, with `dropped = pi_dropped(e)` the same.
+  The hand timing with the cycle counter had put the cost in the jacks section and missed
+  it, because the barrier's cost lands on the instructions after it. Per-frame stores are now
+  relaxed and made only on a change. `freshWanted.exchange(false)` every frame was another
+  barrier; it now loads first.
+- **The rest of the profile, and what moved it.** Four modules playing, 20 s, one sample
+  every 200 000 cycles. Before: plugin and libm 8 291 samples, `Rhythm::process` 3 812,
+  `pi_process` 2 635, `pi_view` 837, `tanhf` 655, `lroundf` 168. After: 5 688 in all
+  (−31%), `Rhythm::process` 2 481, `pi_view` 44, `tanhf` 227, `lroundf` none. The fixes:
+  the view is read only on a frame where a command, an event or a load could have moved it,
+  in a self-test, or every 16th frame. A slider is rounded only when its float changes; the
+  rate only when Rack's changes. `tanh` is skipped on exact silence. An unpatched VOICES or
+  TRIGGERS is not written. Two divisions a frame (`r / 1000`, `r / 60`) became values set on
+  a rate change. The engine is now about half of the module's time; the next real gain is in
+  the core, and that one would also speed up the phone.
+- **perf here: user space only, and no call graphs.** `perf_event_paranoid` is 2, so
+  `cycles:u` works and `-g` (any call-graph mode) fails with "Failure to open any events".
+  Flat samples, then `perf annotate` and `objdump -dl` on the unstripped `plugin.so`, were
+  enough. Rack must load the unstripped `plugin.so`: the installed `.vcvplugin` is stripped,
+  so copy `plugin.so`, `plugin.json` and `res/` into a scratch user folder's plugin directory.
+- **One self-test run in 32 failed, and the evidence went with it.** At 96 kHz, a Rhythm
+  module on the 8 Hz LFO ran its whole 12 s on its table clock, with one pass cut short, as
+  if its CLOCK cable never connected. Its two siblings on the same LFO were clean, and 31
+  other runs were too. `selftest.sh` deleted Rack's log on exit, so the cause is not known
+  (⚠ a guess: the order Rack loads modules and cables in). It now keeps the log as
+  `rack/build/selftest-<rate>.log` when it fails. Read that log first if it happens again.
+

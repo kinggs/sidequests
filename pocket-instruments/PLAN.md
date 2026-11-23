@@ -78,6 +78,12 @@ done, and the latest two Handover notes. A session that finishes:
   the plugin installed> -t 3` writes `screenshots/PocketInstruments/*.png` and exits. The
   module is null there, so nothing is lit; a scratch build that fills the face's view by
   hand shows the lit states.
+- Since Session 13: `perf` 7.2 is installed. `perf_event_paranoid` is 2: `perf record -e
+  cycles:u -c 200000` works, call graphs (`-g`) do not. To profile the module, build it with
+  whatever presses play, copy the unstripped `rack/plugin.so`, `plugin.json` and `res/` into
+  a scratch user folder's `plugins-lin-x64/PocketInstruments/`, give it a patch, and run
+  `perf record ... ./Rack -h -u <folder>`; then `perf report --sort sym -n` and `perf
+  annotate`. Compare runs by sample counts over the same seconds and patch.
 - Found in Session 10: `cargo` only works with this folder as the working directory. From
   anywhere else the mise shim fails with "No version is set". To build a scratch copy, stay
   here and pass `--manifest-path` and `CARGO_TARGET_DIR`. `jq` (1.8) is present; the Rack
@@ -190,15 +196,18 @@ push; no Teenage Engineering material. And for these five:
 
 - [ ] D64: the menu's "one edge a beat" for CLOCK, and (proposed) the tempo shown from the
       edges on an external clock. Both touch `ENGINE.md` §4 and §14, so plan them first.
-- [ ] Room to trim in the module (measured 2026-11-23, not yet done; Rack's meter showed
-      1.0%). A frame is about 540 cycles: the engine about 190, scanning 25 parameters and
-      three inputs about 130, the jacks and 33 output voltages about 115, the view and caps
-      about 70. Cheap and safe: write nothing to an unpatched output, ask for the mix alone
-      when VOICES and RETURN are unpatched, read the view every few frames outside a
-      self-test. A question for the owner: read the parameters every 16 or 32 frames (under
-      1 ms late) rather than on the frame the brief asks for. None of it changes the page:
-      the browser already runs 128-frame blocks, and the engine alone is about 0.15% of a
-      core there and here.
+- [x] Room to trim in the module: done the same day, measured with perf (`LEARNINGS.md`,
+      Session 13, "Profiled with perf"). The module's time fell 31%: the big one was an
+      atomic store, a full memory barrier, every frame. The engine is now about half of it.
+- [ ] Still a question for the owner: read the parameters every 16 or 32 frames (under 1 ms
+      late) rather than on the frame the brief asks for, as VCV's own modules do. Measured
+      cost of reading them every frame now: a small part of `Rhythm::process`, no longer the
+      biggest.
+- [ ] The self-test failed once in 32 runs (96 kHz: a module on the LFO never saw its clock).
+      Not reproduced in 14 more. If it fails again, its log is kept in `rack/build/`
+      (`LEARNINGS.md`, Session 13). Read it before changing anything.
+- [ ] Next for efficiency, when wanted: the core itself (`pi_process` is about half the
+      module now). That one speeds up the phone too. Profile first (Machine state).
 
 ## Session 14 — the weave (build, with the owner's eye; next)
 
@@ -222,6 +231,49 @@ ABI 6. `ENGINE.md` §16, `design/DESIGN.md` "The animation", `design/loom/frames
       core, once. When it is accepted, three views and their cells are committed as the
       picture to hold to.
 - [ ] `DESIGN.md`'s "Not done" list brought up to date.
+
+## Session 15 — effects: the PO-12's, ours, and Rack's (design loop, Fable 5.2)
+
+The owner's brief, 2026-11-23, in their words: "I think we should possibly have three sets of
+sends and returns? But I really don't quite know yet. At the least triggers out, with voices
+back (like we have now), since that is the main way to get voices out. Additionally we need a
+good way to process those voices with *either* the internal FX or the external FX. But the
+challenge is that we haven't built the internal FX engine to match the PO yet. So we need to
+first-and-foremost make sure we understand those. [...] It's then partly a problem of needing
+to build a *start* of fx processing in our own model (again loosely inspired by the PO
+processing / FX layers for now), and making sure we can take that *workflow* into Rack. The
+thing is that it's a performative workflow. So it sort-of layers the FX effects, and has FX
+triggers that are very specific per channel as well. So we would need to take out the FX
+triggers plus the voices inside of VCV Rack." And: "go into an FX-specific design and
+implementation loop on Fable 5.2". O15.
+
+A design loop, then builds: Fable rules where the brief is silent, as in Sessions 9 and 10.
+Order against Session 14 is the owner's call; neither needs the other.
+
+- [ ] **Research first, written to `REFERENCES.md` with sources and dates:** Teenage
+      Engineering's PO-12 guide (R23) on fx: the sixteen effects, punch-in (fx + key while
+      playing), clearing (fx alone), whether effects are recorded per step (parameter
+      locks) and per sound or on the master. Other written guides and manuals. Open-source
+      PO-12 clones and how they built effects: `ulnd/po-12` (R30, MIT, already read once:
+      re-read for fx) and any other. Facts, intentions and guesses kept apart (⚠). No
+      Teenage Engineering material copied (README rule 6).
+- [ ] **What the PO-12's fx does, as a workflow:** which effects layer, which are
+      performance (held) and which are written into the pattern, and what "per channel" means
+      there. Questions the hardware hour must answer go into `WORKFLOW.md`.
+- [ ] **Our first fx in the core, loosely inspired:** a small set, `+ − × ÷` only and the same
+      bits everywhere (ENGINE.md §11's rule); per sound or on the mix; how the fx key and a
+      grid key drive it; what the view shows; what the snapshot keeps. ENGINE.md sections, a
+      D-number, fixtures worked by hand.
+- [ ] **Rack, the routing:** what stays (TRIGGERS and VOICES out, RETURN in, D62), and what is
+      added so each sound can be processed by *either* the internal fx *or* a Rack effect.
+      The candidates sketched on 2026-11-23: a send and return per bus (the owner wondered
+      about three sets); fx + key as per-channel gates or triggers out, so the
+      performance drives Rack effects; or both. The fx triggers per channel go out beside the
+      voices. The panel's room (24 HP, six jacks) is part of the answer, as is D33's expander.
+- [ ] **The same workflow on the page,** where there is no external fx: what the internal fx
+      covers there.
+- [ ] Build sessions, planned with lists like Sessions 10 to 13, each efficient and measured
+      (Ground rules).
 
 ## After Session 14
 
@@ -368,4 +420,17 @@ The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
   reaches it through `Face` every frame, so painting cells is a loop there. `harness/race.cpp`
   and `keys.rs` still hold bytes 48 to 63 to zero (Session 14's list). The screenshot route
   (Machine state) is how to see the weave in Rack without a person.
-- **Next: Session 14,** with the owner's eye.
+- **Later the same day, with the owner in Rack.** The owner played the module and is happy
+  with the Rack side. Two findings: a Clocked ×1 clock runs the beat at a quarter of the
+  speed, and the tempo readout keeps the stored tempo on an external clock. Both inputs
+  were tested and work (a scratch build, headless: 95 edges gave 95 steps; 8 resets gave
+  8 returns to step 1). The owner ruled D64: one edge a step stays, as SEQ-3's, and the menu
+  will offer one edge a beat. The readout from the edges is proposed in D64 item 3. Then
+  perf: the module's time fell 31% (above, and `LEARNINGS.md`), and efficiency, measured,
+  is a ground rule. CI's Linux job now has a 30-minute limit and says which setup step it
+  is in. Questions still open: the nine readings above, the parameter reading rate, and how
+  the fx key should reach Rack modules: now Session 15, a design loop on Fable 5.2 with the
+  owner's whole brief in it (O15). Session 14 or Session 15 first is the owner's call.
+- **Next: Session 14, on Fable,** with the owner's eye. It opens ABI 6 for the weave (the
+  view's bytes 48 to 54). D64 changes the clock (§4) and the view's tempo (§14), so Fable
+  should plan D64 in the same session and say whether it joins ABI 6.
