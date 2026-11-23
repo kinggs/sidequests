@@ -169,6 +169,27 @@ fn snapshot_of(fx: &Json, rate: u32) -> [u8; SNAP] {
     a.save()
 }
 
+/// §20: the same pattern as a player's keys would leave it: every step that is on keeps its
+/// sound's own A and B, as a write-mode key keeps them and as an older snapshot loads. (An
+/// edit's `STEP` keeps nothing.) So the report holds the bytes a page or a module saves after
+/// a beat was entered by keys, and each harness plays the fixture from them (P6).
+fn kept_snapshot_of(fx: &Json, rate: u32) -> [u8; SNAP] {
+    let mut a = Host::new(rate, fx.num("seed") as u32);
+    a.load(&snapshot_of(fx, rate));
+    let s = a.save();
+    let mut keeps = Vec::new();
+    for t in 0..16usize {
+        let on = u16::from_le_bytes([s[24 + 2 * t], s[25 + 2 * t]]);
+        let kept = u16::from_le_bytes([s[404 + 2 * t], s[405 + 2 * t]]);
+        let ab = u32::from_le_bytes([s[314 + 4 * t], s[315 + 4 * t], s[312 + 4 * t], s[313 + 4 * t]]);
+        for st in (0..16u8).filter(|st| on >> st & 1 == 1 && kept >> st & 1 == 0) {
+            keeps.push(cmd(CMD_KEEP, t as u8, st, ab));
+        }
+    }
+    a.block(1, &keeps);
+    a.save()
+}
+
 fn hex(b: &[u8]) -> String {
     b.iter().map(|x| format!("{x:02x}")).collect()
 }
@@ -220,10 +241,21 @@ fn every_fixture_everywhere() {
                 writeln!(report, "# {name} {source_name} {rate} snapshot {}", hex(&snap)).unwrap();
                 report.push_str(&text);
                 runs += 1;
+
+                // §20: and from the snapshot a beat entered by keys saves (Session 21).
+                let snap = kept_snapshot_of(&fx, rate);
+                let label = format!("{name} {source_name} {rate} from a kept snapshot");
+                let mut h = Host::new(rate, fx.num("seed") as u32 + 12_345);
+                assert_eq!(h.load(&snap), OK);
+                let (events, text) = play(&mut h, &plan, 128, &label);
+                assert_eq!(trace(&events), want, "{label}");
+                writeln!(report, "# {name} {source_name} {rate} kept snapshot {}", hex(&snap)).unwrap();
+                report.push_str(&text);
+                runs += 1;
             }
         }
     }
-    assert_eq!(runs, count * 2 * 3 * 4);
+    assert_eq!(runs, count * 2 * 3 * 5);
     // The Makefile compares this file with the ones the Node and C++ harnesses write.
     if let Ok(path) = std::env::var("PI_REPORT") {
         std::fs::write(path, report).unwrap();

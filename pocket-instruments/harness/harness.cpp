@@ -239,16 +239,42 @@ int main(int argc, char **argv) {
                 std::vector<Timed> cmds;
                 std::vector<View> views;
                 uint64_t end = schedule(fx, rate, source, true, cmds, &views);
-                std::string hex;
-                for (uint8_t byte : snap) {
-                    char two[3];
-                    std::snprintf(two, sizeof two, "%02x", byte);
-                    hex += two;
-                }
+                auto hex = [](const uint8_t *bytes) {
+                    std::string out;
+                    for (unsigned i = 0; i < PI_SNAPSHOT_SIZE; i++) {
+                        char two[3];
+                        std::snprintf(two, sizeof two, "%02x", bytes[i]);
+                        out += two;
+                    }
+                    return out;
+                };
                 std::string seen;
                 bool ok = true;
                 std::string got = run(b, cmds, end, 128, nullptr, &views, &seen, &ok, PI_AUDIO_MIX, format);
-                check(where + " snapshot " + hex, got, seen, ok);
+                check(where + " snapshot " + hex(snap), got, seen, ok);
+
+                // Section 20 (Session 21): and from the snapshot a beat entered by keys saves,
+                // every step that is on keeping its sound's own A and B (tests/fixtures.rs).
+                uint8_t kept[PI_SNAPSHOT_SIZE];
+                {
+                    Host a(rate, seed);
+                    if (pi_load(a.e, snap, sizeof snap) != PI_OK) die("pi_load refused a good snapshot");
+                    std::vector<Timed> keeps;
+                    for (unsigned t = 0; t < PI_TRACKS; t++) {
+                        unsigned on = snap[24 + 2 * t] | snap[25 + 2 * t] << 8, has = snap[404 + 2 * t] | snap[405 + 2 * t] << 8;
+                        uint32_t ab = uint32_t(snap[312 + 4 * t] | snap[313 + 4 * t] << 8) << 16 | uint32_t(snap[314 + 4 * t] | snap[315 + 4 * t] << 8);
+                        for (unsigned st = 0; st < PI_STEPS; st++)
+                            if ((on >> st & 1) && !(has >> st & 1)) keeps.push_back({0, cmd(PI_CMD_KEEP, uint8_t(t), uint8_t(st), ab)});
+                    }
+                    run(a, keeps, 1, 1);
+                    if (pi_save(a.e, kept, sizeof kept) != PI_SNAPSHOT_SIZE) die("pi_save");
+                }
+                Host c(rate, seed + 12345);
+                if (pi_load(c.e, kept, sizeof kept) != PI_OK) die("pi_load refused a kept snapshot");
+                seen.clear();
+                ok = true;
+                got = run(c, cmds, end, 128, nullptr, &views, &seen, &ok, PI_AUDIO_MIX, format);
+                check(where + " kept snapshot " + hex(kept), got, seen, ok);
 
                 // One flipped bit is refused.
                 snap[40] ^= 1;
@@ -259,5 +285,5 @@ int main(int argc, char **argv) {
 
     if (argc > 2) std::ofstream(argv[2], std::ios::binary) << report;
     std::printf("harness: %d runs, %d failed\n", runs, failed);
-    return failed == 0 && runs == int(files.size()) * 2 * 3 * 4 ? 0 : 1;
+    return failed == 0 && runs == int(files.size()) * 2 * 3 * 5 ? 0 : 1;
 }

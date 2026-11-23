@@ -179,6 +179,22 @@ function snapshotOf(m, fx, rate) {
   return new Uint8Array(m.pi.memory.buffer, m.base + SNAP, SNAP_SIZE).slice();
 }
 
+// §20: the fixture's snapshot with every step that is on keeping its sound's own A and B.
+function keptSnapshotOf(m, fx, rate, snap) {
+  const e = engine(m, rate, fx.seed);
+  new Uint8Array(m.pi.memory.buffer, m.base + SNAP, SNAP_SIZE).set(snap);
+  assert.equal(m.pi.pi_load(e, m.base + SNAP, SNAP_SIZE), 0);
+  const u16 = (i) => snap[i] | (snap[i + 1] << 8);
+  const cmds = [];
+  for (let t = 0; t < 16; t++) {
+    const on = u16(24 + 2 * t), has = u16(404 + 2 * t), ab = ((u16(312 + 4 * t) << 16) | u16(314 + 4 * t)) >>> 0;
+    for (let st = 0; st < 16; st++) if ((on >> st) & 1 && !((has >> st) & 1)) cmds.push([0, { type: CMD.keep, a: t, b: st, value: ab }]);
+  }
+  run(m, e, cmds, 1, 1);
+  assert.equal(m.pi.pi_save(e, m.base + SNAP, SNAP_SIZE), SNAP_SIZE);
+  return new Uint8Array(m.pi.memory.buffer, m.base + SNAP, SNAP_SIZE).slice();
+}
+
 const hex = (bytes) => Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 
 test("the module imports nothing and its memory grows by a page for the host", { skip }, () => {
@@ -226,6 +242,16 @@ test("every fixture gives its trace on both sources, at every rate and block siz
         assert.equal(got, wanted(views), `${name} ${sourceName} ${rate} from a snapshot`);
         report += `# ${name} ${sourceName} ${rate} snapshot ${hex(snap)}\n${got}`;
         runs++;
+        // §20 (Session 21): and from the snapshot a beat entered by keys saves, every step that
+        // is on keeping its sound's own A and B (core/src/tests/fixtures.rs says why).
+        const kept = keptSnapshotOf(m, fx, rate, snap);
+        const k = engine(m, rate, fx.seed + 12345);
+        new Uint8Array(m.pi.memory.buffer, m.base + SNAP, SNAP_SIZE).set(kept);
+        assert.equal(m.pi.pi_load(k, m.base + SNAP, SNAP_SIZE), 0);
+        const gotKept = run(m, k, cmds, end, 128, null, views, `${name} ${sourceName} ${rate} from a kept snapshot`, 1, format);
+        assert.equal(gotKept, wanted(views), `${name} ${sourceName} ${rate} from a kept snapshot`);
+        report += `# ${name} ${sourceName} ${rate} kept snapshot ${hex(kept)}\n${gotKept}`;
+        runs++;
         // One flipped bit is refused.
         const bad = new Uint8Array(m.pi.memory.buffer, m.base + SNAP, SNAP_SIZE);
         bad[40] ^= 1;
@@ -233,7 +259,7 @@ test("every fixture gives its trace on both sources, at every rate and block siz
       }
     }
   }
-  assert.equal(runs, names.length * 2 * 3 * 4);
+  assert.equal(runs, names.length * 2 * 3 * 5);
   if (process.env.PI_REPORT) writeFileSync(process.env.PI_REPORT, report);
 });
 
