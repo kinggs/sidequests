@@ -203,6 +203,11 @@ push; no Teenage Engineering material. And for these five:
       late) rather than on the frame the brief asks for, as VCV's own modules do. Measured
       cost of reading them every frame now: a small part of `Rhythm::process`, no longer the
       biggest.
+- [ ] CI's Linux job is slow in `apt-get update`, not in the build: on 2026-11-23 its new
+      progress lines showed 12.5 minutes in apt, then 30 s for everything else (run
+      45164319887, green on all four). Ubuntu 16.04's archive is slow from GitHub's runners.
+      Options, the owner's call: a prebuilt image with the packages in it, or
+      `old-releases`/a mirror. The 30-minute limit now stops a full stall.
 - [ ] The self-test failed once in 32 runs (96 kHz: a module on the LFO never saw its clock).
       Not reproduced in 14 more. If it fails again, its log is kept in `rack/build/`
       (`LEARNINGS.md`, Session 13). Read it before changing anything.
