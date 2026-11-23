@@ -549,3 +549,46 @@ belongs in `PROOFS.md`, a change of course in `DECISIONS.md`, an outside fact in
 - **Idle is 26 ns a frame, almost all of it the voices.** A stopped engine with nothing
   sounding costs as much as the minimum beat playing. That is the "Later: efficiency"
   idle row, now with a number, and the bench is where to see it move.
+
+## Session 17: the bus and seven sound effects (2026-11-23)
+
+- **Idle cost a frame at first, and the bench saw it.** Wired the plain way (read what is
+  heard every frame, the bus inline), idle went from 25.7–25.9 to 27.2–28.2 ns a frame.
+  Reading what is heard only on a frame with a command or a tick (the only things that can
+  change it) was not enough: 27.1–27.4. Moving the bus's working path out of line
+  (`#[inline(never)]` on `Bus::frame` and `Bus::mix`) so the frame loop keeps only two
+  comparisons brought it back: run back to back against a build of the previous commit,
+  25.6–26.4 against 25.5–25.9. Lesson: an unused branch still costs when it is inlined into
+  the hottest loop; measure against the old build in the same minute, not against
+  yesterday's numbers.
+- **Measured (`make bench`, best of five, 10 s at 48 kHz, the mix; three runs each, the
+  range).** Before: idle 25.7–25.9 ns a frame, the minimum beat 28.4–29.2, all sixteen
+  42.0–42.6, repeat 30.0–31.3. After: idle 25.9–26.5, beat 27.8–29.4, all 42.7–44.1, repeat
+  31.1–32.6. Each effect on every step of the beat: 1, 34.1–34.7; 2, 33.7–34.0; 3, 33.8–34.9;
+  5, 34.1–34.7; 6, 34.5–35.3; 7, 34.6–35.0; 8, 34.4–34.5. So an effect costs about 6 ns a
+  frame over the dry beat, nearly the same for all seven: the split of sixteen voices into
+  the bus and the rest, not the effect, is most of it. The engine grew from 2 400 to 2 448
+  bytes; the `.wasm` from 30 381 to 32 783.
+- **A model written from ENGINE.md's words, held bit for bit, did most of the proving.** One
+  test runs two bars a frame at a time through every kind of change (each effect from idle,
+  effect to effect, a sweep held and restarted, a punch over the lane, a sound switched out,
+  the volume down) and holds the core's mix to a plain re-statement of §18. It passed at the
+  first run and was among the failing tests for at least 18 of the 25 planted faults (the
+  script names three a plant). The rest needed tests of their own: the clip's ±3, the
+  sweep's length, a sweep counted by frames instead of ticks (only an edge's burst shows
+  it), effect 4 sounding, and the two below.
+- **Two plants missed at first, and each named a hole in the tests, not the code.** "A
+  sweep does not restart with a run" survived because a run separated by a whole step has
+  always ramped out by then; only heard-again-within-2 ms tells the two apart. "A repeat
+  also runs the bus" survived because the only test of 9 to 12 compared events. Each got a
+  test, and all 25 were run again from an unplanted copy that passed first: 25 of 25.
+- **`bus + w (wet − bus)` at `w` = 1 is not `wet`.** The first test of the hold counted
+  frames whose bits changed and found 9 984 a second at 44.1 kHz, not 6 000: the rounding of
+  that expression changes every frame. Then 5 692 by a threshold, because the beat is silent
+  between hits and a new sample of silence is the old one. The test now holds the closest
+  gap between new samples to `rate / 6000` and the count to at most 6 000.
+- **The listening page proves itself by a fixed number.** A bar of the beat is the same every
+  time (the voices restart on each hit and the hold's 3 000 samples a bar at 48 kHz fall in
+  the same places), so the dry beat's loudest sample over a bar is a constant, 0.9037 in
+  both browsers, and each effect gives its own. Effect 6 is the closest, 0.9039. A planted
+  wrong command number on the page made all seven give 0.9037 and `make listen` failed.

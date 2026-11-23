@@ -1122,3 +1122,78 @@ Order against Session 14 is the owner's call; neither needs the other.
       pass their checks. Nothing is drawn yet, but fx + 9 to 12 already repeats on both,
       because the keys reach the core: say so in the Handover so the owner can try it.
 - [x] `make bench` again: an empty lane costs nothing measurable, or the Handover says what.
+
+## Session 17 — the bus and seven sound effects (build, Opus, then the owner's ear; done 2026-11-23)
+
+`ENGINE.md` §18; D67 items 2 and 3.
+
+- [x] Before: the report, the render hashes, `make bench`.
+- [x] The bus and the rest; idle is today's path, the same bytes (all 276 render files).
+- [x] The ramp; effects 1, 2, 3; the filter and effects 5 to 8, the sweeps in ticks.
+      The stmlib and Plaits notices in the file's header; a credits line on the page and in
+      the plugin's manifest (D67 item 3).
+- [x] Render pairs, native and `.wasm` the same bytes: each effect punched over the minimum
+      beat, at three rates. A sound switched out of the effects is the same in the mix with
+      and without one.
+- [x] `web/listen.html` gains the seven, each over the beat, so the owner can hear them
+      beside the dry beat. Every constant in §18's table is a first value: the owner's ear
+      moves them, as it did the voices.
+- [x] `make bench`: idle, and each effect on. Planted faults.
+
+### After Session 15: the effects, researched and designed (2026-11-23)
+
+- **CI's Linux image is in, measured.** `rack/ci-linux.Dockerfile` (Ubuntu 16.04 by digest)
+  and `rack/ci-linux-setup.sh`; the workflow pulls
+  `ghcr.io/kinggs/sidequests/pi-rack-linux:<hash of the three files it is made from>`, or
+  builds and pushes it once if that tag is not there. The Linux job: 78 s on a good day and
+  14 min 35 s that morning before; 12 min 18 s the one run that built the image (727 s of
+  it apt); **28 s after** (pull 11 s, build 11 s; run 45170623935). `ci-linux.sh` now
+  refuses any gcc but 5.4 and any glibc but 2.23, and still works in a bare `ubuntu:16.04`.
+  `check-dist.sh` passed on all four as before.
+- **Researched, with sources, in `REFERENCES.md` R48 to R62:** the PO-12's effects (the
+  maker's two sentences; reviews; the sibling guides; two videos read from their captions);
+  open-source effects engines and what may be ported; Rack's conventions for sends,
+  returns and gates; MixMaster.
+- **What the research changed in the brief:** the PO-12's effects are on the whole mix,
+  not a channel (R50), and they are always recorded, a step at a time, with write off
+  (R49, R53). No open-source clone implements them (R55).
+- **Designed, as proposals for the owner (O16):** D66, a lane a pattern, written by the
+  steps that arrive, and a switch a sound for "per channel"; D67, four repeats in the
+  sequencer (they go out on TRIGGERS) and seven sound effects on one bus, the filter and
+  two more ported from stmlib and Plaits (MIT) with credit; D68, Rack: FX GATES out and FX
+  SEND and FX RETURN round the bus, with the returns moved into the core so a returned
+  sound takes the effects too; D69, the page. `ENGINE.md` §17 to §19.
+- **A fixture worked by hand before any code:** `fixtures/designed/fx-repeat-punch.json`,
+  format 3 (`fixtures/README.md`). No harness reads `designed/`. `make verify` passes with
+  it there.
+- **From the owner's PO-12, the same day (D71):** the chosen sound's steps are lit whether
+  write is on or off. Ours lights none with write off (D37). A fact; the change is
+  proposed, as Session 20.
+- **MixMaster (D70, parked):** one cable cannot reach sixteen tracks. Today VCV Split and
+  sixteen cables; one gesture needs a breakout expander with sixteen jacks.
+- **Not done, and why:** nothing was built in the core (a design session). The delay and
+  feedback (4, 14) and effects 13, 15 and 16 are not designed: the first two need a ruling
+  on stored sound, the rest need the hardware (`WORKFLOW.md`, "The effects: what to check
+  on the PO-12"). The panel with nine jacks is a claim from arithmetic (D68 item 5 ⚠), not
+  drawn.
+- **Checked on the owner's PO-12 the same day,** six of the thirteen rows in
+  `WORKFLOW.md`: recorded with write off, heard at once, cleared by the steps that pass,
+  the last of two keys wins and the first comes back, stopped does nothing, no key lights
+  and the display marks it. The last three corrected the design before anything was built
+  (`ENGINE.md` §17 says where; `LEARNINGS.md`). Then three more held: the pressed step is
+  not recorded, clear wipes the lane, an effect outlives its note. **Not confirmed: the
+  repeats.** Effect 9 gave no repeat the owner could hear, so Session 16's four repeats
+  are ours, under the hardware's names, until that is known.
+- **For the owner:** the four checks left in `WORKFLOW.md`.
+- **For Session 16 (Opus), what will bite:**
+  - The fixture's keys land a frame after a boundary, so a punch never writes its own
+    step: read `fixtures/README.md`'s notes on it before the code.
+  - `seq.tick` needs to know whether fx is held and what is punched: pass them in, do not
+    reach into the keys from the sequencer.
+  - The punched keys are kept in the order they went down (the last still held wins, and
+    the one before comes back): sixteen keys at most, so a small fixed array.
+  - A repeat fires on ticks that are not a step's tick 0. On an external clock those ticks
+    come in a burst when an edge is early (§4): the trace is the same, the frames are not.
+  - There is no bench yet; the list starts by making one.
+- **Ruled the same day: D72.** All accepted; the jacks on the panel; D71 yes; D70 later.
+- **Next: Session 16,** on Opus.

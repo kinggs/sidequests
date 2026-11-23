@@ -315,7 +315,7 @@ Two runs agree when their traces are the same bytes.
   harness, the worklet and the Rack Probe; `core/src/tests/rules.rs` holds `pi_size` to it).
   With a sample beside each voice (§12) it is 2 328 bytes, natively and in WebAssembly, and
   the room is 4 KiB. With the keys (§13) it is 2 352 bytes, in the same room, and snapshot
-  version 2 (§15) added nothing to it. With the lane and the repeats (§17) it is 2 400. The samples
+  version 2 (§15) added nothing to it. With the lane and the repeats (§17) it is 2 400; with the bus (§18), 2 448. The samples
   themselves are in pages of their own after the host's.
   A host that can should ask `pi_size` instead.
 - **One thread.** Every function on an engine is called from the audio thread only. That
@@ -977,7 +977,7 @@ with an empty lane. The design held. What it did not say, built on and marked:
   held while playing, it lets steps write the lane at the audio thread's pace, which its
   model (a frame an edit) cannot keep; the lane goes in by `FX` instead.
 
-## 18. The bus and the first sound effects (designed in Session 15; D67; not built)
+## 18. The bus and the first sound effects (ABI 7; designed in Session 15; D67; built in Session 17)
 
 - **The bus** is the sum of the sounds in `fx_sounds`, in track order; **the rest** is the
   sum of the others. The effects act on the bus only. That one switch a sound is what "per
@@ -1029,6 +1029,45 @@ describes them).
 effect punched over the minimum beat at three rates; the 276 existing render files
 unchanged; a rule test that a sound outside `fx_sounds` is the same in the mix with and
 without an effect; the cost of a frame measured idle and with each effect on.
+
+**Built (Session 17, ABI 7):** `core/src/bus.rs`, with Émilie Gillet's notice in its
+header; the credits on `web/rhythm.html` and in the Rhythm module's line of
+`rack/plugin.json`. `Engine::process` reads what is heard and hands the bus the frame's
+ticks; `Voices::render` takes the bus's mix when it runs. No call, command, view byte or
+snapshot byte changed; the ABI moved to 7 by PLAN's rule for Sessions 16 to 19. Proven: the
+report and all 276 render files the same bytes as before the session; seven render pairs,
+`harness/render-fx-{1,2,3,5,6,7,8}.json` (each effect punched over the minimum beat, then
+replayed by the lane, both clocks, three rates), native and `.wasm` the same bytes; 17 rule
+tests in `core/src/tests/bus.rs`, among them a model of this section written from its words
+that the mix equals bit for bit on every frame of two bars that pass through every kind of
+change, at three rates and on edges; 25 faults planted, each caught by a named test. Cost
+(`make bench`, `LEARNINGS.md`): idle within the bench's noise; an effect about 6 ns a frame
+over the dry beat. What it did not say, built on and marked:
+
+- ⚠ **What is cleared, and when.** The text says the filter's state "is cleared when an
+  effect starts from idle, and kept from one filter effect to the next". Built: each
+  effect's state is cleared when it starts from idle or from another kind of effect (the
+  four filters are one kind; 1, 2 and 3 each their own). So the hold starts with its
+  accumulator and sample at 0 (its first new sample comes 8 frames in at 48 kHz, under a
+  ramp at 0.08), and a filter effect after 1, 2 or 3 starts clean.
+- ⚠ **"Damping 0.5"** is built as stmlib's `r`, 1 / Q, so Q = 2, as `voice.rs` uses the
+  word. Read as a damping ratio it would be `r` = 1.
+- ⚠ **A sweep's first tick.** What is heard is read once a frame, after that frame's ticks
+  (§3's order), so a tick on the very frame heard becomes a sweep is not counted: at most
+  one tick, only when a punch lands on a frame that also has a tick.
+- ⚠ **Heard again while ramping out** (6, then none, then 6 again within 2 ms): heard
+  became 6, so the sweep starts again; the filter keeps its state, since the bus never went
+  idle.
+- Not readings: with no mix in the layout (16 channels) the ramp and the sweeps move and the
+  effect itself does not run; `bus + w (wet − bus)` at `w` = 1 is the effect's output to
+  within a rounding, not bit for bit; Plaits' polyBLEP is not ported (the table says a
+  plain hold); the hold's accumulator wraps by `acc % rate`, the same as `acc − rate` at
+  any rate above 6 kHz, and total below it. Idle costs, as built, a comparison in `advance`
+  and one in the mix; what is heard is read again only on a frame with a command or a tick,
+  which gives the same value as reading it every frame.
+- Not yet heard in Rack with RETURN patched: the module rebuilds AUDIO from the sixteen
+  channels (`rack/src/jacks.hpp`, D62), which are before the effects. Session 18 moves the
+  returns into the core (§19).
 
 ## 19. Sound in: the returns and the effects loop (designed in Session 15; D68; not built)
 

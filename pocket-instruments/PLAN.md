@@ -121,6 +121,7 @@ Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
 | 13, the Rack module (Opus) | the Rhythm module, RETURN (D62) and its test, the panel's sixth jack, a format 2 self-test in Rack | 2026-11-23 |
 | 15, the effects researched and designed (Fable) | CI's Linux image (28 s, from 78 s or worse); R48 to R62; `ENGINE.md` §17 to §19; D66 to D71; a fixture by hand; Sessions 16 to 20 | 2026-11-23 |
 | 16, the lane and the repeats in the core (Opus) | ABI 6: `FX`, `FXSOUND`, the fx key, the lane, the four repeats, snapshot version 3; `make bench`; a second fixture by hand; `snapshots-v2.txt` | 2026-11-23 |
+| 17, the bus and seven sound effects (Opus) | ABI 7: the bus, effects 1, 2, 3 and 5 to 8 ported with credit from stmlib and Plaits; seven render pairs; the effects on `web/listen.html`, `make hear` | 2026-11-23 |
 
 ## Still the owner's hands
 
@@ -138,6 +139,9 @@ Unticked in the finished lists. None blocks a build session.
       owner could hear), whether every sound repeats, the sweeps, and effects 4 and 13 to
       16. ~~And D71's open point~~ (answered): with write off, do keys flash for their own
       sound as it fires?
+- [ ] By ear, the seven sound effects (Session 17) on `web/listen.html` (`make hear`):
+      every number in `core/src/bus.rs`'s "TUNING THE EFFECTS" is a first value. And
+      Session 17's two questions (its Handover).
 - [ ] P4: iOS Safari (no iPhone yet), and the tap pad filmed for latency. `PROOFS.md` P4.
 - [ ] P5: the four loads in Rack, one a platform. `PROOFS.md` P5, "What the full proof
       still needs". CI has the four artefacts. ~~And VCV's answer (O2).~~ Answered
@@ -281,23 +285,6 @@ the owner says.
 **Ruled 2026-11-23 (D72):** D66 to D69 accepted; the jacks on the panel; D71 yes; D70
 after the effects.
 
-### Session 17 — the bus and seven sound effects (build, Opus, then the owner's ear)
-
-`ENGINE.md` §18; D67 items 2 and 3.
-
-- [ ] Before: the report, the render hashes, `make bench`.
-- [ ] The bus and the rest; idle is today's path, the same bytes (all 276 render files).
-- [ ] The ramp; effects 1, 2, 3; the filter and effects 5 to 8, the sweeps in ticks.
-      The stmlib and Plaits notices in the file's header; a credits line on the page and in
-      the plugin's manifest (D67 item 3).
-- [ ] Render pairs, native and `.wasm` the same bytes: each effect punched over the minimum
-      beat, at three rates. A sound switched out of the effects is the same in the mix with
-      and without one.
-- [ ] `web/listen.html` gains the seven, each over the beat, so the owner can hear them
-      beside the dry beat. Every constant in §18's table is a first value: the owner's ear
-      moves them, as it did the voices.
-- [ ] `make bench`: idle, and each effect on. Planted faults.
-
 ### Session 18 — Rack: the loop, the gates, the panel (build, Fable)
 
 On Fable because a contract first meets code (the returns move into the core) and the
@@ -382,64 +369,6 @@ Decided when P1 to P4 are in, not before:
 
 The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
 
-### After Session 15: the effects, researched and designed (2026-11-23)
-
-- **CI's Linux image is in, measured.** `rack/ci-linux.Dockerfile` (Ubuntu 16.04 by digest)
-  and `rack/ci-linux-setup.sh`; the workflow pulls
-  `ghcr.io/kinggs/sidequests/pi-rack-linux:<hash of the three files it is made from>`, or
-  builds and pushes it once if that tag is not there. The Linux job: 78 s on a good day and
-  14 min 35 s that morning before; 12 min 18 s the one run that built the image (727 s of
-  it apt); **28 s after** (pull 11 s, build 11 s; run 45170623935). `ci-linux.sh` now
-  refuses any gcc but 5.4 and any glibc but 2.23, and still works in a bare `ubuntu:16.04`.
-  `check-dist.sh` passed on all four as before.
-- **Researched, with sources, in `REFERENCES.md` R48 to R62:** the PO-12's effects (the
-  maker's two sentences; reviews; the sibling guides; two videos read from their captions);
-  open-source effects engines and what may be ported; Rack's conventions for sends,
-  returns and gates; MixMaster.
-- **What the research changed in the brief:** the PO-12's effects are on the whole mix,
-  not a channel (R50), and they are always recorded, a step at a time, with write off
-  (R49, R53). No open-source clone implements them (R55).
-- **Designed, as proposals for the owner (O16):** D66, a lane a pattern, written by the
-  steps that arrive, and a switch a sound for "per channel"; D67, four repeats in the
-  sequencer (they go out on TRIGGERS) and seven sound effects on one bus, the filter and
-  two more ported from stmlib and Plaits (MIT) with credit; D68, Rack: FX GATES out and FX
-  SEND and FX RETURN round the bus, with the returns moved into the core so a returned
-  sound takes the effects too; D69, the page. `ENGINE.md` §17 to §19.
-- **A fixture worked by hand before any code:** `fixtures/designed/fx-repeat-punch.json`,
-  format 3 (`fixtures/README.md`). No harness reads `designed/`. `make verify` passes with
-  it there.
-- **From the owner's PO-12, the same day (D71):** the chosen sound's steps are lit whether
-  write is on or off. Ours lights none with write off (D37). A fact; the change is
-  proposed, as Session 20.
-- **MixMaster (D70, parked):** one cable cannot reach sixteen tracks. Today VCV Split and
-  sixteen cables; one gesture needs a breakout expander with sixteen jacks.
-- **Not done, and why:** nothing was built in the core (a design session). The delay and
-  feedback (4, 14) and effects 13, 15 and 16 are not designed: the first two need a ruling
-  on stored sound, the rest need the hardware (`WORKFLOW.md`, "The effects: what to check
-  on the PO-12"). The panel with nine jacks is a claim from arithmetic (D68 item 5 ⚠), not
-  drawn.
-- **Checked on the owner's PO-12 the same day,** six of the thirteen rows in
-  `WORKFLOW.md`: recorded with write off, heard at once, cleared by the steps that pass,
-  the last of two keys wins and the first comes back, stopped does nothing, no key lights
-  and the display marks it. The last three corrected the design before anything was built
-  (`ENGINE.md` §17 says where; `LEARNINGS.md`). Then three more held: the pressed step is
-  not recorded, clear wipes the lane, an effect outlives its note. **Not confirmed: the
-  repeats.** Effect 9 gave no repeat the owner could hear, so Session 16's four repeats
-  are ours, under the hardware's names, until that is known.
-- **For the owner:** the four checks left in `WORKFLOW.md`.
-- **For Session 16 (Opus), what will bite:**
-  - The fixture's keys land a frame after a boundary, so a punch never writes its own
-    step: read `fixtures/README.md`'s notes on it before the code.
-  - `seq.tick` needs to know whether fx is held and what is punched: pass them in, do not
-    reach into the keys from the sequencer.
-  - The punched keys are kept in the order they went down (the last still held wins, and
-    the one before comes back): sixteen keys at most, so a small fixed array.
-  - A repeat fires on ticks that are not a step's tick 0. On an external clock those ticks
-    come in a burst when an edge is early (§4): the trace is the same, the frames are not.
-  - There is no bench yet; the list starts by making one.
-- **Ruled the same day: D72.** All accepted; the jacks on the panel; D71 yes; D70 later.
-- **Next: Session 16,** on Opus.
-
 ### After Session 16: the lane and the repeats, in the core (2026-11-23)
 
 - **Built, ABI 6 (`ENGINE.md` §17, now marked built):** commands 23 `FX` and 24 `FXSOUND`;
@@ -486,3 +415,63 @@ The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
 - **Next: Session 17,** the bus and seven sound effects (Opus). The bench is there to say
   what each costs; idle is the number to watch.
 
+
+### After Session 17: the bus and seven sound effects, in the core (2026-11-23)
+
+- **Built, ABI 7 (`ENGINE.md` §18, now marked built):** `core/src/bus.rs`. The sounds in
+  the effects are summed into a bus; effects 1 (a hold at 6 kHz), 2 (soft clip), 3 (crush),
+  5 and 7 (a lowpass at 600 Hz, a hipass at 2 kHz) and 6 and 8 (the sweeps, by ticks) act on
+  it and come in and out over a 2 ms ramp. The sixteen track channels are untouched. Idle,
+  the mix is the old one. The filter, its tan, the soft clip and the hold are ported from
+  Émilie Gillet's stmlib and Plaits, her MIT notice in the file's header; the credits on
+  `web/rhythm.html` and in the Rhythm module's description in `rack/plugin.json`. No call,
+  command, view byte or snapshot byte changed; the ABI is 7 by the rule for Sessions 16
+  to 19. Every constant is in one marked block at the top of `bus.rs`, "TUNING THE EFFECTS".
+- **Proven:** the report and all 276 render files the same bytes as before the session.
+  Seven new render pairs (`harness/render-fx-*.json`: each effect punched over the
+  minimum beat at step 1, let go at step 9, then replayed by the lane in bar 2; both
+  clocks, three rates), 42 pairs native against `.wasm`, the same bytes. 161 Rust tests
+  (17 of them §18's in `core/src/tests/bus.rs`, among them a model of §18 the mix equals bit
+  for bit on every frame, at three rates and on edges; and that a sound switched out is the
+  same in the mix with and without an effect). 25 faults planted in the core, the unplanted
+  copy passing first: 25 caught, each by a named test (two only after a test was added for
+  them, `LEARNINGS.md`); a wrong command number planted on the listening page failed `make
+  listen`. `make test` (216 runs a harness, P6's race and its six plants), `make play`,
+  `make p4`, `make listen`, and Rack's `make install` and `make selftest` at 44.1, 48 and
+  96 kHz all passed. The core still needs no libm (`check-p1`) and the `.wasm` imports
+  nothing.
+- **Measured (`LEARNINGS.md`):** ns a frame, best of five, three runs each, before → after:
+  idle 25.7–25.9 → 25.9–26.5 (back to back with the old build, 25.5–25.9 against
+  25.6–26.4: within the bench's noise); the minimum beat 28.4–29.2 → 27.8–29.4; all sixteen
+  42.0–42.6 → 42.7–44.1. Each effect on every step of the beat: 33.7 to 35.3, about 6 ns a
+  frame over the dry beat. The first wiring cost idle 1.5 ns; moving the bus's working path
+  out of line took it back.
+- **Opus decided nothing. Four readings built on, each ⚠ in `ENGINE.md` §18, each a line or
+  two to change:**
+  1. What is cleared: each effect's state when it starts from idle or from another kind
+     (the four filters one kind). So the hold starts at 0 and a filter after 1, 2 or 3
+     starts clean. §18 names only the filter, from idle.
+  2. "Damping 0.5" is stmlib's `r` (1 / Q, so Q = 2), as `voice.rs` uses the word; as a
+     damping ratio it would be `r` = 1. The hipass sweep peaks about 1 dB over the dry beat.
+  3. A sweep's place counts the ticks after the frame heard became the effect: a tick on
+     that same frame is not counted (one tick at most).
+  4. Heard again within 2 ms of ending (still ramping out) starts a sweep again, the filter
+     keeping its state.
+- **Questions for the owner:**
+  1. The plugin's manifest has no credits field, so the credit is a sentence in the Rhythm
+     module's description ⚠. Should the plugin also ship stmlib's MIT notice as a file in
+     `res/`, as it ships the font's OFL? (MIT asks for the notice in copies of the
+     software; the source has it, the built plugin does not.) Recommended: yes, a small
+     change to `rack/Makefile` and `check-dist.sh`.
+  2. The four readings above: accept as built?
+- **Not done:** the bus is not heard in Rack with RETURN patched: the module then rebuilds
+  AUDIO from the sixteen channels, which are before the effects (D62). Session 18 moves the
+  returns into the core and fixes it. With RETURN unpatched, Rack plays the effects.
+- **For the owner to try now:** `make hear` (in `pocket-instruments/`) and open the address
+  it prints, or the live page `pocket-instruments/web/listen.html`: "Effects over the
+  minimum beat", each of the seven beside "Dry beat"; "Dry, then wet" plays steps 1 to 8
+  dry and 9 to 16 through the effect, so each bar compares them. In Rack and on
+  `rhythm.html`, while playing, hold fx and press key 1, 2, 3, 5, 6, 7 or 8. The numbers to
+  move are the "TUNING THE EFFECTS" block of `core/src/bus.rs`; then `make test` (a test
+  that pins the old number fails and says which), `make web`, and listen.
+- **Next:** Session 18 (Fable), or the owner's ear on the seven first.
