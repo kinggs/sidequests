@@ -304,8 +304,10 @@ after the effects.
 D69.
 
 - [ ] fx + key by touch and by keys; the display's mark while an effect is heard, and the
-      lane on its step marks (`design/DESIGN.md` says how: decide it with the owner
-      first). No key lights for an effect.
+      lane on its step marks, as D81 says (a stand-in for the owner's eye: write it into
+      `design/DESIGN.md` and mark it ⚠ in its "Not done"). No key lights for an effect.
+- [ ] The same two drawings on the Rack module's display, from the same bytes (D81 item
+      4); seen in Rack's screenshot mode, the lit screenshot in `design/` taken again.
 - [ ] The sounds sheet's "through fx" switch.
 - [ ] D78 on the page: the fx latch stays on and holds fx only while a grid key is down;
       `make play`'s latch phase holds it.

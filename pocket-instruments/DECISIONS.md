@@ -1391,6 +1391,33 @@ them):
   will use, which the core cannot know for a tap, and can for a step only a tick ahead.
 - Whether a marked repeat should cross the bus (item 3), and the default ticks (item 9).
 
+### D81 — Session 18 verified; how the display says an effect, as a stand-in for the owner's eye
+**2026-11-23 · decided (Fable; the owner is away and can overrule: D79) · for Session 19 · the look is a stand-in, marked ⚠ in `design/DESIGN.md`**
+
+Session 18 verified first: the repo's `make verify` re-run by this session (204 Rust
+tests, 300 harness runs, none failed); CI run 45200249016 green on all four platforms; the
+panel looked at in `design/rack-face-lit-200.png`: two rows, thirteen jacks, grouped as
+D76 asks, the wordmark in the lower row's gap. D80's eighteen items wait for the owner
+(O18); none blocks the page.
+
+So that the page and the Rack display cannot draw an effect two ways, and Session 19 need
+not wait:
+
+1. **While an effect is heard, a block like the write mark:** solid, with `fx` and the
+   effect's number in it (`fx 3`, `fx 11`), beside the write mark in the display's column.
+   Madder, the fx key's own colour, where the write mark is ochre. Absent when none is
+   heard. From the view's byte 55.
+2. **The lane, on the step marks:** a step that holds an effect has a small madder tick
+   above its mark. From the view's bytes 56 and 57. The step marks themselves do not
+   change, so the beats still stand taller and the playhead still shows.
+3. **No picture of a machine, and no spark.** The hardware's spark belongs to its sewing
+   machine, which is its protected artwork (R6). A block and a tick are Loom's own parts.
+4. **Both hosts,** from the same bytes. Reduced motion changes nothing: neither moves.
+
+Why now and not with the owner: the owner asked for as much as can be built without them
+(D79). Everything here is drawing in the two hosts; the core does not change, so a
+different look later costs a few lines in each.
+
 ## Open
 
 | ID | Question | Needs |
