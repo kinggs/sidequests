@@ -6,10 +6,11 @@
 
     uv run pocket-instruments/design/make_panel.py              writes panel.svg beside this file
     uv run pocket-instruments/design/make_panel.py --positions  prints the widget positions
-    uv run pocket-instruments/design/make_panel.py --check      the wordmark clears RETURN and the plate
+    uv run pocket-instruments/design/make_panel.py --check      no label, plate or stitch touches its neighbour
 
 The panel holds only what never changes: the body, the display's frame, the stitched
-dividers, the slider threads, the marks round the outputs and the lettering. Keys, slider caps, the display and the jack
+dividers, the slider threads, a pale plate under each output, the stitches round the
+sixteen-channel jacks and the lettering. Keys, slider caps, the display and the jack
 sockets are widgets the module draws over it (DESIGN.md, "The Rack panel").
 
 Why a script and not a drawing: Rack's SVG reader draws no text, no dashes, no filters. So
@@ -53,26 +54,55 @@ FN_X, FN_W, FN_GAP = 77.0, 40.0, 0.6  # function keys: 10 mm pitch along the bot
 FN_TOP = ("sound", "pattern", "bpm")
 FN_BOTTOM = ("function", "fx", "play", "write")
 
-JACK_Y = 116.3
-# RETURN (D62, drawn in Session 13): a sixteen-channel input, so on the dark body beside RESET.
-JACKS = {"CLOCK": 10.67, "RESET": 22.33, "RETURN": 34.00, "TRIGGERS": 80.67, "VOICES": 95.17, "AUDIO": 109.67}
-OUTPUTS = ("TRIGGERS", "VOICES", "AUDIO")
-JACK_LABEL_Y = 109.7
-# One pale plate under all three outputs: VCV's panel guide asks for an inverted background
-# on output ports (R33). A first draft had a stitched box round them and a plate under AUDIO
-# only; that left two outputs on the dark ground, so it went.
-PLATE = (72.6, 106.4, 43.4, 15.6)
-AUDIO_FRAME = (103.0, 107.0, 12.6, 14.6, 0.6)  # x, y, w, h, thickness: marks the main output
-MULTI = ("RETURN", "TRIGGERS", "VOICES")  # sixteen channels on one cable: sixteen stitches round the socket
+# The jacks: two rows, thirteen jacks, grouped by what they carry (D76; drawn in Session 18).
+# Until then one row of six at y 116.3: CLOCK, RESET and RETURN on the dark body at the left,
+# TRIGGERS, VOICES and AUDIO on one pale plate at the right (D62).
+#
+# D76 proposed positions by arithmetic. What moved once it was drawn, and why (D80):
+#   - The left three columns are 12.4, 25.4 and 38.4, not 10.67, 22.33 and 34.00. TRIGGERS is
+#     13.2 mm of lettering: at 11.67 mm apart it touched VOICES (0.1 mm). At 13 mm there is
+#     1.5 mm, and its left edge stays inside the 5 mm margin. CLOCK and RESET sit on the same
+#     columns above.
+#   - FX SEND and FX RETURN are at 84.0 and 96.0, not 80.67 and 92.33, with FX over the word:
+#     on one line the two labels overlapped by 1.5 mm. On two lines, 12 mm apart, they clear
+#     each other, AUDIO's plate and the wordmark, which keeps its 3.0 mm.
+#   - FX GATES is at 90.0, not 86.5: still midway over the pair it belongs to.
+ROW_UP, ROW_LOW = 97.5, 116.3
+LABEL_ABOVE = 6.6   # a label's centre above its socket's
+LINE = 3.1          # between the two lines of a two-line label
+# name: (x, y, is an output, sixteen channels, the label's lines)
+JACKS = {
+    "CLOCK": (12.4, ROW_UP, False, False, ("CLOCK",)),
+    "RESET": (25.4, ROW_UP, False, False, ("RESET",)),
+    "A OUT": (40.00, ROW_UP, True, True, ("A OUT",)),
+    "A IN": (51.67, ROW_UP, False, True, ("A IN",)),
+    "B OUT": (63.33, ROW_UP, True, True, ("B OUT",)),
+    "B IN": (75.00, ROW_UP, False, True, ("B IN",)),
+    "FX GATES": (90.0, ROW_UP, True, True, ("FX GATES",)),
+    "TRIGGERS": (12.4, ROW_LOW, True, True, ("TRIGGERS",)),
+    "VOICES": (25.4, ROW_LOW, True, True, ("VOICES",)),
+    "RETURN": (38.4, ROW_LOW, False, True, ("RETURN",)),
+    "FX SEND": (84.0, ROW_LOW, True, False, ("FX", "SEND")),
+    "FX RETURN": (96.0, ROW_LOW, False, False, ("FX", "RETURN")),
+    "AUDIO": (109.67, ROW_LOW, True, False, ("AUDIO",)),
+}
+# Each output on its own patch of the inverted ground (D76 item 3; VCV's panel guide asks for
+# an inverted background on output ports, R33). A patch is as wide as its stitches or its
+# label, whichever is wider, so TRIGGERS and VOICES, 13 mm apart, share an edge and read as
+# one plate. Until Session 18 one plate lay under all three outputs at the right.
+PLATE_HALF = 5.6                    # the stitches reach 5.2 mm from the centre
+PLATE_UP, PLATE_DOWN = 1.7, 5.7     # above the top label line's centre; below the socket's
+LABEL_PAD = 0.8                     # plate past its label, each side
+AUDIO_PLATE_HALF = 6.9              # AUDIO's is wider and as tall as FX SEND's, with a frame
+AUDIO_FRAME_IN, AUDIO_FRAME_T = 0.6, 0.6  # 0.6 mm inside it, 0.6 mm thick: the main output
 TICK_IN, TICK_OUT, TICK_W = 4.4, 5.2, 0.5
 
-# It sat at x 63 until the outputs became three (2026-11-19); it moved left to clear them.
-# Then at x 49, 3.5 mm, until RETURN (D62): 3.5 mm is about 37.8 mm wide and only about 33 mm
-# is free between RETURN's stitches and the output plate, so by D62 item 4 it drops to 3.0 mm
-# and sits midway between the two. `--check` prints the clearances.
+# The wordmark sat at x 63 until the outputs became three (2026-11-19), then at x 49, 3.5 mm,
+# until RETURN (D62), when it dropped to 3.0 mm to fit between RETURN's stitches and the
+# output plate. Since Session 18 it sits midway between RETURN's stitches and FX SEND's plate,
+# still 3.0 mm. `--check` prints the clearances.
 WORDMARK_SIZE = 3.0
-WORDMARK_GAP = (34.00 + 5.2, 72.6)  # RETURN's outermost stitch (TICK_OUT), the plate's left edge
-WORDMARK = ("Pocket Instruments", sum(WORDMARK_GAP) / 2, 118.2, WORDMARK_SIZE)
+WORDMARK_Y = 118.2
 
 # Jack lettering was 2.17 mm. At Rack's 100% zoom (about 2.95 px per mm) that is under 5 px of
 # capital height, and the guide asks for text readable at 100% (R33). 2.6 mm is about 5.6 px.
@@ -136,17 +166,70 @@ def advance(font, text, size, tracking=0.0):
     return sum(glyphs[cmap[ord(c)]].width * scale + tracking * size for c in text) - tracking * size
 
 
+def label_box(font, name):
+    """A jack's lettering: (left, right, top, bottom) in mm, over all its lines."""
+    x, y, _, _, lines = JACKS[name]
+    size = AUDIO_TYPE if name == "AUDIO" else JACK_TYPE
+    w = max(advance(font, line, size, JACK_TRACKING) for line in lines)
+    cap = font["OS/2"].sCapHeight * size / font["head"].unitsPerEm
+    top_line = y - LABEL_ABOVE - LINE * (len(lines) - 1)
+    return x - w / 2, x + w / 2, top_line - cap / 2, y - LABEL_ABOVE + cap / 2
+
+
+def plate(font, name):
+    """An output's patch of inverted ground: (x, y, w, h)."""
+    x, y, _, _, lines = JACKS[name]
+    left, right, _, _ = label_box(font, name)
+    half = AUDIO_PLATE_HALF if name == "AUDIO" else max(PLATE_HALF, (right - left) / 2 + LABEL_PAD)
+    rows = 2 if name == "AUDIO" else len(lines)  # AUDIO's plate starts level with its neighbour's
+    top = y - LABEL_ABOVE - LINE * (rows - 1) - PLATE_UP
+    return x - half, top, 2 * half, y + PLATE_DOWN - top
+
+
+def extent(font, name):
+    """Everything a jack draws, left to right: its label, and its plate or its stitches."""
+    x, _, out, multi, _ = JACKS[name]
+    left, right, _, _ = label_box(font, name)
+    if out:
+        px, _, pw, _ = plate(font, name)
+        return min(left, px), max(right, px + pw)
+    reach = TICK_OUT if multi else 4.0
+    return min(left, x - reach), max(right, x + reach)
+
+
+def wordmark(font):
+    """The wordmark's (text, centre x, y, size): midway between RETURN and FX SEND's plate."""
+    gap = (extent(font, "RETURN")[1], extent(font, "FX SEND")[0])
+    return "Pocket Instruments", sum(gap) / 2, WORDMARK_Y, WORDMARK_SIZE, gap
+
+
 def check(font):
-    """D62 item 4: the wordmark must not touch RETURN's stitches or the output plate."""
-    text, x, _, size = WORDMARK
+    """Nothing a jack draws touches its neighbour's in the same row, except two outputs'
+    plates, which may share an edge; everything is inside the panel's margin; and the
+    wordmark clears RETURN's stitches and FX SEND's plate (D62 item 4, D76)."""
+    ok = True
+    for row in (ROW_UP, ROW_LOW):
+        names = sorted((n for n in JACKS if JACKS[n][1] == row), key=lambda n: JACKS[n][0])
+        for a, b in zip(names, names[1:]):
+            gap = extent(font, b)[0] - extent(font, a)[1]
+            both_out = JACKS[a][2] and JACKS[b][2]
+            letters = label_box(font, b)[0] - label_box(font, a)[1]
+            good = letters >= 1.0 and (gap >= 0.5 or both_out)  # two plates may meet: one patch
+            ok = ok and good
+            print(f"{a} to {b}: {gap:.2f} mm between them, {letters:.2f} mm between their lettering"
+                  + ("" if good else "  <-- too close"))
+        edge_l, edge_r = extent(font, names[0])[0], W - extent(font, names[-1])[1]
+        ok = ok and edge_l >= MARGIN - 0.01 and edge_r >= MARGIN - 0.01
+        print(f"row at {row}: {edge_l:.2f} mm from the left edge, {edge_r:.2f} mm from the right")
+    text, x, _, size, gap = wordmark(font)
     w = advance(font, text, size)
     left, right = x - w / 2, x + w / 2
-    gap_l, gap_r = left - WORDMARK_GAP[0], WORDMARK_GAP[1] - right
-    print(f"wordmark {size} mm: {left:.2f} to {right:.2f} mm; {gap_l:.2f} mm clear of RETURN's stitches, "
-          f"{gap_r:.2f} mm clear of the plate")
-    at35 = advance(font, text, 3.5)
-    print(f"(at 3.5 mm it would be {at35:.2f} mm wide; the room is {WORDMARK_GAP[1] - WORDMARK_GAP[0]:.2f} mm)")
-    return gap_l > 0 and gap_r > 0
+    print(f"wordmark {size} mm: {left:.2f} to {right:.2f} mm; {left - gap[0]:.2f} mm clear of RETURN's stitches, "
+          f"{gap[1] - right:.2f} mm clear of FX SEND's plate")
+    up = min(plate(font, n)[1] for n in JACKS if JACKS[n][1] == ROW_UP and JACKS[n][2])
+    print(f"the upper row's plates start {up - (MID_Y + MID_H):.2f} mm under the keys; "
+          f"the lower row's start {plate(font, 'FX SEND')[1] - (ROW_UP + PLATE_DOWN):.2f} mm under the upper row's")
+    return ok and left - gap[0] >= 1.0 and gap[1] - right >= 1.0
 
 
 def positions():
@@ -164,8 +247,8 @@ def positions():
         row(f"slider {name} (travel)", x, (SLIDER_TOP + SLIDER_BOTTOM) / 2, 5.0, SLIDER_BOTTOM - SLIDER_TOP)
     for label, x, y, w, h in fn_keys():
         row(label, x + w / 2, y + h / 2, w, h)
-    for name, x in JACKS.items():
-        row(f"jack {name}", x, JACK_Y, 8.0, 8.0)
+    for name, (x, y, out, multi, _) in JACKS.items():
+        row(f"jack {name} ({'out' if out else 'in'}{', 16 channels' if multi else ''})", x, y, 8.0, 8.0)
     return "\n".join(rows)
 
 
@@ -185,17 +268,21 @@ def panel(font):
     for name, x in SLIDERS.items():
         out.append(rect(x - THREAD / 2, SLIDER_TOP, THREAD, SLIDER_BOTTOM - SLIDER_TOP, ECRU))
         out.append(outline(font, name, x, LETTER_Y, 3.0, ECRU))
-    out.append(rect(*PLATE, ECRU))
-    fx, fy, fw, fh, ft = AUDIO_FRAME
+    for name, (x, y, is_out, multi, lines) in JACKS.items():
+        if is_out:
+            out.append(rect(*plate(font, name), ECRU))
+    px, py, pw, ph = plate(font, "AUDIO")
+    fx, fy, fw, fh, ft = px + AUDIO_FRAME_IN, py + AUDIO_FRAME_IN, pw - 2 * AUDIO_FRAME_IN, ph - 2 * AUDIO_FRAME_IN, AUDIO_FRAME_T
     for r in ((fx, fy, fw, ft), (fx, fy + fh - ft, fw, ft), (fx, fy, ft, fh), (fx + fw - ft, fy, ft, fh)):
         out.append(rect(*r, GROUND))
-    for name in MULTI:
-        out.append(ticks(JACKS[name], JACK_Y, GROUND if name in OUTPUTS else ECRU))
-    for name, x in JACKS.items():
-        fill = GROUND if name in OUTPUTS else ECRU
+    for name, (x, y, is_out, multi, lines) in JACKS.items():
+        fill = GROUND if is_out else ECRU
+        if multi:
+            out.append(ticks(x, y, fill))
         size = AUDIO_TYPE if name == "AUDIO" else JACK_TYPE
-        out.append(outline(font, name, x, JACK_LABEL_Y, size, fill, tracking=JACK_TRACKING))
-    text, x, y, size = WORDMARK
+        for i, line in enumerate(lines):
+            out.append(outline(font, line, x, y - LABEL_ABOVE - LINE * (len(lines) - 1 - i), size, fill, tracking=JACK_TRACKING))
+    text, x, y, size, _ = wordmark(font)
     out.append(outline(font, text, x, y, size, ECRU))
     out.append("</svg>")
     return "\n".join(out) + "\n"
