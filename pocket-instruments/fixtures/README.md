@@ -161,6 +161,29 @@ out; every tick, mask and count in it was typed in by hand.
   its run step, and its step is the playhead's, 0. The play edit lands on run step 8: tick
   768 is `step 0`, and the step set by an edit (track 3, step 2) fires at run step 10,
   tick 960, where a tap of the same key adds the same line a frame later.
+- **keys-tap-and-choose, its views worked again for `ENGINE.md` §20 (Session 21, D75).**
+  A view changed by an owner's decision, worked by hand from §20 and committed before any
+  §20 code; not a trace edited to pass a build. The trace (`expect`) did not change, nor
+  did any other fixture's line. Six view lines changed, only in `a=` and `b=`, and the
+  `about` sentence that described the old rule. Why: a `PARAM` now sets that slider for
+  all sixteen sounds, and choosing a sound moves no slider, so the view's bytes 20 to 23
+  (the chosen sound's own A and B) are the hand's whichever sound is chosen.
+
+  | View `at` | Was | Now | Why |
+  |---|---|---|---|
+  | 6 | `a=32768 b=32768` | `a=10000 b=32768` | key 8 chosen; A was moved to 10000 at step 4, for every sound |
+  | 7 | `a=32768 b=65535` | `a=10000 b=65535` | key 4 chosen; its B moved to 65535, and A is still the hand's 10000 |
+  | 10 | `a=32768 b=65535` | `a=10000 b=65535` | the same, key 4 still chosen |
+  | 12 | `a=10000 b=32768` | `a=10000 b=65535` | key 1 chosen again; B at step 7 went to 65535 for every sound |
+  | 13 | `a=10000 b=32768` | `a=10000 b=65535` | the same |
+  | 15 | `a=10000 b=32768` | `a=10000 b=65535` | the same |
+
+  Unchanged, and checked: the views at 1, 4 and 5 (before and at the only A move, key 1
+  chosen). `keys-bpm-family` moves the sliders only with bpm held (swing and tempo, which
+  §20 leaves as they were); `keys-write-a-beat` and both format 3 fixtures move no slider,
+  so every sound's own A and B stay 32768 and their views are the same lines. No render
+  scenario sends `param`: they set sliders by `SOUND` and steps by `STEP`, which keeps
+  nothing, so every step still plays its sound's own values.
 - **keys-bpm-family.** Swing from slider A: `(20000 × 48 + 32767) / 65535 = 15`, shown as
   `15 × 65535 / 48 = 20479`. Tempo from B: `60 + (40000 × 180 + 32767) / 65535 = 170`,
   shown as `110 × 65535 / 180 = 40049`. At 120 bpm B shows `60 × 65535 / 180 = 21845`.
