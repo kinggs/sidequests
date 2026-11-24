@@ -332,6 +332,40 @@ lines of `seq.rs`, not kept) passed this fixture at the first run, on both sourc
 rates, three block sizes and from a snapshot; the core as it is failed it. That is a check
 of the working, not where the trace came from.
 
+## `designed/fx-shuffle`, worked by hand (Session 27: effect 13, D93; in `designed/` until Session 28)
+
+In `designed/`: no harness reads it until Session 28 builds the rule and moves it up,
+unchanged. From `ENGINE.md` §17, "designed 2026-11-24: effect 13", and §5. Every tick,
+track and count was typed in; the draws are the generator's first nine from seed 1, the
+table above and `fx-repeat-holds`' two more: 69, 89, 61, 95, 33, 4, 82, 10, 29. Length 8,
+swing 32, the lane (effect 13 on steps 2, 3 and 4) by `fx` edits at step 0. Numbers are
+the trace's: track and step from 0. A note of track `s` sounds as track `(s + 12) & 15`.
+
+- **Step 2: two draws, one trigger.** Track 1 is out of the effects, on at 80; track 5 is
+  in them, on at 65, and plays as track 1. Track 1's own draw comes first. Pass 1: 69
+  passes, 89 does not: `trig 1 2`. Pass 2: 95 does not, 33 passes: `trig 1 2` again, this
+  time track 5's note alone. No `trig 5 2` in either: its note went elsewhere. (Drawn the
+  other way round, pass 1 would be silent: 69 is not under 65 and 89 not under 80.)
+- **Step 3: swung.** Track 2 at 50, an odd step, so 32 ticks late, as track 14. Pass 1: 61
+  does not fire. Pass 2: 4 fires, `1088 trig 14 3`. Pass 3: 29 fires, `1856 trig 14 3`.
+- **Step 4: the wrap, and rising order.** Track 0 plays as 12 and track 12 as 8. The trace
+  has `trig 8 4` before `trig 12 4`: by the sound that sounds, not the note's own sound.
+- **Steps 0 and 6 hold no effect:** `trig 0 0` and `trig 2 6`, each itself.
+- **Pass 3, edited as it plays.** At run step 16 track 5 leaves the effects. On step 2,
+  rising: track 1's own draw, 82, does not fire, and nothing is lent to it now; track 5's
+  own, 10, fires: `1728 trig 5 2`. At run step 20 the lane's step 4 is emptied on the
+  frame of its tick and before it: `trig 0 4` and `trig 12 4`, each itself.
+- **Counts.** 24 `step` lines. Track 0: 0, 768, 1536, 1920: 4. Track 1: 2. Track 2: 576,
+  1344, 2112: 3. Track 5: 1. Track 8: 2. Track 12: 384, 1152, 1920: 3. Track 14: 2. 41 lines.
+- **Views.** `field=0011` (sound 1 chosen, on steps 0 and 4) and `swing=32` throughout;
+  `fxsteps=001c` until the lane's step 4 goes, then `000c`; `fxsounds=fffd`, then `ffdd`.
+  At 2 and 4 and 18, `fx=13`; at 23, `fx=0`.
+
+**Checked, after it was written:** a scratch copy of the core with the rule in (twenty
+lines of `seq.rs`, not kept) passed this fixture at the first run, on both sources, three
+rates, three block sizes and from a snapshot; the core as it is failed it. That is a check
+of the working, not where the trace came from.
+
 ## The views worked again for the write-off row (Session 20; D71, D72 item 3, D82)
 
 A view changed by an owner's decision, as Session 21's were: worked by hand from

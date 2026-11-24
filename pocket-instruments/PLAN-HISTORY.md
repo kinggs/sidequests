@@ -2332,3 +2332,37 @@ hold. Three parts, each its own commits, in this order, because each moves diffe
   the owner: "it looks right now. Rewired with Tangents as an FX send and return on FX 1.
   Loving it." (Tangents is a Rack effect.) The same day the owner ruled O21 yes (D89) and
   Session 22's proposals yes (D90), and said take c is hard to do now: it does not block.
+
+## Handover note moved here by Session 27 (2026-11-24)
+
+### After Session 25: the repeat's rule, the retune and the delay designed (2026-11-24)
+
+- **Nothing was built.** `ENGINE.md` has two new sections, "§17, designed 2026-11-24" and
+  "§18, designed 2026-11-24", and a note at its top; `DECISIONS.md` has D91 and O22;
+  `REFERENCES.md` has R69; `fixtures/designed/` holds one fixture by hand.
+- **The owner ruled one thing:** the sweeps move now (D91 item 3). And asked for one: a
+  step that compares ours with the hardware and tweaks. It is Session 26's last box but
+  one, with a table of what each effect must read and which constant may move.
+- **The repeat** looks back from its run's first step, round the wrap, for the nearest
+  step with a note of a sound in the effects, by the pattern. No existing trace, view or
+  test changes: checked in a scratch core (233 passed with the rule in).
+- **Three things the reports said that the proposals did not** (R69; D91 items 6 and 7):
+  - Effect 1 gets no gain. The PO-12's is no louder at its peak; its kick lasts three
+    times as long and sounds lower, which our hold on the bus cannot do. ⚠ This one will
+    not match the hardware after Session 26. What it needs waits for take c.
+  - Effect 3 is a quantiser at a quarter of full scale that rests half a step off zero.
+    "Not silent on silence" was the recording settling, not noise. Ours will thump softly
+    when it starts and ends on silence, as the hardware's must.
+  - Effect 2 clips at ±1: take b shows the ceiling, which R64 had as not measured.
+- **The delay:** one echo, 174.76 ms, fixed, at 0.15, no feedback, no tail. Its line is
+  lent by the host, measured first: 16 bytes more in the engine against 67 KB.
+- ⚠ **For Session 26:** where the echo's six lines sit moved the loop layouts by 20 ns a
+  frame in the scratch copy. Its list says which arrangement held.
+- ⚠ **Your kept patch will change again after Session 26.** Effect 4 set to Ours will
+  play our echo as well as whatever FX SEND's channel 4 feeds. To keep it as it is now,
+  set effect 4 to "Rack's, beside the dry".
+- **The session ruled eight things** (D91 items 1, 2, 4 to 8 and 10), yours to overrule
+  (O22). The three worth your ear are in "The owner's hands".
+- **Added after the session:** the owner accepted them all (D92), so Session 26 builds
+  D91 as written.
+- **Next: Session 26,** the build, on Opus. ~~Its list is above.~~ Done: the note below.

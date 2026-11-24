@@ -1141,3 +1141,50 @@ above; these are what only the chain showed.
 - **A script's guard met our own render.** `hardware-fx.py` refuses any take inside the repo
   (rule 6, for recordings of the hardware). The list said `target/ours/`; ours was written
   outside the repo instead and the script left alone.
+
+## Session 27: effects 13 and 14, designed (2026-11-24)
+
+- **A sentence in the references was a guess wearing a number.** R67 had effect 14 as
+  "rings at 1041 Hz", and the proposal built on it was "a short delay (about 1 ms) fed back
+  hard": 1 041 Hz is 45 device samples. The takes say otherwise. A line spectrum of a held
+  ring shows lines 54.64 Hz apart, so the loop is 18.30 ms, twenty times longer, and 1 041
+  was a pitch tracker choosing among them. Session 25 wrote this lesson for effect 3 ("read
+  the report behind the row, then the samples behind the report"); it held again. A build
+  from R67 would have made a 1 kHz comb that no reading of the hardware supports.
+- **Two bands of level every 4 ms said more than any transform.** Take b, the kick alone:
+  under 200 Hz the wet bars are the dry bar to a decibel; over 400 Hz bursts come round and
+  grow; and everything stops on the frame the kick's voice ends. That one table gave "the
+  lows do not go round", "over 1 a round" and "silent when nothing sounds".
+- **The hardware stops its effects when its voices stop.** Effect 14 is silent on every
+  step the dry beat is, and starts the next bar louder: the loop is kept, not run. Probably
+  the device not computing sound while nothing plays. Worth remembering for 15 and 16 and
+  for effect 1's long kick (R69): what looks like an effect's own gate may be the mixer's.
+- **Not everything measured has to be modelled.** The same takes show the 174.76 ms echo
+  inside effect 14, lags in pairs L and 8 192 − L, and bursts 37 and 47 ms apart in turn.
+  An afternoon would not have explained them from two takes. The design takes the four
+  things that are firm (the lows, the loop, the build, the silence) and says what it leaves.
+- **A model off the engine before a number goes in the plan.** Effect 14 as forty lines of
+  numpy in f32, on stand-in drums laid out as takes a and b (a decaying sine, filtered
+  noise), read the way the script reads a take:
+
+  | Filter `r`, gain, ceiling | Level over dry (a; b) | Peak (a; b) | At 1 kHz (a; b) |
+  |---|---|---|---|
+  | the PO-12 | +5.0; +0.5 dB | +4.4; +3.9 dB | +29; +18 dB |
+  | 2, 2.24, 0.4 | +9.2; +1.3 | +5.2; +1.7 | +37; +41 |
+  | **2, 2.24, 0.25** (designed) | +6.1; +1.1 | +3.6; +1.7 | +33; +40 |
+  | 2, 2.0, 0.4 (under 1 a round) | +0.7; +0.4 | +0.1; +0.5 | +14; +16 |
+  | 1, 1.12, 0.4 (a narrower filter) | +9.1; +0.6 | +4.8; +0.0 | +35; +39 |
+  | 2, 2.6, 0.3 | +8.5; +3.9 | +3.8; +4.4 | +37; +48 |
+
+  ⚠ The drums are stand-ins, so only the order of the rows means anything: a loop under 1
+  does not build at all, and the ceiling sets the level. Silent frames wet were silent
+  frames dry to within a millisecond a hit. Session 28 reads the real thing.
+- **Effect 13 was all in the report.** Sixteen hits in two bars, each with a pitch, a
+  decay and a likeness to every dry hit: three sounds each swapped for one other, the same
+  every time. No audio was opened for it. A quick script to name the sounds from take c's
+  false start put its grid two steps out and told nothing; it was dropped, not fixed. The
+  map (twelve keys on) stays a reading until a take plays sounds 13 to 16 dry.
+- **The scratch core again:** the fixture written by hand first, then twenty lines of
+  `seq.rs` in a copy. It passed at the first run, and one old test failed: the one that
+  lists the effects with no sound. That is how the build list knows which tests the
+  decision changes before Opus meets them.

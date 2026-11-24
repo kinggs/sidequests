@@ -1787,6 +1787,47 @@ suggestions." D91 stands as designed, the three asked about included:
 Accepted on the description, not yet by ear: nothing is built. Each stays cheap to change
 after Session 26 if it sounds wrong.
 
+### D93 — Effects 13 and 14 designed: a note plays as the sound twelve keys on; the bus fed back in the delay's line
+**2026-11-24 · Session 27 (design, Fable) · asked for by the owner ("plan effects 13 and 14") · every item decided by the session, each the owner's to overrule (O23) · not built: Session 28 · `ENGINE.md` §17, "designed 2026-11-24: effect 13", and §18, "designed 2026-11-24: effect 14"**
+
+Both from the takes there are (a and b), read again for these two (R70). Neither waits for
+take c; take c can still correct item 1.
+
+1. **Effect 13 plays each note as the sound twelve keys on, round the sixteen** (1 as 13,
+   3 as 15, 5 as 1). Measured: every note stays on its step and each sound's notes play as
+   one other sound, the same every time. ⚠ Twelve is a reading of three sounds: the kick
+   became a short 841 Hz sound (a cowbell, 13, fits), the snare a pure 1.84 kHz blip (14
+   fits), the hat a held 74 Hz tone (15 or 16 fits). Not chosen: a random sound a note (the
+   hardware's is not random), and a table of our own (no reason for any one).
+2. **It is the sequencer's, as the repeats are:** a fresh `TRIG` of the sound that sounds,
+   read at the step boundary, swung as any note, out on TRIGGERS. Why: the trace then says
+   what was heard, and Rack's own drums on the returns are shuffled too.
+3. **Only the notes of sounds in the effects move;** where they land does not depend on
+   the effects' switches. A sound out of the effects keeps its notes, and can sound twice
+   over on one step (its own and a borrowed one): two draws, one `TRIG`.
+4. **A and B are the sounding sound's,** not the note's ⚠ ours: a pitch written for a kick
+   means nothing to a cowbell. **A tap is not shuffled** ⚠ ours, as a tap is not repeated.
+5. **Effect 14 is one loop on the bus:** 18.30 ms round (858 / 46 875 s), through the bus's
+   own filter (band output, 1 093 Hz, `r` 2), a gain of 1.12 a round at the centre, held to
+   ±0.25, with the dry sound passing whole. Each number is measured (R70) but the ceiling,
+   which is a model's first value. Not modelled: the PO-12's loop sits inside its 8 192
+   line and shows the 174.76 ms echo too; that structure is not understood.
+6. **It uses the line effect 4 is lent,** its first tenth. No new call; with no line, 14 is
+   as it is today. ABI 13 all the same: what two effects sound changes.
+7. **The loop stands still while nothing sounds** (1 ms of exact zero on the bus), keeping
+   what it holds. Why: the PO-12 is silent on every step its dry beat is, and louder on the
+   second bar than the first; a loop over 1 that ran on through silence would be a steady
+   howl over a sparse beat, which the hardware's is not. ⚠ Not chosen, and the owner's ear
+   may prefer either: ringing on while the key is held (delete the test for stillness), or
+   a loop under 1 that fades in about half a second (gain 2.0, no clip needed). ⚠ In Rack
+   with a sound returned the bus is never exact zero, so there it does ring on.
+8. **No tail,** as effect 4 has none (D92 item 2).
+9. **Session 28 ends by reading ours as the PO-12 was read,** as Session 26 did (D91 item
+   9). For 14 the ceiling, the gain and the filter's place may move; the loop's length
+   does not. For 13 there is no constant: the reading only checks the notes stayed put.
+10. **The names in Rack's menu:** "note shuffle" and "feedback", the guide's (R48), in
+    place of "13 (no sound here yet)" and "14 (no sound here yet)".
+
 ## Open
 
 | ID | Question | Needs |
@@ -1813,3 +1854,4 @@ after Session 26 if it sounds wrong.
 | O20 | Each effect to its own Rack module (D86): sixteen channels on FX SEND and FX RETURN first, then small breakouts, in place of one large expander? And a trigger in for each sound? | The owner, after trying D86 item 2's patch by hand. Recommended: yes to both. **Answered in part 2026-11-24: D87** (the sixteen channels, the return summed). Open: the breakouts and the trigger in |
 | O21 | ~~Session 23's rulings (D88 items 4 to 12): as designed? Above all item 6 (the return before the volume), item 9 (the settings count only while FX SEND or FX RETURN is patched) and item 10 (nothing guards the comb) | The owner, in Rack, once Session 24 has built it. Recommended: accept; judge item 10 with a delay at half wet in each setting. **Built 2026-11-24 (Session 24):** ready to play; its Handover in `PLAN.md` has the steps and the builder's readings (⚠)~~ **Answered 2026-11-24: D89** |
 | O22 | ~~Session 25's rulings (D91 items 1, 2 and 4 to 8): as designed? Above all item 2 (a second repeat looks back for itself, or keeps the step), item 5 (no tail on our delay) and item 7 (effect 3 rests off zero, so it thumps on silence) | The owner, by ear, once Session 26 has built it. Recommended: accept; judge item 7 on the phone and in Rack, where AUDIO carries the offset~~ **Answered 2026-11-24: D92** (accepted before the build; the ear may still overrule) |
+| O23 | Session 27's rulings (D93): as designed? Above all item 1 (twelve keys on: is that what the PO-12's 13 does on other sounds?), item 4 (a shuffled note takes the sounding sound's sliders) and item 7 (the feedback stands still while nothing sounds, or rings on, or fades) | The owner. Recommended: accept, build (Session 28), then judge 7 by ear on a sparse beat and a busy one; take c settles item 1 (sound 8 should play as 4, and 15 as 11) |

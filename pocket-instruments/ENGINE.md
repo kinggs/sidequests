@@ -92,6 +92,11 @@ report and every render file are as they were but those that play effects 2, 3, 
 (`fixtures/README.md`); `render-fx-4` is new. Three constants then moved after ours was read
 beside the PO-12 (§18's table).
 
+**Designed, not built (Session 27, D93):** effect 13, a note plays as another sound (§17,
+"designed 2026-11-24: effect 13"), and effect 14, the bus fed back in the line effect 4 is
+lent (§18, "designed 2026-11-24: effect 14"). Session 28 builds them (`PLAN.md`) as ABI 13.
+Until then the code does neither: both keys punch and record, and the sound is dry.
+
 **Where everything is, at ABI 12** (2026-11-24):
 
 | ABI | Session | Section | Adds |
@@ -1016,7 +1021,7 @@ at tick k, playing, for track 0..15 in order:
 - The playhead and `STEP` are untouched: the pattern runs on underneath and the beat comes
   back in place when the run ends.
 
-**Effects the core does nothing for yet** (4, 13, 14, 15, 16 after the first build, and 1
+(Since ABI 12 this is 13 to 16, and 4 with no line lent; 13 and 14 are designed: Session 27, D93.) **Effects the core does nothing for yet** (4, 13, 14, 15, 16 after the first build, and 1
 to 8 until §18 is built): the key still punches, the lane still records it, `heard` and the
 view still say it, and Rack's FX GATES still send it. Only the sound is unchanged. So all
 sixteen are usable in Rack from the first build, through D68's loop.
@@ -1191,6 +1196,83 @@ each, all passing at the first run; the report's 300 older runs and all 408 rend
 same bytes. Seven faults planted, each caught by a named test (`LEARNINGS.md`). Nothing
 turned out different from the design. ⚠ The Rack self-test still plays the two older format
 3 fixtures, not this one (`rack/rhythm.jq` was not in the list).
+
+### §17, designed 2026-11-24: effect 13, a note plays as another sound (ABI 13; D93; designed in Session 27; not built: Session 28)
+
+The PO-12's "note shuffle" (R48), as measured: every note still lands on its step, and each
+sound's notes play as one other sound, the same one every time (R70). So it is a sequencer
+effect, as the repeats are: no sound is stored, the hit that plays is a fresh `TRIG` of the
+sound that sounds, and in Rack the TRIGGERS cable carries it.
+
+**The rule.** While the effect read at the last step boundary (`eff`) is 13, a note of a
+sound in the effects plays as the sound **twelve keys on, round the sixteen**: sound 1 as
+13, 2 as 14, 3 as 15, 4 as 16, 5 as 1, and so on. In the trace's numbers, track `s` sounds
+as track `(s + 12) & 15`. ⚠ The map is a reading of three sounds on one pattern (R70); a
+take with other sounds may change it, and it is one line.
+
+Where "The four repeats" has the plain firing (`pending`, at the swing offset), this takes
+its place while `eff` is 13:
+
+```
+at tick k, playing, eff == 13, the step's firing (pending and t == offset):
+  for m = 0 .. 15, rising:                         # m: the sound that will sound
+    fire = false
+    if m is not in fx_sounds and m is on at cur:   # its own note, as §5
+      fire |= draw(prob[m][cur])
+    s = (m + 4) & 15                               # the sound whose note m plays: s + 12 is m
+    if s is in fx_sounds and s is on at cur:
+      fire |= draw(prob[s][cur])
+    if fire:  TRIG m, step cur
+```
+
+`draw(p)` is §5's: at 100 it passes with no draw; under 100 it takes one draw and passes
+when `draw % 100 < p`.
+
+- **Read at the boundary,** as a repeat is: 13 punched in the middle of a step begins with
+  the next step. Nothing is lost by it: a step's notes fire at its boundary or its swing
+  offset, and a punch after that has no note left to change.
+- **On its step, swung as any note.** The playhead, `STEP` and the swing are untouched.
+- **A sound out of the effects plays its own notes.** A sound in the effects does not,
+  while 13 is on: its notes sound elsewhere. Whether the sound that sounds is in the
+  effects does not matter.
+- **One `TRIG` a sound a tick.** A sound out of the effects can have its own note and a
+  borrowed one on the same step: each takes its draw, its own first, and one `TRIG` says
+  either passed. Order within a tick is unchanged: `STEP`, then `TRIG` by rising track of
+  the sound that sounds.
+- **`TRIG`'s track is the sound that sounds;** its step is `cur`. So the view's `fires`,
+  the white key, TRIGGERS and VOICES all say what was heard, and a sound taken from Rack
+  (§19) is triggered there.
+- **A and B** (§20): as a step of the sound that sounds, column `cur`. What that sound's
+  own step there keeps, if it keeps anything; otherwise that sound's own. ⚠ Ours: the note's
+  kept values were written for another sound and are not carried over.
+- **A tap is not shuffled,** as a tap is not repeated: a key plays its own sound.
+- **13 is not a run.** There is nothing to look for when it begins and nothing to keep.
+  From a repeat straight to 13, or back, is the repeat's rule as built (`eff != last`).
+- **In Rack,** 13 named in `ROUTE` 1 still shuffles, as a named repeat still repeats (D88
+  item 3). FX GATES' channel 13 is high while it is heard, as now.
+
+No command, view byte, snapshot byte or call changes. Cost: one comparison more at a tick
+that fires; the walk itself only while 13 is on.
+
+**What must not move.** Every trace, view and render file: none holds effect 13 in its
+lane but the two tests below.
+
+**Proven when built by:**
+
+| Rule | Held by |
+|---|---|
+| The map and its wrap, a sound out of the effects keeping its notes, two draws and one `TRIG`, the swing, rising order of the sound that sounds, an edit to `fx_sounds` and to the lane mid-run | `fixtures/designed/fx-shuffle.json`, worked by hand in Session 27 before any code (`fixtures/README.md`), moved up unchanged; all three harnesses, both sources, three rates, three block sizes, from a snapshot |
+| Each bullet above, alone | a rule test each in `core/src/tests/fx.rs`: every one of the sixteen sounds plays as the one twelve on; read at the boundary (a punch mid-step changes nothing until the next); a tap is its own sound; A and B are the sounding sound's (its own, and what its step keeps); a repeat straight to 13 and back; 13 named in `ROUTE` 1 |
+| Nothing else moved | the report's eleven older fixtures and every render file, the same bytes |
+
+**Two tests the decision changes:** `effects_the_core_does_not_sound_yet_…` (`fx.rs`) and
+`the_repeats_and_the_effects_not_built_leave_the_mix_the_plain_sum` (`bus.rs`) both name
+13 and 14 among the effects with no sound. Each loses those two and keeps 15 and 16 (and 4
+with no line); their claims do not change.
+
+(Checked in a scratch copy of the core with the rule in, twenty lines of `seq.rs`, not
+kept: the fixture passed at the first run, and of the 251 tests only the first of those two
+failed. The core as it is fails the fixture.)
 
 ## 18. The bus and the first sound effects (ABI 7; designed in Session 15; D67; built in Session 17)
 
@@ -1497,6 +1579,110 @@ were written outside it.
 - The PO-12's ends were read the same half-step way, so a top read low here was read low
   there too: the moves bring the readings together, not the sweeps' true ends.
 - Effect 1 does not match in length or pitch, as R69 said it would not.
+
+### §18, designed 2026-11-24: effect 14, the bus fed back (ABI 13; D93; designed in Session 27; not built: Session 28)
+
+The PO-12's "feedback", as measured (R70): the sound under 320 Hz is untouched; above it a
+loop 18.30 ms round builds on what is played, about 1 dB a round, to a ring loudest near
+1.09 kHz, 18 to 29 dB over the dry sound there; and it is silent whenever nothing sounds.
+Ours is one loop that does those four things. §18's rules stand: the bus, idle as today's
+path, the 2 ms ramp, the track channels untouched, `+ − × ÷` and casts only.
+
+**The constants** (`core/src/bus.rs`, "TUNING THE EFFECTS"). Each is a first value;
+Session 28 holds them to the PO-12's readings by the same script before the ear does.
+
+| Constant | Value | Source |
+|---|---|---|
+| The loop's length | **858 / 46 875 s** (18.30 ms): `(rate × 858 + 23437) / 46875` frames in 64 bits. 807 at 44.1 kHz, 879 at 48 kHz, 1 757 at 96 kHz | R70: lines 54.64 Hz apart on both takes; 858 of the device's samples (R69) |
+| The filter in the loop | the bus's own (§18), its **band** output, at **1 093 Hz**, `r` **2** | R70: the strongest line is 1 092.8 Hz; the lift is broad (500 Hz to 3.2 kHz), so a low Q. The band output is 0 at 0 Hz: the lows do not go round |
+| The gain round the loop | **2.24** into the filter's 1 / `r`: 1.12 at 1 093 Hz | R70: about 1 dB a round on take b |
+| The ceiling | what goes round is held to **±0.25** | ⚠ ours: a model off the engine read +6.1 dB over dry on take a's pattern at 0.25 (the PO-12: +5.0) and +9.2 dB at 0.4 (`LEARNINGS.md`) |
+| Standing still | after **1 ms** of exact silence on the bus | R70: the PO-12's is silent on every step its dry pattern is |
+
+**It uses the line effect 4 is lent** (`pi_set_delay`): the first `comb` floats of it,
+`comb` being the loop's length above. No new call, and `pi_delay_frames` does not change:
+the loop is a tenth of the echo's length at every rate. Effects 4 and 14 are two kinds
+(D77), so one starting after the other clears where the line is read, and nothing of one is
+heard in the other.
+
+- **Effect 14 is one the core sounds while it holds a line,** and only then, as 4 is. With
+  none it is as it is today: punched, recorded, heard, on FX GATES and FX SEND, and the mix
+  the bytes it is now.
+- **State, the moment's:** `head`, `full` and the filter's two states (shared with 4 and
+  with 5 to 8, as fields; 14 is a kind of its own), and `still`, a count of frames. All
+  cleared when 14 starts from idle or from another kind, and `head` and `full` when a line
+  is lent. Kept when 14 is heard again while still ramping out. ⚠ For the builder: the
+  bus's size and layout are worth nanoseconds (Sessions 24 and 26). `acc` and `swept` are
+  free while 14 runs and can hold `still` and `comb`; a new field is the bench's to allow.
+- **`g` and `h`** are made as for effect 5, from 1 093 Hz and `r` 2, when 14 starts and when
+  the rate changes. `comb` is worked out then too, never in the frame.
+- **One frame, while effect 14 is the effect running** (heard, or ramping out) in a layout
+  with a mix, with a line lent:
+
+  ```
+  still = bus == 0 ? still + 1 : 0                 # exact zero; held at 1 ms, so it cannot wrap
+  if still × 1000 ≥ rate:
+    wet = bus                                      # nothing sounds: the loop stands still
+  else:
+    back = full ? line[head] : 0
+    hp = (back − r s1 − g s1 − s2) h;  bp = g hp + s1;  s1 = g hp + bp
+    lp = g bp + s2;  s2 = g bp + lp                # §18's filter, in its order, fed `back`
+    fb = 2.24 × bp, held to ±0.25
+    line[head] = bus + fb
+    head += 1;  if head == comb:  head = 0;  full = true
+    wet = bus + fb
+  ```
+
+- **The dry sound passes whole.** `wet` is the bus plus what came round, so at full ramp the
+  mix is the dry mix plus `fb`, never more than 0.25 over it.
+- **It builds, then holds.** At 1 093 Hz a round multiplies by 1.12 until the clip holds
+  it. Away from the centre a round loses, and sound still gathers: at 500 Hz and at 3 kHz
+  about 10 dB on a steady input.
+- **Standing still is the hardware's silence** (D93 item 7). While the bus has been exact
+  zero for 1 ms, nothing is read, written or filtered, and `head` does not move: the loop
+  keeps what it holds and gives it back with the next sound. So a hold over a sparse beat
+  rings only where the beat sounds, and builds from hit to hit. Our voices end at exact
+  zero (`voice.rs`), so "nothing sounds" is exact. Why 1 ms and not one frame: a sound can
+  cross zero on a frame; a millisecond of zeros cannot be a sound.
+  ⚠ **In a loop layout a returned sound is never exact zero** (a Rack cable carries its
+  module's noise), so with a sound returned the loop does not stand still and rings on at
+  the ceiling until the key is let go. Not designed away: a floor would be a guess.
+- **No tail:** the last of it ends with the ramp, 2 ms after it is let go, as effect 4's
+  does (D92 item 2).
+- **Nothing here can be a NaN or grow without end:** the bus is finite (D80 item 4), `fb`
+  is clipped, so the line holds at most the bus plus 0.25, and the filter is fed that.
+- **In a loop layout** (§19) the line holds the bus as it is there. Effect 14 named in
+  `ROUTE` 1 is the host's and ours does not run, lent or not. FX SEND does not change.
+- **In layout 16** nothing runs, as for every effect.
+- **A rate change while 14 ramps out:** the line is forgotten, so `wet` is the bus for the
+  rest of the ramp, as built for 4.
+
+⚠ **Not modelled, and why** (R70): the PO-12's loop sits inside its 8 192-sample line (its
+readings also show the echo at 174.76 ms, at 0.13, and bursts 37 and 47 ms apart on a kick
+alone); that structure is not understood, and one loop gives the measured ring, lift and
+silence. Whether the 18.30 ms follows the tempo is not known (one tempo): the 120 bpm take
+says (`PLAN.md`, Session 22).
+
+**What must not move.** With no line lent, or no effect 14 in the lane: every trace, view
+and render file, and the report. No view byte, snapshot byte, command or call changes.
+
+**Proven when built by:**
+
+| Rule | Held by |
+|---|---|
+| The mix is this section's, bit for bit, through every kind of change | the model in `core/src/tests/bus.rs` given effect 14 from this section's pseudo-code, written before the code, on its tour at three rates and on edges with a line lent; `route.rs`'s model takes the same `wet` |
+| With no line, 14 is the plain sum | `bus.rs` (the "effects not built" test keeps 14 with no line, as it keeps 4) |
+| The first `comb` frames after it starts are the bus itself; `comb` is 807, 879 and 1 757 at the three rates | a rule test |
+| What goes round is never past ±0.25, whatever is played | a rule test: the loudest pattern (`render-all`'s) held for four bars, `mix − dry` inside ±0.25 × the volume's gain |
+| It builds: one click on a bus otherwise a steady 0.000 001 (so it does not stand still) comes round louder each time until the clip, `comb` frames apart | a rule test on a made bus (`Bus::mix` directly), against the model |
+| It stands still: after 1 ms of exact zero the mix is exact zero and `head` and the filter's states do not move; the next sound brings back what the loop held | a rule test (`echo_state`, `probe`) |
+| A zero for less than 1 ms does not stop it | a rule test |
+| Cleared from idle and from another kind (4 straight to 14, and 14 to 4: nothing of one in the other); kept when heard again inside the ramp; `head` and `full` cleared by a lend | rule tests |
+| The line is never written past `comb` (a guard value at `comb`) | a rule test |
+| Under 200 Hz the mix is the dry mix to within 1 dB: a kick alone, held two bars | a rule test, with a one-pole low-pass in the test |
+| Native and `.wasm`, the same bytes | a new `harness/render-fx-14.json` with a line lent in both harnesses (as `render-fx-4`) |
+| What it costs | `make bench`, the old library kept and run interleaved: idle, beat, all, both and the loops inside the old build's spread; a new case "fx 14" with a line lent |
+| Ours beside the hardware | Session 28's comparison (`PLAN.md`): takes a and b's patterns with 13 and 14 held, read by `harness/hardware-fx.py` |
 
 ## 19. Sound in: the returns and the effects loop (ABI 9; designed in Session 15; D68; built in Session 18)
 

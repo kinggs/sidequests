@@ -13,8 +13,8 @@ Rack platforms. Proofs P1, P2, P3 and P7 passed; P4, P5 and P6 are part-run and 
 iPhone and other machines (`PROOFS.md`).
 
 Not finished: most of what was built on 2026-11-23 has not been seen or heard by the owner,
-and every look in it is a stand-in until then; five of the sixteen effects are not
-designed. Built on 2026-11-24: FX SEND and FX RETURN as sixteen channels, a channel an
+and every look in it is a stand-in until then; two of the sixteen effects (15 and 16) are not
+designed, and two more (13 and 14) are designed and not built (D93; Session 27). Built on 2026-11-24: FX SEND and FX RETURN as sixteen channels, a channel an
 effect, with what comes back always in the mix (D87, D88; Session 24; played by the owner);
 then, not yet heard, a repeat that holds the nearest note behind it, effects 1 to 8 retuned
 to the PO-12's measurements and read beside it by the same script, and effect 4, a delay of

@@ -171,6 +171,10 @@ holds the nearest note behind it; effects 1, 2, 3 and 5 to 8 retuned, then three
 moved after ours was read beside the PO-12 by the same script; effect 4, one echo in a line
 each host lends.
 
+**Designed on 2026-11-24 and not built** (Session 27; D93): effect 13, a note plays as the
+sound twelve keys on, and effect 14, the bus fed back in the line effect 4 is lent. Session
+28 builds them.
+
 ## Done so far
 
 Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
@@ -206,19 +210,84 @@ Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
 | 24, FX SEND and FX RETURN built (Opus; D87, D88) | ABI 11: FX RETURN summed before the volume, `ROUTE` 1 the host's effects, `ROUTE` 4 an insert; FX SEND's sixteen ramps, FX RETURN summed, the three settings in the menu and the patch; the self-test's three FX modules; the two jacks with stitches; `render-loop`'s loop files rendered again; 30 faults caught by name | 2026-11-24 |
 | 25, the repeat's rule, the retune and the delay designed (Fable; D90, D91) | `ENGINE.md` §17 and §18, "Designed 2026-11-24"; D91 and O22; R69, the reports read again; `fixtures/designed/fx-repeat-holds.json` by hand; the delay's memory measured in scratch copies (`LEARNINGS.md`); Session 26's list. Nothing built | 2026-11-24 |
 | 26, the repeat's rule, the retune and the delay built and compared (Opus; D90, D91) | ABI 12: the repeat holds the nearest note behind it, the retune, effect 4's echo in a lent line (`pi_delay_frames`, `pi_set_delay`); the hosts lend; `harness/ours-take.cpp` and ours read beside the PO-12, three constants moved; 30 faults caught by name. ⚠ The beat and all 1 to 3 ns a frame over the old build (placement) | 2026-11-24 |
+| 27, effects 13 and 14 designed (Fable; D93) | `ENGINE.md` §17 and §18, "designed 2026-11-24: effect 13" and "effect 14"; D93 and O23; R70, takes a and b read again; `fixtures/designed/fx-shuffle.json` by hand; a model of 14 off the engine (`LEARNINGS.md`); Session 28's list. Nothing built but the sliders' second mark, now madder | 2026-11-24 |
 
 ## Next, in order
 
 1. **The owner's ear on Session 26** (restart Rack first: `make install` ran): its Handover
    below has the steps. D92's three rulings are cheap to change if they sound wrong.
-2. **Session 22's takes left,** when the owner has twenty minutes with the PO-12:
+2. **Session 28, effects 13 and 14 built** (Opus): its list below. Nothing blocks it; D93
+   is the owner's to overrule first (O23), and is built as written otherwise.
+3. **Session 22's takes left,** when the owner has twenty minutes with the PO-12:
    below. They firm up effect 1 (what makes it longer and lower, R69), the sweeps' shape,
    effect 8's bottom (which take a cannot read: Session 26), the delay's time at a second
    tempo, 15 and 16. Start it with "Read `pocket-instruments/PLAN.md` and finish Session 22".
-3. **The owner's looks and rulings** on what 2026-11-23 built: "The owner's hands", first
+4. **The owner's looks and rulings** on what 2026-11-23 built: "The owner's hands", first
    part.
-4. **Session 14's fourth box,** the weave accepted or redrawn: below.
-5. Then from "Not planned yet", as the owner chooses.
+5. **Session 14's fourth box,** the weave accepted or redrawn: below.
+6. Then from "Not planned yet", as the owner chooses.
+
+## Session 28 — effects 13 and 14, built and compared (build, Opus; D93)
+
+ABI 13. The brief is `ENGINE.md` §17, "designed 2026-11-24: effect 13", and §18, "designed
+2026-11-24: effect 14", with D93 and R70. Their two "Proven when built by" tables are this
+list's tests: every row gets its test. Read `LEARNINGS.md` for Sessions 17, 26 and 27 (the
+model tests, where code sits, the model of 14). The rules for every build session hold.
+Two parts, each its own commits, in this order: they touch different files.
+
+- [ ] **Before any change:** keep `target/report-rust.txt`, a `sha256sum` of every
+      `target/render-*.f32`, and the release library as `target/old/libpi_core.a` with a
+      bench built on it. `make bench` three times.
+- [ ] **Effect 13** (`core/src/seq.rs`; §17's pseudo-code is the code, out of line, asked
+      for where the plain firing is). `git mv` `fixtures/designed/fx-shuffle.json` up,
+      unchanged, and only then run it. A rule test for each bullet of the section. The two
+      tests that list the effects with no sound lose 13 here (§17 names them): say so in
+      the Handover. Then the comparison: the report's eleven older fixtures and every
+      render file the same bytes. ⚠ A render file that moves here is not accepted: stop.
+- [ ] **Effect 14** (`core/src/bus.rs`). The model in `core/src/tests/bus.rs` first, given
+      14 from §18's pseudo-code, then the code: the loop out of line, called from `wet` as
+      the echo is. `is_sound_effect`, `family`, `clear`, `r()` and the cutoff in `frame`
+      each learn of 14. No new field unless the interleaved bench allows it (§18 says which
+      are free). `PI_ABI_VERSION` 13 in the header and `abi.rs`. A new
+      `harness/render-fx-14.json`, a line lent in both harnesses. Every other render file
+      and the report the same bytes.
+- [ ] **The cost** (`make bench`, the old library interleaved, ten pairs): idle, beat, all,
+      both and the loops inside the old build's spread; a new case "fx 14". ⚠ Session 26
+      found the bench reads where code lands: if a case is outside the spread, try the
+      loop's place before accepting, and write both readings.
+- [ ] **The hosts.** Rack's menu: "note shuffle" and "feedback" (D93 item 10;
+      `rack/src/Rhythm.cpp`, the names' table). `web/listen.html` and `make hear` gain 14
+      beside the others, and 13 if the page can show a sequencer effect (the repeats' way).
+      The Rack self-test plays `fx-shuffle` with the other format 3 fixtures
+      (`rack/rhythm.jq`), and `fx-repeat-holds`, which Session 26 left out. `make play`
+      plays `fx-shuffle` on the page.
+- [ ] **Faults planted,** each built and caught by a named test (the unplanted copy first):
+      at least the map's twelve, the order of the two draws, a `TRIG` for each draw, the
+      note's own sound still firing, the loop's length, its gain, its ceiling, the band
+      output swapped for low or high, the dry sound left out, stillness after one frame
+      and never, the line written at `comb`, 4's state left in 14.
+- [ ] **Ours beside the hardware** (D93 item 9). `harness/ours-take.cpp` already plays
+      takes a and b's patterns with each key held; read both with
+      `uv run harness/hardware-fx.py`, unchanged, takes outside the repo. What each must
+      read, and what may move to bring it there, one round:
+
+      | Effect | The reading | The PO-12's | May move |
+      |---|---|---|---|
+      | 13 | onsets a beat, and where they fall (a) | 2.00, on the dry steps | nothing: a miss is a bug |
+      | 13 | each hit against its dry hit (a) | unlike it: the kick 841 Hz and short, the snare 1 841 Hz and pure, the hat 74 Hz and held | nothing ⚠ ours are our own 13, 14 and 15; write what they read |
+      | 14 | the response under 320 Hz (a, b) | 0 dB | nothing: a miss is a bug |
+      | 14 | level over dry, and peak over dry's (a; b) | +5.0, +4.4 dB; +0.5, +3.9 dB | the ceiling, 0.25 |
+      | 14 | the response at 1 kHz (a; b) | +29 dB; +18 dB | the gain, 2.24, then the ceiling |
+      | 14 | where the lift is widest and strongest (a) | 500 Hz to 3.2 kHz, most in the 1 016 Hz third | the filter's 1 093 Hz and `r` 2 |
+      | 14 | the loop: the script's hold line, or an autocorrelation over 300 Hz (a) | 54.6 Hz; 18.3 and 36.6 ms | nothing: 858 / 46 875 s is measured |
+      | 14 | steps silent dry (a: 6 and 14; b: 4 on) | silent wet | nothing |
+
+      Both reports' numbers side by side in `ENGINE.md` §18 and `LEARNINGS.md`, as Session
+      26 wrote them.
+- [ ] **The end:** `make verify`; `make install` in `rack/`; `ENGINE.md` §17 and §18
+      marked built with what turned out different; `LEARNINGS.md`; the Handover with the
+      owner's steps (13 over a beat with returns in Rack; 14 over a sparse beat and a busy
+      one, and D93 item 7's two other readings named); this list to `PLAN-HISTORY.md`.
 
 ## Session 22 — the hardware's effects, measured from a recording (with the owner, Fable; two of three takes done 2026-11-24)
 
@@ -241,11 +310,15 @@ tuned by ear and before the delay is designed. It needs no build to have happene
             A down and B up); three passes dry, then each effect 1 to 16 held for two
             passes with one dry between. `harness/hardware-take.sh check`, then
             `harness/hardware-take.sh c`. It firms up 1, 5, 6, 8, 15 and 16.
+            (Added by Session 27; D93 item 1.) And 13: if a note plays as the sound
+            twelve keys on, sound 8 sounds as 4 and sound 15 as 11. A dry bar of sounds
+            4, 11, 13, 14, 15 and 16, a hit each, makes that certain.
       - [ ] **Effect 4 at another tempo** (added by Session 25; D91 item 5): sound 1 on
             step 1, at 120 bpm ("disco"), two passes dry, then fx + 4 held for two. If the
             echo is still 174.8 ms after the hit the time is fixed, as designed; if it is
             0.93 of a step (116 ms) it follows the tempo. `harness/hardware-take.sh b`,
-            read with `--bpm 120`.
+            read with `--bpm 120`. (Added by Session 27.) Then fx + 14 held for two the
+            same way: is its loop still 18.30 ms (R70)?
       - [ ] **The timing take** (R68): fx + 11 held for two passes, fx alone for two,
             three times. `harness/hardware-take.sh t11`. Then read both with
             `uv run harness/hardware-fx.py`, and correct R64 to R68 and the proposals.
@@ -306,9 +379,9 @@ In the order they are likely wanted. Each needs a design pass (Fable) before a b
 | What | Waits on | Where it is written |
 |---|---|---|
 | **The effects tuned, the rest:** effect 1's kick, three times longer and lower on the hardware (R69), and its irregular holds; the sweeps' shape and what separates 6 from 8 (1 to 8 as measured so far are Sessions 25 and 26) | take c (Session 22); then the owner's ear | `ENGINE.md` §18, "Designed 2026-11-24"; `core/src/bus.rs`, "TUNING THE EFFECTS" |
-| **Effect 14** (feedback): a short delay fed back hard. It can use the line effect 4 is lent (about 1 ms of it) | nothing now: the line is built (Session 26); measured: R67 | D67 item 4; D91 item 4; R57 |
 | **The delay, if the ear asks:** a tail after the key is let go; the second echo | the owner, after Session 26 | D91 item 5 |
-| **Effects 13, 15, 16** | take c for 15 and 16; 13 is measured ⚠ (R67) | D67 item 4; R48 |
+| **Effects 15 and 16** (13 and 14 are Sessions 27 and 28) | take c | D67 item 4; R48; R67 |
+| **Effect 14, the rest:** the PO-12's loop inside its 8 192 line, the echo in it, whether it follows the tempo | the 120 bpm take; then the owner's ear | R70; `ENGINE.md` §18, "effect 14", "Not modelled" |
 | **Each effect to its own Rack module, the rest:** the breakouts, a trigger in for each sound (the sixteen channels are Sessions 23 and 24) | the owner's ruling on D86 items 3 to 5 (O20) | D86; D87; R63 |
 | **The sliders, the rest:** change one held step; record a slider's movement while write is held; live record of notes (write becomes a held key) | the simple rule played first | D75 item 3; `WORKFLOW.md`, "The sliders" |
 | **A OUT back to A IN is one hit late** | the owner: does it matter? | O18; `ENGINE.md` §19, "Found" |
@@ -383,6 +456,9 @@ originals are in `PLAN-HISTORY.md`); nothing was dropped, each thing is here onc
       tail on our delay; effect 3 resting off zero, so it thumps softly on silence.
       Accepted 2026-11-24, before the build (D92). Listen for all three once Session 26
       has built them; each is cheap to change.
+- [ ] **Session 27's rulings** (D93; O23), before or after Session 28 builds them: a note
+      plays as the sound twelve keys on; a shuffled note takes the sounding sound's
+      sliders; the feedback stands still while nothing sounds (or rings on, or fades).
 - [ ] **Session 26, by ear and to rule on:** its Handover below has the steps (about ten
       minutes) and its five readings (⚠).
 - [x] **Session 22's proposals** (`ENGINE.md` §17 and §18, "Proposed after Session 22"):
@@ -423,38 +499,6 @@ originals are in `PLAN-HISTORY.md`); nothing was dropped, each thing is here onc
 ## Handover
 
 The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
-
-### After Session 25: the repeat's rule, the retune and the delay designed (2026-11-24)
-
-- **Nothing was built.** `ENGINE.md` has two new sections, "§17, designed 2026-11-24" and
-  "§18, designed 2026-11-24", and a note at its top; `DECISIONS.md` has D91 and O22;
-  `REFERENCES.md` has R69; `fixtures/designed/` holds one fixture by hand.
-- **The owner ruled one thing:** the sweeps move now (D91 item 3). And asked for one: a
-  step that compares ours with the hardware and tweaks. It is Session 26's last box but
-  one, with a table of what each effect must read and which constant may move.
-- **The repeat** looks back from its run's first step, round the wrap, for the nearest
-  step with a note of a sound in the effects, by the pattern. No existing trace, view or
-  test changes: checked in a scratch core (233 passed with the rule in).
-- **Three things the reports said that the proposals did not** (R69; D91 items 6 and 7):
-  - Effect 1 gets no gain. The PO-12's is no louder at its peak; its kick lasts three
-    times as long and sounds lower, which our hold on the bus cannot do. ⚠ This one will
-    not match the hardware after Session 26. What it needs waits for take c.
-  - Effect 3 is a quantiser at a quarter of full scale that rests half a step off zero.
-    "Not silent on silence" was the recording settling, not noise. Ours will thump softly
-    when it starts and ends on silence, as the hardware's must.
-  - Effect 2 clips at ±1: take b shows the ceiling, which R64 had as not measured.
-- **The delay:** one echo, 174.76 ms, fixed, at 0.15, no feedback, no tail. Its line is
-  lent by the host, measured first: 16 bytes more in the engine against 67 KB.
-- ⚠ **For Session 26:** where the echo's six lines sit moved the loop layouts by 20 ns a
-  frame in the scratch copy. Its list says which arrangement held.
-- ⚠ **Your kept patch will change again after Session 26.** Effect 4 set to Ours will
-  play our echo as well as whatever FX SEND's channel 4 feeds. To keep it as it is now,
-  set effect 4 to "Rack's, beside the dry".
-- **The session ruled eight things** (D91 items 1, 2, 4 to 8 and 10), yours to overrule
-  (O22). The three worth your ear are in "The owner's hands".
-- **Added after the session:** the owner accepted them all (D92), so Session 26 builds
-  D91 as written.
-- **Next: Session 26,** the build, on Opus. ~~Its list is above.~~ Done: the note below.
 
 ### After Session 26: the repeat's rule, the retune and the delay built, and ours read beside the PO-12 (2026-11-24)
 
@@ -511,3 +555,31 @@ The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
 - **Added after the session:** the owner, after testing on the web: "Love it. Did quite a
   bit of testing on the web, and it feels much more complete now." Rack and the five
   readings are not yet ruled on.
+
+### After Session 27: effects 13 and 14 designed (2026-11-24)
+
+- **Nothing of the effects was built.** `ENGINE.md` has two new sections, "§17, designed
+  2026-11-24: effect 13" and "§18, designed 2026-11-24: effect 14", and a note at its top;
+  `DECISIONS.md` has D93 and O23; `REFERENCES.md` has R70; `fixtures/designed/` holds
+  `fx-shuffle.json`, worked by hand; Session 28's list is above.
+- **Built, one small thing the owner asked for mid-session:** the sliders' second mark is
+  madder on the page and in Rack (it was thread: "it really just doesn't stand out").
+  `make install` ran: restart Rack. `design/DESIGN.md`, "Not done", says so.
+- **Effect 13** is the sequencer's: a note of a sound in the effects plays as the sound
+  twelve keys on (1 as 13, 5 as 1). The PO-12's keeps every note on its step and swaps each
+  sound for one other, the same every time (R70). ⚠ Twelve is read from three sounds.
+- **Effect 14** is one loop on the bus, 18.30 ms round, in the first tenth of the line
+  effect 4 is lent: through the bus's filter at 1 093 Hz, 1.12 a round, held to ±0.25. It
+  stands still while nothing sounds, as the PO-12's is silent on every silent step.
+- **What the takes said that R67 did not** (R70): 14 does not "ring at 1 041 Hz". It is a
+  loop of 858 device samples with lines 54.64 Hz apart, strongest at 1 092.8 Hz; it leaves
+  everything under 320 Hz alone; and it stops dead when the last voice ends.
+- ⚠ **Not understood, and not modelled:** the PO-12's loop sits inside its 8 192-sample
+  line (the delay's echo shows in 14 too). One loop gives the measured ring; the rest waits
+  for the ear and the 120 bpm take.
+- **Checked off the engine:** the fixture in a scratch core with the rule in (passed at
+  the first run; the core as it is fails it; one old test names 13 as unbuilt and changes
+  with the decision); effect 14 as a numpy model on stand-in drums (`LEARNINGS.md`).
+- **The session ruled ten things** (D93), yours to overrule (O23). The three worth a
+  thought are in "The owner's hands".
+- **Next: Session 28,** the build, on Opus. Its list is above.
