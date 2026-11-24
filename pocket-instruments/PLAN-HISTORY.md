@@ -2486,3 +2486,87 @@ Two parts, each its own commits, in this order: they touch different files.
 - **Added after the session:** the owner, after testing on the web: "Love it. Did quite a
   bit of testing on the web, and it feels much more complete now." Rack and the five
   readings are not yet ruled on.
+
+## Session 29 — efficiency: the bench made to read work, then the idle cost (build, Opus; done 2026-11-24)
+
+Asked for by the owner after Session 28 ("Efficient, measured", the ground rules). Two parts,
+in this order: the second needs the first's bench to be believed. **Nothing a host hears or
+sees may change:** the report and every render file the same bytes, before and after, is the
+proof of that (the rules for every build session). Read `LEARNINGS.md` for Sessions 17, 26 and
+28 (the bench, placement, where code sits) and "Later: efficiency" below.
+
+- [x] **Before any change:** keep `target/report-rust.txt`, a `sha256sum` of every
+      `target/render-*.f32`, and the release library as `target/old/libpi_core.a` with a bench
+      built on it. `make bench` three times.
+- [x] **Does pinning alignment make the bench read work?** Three builds whose differences
+      never run in the idle, beat, all, both and loop cases: commit `0465202` (Session 27),
+      `4e37617` (effect 13 alone) and `main`. Unpinned, `4e37617` read about 4 ns a frame
+      faster than `0465202` (Session 28). Build each in a scratch copy (`--manifest-path`,
+      `CARGO_TARGET_DIR`; Machine state), each bench against its own header, interleaved, ten
+      pairs, medians: unpinned; `-C llvm-args=-align-all-functions=6`; that and
+      `-align-all-nofallthru-blocks=6` (or `-align-loops=64`). Passes if one setting puts the
+      three within 0.5 ns of each other on those cases. Write every reading in `LEARNINGS.md`.
+      **Done:** `-align-all-functions=6` passes once the bench is pinned to one core (core 2:
+      0.0 to 0.5 ns apart; core 10: beat 0.9 ⚠). Unpinned, the 7950X3D's two dies made every
+      case bimodal by about 2 ns, which no alignment can take out. Blocks or loops aligned too
+      did not pass (`LEARNINGS.md`, Session 29).
+- [x] **If one passes, pin it** where every native build gets it: `make build` and `make
+      rack-lib` (whose `RUSTFLAGS` replaces any config file's), CI's four platforms included;
+      not the `.wasm`, unless its bytes stay the same. Check aarch64 and x86_64 both accept the
+      flag (`make targets`). The report and every render file the same bytes. `make bench` and
+      ten pairs against the old library: say what pinning costs or saves. If none passes, write
+      that up and do the second part with interleaved pairs, as before.
+      **Done:** `ALIGN` in the Makefile, after `--` on both native builds; all four targets
+      take it (and `make targets` passes again: arm64's `bzero`, failing from before). The
+      report, the 432 render files and the `.wasm` the same bytes. Cost: 0.5 ns under to 0.2
+      over the old library, every case. `make bench` pinned to one CPU; `make pairs` added.
+- [x] **The idle cost** ("Later: efficiency", first box): profile first, in Rack with perf, as
+      Machine state says (a patch with the module stopped; then with nothing patched). Write
+      where the frame goes before changing anything. A cheap idle path (stopped, every voice
+      silent, nothing patched moving, no effect ramping) must keep §4's rule that the clock
+      counts while stopped, so a tap lands on the right tick. ⚠ If the path needs anything
+      `ENGINE.md` does not already say, stop and write the question into the Handover: that
+      is Fable's. Otherwise build it, with a test that a stopped engine skipping the path and
+      one taking it give the same events, view and audio bit for bit over a long run with taps.
+      **Done:** most of `pi_process`'s idle samples were the sixteen voices asked, each to say
+      it had nothing. `Voices::quiet` skips them while all are silent, for the same bits; no
+      question for Fable (nothing in `ENGINE.md` changed; §11 has a note). `core/src/tests/quiet.rs`:
+      three tests; ten faults caught by name.
+- [x] **The cost:** `make bench`, ten pairs, every case, and perf in Rack before and after;
+      the idle number in Rack's CPU meter if it can be read headless (`LEARNINGS.md` says how
+      Session 13 read it).
+      **Done:** idle 29.5 → 6.1 ns a frame, no case slower. In Rack the core's idle samples
+      −76%, the module's −26%. The meter cannot be read headless (no widget with `-h`); from
+      perf, about 0.60% before (the owner read 0.6%) and 0.45% after ⚠.
+- [x] **The end:** `make verify`; `make install` in `rack/`; "Later: efficiency" ticked or
+      annotated; `LEARNINGS.md`; the Handover; this list to `PLAN-HISTORY.md`.
+
+## Handover note moved here by Session 29 (2026-11-24)
+
+### After Session 27: effects 13 and 14 designed (2026-11-24)
+
+- **Nothing of the effects was built.** `ENGINE.md` has two new sections, "§17, designed
+  2026-11-24: effect 13" and "§18, designed 2026-11-24: effect 14", and a note at its top;
+  `DECISIONS.md` has D93 and O23; `REFERENCES.md` has R70; `fixtures/designed/` holds
+  `fx-shuffle.json`, worked by hand; Session 28's list is above.
+- **Built, one small thing the owner asked for mid-session:** the sliders' second mark is
+  madder on the page and in Rack (it was thread: "it really just doesn't stand out").
+  `make install` ran: restart Rack. `design/DESIGN.md`, "Not done", says so.
+- **Effect 13** is the sequencer's: a note of a sound in the effects plays as the sound
+  twelve keys on (1 as 13, 5 as 1). The PO-12's keeps every note on its step and swaps each
+  sound for one other, the same every time (R70). ⚠ Twelve is read from three sounds.
+- **Effect 14** is one loop on the bus, 18.30 ms round, in the first tenth of the line
+  effect 4 is lent: through the bus's filter at 1 093 Hz, 1.12 a round, held to ±0.25. It
+  stands still while nothing sounds, as the PO-12's is silent on every silent step.
+- **What the takes said that R67 did not** (R70): 14 does not "ring at 1 041 Hz". It is a
+  loop of 858 device samples with lines 54.64 Hz apart, strongest at 1 092.8 Hz; it leaves
+  everything under 320 Hz alone; and it stops dead when the last voice ends.
+- ⚠ **Not understood, and not modelled:** the PO-12's loop sits inside its 8 192-sample
+  line (the delay's echo shows in 14 too). One loop gives the measured ring; the rest waits
+  for the ear and the 120 bpm take.
+- **Checked off the engine:** the fixture in a scratch core with the rule in (passed at
+  the first run; the core as it is fails it; one old test names 13 as unbuilt and changes
+  with the decision); effect 14 as a numpy model on stand-in drums (`LEARNINGS.md`).
+- **The session ruled ten things** (D93), yours to overrule (O23). The three worth a
+  thought are in "The owner's hands".
+- **Next: Session 28,** the build, on Opus. Its list is above.

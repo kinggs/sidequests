@@ -538,6 +538,11 @@ the `TRIG` events they already make.
   `.wasm` render are the same bytes. A voice that needs a library call gives this up.
 - **A voice stops.** Below −80 dB its envelope is set to exactly 0 and it writes exact
   zeros: no denormals, and a silent voice costs one comparison.
+  **Since Session 29:** while every voice and sample is silent the core asks none of them
+  and writes the sixteen +0s they would give (`Voices::quiet`); the clock, the sequencer,
+  the bus and a loop layout's inputs run as before, so §4's clock still counts while
+  stopped. Nothing in this contract changed: the same bits, held frame by frame to an engine
+  that asks every voice (`core/src/tests/quiet.rs`). Idle went from 29.5 to 6.1 ns a frame.
 - **The sliders.** `SOUND` sets slider A or B of a track, 0 to 65535 (the reserved `PARAM`
   command will become this, for the selected sound, when the keys are built: D26). A value
   is read when the voice is next triggered. A sounding voice keeps its pitch and length, in

@@ -1252,3 +1252,78 @@ above; these are what only the chain showed.
   ceiling stops mattering below about 2.08. Effect 13: 2.00 onsets a beat on the dry steps, as
   the PO-12's; each hit our own 13, 14 and 15 (268, 1 331 and 220 Hz) where the PO-12's read 841,
   1 841 and 74 Hz.
+
+## Session 29: the bench made to read work, then the idle cost (2026-11-24)
+
+- **The bench had two noises, not one, and the bigger was the machine.** This laptop's Ryzen 9
+  7950X3D has two dies: one with the stacked cache at a lower clock, one faster. A bench run
+  lands on either, so every case is bimodal run to run (about 30 or 32 ns on "both", 37 or 39
+  on "loop", in every build). Turning off address randomisation (`setarch -R`) changed
+  nothing; pinning to one core (`taskset -c 2`) collapsed each case's ten readings to a few
+  tenths. `make bench` and `make pairs` now pin (`BENCH_CPU`, 2 by default). Core 2 is on the
+  cached die and reads about 2 ns slower than core 10, and steadier.
+- **Then placement, which pinning alignment does take out.** Three builds whose differences
+  never run in the listed cases (`0465202`, `4e37617`, `main`), ten interleaved rounds each,
+  medians in ns a frame, the spread between the three:
+
+  | Setting | Unpinned CPU | Core 2 | Core 10 |
+  |---|---|---|---|
+  | none | 2.9 idle, 3.4 beat, 4.0 all, 3.3 both, 3.4 loop | 3.2, 2.9, 3.7, 3.6, 3.4 | 2.3, 2.3, 4.1, 3.3, 3.7 |
+  | `-align-all-functions=6` | 0.2 to 1.5 (both and loop bimodal) | **0.3, 0.0, 0.0, 0.1, 0.5** | 0.3, 0.9, 0.3, 0.3, 0.3 |
+  | that and `-align-all-nofallthru-blocks=6` | 3.1 idle, 2.5 beat | 3.5, 3.4, 1.9, 3.0, 3.6 | — |
+  | that and `-align-loops=64` | 3.1 idle, 2.9 beat | 2.9, 2.3, 3.3, 2.7, 3.3 | — |
+
+  So functions on a 64-byte line pass the list's bar (within 0.5 ns) on core 2 and come close
+  on core 10 (beat 0.9 ⚠). With it `pi_process` is the same 2 227 instructions in all three
+  builds, at the same offset in its line; what is left is address bits above 64 bytes
+  (branch prediction, pages) and noise. Aligning blocks as well made the two older builds
+  about 5 ns faster when idle and `main` not, because `main` has an outlined `Bus::frame`: a
+  layout that suits one build, not a pin. Pinned, against the old library on core 2: every
+  case from 0.5 faster to 0.2 slower. It costs nothing, so it is in `make build` and `make
+  rack-lib`, given after `--` so it reaches our crate only and survives `rack-lib`'s
+  `RUSTFLAGS`; all four Rack targets take it (every function 64-aligned in each); the
+  `.wasm` is left as it was (no addresses to align; its bytes did not move).
+- **`make targets` had been failing, unseen.** aarch64-apple-darwin's object calls plain
+  `bzero` (x86 macOS spells it `__bzero`, which the list had); the unpinned library failed the
+  same, so it predates this session. `make targets` is not in `make verify`. Admitted as the
+  same libSystem routine the rule already allows.
+- **Where the idle frame went, in Rack (perf, user space, 20 s at 48 kHz, Rack pinned to core
+  2, two runs each).** One Rhythm module, stopped, nothing patched: `pi_process` 1 345 and
+  1 334 samples, `Rhythm::process` 1 708 and 1 604, `Hat::next` 69 and 65; SEQ-3 alone, 795
+  and 715. Inside `pi_process` most samples sat in the sixteen voices' calls (a jump table
+  over the tracks, a float test each), then the sum. Every voice was asked every frame, each
+  to say it had nothing.
+- **The fix was a cached fact, not a new rule.** Every voice's silent branch returns 0 and
+  changes nothing, so a flag that is only ever true when all are silent lets `render` skip
+  them for the same bits. A trigger clears it; it is set again only on a frame of sixteen +0
+  bits, and then only if every voice says so. `make bench`, ten pairs, core 2: idle 29.5 →
+  6.1; beat 33.0 → 31.6; all 51.4 → 50.7; both 35.3 → 33.6; loop 43.3 → 41.6; loop fx 43.3 →
+  41.7; loop in 44.8 → 43.5; sliders 39.1 → 36.8; repeat 37.8 → 36.9; fx 1 to 14 0.1 to 1.3
+  under, fx 3 the same (41.6, 41.5). Engine 3 728 bytes (the flag fits in padding); `.wasm`
+  43 222 → 43 725.
+- **The arrangement mattered again (Sessions 26 and 28 said so).** The zero test first written
+  as a fold after the voice loop read idle 4.4 but all +2.8 and repeat +3.2 over the old build;
+  folded into the voice loop it reads idle 6.1 and nothing over. Out of line, every case lost.
+- **A slip of mine, caught by a warning.** Inserting each voice's `silent` above `fn next` left
+  `next`'s `#[inline]` on `silent` and `next` without one; rustc warned "unused attribute"
+  only because two stacked. The bench of that build was thrown away and read again.
+- **In Rack after (same runs):** `pi_process` 326 and 303 samples (−76%); `Hat::next` gone;
+  the module in all 2 366 and 2 325 against 3 220 and 3 110 (−26%), and with AUDIO patched
+  −33%. As a meter, samples × 200 000 cycles over 20 s × 48 000 frames, at about 5.25 GHz
+  (⚠ the clock is assumed): the module about 0.60% before (the owner read 0.6%), about 0.45%
+  after; SEQ-3 about 0.16% (the owner read 0.2%). Rack's own meter cannot be read headless:
+  no widget is made with `-h` (Session 13).
+- **What is left is the host's.** `Rhythm::process` is now about 1 900 samples, 2.4 × SEQ-3's
+  whole module, and 29% of it is one line: the 23 key parameters compared every frame
+  (`Rhythm.cpp`, the `changed |=` scan). That is "Later: efficiency"'s open question for the
+  owner (read the parameters every 16 or 32 frames), now with a number.
+- **The tests:** an engine taking the short way held frame by frame, bit for bit, to one put
+  back on the long way before every frame (events, audio, view, snapshot), 200 000 frames in
+  each of the five layouts, stopped with taps, a beat with effects played and stopped, a rate
+  change; it was quiet on 68 000 to 100 000 of them. Nine faults planted, the unplanted copy
+  first: 7 caught at the first run. The two missed (the snare's wires and the clap's test in
+  `silent`) named a hole: `silent` is asked only on a frame of sixteen +0s, which a sounding
+  voice almost never gives, so the long run never met a wrong one. A third test holds each
+  voice's `silent` to its sound directly (every track, three lengths, code and sample). All
+  nine again from fresh copies of the final code, and a tenth (the snare says silent early):
+  10 of 10, each caught by a named `quiet::` test.

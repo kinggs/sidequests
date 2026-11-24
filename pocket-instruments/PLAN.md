@@ -140,6 +140,10 @@ lights, caps, display, weave ◄─ host draws ◄─ view                Rack: 
   pass every check while the owner's Rack still runs the morning's plugin (it did: FX SEND
   looked one-channel). A build session ends with `make install`, and the owner restarts Rack
   (it unpacks the `.vcvplugin` at start).
+- Found in Session 29: **the CPU is a Ryzen 9 7950X3D, two dies.** One has the stacked cache
+  and a lower clock (core 2 is on it), the other is faster (core 10). A run lands on either,
+  so every bench case is bimodal by about 2 ns. `make bench` and `make pairs` pin to
+  `BENCH_CPU` (2); pin perf's Rack too: `perf record ... taskset -c 2 ./Rack -h -u <folder>`.
 - Found in Session 10: `cargo` only works with this folder as the working directory. From
   anywhere else the mise shim fails with "No version is set". To build a scratch copy, stay
   here and pass `--manifest-path` and `CARGO_TARGET_DIR`. `jq` (1.8) is present; the Rack
@@ -213,61 +217,23 @@ Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
 | 26, the repeat's rule, the retune and the delay built and compared (Opus; D90, D91) | ABI 12: the repeat holds the nearest note behind it, the retune, effect 4's echo in a lent line (`pi_delay_frames`, `pi_set_delay`); the hosts lend; `harness/ours-take.cpp` and ours read beside the PO-12, three constants moved; 30 faults caught by name. ⚠ The beat and all 1 to 3 ns a frame over the old build (placement) | 2026-11-24 |
 | 27, effects 13 and 14 designed (Fable; D93) | `ENGINE.md` §17 and §18, "designed 2026-11-24: effect 13" and "effect 14"; D93 and O23; R70, takes a and b read again; `fixtures/designed/fx-shuffle.json` by hand; a model of 14 off the engine (`LEARNINGS.md`); Session 28's list. Nothing built but the sliders' second mark, now madder | 2026-11-24 |
 | 28, effects 13 and 14 built and compared (Opus; D93) | ABI 13: `shuffle` in `seq.rs`, `feedback` in `bus.rs`; `fx-shuffle` moved up and passing everywhere (Rack and the page too, with `fx-repeat-holds` in Rack); `render-fx-14`; Rack's menu names; 14 on the listen page; 27 faults caught by name; ours read beside the PO-12, 14's gain 2.24 → 2.05 | 2026-11-24 |
+| 29, efficiency (Opus) | every native library's functions on a 64-byte line; `make bench` pinned to one CPU, `make pairs`; a quiet engine does not ask its voices: idle 29.5 → 6.1 ns a frame, no case slower, the same bytes; in Rack the module's idle −26% | 2026-11-24 |
 
 ## Next, in order
 
 1. **The owner's ear on Sessions 26 and 28** (restart Rack first: `make install` ran):
    Session 26's steps are in `PLAN-HISTORY.md`, Session 28's in its Handover below. D92's
    and D93's rulings are cheap to change if they sound wrong; so is 14's gain (⚠ below).
-2. **Session 29, efficiency: the bench made to read work, then the idle cost** (Opus; the
-   owner asked for it 2026-11-24): its list below. Needs nothing from the owner.
-3. **Session 22's takes left,** when the owner has twenty minutes with the PO-12:
+2. **Session 22's takes left,** when the owner has twenty minutes with the PO-12:
    below. They firm up effect 1 (what makes it longer and lower, R69), the sweeps' shape,
    effect 8's bottom (which take a cannot read: Session 26), the delay's time at a second
    tempo, 15 and 16. Start it with "Read `pocket-instruments/PLAN.md` and finish Session 22".
-4. **The owner's looks and rulings** on what 2026-11-23 built: "The owner's hands", first
+3. **The owner's looks and rulings** on what 2026-11-23 built: "The owner's hands", first
    part.
-5. **Session 14's fourth box,** the weave accepted or redrawn: below.
+4. **Session 14's fourth box,** the weave accepted or redrawn: below.
+5. **The host's idle cost, when wanted** ("Later: efficiency"): the owner's answer to reading
+   the parameters less often decides the next step (Session 29's Handover).
 6. Then from "Not planned yet", as the owner chooses.
-
-## Session 29 — efficiency: the bench made to read work, then the idle cost (build, Opus)
-
-Asked for by the owner after Session 28 ("Efficient, measured", the ground rules). Two parts,
-in this order: the second needs the first's bench to be believed. **Nothing a host hears or
-sees may change:** the report and every render file the same bytes, before and after, is the
-proof of that (the rules for every build session). Read `LEARNINGS.md` for Sessions 17, 26 and
-28 (the bench, placement, where code sits) and "Later: efficiency" below.
-
-- [ ] **Before any change:** keep `target/report-rust.txt`, a `sha256sum` of every
-      `target/render-*.f32`, and the release library as `target/old/libpi_core.a` with a bench
-      built on it. `make bench` three times.
-- [ ] **Does pinning alignment make the bench read work?** Three builds whose differences
-      never run in the idle, beat, all, both and loop cases: commit `0465202` (Session 27),
-      `4e37617` (effect 13 alone) and `main`. Unpinned, `4e37617` read about 4 ns a frame
-      faster than `0465202` (Session 28). Build each in a scratch copy (`--manifest-path`,
-      `CARGO_TARGET_DIR`; Machine state), each bench against its own header, interleaved, ten
-      pairs, medians: unpinned; `-C llvm-args=-align-all-functions=6`; that and
-      `-align-all-nofallthru-blocks=6` (or `-align-loops=64`). Passes if one setting puts the
-      three within 0.5 ns of each other on those cases. Write every reading in `LEARNINGS.md`.
-- [ ] **If one passes, pin it** where every native build gets it: `make build` and `make
-      rack-lib` (whose `RUSTFLAGS` replaces any config file's), CI's four platforms included;
-      not the `.wasm`, unless its bytes stay the same. Check aarch64 and x86_64 both accept the
-      flag (`make targets`). The report and every render file the same bytes. `make bench` and
-      ten pairs against the old library: say what pinning costs or saves. If none passes, write
-      that up and do the second part with interleaved pairs, as before.
-- [ ] **The idle cost** ("Later: efficiency", first box): profile first, in Rack with perf, as
-      Machine state says (a patch with the module stopped; then with nothing patched). Write
-      where the frame goes before changing anything. A cheap idle path (stopped, every voice
-      silent, nothing patched moving, no effect ramping) must keep §4's rule that the clock
-      counts while stopped, so a tap lands on the right tick. ⚠ If the path needs anything
-      `ENGINE.md` does not already say, stop and write the question into the Handover: that
-      is Fable's. Otherwise build it, with a test that a stopped engine skipping the path and
-      one taking it give the same events, view and audio bit for bit over a long run with taps.
-- [ ] **The cost:** `make bench`, ten pairs, every case, and perf in Rack before and after;
-      the idle number in Rack's CPU meter if it can be read headless (`LEARNINGS.md` says how
-      Session 13 read it).
-- [ ] **The end:** `make verify`; `make install` in `rack/`; "Later: efficiency" ticked or
-      annotated; `LEARNINGS.md`; the Handover; this list to `PLAN-HISTORY.md`.
 
 ## Session 22 — the hardware's effects, measured from a recording (with the owner, Fable; two of three takes done 2026-11-24)
 
@@ -381,20 +347,27 @@ the LFO never saw its clock) and not since; if it fails again its log is kept in
 
 None blocks anything; each is done when wanted, profiled before and after (Machine state).
 
-- [ ] **Idle cost:** the module shows about 0.6% in Rack with nothing playing (owner,
+- [x] **Idle cost:** the module shows about 0.6% in Rack with nothing playing (owner,
       2026-11-23), where SEQ-3 shows 0.2% and many modules 0.0%. (Session 16's `make bench`:
       a stopped engine is 26 ns a frame, as much as the minimum beat playing.) ⚠ Not profiled yet; the
       likely cause is that the engine runs every frame while stopped (the clock keeps
       counting, so a tap lands on the right tick, §4). A cheap idle path (stopped, every voice
       silent, nothing patched moving) has to keep that rule; profile it first.
+      **Done in Session 29, the core's part:** most of it was the sixteen voices asked every
+      frame; a quiet engine no longer asks them (idle 29.5 → 6.1 ns a frame, the same bits).
+      The module in Rack −26%, about 0.45% by perf ⚠. The rest is the host's: the box below.
 - [ ] Still a question for the owner: read the parameters every 16 or 32 frames (under 1 ms
       late) rather than on the frame the brief asks for, as VCV's own modules do. Measured
       cost of reading them every frame now: a small part of `Rhythm::process`, no longer the
-      biggest.
-- [ ] **The bench reads where code lands** (Session 26, `LEARNINGS.md`): `pi_process`'s
+      biggest. **Session 29:** with the core's idle cost gone it is the biggest again: the 23
+      key parameters' scan is 29% of `Rhythm::process`'s samples stopped, and `Rhythm::process`
+      is now about three quarters of the module's idle cost.
+- [x] **The bench reads where code lands** (Session 26, `LEARNINGS.md`): `pi_process`'s
       place in a 64-byte line moved idle by up to 3 ns a frame between builds that differ
       only in code that never runs while stopped. Before chasing a nanosecond, pin the hot
       loop's alignment (or bench several layouts), and measure in Rack with perf.
+      **Done in Session 29:** functions pinned to 64 bytes, and the bench pinned to one CPU
+      (`make pairs`); three such builds now read within 0.5 ns.
 - [ ] Next for efficiency, when wanted: the core itself (`pi_process` is about half the
       module now). That one speeds up the phone too. Profile first (Machine state).
 
@@ -482,34 +455,6 @@ originals are in `PLAN-HISTORY.md`); nothing was dropped, each thing is here onc
 
 The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
 
-### After Session 27: effects 13 and 14 designed (2026-11-24)
-
-- **Nothing of the effects was built.** `ENGINE.md` has two new sections, "§17, designed
-  2026-11-24: effect 13" and "§18, designed 2026-11-24: effect 14", and a note at its top;
-  `DECISIONS.md` has D93 and O23; `REFERENCES.md` has R70; `fixtures/designed/` holds
-  `fx-shuffle.json`, worked by hand; Session 28's list is above.
-- **Built, one small thing the owner asked for mid-session:** the sliders' second mark is
-  madder on the page and in Rack (it was thread: "it really just doesn't stand out").
-  `make install` ran: restart Rack. `design/DESIGN.md`, "Not done", says so.
-- **Effect 13** is the sequencer's: a note of a sound in the effects plays as the sound
-  twelve keys on (1 as 13, 5 as 1). The PO-12's keeps every note on its step and swaps each
-  sound for one other, the same every time (R70). ⚠ Twelve is read from three sounds.
-- **Effect 14** is one loop on the bus, 18.30 ms round, in the first tenth of the line
-  effect 4 is lent: through the bus's filter at 1 093 Hz, 1.12 a round, held to ±0.25. It
-  stands still while nothing sounds, as the PO-12's is silent on every silent step.
-- **What the takes said that R67 did not** (R70): 14 does not "ring at 1 041 Hz". It is a
-  loop of 858 device samples with lines 54.64 Hz apart, strongest at 1 092.8 Hz; it leaves
-  everything under 320 Hz alone; and it stops dead when the last voice ends.
-- ⚠ **Not understood, and not modelled:** the PO-12's loop sits inside its 8 192-sample
-  line (the delay's echo shows in 14 too). One loop gives the measured ring; the rest waits
-  for the ear and the 120 bpm take.
-- **Checked off the engine:** the fixture in a scratch core with the rule in (passed at
-  the first run; the core as it is fails it; one old test names 13 as unbuilt and changes
-  with the decision); effect 14 as a numpy model on stand-in drums (`LEARNINGS.md`).
-- **The session ruled ten things** (D93), yours to overrule (O23). The three worth a
-  thought are in "The owner's hands".
-- **Next: Session 28,** the build, on Opus. Its list is above.
-
 ### After Session 28: effects 13 and 14 built, and ours read beside the PO-12 (2026-11-24)
 
 - **Built, ABI 13.** Effect 13 plays a note of a sound in the effects as the sound twelve keys
@@ -568,3 +513,37 @@ The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
   which Session 26 left out.
 - **Next:** your ears above; then Session 22's takes when the PO-12 is to hand (take c also
   checks 13's map: sound 8 should play as 4, and 15 as 11).
+
+### After Session 29: the bench made to read work, then the idle cost (2026-11-24)
+
+- **Idle is about a fifth of what it was in the core, and nothing you hear or see changed.**
+  A stopped engine with every voice silent no longer asks the sixteen voices for a frame:
+  29.5 → 6.1 ns a frame, and every other case at or under the old build (beat −1.4, all
+  −0.7, the loops −1.3 to −1.7). The report and all 432 render files are the same bytes.
+  `make install` ran: **restart Rack.**
+- **In Rack the module's idle cost fell about a quarter, not four fifths.** By perf, about
+  0.60% before (you read 0.6%) and about 0.45% now ⚠ (from cycles at an assumed 5.25 GHz;
+  SEQ-3 reads about 0.16% the same way, and you read 0.2%). What is left is mostly the host's
+  `Rhythm::process`, and 29% of that is the 23 key parameters compared every frame.
+- **Yours to decide, when you want the rest:** read the keys and sliders every 16 or 32
+  frames (under 1 ms late), as VCV's own modules do. It is the open question in "Later:
+  efficiency"; it now has a number. Recommended: yes, every 16, for the keys and sliders
+  only, never the clock or reset. Until you say, nothing changes.
+- **To check, two minutes:** Rack restarted, the module stopped with nothing playing, Engine
+  menu → CPU meter: was 0.6%, should read about 0.4 to 0.5%. Then play the minimum beat and
+  tap a few keys stopped: it must sound exactly as before.
+- **The bench now reads work.** Two causes, both fixed: this laptop's two dies (a run landed
+  on either, about 2 ns apart: `make bench` and `make pairs` now pin to one core), and where
+  `pi_process` happened to land (every native library now starts each function on a 64-byte
+  line, which cost nothing). Three builds that differ only in code that never runs now read
+  within 0.5 ns (⚠ beat 0.9 on the faster die). `make pairs OLD=<bench>` is the ten
+  interleaved rounds every session did by hand.
+- **Found and fixed on the way:** `make targets` had been failing on Apple Silicon from before
+  this session (its object calls plain `bzero`; the check allowed only x86's `__bzero`).
+  `make targets` is not in `make verify`, so nothing showed it.
+- **Proven:** 273 Rust tests (three new, `core/src/tests/quiet.rs`: a quiet engine held bit for
+  bit to one asking every voice, five layouts, 200 000 frames each; each voice's silence held
+  to its sound); ten faults planted, all caught by name (two only after the third test, which
+  they named the hole for); `make test`, `make targets`, `make selftest`, `make listen`,
+  `make play` on both browsers, `make verify`.
+- **Next:** your ears on Sessions 26 and 28 (still first); then the CPU meter check above.
