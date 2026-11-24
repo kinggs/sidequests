@@ -221,6 +221,14 @@ D68, D80, D86, D87, R58, R60 and R63, and `rack/src/jacks.hpp`.
 - [ ] **The dry while an outside effect is held.** A send keeps it; an insert (a Rack
       distortion in place of ours) wants it out. Recommended: the dry stays, and a second
       tick is added only if it is missed.
+- [ ] **The owner's idea (2026-11-24), to design with the two boxes above:** "a toggle in
+      the expander for some wet / dry signals and possibly for adding to or replacing the
+      internal effect". Read as two switches an effect: does our own effect play, and
+      does the dry stay while it is held. That gives a send (dry stays, ours off), an
+      insert (dry out, ours off), and both effects at once (ours on). Recommended: in
+      the menu first, since no expander is ruled yet (D86 items 3 to 5, O20), and as
+      switches on the effects' breakout if one is built; switches, not sixteen mix knobs,
+      because the Rack effect has its own mix.
 - [ ] **The comb** (R60, D87): the return summed with the dry, two samples late. What the
       jack's label and the docs must say (send fully wet), and whether anything in the
       module should guard it.
