@@ -508,3 +508,6 @@ The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
   inside it); the Rack self-test plays the two older format 3 fixtures, not
   `fx-repeat-holds`.
 - **Next:** your ears above; then Session 22's takes when the PO-12 is to hand.
+- **Added after the session:** the owner, after testing on the web: "Love it. Did quite a
+  bit of testing on the web, and it feels much more complete now." Rack and the five
+  readings are not yet ruled on.
