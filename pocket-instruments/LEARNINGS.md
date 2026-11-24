@@ -1188,3 +1188,67 @@ above; these are what only the chain showed.
   `seq.rs` in a copy. It passed at the first run, and one old test failed: the one that
   lists the effects with no sound. That is how the build list knows which tests the
   decision changes before Opus meets them.
+
+## Session 28: effects 13 and 14, built and compared (2026-11-24)
+
+- **Designing to the line paid a fourth time.** The hand-worked `fx-shuffle` passed at the
+  first run on every harness, in Rack and on the page; the eight shuffle tests and both models
+  given 14 (written from §18's pseudo-code before the code) matched the code at the first run.
+  Every failure the build met was a number or a reading in a test, not a claim of the design.
+- **Where the code sits cost more than the code.** Effect 14's loop called from inside `wet`,
+  as the echo is, stopped `wet` being inlined into `looped`, and the four loop layouts read 13
+  to 19 ns a frame slower with no effect running (52.9 against 40.0). Effect 13's commit alone
+  read faster than the old build, which is how it was pinned on 14 (a scratch build of the
+  first commit, benched beside both). Asked for before `wet` (`if on == 14 { feedback } else
+  { wet }` in `mix` and `looped`), `wet` inlined again and every case came back. Session 26
+  found the opposite for the echo (inside `wet` read 1 to 2 ns better). Lesson: the arrangement
+  is not a rule; read `nm -S` for which functions are outlined, and bench both.
+- **Measured, final (ten pairs interleaved, medians, the old build's range in brackets).** Idle
+  28.4 (30.1, 29.1 to 31.0); beat 30.7 (32.6, 32.2 to 34.1); all 46.3 (46.6, 46.0 to 47.8); both
+  32.0 (32.5); loop 39.2 (40.0); loop fx 39.2 (40.3); loop in 40.6 (42.2); sliders 35.4 (36.0);
+  fx 4 37.9 (38.4); fx 14, new, 40.7. Effect 3 read 0.2 ns over its spread (38.8; 36.8 to 38.6).
+  This machine read 3 to 4 ns slower all day than Session 26's numbers: only pairs mean
+  anything. The engine stays 3 728 bytes (`comb` in `acc`, `still` in `swept`); the `.wasm`
+  42 177 → 43 222 bytes.
+- **27 faults planted, the unplanted copy passing first; 23 caught at the first run.** Each of
+  the four missed named a hole in the tests, not the code: a `TRIG` for each draw (no test had
+  both draws pass), 13 read off the lane at the firing (a punch writes no lane; only an edit
+  between a boundary and its swung firing shows it), near zero counted as zero (no test fed a
+  tiny bus), and `still` forgotten when 14 is heard again (no test re-heard it while still).
+  Four tests added; 27 of 27. The gain and ceiling planted again after the gain moved: 4 of 4.
+- **Two readings of the design did not hold, and the tests now hold what is true.** A click
+  falls for some rounds before it builds (the band output loses what is off its centre first),
+  so "louder each time" holds from its lowest round on. A lend clears `head` and `full`, not the
+  filter, as §18 says; so the junk-is-never-heard test compares two engines lent different
+  junk, not the mix against the bare bus.
+- **A test's filter decided a pass.** "Under 200 Hz within 1 dB" read +1.15 dB through a
+  one-pole at 200 Hz at the designed gain, and +0.62 at 100 Hz: a one-pole falls 6 dB an
+  octave, and the ring was 40 dB over dry at 1 kHz. The test was held at 100 Hz until the
+  comparison moved the gain; at 2.05 it reads +0.44 dB at 200 Hz, the design's own corner. (A
+  side agent flagged the 100 Hz reading as a pass bar moved; it was, until the move made it
+  unnecessary. Both readings are in the test's comment.)
+- **The page's clock is not a fixture's.** `make play` met `fx-shuffle`'s swing: the page's
+  clock has counted since it loaded, swing goes by the grid step's parity, so the first step
+  can land odd and play late. `fx-repeat-punch` has no swing and never showed it. The phase
+  sends a reset first, as a fresh engine is at tick 0.
+- **Ours, read by the hardware's script, beside the PO-12's** (`ENGINE.md` §18, "Compared with
+  the hardware (Session 28)", has the full table). A grid of 17 builds in scratch copies, gain
+  by ceiling, each read on takes a and b:
+
+  | Gain, ceiling | Level; peak (a) | Level; peak (b) | 1 kHz (a; b) |
+  |---|---|---|---|
+  | the PO-12 | +5.0; +4.4 | +0.5; +3.9 | +29; +18 |
+  | 2.24, 0.25 (designed) | +9.7; +3.2 | +4.4; +2.7 | +47; +40 |
+  | 2.12, 0.25 | +8.0; +2.5 | +0.9; +0.4 | +44; +29 |
+  | 2.08, 0.25 | +5.7; +2.2 | +0.4; +0.2 | +41; +25 |
+  | 2.06, 0.25 (and 0.35, 0.45) | +3.1; +0.5 | +0.4; +0.1 | +35; +23 |
+  | **2.05, 0.25** (built; 0.45 the same) | +1.9; +0.1 | +0.3; +0.0 | +30; +22 |
+  | 2.04, 0.25 (and 0.45) | +1.2; +0.1 | +0.3; −0.0 | +25; +21 |
+  | 2.0, 0.25 (and 0.45) | +0.7; −0.0 | +0.3; −0.1 | +13; +18 |
+
+  Session 27's model off the engine (stand-in drums) had the order right and the size wrong: it
+  read 2.24 at +33 dB at 1 kHz where ours read +47. Near 1 a round the loop is on a knife edge:
+  2.04 to 2.10 crosses from fading to ringing on these patterns, so the readings jump, and the
+  ceiling stops mattering below about 2.08. Effect 13: 2.00 onsets a beat on the dry steps, as
+  the PO-12's; each hit our own 13, 14 and 15 (268, 1 331 and 220 Hz) where the PO-12's read 841,
+  1 841 and 74 Hz.

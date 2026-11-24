@@ -8,13 +8,15 @@ owner's PO-12 by measurement; sliders that are the hand's, with steps that keep 
 they were written with; a display that weaves. In Rack, thirteen jacks: every sound's
 trigger, audio and slider voltages go out and come back, and each of the sixteen effects
 has its own channel on FX SEND and FX RETURN, Ours or a Rack module's, beside the dry or in
-place of it. The engine is at ABI 12 with snapshot version 4; CI builds the plugin for all four
+place of it. The engine is at ABI 13 with snapshot version 4; CI builds the plugin for all four
 Rack platforms. Proofs P1, P2, P3 and P7 passed; P4, P5 and P6 are part-run and wait for an
 iPhone and other machines (`PROOFS.md`).
 
 Not finished: most of what was built on 2026-11-23 has not been seen or heard by the owner,
 and every look in it is a stand-in until then; two of the sixteen effects (15 and 16) are not
-designed, and two more (13 and 14) are designed and not built (D93; Session 27). Built on 2026-11-24: FX SEND and FX RETURN as sixteen channels, a channel an
+designed. Built on 2026-11-24 and not yet heard: effects 13 (a note plays as the sound twelve
+keys on) and 14 (the bus fed back), read beside the PO-12 by the same script (D93; Sessions 27
+and 28). Built on 2026-11-24: FX SEND and FX RETURN as sixteen channels, a channel an
 effect, with what comes back always in the mix (D87, D88; Session 24; played by the owner);
 then, not yet heard, a repeat that holds the nearest note behind it, effects 1 to 8 retuned
 to the PO-12's measurements and read beside it by the same script, and effect 4, a delay of

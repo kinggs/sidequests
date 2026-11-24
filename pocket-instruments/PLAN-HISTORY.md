@@ -2366,3 +2366,123 @@ hold. Three parts, each its own commits, in this order, because each moves diffe
 - **Added after the session:** the owner accepted them all (D92), so Session 26 builds
   D91 as written.
 - **Next: Session 26,** the build, on Opus. ~~Its list is above.~~ Done: the note below.
+
+## Session 28 — effects 13 and 14, built and compared (build, Opus; D93; done 2026-11-24)
+
+ABI 13. The brief is `ENGINE.md` §17, "designed 2026-11-24: effect 13", and §18, "designed
+2026-11-24: effect 14", with D93 and R70. Their two "Proven when built by" tables are this
+list's tests: every row gets its test. Read `LEARNINGS.md` for Sessions 17, 26 and 27 (the
+model tests, where code sits, the model of 14). The rules for every build session hold.
+Two parts, each its own commits, in this order: they touch different files.
+
+- [x] **Before any change:** keep `target/report-rust.txt`, a `sha256sum` of every
+      `target/render-*.f32`, and the release library as `target/old/libpi_core.a` with a
+      bench built on it. `make bench` three times.
+- [x] **Effect 13** (`core/src/seq.rs`; §17's pseudo-code is the code, out of line, asked
+      for where the plain firing is). `git mv` `fixtures/designed/fx-shuffle.json` up,
+      unchanged, and only then run it. A rule test for each bullet of the section. The two
+      tests that list the effects with no sound lose 13 here (§17 names them): say so in
+      the Handover. Then the comparison: the report's eleven older fixtures and every
+      render file the same bytes. ⚠ A render file that moves here is not accepted: stop.
+- [x] **Effect 14** (`core/src/bus.rs`). The model in `core/src/tests/bus.rs` first, given
+      14 from §18's pseudo-code, then the code: the loop out of line, called from `wet` as
+      the echo is. `is_sound_effect`, `family`, `clear`, `r()` and the cutoff in `frame`
+      each learn of 14. No new field unless the interleaved bench allows it (§18 says which
+      are free). `PI_ABI_VERSION` 13 in the header and `abi.rs`. A new
+      `harness/render-fx-14.json`, a line lent in both harnesses. Every other render file
+      and the report the same bytes.
+- [x] **The cost** (`make bench`, the old library interleaved, ten pairs): idle, beat, all,
+      both and the loops inside the old build's spread; a new case "fx 14". ⚠ Session 26
+      found the bench reads where code lands: if a case is outside the spread, try the
+      loop's place before accepting, and write both readings.
+- [x] **The hosts.** Rack's menu: "note shuffle" and "feedback" (D93 item 10;
+      `rack/src/Rhythm.cpp`, the names' table). `web/listen.html` and `make hear` gain 14
+      beside the others, and 13 if the page can show a sequencer effect (the repeats' way).
+      The Rack self-test plays `fx-shuffle` with the other format 3 fixtures
+      (`rack/rhythm.jq`), and `fx-repeat-holds`, which Session 26 left out. `make play`
+      plays `fx-shuffle` on the page.
+- [x] **Faults planted,** each built and caught by a named test (the unplanted copy first):
+      at least the map's twelve, the order of the two draws, a `TRIG` for each draw, the
+      note's own sound still firing, the loop's length, its gain, its ceiling, the band
+      output swapped for low or high, the dry sound left out, stillness after one frame
+      and never, the line written at `comb`, 4's state left in 14.
+- [x] **Ours beside the hardware** (D93 item 9). `harness/ours-take.cpp` already plays
+      takes a and b's patterns with each key held; read both with
+      `uv run harness/hardware-fx.py`, unchanged, takes outside the repo. What each must
+      read, and what may move to bring it there, one round:
+
+      | Effect | The reading | The PO-12's | May move |
+      |---|---|---|---|
+      | 13 | onsets a beat, and where they fall (a) | 2.00, on the dry steps | nothing: a miss is a bug |
+      | 13 | each hit against its dry hit (a) | unlike it: the kick 841 Hz and short, the snare 1 841 Hz and pure, the hat 74 Hz and held | nothing ⚠ ours are our own 13, 14 and 15; write what they read |
+      | 14 | the response under 320 Hz (a, b) | 0 dB | nothing: a miss is a bug |
+      | 14 | level over dry, and peak over dry's (a; b) | +5.0, +4.4 dB; +0.5, +3.9 dB | the ceiling, 0.25 |
+      | 14 | the response at 1 kHz (a; b) | +29 dB; +18 dB | the gain, 2.24, then the ceiling |
+      | 14 | where the lift is widest and strongest (a) | 500 Hz to 3.2 kHz, most in the 1 016 Hz third | the filter's 1 093 Hz and `r` 2 |
+      | 14 | the loop: the script's hold line, or an autocorrelation over 300 Hz (a) | 54.6 Hz; 18.3 and 36.6 ms | nothing: 858 / 46 875 s is measured |
+      | 14 | steps silent dry (a: 6 and 14; b: 4 on) | silent wet | nothing |
+
+      Both reports' numbers side by side in `ENGINE.md` §18 and `LEARNINGS.md`, as Session
+      26 wrote them.
+- [x] **The end:** `make verify`; `make install` in `rack/`; `ENGINE.md` §17 and §18
+      marked built with what turned out different; `LEARNINGS.md`; the Handover with the
+      owner's steps (13 over a beat with returns in Rack; 14 over a sparse beat and a busy
+      one, and D93 item 7's two other readings named); this list to `PLAN-HISTORY.md`.
+
+## Handover note moved here by Session 28 (2026-11-24)
+
+### After Session 26: the repeat's rule, the retune and the delay built, and ours read beside the PO-12 (2026-11-24)
+
+- **Built, ABI 12.** A repeat holds the nearest note behind it; effects 1, 2, 3 and 5 to 8
+  sound as D91 designed them; effect 4 is one echo, 174.76 ms behind at 0.15, with no tail,
+  in a line each host lends (`pi_set_delay`). The page, the listen page and the Rhythm
+  module (both its engines) lend one. `ENGINE.md` §17 and §18, "Built (Session 26)", say
+  what turned out different.
+- **Then ours was read as the PO-12 was** (`harness/ours-take.cpp` plays takes a and b's
+  patterns; `harness/hardware-fx.py` read the WAVs unchanged). In on the first reading: 1's
+  hold, 4's echo (174.77 ms, 0.14), 5 (308 Hz), 7 (1 799 Hz, +15.5 dB), the sweeps' cycle,
+  11 and 12. Moved in one round: **effect 2's ceiling 1 → 0.88** (it read 2.41 of the kick's
+  peak against 2.12), **effect 3 at 4.6 levels a unit** (its step read the peak / 1.65
+  against / 1.90), **effect 6's top 2 500 → 3 240 Hz** (it read 1 930 against 2 500). The
+  table, with both readings, is in `ENGINE.md` §18; both reports side by side in
+  `LEARNINGS.md`.
+- **Proven:** 251 Rust tests; the hand-worked fixture at the first run; the report's 330 runs
+  and every render file the same bytes but those that play effects 2, 3, 5 to 8
+  (`fixtures/README.md`); `render-fx-4`, native and `.wasm` the same bytes; the self-test at
+  44.1, 48 and 96 kHz with effect 4 Ours echoing through the module's own cables;
+  `make listen`, `make play`, `make verify`; 30 faults caught by name.
+- **Tests the decision replaced, not edited to pass:** the hold at 6 kHz (twice, now 1 kHz);
+  "soft clipped under 0.7 and twelve levels a unit" (now one test for 2 and one for 3);
+  "starts again after sixteen steps" (now the turn at 432 and the ends exactly); "every
+  effect on silence is exact silence" (3 is now half a step times the ramp). Changed with
+  the decision: the ABI pins (11 to 12), effect 2's expected number in two route tests and
+  `rack/test/jacks.cpp`, an outside effect's leftover cutoff (100 to 220). Their claims did
+  not change.
+- **For your ears, about ten minutes, Rack restarted first** (`make install` ran):
+  1. **The repeat:** on the phone or in Rack, only sound 1 on step 1, playing; hold fx + 11
+     anywhere in the bar. It now repeats the kick instead of muting it. Then fx + 11 and
+     straight to fx + 12: the second looks back for itself (D92 item 1).
+  2. **Effect 3 on silence:** an empty pattern playing, hold fx + 3: a soft thump as it
+     starts and ends, and a quiet buzz under any tail (D92 item 3).
+  3. **Effect 4:** the minimum beat, hold fx + 4 for a bar: one echo, quiet, gone 2 ms after
+     you let go (D92 item 2). `make hear` has it beside the others.
+  4. **Effects 2 and 6, moved by measurement:** 2 is quieter at its loudest (0.88), 6
+     sweeps higher (3.24 kHz). Each is one constant in `core/src/bus.rs`.
+- ⚠ **Your kept patch:** effect 4 set to Ours now plays our echo as well as whatever FX
+  SEND's channel 4 feeds. To keep it as it was, set effect 4 to "Rack's, beside the dry".
+- **Readings to rule on (⚠ in `ENGINE.md` §18):**
+  1. **Cost:** the beat reads 0.9 and all 2.6 ns a frame over the old build's spread; idle,
+     both and the loops inside it. Both arrangements Session 25 listed were tried; bisecting
+     showed it is where code lands, not work (`LEARNINGS.md`). Recommended: accept, and look
+     at alignment in a later efficiency session.
+  2. **`render-loop` moved** with the retune, by §18's own words (its lane holds 2, 5, 6).
+  3. **Effect 8's bottom** cannot be read on take a and stays at 220 Hz. Take c may read it.
+  4. **A rate change while 4 ramps out** finishes the ramp with no echo.
+  5. **Rack's lines only grow,** sized where Rack says the rate (on add and on a change).
+- **Small things found:** our takes had to go outside the repo (the script refuses any take
+  inside it); the Rack self-test plays the two older format 3 fixtures, not
+  `fx-repeat-holds`.
+- **Next:** your ears above; then Session 22's takes when the PO-12 is to hand.
+- **Added after the session:** the owner, after testing on the web: "Love it. Did quite a
+  bit of testing on the web, and it feels much more complete now." Rack and the five
+  readings are not yet ruled on.

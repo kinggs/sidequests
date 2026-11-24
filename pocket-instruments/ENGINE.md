@@ -92,10 +92,12 @@ report and every render file are as they were but those that play effects 2, 3, 
 (`fixtures/README.md`); `render-fx-4` is new. Three constants then moved after ours was read
 beside the PO-12 (§18's table).
 
-**Designed, not built (Session 27, D93):** effect 13, a note plays as another sound (§17,
-"designed 2026-11-24: effect 13"), and effect 14, the bus fed back in the line effect 4 is
-lent (§18, "designed 2026-11-24: effect 14"). Session 28 builds them (`PLAN.md`) as ABI 13.
-Until then the code does neither: both keys punch and record, and the sound is dry.
+**ABI 13 (designed in Session 27, built in Session 28; D93):** effect 13, a note plays as
+another sound (§17, "designed 2026-11-24: effect 13"), and effect 14, the bus fed back in the
+line effect 4 is lent (§18, "designed 2026-11-24: effect 14"). No command, view byte, call or
+snapshot byte changed. The report and every older render file are as they were;
+`fx-shuffle` and `render-fx-14` are new. One constant then moved after ours was read beside
+the PO-12: 14's gain, 2.24 → 2.05 (§18's table).
 
 **Where everything is, at ABI 12** (2026-11-24):
 
@@ -1197,7 +1199,7 @@ same bytes. Seven faults planted, each caught by a named test (`LEARNINGS.md`). 
 turned out different from the design. ⚠ The Rack self-test still plays the two older format
 3 fixtures, not this one (`rack/rhythm.jq` was not in the list).
 
-### §17, designed 2026-11-24: effect 13, a note plays as another sound (ABI 13; D93; designed in Session 27; not built: Session 28)
+### §17, designed 2026-11-24: effect 13, a note plays as another sound (ABI 13; D93; designed in Session 27, built in Session 28)
 
 The PO-12's "note shuffle" (R48), as measured: every note still lands on its step, and each
 sound's notes play as one other sound, the same one every time (R70). So it is a sequencer
@@ -1273,6 +1275,29 @@ with no line); their claims do not change.
 (Checked in a scratch copy of the core with the rule in, twenty lines of `seq.rs`, not
 kept: the fixture passed at the first run, and of the 251 tests only the first of those two
 failed. The core as it is fails the fixture.)
+
+**Built (Session 28, ABI 13).** `shuffle` in `core/src/seq.rs`, out of line, asked for where
+the plain firing is when `eff` is 13: the pseudo-code above. `fixtures/designed/fx-shuffle.json`
+was moved up unchanged and passed at the first run on all three harnesses, both sources,
+three rates, three block sizes and from a snapshot, in Rack on both clocks at three rates, and
+on the page (`make play`). Eight rule tests in `core/src/tests/fx.rs`, a bullet each, all
+passing at the first run; two more lines were added after planted faults found holes (both
+draws passing, one `TRIG`; a lane edit between a boundary and its swung firing). The report's
+330 older runs and all 420 render files the same bytes. What turned out different:
+
+- ⚠ **Of "the two tests the decision changes", one did.** `effects_the_core_does_not_sound_yet_…`
+  lost 13. `the_repeats_and_the_effects_not_built_leave_the_mix_the_plain_sum` kept 13 and 14:
+  its claim still holds for both (13 is the sequencer's, as 9 to 12 are, and moves which
+  voices sound, never the sum; 14 with no line is the plain sum, as §18's own table says).
+- **The page needed a reset to play the fixture.** The page's clock counts from its load and
+  the swing goes by the grid step's parity (§5), so `make play` sends a reset before the
+  fixture's edits, and each later edit during the run step before its own (a page cannot aim
+  a message at a frame; nothing in the fixture reads the lane in between).
+- **Read as the PO-12 was (D93 item 9; take a's pattern):** 2.00 onsets a beat, every one on a
+  dry step, as the PO-12's. Each hit unlike its dry one, as the PO-12's, but ours are our own
+  13, 14 and 15: the kick as the cowbell, 268 Hz and 60 ms (the PO-12's 841 Hz and short); the
+  snare as the blip, 1 331 Hz and 25 ms (1 841 Hz and pure); the hat as the tone, 220 Hz held 95
+  ms (74 Hz held). Nothing moved: 13 has no constant.
 
 ## 18. The bus and the first sound effects (ABI 7; designed in Session 15; D67; built in Session 17)
 
@@ -1580,7 +1605,7 @@ were written outside it.
   there too: the moves bring the readings together, not the sweeps' true ends.
 - Effect 1 does not match in length or pitch, as R69 said it would not.
 
-### §18, designed 2026-11-24: effect 14, the bus fed back (ABI 13; D93; designed in Session 27; not built: Session 28)
+### §18, designed 2026-11-24: effect 14, the bus fed back (ABI 13; D93; designed in Session 27, built in Session 28)
 
 The PO-12's "feedback", as measured (R70): the sound under 320 Hz is untouched; above it a
 loop 18.30 ms round builds on what is played, about 1 dB a round, to a ring loudest near
@@ -1683,6 +1708,63 @@ and render file, and the report. No view byte, snapshot byte, command or call ch
 | Native and `.wasm`, the same bytes | a new `harness/render-fx-14.json` with a line lent in both harnesses (as `render-fx-4`) |
 | What it costs | `make bench`, the old library kept and run interleaved: idle, beat, all, both and the loops inside the old build's spread; a new case "fx 14" with a line lent |
 | Ours beside the hardware | Session 28's comparison (`PLAN.md`): takes a and b's patterns with 13 and 14 held, read by `harness/hardware-fx.py` |
+
+**Built (Session 28, ABI 13).** `feedback` in `core/src/bus.rs`, out of line; `comb` held in
+`acc` and `still` in `swept`, so the bus and the engine keep their size (3 728 bytes); 4 and
+14 one test in `is_sound_effect`, which now takes whether a line is lent. Both models were
+given 14 from the pseudo-code before the code and matched it bit for bit at the first run (the
+tour with 14 from a filter, to 7, from 4 and to 4; a sparse beat where it stands still; the
+loop tour with 14 from idle). Every row of the table has its test; one more was added after a
+planted fault (14 heard again while it stands still). `PI_ABI_VERSION` 13; `render-fx-14`,
+native and `.wasm` the same bytes; the report and every older render file the same bytes. 27
+faults planted across 13 and 14, 23 caught at the first run, the other four once a test was
+added (`LEARNINGS.md`). What turned out different:
+
+- **Where the loop sits.** Called from inside `wet`, as the echo is, `wet` stopped being
+  inlined and the four loop layouts read 13 to 19 ns a frame over the old build with no effect
+  running (loop 52.9 against 40.0). Asked for before `wet` in `mix` and `looped` (the other
+  arrangement Session 25 named for 4), ten pairs interleaved: idle, beat, all, both and the
+  loops inside the old build's spread or under it; "fx 14" 40.7 ns, about 10 over the dry beat.
+  ⚠ Effect 3 read 0.2 ns over its spread (38.8 against 36.8 to 38.6); not a listed case.
+- **A click does not come round louder each time from the first round.** The band output loses
+  what is off its centre first, so a click falls for some rounds, then rises every round until
+  the clip. The test holds that shape.
+- **A lend clears `head` and `full`, not the filter,** as the section says; the filter's states
+  ring down after a lend. The test holds that the junk is never read.
+- **The gain moved, 2.24 → 2.05,** by the comparison below. At 2.24 the "under 200 Hz" test
+  read +1.15 dB through a one-pole at 200 Hz (+0.62 at 100 Hz): the ring was 40 dB and more over
+  the dry at 1 kHz, and a one-pole lets it through 15 dB down. At 2.05 it reads +0.44 dB at 200 Hz.
+- ⚠ **At 2.05 the loop is 1.025 a round at its centre:** a steady sound takes about three
+  seconds to reach the ceiling (a click: lowest at round 11, held from round 172), and on takes
+  a and b's patterns the ceiling is never reached, so it no longer sets the level.
+
+**Compared with the hardware (Session 28; D93 item 9).** `harness/ours-take.cpp` played takes
+a and b's patterns with each key held; `harness/hardware-fx.py`, unchanged, read the WAVs,
+written outside the repo. One round, the gain then the ceiling, from a grid of 17 builds in
+scratch copies (each read by the same script):
+
+| The reading | The PO-12's | Ours as designed (2.24, 0.25) | Ours now (2.05, 0.25) | May move |
+|---|---|---|---|---|
+| the response under 320 Hz (a; b) | 0 dB | 0 dB to 254 Hz; +3 at 320 | 0 to 202 Hz, +1 at 254, +3 at 320 | nothing |
+| level over dry; peak over dry's (a) | +5.0; +4.4 dB | +9.7; +3.2 | +1.9; +0.1 | the ceiling |
+| the same (b) | +0.5; +3.9 dB | +4.4; +2.7 | +0.3; +0.0 | the ceiling |
+| the response at 1 kHz (a; b) | +29; +18 dB | +47; +40 | **+30; +22** | the gain, then the ceiling |
+| the lift's span; strongest third (a) | 500 Hz to 3.2 kHz; 1 016 Hz | 400 Hz to 3.2 kHz; 1 016 Hz | 500 Hz to 1.6 kHz (+11); 1 016 Hz | the filter |
+| the loop (a; b) | 54.6 Hz; 18.3 and 36.6 ms | 54.5 Hz; 18.34 ms | 18.34 ms (a), 54.5 Hz (b) | nothing |
+| steps silent dry | silent wet (a: 6, 14; b: 4 on) | b: 4 on silent; a: 4, 8, 12, 16 silent, 6 and 14 not | the same | nothing ⚠ |
+
+- **The gain was chosen by 1 kHz,** the table's order: 2.04 read +25 and +21, 2.05 +30 and +22,
+  2.06 +35 and +23, 2.08 +41 and +25. Between 2.04 and 2.10 the loop crosses from fading to
+  ringing on these patterns, so the readings jump with small moves.
+- ⚠ **Level and peak are low on take a, and no allowed move reaches them.** At 2.05 the ceiling
+  is never reached on the takes (0.25 and 0.45 read the same), so it sets nothing; take a's
+  level of +5.0 needs a gain near 2.08, where 1 kHz reads 12 dB strong. The ear decides between
+  the two. No grid point came near the PO-12's peaks on take b (+3.9): a kick alone does not
+  build our loop before it ends.
+- ⚠ **Steps 6 and 14 of take a are not silent wet.** Our snare and hat end at exact zero later
+  than they fall under the script's floor, so the loop runs on through those steps, where the
+  PO-12's falls silent. Not moved (nothing may); the owner's ear on a sparse beat says if it
+  matters.
 
 ## 19. Sound in: the returns and the effects loop (ABI 9; designed in Session 15; D68; built in Session 18)
 
