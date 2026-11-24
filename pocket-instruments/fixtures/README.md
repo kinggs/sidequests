@@ -204,6 +204,7 @@ A future version adds its own file beside this one, written before its change.
 **Session 16:** both fixtures below were moved up out of `designed/`, unchanged (git shows
 each as a rename with no change), and only then run. Both passed at the first run on all
 three harnesses. `designed/` is empty until the next session that designs ahead of a core.
+(Session 25 is the next: `designed/fx-repeat-holds`, below.)
 The Rack self-tests left format 3 out until Session 18; since then the Rhythm module plays
 both format 3 fixtures on both clocks and holds its FX GATES to each view's `fx=`
 (`rack/rhythm.jq`, `rack/selftest.sh`). Since Session 16,
@@ -284,6 +285,48 @@ snapshot" run holds it to snapshot version 3 as well.
 - **Counts.** Track 0: 0, 96, 352, 768, 992, 1120: 6. Track 1: 312, 1080: 2. Track 2: four
   a pass: 8. 32 lines. The view in step 2 says `fx=10` (nothing punched; the playhead's step
   holds 10) and `fxsteps=001e`; the last, on step 7, `fx=0`.
+
+## `designed/fx-repeat-holds`, worked by hand (Session 25: the repeat's new rule, D90 item 1, D91)
+
+In `designed/`: no harness reads it until Session 26 has built the rule and moves it up,
+unchanged. From `ENGINE.md` §17, "Designed 2026-11-24", and §5. Every tick, column and
+count was typed in; the generator's ninth and tenth draws were computed (§5's three lines),
+as the first eight were for `probability-seed-1`. Length 8, no swing; the lane by `fx`
+edits at step 0, so the "from a snapshot" run holds it too. Numbers are the trace's: track
+and step from 0. **No older fixture changes:** both older runs begin on a step that has a
+note, where the new rule and the old agree.
+
+- **Across the wrap, to a step not yet played.** Steps 0 and 1 hold effect 11 (48 ticks).
+  The run begins at tick 0 on step 0, which is empty. Looking back: 0, then 7, then 6,
+  where track 0 is on. So the run holds column 6 and fires at 0, 48, 96 and 144, each line
+  `trig 0 6`, though step 6 itself does not arrive until tick 576.
+- **A step under 100 counts, and draws at each hit.** Track 0's step 6 is at 70. Draws from
+  seed 1, `% 100`: 69 fires (0), 89 not (48), 61 fires (96), 95 not (144); the step's own
+  plain hit at 576 draws 33 and fires. Second pass: 4 fires (768), 82 not (816), 10 fires
+  (864), 29 fires (912), and 32 fires at 1344.
+- **A sound out of the effects does not count.** Steps 4 and 5 hold effect 12 (64 ticks).
+  The run begins at 384 on step 4, empty. Step 3 has only track 1, which is out of the
+  effects; step 2 has track 2. Column 2: `trig 2 2` at 384, 448 and 512. Tick 576 would be
+  the next and step 6 arrives on it with an empty lane, so two steps hold three hits.
+  Track 1 plays its own step 3 at 288 throughout.
+- **Two repeats, two looks.** 11 and 12 are separate runs here with dry steps between; each
+  holds what is behind its own first step (columns 6 and 2).
+- **The third pass, edited as it plays.** At run step 16 track 0's step 6 goes off, on the
+  frame of tick 1536 and before it (an edit lands before the clock moves). The first run
+  now looks back 0, 7, 6, 5, 4, 3 (track 1 only), 2: column 2, across the wrap. Four lines
+  `trig 2 2`, at 1536 to 1680, and track 2's own step at 1728. At run step 20 track 2's
+  step 2 goes off the same way: the second run finds no sound in the effects on anywhere,
+  holds its own step 4 and is silent. Nothing fires on step 6 at 2112.
+- **Counts.** 24 `step` lines. Track 0: 0, 96, 576, 768, 864, 912, 1344: 7. Track 1: 3.
+  Track 2: four a pass for two passes, then five: 13. 47 lines.
+- **Views.** `fxsteps=0033` (steps 0, 1, 4, 5) and `fxsounds=fffd` throughout. At 1: `fx=11`,
+  `field=0040` (sound 1 chosen, on step 7), `fires=2`. At 5: `fx=12`, `fires=2,1,4`. At 23:
+  `fx=0`, `field=0000` (its step went off), `fires=7,3,13`.
+
+**Checked, after it was written:** a scratch copy of the core with the rule in (twenty
+lines of `seq.rs`, not kept) passed this fixture at the first run, on both sources, three
+rates, three block sizes and from a snapshot; the core as it is failed it. That is a check
+of the working, not where the trace came from.
 
 ## The views worked again for the write-off row (Session 20; D71, D72 item 3, D82)
 

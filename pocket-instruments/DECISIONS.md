@@ -1733,6 +1733,47 @@ The owner: "Yes on repeat hold. Yes on retune. Yes on delay."
 
 Not blocked by Session 22's two takes: they firm up 1's lengths, the sweeps, 15 and 16.
 
+### D91 — D90 designed: the repeat looks back by the pattern, the retune's numbers, the delay in a line the host lends
+**2026-11-24 · Session 25 (design, Fable) · item 3 decided by the owner in the session; the rest by the session, each the owner's to overrule (O22) · not built: Session 26 · `ENGINE.md` §17 and §18, "Designed 2026-11-24"**
+
+1. **A repeat holds the nearest step at or behind its run's first on which a sound in the
+   effects is on, by the pattern.** Round the wrap, inside the length; looked for once,
+   when the run begins. A step counts whatever its probability and whether or not it has
+   played; a tap never counts. With no such step anywhere the run is silent, as before.
+   Why the pattern and not "what last fired": the run's own first step has not fired when
+   the run begins, so a rule by history needs the pattern anyway; and a hand can work this
+   one from the grid. Not chosen: looking back only inside the pass (a note on step 13 and
+   a run from step 3 would still be the mute the owner heard).
+2. **A new repeat is a new run and looks back for itself** (11 straight to 12), as a new
+   run already began there. ⚠ Not chosen, and the owner's ear may prefer it: keeping the
+   step, so only the rate changes. Chosen because a step of the lane then means the same
+   whatever was recorded before it.
+3. **The sweeps move now** (the owner, as recommended: "Move now"). 6: 2.5 kHz down to
+   190 Hz and back, 8: 220 Hz up to 2.9 kHz and back, a cycle of nine steps (R65). Take c
+   still says the shape and what separates the two.
+4. **The delay's line is the host's,** lent with `pi_set_delay`, its length from
+   `pi_delay_frames(rate)`. Measured first: inside the engine it is 70 832 bytes for
+   96 kHz against 3 728 lent, breaks every host's 4 KiB room, and saves no time. With no
+   line lent effect 4 is as it was, so nothing that uses it today moves.
+5. **The delay's time is fixed,** 8 192 / 46 875 s (174.76 ms), not the tempo's: the
+   number is a buffer's length (R67, R69). One echo at 0.15, no feedback, and no tail
+   after the key is let go: the line is written only while the effect runs, so idle stays
+   today's path. A delay that rings on is FX SEND's channel 4.
+6. **Effect 1 gets no gain.** D90 item 2 said "its level made up"; the reports show
+   nothing to make up (R69): the hardware's peak is the dry one's, and its 7 dB is the
+   kick lasting three times as long and sounding lower. A hold on the bus cannot do that.
+   1 kHz, as proposed. What the hardware does to its voices there is for take c.
+7. **Effect 2 clips at ±1, effect 3 is a quarter-step quantiser that rests at +1/8,** both
+   read from take b against the kick's own peak (R69). Effect 3 therefore thumps softly as
+   it starts and ends on silence ⚠; the quiet reading is `floor(4 × bus) / 4`.
+8. **Each sweep takes its fixed filter's Q** (6 as 5, 8 as 7) ⚠ unmeasured.
+9. **Session 26 ends by measuring ours as the PO-12 was measured** (the owner, in the
+   session: "a step where we just do our best to compare and tweak"): our render of takes
+   a and b's patterns through `harness/hardware-fx.py`, the constants moved towards the
+   hardware's numbers inside the mechanisms designed here, both reports' numbers written
+   side by side. Then the ear.
+10. **ABI 12.**
+
 ## Open
 
 | ID | Question | Needs |
@@ -1758,3 +1799,4 @@ Not blocked by Session 22's two takes: they firm up 1's lengths, the sweeps, 15 
 | O19 | The weave's first attempt (Session 14, D84): does it read as a cloth being woven when it moves, on the phone and in Rack? D84's sixteen items as built? Above all item 8 (a diamond growing as its beat fills), item 9 (the jump a beat), item 11 (the flash's length) and item 14 (every cell a square) | The owner, watching it play: `web/rhythm.html` and the Rhythm module. `PLAN.md`, "After Session 14's first attempt", lists what to look at. When accepted, three views and their cells are committed as the picture to hold to (Session 14's fourth box) |
 | O20 | Each effect to its own Rack module (D86): sixteen channels on FX SEND and FX RETURN first, then small breakouts, in place of one large expander? And a trigger in for each sound? | The owner, after trying D86 item 2's patch by hand. Recommended: yes to both. **Answered in part 2026-11-24: D87** (the sixteen channels, the return summed). Open: the breakouts and the trigger in |
 | O21 | ~~Session 23's rulings (D88 items 4 to 12): as designed? Above all item 6 (the return before the volume), item 9 (the settings count only while FX SEND or FX RETURN is patched) and item 10 (nothing guards the comb) | The owner, in Rack, once Session 24 has built it. Recommended: accept; judge item 10 with a delay at half wet in each setting. **Built 2026-11-24 (Session 24):** ready to play; its Handover in `PLAN.md` has the steps and the builder's readings (⚠)~~ **Answered 2026-11-24: D89** |
+| O22 | Session 25's rulings (D91 items 1, 2 and 4 to 8): as designed? Above all item 2 (a second repeat looks back for itself, or keeps the step), item 5 (no tail on our delay) and item 7 (effect 3 rests off zero, so it thumps on silence) | The owner, by ear, once Session 26 has built it. Recommended: accept; judge item 7 on the phone and in Rack, where AUDIO carries the offset |

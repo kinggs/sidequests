@@ -17,7 +17,9 @@ hardware's names, untuned, and now measured against the owner's PO-12 (R64 to R6
 proposals in `ENGINE.md` §17 and §18, not built); five of the sixteen effects are not
 designed. Built on 2026-11-24 and not yet played by the owner: FX SEND and FX RETURN as
 sixteen channels, a channel an effect, with what comes back always in the mix (D87, D88;
-Session 24). What is next is
+Session 24). Designed the same day and not built: a repeat that holds the nearest note
+behind it, the effects retuned to those measurements, and effect 4, a delay (D90, D91;
+Session 25). What is next is
 `PLAN.md`, "Next, in order". How it got here, session by session, is `PLAN.md`'s "Done so
 far" and `PLAN-HISTORY.md`. Started 2026-11-18.
 

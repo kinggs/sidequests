@@ -2113,3 +2113,72 @@ The faults box: 28 of 30 at first; two tests added; then 30.)
 - **Machine:** the PO-12 on input 2 was linked to the headphones with `pw-link` for the
   takes. It is not saved and goes at the next restart of PipeWire.
 - **Next: Session 23,** the design of D87, on Fable. Its list is above.
+
+## Session 25 — the repeat's rule, the retune and the delay, designed (design, Fable; D90; done 2026-11-24)
+
+The owner ruled yes to Session 22's three proposals (D90). The brief is `ENGINE.md` §17 and
+§18, "Proposed after Session 22", and R64 to R67. Design only: what Session 26 (Opus)
+builds, exactly enough that it decides nothing. Read `LEARNINGS.md` for Sessions 16, 17
+and 24 (the model tests, the bench, where things sit in memory).
+
+- [x] **The repeat's rule, exact** (D90 item 1). "The latest step, at or before the run's
+      first, on which a switched-in sound had a note": does it look back across the
+      pattern's wrap (a note only on step 13, a run from step 3)? Does a step whose
+      probability did not fire count? A tap? What a punch that moves to another repeat does.
+      Which fixture traces and views change (`fx-repeat-punch`, `fx-repeat-swing`, the
+      designed ones), worked again by hand from the new text before any code, and
+      committed as `fixtures/README.md` says.
+- [x] **The retune as a table of constants** (D90 item 2), each with its source: 1's rate
+      and level (and whether its hold stays a fixed rate until take c), 2's gain, clip and
+      ceiling, 3's levels and the quantiser that does not rest at zero, 5's and 7's
+      cutoffs and Q. Which render files move (the `render-fx-*` pairs, by decision) and
+      how the bus model in `core/src/tests/bus.rs` changes with them. Whether the sweeps (6
+      and 8) move now on R65's numbers or wait for take c: the owner's, with a
+      recommendation.
+- [x] **The delay** (D90 item 3; D67 item 4): about 8 400 samples of the bus at 48 kHz,
+      so whose memory (the engine's fixed size, §8, grows by about 33 KB at f32, or the
+      host lends it as it lends samples, §12), at which rates (96 kHz doubles it), and
+      whether the time is fixed or follows the tempo. Its level and its one quiet repeat.
+      What a send of it in Rack (D88) means beside ours. Measure before choosing, as
+      Session 23 did: a scratch copy, `make bench`, `pi_size`.
+- [x] Every new or changed rule's "Proven when built by", and the ABI number (12).
+- [x] Session 26's list, the build, in this file; `DECISIONS.md` for any ruling the
+      session makes (the owner's to overrule); a Handover.
+
+**Annotated when it was done (Session 25).** Word for word above, boxes ticked. What turned
+out different from the list:
+
+- Box 1 asked which fixture traces change. None does: both older runs begin on a note
+  (`ENGINE.md` §17, "What must not move"). A new fixture holds the rule instead,
+  `fixtures/designed/fx-repeat-holds.json`.
+- Box 2 asked for effect 1's "rate and level". It has no level: the reports show nothing to
+  make up (R69, D91 item 6). The sweeps were the owner's: move now (D91 item 3).
+- Box 3's "its one quiet repeat" is the one echo; the hardware's second, 0.04 of the
+  first, is left out (D91 item 5).
+- Added by the owner in the session: Session 26 compares ours with the hardware by
+  measurement and tweaks (D91 item 9).
+
+## Handover note moved here by Session 25 (2026-11-24)
+
+### After Session 23: FX SEND and FX RETURN designed; three rulings by the owner (2026-11-24)
+
+- **Nothing was built.** `DECISIONS.md` has D88 and O21; `ENGINE.md` has "§19, designed
+  2026-11-24" at its end, and a note at its top that one thing is designed and unbuilt.
+- **The owner ruled three things** (D88 items 1 to 3): each effect is Ours, Rack's beside
+  the dry, or Rack's in place of the dry, all starting as Ours; today's one-channel loop
+  is dropped; a repeat always repeats.
+- **The session ruled nine more** (D88 items 4 to 12; O21), the owner's to overrule: the
+  send's sixteen ramps in the Rack module; every send channel always live; the return
+  added in the core, last, before the volume, stopped or playing; an insert as an effect
+  whose sound is silence; the settings counting only while one of the two jacks is
+  patched; nothing guarding the comb but the setting and a line of text; FX RETURN mono.
+- **Measured before designing** (`LEARNINGS.md`, Session 23): the ramps in the core would
+  cost 2 to 3 ns a frame while FX SEND is patched; in the module about 0.1 ns. Beside the
+  dry is 1 to 2 ns cheaper than today's crossing over.
+- ⚠ **For Session 24:** a fifth mask in the bus moved idle and the beat by about 1 ns in
+  the scratch copy. Its list has a box to hold them.
+- ⚠ **Not looked at:** whether sixteen-channel stitches round FX SEND and FX RETURN clear
+  their neighbours on the panel. Session 24 checks and stops if not.
+- **Three of the list's recommendations did not stand,** each for a reason found in the
+  session; the list in `PLAN-HISTORY.md` is annotated.
+- **Next: Session 24,** the build, on Opus. Its list is above.

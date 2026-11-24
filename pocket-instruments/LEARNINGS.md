@@ -1025,3 +1025,54 @@ above; these are what only the chain showed.
   Rack's is an insert", cannot happen through the menu but can from a patch's JSON, which
   is read in as it is. Each got a test (`a_route_past_4_aliases_onto_no_mask`; the mask
   case `stray`), and each was planted again and caught. The aborting fault is not counted.
+
+## Session 25: the repeat's rule, the retune and the delay, designed (2026-11-24)
+
+- **The reports held more than the references took from them.** R64's "not silent on
+  silence" was read as a property of the quantiser and ruled on (D90: "do not rest at
+  zero"). A histogram of take b's levels, a step at a time, showed a mid-rise quantiser at
+  rest half a step off zero and not one jump for thirteen steps: the "30 dB under" was the
+  AC-coupled capture settling. The same pass found the crush's step to be a quarter of the
+  distortion's ceiling, and effect 1 making the kick three times longer (R69). Twenty
+  minutes with numpy on a file already recorded. Before designing from a measured row,
+  read the report behind it, and then the samples behind the report.
+- **Measure against the sound's own peak.** "A step of the dry peak / 2.42" (take a) and
+  "/ 1.90" (take b) are the same step: one peak is a kick with a hat on it. Tied to the
+  clip's ceiling both become a quarter.
+- **"The level made up" was a ruling on a reading that did not hold.** Peak and level over
+  a run are different numbers; only the level was in R64. The design gives effect 1 no
+  gain and says why (D91 item 6), rather than build what was ruled from a wrong premise.
+- **The delay's memory, measured before choosing** (scratch copies, `harness/bench.cpp`
+  with a case "fx 4", runs interleaved; medians of six to eight, ns a frame):
+
+  | Case | As it is | Lent, echo inlined in `wet` | Lent, echo out of line, asked for before `wet` | Inside the engine (16 777 floats) |
+  |---|---|---|---|---|
+  | `pi_size` | 3 712 | 3 728 | 3 728 | 70 832 |
+  | idle | 26.4 | 27.8 | 25.3 | 26.1 |
+  | beat | 28.8 | 30.2 | 28.7 | 29.7 |
+  | all | 42.2 | 46.6 | 44.2 | 43.8 |
+  | fx 2 | 34.0 | 36.8 | 35.4 | 34.5 |
+  | both | 29.6 | 31.9 | 29.6 | 29.4 |
+  | loop | 37.5 | 57.7 | 37.9 | 54.1 |
+  | loop fx | 38.0 | 57.5 | 37.2 | 54.7 |
+  | loop in | 39.6 | 62.6 | 39.0 | 59.9 |
+  | fx 4, a line lent | | 36.8 | 35.3 | 34.4 |
+
+  ⚠ "all" reads 1 to 2 ns over the old build in every variant, inside one run's spread
+  (41.8 to 43.4 for the old build alone) but always the same way: Session 26 looks again.
+- **Twenty nanoseconds from where six lines sit.** With the echo's read and write inlined
+  into `Bus::wet`, the loop layouts cost 20 ns a frame more with no effect running, lent or
+  held alike. Out of line (`#[inline(never)]`) they came back; called from inside `wet`
+  that way, idle and the beat still read 2 ns high; asked for before `wet` in `mix` and
+  `looped`, everything held. ⚠ The cause was not looked for (a store through a pointer the
+  compiler cannot tell from the frame is the likely one). Sessions 17, 18 and 24 each met
+  this from another side: bench every arrangement, against the old library, in the same
+  minute.
+- **A fixture worked by hand can still be checked before it is committed.** The new rule is
+  twenty lines; a scratch core with it in ran the hand-worked trace (passed at the first
+  run) and the whole suite (233 passed: no test held the old silence, so the build has no
+  test to replace for the repeats). The core as it is failed the fixture, so the fixture
+  does tell the two rules apart.
+- **One question went to the owner** (the sweeps, as the list asked); the rest were ruled
+  and listed (D91, O22). The owner added a step unasked: compare ours with the hardware by
+  the same script, and tweak. It is the measurement Session 22 built, pointed the other way.

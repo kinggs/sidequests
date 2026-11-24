@@ -79,8 +79,14 @@ and added to the mix last, before the volume; `ROUTE` 1 names the host's effects
 trace changed. The report and every render file are as they were, but `render-loop`'s 18
 and 50 channel files, which give channel 17 numbers (`fixtures/README.md`).
 
-**Where everything is, at ABI 11** (2026-11-24; nothing in this file is designed and
-unbuilt, but the proposals marked "Proposed after Session 22" in §17 and §18):
+**Designed, not built (Session 25, D90, D91):** a repeat holds the nearest note behind it
+(§17, "Designed 2026-11-24"); effects 1, 2, 3 and 5 to 8 retuned to the PO-12's
+measurements, and effect 4, a delay of one echo in a line the host lends (§18, "Designed
+2026-11-24"). Session 26 builds them (`PLAN.md`) as ABI 12. Until then the code does §17
+and §18 as built.
+
+**Where everything is, at ABI 11** (2026-11-24; designed and unbuilt: the two sections
+named just above):
 
 | ABI | Session | Section | Adds |
 |---|---|---|---|
@@ -1111,6 +1117,65 @@ with an empty lane. The design held. What it did not say, built on and marked:
 - **9 and 10 stay as they are, and stay ours.** The hardware's 9 and 10 are not 11 and 12
   at half speed, and their rule is not known (R66). No change is proposed on a guess.
 
+### §17, designed 2026-11-24: a repeat holds the nearest note behind it (ABI 12; D90 item 1, D91; designed in Session 25, not built)
+
+The proposal above, exact. One thing changes: the step a run repeats. Where "The four
+repeats" says `run_step = cur`, it becomes:
+
+```
+at a step boundary, after eff is read:
+  if eff is 9..12 and eff != last:
+    run_tick = k
+    run_step = cur
+    for s = cur, cur − 1, … 0, length − 1, … cur + 1:     # `length` steps, cur first
+      if any sound in fx_sounds is on at step s:  run_step = s;  stop looking
+  last = eff
+```
+
+Everything else in "The four repeats" stands as built: the periods, the run's own grid, a
+sound outside the effects playing on, no swing, one draw a hit, `TRIG`'s step being
+`run_step`, the playhead untouched.
+
+- **By the pattern, not by what was heard.** A step counts if a sound in the effects is on
+  there, whatever its probability, whether or not it fired this pass, and whether or not a
+  run muted it. A tap is not a step and never counts. So in the first pass after play a run
+  may hold a step that has not played yet. Why: one rule a hand can work from the grid
+  alone, with no history to carry (D91 item 1).
+- **Round the wrap, inside the length.** The look goes back from the run's first step to
+  step 1, then from the pattern's last step down. A step past `length` is never held.
+  `length` is the one read at this boundary (§5), so `cur` is inside it.
+- **Looked for once, when the run begins.** The run keeps that step to its end. What the
+  step holds is still read at each hit, as built: a note taken off it mid-run falls silent,
+  one put on it sounds. An edit elsewhere, or to `fx_sounds`, does not move the run.
+- **A run that begins on a note is as built:** `cur` is looked at first.
+- **A new repeat is a new run** (as built: `eff != last`). It takes its own grid and looks
+  back from its own first step, so moving a punch from 11 to 12 may change the sound as
+  well as the rate ⚠ (D91 item 2: the other reading keeps the step).
+- **No sound in the effects on anywhere in the length:** `run_step = cur`, as built, and
+  the run is silent unless a note is put on that step while it lasts.
+- **The whole step** (D90 item 1): every sound in the effects that is on at `run_step`.
+
+No command, view byte, snapshot byte or call changes. Cost: at the start of a run, sixteen
+ORs and at most sixteen steps looked at; with an empty lane, nothing.
+
+**What must not move.** Every trace and view of the ten fixtures, `fx-repeat-punch` and
+`fx-repeat-swing` among them: both their runs begin on a note. Checked in Session 25, in a
+scratch copy of the core with the rule in: all 233 tests passed, unchanged. So no test
+holds the old silence (Session 24 moved the one that met it), and nothing is worked again
+by hand. ⚠ The render files were not rendered in the scratch copy: none plays a run that
+begins on an empty step as far as was read, and Session 26's sha256 comparison decides.
+
+**Proven when built by:**
+
+| Rule | Held by |
+|---|---|
+| The walk: back inside a pass, a sound out of the effects not counting, across the wrap, a step under 100 counting and drawing at each hit, a second repeat looking for itself, no note anywhere silent | `fixtures/designed/fx-repeat-holds.json`, worked by hand in Session 25 before any code (`fixtures/README.md`), moved up unchanged; all three harnesses, both sources, three rates, three block sizes, from a snapshot |
+| Each bullet above, alone | a rule test each in `core/src/tests/fx.rs`: by the pattern (a step at probability 0 is held and never fires; a tap does not count; a step not yet played is held); the wrap stops at `length`; looked for once (an edit elsewhere mid-run moves nothing; a note taken off `run_step` silences it); a run beginning on a note; 11 straight to 12 looks again; none anywhere is `cur` |
+| Nothing else moved | the report's ten older fixtures and every render file, the same bytes |
+
+(In the scratch copy the fixture passed at the first run with the rule in, and failed with
+the rule out. The scratch copy is not kept.)
+
 ## 18. The bus and the first sound effects (ABI 7; designed in Session 15; D67; built in Session 17)
 
 - **The bus** is the sum of the sounds in `fx_sounds`, in track order; **the rest** is the
@@ -1218,6 +1283,147 @@ for a build session; the constants are set there and then by ear. Nothing here i
 | 14 feedback | not designed | builds and rings near 1 kHz | a short delay (about 1 ms) fed back hard ⚠ |
 | 13 note shuffle | not designed | each note plays as another sound | in the sequencer, as the repeats are: a hit fires a different sound ⚠ |
 | 15, 16 | not designed | pitch wobbles, 6.5 Hz small and 3.5 Hz large | wait for take c |
+
+### §18, designed 2026-11-24: the retune, and the delay in a lent line (ABI 12; D90 items 2 and 3, D91; designed in Session 25, not built)
+
+The table above, exact. §18's rules stand: the bus, idle as today's path, the 2 ms ramp,
+the track channels untouched, musical time, `+ − × ÷` and casts only. What changes is each
+effect's sound, and effect 4 gains one. Every number is still a first value for the ear;
+Session 26 holds each to the PO-12's by measurement before the ear does (`PLAN.md`).
+
+**The constants** (`core/src/bus.rs`, "TUNING THE EFFECTS"). R69 is Session 25's second
+reading of Session 22's reports.
+
+| Effect | `wet`, for this frame's `bus` | Was | Source |
+|---|---|---|---|
+| 1 low sample rate | the hold as built, at **1 000 Hz**. No level | 6 000 Hz | D90 item 2. R64's mean hold of 1.5 ms is 667 Hz: the slowest worth trying. No gain: the PO-12's peak is within 2 dB of dry on two takes of three (R69); its 7 dB is a sound that lasts three times as long, which a hold on the bus cannot make ⚠ |
+| 2 distortion | `3 × bus`, held to **±1**: over 1 is 1, under −1 is −1 | `SoftLimit(6 × bus) × 0.7` | gain 3.0 (R64; 2.93 on take b). The ceiling: take b is flat at 2.12 of the kick's peak, and a sound of ours peaks near 0.5 (D48), so 1.06, taken as 1 (R69) ⚠ the spare take read 0.67 of its peak |
+| 3 bit crush | `(floor(4 × bus) + 0.5) / 4`: steps of a **quarter**, levels at ±1/8, ±3/8, ±5/8 … | `trunc(12 × bus) / 12` | R69: on take b the levels sit at ±½ and ±1½ steps, and a step is 1 / 4.02 of the clip's ceiling. On silence it is **+1/8 exactly**, as the hardware rests half a step off zero |
+| 5 low pass | the filter's low output at **300 Hz**, `r` 0.5 | 600 Hz | R65: 233 to 344 Hz, +7 dB at the cutoff (Q 2.2) |
+| 7 high pass | its high output at **1 800 Hz**, `r` **1/6** | 2 kHz, `r` 0.5 | R65: 1 796 Hz, +15.5 dB (Q 6) |
+| 6 low-pass sweep | low output, `r` 0.5; the cutoff from **2 500 Hz down to 190 Hz** in 432 ticks, back up in 432, and again | 8 kHz to 200 Hz in 1 536 ticks, one way | R65: 190 Hz to 2.5 kHz, both ways, a cycle every 8.5 to 9 steps: nine steps is 864 ticks. Ruled by the owner to move now (D91 item 3) |
+| 8 high-pass sweep | high output, `r` 1/6; from **220 Hz up to 2 900 Hz** in 432 ticks, back down in 432, and again | 100 Hz to 4 kHz in 1 536 ticks, one way | R65: 220 Hz to 2.9 kHz, the same cycle |
+| 4 delay | `bus + 0.15 × echo`, the echo being the bus **8 192 / 46 875 s** ago (174.76 ms) | no sound | R67: one echo at 174.8 ms, 0.09 to 0.25 of the hit (0.15 is the middle, as a ratio), the next 0.04 of that |
+
+- **`floor`, with casts and compares only:** `y = 4 × bus`; `t = (y as i32) as f32`; if
+  `t > y`, `t − 1`. A cast saturates the same natively and in WebAssembly. Nothing here can
+  be a NaN: an input that is not a number is silence before it reaches the bus (D80 item 4).
+- **`r` goes with the output:** 0.5 while the effect running is 5 or 6, 1/6 (the constant
+  `1.0 / 6.0`) while it is 7 or 8; read from the effect, no new field. `h` is made again
+  whenever the effect changes, as it already is. From one filter effect to the next the two
+  states are kept, as built.
+- **A sweep,** counted in ticks since `heard` became it, as built (D77's first-tick reading
+  stands):
+
+  ```
+  heard becomes 6 (8):   swept = 0;  cutoff = 2500 (220)
+  each tick while it runs:
+    swept += 1
+    swept == 864:  swept = 0;  cutoff = 2500 (220)        # the cycle starts again, exactly
+    swept == 432:  cutoff = 190 (2900)                    # the far end, exactly
+    swept <  432:  cutoff ×= OUT                          # 6: 0.994_052_41   8: 1.005_987_4
+    swept >  432:  cutoff ×= BACK                         # 6: 1.005_983_1    8: 0.994_048_24
+  ```
+
+  Each constant is (end / start) to the power 1 / 432, worked out off the engine and
+  rounded to an f32 (Session 25, numpy). Setting both ends exactly stops a rounding from
+  building up over a long hold: after 431 multiplies effect 6 stands at 191.1 Hz and comes
+  back to 2 485 Hz; effect 8 at 2 883 Hz and 221.3 Hz. ⚠ Unmeasured, and ours: which way
+  each starts (6 from the top, 8 from the bottom, as built), a straight line in pitch, the
+  cycle counted in steps and not seconds (one tempo was measured), each sweep taking its
+  fixed filter's `r`, and a sweep starting again with each run. Take c says which hold.
+- **Gone:** `DRIVE_LEVEL`, `soft_clip`, `LOW_SWEEP_FROM_HZ` and the three constants beside
+  it. `bus.rs`'s header keeps Émilie Gillet's notice (the filter, its `tan` and the hold
+  are still hers) and drops `SoftLimit` and `SoftClip` from its list; the credits on the
+  page and in the plugin do not change.
+- **Loud, on purpose.** Effect 2 can put the bus at ±1 and effect 7 lifts 1.8 kHz by 15 dB:
+  "some of theirs is rather intense" (the owner). Each host bends what passes its ceiling,
+  as now (D48).
+- **Effect 3 on silence** is a steady +1/8 in the mix before the volume, ramped in and out
+  over the 2 ms: a soft thump as it starts and ends, and a tail that buzzes at ±1/8 until
+  its voice ends. Both are the hardware's (R69). ⚠ The owner's ear: the quiet reading is
+  `floor(4 × bus) / 4`, which rests on zero.
+
+**The delay's line is the host's** (D91 item 4), as a sample is (§12). Two calls:
+
+| Call | Does |
+|---|---|
+| `uint32_t pi_delay_frames(uint32_t sample_rate)` | how long a line the delay needs at that rate: `(rate × 8192 + 23437) / 46875` in 64 bits, the nearest frame to 174.76 ms. 7 707 at 44.1 kHz, 8 389 at 48 kHz, 16 777 at 96 kHz. No engine: any thread may call it |
+| `uint32_t pi_set_delay(pi_engine *, float *line, uint32_t frames)` | lends `frames` floats. Taken, and 1 returned, if `line` is not null, is 4-byte aligned and `frames` is at least `pi_delay_frames` of the engine's rate now. Otherwise the engine holds no line and returns 0 |
+
+- The core keeps the pointer, as it keeps a sample's, and **writes** there, inside
+  `pi_process` only and never past `pi_delay_frames` of its rate. The host keeps the room
+  alive and does not touch it until it lends again or re-initialises the engine. What the
+  room holds when lent does not matter: nothing is read that this run did not write.
+- **`pi_init` starts with no line. `pi_set_sample_rate`, when it changes the rate, forgets
+  the line:** the host lends again for the new rate (it is the one that changed it). A load
+  leaves the line alone; the line is in no snapshot and moves no generation.
+- **Effect 4 is one the core sounds while it holds a line,** and only then. With none it is
+  as it was: the key punches, the lane records, `heard` says 4, FX GATES and FX SEND carry
+  it, and the mix is the bytes it is today. So every test, render file and bench case that
+  uses effect 4 with no line lent does not move.
+- **State, the moment's:** `head` and `full`. Cleared (0 and false) when effect 4 starts
+  from idle or from another kind (it is a kind of its own, D77), and when a line is lent.
+  Kept when 4 is heard again while still ramping out.
+- **One frame, while effect 4 is the effect running** (heard, or ramping out) in a layout
+  with a mix:
+
+  ```
+  echo = full ? line[head] : 0
+  line[head] = bus
+  head += 1;  if head == delay:  head = 0;  full = true      # delay = pi_delay_frames(rate)
+  wet = bus + 0.15 × echo
+  ```
+
+- So **the echo is of what was played while the effect was on.** The first comes 174.76 ms
+  after the effect starts, and the last ends with the ramp, 2 ms after it is let go: no
+  tail, as no filter of ours rings on ⚠ (the hardware's edges were not measured). A delay
+  that rings on is FX SEND's channel 4 into a Rack delay (§19).
+- **No feedback.** The PO-12's second echo is 0.04 of its first, 28 dB under an echo
+  already 12 to 21 dB down. One tap; a multiply and an add if the ear ever wants it.
+- **The time is fixed** (D91 item 5): 8 192 samples at 46 875 Hz is a buffer's length, not
+  a note's (0.93 of a step at 80 bpm). ⚠ One tempo was measured; a take of effect 4 at
+  another tempo settles it (`PLAN.md`, the owner's hands).
+- **In a loop layout** (§19) the line holds the bus as it is there, returned sounds
+  included. Effect 4 named in `ROUTE` 1 is the host's and ours does not run, lent or not.
+  **FX SEND does not change:** its channel 4 is the bus before any effect, so with effect 4
+  set to Ours and a Rack effect on channel 4, both are heard (D88 item 1).
+- **In layout 16** (no mix) the line is not written, as no effect runs there (§18, "Not
+  readings").
+
+**Measured before choosing** (Session 25; scratch copies of the core, one bench, runs
+interleaved, medians; `LEARNINGS.md` has the table). The line inside the engine, sized for
+96 kHz: `pi_size` 70 832, every host's 4 KiB room gone, and a rate past 96 kHz needs a rule
+of its own. Lent: `pi_size` 3 728, sixteen bytes more. Effect 4 on every step costs what
+any effect does, about 6 ns a frame over the dry beat. ⚠ **Where the echo's code sits is
+worth 20 ns a frame:** inlined into `wet`, the three loop layouts went from 38 to 57 ns
+with no effect running, in both variants. Out of line, and asked for before `wet`
+(`if on == 4 { echo(bus) } else { wet(bus, …) }` in `Bus::mix` and `Bus::looped`), idle,
+the beat, all, both and the loops were the old build's. That arrangement is where the
+build starts; its own interleaved bench decides.
+
+**What must not move.** With no line lent and no effect in the lane: every trace, view and
+render file but the seven `render-fx-*` pairs, and the report. The `render-fx-*` pairs move
+by decision (D90): rendered again, the old ones not kept (the ear and R64 to R69 are their
+measure, not their bytes). No view byte, snapshot byte or command changes.
+
+**Proven when built by:**
+
+| Rule | Held by |
+|---|---|
+| The mix is this section's, bit for bit, through every kind of change | the model in `core/src/tests/bus.rs`, written again from this section's table and pseudo-code (the hold's rate, the clip, the quantiser, `r` by output, the sweep both ways, the line), on its tour at three rates and on edges, with effect 4 lent a line in the tour; `route.rs`'s model takes the same new `wet` |
+| 1 holds at 1 kHz at every rate, and through a rate change | `bus.rs`'s two hold tests, their 6 000 made 1 000 |
+| 2 is three times the bus under ±1/3, and never past ±1 | a rule test, in place of "soft clipped under 0.7" |
+| 3 gives only odd eighths; exact silence gives +1/8; just under zero gives −1/8 | a rule test, in place of "twelve levels a unit"; "every effect on silence is exact silence" keeps 1, 2, 4 to 8 and says +1/8 × the ramp for 3 |
+| A sweep turns at 432 ticks, is back at its start at 864 exactly, is the same on both clocks, and starts again with each run | `cutoff_after` at 431, 432, 433, 863, 864 and 2 × 864 ticks, for 6 and 8; "starts again after sixteen steps" replaced |
+| 7 and 8 use `r` 1/6, 5 and 6 0.5; 5 straight to 7 keeps the states | a rule test on the filter's response to one impulse, against the model |
+| With no line, effect 4 is the plain sum and `pi_set_delay` returns 0 for null, misaligned or short | `bus.rs` (the "effects not built" test keeps 4 with no line), and a rule test of the three refusals |
+| With a line: silent for `pi_delay_frames` frames, then `bus + 0.15 ×` the bus that many frames back, bit for bit, at three rates; the line never written past its length (a guard value after it) | rule tests |
+| The line is forgotten on a rate change and on `pi_init`; kept over a load; cleared from idle and from another kind; kept when heard again inside the ramp | rule tests |
+| No echo outlives the ramp; a line full of junk when lent is never heard | rule tests |
+| Native and `.wasm`, the same bytes | the seven `render-fx-*` pairs rendered again, and a new `harness/render-fx-4.json` with a line lent in both harnesses |
+| What it costs | `make bench`, the old library kept and run interleaved: idle, beat, all, both and the loops inside the old build's spread; a new case "fx 4" with a line lent |
+| Ours beside the hardware | Session 26's comparison: our render of takes a and b's patterns read by `harness/hardware-fx.py` (`PLAN.md`) |
 
 ## 19. Sound in: the returns and the effects loop (ABI 9; designed in Session 15; D68; built in Session 18)
 
