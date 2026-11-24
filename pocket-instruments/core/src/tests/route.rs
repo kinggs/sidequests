@@ -256,9 +256,9 @@ fn a_returned_sound_in_fx_sounds_is_in_the_bus_and_one_outside_it_is_not() {
         last = io[MIX];
         assert_eq!(io[SEND], 0.25, "the send is before the effect");
     }
-    // Ramped in: the bus is SoftLimit(6 x 0.25) x 0.7 and the rest is the plain 0.25.
-    let x = 1.5f32;
-    let wet = x * (27.0 + x * x) / (27.0 + 9.0 * x * x) * 0.7;
+    // Ramped in: the bus is effect 2's 3 x 0.25 and the rest is the plain 0.25. (Until ABI
+    // 12, SoftLimit(6 x 0.25) x 0.7: §18, designed 2026-11-24, changed the effect, not this.)
+    let wet = 3.0f32 * 0.25;
     assert_eq!(last.to_bits(), (0.25 + 0.25 + 1.0 * (wet - 0.25)).to_bits());
     // The other way round: sound 10 in, sound 6 out. The same number, from the other sound.
     give(&mut io);
@@ -327,8 +327,7 @@ fn an_effect_route_1_names_is_the_host_s_beside_the_dry_the_bus_stays_idle_in_pl
     // ours): not named, ours if there is one; named, beside the dry: no effect at all, and the
     // bus never leaves idle; named in both, in place of the dry: the bus out. `ROUTE` 4 alone
     // changes nothing.
-    let x = 1.5f32;
-    let clip = x * (27.0 + x * x) / (27.0 + 9.0 * x * x) * 0.7;
+    let clip = 3.0f32 * 0.25; // effect 2 since ABI 12; SoftLimit(6 x 0.25) x 0.7 before
     let ours = 0.0f32 + 0.25 + 1.0 * (clip - 0.25);
     let out = 0.0f32 + 0.25 + 1.0 * (0.0 - 0.25);
     for (named, insert, key, dry, idle) in [
@@ -789,7 +788,9 @@ fn a_host_that_leaves_the_loop_while_an_insert_ramps_out_hears_the_bus_at_once()
         frame(&h, &[], &mut io);
         frame(&twin, &[], &mut [0f32; 17]);
     }
-    assert_eq!(unsafe { &(*h.e).bus }.probe(), (0x84, 1.0, 100.0, 0.0, 0.0), "effect 4, outside, full");
+    // An outside effect takes no cutoff of its own; the field holds the start effect 8 would
+    // take (100 Hz until ABI 12, 220 since), which nothing reads.
+    assert_eq!(unsafe { &(*h.e).bus }.probe(), (0x84, 1.0, 220.0, 0.0, 0.0), "effect 4, outside, full");
     let (mut ramping, mut sounding) = (0, 0);
     for f in 0..300 {
         let (mut a, mut b) = ([0f32; 17], [0f32; 17]);

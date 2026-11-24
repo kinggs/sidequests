@@ -7,7 +7,7 @@
 //!
 //! Ported, not linked (D67 item 3; REFERENCES.md R56). Read from Emilie Gillet's stmlib
 //! (`dsp/filter.h` at d18def8: the state-variable filter `Svf::Process` and the polynomial
-//! `OnePole::tan<FREQUENCY_FAST>`; `dsp/dsp.h`: `SoftLimit` and `SoftClip`) and Plaits
+//! `OnePole::tan<FREQUENCY_FAST>`) and Plaits
 //! (`plaits/dsp/fx/sample_rate_reducer.h` at eurorack f4cfa76: the hold on a phase
 //! accumulator, here without its polyBLEP, as ENGINE.md §18 has it) and written again in Rust.
 //! Their notice:
@@ -34,39 +34,50 @@
 //! OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 //! THE SOFTWARE.
 //!
-//! (`dsp/dsp.h` carries the same notice dated 2012.) The rest of this file is ours, under
-//! the crate's licence. SPDX-License-Identifier: MIT
+//! (Until ABI 12 effect 2 also used `SoftLimit` and `SoftClip` from `dsp/dsp.h`, under the
+//! same notice dated 2012; §18, designed 2026-11-24, replaced them with a plain clip.) The
+//! rest of this file is ours, under the crate's licence. SPDX-License-Identifier: MIT
 
 use crate::clock::TICKS_PER_STEP;
 use crate::seq::TRACKS;
 
 // ---- TUNING THE EFFECTS: every number here is a first value for the owner's ear (§18) ----
 
+// §18, designed 2026-11-24 (ABI 12; D90, D91): retuned to the PO-12's measurements
+// (REFERENCES.md R64 to R69). Each was, before: 6 000 Hz; SoftLimit(6 × bus) × 0.7; twelve
+// levels a unit, towards zero; 600 Hz and 2 kHz at `r` 0.5; sweeps of 1 536 ticks, one way.
+
 /// Effect 1: the hold's rate in hertz, whatever the engine's rate.
-pub const REDUCE_HZ: u32 = 6000;
-/// Effect 2: the drive into the soft clip, and the level after it.
-pub const DRIVE: f32 = 6.0;
-pub const DRIVE_LEVEL: f32 = 0.7;
-/// Effect 3: levels a unit.
-pub const CRUSH_LEVELS: f32 = 12.0;
+pub const REDUCE_HZ: u32 = 1000;
+/// Effect 2: the gain into the clip at ±`CEILING`.
+pub const DRIVE: f32 = 3.0;
+pub const CEILING: f32 = 1.0;
+/// Effect 3: levels a unit, `(floor(CRUSH_LEVELS × bus) + 0.5) / CRUSH_LEVELS`: steps of a
+/// quarter, resting half a step off zero.
+pub const CRUSH_LEVELS: f32 = 4.0;
 /// Effects 5 and 7: the fixed cutoffs, in hertz.
-pub const LOWPASS_HZ: f32 = 600.0;
-pub const HIPASS_HZ: f32 = 2000.0;
-/// Effects 6 and 8: where a sweep starts, and the constant its cutoff is multiplied by once a
-/// tick. Each constant is (end / start) to the power 1 / 1536, worked out once off the engine
-/// (python3: `(200/8000)**(1/1536)`, `(4000/100)**(1/1536)`) and rounded to an f32, so no
-/// exponential is computed here. After 1535 ticks the low sweep is at 200.5 Hz and the high one
-/// at 3990 Hz; the 1536th starts it again.
-pub const LOW_SWEEP_FROM_HZ: f32 = 8000.0;
-pub const LOW_SWEEP_BY: f32 = 0.997_601_27;
-pub const HIGH_SWEEP_FROM_HZ: f32 = 100.0;
-pub const HIGH_SWEEP_BY: f32 = 1.002_404_5;
-/// Sixteen steps of ticks: a sweep's length, then it starts again.
-pub const SWEEP_TICKS: u32 = 16 * TICKS_PER_STEP;
-// `Bus::swept` is a u16 (Session 24): a sweep must fit in it.
-const _: () = assert!(SWEEP_TICKS <= u16::MAX as u32);
-/// The filter's damping, `r` in stmlib (1 / Q), as `voice.rs` uses the word ⚠.
-pub const DAMPING: f32 = 0.5;
+pub const LOWPASS_HZ: f32 = 300.0;
+pub const HIPASS_HZ: f32 = 1800.0;
+/// The filter's `r` (stmlib's 1 / Q, as `voice.rs` uses "damping"), by the output: the low
+/// output's (5 and 6) and the high output's (7 and 8, Q 6).
+pub const LOW_R: f32 = 0.5;
+pub const HIGH_R: f32 = 1.0 / 6.0;
+/// Effects 6 and 8: a sweep's two ends, out from `*_FROM_HZ` to `*_TO_HZ` over `SWEEP_HALF`
+/// ticks and back over as many, then again. Each constant is (end / start) to the power
+/// 1 / 432, worked out once off the engine (Session 25, numpy) and rounded to an f32, so no
+/// exponential is computed here; both ends are set exactly, so no rounding builds up.
+pub const LOW_SWEEP_FROM_HZ: f32 = 2500.0;
+pub const LOW_SWEEP_TO_HZ: f32 = 190.0;
+pub const LOW_SWEEP_OUT: f32 = 0.994_052_41;
+pub const LOW_SWEEP_BACK: f32 = 1.005_983_1;
+pub const HIGH_SWEEP_FROM_HZ: f32 = 220.0;
+pub const HIGH_SWEEP_TO_HZ: f32 = 2900.0;
+pub const HIGH_SWEEP_OUT: f32 = 1.005_987_4;
+pub const HIGH_SWEEP_BACK: f32 = 0.994_048_24;
+/// Four and a half steps of ticks out, as many back: a cycle of nine steps (R65).
+pub const SWEEP_HALF: u16 = (9 * TICKS_PER_STEP / 2) as u16;
+// `Bus::swept` is a u16 (Session 24): a sweep's cycle must fit in it.
+const _: () = assert!(2 * SWEEP_HALF as u32 == 9 * TICKS_PER_STEP);
 /// The filter's `f = cutoff / rate` is held to this at most.
 pub const F_MAX: f32 = 0.3;
 /// The ramp: 0 to 1 in 2 ms, so `RAMP_PER_SECOND / rate` a frame.
@@ -85,18 +96,6 @@ const TAN_B: f32 = (0.1823_f32 as f64 * PI * PI * PI * PI * PI) as f32;
 fn tan(f: f32) -> f32 {
     let f2 = f * f;
     f * (PI_F + f2 * (TAN_A + TAN_B * f2))
-}
-
-/// stmlib's `SoftClip`: `SoftLimit` inside ±3, ±1 beyond.
-#[inline]
-fn soft_clip(x: f32) -> f32 {
-    if x < -3.0 {
-        -1.0
-    } else if x > 3.0 {
-        1.0
-    } else {
-        x * (27.0 + x * x) / (27.0 + 9.0 * x * x)
-    }
 }
 
 /// Whether an effect is one the core sounds on the bus (§18's table). 4 and 9 to 16 are not:
@@ -136,7 +135,7 @@ pub struct Bus {
     acc: u32,
     held: f32,
     /// Effects 5 to 8: the filter's two states and coefficients, its cutoff in hertz, ticks
-    /// into a sweep, and whether `g` and `h` are the cutoff's. `swept` counts to 1536 at most,
+    /// into a sweep, and whether `g` and `h` are the cutoff's. `swept` counts to 864 at most,
     /// so a u16: the two bytes it gave up hold `route`'s fifth mask, and the bus, and so the
     /// engine around it, keep their size and layout (Session 24, measured: `LEARNINGS.md`).
     s1: f32,
@@ -188,6 +187,18 @@ impl Bus {
     #[cfg(test)]
     pub fn probe(&self) -> (u8, f32, f32, f32, f32) {
         (self.on, self.w, self.cutoff, self.s1, self.s2)
+    }
+
+    /// For the rule tests: the filter's `g` and `h`.
+    #[cfg(test)]
+    pub fn tuning(&self) -> (f32, f32) {
+        (self.g, self.h)
+    }
+
+    /// The filter's `r`, by the output the effect running takes (§18, designed 2026-11-24).
+    #[inline]
+    fn r(&self) -> f32 {
+        if self.on <= 6 { LOW_R } else { HIGH_R }
     }
 
     /// No effect running and the ramp at 0: the mix is §13's.
@@ -247,15 +258,24 @@ impl Bus {
             };
             self.tuned = false;
         } else if (self.on == 6 || self.on == 8) && ticks != 0 {
-            // A sweep moves in musical time: a multiply a tick, never an exponential.
-            let (from, by) = if self.on == 6 { (LOW_SWEEP_FROM_HZ, LOW_SWEEP_BY) } else { (HIGH_SWEEP_FROM_HZ, HIGH_SWEEP_BY) };
+            // A sweep moves in musical time: a multiply a tick, never an exponential. Out to
+            // the far end, back, and again; each end set exactly (§18, designed 2026-11-24).
+            let (from, to, out, back) = if self.on == 6 {
+                (LOW_SWEEP_FROM_HZ, LOW_SWEEP_TO_HZ, LOW_SWEEP_OUT, LOW_SWEEP_BACK)
+            } else {
+                (HIGH_SWEEP_FROM_HZ, HIGH_SWEEP_TO_HZ, HIGH_SWEEP_OUT, HIGH_SWEEP_BACK)
+            };
             for _ in 0..ticks {
                 self.swept += 1;
-                if self.swept as u32 >= SWEEP_TICKS {
+                if self.swept == 2 * SWEEP_HALF {
                     self.swept = 0;
                     self.cutoff = from;
+                } else if self.swept == SWEEP_HALF {
+                    self.cutoff = to;
+                } else if self.swept < SWEEP_HALF {
+                    self.cutoff *= out;
                 } else {
-                    self.cutoff *= by;
+                    self.cutoff *= back;
                 }
             }
             self.tuned = false;
@@ -283,7 +303,7 @@ impl Bus {
                 f = F_MAX;
             }
             self.g = tan(f);
-            self.h = 1.0 / (1.0 + DAMPING * self.g + self.g * self.g);
+            self.h = 1.0 / (1.0 + self.r() * self.g + self.g * self.g);
             self.tuned = true;
         }
     }
@@ -306,14 +326,30 @@ impl Bus {
                 }
                 self.held
             }
-            2 => soft_clip(DRIVE * x) * DRIVE_LEVEL,
-            // Towards zero, so silence stays silent. A cast saturates in Rust, natively and in
-            // WebAssembly alike.
-            3 => (CRUSH_LEVELS * x) as i32 as f32 / CRUSH_LEVELS,
+            2 => {
+                let y = DRIVE * x;
+                if y > CEILING {
+                    CEILING
+                } else if y < -CEILING {
+                    -CEILING
+                } else {
+                    y
+                }
+            }
+            3 => {
+                // The floor by a cast and a compare: a cast saturates, natively and in
+                // WebAssembly alike, and nothing here is a NaN (D80 item 4). Silence is +1/8.
+                let y = CRUSH_LEVELS * x;
+                let mut t = y as i32 as f32;
+                if t > y {
+                    t -= 1.0;
+                }
+                (t + 0.5) / CRUSH_LEVELS
+            }
             _ => {
                 // stmlib's Svf::Process, in its order.
-                let (g, s1, s2) = (self.g, self.s1, self.s2);
-                let hp = (x - DAMPING * s1 - g * s1 - s2) * self.h;
+                let (g, s1, s2, r) = (self.g, self.s1, self.s2, self.r());
+                let hp = (x - r * s1 - g * s1 - s2) * self.h;
                 let bp = g * hp + s1;
                 self.s1 = g * hp + bp;
                 let lp = g * bp + s2;

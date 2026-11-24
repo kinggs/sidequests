@@ -428,3 +428,20 @@ is rendered too: `ROUTE` 4 for effect 4 from the start, and for the distortion i
 Every other render file, its mix-only renders included, and the report are the same bytes
 as before the session. What the loop's mix must be is held by the model in
 `core/src/tests/route.rs`; these files hold native and `.wasm` to the same bits.
+
+## The effects' render files rendered again (Session 26: ABI 12, D90, D91)
+
+No trace or view moved: the report's 300 older runs are the same bytes. 120 render files
+are new bytes, on purpose, because §18's effects were retuned (`ENGINE.md`, "§18, designed
+2026-11-24"):
+
+- **The seven `render-fx-*` pairs** (84 files): each plays its effect throughout.
+- **All 36 of `render-loop`'s** (its mix-only renders and its 18 and 50 channel ones): its
+  lane holds effects 2, 5 and 6. ⚠ The build list named only the seven pairs; §18's "What
+  must not move" says "with no effect in the lane", which this scenario's lane is not.
+  Checked against a render by the old library: the first frame that differs is 30 000 at
+  48 kHz, exactly step 5, where the lane's first effect 2 begins, and in the loop layouts
+  only channel 16 (the mix) moves; the sixteen tracks and the send are the same bytes.
+
+The other 288 render files are the same bytes as before the session. The old ones are not
+kept: the ear and R64 to R69 are the measure of the new sound, not their bytes (§18).

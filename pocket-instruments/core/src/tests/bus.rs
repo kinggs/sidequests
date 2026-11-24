@@ -130,15 +130,22 @@ impl Model {
                 }
                 self.on = effect;
                 self.swept = 0;
-                self.cutoff = [0.0, 0.0, 0.0, 0.0, 0.0, 600.0, 8000.0, 2000.0, 100.0].get(effect as usize).copied().unwrap_or(0.0);
+                // §18, designed 2026-11-24: 5 at 300 Hz, 6 from 2 500, 7 at 1 800, 8 from 220.
+                self.cutoff = [0.0, 0.0, 0.0, 0.0, 0.0, 300.0, 2500.0, 1800.0, 220.0].get(effect as usize).copied().unwrap_or(0.0);
             } else if self.on == 6 || self.on == 8 {
+                // The sweep's pseudo-code, exactly: each tick one of four cases, in its order.
+                let (start, end, out, back) = if self.on == 6 { (2500.0, 190.0, 0.994_052_41, 1.005_983_1) } else { (220.0, 2900.0, 1.005_987_4, 0.994_048_24) };
                 for _ in 0..ticks {
                     self.swept += 1;
-                    if self.swept == 1536 {
+                    if self.swept == 864 {
                         self.swept = 0;
-                        self.cutoff = if self.on == 6 { 8000.0 } else { 100.0 };
+                        self.cutoff = start;
+                    } else if self.swept == 432 {
+                        self.cutoff = end;
+                    } else if self.swept < 432 {
+                        self.cutoff *= out;
                     } else {
-                        self.cutoff *= if self.on == 6 { 0.997_601_27 } else { 1.002_404_5 };
+                        self.cutoff *= back;
                     }
                 }
             }
@@ -173,25 +180,33 @@ impl Model {
         let wet = match self.on {
             e if e & 0x80 != 0 => 0.0,
             1 => {
-                self.acc += 6000;
+                self.acc += 1000;
                 if self.acc >= rate {
                     self.acc -= rate;
                     self.held = b;
                 }
                 self.held
             }
+            // Three times the bus, held to ±1.
             2 => {
-                let x = 6.0 * b;
-                let s = if x < -3.0 {
-                    -1.0
-                } else if x > 3.0 {
+                let x = 3.0 * b;
+                if x > 1.0 {
                     1.0
+                } else if x < -1.0 {
+                    -1.0
                 } else {
-                    x * (27.0 + x * x) / (27.0 + 9.0 * x * x)
-                };
-                s * 0.7
+                    x
+                }
             }
-            3 => (12.0 * b) as i32 as f32 / 12.0,
+            // `(floor(4 × bus) + 0.5) / 4`, the floor by a cast and a compare.
+            3 => {
+                let y = 4.0 * b;
+                let mut t = (y as i32) as f32;
+                if t > y {
+                    t -= 1.0;
+                }
+                (t + 0.5) / 4.0
+            }
             _ => {
                 let pi = core::f64::consts::PI;
                 let mut f = self.cutoff / rate as f32;
@@ -201,7 +216,8 @@ impl Model {
                 let a = (0.326_f32 as f64 * pi * pi * pi) as f32;
                 let c = (0.1823_f32 as f64 * pi * pi * pi * pi * pi) as f32;
                 let g = f * (pi as f32 + f * f * (a + c * (f * f)));
-                let r = 0.5;
+                // `r` goes with the output: 0.5 for 5 and 6, 1/6 for 7 and 8.
+                let r = if self.on <= 6 { 0.5 } else { 1.0 / 6.0 };
                 let h = 1.0 / (1.0 + r * g + g * g);
                 let hp = (b - r * self.s1 - g * self.s1 - self.s2) * h;
                 let bp = g * hp + self.s1;
@@ -344,7 +360,18 @@ fn a_sound_switched_out_of_the_effects_is_the_same_in_the_mix_with_and_without_o
         let kick: Vec<Cmd> = (0..16).step_by(2).map(|s| on(0, s)).chain([fxsound(0, 0)]).collect();
         let mut lane = kick.clone();
         lane.extend((0..16).map(|s| fx(s, effect)));
-        assert!(same_bits(&mix(&lane, SR, 2 * STEP as usize), &mix(&kick, SR, 2 * STEP as usize)), "effect {effect}: alone");
+        let (with, without) = (mix(&lane, SR, 2 * STEP as usize), mix(&kick, SR, 2 * STEP as usize));
+        if effect != 3 {
+            assert!(same_bits(&with, &without), "effect {effect}: alone");
+        } else {
+            // Effect 3 on a silent bus is +1/8 times the ramp (D91 item 7), heard from frame 0:
+            // the drum, plus that, to a float's rounding.
+            let (step, mut w) = (500.0 / SR as f32, 0.0f32);
+            for f in 0..with.len() {
+                w = if w + step > 1.0 { 1.0 } else { w + step };
+                assert!((with[f] - without[f] - w * 0.125).abs() < 1e-6, "effect 3 alone, frame {f}");
+            }
+        }
 
         let rest: Vec<Cmd> = beat().into_iter().filter(|c| c.a != 0).chain((0..16).map(|s| fx(s, effect))).collect();
         let mut all = rest.clone();
@@ -370,12 +397,42 @@ fn the_sixteen_track_channels_are_never_touched() {
 }
 
 #[test]
-fn every_effect_on_silence_is_exact_silence() {
+fn every_effect_on_silence_is_exact_silence_but_3_which_is_an_eighth_ramped() {
+    // Replaces "every effect on silence is exact silence" (D91 item 7): 1, 2 and 5 to 8 still
+    // are; effect 3 rests half a step off zero, so silence is +1/8 times the ramp, exactly.
     for effect in SEVEN {
         let lane: Vec<Cmd> = (0..16).map(|s| fx(s, effect)).collect();
         let out = mix(&lane, SR, 2 * STEP as usize);
-        assert!(out.iter().all(|x| x.to_bits() == 0), "effect {effect}");
+        if effect != 3 {
+            assert!(out.iter().all(|x| x.to_bits() == 0), "effect {effect}");
+            continue;
+        }
+        // Heard from frame 0 (tick 0 is in it): w goes up 500 / rate a frame, held at 1.
+        let (step, mut w) = (500.0 / SR as f32, 0.0f32);
+        for (f, x) in out.iter().enumerate() {
+            w = if w + step > 1.0 { 1.0 } else { w + step };
+            assert_eq!(x.to_bits(), (w * 0.125).to_bits(), "effect 3, frame {f}");
+        }
     }
+}
+
+/// A steady `x` returned as sound 1 in the loop layout, `effect` on every step, for 1 000
+/// frames: the mix of the last, the ramp long full. The bus is `x` exactly and the rest 0,
+/// so the mix is `x + (wet − x)` at the volume's gain of 1.
+fn steady(effect: u32, x: f32) -> f32 {
+    let h = Host::new(SR, 1);
+    let mut cmds: Vec<Cmd> = vec![cmd(CMD_ROUTE, 0, 0, 1)];
+    cmds.extend((0..16).map(|s| fx(s, effect)));
+    cmds.push(play());
+    let mut io = [0f32; 18];
+    for f in 0..1000 {
+        io = [0.0; 18];
+        io[0] = x;
+        let c: &[Cmd] = if f == 0 { &cmds } else { &[] };
+        let mut ev = [Event::default(); CAP];
+        unsafe { pi_process(h.e, 1, c.as_ptr(), c.len() as u32, ev.as_mut_ptr(), CAP as u32, io.as_mut_ptr(), 18) };
+    }
+    io[16]
 }
 
 /// The mix of the beat with an effect on every step, from the frame the ramp is full.
@@ -387,35 +444,64 @@ fn full_wet(effect: u32, rate: u32) -> Vec<f32> {
 }
 
 #[test]
-fn effect_1_holds_at_6_khz_at_every_rate() {
+fn effect_1_holds_at_1_khz_at_every_rate() {
     for rate in [44_100u32, 48_000, 96_000] {
         let out = full_wet(1, rate);
         let second = &out[..rate as usize];
-        // `bus + w (wet - bus)` at w = 1 is the held sample to within a rounding, so a new
-        // sample is a step larger than one.
-        assert_holds_at_6_khz(second, rate);
+        assert_holds_at_1_khz(second, rate);
     }
 }
 
 /// A second of effect 1 at full ramp: new samples come no closer than the hold's period and
-/// no more than 6000 of them (fewer where the beat is silent and a new sample is the old).
+/// no more than 1000 of them (fewer where the beat is silent and a new sample is the old).
 /// `bus + w (wet - bus)` at w = 1 is the held sample to within a rounding, so a new sample
-/// is a step larger than one.
-fn assert_holds_at_6_khz(second: &[f32], rate: u32) {
+/// is a step larger than one. (Until ABI 12, 6 000: §18, designed 2026-11-24.)
+fn assert_holds_at_1_khz(second: &[f32], rate: u32) {
     let at: Vec<usize> = (1..second.len()).filter(|&f| (second[f] - second[f - 1]).abs() > 1e-6).collect();
     let gap = at.windows(2).map(|w| w[1] - w[0]).min().unwrap();
-    assert!((5_000..=6_000).contains(&at.len()), "rate {rate}: {} new samples in a second", at.len());
-    assert_eq!(gap, rate as usize / 6000, "rate {rate}: new samples {gap} frames apart at the closest");
+    assert!((833..=1_000).contains(&at.len()), "rate {rate}: {} new samples in a second", at.len());
+    assert_eq!(gap, rate as usize / 1000, "rate {rate}: new samples {gap} frames apart at the closest");
 }
 
 #[test]
-fn effect_2_is_soft_clipped_under_0_7_and_effect_3_is_twelve_levels_a_unit() {
+fn effect_2_is_three_times_the_bus_under_a_third_and_never_past_1() {
+    // Replaces "effect 2 is soft clipped under 0.7" (D90 item 2, D91 item 7).
+    for (x, want) in [(0.25f32, 0.75f32), (-0.25, -0.75), (0.3125, 0.9375), (-0.3125, -0.9375), (0.5, 1.0), (-2.0, -1.0), (10.0, 1.0)] {
+        assert_eq!(steady(2, x), want, "effect 2 on a bus of {x}");
+    }
     let out = full_wet(2, SR);
     let peak = out.iter().fold(0f32, |m, x| m.max(x.abs()));
-    assert!(peak <= 0.7 && peak > 0.6, "effect 2 peaks at {peak}");
+    assert!(peak <= 1.0 && peak > 0.9, "effect 2 on the beat peaks at {peak}");
+}
+
+#[test]
+fn effect_3_gives_only_odd_eighths_and_silence_is_plus_an_eighth() {
+    // Replaces "effect 3 is twelve levels a unit" (D91 item 7): `(floor(4 bus) + 0.5) / 4`.
+    // Just under zero is −1/8, not +1/8: a floor, not a cast towards zero.
+    for (x, want) in [(0.0f32, 0.125f32), (-1.0 / 1024.0, -0.125), (0.3125, 0.375), (-0.3125, -0.375), (0.25, 0.375), (-0.25, -0.125), (0.9375, 0.875)] {
+        assert_eq!(steady(3, x), want, "effect 3 on a bus of {x}");
+    }
     for x in full_wet(3, SR) {
-        let k = x * 12.0;
-        assert_eq!(k, k.trunc(), "effect 3: {x} is not a twelfth");
+        let k = x * 8.0;
+        assert!((k - k.round()).abs() < 1e-5 && k.round() as i32 % 2 != 0, "effect 3: {x} is not an odd eighth");
+    }
+}
+
+#[test]
+fn the_filter_s_r_goes_with_the_output_one_sixth_for_7_and_8_a_half_for_5_and_6() {
+    // `h = 1 / (1 + r g + g²)`, made again when the effect changes: 5, 7, 6, 8 straight on,
+    // a step each. Kept from one filter effect to the next, the states carry across (as the
+    // test below holds); only `r` follows the effect.
+    let mut h = Host::new(SR, 1);
+    let mut edits = beat();
+    edits.extend([fx(1, 5), fx(2, 7), fx(3, 6), fx(4, 8)]);
+    render(&mut h, STEP as usize + 100, 128, 1, &at_zero(&edits));
+    for (effect, r) in [(5u8, 0.5f32), (7, 1.0 / 6.0), (6, 0.5), (8, 1.0 / 6.0)] {
+        let (on, ..) = bus(&h).probe();
+        let (g, hh) = bus(&h).tuning();
+        assert_eq!(on, effect);
+        assert_eq!(hh.to_bits(), (1.0 / (1.0 + r * g + g * g)).to_bits(), "effect {effect}: r {r}");
+        render(&mut h, STEP as usize, 128, 1, &[]);
     }
 }
 
@@ -425,8 +511,8 @@ fn the_lowpass_takes_the_hats_away_and_the_hipass_the_drum() {
     let dry = full_wet(0, SR);
     let diff = |o: &[f32]| o.windows(2).map(|w| (w[1] - w[0]).abs()).sum::<f32>();
     let level = |o: &[f32]| o.iter().map(|x| x.abs()).sum::<f32>();
-    assert!(diff(&full_wet(5, SR)) < diff(&dry) / 4.0, "the lowpass at 600 Hz leaves little that moves fast");
-    assert!(level(&full_wet(7, SR)) < level(&dry) / 2.0, "the hipass at 2 kHz takes the drum's weight");
+    assert!(diff(&full_wet(5, SR)) < diff(&dry) / 4.0, "the lowpass at 300 Hz leaves little that moves fast");
+    assert!(level(&full_wet(7, SR)) < level(&dry) / 2.0, "the hipass at 1.8 kHz takes the drum's weight");
 }
 
 /// The cutoff after `steps` steps of `effect` on every step, playing from frame 0, on the
@@ -468,24 +554,32 @@ fn cutoff_after(effect: u32, ticks: u64, edges: bool) -> f32 {
 }
 
 #[test]
-fn a_sweep_moves_by_ticks_the_same_on_both_clocks_and_starts_again_after_sixteen_steps() {
-    for (effect, from) in [(6u32, 8000.0f32), (8, 100.0)] {
+fn a_sweep_turns_at_432_ticks_is_back_at_864_exactly_and_is_the_same_on_both_clocks() {
+    // Replaces "starts again after sixteen steps" (D91 item 3): out over 432 ticks, back over
+    // 432, each end set exactly. 431 multiplies of 6 reach 191.1 Hz, 431 back 2 485 Hz; of 8,
+    // 2 883 Hz and 221.3 Hz (§18, designed 2026-11-24).
+    for (effect, from, to, back) in [(6u32, 2500.0f32, 190.0f32, 1.005_983_1f32), (8, 220.0, 2900.0, 0.994_048_24)] {
         // Edges come a step at a time, so compare at step boundaries: tick 96 n.
-        for steps in [1u64, 5, 15] {
+        for steps in [1u64, 5, 9, 15] {
             let (t, e) = (cutoff_after(effect, steps * 96, false), cutoff_after(effect, steps * 96, true));
             assert_eq!(t.to_bits(), e.to_bits(), "effect {effect}, {steps} steps: {t} on the table, {e} on edges");
         }
-        let near_end = cutoff_after(effect, 1535, false);
-        let (lo, hi) = if effect == 6 { (195.0, 205.0) } else { (3900.0, 4100.0) };
-        assert!(near_end > lo && near_end < hi, "effect {effect}: {near_end} Hz after 1535 ticks");
-        assert_eq!(cutoff_after(effect, 1536, false), from, "effect {effect}: again from the top");
         assert_eq!(cutoff_after(effect, 0, false), from, "effect {effect}: where it starts");
+        let (near_far, near_back) = if effect == 6 { (191.1f32, 2485.0f32) } else { (2883.0, 221.3) };
+        let a = cutoff_after(effect, 431, false);
+        assert!((a - near_far).abs() < 1.0, "effect {effect}: {a} Hz after 431 ticks");
+        assert_eq!(cutoff_after(effect, 432, false), to, "effect {effect}: the far end, exactly");
+        assert_eq!(cutoff_after(effect, 433, false).to_bits(), (to * back).to_bits(), "effect {effect}: turned");
+        let b = cutoff_after(effect, 863, false);
+        assert!((b - near_back).abs() < 1.0, "effect {effect}: {b} Hz after 863 ticks");
+        assert_eq!(cutoff_after(effect, 864, false), from, "effect {effect}: back at its start, exactly");
+        assert_eq!(cutoff_after(effect, 2 * 864, false), from, "effect {effect}: and again");
     }
 }
 
 #[test]
 fn a_sweep_starts_again_with_each_run() {
-    // Effect 6 on steps 1 and 3, not 2: at step 3 it is back at 8 kHz; on steps 1 and 2 held
+    // Effect 6 on steps 1 and 3, not 2: at step 3 it is back at 2.5 kHz; on steps 1 and 2 held
     // over both, it is not.
     let at = |lane: &[(u8, u32)], frames: u64| {
         let mut h = Host::new(SR, 1);
@@ -493,14 +587,14 @@ fn a_sweep_starts_again_with_each_run() {
         render(&mut h, frames as usize, 128, 1, &at_zero(&edits));
         bus(&h).probe().2
     };
-    assert_eq!(at(&[(1, 6), (3, 6)], 3 * STEP + 1), 8000.0);
-    assert!(at(&[(1, 6), (2, 6), (3, 6)], 3 * STEP + 1) < 7000.0);
+    assert_eq!(at(&[(1, 6), (3, 6)], 3 * STEP + 1), 2500.0);
+    assert!(at(&[(1, 6), (2, 6), (3, 6)], 3 * STEP + 1) < 2400.0);
     // A punch of 6 over a lane of 6 is still 6 heard: no new run.
     let mut h = Host::new(SR, 1);
     let mut c = at_zero(&[fx(1, 6), fx(2, 6), fx(3, 6)]);
     c.extend([(2 * STEP + 1, down(FX)), (2 * STEP + 1, down(5))]);
     render(&mut h, 3 * STEP as usize + 1, 128, 1, &c);
-    assert!(bus(&h).probe().2 < 7000.0);
+    assert!(bus(&h).probe().2 < 2400.0);
     // Heard 6, then none, then 6 again a millisecond later, while the first is still ramping
     // out: heard became 6 again, so the sweep starts again, though the bus never went idle.
     let mut h = Host::new(SR, 1);
@@ -509,7 +603,7 @@ fn a_sweep_starts_again_with_each_run() {
     render(&mut h, 2 * STEP as usize + 49, 128, 1, &c);
     let (on, w, cutoff, ..) = bus(&h).probe();
     assert!(on == 6 && w > 0.0 && w < 1.0, "still ramping: {on} at {w}");
-    assert_eq!(cutoff, 8000.0);
+    assert_eq!(cutoff, 2500.0);
 }
 
 #[test]
@@ -543,7 +637,7 @@ fn the_filter_is_cleared_from_idle_and_kept_from_one_filter_effect_to_the_next()
         edits.extend(lane.iter().copied());
         render(&mut h, 2 * STEP as usize + 1, 128, 1, &at_zero(&edits));
         let (on, _, cutoff, s1, s2) = bus(&h).probe();
-        assert_eq!((on, cutoff), (7, 2000.0));
+        assert_eq!((on, cutoff), (7, 1800.0));
         (s1, s2)
     };
     assert_ne!(first_of_7(&[fx(1, 5), fx(2, 7)]), first_of_7(&[fx(2, 7)]), "kept from 5 to 7");
@@ -586,12 +680,12 @@ fn sound_changes_no_event_no_snapshot_and_no_generation() {
 }
 
 #[test]
-fn a_rate_change_mid_effect_keeps_the_hold_at_6_khz() {
+fn a_rate_change_mid_effect_keeps_the_hold_at_1_khz() {
     let mut h = Host::new(SR, 1);
     let mut edits = beat();
     edits.extend((0..16).map(|s| fx(s, 1)));
     render(&mut h, STEP as usize, 128, 1, &at_zero(&edits));
     unsafe { pi_set_sample_rate(h.e, 96_000) };
     let out = render(&mut h, 96_000, 128, 1, &[]).0;
-    assert_holds_at_6_khz(&out, 96_000);
+    assert_holds_at_1_khz(&out, 96_000);
 }

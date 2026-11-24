@@ -351,7 +351,8 @@ static void fxSend() {
 // The three settings through the volts: sound 1 returned at 1.25 V (0.25, in the bus), FX
 // RETURN carrying 1 V and 1.5 V on two channels (0.5 summed), the effect held for 400 frames.
 static void fxLoop() {
-    const float x = 1.5f, clip = x * (27.f + x * x) / (27.f + 9.f * x * x) * 0.7f;
+    // Effect 2 on a bus of 0.25: three times it (ABI 12; until then SoftLimit(6 x 0.25) x 0.7).
+    const float clip = 3.f * 0.25f;
     struct Case {
         const char *what;
         int effect;
