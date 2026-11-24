@@ -1281,11 +1281,12 @@ struct RhythmSlider : app::SliderKnob {
         fillRect(args.vg, x, y + capH * 0.385f, capW, capH * 0.23f, GROUND); // the slot across the middle
         // §20: the second mark, what the chosen sound was last hit with: a thin line across the
         // track at that value, where the cap's middle would be. ⚠ design/DESIGN.md does not
-        // draw it yet; a thread-coloured line is PLAN.md's stand-in (Session 21).
+        // draw it yet; a thin line is PLAN.md's stand-in (Session 21), madder since 2026-11-24
+        // (it was thread, which the owner could not see).
         if (face && face->have) {
             float h = u16(face->v, PI_VIEW_HIT_A + 2 * which) / 65535.f, th = mm2px(0.35f);
             float ym = (1.f - h) * (box.size.y - capH) + capH / 2;
-            fillRect(args.vg, x - mm2px(0.5f), ym - th / 2, capW + mm2px(1.f), th, THREAD);
+            fillRect(args.vg, x - mm2px(0.5f), ym - th / 2, capW + mm2px(1.f), th, MADDER);
         }
     }
 };

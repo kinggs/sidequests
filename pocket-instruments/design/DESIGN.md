@@ -428,6 +428,8 @@ the function keys side by side.
   filled by hand (A at 20000, B at 50000, the caps in the middle): visible on the ecru
   thread and on the cap. To be drawn with the owner's eye (Surge XT's way of showing a
   modulated value is the idea, D40; none of theirs).
+  **Changed 2026-11-24, by the owner:** the line is `loom/madder` on both hosts, same size.
+  In `loom/thread` "it really just doesn't stand out". Still a stand-in for the shape.
 - ⚠ The two jack rows (Session 18) are drawn and seen only in Rack's screenshot mode,
   never with cables in. D76 says the grouping is judged in use. For the owner's eye: the
   plates of three heights in the lower row (TRIGGERS and VOICES one line of label, FX SEND
