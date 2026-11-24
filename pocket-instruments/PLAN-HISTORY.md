@@ -2011,3 +2011,105 @@ is in from the start, D88 items 1 and 8); and the menu entry that keeps the sing
 - **Next: Session 22,** the recording, in a new session with the owner, the PO-12 and the
   Scarlett. Its list is above. It is a Fable session: it measures, writes facts into
   `REFERENCES.md`, and proposes; it builds nothing in the core.
+
+## Session 24 — FX SEND and FX RETURN: a channel an effect, built (build, Opus; D87, D88; done 2026-11-24)
+
+The brief is `ENGINE.md`, "§19, designed 2026-11-24" (at the end of the file), and D88.
+Read also §18 (the ramp) and §19 as built, D80, D87, R60, `rack/src/jacks.hpp`, and
+`LEARNINGS.md` for Sessions 18 and 23 (where things sit in memory; the scratch bench).
+ABI 11. The page does not change; FX GATES does not change; no breakout is built (O20).
+
+Before the first change: `make test`, then keep `target/report-rust.txt`, a `sha256sum`
+of `target/render-*.f32`, two runs of `make bench`, and a perf profile of the module with
+FX SEND patched (Machine state).
+
+- [x] **The core's tests first** (`core/src/tests/route.rs`), failing before the core
+      changes: §18's model given `back` and the two masks, which the loop's mix equals bit
+      for bit through every kind of change, at three rates and on edges, stopped and
+      playing; and each row of the section's "Proven when built by" that names this file.
+      The tests of the crossing over are replaced by the decision, not edited to pass:
+      list in the Handover which, and the rule that took each one's place.
+- [x] **The core, ABI 11:** channel 17 in read on every loop frame and added last, before
+      the volume, and not at all when it is exactly 0; an outside effect's `wet` is 0;
+      `ROUTE` 1's new meaning and `ROUTE` 4 (`PI_ROUTE_FX_INSERT`); the header's comments
+      on channel 17 and `PI_ROUTE_FX`. `Bus::mix` (no loop) still gives the bus for an
+      outside effect ramping out. `make web`, since the `.wasm` is committed.
+- [x] **What does not move:** the report and every earlier render file the same bytes,
+      but `harness/render-loop.json`'s, which are rendered again (channel 17 is given in
+      it and now means something else). Say so in `fixtures/README.md`.
+- [x] **The cost, held.** `make bench` twice, runs interleaved with the build from before
+      (keep its library): idle, beat, all and both no slower than the spread between two
+      runs of one build. The scratch copy was 1 ns slower on idle and the beat with a
+      fifth mask in `Bus::route`; if the build is too, keep the fifth mask somewhere else
+      until it is not, and write what worked. `harness/bench.cpp`: "loop fx" becomes
+      beside the dry, and a case is added for in place of the dry. Numbers to
+      `LEARNINGS.md`.
+- [x] **`rack/src/jacks.hpp`, its tests first** (`rack/test/jacks.cpp`): the sixteen send
+      gains with their mask (a channel at gain 0 is exactly 0 V and is not visited);
+      FX RETURN as the sum of the cable's channels; the two masks from the sixteen
+      settings, and 0 for both with neither jack patched. `FX_OUTSIDE_DEFAULT`, `fxMask`
+      and the one-channel `send` go. A new engine (`fresh`) puts every gain to 0.
+- [x] **`rack/src/Rhythm.cpp`:** FX SEND sixteen channels; FX RETURN summed; a loop layout
+      while either is patched. The menu: one submenu, "FX SEND and FX RETURN", sixteen
+      rows, each showing its setting and opening the three (two for 9 to 12: D88 item 3),
+      and one greyed line, "Not fully wet? In place of the dry". Saved with the patch as
+      two masks; a patch from before reads `"fx"` 0 or more as in place of the dry for
+      those effects, and -1 as all Ours; Initialize is all Ours. Both jacks' tooltips say
+      what they now carry, FX RETURN's with "send it fully wet" (D88 item 10).
+- [x] **The self-test** (`rack/selftest.sh`, the FX SEND to FX RETURN module), each frame
+      held to a second engine given what the cable carries, and the send's sixteen
+      channels held to `jacks.hpp`: effect 4 as Ours; effect 2 beside the dry; effect 2
+      in place of the dry. A pass still needs the loop to have been heard.
+- [x] **The panel:** FX SEND and FX RETURN drawn as sixteen-channel jacks
+      (`design/make_panel.py`, the fourth field; `--check`). If their stitches do not
+      clear a neighbour, stop on that point: the positions are the owner's (D76). The lit
+      screenshots again; `design/DESIGN.md`'s two rows for the jacks.
+- [x] Faults planted in the core and in `jacks.hpp`, each built, each failing a named test.
+- [x] Written: `ENGINE.md` (the section marked built, with what turned out different; the
+      ABI table's row 11; the note at the top), `README.md`'s status, `LEARNINGS.md`, the
+      Handover with steps for the owner's hands: the kept patch with its reverb's effect
+      beside the dry; a Rack distortion in place of the dry; a delay at half wet in each
+      setting (O21).
+
+Where the brief is silent, it is PLAN's rule: stop on that point, build round it, mark it
+⚠. Two places it may be: what a row for effects 4 and 13 to 16 says while Ours has no
+sound (today: "no sound here yet"), and whether the settings' submenu sits where FX
+RETURN's ticks were.
+
+(Annotated when moved here, 2026-11-24. The first box: two tests replaced and the model
+written again, listed in the Handover below. The cost box: the fifth mask was kept in the
+bus in two bytes freed from the sweep's counter, so nothing moved in memory; measured over
+ten interleaved pairs. The panel box: the stitches cleared, 1.20 and 1.57 mm, nothing moved.
+The faults box: 28 of 30 at first; two tests added; then 30.)
+
+## Handover note moved here by Session 24 (2026-11-24)
+
+### After Session 22: the PO-12's effects measured from two takes; D86 item 1 ruled (2026-11-24)
+
+- **Nothing in the core changed.** Two scripts are new: `harness/hardware-take.sh` (record
+  the PO-12 through the Scarlett, to a folder outside the repo) and
+  `harness/hardware-fx.py` (read a take; `uv run`, `--selftest` 103 of 103).
+- **Measured, in `REFERENCES.md` R64 to R68,** from takes a and b. Firm: distortion is a
+  gain of 3 into a hard clip; the high pass is 1.8 kHz with Q 6; 11 and 12 retrigger 8 and
+  6 times a beat through empty steps; the delay is one echo at 175 ms. Wrong in kind in
+  ours: the sweeps (both ways, on their own clock), the low sample rate (not one rate),
+  and 9 and 10 (not slower repeats; rule unknown ⚠).
+- **Proposed, not built:** `ENGINE.md` §17 (a repeat holds the last step that sounded) and
+  §18 (a table of targets). The owner rules; then a build session.
+- **Session 22 is not finished.** Left: take c and the timing take, with Rack closed. The
+  owner lost focus after about forty minutes of takes, and said so; that was the time to
+  stop.
+- ⚠ **Time went missing in both takes, in whole buffers, beside held effects** (R68). Not
+  explained. The readings do not lean on it.
+- ⚠ **Take a clipped at the Scarlett on effects 2 and 16;** the distortion's ceiling and
+  16's level are not measured.
+- **Ruled by the owner, in Rack: D87.** FX SEND and FX RETURN become sixteen channels, a
+  channel an effect, with the return always summed. The owner's hand patch (D86 item 2)
+  showed the menu's ticks are a trap and the insert cuts a reverb's tail; the patch the
+  owner kept sends two effects out in stereo to a mixer and returns nothing.
+- **Until Session 24 is built:** with FX RETURN unpatched the core plays its own effect on
+  AUDIO as well as sending. Effects 4 and 13 to 16 have none, so punch those for an
+  outside reverb or delay and AUDIO stays dry.
+- **Machine:** the PO-12 on input 2 was linked to the headphones with `pw-link` for the
+  takes. It is not saved and goes at the next restart of PipeWire.
+- **Next: Session 23,** the design of D87, on Fable. Its list is above.

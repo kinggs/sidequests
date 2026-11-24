@@ -963,3 +963,65 @@ above; these are what only the chain showed.
 - **Three questions, each with a recommended answer, took the owner one screen.** The
   rest (twelve points) were ruled by the session and listed as the owner's to overrule.
 
+
+## Session 24: FX SEND and FX RETURN built, a channel an effect (2026-11-24)
+
+- **The fifth mask cost nothing, because it took room that was already there.** Session 23
+  saw one more u16 in the bus move idle and the beat by about 1 ns. Before measuring, the
+  build narrowed the sweep's tick counter (`Bus::swept`) from u32 to u16 (a sweep counts to
+  1 536, held by a compile-time assert), and `route` grew from four masks to five in the two
+  bytes that freed. The bus, and the engine round it, kept their size (`pi_size` 3 712 before
+  and after), so nothing moved in memory. The variant that grows the bus was not measured
+  again: Session 23's four runs of four stand for it.
+- **Measured (`make bench`, best of five, ns a frame, the old build's library kept and run
+  interleaved with the new, ten pairs; medians).** Idle 26.35 old, 26.75 new (old alone
+  spans 25.3 to 26.8); beat 29.1 and 29.0; all 42.0 and 42.5; both 29.4 and 29.25; loop
+  (every sound returned) 37.2 and 37.5 over three pairs. "Loop fx" (effect 4 on every step)
+  was the crossing over at 38.9 to 40.5 and is beside the dry now at 36.8 to 38.1; the new
+  "loop in" (in place of the dry) 38.0 to 39.7, what the crossing over cost. As Session 23's
+  scratch copy said: beside the dry is 1 to 2 ns cheaper, because the bus stays idle.
+- **Profiled with perf, the module with FX SEND patched** (four modules playing the minimum
+  beat with effect 4 on steps 1 to 4 and effect 2 on 9 to 12, each FX SEND into a
+  Fundamental Sum, 20 s at 48 kHz, one sample every 200 000 cycles; a scratch build pressed
+  play). Old, four runs: `Rhythm::process` 3 193 to 3 485, `pi_process` 2 187 to 2 521,
+  `Bus::looped` 1 076 to 1 148. New, two runs interleaved: 3 234 and 3 350; 2 438 and 2 523;
+  1 168 and 1 286. The sixteen send ramps do not show against the one send they replaced.
+  `Bus::looped` grew by about 100 samples in 20 s over four modules, about 1 ns a frame: it
+  now reads and sums FX RETURN on every frame, as designed. The three together stay inside
+  the old build's own spread.
+- **Tests that never meant channel 17 fed it junk, and the new rule read it.** Four core
+  tests and one case of `rack/test/jacks.cpp` filled a loop frame with 7.0, 7.5, 3.0 or the
+  last frame's own send, because until ABI 11 channel 17 was read only while an outside
+  effect ran. Each failed on its input, not its claim; each was given "nothing back" (0) on
+  channel 17 and its expectation left alone. An input "not read" by today's rule is still a
+  dependency of the test.
+- **The first repeat test ran into the owner's complaint.** Effect 11 on steps 2 to 5 of the
+  minimum beat gave 3 hits in eight steps: a repeat re-fires the step its run began on, step
+  2 is empty, so the run is silent (§17 as designed; Session 22's proposal changes it). The
+  test moved to steps 1 to 4 and its count was worked by hand: 8 re-fires of two sounds,
+  then four hits, 20.
+- **Two of the first failures were the tests' own,** as in Sessions 16 and 18: a guessed hit
+  count (40), and a send channel expected at 0 V before its effect was first heard, where the
+  rule is that it is not visited at all. Read the test against the text first.
+- **An index past the end aborts the test run, and names no test.** Planting "`ROUTE` takes
+  `a` 5" made `route[5]` panic inside `pi_process`, an `extern "C"` function, so the whole
+  test binary aborted: a fault that "built and failed", but not by a named test, so it does
+  not count. What it showed was a real gap: nothing held that an `a` past 4 does not alias
+  onto a mask. A test was added for that, and the fault planted again as an alias.
+- **The self-test checks itself for free.** Effect 4 Ours and effect 2 beside the dry gave
+  the same numbers in the self-test (frames, frames heard, peak), as they must: in both the
+  core's bus stays idle and the send and return are the same cable.
+- **C++11 and gcc 16, small things.** A struct with default member values cannot be
+  brace-initialised in C++11 (Rack builds C++11): `pi::FxSettings{a, b}` failed, plain
+  assignments work. gcc 16 warned `-Wnonnull` on `c = ct = {...}` for two vectors, inside
+  the standard library; two arrays and pointers did the same job.
+- **31 faults planted, the unplanted tree passing first; 30 count.** 16 in the core (the
+  table's three rows each way, `ROUTE` 4 alone, the return after the volume, added when 0,
+  not cleaned, only while an effect runs, on channel 17 out, on a track, through the effect;
+  an insert that ducks nothing; `Bus::mix` ducking; the sweep's narrowed counter) and 14 in
+  `jacks.hpp` (the ramp's rate, clamp, zero and visiting; FX RETURN's channels and scale;
+  each mask; the old patch's reading; the repeats' menu; `clearSend`). The first run caught
+  28 of 30 by name. Of the two left, one aborted the run (above) and one, "in place without
+  Rack's is an insert", cannot happen through the menu but can from a patch's JSON, which
+  is read in as it is. Each got a test (`a_route_past_4_aliases_onto_no_mask`; the mask
+  case `stray`), and each was planted again and caught. The aborting fault is not counted.

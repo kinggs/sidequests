@@ -68,13 +68,19 @@ to 54 and one function, `pi_weave`, a pure function of a view. Every trace, view
 render file is as it was. The drawing is not accepted yet (O19): its numbers may change,
 its interface should not.
 
-**Designed, not built (Session 23, D87, D88):** FX SEND and FX RETURN as sixteen channels,
+~~**Designed, not built (Session 23, D87, D88):** FX SEND and FX RETURN as sixteen channels,
 a channel an effect, with the return always summed: "§19, designed 2026-11-24" at the end
 of this file. Session 24 builds it (`PLAN.md`) as ABI 11. Until then the code does §19 as
-it is written there.
+it is written there.~~ Built in Session 24:
 
-**Where everything is, at ABI 10** (2026-11-24; ~~nothing in this file is designed and
-unbuilt~~ one thing is, since Session 23: the note above):
+**ABI 11 (Session 24, D87, D88)** makes channel 17 in FX RETURN, read on every loop frame
+and added to the mix last, before the volume; `ROUTE` 1 names the host's effects, and
+`ROUTE` 4 (new) those of them in place of the dry. No call, view byte, snapshot byte or
+trace changed. The report and every render file are as they were, but `render-loop`'s 18
+and 50 channel files, which give channel 17 numbers (`fixtures/README.md`).
+
+**Where everything is, at ABI 11** (2026-11-24; nothing in this file is designed and
+unbuilt, but the proposals marked "Proposed after Session 22" in §17 and §18):
 
 | ABI | Session | Section | Adds |
 |---|---|---|---|
@@ -88,6 +94,7 @@ unbuilt~~ one thing is, since Session 23: the note above):
 | 8 | 21 | §20 | the sliders as the hand's, a step keeping its values, snapshot version 4 |
 | 9 | 18 | §19 | sound in from Rack: returns, the effects loop, the sliders out and in |
 | 10 | 14 | §16 | the weave (a first attempt) |
+| 11 | 24 | §19, designed 2026-11-24 | FX RETURN summed; each effect Ours, the host's beside the dry, or in place of it |
 
 ## 1. The shape
 
@@ -1233,8 +1240,8 @@ the bus.
   moves the generation: which cables are in is the patch's to keep. In the other three
   layouts nothing is read in and `ROUTE` changes nothing heard.
 - **Nothing routed, nothing punched:** channel 16 is layout 17's mix, the same bytes.
-- (Superseded for ABI 11 by D87 and D88, "§19, designed 2026-11-24" below; this is what is
-  built until Session 24.) **The loop is an insert, not a second copy.** When an outside effect is heard the bus
+- (Superseded at ABI 11 by D87 and D88, "§19, designed 2026-11-24" below, built in Session
+  24; this was built until then.) **The loop is an insert, not a second copy.** When an outside effect is heard the bus
   crosses over to what came back; it is never summed with itself, so the two samples a
   cable loop costs in Rack 2 (R60) cannot comb, and no rule here depends on that number.
 - The repeats (§17) are not sound and cannot go outside: they go out as triggers.
@@ -1451,7 +1458,7 @@ sounds 1 to 16, and 34 to 49 are B.
   at different positions the sequence of values is shifted by one hit. It follows from the
   two rules above and is built as designed.
 
-### §19, designed 2026-11-24: a channel an effect, the return summed (ABI 11; D87, D88; designed in Session 23, not built)
+### §19, designed 2026-11-24: a channel an effect, the return summed (ABI 11; D87, D88; designed in Session 23, built in Session 24)
 
 The owner patched D86 item 2 by hand and ruled (D87): FX SEND and FX RETURN carry sixteen
 channels, a channel an effect, and what comes back is always in the mix. This replaces the
@@ -1541,3 +1548,43 @@ they were.
 | The loop layouts, native and `.wasm`, the same bytes | `harness/render-loop.json`, rendered again, with the model above as its expectation |
 | A send channel is 0 V or the bus exactly once ramped; 2 ms at three rates; two gains cross without a step; FX RETURN is the sum of the cable's channels; the masks for each setting, and none unpatched | `rack/test/jacks.cpp` |
 | The module's frame is the core's own, given what its cables carry | the self-test's FX SEND to FX RETURN module, held to a second engine: effect 4 as Ours, effect 2 beside the dry, effect 2 in place of the dry |
+
+**Built (Session 24, on Opus, ABI 11):** in the core, `Bus::looped` (`core/src/bus.rs`) reads
+channel 17 on every frame, cleans it and adds it last, before the volume, and not at all
+when it is exactly 0; an insert's `wet` is 0. `Engine::process` (`core/src/engine.rs`)
+chooses the effect by the table above, and `ROUTE` takes `a` 0 to 4. The header has
+`PI_ABI_VERSION` 11, `PI_ROUTE_FX_INSERT` and the new meanings of channel 17 and
+`PI_ROUTE_FX`. In the module, `rack/src/jacks.hpp` holds the sixteen send gains with their
+mask (`Jacks::fxSend`), FX RETURN as the sum of the cable's channels (`fxReturnIn`), the
+settings as two masks (`FxSettings`) and the send's step (`rampStep`); `rack/src/Rhythm.cpp`
+the menu, the patch's keys, the layout and the self-test. Proven: the report and every
+render file the same bytes as before the session, but `render-loop`'s 24 loop files, which
+give channel 17 numbers (`fixtures/README.md`); 233 Rust tests, among them §18's model given
+`back` and both masks, held bit for bit through a tour of every kind of change at three
+rates and on edges, and a test for each row of the table above that names
+`core/src/tests/route.rs`; `rack/test/jacks.cpp`'s fx-send, fx-loop and mask cases; the
+self-test's three FX SEND to FX RETURN modules at 44.1, 48 and 96 kHz, every frame the
+second engine's and FX SEND's sixteen channels bit for bit `jacks.hpp`'s; 30 faults planted in the core and `jacks.hpp`, each built and caught by a named test (two of them after a test was added for them: `LEARNINGS.md`).
+Cost: idle, the beat, all and both within the spread of one build's runs; beside the dry
+about 2 ns a frame cheaper than the crossing over it replaces (`LEARNINGS.md`, Session 24).
+What the text did not say, built on and marked for the owner (`PLAN.md`, Session 24's
+Handover):
+
+- ⚠ **Where the fifth mask lives.** In the bus, in two bytes the sweep's tick counter gave
+  up (`Bus::swept` is a u16 now; a sweep counts to 1 536). The bus and the engine keep their
+  size and layout: `pi_size` is 3 712, as at ABI 10.
+- ⚠ **FX SEND runs on every loop frame, patched or not,** so a gain never stands still while
+  RETURN or a slider jack alone holds the loop layout. In `PI_AUDIO_BOTH` (nothing patched
+  that needs a loop) there is no bus, and the gains go to 0 at once.
+- ⚠ **FX RETURN is summed by `jacks.hpp`,** in channel order as Rack's `getVoltageSum`
+  does, so the module and the self-test's second engine use one function.
+- ⚠ **The menu:** "FX SEND and FX RETURN" sits where FX RETURN's ticks were, between B IN
+  and the self-test; the greyed line is its first; each row is the effect's number and name
+  (4 and 13 to 16 keep "no sound here yet", so their Ours leaves the sound dry) with its
+  setting on the right.
+- ⚠ **Saved as `"fxRack"` and `"fxInPlace"`,** the two masks. `"fx"` is read only from a
+  patch that has neither, as D88 item 2 says, and never written again.
+- Not readings: the self-test's "fx" module punches effect 4 with every effect Ours, or the
+  lowest effect the patch makes Rack's, and its report line names the case. A repeat named
+  in both masks is an insert at full ramp while held; its trace is the same in all three
+  settings.

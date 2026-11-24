@@ -5,8 +5,9 @@ Rhythm module). Sixteen sounds, each built in code or a public-domain sample; th
 workflow for writing a beat; effects punched in and recorded as they are played, with four
 repeats and seven sound effects; sliders that are the hand's, with steps that keep what
 they were written with; a display that weaves. In Rack, thirteen jacks: every sound's
-trigger, audio and slider voltages go out and come back, and an effect can be a Rack
-module. The engine is at ABI 10 with snapshot version 4; CI builds the plugin for all four
+trigger, audio and slider voltages go out and come back, and each of the sixteen effects
+has its own channel on FX SEND and FX RETURN, Ours or a Rack module's, beside the dry or in
+place of it. The engine is at ABI 11 with snapshot version 4; CI builds the plugin for all four
 Rack platforms. Proofs P1, P2, P3 and P7 passed; P4, P5 and P6 are part-run and wait for an
 iPhone and other machines (`PROOFS.md`).
 
@@ -14,8 +15,9 @@ Not finished: most of what was built on 2026-11-23 has not been seen or heard by
 and every look in it is a stand-in until then; the effects are first guesses from the
 hardware's names, untuned, and now measured against the owner's PO-12 (R64 to R68;
 proposals in `ENGINE.md` §17 and §18, not built); five of the sixteen effects are not
-designed. Designed and not built: FX SEND and FX RETURN as sixteen channels, a channel an
-effect, with what comes back always in the mix (D87, D88). What is next is
+designed. Built on 2026-11-24 and not yet played by the owner: FX SEND and FX RETURN as
+sixteen channels, a channel an effect, with what comes back always in the mix (D87, D88;
+Session 24). What is next is
 `PLAN.md`, "Next, in order". How it got here, session by session, is `PLAN.md`'s "Done so
 far" and `PLAN-HISTORY.md`. Started 2026-11-18.
 

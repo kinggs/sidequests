@@ -450,6 +450,9 @@ static void masks() {
     fx.set(4, pi::FX_BESIDE); // changed again: in place of the dry no more
     check(fx.route(true) == (1u << 1 | 1u << 3 | 1u << 10) && fx.insert(true) == 1u << 10, "mask", "three settings do not give ROUTE 1 and ROUTE 4");
     check(fx.route(false) == 0 && fx.insert(false) == 0, "mask", "with neither FX jack patched an effect is not Ours");
+    pi::FxSettings stray; // a patch's two keys are read in as they are: in place without Rack's is nothing
+    stray.inPlace = 0xffffu;
+    check(stray.insert(true) == 0 && stray.of(3) == pi::FX_OURS, "mask", "an effect in place of the dry but not Rack's makes an insert");
     bool offers = true;
     for (int n = 1; n <= 16; n++) offers = offers && pi::offersBeside(n) == (n < 9 || n > 12);
     check(offers, "mask", "the repeats (9 to 12) offer beside the dry, or another effect does not (D88 item 3)");

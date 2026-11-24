@@ -13,7 +13,7 @@
 //! RETURN, read on every loop frame and added last, before the volume; `ROUTE` 1 names the
 //! effects that are the host's (the core does not sound them); `ROUTE` 4 names those, of them,
 //! that take the dry's place. Session 18's crossing over is gone, and with it two tests, each
-//! replaced by the rule that took its place (`PLAN-HISTORY.md`, Session 24's Handover):
+//! replaced by the rule that took its place (Session 24's Handover, in `PLAN.md` and later `PLAN-HISTORY.md`):
 //! "an outside effect's wet is the input, ramped" became `in_place_of_the_dry_...`, and "an
 //! effect the core sounds is heard from outside when ROUTE marks it" became
 //! `an_effect_route_1_names_is_the_host_s_...`. The model and its tour were written again
@@ -910,4 +910,31 @@ fn a_named_repeat_still_repeats_its_trace_the_same_and_named_in_both_the_bus_lea
     // times, and steps 5 to 8 hit four (the bass drum, snare and hat on 5, the open hat on 7).
     // Without the lane the same eight steps hit seven times.
     assert_eq!(repeats, 8 * 2 + 4, "the repeat did not repeat");
+}
+
+#[test]
+fn a_route_past_4_aliases_onto_no_mask() {
+    // Session 24, from a planted fault that aborted the run instead of failing a test: an `a`
+    // past 4 must not land on any of the five masks. Every effect is named the host's on both
+    // engines and none in place of the dry, so a stray `ROUTE` 4 would make inserts of them;
+    // the second engine is also sent
+    // `a` 5, 6, 31, 128 and 255 with every bit set. Through the loop's tour, with sound and
+    // channel 17 coming back, every channel is the first engine's, bit for bit.
+    let mut cmds = loop_tour(STEP);
+    cmds.retain(|c| !(c.1.kind == CMD_ROUTE && (c.1.a == 1 || c.1.a == INSERT)));
+    cmds.insert(0, (0, route(1, 0xffff)));
+    let mut past = cmds.clone();
+    for a in [5u8, 6, 31, 128, 255] {
+        past.insert(1, (0, route(a, 0xffff)));
+    }
+    let (h, p) = (Host::new(SR, 1), Host::new(SR, 1));
+    let mut before = [0f32; LOOP];
+    for f in 0..20 * STEP {
+        let mut a = come_back(f, &before);
+        let mut b = a;
+        frame(&h, &at(&cmds, f), &mut a);
+        frame(&p, &at(&past, f), &mut b);
+        assert_eq!(bits(&a), bits(&b), "frame {f}");
+        before = a;
+    }
 }
