@@ -89,11 +89,21 @@ pub(super) struct Model {
     s2: f32,
     cutoff: f32,
     swept: u32,
+    /// Effect 4 (ABI 12): the model's own line, as long as the core's is used; the head;
+    /// whether it has gone round. Empty: no line lent, and the driver never sends 4.
+    line: Vec<f32>,
+    head: usize,
+    full: bool,
 }
 
 impl Model {
     pub(super) fn new() -> Self {
-        Model { on: 0, heard: 0, w: 0.0, acc: 0, held: 0.0, s1: 0.0, s2: 0.0, cutoff: 0.0, swept: 0 }
+        Model { on: 0, heard: 0, w: 0.0, acc: 0, held: 0.0, s1: 0.0, s2: 0.0, cutoff: 0.0, swept: 0, line: Vec::new(), head: 0, full: false }
+    }
+
+    /// With a line of `delay` frames lent, as `pi_delay_frames` gives.
+    pub(super) fn lent(delay: u32) -> Self {
+        Model { line: vec![0.0; delay as usize], ..Model::new() }
     }
 
     /// One frame: what is heard (an effect the core sounds, or 0), the ticks the frame had,
@@ -126,6 +136,11 @@ impl Model {
                     if filter(effect) {
                         self.s1 = 0.0;
                         self.s2 = 0.0;
+                    }
+                    // Effect 4: `head` and `full` cleared from idle or another kind.
+                    if effect == 4 {
+                        self.head = 0;
+                        self.full = false;
                     }
                 }
                 self.on = effect;
@@ -198,6 +213,17 @@ impl Model {
                     x
                 }
             }
+            // §18's frame of effect 4, as its pseudo-code.
+            4 => {
+                let echo = if self.full { self.line[self.head] } else { 0.0 };
+                self.line[self.head] = b;
+                self.head += 1;
+                if self.head == self.line.len() {
+                    self.head = 0;
+                    self.full = true;
+                }
+                b + 0.15 * echo
+            }
             // `(floor(4 × bus) + 0.5) / 4`, the floor by a cast and a compare.
             3 => {
                 let y = 4.0 * b;
@@ -231,12 +257,22 @@ impl Model {
     }
 }
 
+/// A line for effect 4 at `rate`, full of junk (never to be heard), lent to `h`'s engine. The
+/// caller keeps it alive for as long as the engine runs.
+pub(super) fn lend(h: &Host, rate: u32) -> Vec<f32> {
+    let mut line = vec![7.0f32; pi_delay_frames(rate) as usize];
+    assert_eq!(unsafe { pi_set_delay(h.e, line.as_mut_ptr(), line.len() as u32) }, 1);
+    line
+}
+
 /// Runs `cmds` a frame at a time at `rate` in layout 17 and holds every frame's mix to the
-/// model's, which is given the frame's sixteen voices and what the view says. Returns how
-/// many frames had an effect running.
-fn hold_to_model(rate: u32, cmds: &[(u64, Cmd)], frames: u64) -> usize {
+/// model's, which is given the frame's sixteen voices and what the view says, and (ABI 12) a
+/// line for effect 4 when the engine is lent one. Returns how many frames had an effect
+/// running.
+fn hold_to_model(rate: u32, cmds: &[(u64, Cmd)], frames: u64, line: bool) -> usize {
     let h = Host::new(rate, 1);
-    let mut m = Model::new();
+    let _keep = if line { lend(&h, rate) } else { Vec::new() };
+    let mut m = if line { Model::lent(pi_delay_frames(rate)) } else { Model::new() };
     let mut next = 0;
     let mut e_before = 0u32;
     let mut running = 0;
@@ -255,7 +291,7 @@ fn hold_to_model(rate: u32, cmds: &[(u64, Cmd)], frames: u64) -> usize {
         let ticks = if f == 0 { 0 } else { tick.wrapping_sub(e_before) };
         e_before = tick;
         let heard = v[55];
-        let effect = if SEVEN.contains(&(heard as u32)) { heard } else { 0 };
+        let effect = if SEVEN.contains(&(heard as u32)) || (heard == 4 && line) { heard } else { 0 };
         let sounds = u16::from_le_bytes([v[58], v[59]]);
         let want = m.frame(effect, ticks, rate, &out[..16], sounds, v[27]);
         assert_eq!(out[16].to_bits(), want.to_bits(), "rate {rate}, frame {f}: the mix {} against the model's {}", out[16], want);
@@ -288,26 +324,42 @@ pub(super) fn tour(step: u64) -> Vec<(u64, Cmd)> {
     c
 }
 
+/// The tour with effect 4 on steps 14, 15 and 0 (ABI 12): from idle at play for one step,
+/// then from another kind (7) for three, long enough to echo (a step is 125 ms at 120 bpm,
+/// the echo 174.76 ms), then into effect 1. `tour` itself is shared with `route.rs`, whose
+/// loop tour sets those steps its own way.
+fn tour_with_echo(step: u64) -> Vec<(u64, Cmd)> {
+    let mut c = tour(step);
+    let at = c.iter().position(|x| x.1.kind == CMD_PLAY).unwrap();
+    for s in [14, 15, 0] {
+        c.insert(at, (0, fx(s, 4)));
+    }
+    c
+}
+
 #[test]
 fn the_mix_is_the_model_s_bit_for_bit_at_three_rates() {
     for rate in [44_100u32, 48_000, 96_000] {
         let step = rate as u64 / 8; // 120 bpm
-        let running = hold_to_model(rate, &tour(step), 32 * step);
+        let running = hold_to_model(rate, &tour(step), 32 * step, false);
         assert!(running as u64 > 10 * step, "rate {rate}: effects ran on {running} frames");
+        // ABI 12: with a line lent, effect 4 echoes in the tour.
+        let running = hold_to_model(rate, &tour_with_echo(step), 32 * step, true);
+        assert!(running as u64 > 13 * step, "rate {rate}, a line lent: effects ran on {running} frames");
     }
 }
 
 #[test]
 fn the_mix_is_the_model_s_on_edges_too() {
     // The same, on an external clock, an edge a step: the sweeps move by ticks, so they
-    // follow the edges, a burst at each.
-    let mut c = tour(STEP);
+    // follow the edges, a burst at each. With a line lent, and effect 4 in the tour.
+    let mut c = tour_with_echo(STEP);
     c.insert(0, (0, cmd(CMD_SOURCE, 0, 0, 1)));
     for s in 0..32 {
         c.push((s * STEP, cmd(CMD_CLOCK, 0, 0, 0)));
     }
     c.sort_by_key(|x| x.0); // stable: each frame's commands keep their order
-    hold_to_model(SR, &c, 32 * STEP);
+    hold_to_model(SR, &c, 32 * STEP, true);
 }
 
 // ---- The rules, each alone ----
@@ -399,10 +451,16 @@ fn the_sixteen_track_channels_are_never_touched() {
 #[test]
 fn every_effect_on_silence_is_exact_silence_but_3_which_is_an_eighth_ramped() {
     // Replaces "every effect on silence is exact silence" (D91 item 7): 1, 2 and 5 to 8 still
-    // are; effect 3 rests half a step off zero, so silence is +1/8 times the ramp, exactly.
-    for effect in SEVEN {
+    // are, and 4 with a line lent; effect 3 rests half a step off zero, so silence is +1/8
+    // times the ramp, exactly.
+    for effect in [1u32, 2, 3, 4, 5, 6, 7, 8] {
         let lane: Vec<Cmd> = (0..16).map(|s| fx(s, effect)).collect();
-        let out = mix(&lane, SR, 2 * STEP as usize);
+        let mut h = Host::new(SR, 1);
+        let _line = lend(&h, SR);
+        let out = render(&mut h, 2 * STEP as usize, 128, 1, &at_zero(&lane)).0;
+        if effect == 4 {
+            assert_eq!(bus(&h).probe().0, 4, "effect 4 ran");
+        }
         if effect != 3 {
             assert!(out.iter().all(|x| x.to_bits() == 0), "effect {effect}");
             continue;
@@ -688,4 +746,163 @@ fn a_rate_change_mid_effect_keeps_the_hold_at_1_khz() {
     unsafe { pi_set_sample_rate(h.e, 96_000) };
     let out = render(&mut h, 96_000, 128, 1, &[]).0;
     assert_holds_at_1_khz(&out, 96_000);
+}
+
+// ---- §18, designed 2026-11-24: effect 4, the delay in a lent line (ABI 12; D91 items 4, 5) ----
+
+/// Runs a fresh engine (`line`: lent one of `pi_delay_frames + extra` floats, the last
+/// `extra` a guard) in the 18-channel loop with `xs[f]` returned as sound 1 on frame `f` and
+/// `cmds` on frame 0. The mix of each frame, and the line.
+fn looped_with(rate: u32, cmds: &[Cmd], xs: &[f32], line: bool, extra: usize) -> (Vec<f32>, Vec<f32>, Host) {
+    let h = Host::new(rate, 1);
+    let mut l = vec![7.0f32; pi_delay_frames(rate) as usize + extra];
+    for g in l.iter_mut().rev().take(extra) {
+        *g = -12_345.0;
+    }
+    if line {
+        assert_eq!(unsafe { pi_set_delay(h.e, l.as_mut_ptr(), l.len() as u32) }, 1);
+    }
+    let mut first: Vec<Cmd> = vec![cmd(CMD_ROUTE, 0, 0, 1)];
+    first.extend_from_slice(cmds);
+    let mut out = Vec::with_capacity(xs.len());
+    for (f, x) in xs.iter().enumerate() {
+        let mut io = [0f32; 18];
+        io[0] = *x;
+        let c: &[Cmd] = if f == 0 { &first } else { &[] };
+        let mut ev = [Event::default(); CAP];
+        unsafe { pi_process(h.e, 1, c.as_ptr(), c.len() as u32, ev.as_mut_ptr(), CAP as u32, io.as_mut_ptr(), 18) };
+        out.push(io[16]);
+    }
+    (out, l, h)
+}
+
+/// A bus that moves on every frame and is never −0: −1 to 1 in thousandths.
+fn moving(n: usize) -> Vec<f32> {
+    (0..n).map(|f| ((f * 7919) % 2000) as f32 / 1000.0 - 1.0 + 0.0005).collect()
+}
+
+#[test]
+fn pi_delay_frames_is_the_nearest_frame_to_174_76_ms() {
+    assert_eq!([pi_delay_frames(44_100), pi_delay_frames(48_000), pi_delay_frames(96_000)], [7_707, 8_389, 16_777]);
+    assert_eq!(pi_delay_frames(46_875), 8_192);
+    assert_eq!(pi_delay_frames(u32::MAX), ((u32::MAX as u64 * 8192 + 23_437) / 46_875) as u32);
+}
+
+#[test]
+fn pi_set_delay_refuses_null_misaligned_and_short_and_then_holds_no_line() {
+    let h = Host::new(SR, 1);
+    let need = pi_delay_frames(SR);
+    let mut room = vec![0f32; need as usize + 2];
+    let ok = |p: *mut f32, n: u32| unsafe { pi_set_delay(h.e, p, n) };
+    assert_eq!(ok(room.as_mut_ptr(), need), 1, "exactly long enough");
+    assert!(bus(&h).lent());
+    assert_eq!(ok(core::ptr::null_mut(), need), 0, "null");
+    assert!(!bus(&h).lent(), "a refusal leaves no line");
+    assert_eq!(ok(room.as_mut_ptr(), need + 1), 1, "longer is taken");
+    let odd = unsafe { room.as_mut_ptr().cast::<u8>().add(2).cast::<f32>() };
+    assert_eq!(ok(odd, need), 0, "misaligned");
+    assert!(!bus(&h).lent());
+    assert_eq!(ok(room.as_mut_ptr(), need - 1), 0, "short");
+    assert!(!bus(&h).lent());
+    assert_eq!(unsafe { pi_set_delay(core::ptr::null_mut(), room.as_mut_ptr(), need) }, 0, "no engine");
+    // With no line effect 4 is no effect of the core's: the mix is the bus as it came in.
+    let lane: Vec<Cmd> = (0..16).map(|s| fx(s, 4)).chain([play()]).collect();
+    let xs = moving(2 * STEP as usize);
+    let (a, _, ha) = looped_with(SR, &lane, &xs, false, 0);
+    assert_eq!(bus(&ha).probe().0, 0, "effect 4 with no line: the bus never ran");
+    assert!(same_bits(&a, &xs), "the plain sum");
+}
+
+#[test]
+fn with_a_line_4_is_the_bus_for_pi_delay_frames_then_the_bus_and_0_15_of_it_that_far_back() {
+    // §18's frame: echo = line[head] once full; at w the mix is `0 + bus + w (wet − bus)`,
+    // `wet = bus + 0.15 echo`. Heard from frame 0 (tick 0 is in it), so the run's first
+    // frame is 0. The line was full of junk (7.0) when lent and is never heard; a guard after
+    // its `pi_delay_frames` floats is never written. At three rates, bit for bit.
+    for rate in [44_100u32, 48_000, 96_000] {
+        let d = pi_delay_frames(rate) as usize;
+        let xs = moving(3 * d + 500);
+        let lane: Vec<Cmd> = (0..16).map(|s| fx(s, 4)).chain([play()]).collect();
+        let (out, line, h) = looped_with(rate, &lane, &xs, true, 3);
+        let (step, mut w) = (500.0 / rate as f32, 0.0f32);
+        for (f, got) in out.iter().enumerate() {
+            w = if w + step > 1.0 { 1.0 } else { w + step };
+            let echo = if f >= d { xs[f - d] } else { 0.0 };
+            let x = xs[f];
+            let want = (0.0f32 + x + w * ((x + 0.15 * echo) - x)) * 1.0;
+            assert_eq!(got.to_bits(), want.to_bits(), "rate {rate}, frame {f}: {got} against {want}");
+        }
+        assert_eq!(line[d..], [-12_345.0; 3], "rate {rate}: written past its length");
+        assert_eq!(bus(&h).echo_state(), ((out.len() % d) as u32, true), "rate {rate}");
+    }
+}
+
+#[test]
+fn the_line_is_forgotten_on_a_rate_change_and_on_pi_init_and_kept_over_a_load_and_the_same_rate() {
+    let mut h = Host::new(SR, 1);
+    assert!(!bus(&h).lent(), "pi_init starts with none");
+    let _line = lend(&h, SR);
+    unsafe { pi_set_sample_rate(h.e, SR) };
+    assert!(bus(&h).lent(), "the same rate changes nothing");
+    let mut snap = [0u8; SNAP];
+    unsafe { pi_save(h.e, snap.as_mut_ptr(), SNAP as u32) };
+    assert_eq!(unsafe { pi_load(h.e, snap.as_ptr(), SNAP as u32) }, 0);
+    assert!(bus(&h).lent(), "kept over a load");
+    unsafe { pi_set_sample_rate(h.e, 96_000) };
+    assert!(!bus(&h).lent(), "forgotten on a rate change");
+    // And effect 4 is then no effect of the core's: on every step, the bus never runs.
+    let lane: Vec<Cmd> = (0..16).map(|s| fx(s, 4)).collect();
+    render(&mut h, 96_000 / 4, 128, 1, &at_zero(&lane));
+    assert_eq!(bus(&h).probe().0, 0);
+    // pi_init again on the same memory: no line.
+    let _again = lend(&h, 96_000);
+    let mem = h._mem.as_mut_ptr().cast::<u8>();
+    let e = unsafe { pi_init(mem, (h._mem.len() * 8) as u32, 96_000, 1) };
+    assert_eq!(e, h.e);
+    assert!(!bus(&h).lent(), "forgotten on pi_init");
+}
+
+#[test]
+fn the_echo_is_cleared_from_idle_and_from_another_kind_and_kept_when_heard_again_inside_the_ramp() {
+    // From idle and from effect 2, a run of 4 on steps 4 and 5 sounds as it does in an
+    // engine whose line never held anything: what steps 1 and 2 wrote is not heard.
+    let xs = moving(6 * STEP as usize);
+    for (name, gap) in [("idle", vec![]), ("effect 2", vec![fx(3, 2)])] {
+        let a: Vec<Cmd> = [vec![fx(1, 4), fx(2, 4)], gap.clone(), vec![fx(4, 4), fx(5, 4), play()]].concat();
+        let b: Vec<Cmd> = [gap.clone(), vec![fx(4, 4), fx(5, 4), play()]].concat();
+        let (x, _, _) = looped_with(SR, &a, &xs, true, 0);
+        let (y, _, _) = looped_with(SR, &b, &xs, true, 0);
+        let from = 4 * STEP as usize;
+        assert!(same_bits(&x[from..], &y[from..]), "from {name}: steps 4 and 5");
+        let two = 2 * STEP as usize..3 * STEP as usize;
+        assert!(!same_bits(&x[two.clone()], &y[two]), "from {name}: steps 1 and 2 echoed");
+    }
+    // Heard again 1 ms after it ends, while still ramping out: the line goes on, full.
+    let mut h = Host::new(SR, 1);
+    let _line = lend(&h, SR);
+    let mut c = at_zero(&[fx(1, 4), fx(2, 4)]);
+    c.extend([(3 * STEP + 48, down(FX)), (3 * STEP + 48, down(3))]);
+    render(&mut h, 3 * STEP as usize + 49, 128, 1, &c);
+    let (on, w, ..) = bus(&h).probe();
+    assert!(on == 4 && w > 0.0 && w < 1.0, "still ramping: {on} at {w}");
+    assert_eq!(bus(&h).echo_state(), (((2 * STEP + 49) % pi_delay_frames(SR) as u64) as u32, true), "kept");
+}
+
+#[test]
+fn no_echo_outlives_the_ramp_and_a_line_lent_changes_nothing_without_effect_4() {
+    // The beat with 4 on steps 1 to 3 and a line: from 2 ms after step 4 begins, the plain
+    // beat, bit for bit. And a line lent with no 4 in the lane: the plain beat throughout.
+    let plain = mix(&beat(), SR, 6 * STEP as usize);
+    let mut edits = beat();
+    edits.extend([fx(1, 4), fx(2, 4), fx(3, 4)]);
+    let mut h = Host::new(SR, 1);
+    let _line = lend(&h, SR);
+    let with = render(&mut h, 6 * STEP as usize, 128, 1, &at_zero(&edits)).0;
+    let back = 4 * STEP as usize + 97;
+    assert!(same_bits(&with[back..], &plain[back..]), "an echo after the ramp");
+    assert!(!same_bits(&with[3 * STEP as usize..4 * STEP as usize], &plain[3 * STEP as usize..4 * STEP as usize]), "echoed in step 3");
+    assert!(same_bits(&with[..STEP as usize], &plain[..STEP as usize]));
+    let mut h = Host::new(SR, 1);
+    let _line = lend(&h, SR);
+    assert!(same_bits(&render(&mut h, 6 * STEP as usize, 128, 1, &at_zero(&beat())).0, &plain), "lent, no 4");
 }

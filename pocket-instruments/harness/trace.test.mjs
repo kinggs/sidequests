@@ -206,7 +206,7 @@ const hex = (bytes) => Array.from(bytes, (b) => b.toString(16).padStart(2, "0"))
 test("the module imports nothing and its memory grows by a page for the host", { skip }, () => {
   const m = load();
   assert.deepEqual(m.imports, [], "no imports: no glue to write");
-  assert.equal(m.pi.pi_abi_version(), 11);
+  assert.equal(m.pi.pi_abi_version(), 12);
   assert.equal(m.pi.memory.buffer.byteLength, m.base + PAGE);
   // Memory the module was not given is refused, not written.
   assert.equal(m.pi.pi_init(0, m.pi.pi_size(), 48000, 1), 0, "null");
@@ -307,8 +307,12 @@ for (const file of SCENARIOS) {
     const m = load();
     const fx = JSON.parse(readFileSync(here(file), "utf8"));
     const pack = fx.samples ? starterPack(m) : [];
-    const withPack = (e) => {
+    // "delay": 1 lends effect 4 its line (ABI 12, §18): pages of its own after the samples',
+    // room for the highest rate, pi_delay_frames(rate) floats of it lent to each engine.
+    const line = fx.delay ? m.pi.memory.grow(Math.ceil((4 * m.pi.pi_delay_frames(Math.max(...RATES))) / PAGE)) * PAGE : 0;
+    const withPack = (e, rate) => {
       pack.forEach(([at, frames], t) => assert.equal(m.pi.pi_set_sample(e, t, at, frames), 1));
+      if (line) assert.equal(m.pi.pi_set_delay(e, line, m.pi.pi_delay_frames(rate)), 1);
       return e;
     };
     // "layouts": the mix alone unless the scenario asks for more. A layout but the mix is
@@ -319,11 +323,11 @@ for (const file of SCENARIOS) {
     for (const [sourceName, source] of SOURCES) {
       for (const rate of RATES) {
         const { cmds, end } = schedule(fx, rate, source, false);
-        const quiet = run(m, withPack(engine(m, rate, fx.seed)), cmds, end, 128);
+        const quiet = run(m, withPack(engine(m, rate, fx.seed), rate), cmds, end, 128);
         const out = {};
         for (const channels of layouts) {
           const audio = new Float32Array(end * channels);
-          const loud = run(m, withPack(engine(m, rate, fx.seed)), cmds, end, 128, audio, [], "", channels);
+          const loud = run(m, withPack(engine(m, rate, fx.seed), rate), cmds, end, 128, audio, [], "", channels);
           assert.equal(loud, quiet, "sound changes no event");
           assert.ok(audio.some((s) => s !== 0) && audio.every(Number.isFinite), "it made a sound");
           out[channels] = new Uint32Array(audio.buffer);

@@ -70,6 +70,8 @@ impl Engine {
         self.clock.rescale(self.sample_rate, sample_rate);
         self.sample_rate = sample_rate;
         self.voices.set_sample_rate(sample_rate);
+        // §18, designed 2026-11-24: the line was sized for the old rate. The host lends again.
+        self.bus.forget();
     }
 
     pub fn process(
@@ -141,7 +143,7 @@ impl Engine {
                     let host = |mask: u16| heard != 0 && mask >> (heard - 1) & 1 == 1;
                     effect = if channels >= LOOP && host(self.bus.route[1]) {
                         if host(self.bus.route[4]) { OUTSIDE | heard } else { 0 }
-                    } else if is_sound_effect(heard) {
+                    } else if is_sound_effect(heard) || (heard == 4 && self.bus.lent()) {
                         heard
                     } else {
                         0

@@ -445,3 +445,9 @@ are new bytes, on purpose, because §18's effects were retuned (`ENGINE.md`, "§
 
 The other 288 render files are the same bytes as before the session. The old ones are not
 kept: the ear and R64 to R69 are the measure of the new sound, not their bytes (§18).
+
+**`harness/render-fx-4.json` (new, Session 26):** effect 4 over the minimum beat in the other
+seven's shape, with `"delay": 1`, a scenario field that makes `harness.cpp` and
+`trace.test.mjs` lend each engine `pi_delay_frames(rate)` floats after `pi_init`. Its 12 files
+are new; adding it moved nothing else (the 330 report runs and the 408 earlier render files,
+the same bytes as after the retune).

@@ -8,7 +8,7 @@ use crate::voice::{LOOP, LOOP_SLIDERS};
 use crate::snapshot;
 use crate::weave;
 
-pub const ABI_VERSION: u32 = 11;
+pub const ABI_VERSION: u32 = 12;
 
 pub const CMD_CLOCK: u8 = 1;
 pub const CMD_RESET: u8 = 2;
@@ -310,6 +310,39 @@ pub unsafe extern "C" fn pi_set_sample(engine: *mut Engine, track: u32, data: *c
         return 0;
     }
     s.set(data, frames);
+    1
+}
+
+/// §18, designed 2026-11-24 (ABI 12; D91 item 4): how long a line effect 4 needs at
+/// `sample_rate`, in floats. No engine: any thread may call it.
+#[unsafe(no_mangle)]
+pub extern "C" fn pi_delay_frames(sample_rate: u32) -> u32 {
+    crate::bus::delay_frames(sample_rate)
+}
+
+/// §18, designed 2026-11-24 (ABI 12): lends effect 4 its line, `frames` floats. Taken, and 1
+/// returned, if `line` is not null, is 4-byte aligned and `frames` is at least
+/// `pi_delay_frames` of the engine's rate now; otherwise the engine holds no line and 0 is
+/// returned. `pi_init` starts with none; `pi_set_sample_rate`, when it changes the rate,
+/// forgets it. Not in any snapshot, and no generation.
+///
+/// # Safety
+/// `engine` as `pi_set_sample_rate`. `line` is null or points to `frames` floats, overlapping
+/// nothing else the engine is given, that stay alive and that the host does not touch until
+/// it lends again or the engine is re-initialised or dropped. The core writes there, inside
+/// `pi_process` only, and never past `pi_delay_frames` of its rate.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pi_set_delay(engine: *mut Engine, line: *mut f32, frames: u32) -> u32 {
+    // SAFETY: null or a live engine, by the contract.
+    let Some(e) = (unsafe { engine.as_mut() }) else {
+        return 0;
+    };
+    let need = crate::bus::delay_frames(e.sample_rate);
+    if line.is_null() || !line.is_aligned() || frames < need {
+        e.bus.forget();
+        return 0;
+    }
+    e.bus.lend(line, need);
     1
 }
 

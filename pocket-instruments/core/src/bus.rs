@@ -74,6 +74,20 @@ pub const HIGH_SWEEP_FROM_HZ: f32 = 220.0;
 pub const HIGH_SWEEP_TO_HZ: f32 = 2900.0;
 pub const HIGH_SWEEP_OUT: f32 = 1.005_987_4;
 pub const HIGH_SWEEP_BACK: f32 = 0.994_048_24;
+/// Effect 4: one echo of the bus, `ECHO_FRAMES_NUM / ECHO_FRAMES_DEN` seconds ago (8 192
+/// samples at 46 875 Hz, 174.76 ms: a buffer's length, not a note's, D91 item 5), at this
+/// level, no feedback. The line is the host's (`pi_set_delay`).
+pub const ECHO_LEVEL: f32 = 0.15;
+pub const ECHO_FRAMES_NUM: u64 = 8192;
+pub const ECHO_FRAMES_DEN: u64 = 46_875;
+
+/// `pi_delay_frames`: the nearest frame to 174.76 ms at `rate`, in 64 bits. 7 707 at 44.1 kHz,
+/// 8 389 at 48 kHz, 16 777 at 96 kHz. Fits a u32 for any u32 rate.
+#[inline]
+pub const fn delay_frames(rate: u32) -> u32 {
+    ((rate as u64 * ECHO_FRAMES_NUM + ECHO_FRAMES_DEN / 2) / ECHO_FRAMES_DEN) as u32
+}
+
 /// Four and a half steps of ticks out, as many back: a cycle of nine steps (R65).
 pub const SWEEP_HALF: u16 = (9 * TICKS_PER_STEP / 2) as u16;
 // `Bus::swept` is a u16 (Session 24): a sweep's cycle must fit in it.
@@ -98,8 +112,9 @@ fn tan(f: f32) -> f32 {
     f * (PI_F + f2 * (TAN_A + TAN_B * f2))
 }
 
-/// Whether an effect is one the core sounds on the bus (§18's table). 4 and 9 to 16 are not:
-/// the repeats are the sequencer's (§17), the rest wait (D67 item 4).
+/// Whether an effect is one the core sounds on the bus (§18's table). 4 is only while a line
+/// is lent (`Bus::lent`, ABI 12), and 9 to 16 are not: the repeats are the sequencer's (§17),
+/// the rest wait (D67 item 4).
 #[inline]
 pub fn is_sound_effect(effect: u8) -> bool {
     matches!(effect, 1 | 2 | 3 | 5 | 6 | 7 | 8)
@@ -145,6 +160,13 @@ pub struct Bus {
     cutoff: f32,
     swept: u16,
     tuned: bool,
+    /// Effect 4 (ABI 12): the host's line and how much of it is used, `delay_frames` of the
+    /// rate it was lent at (0 and null: none lent); where the next frame is written, and
+    /// whether the line has gone round once, so nothing is read that this run did not write.
+    line: *mut f32,
+    delay: u32,
+    head: u32,
+    full: bool,
     /// §19, the engine's to set, kept here because the loop's frame is mixed here, and so
     /// that the engine's own fields stay where they were (the voices' place in memory is
     /// worth a nanosecond a frame: measured, Session 18). What `ROUTE` set, by its `a`: the
@@ -178,6 +200,10 @@ impl Bus {
             cutoff: 0.0,
             swept: 0,
             tuned: false,
+            line: core::ptr::null_mut(),
+            delay: 0,
+            head: 0,
+            full: false,
             route: [0; 5],
             outs: [MIDDLE; 2 * TRACKS],
         }
@@ -187,6 +213,12 @@ impl Bus {
     #[cfg(test)]
     pub fn probe(&self) -> (u8, f32, f32, f32, f32) {
         (self.on, self.w, self.cutoff, self.s1, self.s2)
+    }
+
+    /// For the rule tests: effect 4's head and whether the line has gone round.
+    #[cfg(test)]
+    pub fn echo_state(&self) -> (u32, bool) {
+        (self.head, self.full)
     }
 
     /// For the rule tests: the filter's `g` and `h`.
@@ -199,6 +231,26 @@ impl Bus {
     #[inline]
     fn r(&self) -> f32 {
         if self.on <= 6 { LOW_R } else { HIGH_R }
+    }
+
+    /// Effect 4's line (ABI 12), `delay` floats of the host's: kept, and written inside
+    /// `pi_process` only. Lending clears where the echo is, so junk in it is never heard.
+    pub fn lend(&mut self, line: *mut f32, delay: u32) {
+        self.line = line;
+        self.delay = delay;
+        self.head = 0;
+        self.full = false;
+    }
+
+    /// No line: refused, or the rate changed (the host lends again for the new one).
+    pub fn forget(&mut self) {
+        self.lend(core::ptr::null_mut(), 0);
+    }
+
+    /// Whether a line is lent, so effect 4 is one the core sounds.
+    #[inline]
+    pub fn lent(&self) -> bool {
+        self.delay != 0
     }
 
     /// No effect running and the ramp at 0: the mix is §13's.
@@ -215,6 +267,10 @@ impl Bus {
             1 => {
                 self.acc = 0;
                 self.held = 0.0;
+            }
+            4 => {
+                self.head = 0;
+                self.full = false;
             }
             5 => {
                 self.s1 = 0.0;
@@ -317,6 +373,8 @@ impl Bus {
             return outside;
         }
         match self.on {
+            // Effect 4, out of line (Session 26's bench chose this place: `ENGINE.md` §18).
+            4 => self.echo(x),
             1 => {
                 // Plaits' sample-rate reducer, without its polyBLEP: in hertz at any rate.
                 self.acc += REDUCE_HZ;
@@ -357,6 +415,31 @@ impl Bus {
                 if self.on <= 6 { lp } else { hp }
             }
         }
+    }
+
+    /// Effect 4's output for one frame of the bus: the bus and the echo of it from the line
+    /// (§18, designed 2026-11-24). Out of line, called from `wet`: inlined there, the loop
+    /// layouts cost 20 ns a frame more with no effect running (Session 25); asked for before
+    /// `wet` in `mix` and `looped`, as designed, every case read 1 to 2 ns more than this
+    /// (Session 26, measured: `LEARNINGS.md`).
+    #[inline(never)]
+    fn echo(&mut self, x: f32) -> f32 {
+        if self.delay == 0 {
+            // ⚠ The line was forgotten (a rate change) while 4 ramps out: no echo, nothing
+            // read or written; the ramp finishes on the plain bus.
+            return x;
+        }
+        // SAFETY: `lend` was given at least `delay` floats (`pi_set_delay` checks), which the
+        // host keeps alive and does not touch until it lends again; `head < delay`.
+        let slot = unsafe { &mut *self.line.add(self.head as usize) };
+        let echo = if self.full { *slot } else { 0.0 };
+        *slot = x;
+        self.head += 1;
+        if self.head == self.delay {
+            self.head = 0;
+            self.full = true;
+        }
+        x + ECHO_LEVEL * echo
     }
 
     /// §18's mix while an effect runs: `(rest + bus + w (wet - bus)) × gain`, each sum in

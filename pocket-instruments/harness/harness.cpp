@@ -6,7 +6,8 @@
 //   harness <fixtures dir> [report file]        exits 0 only if every trace matched
 //   harness --weave <views file> <report file>  pi_weave for each view (ENGINE.md §16)
 //   harness --render <scenario.json> <prefix>   P7: writes <prefix>-<source>-<rate>.f32, the mix,
-//                                               and <...>-16ch.f32 / -17ch.f32 for its "layouts"
+//                                               and <...>-16ch.f32 / -17ch.f32 for its "layouts";
+//                                               "delay": 1 lends effect 4 a line (ABI 12)
 //
 // SPDX-License-Identifier: MIT
 #include "fixture.hpp"
@@ -169,6 +170,9 @@ static int render(const std::string &scenario, const std::string &prefix) {
                 Host h(rate, uint32_t(fx.n("seed")));
                 for (uint32_t t = 0; t < pack.size(); t++)
                     if (pi_set_sample(h.e, t, pack[t].data(), uint32_t(pack[t].size())) != 1) die("pi_set_sample refused a sample");
+                // "delay": 1 lends effect 4 its line (ABI 12, §18), pi_delay_frames(rate) floats.
+                std::vector<float> line(fx.n_or("delay", 0) ? pi_delay_frames(rate) : 0);
+                if (!line.empty() && pi_set_delay(h.e, line.data(), uint32_t(line.size())) != 1) die("pi_set_delay refused a line");
                 std::vector<float> &audio = by[channels];
                 run(h, cmds, end, 128, &audio, nullptr, nullptr, nullptr, channels);
                 std::string suffix = channels == PI_AUDIO_MIX ? "" : "-" + std::to_string(channels) + "ch";

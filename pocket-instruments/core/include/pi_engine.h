@@ -1,4 +1,4 @@
-/* Pocket Instruments: the engine's C ABI, version 11 (1 plus sound: D44; 3 adds samples: D50;
+/* Pocket Instruments: the engine's C ABI, version 12 (1 plus sound: D44; 3 adds samples: D50;
  * 4 adds keys and the view: D51; 5 adds snapshot version 2 and PI_AUDIO_BOTH: D55, D57;
  * 6 adds the lane, the fx key, the four repeats and snapshot version 3: D66, D67;
  * 7 adds the bus and seven sound effects on the mix, with no new call or command: D67;
@@ -8,7 +8,9 @@
  * jacks: D68, D76, D80;
  * 10 adds the weave: view bytes 48 to 54 and pi_weave, a first attempt: D53, D84;
  * 11 makes channel 17 in FX RETURN, summed, and PI_ROUTE_FX the host's effects, with
- * PI_ROUTE_FX_INSERT for those in place of the dry: D87, D88).
+ * PI_ROUTE_FX_INSERT for those in place of the dry: D87, D88;
+ * 12 makes a repeat hold the nearest note behind it, retunes effects 1, 2, 3 and 5 to 8,
+ * and gives effect 4 a delay in a line the host lends, pi_set_delay: D90, D91).
  *
  * The contract both hosts link. ENGINE.md beside the crate is the specification; this file is
  * the same thing in C. Where they disagree, ENGINE.md is right.
@@ -16,8 +18,9 @@
  * Rules of the ABI: only uint32_t, int32_t and pointers cross it. No float arguments, no
  * 64-bit values, no structs by value, no callbacks, no globals. The caller owns all memory.
  * Sound leaves through a pointer to the caller's floats, and since ABI 9 comes in through the
- * same one. The core keeps one kind of pointer:
- * a track's sample, given with pi_set_sample, which the caller keeps alive (D50).
+ * same one. The core keeps two kinds of pointer, each the caller's to keep alive: a track's
+ * sample, given with pi_set_sample, which it only reads (D50); and since ABI 12 effect 4's
+ * line, given with pi_set_delay, which it writes inside pi_process (D91 item 4).
  * Every function on an engine is called from one thread, the audio thread.
  *
  * SPDX-License-Identifier: MIT
@@ -31,7 +34,7 @@
 extern "C" {
 #endif
 
-#define PI_ABI_VERSION 11u
+#define PI_ABI_VERSION 12u
 
 #define PI_TICKS_PER_STEP 96u /* a step is a sixteenth note */
 #define PI_TRACKS 16u         /* one per grid key: key n plays track n (D30) */
@@ -277,6 +280,20 @@ uint32_t pi_weave(const uint8_t *view, uint32_t len, uint32_t flags, uint8_t *ou
  * the engine is re-initialised. Null or 0 frames clears it. Returns 1 if taken, 0 if cleared
  * or refused (track >= PI_TRACKS, data not 2-byte aligned). A sample sounding stops. */
 uint32_t pi_set_sample(pi_engine *engine, uint32_t track, const int16_t *data, uint32_t frames);
+
+/* ABI 12 (ENGINE.md section 18, designed 2026-11-24): effect 4's delay line, lent by the host.
+ * pi_delay_frames: how many floats the line needs at that rate, (rate * 8192 + 23437) / 46875,
+ * the nearest frame to 174.76 ms (7707 at 44.1 kHz, 8389 at 48 kHz, 16777 at 96 kHz). No
+ * engine: any thread may call it.
+ * pi_set_delay: lends `frames` floats. Returns 1 if taken: `line` not null, 4-byte aligned and
+ * `frames` at least pi_delay_frames of the engine's rate now. Otherwise the engine holds no
+ * line and 0 is returned. The core writes there, inside pi_process only, never past
+ * pi_delay_frames of its rate; what the line holds when lent is never heard. The caller keeps
+ * it alive and does not touch it until it lends again or re-initialises the engine. pi_init
+ * starts with none, and pi_set_sample_rate, when it changes the rate, forgets it: lend again.
+ * Not in any snapshot. With no line, effect 4 has no sound of the core's, as before ABI 12. */
+uint32_t pi_delay_frames(uint32_t sample_rate);
+uint32_t pi_set_delay(pi_engine *engine, float *line, uint32_t frames);
 
 /* Events dropped since pi_init, saturating. Zero in any correct host. */
 uint32_t pi_dropped(const pi_engine *engine);

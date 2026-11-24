@@ -19,7 +19,7 @@
 //! `an_effect_route_1_names_is_the_host_s_...`. The model and its tour were written again
 //! from the new text.
 
-use super::bus::{Model, at_zero, beat, down, fx, fxsound, on, play, tour, up};
+use super::bus::{Model, at_zero, beat, down, fx, fxsound, lend, on, play, tour, up};
 use super::*;
 use crate::engine::slider_in;
 
@@ -488,9 +488,12 @@ fn come_back(f: u64, before: &[f32; LOOP]) -> [f32; LOOP] {
 /// Runs `cmds` a frame at a time in the 18-channel loop and holds every frame's mix and send
 /// to the model's, which is told what came in, what `ROUTE` said and what the view says.
 /// Returns the frames an insert ran on, and the frames one of the core's own effects did.
+/// ABI 12: the engine is lent a line for effect 4 and the model given one, so in the stretch
+/// where the tour un-names 4 while it is heard, ours runs, echo and all, in the loop layout.
 fn hold_loop_to_model(rate: u32, cmds: &[(u64, Cmd)], frames: u64) -> (usize, usize) {
     let h = Host::new(rate, 1);
-    let mut m = Model::new();
+    let _line = lend(&h, rate);
+    let mut m = Model::lent(pi_delay_frames(rate));
     let mut routes = [0u32; 5];
     let mut before = [0f32; LOOP];
     let mut e_before = 0u32;
@@ -520,7 +523,7 @@ fn hold_loop_to_model(rate: u32, cmds: &[(u64, Cmd)], frames: u64) -> (usize, us
         let named = |mask: u32| heard != 0 && mask >> (heard - 1) & 1 == 1;
         let effect = if named(routes[1]) {
             if named(routes[4]) { 0x80 | heard } else { 0 }
-        } else if [1, 2, 3, 5, 6, 7, 8].contains(&heard) {
+        } else if [1, 2, 3, 4, 5, 6, 7, 8].contains(&heard) {
             heard
         } else {
             0
