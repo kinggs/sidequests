@@ -92,12 +92,15 @@ pub const ECHO_FRAMES_DEN: u64 = 46_875;
 /// `FEEDBACK_HZ` and `FEEDBACK_R`; `FEEDBACK_GAIN` into it (1.12 a round at the centre), what
 /// goes round held to ±`FEEDBACK_CEILING`; standing still after a thousandth of a second of
 /// exact zero on the bus (`STILL_PER_SECOND`). The ceiling is a model's first value; the rest
-/// is measured (R70).
+/// is measured (R70). Session 28 read ours with harness/hardware-fx.py as the PO-12 was read
+/// and moved the gain 2.24 → 2.05 (1.025 a round at the centre): at 2.24 the ring read +47 and
+/// +40 dB at 1 kHz on takes a and b against the PO-12's +29 and +18; at 2.05, +30 and +22
+/// (ENGINE.md §18's table has every reading).
 pub const FEEDBACK: u8 = 14;
 pub const FEEDBACK_FRAMES_NUM: u64 = 858;
 pub const FEEDBACK_HZ: f32 = 1093.0;
 pub const FEEDBACK_R: f32 = 2.0;
-pub const FEEDBACK_GAIN: f32 = 2.24;
+pub const FEEDBACK_GAIN: f32 = 2.05;
 pub const FEEDBACK_CEILING: f32 = 0.25;
 pub const STILL_PER_SECOND: u32 = 1000;
 

@@ -237,7 +237,7 @@ impl Model {
             }
             // §18, designed 2026-11-24: effect 14's frame, as its pseudo-code. The loop is the
             // first `comb` floats of the line, 858 / 46 875 s; the bus's filter, band output,
-            // at 1 093 Hz and `r` 2; 2.24 round, held to ±0.25; still after 1 ms of exact zero.
+            // at 1 093 Hz and `r` 2; 2.05 round (2.24 as designed; Session 28's comparison), held to ±0.25; still after 1 ms of exact zero.
             14 => {
                 self.still = if b == 0.0 { self.still + 1 } else { 0 };
                 if self.still * 1000 >= rate as u64 {
@@ -257,7 +257,7 @@ impl Model {
                     self.s1 = g * hp + bp;
                     let lp = g * bp + self.s2;
                     self.s2 = g * bp + lp;
-                    let mut fb = 2.24 * bp;
+                    let mut fb = 2.05 * bp;
                     if fb > 0.25 {
                         fb = 0.25;
                     } else if fb < -0.25 {
@@ -1097,8 +1097,9 @@ fn it_builds_a_click_comes_round_comb_frames_apart_and_grows_until_the_clip() {
     // it never stands still. Against the model, bit for bit. Round 0 is the bus itself; the
     // click comes back at `comb` frames and every `comb` after. ⚠ Not "louder each time" from
     // the first round, as §18 says: a click is broadband, and the band output loses what is
-    // off its centre first, so rounds 1 and 2 are quieter than round 1 was. From round 3 each
-    // round is louder than the one before, until the clip holds it at 0.25 (round 30 here).
+    // off its centre first, so it falls for some rounds (two at 2.24, more at 2.05). From its
+    // lowest round each round is louder than the one before, until the clip holds it at 0.25 (round 30 at the
+    // designed gain of 2.24; at 2.05, Session 28's, lowest at round 11 and clipped from 172).
     let n = comb(SR);
     let mut line = vec![0f32; pi_delay_frames(SR) as usize];
     let mut b = Bus::new();
@@ -1107,7 +1108,7 @@ fn it_builds_a_click_comes_round_comb_frames_apart_and_grows_until_the_clip() {
     let mut v = [0f32; 16];
     let mut energy = Vec::new();
     let mut peaks = Vec::new();
-    for round in 0..40 {
+    for round in 0..400 {
         let (mut e, mut p) = (0f64, 0f32);
         for i in 0..n {
             let f = round * n + i;
@@ -1129,7 +1130,12 @@ fn it_builds_a_click_comes_round_comb_frames_apart_and_grows_until_the_clip() {
     assert!(peaks[1] > 0.1, "round 1: the click is back");
     let clipped = peaks.iter().position(|p| *p == 0.25).expect("the clip holds it");
     assert!(clipped > 10 && peaks[clipped..].iter().all(|p| *p == 0.25), "{peaks:?}");
-    for r in 3..clipped {
+    // It falls while what is off the centre dies, to one lowest round, then rises every round.
+    let lowest = (1..clipped).min_by(|x, y| energy[*x].total_cmp(&energy[*y])).unwrap();
+    for r in 1..lowest {
+        assert!(energy[r + 1] < energy[r], "round {}: falling, {} after {}", r + 1, energy[r + 1], energy[r]);
+    }
+    for r in lowest..clipped {
         assert!(energy[r + 1] > energy[r], "round {}: {} after {}", r + 1, energy[r + 1], energy[r]);
     }
 }
@@ -1332,11 +1338,12 @@ fn fourteen_never_writes_past_comb() {
 #[test]
 fn under_200_hz_the_mix_with_14_is_the_dry_mix_to_within_a_decibel() {
     // The kick alone on every beat, 14 held two bars, against the same with no effect: both
-    // through a one-pole low-pass at 100 Hz in the test (a multiply and an add a frame), the
+    // through a one-pole low-pass at 200 Hz in the test (a multiply and an add a frame), the
     // level over the two bars within 1 dB. The band output is 0 at 0 Hz: the lows do not go
-    // round, and the dry sound passes whole. ⚠ §18 named no corner. Session 28 read +0.62 dB
-    // at 100 Hz and +1.15 dB at 200 Hz: a one-pole falls only 6 dB an octave, so at 200 Hz the
-    // 1 kHz ring (18 to 29 dB over the dry there, as the PO-12's) comes through it ~15 dB down.
+    // round, and the dry sound passes whole. Session 28: at the designed gain of 2.24 this read
+    // +1.15 dB and failed (a one-pole falls only 6 dB an octave, so the 1 kHz ring, 40 dB and
+    // more over the dry there, came through it ~15 dB down), and +0.62 dB at 100 Hz; the test
+    // was held at 100 Hz until the comparison moved the gain to 2.05. Now +0.44 dB at 200 Hz.
     let kick: Vec<Cmd> = (0..16).filter(|s| s % 4 == 0).map(|s| on(0, s)).collect();
     let frames = 32 * STEP as usize;
     let mut lane = kick.clone();
@@ -1346,7 +1353,7 @@ fn under_200_hz_the_mix_with_14_is_the_dry_mix_to_within_a_decibel() {
     let wet = render(&mut h, frames, 128, 1, &at_zero(&lane)).0;
     let dry = mix(&kick, SR, frames);
     let low = |xs: &[f32]| {
-        let a = (-2.0 * core::f64::consts::PI * 100.0 / SR as f64).exp();
+        let a = (-2.0 * core::f64::consts::PI * 200.0 / SR as f64).exp();
         let (mut y, mut e) = (0f64, 0f64);
         for x in xs {
             y = (1.0 - a) * *x as f64 + a * y;
