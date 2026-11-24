@@ -2182,3 +2182,153 @@ out different from the list:
 - **Three of the list's recommendations did not stand,** each for a reason found in the
   session; the list in `PLAN-HISTORY.md` is annotated.
 - **Next: Session 24,** the build, on Opus. Its list is above.
+
+## Session 26 — the repeat's rule, the retune and the delay, built and compared (build, Opus; D90, D91; done 2026-11-24)
+
+ABI 12. The brief is `ENGINE.md` §17, "Designed 2026-11-24", and §18, "Designed
+2026-11-24", with D90, D91 and R64 to R69. Their two "Proven when built by" tables are
+this list's tests: every row gets its test. Read `LEARNINGS.md` for Sessions 16, 17, 24
+and 25 (the model tests, the bench, where code sits). The rules for every build session
+hold. Three parts, each its own commits, in this order, because each moves different files.
+
+- [x] **Before any change:** keep `target/report-rust.txt`, a `sha256sum` of every
+      `target/render-*.f32`, and the release library as `target/old/libpi_core.a` with a
+      bench built on it. `make bench` three times.
+      **Done:** 300 report runs, 408 render files; idle 26.3 to 27.4 ns a frame.
+- [x] **The repeat** (`core/src/seq.rs`; §17's pseudo-code is the code). `git mv`
+      `fixtures/designed/fx-repeat-holds.json` up, unchanged, and only then run it. A rule
+      test for each bullet of the section (its table names them). Then the comparison: the
+      report's ten older fixtures and every render file the same bytes. ⚠ A render file
+      that moves here is not accepted: stop, and write which and why into the Handover.
+      **Done:** the fixture and nine rule tests passed at the first run; nothing moved.
+- [x] **The retune** (`core/src/bus.rs`). The model in `core/src/tests/bus.rs` first,
+      written again from §18's new table and pseudo-code, then the code. Tests the decision
+      replaces (not edits to pass; say so in the Handover as Session 24 did): the hold at
+      6 kHz, twice (1 kHz); "soft clipped under 0.7 and twelve levels a unit"; "starts
+      again after sixteen steps"; "every effect on silence is exact silence" (3 is +1/8).
+      The seven `render-fx-*` pairs are rendered again, on purpose; every other render
+      file and the report the same bytes. `fixtures/README.md` says which moved and why.
+      **Done,** and ⚠ `render-loop` moved too: its lane holds 2, 5 and 6 (§18's "with no
+      effect in the lane" excludes it; checked to move only from step 5, on the mix).
+- [x] **The delay.** The header and `core/src/abi.rs`: `pi_delay_frames`, `pi_set_delay`,
+      `PI_ABI_VERSION` 12. `bus.rs`: the line, `head`, `full`; the echo out of line and
+      asked for before `wet`, where Session 25's scratch copy held every case (§18,
+      "Measured before choosing"). `Engine::set_sample_rate` forgets the line. A scenario
+      field `"delay": 1` makes the C++ and Node harnesses lend a line of
+      `pi_delay_frames(rate)`; `harness/render-fx-4.json` uses it, in the other seven's
+      shape. `core/src/tests/rules.rs` still holds `pi_size` to 4 096.
+      **Done:** `pi_size` 3 728; both models given a line passed at the first run.
+- [x] **What it costs,** old library and new interleaved, ten pairs: idle, beat, all, both,
+      loop, loop fx and loop in inside the old build's own spread; a new bench case
+      "fx 4" with a line lent. If a case cannot be held, try the arrangements
+      `LEARNINGS.md` lists for Session 25, then stop and say. `ENGINE.md` §8 gets the
+      engine's new size, natively and in WebAssembly.
+      **Done, ⚠ not held:** the beat 0.9 and all 2.6 ns a frame over the old build's spread;
+      idle, both and the loops inside it. Both arrangements tried; the echo called from
+      inside `wet` is built (it was better on every case). Bisected: placement, not work
+      (`LEARNINGS.md`). Stopped there, as the list says.
+- [x] **The hosts lend a line.** Nothing allocates on an audio thread.
+      - `web/worklet.js`: pages of its own after the samples', `pi_delay_frames(sampleRate)`
+        floats, lent to the instrument's engine after `pi_init`. `web/listen.html` and
+        `make hear`: effect 4 beside the seven.
+      - The Rhythm module: a `std::vector<float>` for each of its two engines (its own and
+        the self-test's second), sized to `pi_delay_frames` in `onSampleRateChange`, which
+        Rack calls with the engine locked ⚠ check in the SDK that it is also called when a
+        module is added; if not, size it in the constructor too. `process` lends after
+        every `pi_init` and wherever it calls `pi_set_sample_rate`, and only if the vector
+        is already long enough. The menu's row for effect 4 loses "no sound here yet".
+        The self-test's "fx" module (effect 4, Ours) now echoes: its second engine is lent
+        a line the same way.
+      - Not lent: the Probe, `harness/race.cpp`, the P4 page. They play no effect 4.
+      **Done:** the SDK's header says `onSampleRateChange` is called on add too; the
+      self-test passes at three rates with the fx module echoing; `make listen`, `make play`.
+- [x] **Planted faults,** the unplanted tree passing first: each row of both tables at
+      least once, and these by name: the look-back stopping at step 1 (no wrap); counting
+      a sound out of the effects; looking again at every boundary; the line read before it
+      is full; written one past its end; kept across a rate change; the sweep not turning;
+      `r` not following the effect; `trunc` for `floor`.
+      **Done:** 30, 29 caught at the first run; the 30th once a test was added.
+- [x] **Compare with the hardware, and tweak** (the owner, 2026-11-24; D91 item 9). Ours
+      played as takes a and b were, at 80 bpm and 48 kHz: sounds 1, 2 and 3 on take a's
+      steps (kick 1 and 9, snare 5 and 13, closed hat 3, 7, 11, 15), then sound 1 on step
+      1 alone; three passes dry, then fx held from there to the end, with each key 1 to
+      16 down for two passes and up for one (fx alone plays dry and clears the lane; the step a
+      key goes up on still holds its effect). A
+      line lent. Written as WAVs to `target/ours/` (never committed) and read with `uv run
+      harness/hardware-fx.py <wav> --pass a` and `--pass b`. Then, an effect at a time:
+
+      | Effect | The reading | The PO-12's | Ours is in when | Move only |
+      |---|---|---|---|---|
+      | 1 | the hold's mean length; the kick's peak against dry | 1.5 ms; within 2 dB | reported; not chased | nothing |
+      | 2 | gain under the ceiling; ceiling over the kick's dry peak (take b) | 2.93; 2.12 | each within 10% | `DRIVE`; the ceiling |
+      | 3 | the step over the kick's dry peak; where the levels sit (take b) | 1 / 1.90; half steps | within 10%; half steps | the levels a unit |
+      | 4 | the echo's time and gain (take b) | 174.8 ms; 0.09 to 0.25 | within 0.5 ms; inside the range | the level |
+      | 5 | cutoff; the peak at it | 233 to 344 Hz; +7 dB | inside; within 2 dB | `LOWPASS_HZ`; `r` for 5 and 6 |
+      | 7 | cutoff; the peak at it | 1 796 Hz; +15.5 dB | within 5%; within 2 dB | `HIPASS_HZ`; `r` for 7 and 8 |
+      | 6, 8 | the cutoff's ends; steps a cycle | 190 Hz to 2.5 kHz, 220 Hz to 2.9 kHz; 8.5 to 9 | ends within 10%; inside | the four ends |
+      | 11, 12 | hits a beat on take b, through both passes | 7.94; 5.97 | 8; 6 | nothing: a wrong count is a fault |
+
+      At most three rounds an effect. Every move goes into §18's table as "was, now" with
+      both readings, and the render pairs are made after the last move. Do not change the
+      script, and do not add a mechanism: where a reading cannot be brought in by its
+      constant, or the script cannot read ours, leave the designed value and write the gap
+      into the Handover. Known before starting: effect 1 will not match in length or pitch
+      (R69). Both reports' numbers go side by side in `LEARNINGS.md`.
+      **Done:** `harness/ours-take.cpp`; one round moved effect 2's ceiling (0.88), effect
+      3's levels (4.6) and effect 6's top (3 240 Hz) in; 8's bottom cannot be read on take
+      a ⚠. The WAVs went outside the repo: the script refuses one inside it.
+- [x] `ENGINE.md`: both designed sections marked built, with what turned out different;
+      its top table gains ABI 12. `LEARNINGS.md`; the Handover, with the owner's steps;
+      this list to `PLAN-HISTORY.md`. `make web`, `make verify`, then `make install` in
+      `rack/` (Machine state).
+      **Done:** `make verify` passed (its smoke test and Rack It proofs skip here: no
+      Playwright); `make install` ran, and the self-test passed again on the tuned build.
+
+## Handover note moved here by Session 26 (2026-11-24)
+
+### After Session 24: FX SEND and FX RETURN built, a channel an effect (2026-11-24)
+
+- **Built, ABI 11.** FX RETURN is summed into the mix before the volume, playing or stopped;
+  FX SEND is sixteen channels, channel *n* ramped in over 2 ms while effect *n* is heard;
+  each effect is Ours, Rack's beside the dry, or Rack's in place of the dry (right-click,
+  "FX SEND and FX RETURN"), all Ours at first, counting only while one of the two jacks is
+  patched. The page did not change. `ENGINE.md`, "§19, designed 2026-11-24", says what was
+  built and marks five readings.
+- **Proven:** the report and every render file the same bytes but `render-loop`'s 24 loop
+  files (`fixtures/README.md`); 233 Rust tests; `rack/test/jacks.cpp`; the self-test at
+  44.1, 48 and 96 kHz with three FX modules (effect 4 Ours, effect 2 beside, effect 2 in
+  place); 30 faults caught by name. Cost: idle and the beat within one build's spread;
+  beside the dry about 2 ns a frame cheaper than the old crossing over; in Rack, reading
+  FX RETURN every frame is about 1 ns (`LEARNINGS.md`).
+- ⚠ **Your kept patch changes.** FX SEND is a sixteen-channel cable now. A mono reverb or
+  delay on it hears channel 1 only, which is effect 1's send. Put a Fundamental Split (or
+  Sum, for all sixteen) between FX SEND and the effect.
+- **For your hands (O21), about ten minutes, Rack restarted first:**
+  1. Your kept patch: FX SEND into a Split, channel 4 into the reverb, the reverb to the
+     mixer beside AUDIO. Hold fx + 4: the reverb rings on after you let go. Effect 4 has no
+     sound of ours, so Ours leaves AUDIO dry; any other effect, set it to "Rack's, beside
+     the dry" or ours plays too.
+  2. A Rack distortion in place of the dry: Split channel 2 into it, its output into FX
+     RETURN, effect 2 set to "Rack's, in place of the dry". Hold fx + 2: AUDIO is the
+     distortion alone, and the drums come back 2 ms after you let go.
+  3. The comb (D88 item 10): a delay at half wet on channel 2 into FX RETURN, effect 2 in
+     each of the three settings. Ours and beside should sound thin at the top (12 kHz
+     notches); in place should not.
+- **Readings to rule on (⚠ in `ENGINE.md`):** the fifth mask kept in two bytes the sweep's
+  counter gave up; FX SEND runs on every loop frame and clears when no jack needs a loop;
+  FX RETURN summed by our own function in Rack's order; the menu where FX RETURN's ticks
+  were, with 4 and 13 to 16 still "no sound here yet"; saved as `"fxRack"` and
+  `"fxInPlace"`, an old `"fx"` read as in place of the dry.
+- **Tests the decision replaced, not edited to pass:** "an outside effect's wet is the
+  input, ramped" became `in_place_of_the_dry_...` (an insert is §18's ramp with silence);
+  "an effect the core sounds is heard from outside when ROUTE marks it" became
+  `an_effect_route_1_names_is_the_host_s_...` (§19's table, row by row); the model and its
+  tour were written again from the new text. Changed with the decision: the ABI pins (10 to
+  11), "an `a` past 3" to "past 4", and five tests' inputs that left junk on channel 17,
+  now read (`LEARNINGS.md`). Their claims did not change.
+- **Next:** ~~your hands above, then Session 22's two takes~~ ~~Session 25 (D90), on Fable~~ done: the note below.
+- **Added after the session:** it ended without `make install`, so the owner's Rack kept the
+  old plugin until it was installed and Rack restarted (Machine state now says so). Then,
+  the owner: "it looks right now. Rewired with Tangents as an FX send and return on FX 1.
+  Loving it." (Tangents is a Rack effect.) The same day the owner ruled O21 yes (D89) and
+  Session 22's proposals yes (D90), and said take c is hard to do now: it does not block.

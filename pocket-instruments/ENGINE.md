@@ -79,14 +79,20 @@ and added to the mix last, before the volume; `ROUTE` 1 names the host's effects
 trace changed. The report and every render file are as they were, but `render-loop`'s 18
 and 50 channel files, which give channel 17 numbers (`fixtures/README.md`).
 
-**Designed, not built (Session 25, D90, D91):** a repeat holds the nearest note behind it
+~~**Designed, not built (Session 25, D90, D91):** a repeat holds the nearest note behind it
 (§17, "Designed 2026-11-24"); effects 1, 2, 3 and 5 to 8 retuned to the PO-12's
 measurements, and effect 4, a delay of one echo in a line the host lends (§18, "Designed
 2026-11-24"). Session 26 builds them (`PLAN.md`) as ABI 12. Until then the code does §17
-and §18 as built.
+and §18 as built.~~ Built in Session 26:
 
-**Where everything is, at ABI 11** (2026-11-24; designed and unbuilt: the two sections
-named just above):
+**ABI 12 (Session 26, D90, D91)** makes a repeat hold the nearest note behind it, retunes
+effects 1, 2, 3 and 5 to 8, and gives effect 4 one echo in a line the host lends
+(`pi_delay_frames`, `pi_set_delay`). No command, view byte or snapshot byte changed. The
+report and every render file are as they were but those that play effects 2, 3, 5 to 8
+(`fixtures/README.md`); `render-fx-4` is new. Three constants then moved after ours was read
+beside the PO-12 (§18's table).
+
+**Where everything is, at ABI 12** (2026-11-24):
 
 | ABI | Session | Section | Adds |
 |---|---|---|---|
@@ -101,6 +107,7 @@ named just above):
 | 9 | 18 | §19 | sound in from Rack: returns, the effects loop, the sliders out and in |
 | 10 | 14 | §16 | the weave (a first attempt) |
 | 11 | 24 | §19, designed 2026-11-24 | FX RETURN summed; each effect Ours, the host's beside the dry, or in place of it |
+| 12 | 26 | §17 and §18, designed 2026-11-24 | a repeat holds the nearest note behind it; the effects retuned; effect 4's delay in a lent line |
 
 ## 1. The shape
 
@@ -368,8 +375,8 @@ Two runs agree when their traces are the same bytes.
   harness, the worklet and the Rack Probe; `core/src/tests/rules.rs` holds `pi_size` to it).
   With a sample beside each voice (§12) it is 2 328 bytes, natively and in WebAssembly, and
   the room is 4 KiB. With the keys (§13) it is 2 352 bytes, in the same room, and snapshot
-  version 2 (§15) added nothing to it. With the lane and the repeats (§17) it is 2 400; with the bus (§18), 2 448; with what each step keeps (§20), 3 568, natively and in WebAssembly, still inside every host's 4 KiB (Session 21); with the routes and the slider outputs (§19), 3 704 (Session 18); with the weave's three fields (§16), 3 712 (Session 14). The samples
-  themselves are in pages of their own after the host's.
+  version 2 (§15) added nothing to it. With the lane and the repeats (§17) it is 2 400; with the bus (§18), 2 448; with what each step keeps (§20), 3 568, natively and in WebAssembly, still inside every host's 4 KiB (Session 21); with the routes and the slider outputs (§19), 3 704 (Session 18); with the weave's three fields (§16), 3 712 (Session 14); with effect 4's lent line (§18, ABI 12), 3 728, natively and in WebAssembly (Session 26). The samples
+  themselves are in pages of their own after the host's, and so is effect 4's line.
   A host that can should ask `pi_size` instead.
 - **One thread.** Every function on an engine is called from the audio thread only (`pi_weave`, §16, takes no engine, so any thread may call it). That
   includes the ones that only read: `pi_save` on another thread while `pi_process` runs is a
@@ -1117,7 +1124,7 @@ with an empty lane. The design held. What it did not say, built on and marked:
 - **9 and 10 stay as they are, and stay ours.** The hardware's 9 and 10 are not 11 and 12
   at half speed, and their rule is not known (R66). No change is proposed on a guess.
 
-### §17, designed 2026-11-24: a repeat holds the nearest note behind it (ABI 12; D90 item 1, D91; designed in Session 25, not built)
+### §17, designed 2026-11-24: a repeat holds the nearest note behind it (ABI 12; D90 item 1, D91; designed in Session 25, built in Session 26)
 
 The proposal above, exact. One thing changes: the step a run repeats. Where "The four
 repeats" says `run_step = cur`, it becomes:
@@ -1175,6 +1182,15 @@ begins on an empty step as far as was read, and Session 26's sha256 comparison d
 
 (In the scratch copy the fixture passed at the first run with the rule in, and failed with
 the rule out. The scratch copy is not kept.)
+
+**Built (Session 26, ABI 12):** `held_step` in `core/src/seq.rs`, out of line, called where
+a run begins: the pseudo-code above. `fixtures/designed/fx-repeat-holds.json` was moved up
+unchanged and passed at the first run on all three harnesses, both sources, three rates,
+three block sizes and from a snapshot; nine rule tests in `core/src/tests/fx.rs`, a bullet
+each, all passing at the first run; the report's 300 older runs and all 408 render files the
+same bytes. Seven faults planted, each caught by a named test (`LEARNINGS.md`). Nothing
+turned out different from the design. ⚠ The Rack self-test still plays the two older format
+3 fixtures, not this one (`rack/rhythm.jq` was not in the list).
 
 ## 18. The bus and the first sound effects (ABI 7; designed in Session 15; D67; built in Session 17)
 
@@ -1284,7 +1300,7 @@ for a build session; the constants are set there and then by ear. Nothing here i
 | 13 note shuffle | not designed | each note plays as another sound | in the sequencer, as the repeats are: a hit fires a different sound ⚠ |
 | 15, 16 | not designed | pitch wobbles, 6.5 Hz small and 3.5 Hz large | wait for take c |
 
-### §18, designed 2026-11-24: the retune, and the delay in a lent line (ABI 12; D90 items 2 and 3, D91; designed in Session 25, not built)
+### §18, designed 2026-11-24: the retune, and the delay in a lent line (ABI 12; D90 items 2 and 3, D91; designed in Session 25, built in Session 26)
 
 The table above, exact. §18's rules stand: the bus, idle as today's path, the 2 ms ramp,
 the track channels untouched, musical time, `+ − × ÷` and casts only. What changes is each
@@ -1425,6 +1441,62 @@ measure, not their bytes). No view byte, snapshot byte or command changes.
 | Native and `.wasm`, the same bytes | the seven `render-fx-*` pairs rendered again, and a new `harness/render-fx-4.json` with a line lent in both harnesses |
 | What it costs | `make bench`, the old library kept and run interleaved: idle, beat, all, both and the loops inside the old build's spread; a new case "fx 4" with a line lent |
 | Ours beside the hardware | Session 26's comparison: our render of takes a and b's patterns read by `harness/hardware-fx.py` (`PLAN.md`) |
+
+**Built (Session 26, ABI 12).** The retune in `core/src/bus.rs` (the model in
+`core/src/tests/bus.rs` written again first; it matched the code bit for bit at the first
+run), then the delay: `pi_delay_frames` and `pi_set_delay` in `core/src/abi.rs` and the
+header, the line, `head` and `full` in `Bus`, `Engine::set_sample_rate` forgetting it. Both
+models were given a line on their tours. Every row of the table above has its test; four
+tests were replaced by the decision (the hold at 6 kHz, twice; the soft clip and twelve
+levels; sixteen steps a sweep; exact silence for 3), and effect 2's number in two route tests
+and `rack/test/jacks.cpp` followed the new clip. 23 faults planted here, 22 caught at the
+first run and the last once a test was added (`LEARNINGS.md`). The hosts lend: the worklet (the
+instrument and the listen page), the Rhythm module and its self-test's second engine. What
+turned out different:
+
+- **Where the echo sits.** Asked for before `wet`, as designed, every bench case read 1 to 2
+  ns a frame more than the echo out of line and called from inside `wet`; that arrangement
+  is built. ⚠ Against the old build, ten pairs interleaved: idle, both and the three loop
+  layouts inside its spread; **the beat 0.9 ns and all 2.6 ns over it** (29.8 against 28.9;
+  44.5 against 41.9). Not held by either arrangement Session 25 listed. Aligning every
+  function to 64 bytes moved the cost between the session's three commits (the repeat alone
+  read 1.5 ns faster than the old build, and 3 ns slower with alignment held equal), so at
+  this size the bench is reading where code lands, not work done (`LEARNINGS.md`). "fx 4"
+  with a line lent: 37.0 ns, about 8 over the dry beat.
+- **`render-loop` moved too:** its lane holds effects 2, 5 and 6. "What must not move" says
+  "with no effect in the lane", so this is by the design; the build list had named only the
+  seven pairs (`fixtures/README.md`).
+- ⚠ **A rate change while effect 4 ramps out:** the line is forgotten, so the echo returns the
+  bus as it is for the rest of the ramp (no read, no write). The design did not say.
+- ⚠ **The Rhythm module grows its lines only** (`onSampleRateChange`, which Rack calls on
+  add and on a rate change with the engine locked; the SDK's header says both), so a rate
+  change down allocates nothing. A rate change up allocates there, not in `process`.
+
+**Compared with the hardware (Session 26; D91 item 9).** `harness/ours-take.cpp` plays takes
+a and b's patterns as the hand did (80 bpm, 48 kHz, three bars dry, each key down two bars
+and up one, a line lent), and `harness/hardware-fx.py`, unchanged, read the WAVs. ⚠ The list
+said `target/ours/`; the script refuses any take inside the repo (README rule 6), so they
+were written outside it.
+
+| Effect | The reading | The PO-12's | Ours as designed | Ours now | Moved |
+|---|---|---|---|---|---|
+| 1 | the hold's mean length; the kick's peak against dry | 1.5 ms; within 2 dB | 1.0 ms (1 000 Hz exactly); −1.7 dB (a), −0.3 dB (b) | the same | nothing (not chased: R69) |
+| 2 | gain under the ceiling; ceiling over the kick's dry peak (b) | 2.93; 2.12 | 2.99; **2.41** | 2.99; 2.12 | the ceiling, 1 → 0.88 |
+| 3 | the step over the kick's dry peak (b); where the levels sit | 1 / 1.90; half steps | **1 / 1.65**; half steps | 1 / 1.91; half steps | levels a unit, 4 → 4.6 |
+| 4 | the echo's time and gain (b) | 174.8 ms; 0.09 to 0.25 | 174.77 ms; 0.14 | the same | nothing |
+| 5 | cutoff; the peak at it (a) | 233 to 344 Hz; +7 dB | 308 Hz; +6.1 dB (Q 2.03) | the same | nothing |
+| 7 | cutoff; the peak at it (a) | 1 796 Hz; +15.5 dB | 1 799 Hz; +15.5 dB (Q 5.98) | the same | nothing |
+| 6 | the cutoff's ends, read every half step (a); steps a cycle | 190 Hz to 2.5 kHz; 8.5 to 9 | 186 Hz to **1 930 Hz**; 9 | 190 Hz to 2 383 Hz; 9 | the top, 2 500 → 3 240 Hz |
+| 8 | the same | 220 Hz to 2.9 kHz; 8.5 to 9 | **252** Hz to 2 701 Hz; 9 | 450 Hz to 2 728 Hz; 9 | nothing ⚠ |
+| 11, 12 | hits a beat (b) | 7.94; 5.97 | 8.00; 6.00 | the same | nothing |
+
+- ⚠ **Effect 8's bottom cannot be read on take a.** The sweep reaches it on steps 1, 10, 19
+  and 28 of a run; the pattern sounds on odd steps, so only step 1 shows it, and that
+  reading came and went between renders (252 Hz, then none). Moving the bottom to 192 Hz
+  read 408 Hz. It stays at 220 as designed: take c's noise, on more steps, may read it.
+- The PO-12's ends were read the same half-step way, so a top read low here was read low
+  there too: the moves bring the readings together, not the sweeps' true ends.
+- Effect 1 does not match in length or pitch, as R69 said it would not.
 
 ## 19. Sound in: the returns and the effects loop (ABI 9; designed in Session 15; D68; built in Session 18)
 

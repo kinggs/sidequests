@@ -3,23 +3,22 @@
 **Status (2026-11-24):** it plays, on a phone (`web/rhythm.html`) and in VCV Rack (the
 Rhythm module). Sixteen sounds, each built in code or a public-domain sample; the hardware's
 workflow for writing a beat; effects punched in and recorded as they are played, with four
-repeats and seven sound effects; sliders that are the hand's, with steps that keep what
+repeats that hold the nearest note behind them and eight sound effects, tuned to the
+owner's PO-12 by measurement; sliders that are the hand's, with steps that keep what
 they were written with; a display that weaves. In Rack, thirteen jacks: every sound's
 trigger, audio and slider voltages go out and come back, and each of the sixteen effects
 has its own channel on FX SEND and FX RETURN, Ours or a Rack module's, beside the dry or in
-place of it. The engine is at ABI 11 with snapshot version 4; CI builds the plugin for all four
+place of it. The engine is at ABI 12 with snapshot version 4; CI builds the plugin for all four
 Rack platforms. Proofs P1, P2, P3 and P7 passed; P4, P5 and P6 are part-run and wait for an
 iPhone and other machines (`PROOFS.md`).
 
 Not finished: most of what was built on 2026-11-23 has not been seen or heard by the owner,
-and every look in it is a stand-in until then; the effects are first guesses from the
-hardware's names, untuned, and now measured against the owner's PO-12 (R64 to R68;
-proposals in `ENGINE.md` §17 and §18, not built); five of the sixteen effects are not
-designed. Built on 2026-11-24 and not yet played by the owner: FX SEND and FX RETURN as
-sixteen channels, a channel an effect, with what comes back always in the mix (D87, D88;
-Session 24). Designed the same day and not built: a repeat that holds the nearest note
-behind it, the effects retuned to those measurements, and effect 4, a delay (D90, D91;
-Session 25). What is next is
+and every look in it is a stand-in until then; five of the sixteen effects are not
+designed. Built on 2026-11-24: FX SEND and FX RETURN as sixteen channels, a channel an
+effect, with what comes back always in the mix (D87, D88; Session 24; played by the owner);
+then, not yet heard, a repeat that holds the nearest note behind it, effects 1 to 8 retuned
+to the PO-12's measurements and read beside it by the same script, and effect 4, a delay of
+one echo (D90, D91; Sessions 25 and 26). What is next is
 `PLAN.md`, "Next, in order". How it got here, session by session, is `PLAN.md`'s "Done so
 far" and `PLAN-HISTORY.md`. Started 2026-11-18.
 

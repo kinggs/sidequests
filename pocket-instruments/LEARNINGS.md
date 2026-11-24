@@ -1076,3 +1076,68 @@ above; these are what only the chain showed.
 - **One question went to the owner** (the sweeps, as the list asked); the rest were ruled
   and listed (D91, O22). The owner added a step unasked: compare ours with the hardware by
   the same script, and tweak. It is the measurement Session 22 built, pointed the other way.
+
+## Session 26: the repeat's rule, the retune and the delay, built and compared (2026-11-24)
+
+- **Designing to the line paid again.** The hand-worked fixture passed at the first run; so
+  did the nine repeat tests, the retune's model (written from §18's text before the code)
+  and both models once given a line. The four failures the retune met were all numbers the
+  decision changed (effect 2's old curve in two route tests and `jacks.cpp`; an outside
+  effect's leftover cutoff; effect 3's +½ step on a silent bus), not claims.
+- **The bench at this size reads where code lands.** Ten interleaved pairs, old build and
+  new, after the session: idle, both and the loops inside the old build's spread; the beat
+  0.9 ns and all 2.6 ns over. Bisected by commit, with each build's library and bench
+  interleaved (medians, ns a frame):
+
+  | Build | idle | beat | all | loop | `pi_process` mod 64 |
+  |---|---|---|---|---|---|
+  | old (ABI 11) | 26.8 | 28.7 | 42.3 | 37.2 | 16 |
+  | + the repeat | 25.0 | 27.2 | 41.3 | 35.1 | 0 |
+  | + the retune | 27.6 | 30.4 | 44.7 | 37.5 | 32 |
+  | + the delay (echo before `wet`) | 30.4 | 32.8 | 46.2 | 39.8 | 48 |
+
+  The repeat's and the retune's builds have `pi_process` the same size; only its address
+  moved. Built with `-C llvm-args=-align-all-functions=6`, all four line up differently:
+  old 24.4 idle, the repeat 27.6, the retune 27.5, the delay 28.4. Code that never runs
+  while stopped cannot cost 3 ns a stopped frame, so these are placement, not work. ⚠ Not
+  chased further: the list said to try Session 25's two arrangements and stop. Asked for
+  before `wet` (the design) every case read 1 to 2 ns more than called from inside `wet`
+  out of line, so the second is built. A future efficiency session could pin the hot loop's
+  alignment, or measure in Rack with perf, where the plugin's own layout decides.
+- **Measured, final (ten pairs, medians, the old build's range in brackets).** Idle 27.4
+  (old 26.6, 25.0 to 28.1); beat 29.8 (28.9, 28.1 to 29.5); all 44.5 (41.9, 41.5 to 43.2);
+  both 29.8 (29.0); loop 36.8 (37.0); loop fx 36.7 (37.0); loop in 38.5 (39.0); fx 4 with a
+  line 37.0. The engine is 3 728 bytes natively and in WebAssembly (3 712 before); the
+  `.wasm` 42 177 bytes (41 255).
+- **30 faults planted, the unplanted copy passing first; 29 caught at the first run.** The
+  missed one, "lending keeps where the echo was", named a real hole: nothing lent a second
+  line mid-run. A test was added and the plant caught. Seven were §17's (the walk without
+  its wrap, a sound out of the effects counting, looking again at every boundary, a step
+  under 100 not counting, the run's own step not first, none anywhere holding step 0, the
+  wrap at 16 not the length) and 23 §18's (each constant, `trunc` for `floor`, the crush at
+  zero, `r`, the sweep's turn and both exact ends, and eleven on the line). "An echo
+  outlives the ramp" was caught by the clearing test, not by "no echo outlives the ramp":
+  with every sound in the bus, the plain sum and the bus's sum are the same bits.
+- **Ours, read by the hardware's script, beside the PO-12's** (`ENGINE.md` §18, "Compared
+  with the hardware", has the table and what moved). The reports' numbers, side by side:
+
+  | Effect | PO-12 (R64 to R69) | Ours as designed | Ours after the moves |
+  |---|---|---|---|
+  | 1 | hold 1.5 ms mean; kick peak −0.9 dB (b), +4.1 (a) | hold 1.0 ms; −0.3 dB (b), −1.7 (a) | the same |
+  | 2 | gain 2.93; ceiling 2.12 × the kick's peak | 2.99; 2.41 | 2.99; 2.12 |
+  | 3 | step = kick's peak / 1.90; half steps | / 1.65; half steps | / 1.91 |
+  | 4 | 174.8 ms; 0.09 to 0.25 | 174.77 ms; 0.14 (b), 0.15 (a) | the same |
+  | 5 | 233 to 344 Hz; +7 dB | 308 Hz; Q 2.03 (+6.1 dB) | the same |
+  | 6 | 190 Hz to 2.5 kHz; 8.5 to 9 steps | 186 to 1 930 Hz; 9 | 190 to 2 383 Hz; 9 |
+  | 7 | 1 796 Hz; +15.5 dB | 1 799 Hz; Q 5.98 | the same |
+  | 8 | 220 Hz to 2.9 kHz; 8.5 to 9 | 252 to 2 701 Hz; 9 | (bottom unread) to 2 728 Hz |
+  | 11, 12 | 7.94; 5.97 a beat | 8.00; 6.00 | the same |
+
+  Two constants were the design's own guesses at our level (the ceiling at "a sound of ours
+  peaks near 0.5", where our kick peaks at 0.41). Measuring ours the way the hardware was
+  measured found them in one round. The sweep's ends move the readings, not the true ends:
+  the script reads a sweep every half step where the pattern sounds, and both devices were
+  read that way.
+- **A script's guard met our own render.** `hardware-fx.py` refuses any take inside the repo
+  (rule 6, for recordings of the hardware). The list said `target/ours/`; ours was written
+  outside the repo instead and the script left alone.
