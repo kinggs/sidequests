@@ -67,6 +67,9 @@ FN_BOTTOM = ("function", "fx", "play", "write")
 #     on one line the two labels overlapped by 1.5 mm. On two lines, 12 mm apart, they clear
 #     each other, AUDIO's plate and the wordmark, which keeps its 3.0 mm.
 #   - FX GATES is at 90.0, not 86.5: still midway over the pair it belongs to.
+# Session 24 (ABI 11; D87, D88): FX SEND and FX RETURN carry sixteen channels, a channel an
+# effect, and are drawn with stitches. Nothing moved: `--check` found every clearance held
+# (FX SEND to FX RETURN 1.20 mm, was 1.46; FX RETURN to AUDIO 1.57 mm, was 1.83).
 ROW_UP, ROW_LOW = 97.5, 116.3
 LABEL_ABOVE = 6.6   # a label's centre above its socket's
 LINE = 3.1          # between the two lines of a two-line label
@@ -82,8 +85,8 @@ JACKS = {
     "TRIGGERS": (12.4, ROW_LOW, True, True, ("TRIGGERS",)),
     "VOICES": (25.4, ROW_LOW, True, True, ("VOICES",)),
     "RETURN": (38.4, ROW_LOW, False, True, ("RETURN",)),
-    "FX SEND": (84.0, ROW_LOW, True, False, ("FX", "SEND")),
-    "FX RETURN": (96.0, ROW_LOW, False, False, ("FX", "RETURN")),
+    "FX SEND": (84.0, ROW_LOW, True, True, ("FX", "SEND")),
+    "FX RETURN": (96.0, ROW_LOW, False, True, ("FX", "RETURN")),
     "AUDIO": (109.67, ROW_LOW, True, False, ("AUDIO",)),
 }
 # Each output on its own patch of the inverted ground (D76 item 3; VCV's panel guide asks for

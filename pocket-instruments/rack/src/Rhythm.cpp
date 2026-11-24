@@ -14,9 +14,13 @@
 //   A OUT, B OUT  sixteen channels, 0 to 10 V: the slider each sound was last hit with.
 //   A IN, B IN    sixteen channels: channel n's voltage at sound n's hit is that slider (D76).
 //   FX GATES  sixteen channels: 10 V on channel n while effect n is heard (D68).
-//   FX SEND   the sounds switched into the effects, before any effect. FX RETURN: what an
-//             effect ticked in the menu is heard from while it is held (by default the ones
-//             the core has no sound for, the delay first).
+//   FX SEND   sixteen channels, a channel an effect (ABI 11; D87, D88): the sounds switched
+//             into the effects, before any effect, ramped in over 2 ms on channel n while
+//             effect n is heard and out after, whatever its setting.
+//   FX RETURN every channel its cable carries, summed into AUDIO before the volume, playing
+//             or stopped. Each effect is Ours, Rack's beside the dry, or Rack's in place of
+//             the dry (the menu; all Ours at first), and the settings count only while FX
+//             SEND or FX RETURN is patched (D88 item 9).
 //   AUDIO     the mix, 5 V to 1.0, bent by tanh towards 10 V.
 //
 // Since Session 18 the mix is the core's whatever is patched (ENGINE.md §19): the module
@@ -37,7 +41,8 @@
 // its views and (Session 18) its FX GATES to the fixture, pass after pass, as the Probe does
 // with format 1. A patch whose data names a loop ("return", "fx", "sliders") plays a short
 // performance through the module's own cables and holds every frame to a second engine given
-// what those cables should carry; "latch" plays D78's gestures. rack/selftest.sh.
+// what those cables should carry ("fx" in whichever of the three settings the patch gives);
+// "latch" plays D78's gestures. rack/selftest.sh.
 //
 // Nothing on the audio thread allocates, locks or logs.
 // SPDX-License-Identifier: MIT
@@ -88,7 +93,7 @@ const char *const SOUND_NAMES[PI_TRACKS] = {"Bass drum", "Snare", "Closed hat", 
     "Cymbal", "Noise", "Clap", "Click", "Low tom", "High tom", "Cow bell", "Blip", "Tone", "Bass tone"};
 const char *const FN_NAMES[7] = {"sound", "pattern", "bpm", "function", "fx", "play", "write"};
 // What each effect key is, in our words (ENGINE.md §17 and §18; 4 and 13 to 16 have no sound in
-// the core yet, so they are the ones FX RETURN takes by default).
+// the core yet: set to Ours they leave the sound dry).
 const char *const FX_NAMES[PI_TRACKS] = {"low sample rate", "distortion", "bit crush", "delay (no sound here yet)", "lowpass", "lowpass sweep",
     "hipass", "hipass sweep", "repeat, 4 a beat", "repeat, 3 a beat", "repeat, 8 a beat", "repeat, 6 a beat", "13 (no sound here yet)",
     "14 (no sound here yet)", "15 (no sound here yet)", "16 (no sound here yet)"};
@@ -158,7 +163,9 @@ struct Rhythm : Module {
     // nothing flashes. Rack has no setting of its own to follow, as a browser has. In the patch.
     std::atomic<bool> stillWeave{false};
     std::atomic<int32_t> aChosen{-1}, bChosen{-1}; // the same for A IN and B IN (D76 item 4)
-    std::atomic<int32_t> fxChosen{-1};   // D68 item 2: -1 the effects the core has no sound for, else a mask
+    // D88 item 1: each effect's setting, as pi::FxSettings's two masks (the effects that are
+    // Rack's; of those, the ones in place of the dry). All Ours at first. In the patch.
+    std::atomic<uint32_t> fxRack{0}, fxInPlace{0};
     std::atomic<int> loopWanted{LOOP_NONE}; // a loop self-test (selftest.sh), or none
     std::atomic<bool> sliderHeld[2];     // a pointer is on the slider: its cap does not follow
     std::atomic<bool> freshWanted{false}; // Rack's Initialize: an empty beat
@@ -185,7 +192,8 @@ struct Rhythm : Module {
     int packLoaded = 0;
     pi_engine *e = nullptr;
     pi::Jacks jacks;
-    uint32_t routeSent[4] = {};  // the masks ROUTE last gave the core (§19): sounds, effects, A, B
+    uint32_t routeSent[5] = {};  // the masks ROUTE last gave the core (§19): sounds, effects, A, B, inserts
+    float sendStep = 500.f / 48000.f; // FX SEND's ramp a frame: pi::rampStep at the rate
     // The loop self-tests: a second engine, given what the module's own cables should carry.
     alignas(16) uint8_t mem2[4096];
     pi_engine *shadow = nullptr;
@@ -193,8 +201,10 @@ struct Rhythm : Module {
     bool loopRunning = false, loopBad = false;
     uint64_t loopFrame = 0;
     uint32_t loopStep = 0, loopActedPass = 0, fires1 = 0;
-    float prevVoices[PI_TRACKS] = {}, prevSend = 0.f, prevA[PI_TRACKS] = {}, prevB[PI_TRACKS] = {};
+    float prevVoices[PI_TRACKS] = {}, prevSend[PI_TRACKS] = {}, prevA[PI_TRACKS] = {}, prevB[PI_TRACKS] = {};
     float shadowIo[PI_AUDIO_LOOP_SLIDERS] = {}; // the shadow's frame, kept until the outputs are written
+    pi::Jacks shadowJacks;       // FX SEND as jacks.hpp makes it from the shadow's frame
+    float shadowSend[PI_TRACKS] = {};
     dsp::SchmittTrigger clockTrig, resetTrig;
     uint32_t rate = 0, sinceReset = 0xffffffffu, generation = 0, sincePublish = 0;
     int sourceSent = -1;         // the clock source last sent; -1 sends it on the next frame
@@ -235,14 +245,14 @@ struct Rhythm : Module {
         configInput(CLOCK_INPUT, "Clock");
         configInput(RESET_INPUT, "Reset");
         configInput(RETURN_INPUT, "Return (sixteen channels: each takes its sound's place in the mix)");
-        configInput(FX_RETURN_INPUT, "FX return (heard in place of the effects ticked in the menu)");
+        configInput(FX_RETURN_INPUT, "FX return (every channel summed into the mix, before the volume: send it fully wet, or set the effect to in place of the dry)");
         configInput(A_INPUT, "Slider A (sixteen channels, 0 to 10 V: read as each sound is hit)");
         configInput(B_INPUT, "Slider B (sixteen channels, 0 to 10 V: read as each sound is hit)");
         configOutput(TRIGGERS_OUTPUT, "Triggers (sixteen channels, one a sound)");
         configOutput(VOICES_OUTPUT, "Voices (sixteen channels, one a sound, before the volume)");
         configOutput(AUDIO_OUTPUT, "Audio");
         configOutput(FX_GATES_OUTPUT, "FX gates (sixteen channels: 10 V while that effect is heard)");
-        configOutput(FX_SEND_OUTPUT, "FX send (the sounds through the effects, before any effect)");
+        configOutput(FX_SEND_OUTPUT, "FX send (sixteen channels, one an effect: the sounds through the effects while that effect is heard)");
         configOutput(A_OUTPUT, "Slider A (sixteen channels, 0 to 10 V: what each sound was last hit with)");
         configOutput(B_OUTPUT, "Slider B (sixteen channels, 0 to 10 V: what each sound was last hit with)");
         if (pi_abi_version() != PI_ABI_VERSION || pi_size() > sizeof mem) {
@@ -280,12 +290,14 @@ struct Rhythm : Module {
         int fx = testedFixture.load();
         INFO("Pocket Instruments rhythm (%s): fixture %s%s: %u passes matched, %u did not, %u cut short, %u views held, %u not; "
              "rate %u Hz, %u events dropped, %u snapshots published, %u loaded, %u refused; audio peak %.2f V, %u samples not finite, "
-             "%u trigger pulses, %u frames with RETURN; %u gates held, %u not; loop %s: %u passes held to the core, %u not, %u frames "
+             "%u trigger pulses, %u frames with RETURN; %u gates held, %u not; loop %s%s%s: %u passes held to the core, %u not, %u frames "
              "the same, %u not, %u where the loop was heard; %d of 16 samples found",
              when, fx >= 0 ? FIXTURES[fx].name : "none", fx >= 0 ? (testedEdges.load() ? " on edges" : " on the table") : "",
              passed.load(), failed.load(), aborted.load(), viewsHeld.load(), viewsNot.load(), lastRate.load(), dropped.load(),
              published.load(), loadsOk.load(), loadsRefused.load(), peakMillivolts.load() / 1000.0, notFinite.load(), pulses.load(),
-             returnFrames.load(), gatesHeld.load(), gatesNot.load(), LOOP_NAMES[clamp(loopWanted.load(), 0, 4)], loopPassed.load(),
+             returnFrames.load(), gatesHeld.load(), gatesNot.load(), LOOP_NAMES[clamp(loopWanted.load(), 0, 4)],
+             loopWanted.load() == LOOP_FX ? string::f(" effect %d ", fxLoopEffect()).c_str() : "",
+             loopWanted.load() == LOOP_FX ? fxLoopCase() : "", loopPassed.load(),
              loopFailed.load(), loopHeld.load(), loopNot.load(), loopActed.load(), packLoaded);
         if (haveMismatch.load()) INFO("Pocket Instruments rhythm: first mismatch: %s", firstMismatch);
     }
@@ -356,6 +368,8 @@ struct Rhythm : Module {
         viewNow = true;
         mustPublish = true;
         for (uint32_t &r : routeSent) r = 0; // a new engine routes nothing (§19): say it again
+        jacks.clearSend();                   // and FX SEND's gains are all 0 (ABI 11)
+        for (uint32_t t = 0; t < PI_TRACKS; t++) outputs[FX_SEND_OUTPUT].setVoltage(0.f, t);
     }
 
     static uint64_t stepFrame(uint64_t n, uint32_t rate, uint32_t mbpm) {
@@ -473,7 +487,9 @@ struct Rhythm : Module {
     // steps a pass, with fx and a grid key pressed on the module's own parameters at step 5
     // and let go at step 9 ("return": effect 2, the distortion, on drums that come back through
     // RETURN from the module's own VOICES, which is the owner's patch with the module's own
-    // voices for the drums; "fx": effect 4, heard from FX RETURN, patched from FX SEND;
+    // voices for the drums; "fx": FX SEND's sixteen channels patched into FX RETURN, with
+    // effect 4 Ours, or the effect the patch's settings make Rack's, beside or in place of the
+    // dry (ABI 11), and FX SEND held to jacks.hpp given the shadow's frame;
     // "sliders": no effect, the bass drum's steps keeping four pairs of values, A OUT into A IN
     // and B OUT into B IN). Every frame, a second engine (`shadow`) is given the same commands
     // and, for its inputs, what the module wrote to its own outputs the frame before, which is
@@ -486,6 +502,22 @@ struct Rhythm : Module {
     // headless Rack, so the audio thread calls them here and nothing else does), each checked
     // against the core's view at a step's boundary.
     static bool loopHasShadow(int kind) { return kind == LOOP_RETURN || kind == LOOP_FX || kind == LOOP_SLIDERS; }
+    // "fx" punches the lowest effect the patch makes Rack's, or effect 4 with every effect Ours,
+    // and says which of the three settings it played (selftest.sh gives three such modules).
+    pi::FxSettings fxSettings() const {
+        pi::FxSettings f;
+        f.rack = fxRack.load(std::memory_order_relaxed);
+        f.inPlace = fxInPlace.load(std::memory_order_relaxed);
+        return f;
+    }
+    int fxLoopEffect() const {
+        uint32_t r = fxSettings().rack & 0xffffu;
+        return r ? __builtin_ctz(r) + 1 : 4;
+    }
+    const char *fxLoopCase() const {
+        static const char *const NAMES[3] = {"ours", "beside the dry", "in place of the dry"};
+        return NAMES[fxSettings().of(fxLoopEffect())];
+    }
 
     void loopFail(const char *what) {
         loopBad = true;
@@ -568,7 +600,7 @@ struct Rhythm : Module {
             // fx and the key on one frame: process() sends fx down first and up last (D78's order).
             float to = loopStep == 4 ? 1.f : 0.f;
             params[KEY_PARAMS + PI_KEY_FX].setValue(to);
-            params[KEY_PARAMS + (loop == LOOP_RETURN ? 1 : 3)].setValue(to);
+            params[KEY_PARAMS + (loop == LOOP_RETURN ? 1 : fxLoopEffect() - 1)].setValue(to);
         }
         if (boundary && loopStep == STEPS) {
             uint32_t need = loop == LOOP_LATCH ? 8u : 1u;
@@ -589,7 +621,11 @@ struct Rhythm : Module {
         uint32_t sn = 0;
         if (loopFrame == 0) { // the routes this patch should give
             if (loop == LOOP_RETURN) sc[sn++] = pi_cmd{0, PI_CMD_ROUTE, PI_ROUTE_SOUNDS, 0, 0, 0xffffu};
-            if (loop == LOOP_FX) sc[sn++] = pi_cmd{0, PI_CMD_ROUTE, PI_ROUTE_FX, 0, 0, pi::FX_OUTSIDE_DEFAULT};
+            if (loop == LOOP_FX) { // FX SEND and FX RETURN are patched: the settings count
+                sc[sn++] = pi_cmd{0, PI_CMD_ROUTE, PI_ROUTE_FX, 0, 0, fxSettings().route(true)};
+                sc[sn++] = pi_cmd{0, PI_CMD_ROUTE, PI_ROUTE_FX_INSERT, 0, 0, fxSettings().insert(true)};
+                shadowJacks.clearSend();
+            }
             if (loop == LOOP_SLIDERS) {
                 sc[sn++] = pi_cmd{0, PI_CMD_ROUTE, PI_ROUTE_A, 0, 0, 0xffffu};
                 sc[sn++] = pi_cmd{0, PI_CMD_ROUTE, PI_ROUTE_B, 0, 0, 0xffffu};
@@ -600,7 +636,7 @@ struct Rhythm : Module {
         float sio[PI_AUDIO_LOOP_SLIDERS] = {};
         uint32_t want = loop == LOOP_SLIDERS ? PI_AUDIO_LOOP_SLIDERS : PI_AUDIO_LOOP;
         if (loop == LOOP_RETURN) pi::returnIn(sio, prevVoices, 0xffffu);
-        if (loop == LOOP_FX) pi::fxReturnIn(sio, prevSend);
+        if (loop == LOOP_FX) pi::fxReturnIn(sio, prevSend, int(PI_TRACKS)); // the cable carries all sixteen
         if (loop == LOOP_SLIDERS) {
             pi::sliderIn(sio, PI_LOOP_A, prevA, 0xffffu);
             pi::sliderIn(sio, PI_LOOP_B, prevB, 0xffffu);
@@ -615,6 +651,7 @@ struct Rhythm : Module {
         else if (std::memcmp(a, b, PI_VIEW_SIZE)) loopFail("the view is not the core's own, given what the cables carry");
         else loopHeld++;
         std::memcpy(shadowIo, sio, sizeof shadowIo);
+        if (loop == LOOP_FX) shadowJacks.fxSend(sio, b[PI_VIEW_HEARD], pi::rampStep(rate), shadowSend);
         // Was the loop heard? An effect on returned sound moves the mix off the plain sum of what
         // came back; a slider input shows as a last hit that is not what the output says.
         bool acted = false;
@@ -632,10 +669,13 @@ struct Rhythm : Module {
 
     // And what the looped output itself carries, once it is written: the shadow's own channel,
     // in volts. (Without this a wrong signal on FX SEND came back, was taken, and matched: the
-    // shadow is given the module's own outputs. Found by planting it.)
+    // shadow is given the module's own outputs. Found by planting it.) FX SEND's sixteen
+    // channels, bit for bit what jacks.hpp makes of the shadow's frame and view.
     void loopOutputs() {
         bool ok = true;
-        if (loop == LOOP_FX) ok = outputs[FX_SEND_OUTPUT].getVoltage() == 5.f * shadowIo[PI_LOOP_FX];
+        if (loop == LOOP_FX)
+            ok = outputs[FX_SEND_OUTPUT].getChannels() == int(PI_TRACKS) &&
+                 !std::memcmp(outputs[FX_SEND_OUTPUT].getVoltages(), shadowSend, sizeof shadowSend);
         for (uint32_t t = 0; t < PI_TRACKS; t++) {
             if (loop == LOOP_RETURN) ok = ok && outputs[VOICES_OUTPUT].getVoltage(t) == 5.f * shadowIo[t];
             if (loop == LOOP_SLIDERS)
@@ -667,6 +707,7 @@ struct Rhythm : Module {
             lastRate = r;
             msFrames = std::max<uint32_t>(1, r / 1000);
             viewFrames = r / 60;
+            sendStep = pi::rampStep(r);
         }
         if (freshWanted.load(std::memory_order_relaxed) && freshWanted.exchange(false)) fresh(SEED);
         if (const Snap *s = inbox.take()) {
@@ -768,15 +809,20 @@ struct Rhythm : Module {
         // Sound in (ENGINE.md §19; jacks.hpp). Which inputs are taken is ROUTE's, sent when it
         // changes; and the layout is the smallest that carries what is patched: with none of the
         // seven new jacks or RETURN in use it is PI_AUDIO_BOTH, the frame this module always asked for.
-        uint32_t route[4];
+        // The effects' settings (ROUTE 1 and 4, ABI 11) count only while FX SEND or FX RETURN is
+        // patched (D88 item 9).
+        uint32_t route[5];
+        bool fxPatched = outputs[FX_SEND_OUTPUT].isConnected() || inputs[FX_RETURN_INPUT].isConnected();
+        pi::FxSettings fxSet = fxSettings();
         route[PI_ROUTE_SOUNDS] = pi::returnMask(returnChosen.load(std::memory_order_relaxed), inputs[RETURN_INPUT].getChannels());
-        route[PI_ROUTE_FX] = pi::fxMask(fxChosen.load(std::memory_order_relaxed), inputs[FX_RETURN_INPUT].isConnected());
+        route[PI_ROUTE_FX] = fxSet.route(fxPatched);
         route[PI_ROUTE_A] = pi::returnMask(aChosen.load(std::memory_order_relaxed), inputs[A_INPUT].getChannels());
         route[PI_ROUTE_B] = pi::returnMask(bChosen.load(std::memory_order_relaxed), inputs[B_INPUT].getChannels());
+        route[PI_ROUTE_FX_INSERT] = fxSet.insert(fxPatched);
         bool slidersOn = route[PI_ROUTE_A] || route[PI_ROUTE_B] || outputs[A_OUTPUT].isConnected() || outputs[B_OUTPUT].isConnected();
-        bool loopOn = route[PI_ROUTE_SOUNDS] || route[PI_ROUTE_FX] || outputs[FX_SEND_OUTPUT].isConnected();
+        bool loopOn = route[PI_ROUTE_SOUNDS] || fxPatched;
         uint32_t channels = pi::layout(slidersOn, loopOn);
-        for (uint8_t a = 0; a < 4; a++)
+        for (uint8_t a = 0; a < 5; a++)
             if (route[a] != routeSent[a] && n < PI_EVENTS_MIN + 36) {
                 cmds[n++] = pi_cmd{0, PI_CMD_ROUTE, a, 0, 0, route[a]};
                 routeSent[a] = route[a];
@@ -784,9 +830,9 @@ struct Rhythm : Module {
         float io[PI_AUDIO_LOOP_SLIDERS];
         if (channels != PI_AUDIO_BOTH) {
             if (route[PI_ROUTE_SOUNDS]) pi::returnIn(io, inputs[RETURN_INPUT].getVoltages(), route[PI_ROUTE_SOUNDS]);
-            // Always given: the core reads it while an outside effect is heard and for the 2 ms
-            // it ramps out, which can outlast its tick in the menu. Unpatched it is 0 V.
-            pi::fxReturnIn(io, inputs[FX_RETURN_INPUT].getVoltage()); // one channel (D68 item 6)
+            // Always given: the core reads it on every loop frame (ABI 11). Every channel the
+            // cable carries, summed (D88 item 11); unpatched, 0, which adds nothing.
+            pi::fxReturnIn(io, inputs[FX_RETURN_INPUT].getVoltages(), inputs[FX_RETURN_INPUT].getChannels());
             if (route[PI_ROUTE_A]) pi::sliderIn(io, PI_LOOP_A, inputs[A_INPUT].getVoltages(), route[PI_ROUTE_A]);
             if (route[PI_ROUTE_B]) pi::sliderIn(io, PI_LOOP_B, inputs[B_INPUT].getVoltages(), route[PI_ROUTE_B]);
         }
@@ -870,7 +916,17 @@ struct Rhythm : Module {
             outputs[FX_GATES_OUTPUT].setChannels(PI_TRACKS);
             for (uint32_t t = 0; t < PI_TRACKS; t++) outputs[FX_GATES_OUTPUT].setVoltage(pi::gate(view[PI_VIEW_HEARD], t), t);
         }
-        if (outputs[FX_SEND_OUTPUT].isConnected()) outputs[FX_SEND_OUTPUT].setVoltage(jacks.send(io));
+        // FX SEND (D88 items 4 and 5): sixteen ramps, made here from the core's bus and the view's
+        // `heard`, which is read on every frame a command or a step could change it, so a gain
+        // leaves 0 on the frame the core's own ramp does. Every channel always live; a gain at 0
+        // is not visited. Run on every loop frame, patched or not, so it never stands still.
+        if (channels != PI_AUDIO_BOTH) {
+            if (outputs[FX_SEND_OUTPUT].isConnected()) outputs[FX_SEND_OUTPUT].setChannels(PI_TRACKS);
+            jacks.fxSend(io, view[PI_VIEW_HEARD], sendStep, outputs[FX_SEND_OUTPUT].getVoltages());
+        } else if (jacks.fxLive) { // no bus in this layout: the send's gains go to 0 at once
+            jacks.clearSend();
+            for (uint32_t t = 0; t < PI_TRACKS; t++) outputs[FX_SEND_OUTPUT].setVoltage(0.f, t);
+        }
         if (outputs[A_OUTPUT].isConnected()) {
             outputs[A_OUTPUT].setChannels(PI_TRACKS);
             jacks.sliderOut(io, PI_LOOP_A, outputs[A_OUTPUT].getVoltages());
@@ -882,7 +938,7 @@ struct Rhythm : Module {
         if (shadowed) loopOutputs();
         if (loop != LOOP_NONE) { // what a cable from each output carries to the next frame's input
             std::memcpy(prevVoices, outputs[VOICES_OUTPUT].getVoltages(), sizeof prevVoices);
-            prevSend = outputs[FX_SEND_OUTPUT].getVoltage();
+            std::memcpy(prevSend, outputs[FX_SEND_OUTPUT].getVoltages(), sizeof prevSend);
             std::memcpy(prevA, outputs[A_OUTPUT].getVoltages(), sizeof prevA);
             std::memcpy(prevB, outputs[B_OUTPUT].getVoltages(), sizeof prevB);
         }
@@ -927,7 +983,8 @@ struct Rhythm : Module {
         returnChosen = -1;
         aChosen = -1;
         bChosen = -1;
-        fxChosen = -1;
+        fxRack = 0;
+        fxInPlace = 0;
         freshWanted = true;
     }
 
@@ -943,7 +1000,10 @@ struct Rhythm : Module {
         json_object_set_new(root, "return", json_integer(returnChosen.load()));
         json_object_set_new(root, "a", json_integer(aChosen.load()));
         json_object_set_new(root, "b", json_integer(bChosen.load()));
-        json_object_set_new(root, "fx", json_integer(fxChosen.load()));
+        // ABI 11: each effect's setting, as two masks (pi::FxSettings). Until then "fx", the
+        // effects FX RETURN took: read on a load below, never written.
+        json_object_set_new(root, "fxRack", json_integer(fxRack.load()));
+        json_object_set_new(root, "fxInPlace", json_integer(fxInPlace.load()));
         if (stillWeave.load()) json_object_set_new(root, "reducedMotion", json_true());
         int lp = loopWanted.load();
         if (lp > LOOP_NONE && lp <= LOOP_LATCH) json_object_set_new(root, "loop", json_string(LOOP_NAMES[lp]));
@@ -957,7 +1017,16 @@ struct Rhythm : Module {
         if (json_t *j = json_object_get(root, "return")) returnChosen = int32_t(clamp(int(json_integer_value(j)), -1, 0xffff));
         if (json_t *j = json_object_get(root, "a")) aChosen = int32_t(clamp(int(json_integer_value(j)), -1, 0xffff));
         if (json_t *j = json_object_get(root, "b")) bChosen = int32_t(clamp(int(json_integer_value(j)), -1, 0xffff));
-        if (json_t *j = json_object_get(root, "fx")) fxChosen = int32_t(clamp(int(json_integer_value(j)), -1, 0xffff));
+        json_t *rack = json_object_get(root, "fxRack");
+        if (rack) {
+            fxRack = uint32_t(json_integer_value(rack)) & 0xffffu;
+            json_t *inPlace = json_object_get(root, "fxInPlace");
+            fxInPlace = inPlace ? uint32_t(json_integer_value(inPlace)) & 0xffffu : 0u;
+        } else if (json_t *j = json_object_get(root, "fx")) { // a patch from before ABI 11 (D88 item 2)
+            pi::FxSettings old = pi::FxSettings::fromOld(int32_t(clamp(int(json_integer_value(j)), -1, 0xffff)));
+            fxRack = old.rack;
+            fxInPlace = old.inPlace;
+        }
         if (json_t *j = json_object_get(root, "loop"))
             for (int i = LOOP_RETURN; i <= LOOP_LATCH; i++)
                 if (json_is_string(j) && std::string(LOOP_NAMES[i]) == json_string_value(j)) loopWanted = i;
@@ -1465,23 +1534,28 @@ struct RhythmWidget : ModuleWidget {
         channelsMenu("RETURN", "from RETURN", Rhythm::RETURN_INPUT, &Rhythm::returnChosen);
         channelsMenu("A IN", "takes slider A from A IN", Rhythm::A_INPUT, &Rhythm::aChosen);
         channelsMenu("B IN", "takes slider B from B IN", Rhythm::B_INPUT, &Rhythm::bChosen);
-        // D68 item 2: which effects are heard from FX RETURN while they are held, in place of
-        // the core's own. By default the ones the core has no sound for.
-        menu->addChild(createSubmenuItem("FX RETURN", "", [=](Menu *sub) {
-            sub->addChild(createCheckMenuItem("The effects with no sound here yet", "4, 13 to 16", [=]() { return m->fxChosen.load() < 0; },
-                                              [=]() { m->fxChosen = -1; }));
+        // D88 item 1: each effect Ours, Rack's beside the dry, or Rack's in place of the dry, in
+        // one submenu where FX RETURN's ticks were ⚠. A row shows its setting and opens the
+        // three (two for the repeats, 9 to 12: D88 item 3). The greyed line is D88 item 10's.
+        static const char *const SETTINGS[3] = {"Ours", "Rack's, beside the dry", "Rack's, in place of the dry"};
+        menu->addChild(createSubmenuItem("FX SEND and FX RETURN", "", [=](Menu *sub) {
+            sub->addChild(createMenuLabel("Not fully wet? In place of the dry"));
             sub->addChild(new MenuSeparator);
-            for (int t = 0; t < int(PI_TRACKS); t++)
-                sub->addChild(createCheckMenuItem(string::f("Effect %d from FX RETURN", t + 1), FX_NAMES[t],
-                                                  [=]() {
-                                                      int32_t c = m->fxChosen.load();
-                                                      return ((c < 0 ? pi::FX_OUTSIDE_DEFAULT : uint32_t(c)) >> t & 1) != 0;
-                                                  },
-                                                  [=]() {
-                                                      int32_t c = m->fxChosen.load();
-                                                      uint32_t now = c < 0 ? pi::FX_OUTSIDE_DEFAULT : uint32_t(c);
-                                                      m->fxChosen = int32_t((now ^ (1u << t)) & 0xffffu);
-                                                  }));
+            for (int n = 1; n <= int(PI_TRACKS); n++) {
+                pi::FxSetting now = m->fxSettings().of(n);
+                sub->addChild(createSubmenuItem(string::f("%d %s", n, FX_NAMES[n - 1]), SETTINGS[now], [=](Menu *three) {
+                    for (pi::FxSetting st : {pi::FX_OURS, pi::FX_BESIDE, pi::FX_IN_PLACE}) {
+                        if (st == pi::FX_BESIDE && !pi::offersBeside(n)) continue;
+                        three->addChild(createCheckMenuItem(SETTINGS[st], "", [=]() { return m->fxSettings().of(n) == st; },
+                                                            [=]() {
+                                                                pi::FxSettings f = m->fxSettings();
+                                                                f.set(n, st);
+                                                                m->fxRack = f.rack;
+                                                                m->fxInPlace = f.inPlace;
+                                                            }));
+                    }
+                }));
+            }
         }));
         // The self-test (rack/selftest.sh runs it headless): choose a fixture, or play.
         int fx = m->fixtureWanted.load();

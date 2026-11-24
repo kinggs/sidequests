@@ -24,9 +24,9 @@ The owner's brief for it: dark, high contrast, easy to read with weak eyes.
 | `directions/` | The three directions the owner chose between. A and C were not taken |
 | `panel.svg` | The static Rack panel, flat, in mm. Made by `make_panel.py` |
 | `make_panel.py` | Draws `panel.svg`, prints the widget positions, and (`--check`) holds every jack's label, plate and stitches clear of its neighbour's |
-| `rack-face-unlit-100.png` | The Rhythm module as Rack draws it, from Rack's own screenshot mode at 100% zoom (360 px wide: what a player sees without zooming). Nothing lit: no module runs in that mode. Taken in Session 18, with the two jack rows |
+| `rack-face-unlit-100.png` | The Rhythm module as Rack draws it, from Rack's own screenshot mode at 100% zoom (360 px wide: what a player sees without zooming). Nothing lit: no module runs in that mode. Taken in Session 18, with the two jack rows; again in Session 24, with FX SEND's and FX RETURN's stitches |
 | `rack-face-unlit-200.png` | The same at 200%, to judge the lettering and the plates |
-| `rack-face-lit-100.png`, `rack-face-lit-200.png` | The same from a scratch build whose face was filled by hand (never shipped): playing on step 5 with write on, steps 1, 5, 7, 9, 11 and 13 lit, key 10 pressed, the stitch on key 3, the bar on key 1, fx latched (D78: its face lit like play and write), and each slider's second mark at 20000 and 50000. Taken again in Session 19 with effect 3 heard (the madder `fx 3` block above `write`) and the lane on steps 6, 7, 8 and 13 (four madder ticks over the step marks). Not taken again in Session 20: they show write on, which did not change |
+| `rack-face-lit-100.png`, `rack-face-lit-200.png` | The same from a scratch build whose face was filled by hand (never shipped): playing on step 5 with write on, steps 1, 5, 7, 9, 11 and 13 lit, key 10 pressed, the stitch on key 3, the bar on key 1, fx latched (D78: its face lit like play and write), and each slider's second mark at 20000 and 50000. Taken again in Session 19 with effect 3 heard (the madder `fx 3` block above `write`) and the lane on steps 6, 7, 8 and 13 (four madder ticks over the step marks). Not taken again in Session 20: they show write on, which did not change. Taken again in Session 24 for FX SEND's and FX RETURN's stitches, with the same face (the weave's bytes left at 0, so the loom is bare) |
 | `rack-face-writeoff-100.png`, `rack-face-writeoff-200.png` | The same kind of scratch build, taken in Session 20 for the owner to judge write off (D82): playing on step 5 with write off (no write mark, play lit), sound 1 chosen with steps 1, 5, 7, 9 and 13 lit in ecru and no stitch; key 5 white inside the ochre frame (a lit step firing on the playhead: it comes back lit when its half step is over), and key 3 white (another sound firing, on a key that is not lit). The whites are held on by hand for the picture |
 | `rack-weave-bare-200.png` | Session 14, the weave's first attempt (D84), from Rack's screenshot mode at 200%. No module runs there, so this is the real build with nothing played: the bare loom. The beater one cell wide at the left edge, five warp threads across, the shuttle resting at the top |
 | `rack-weave-step07-100.png`, `-200.png` | The same from a scratch build whose face was filled by hand (never shipped), as the three below. Step 7 of a first bar, write off, a kick on the beats and a hat between: one finished diamond and most of the second (two of four steps set: ochre round ecru), the beater two cells wide (one sound on this step), the shuttle half way down trailing its thread from the top. Keys 1, 5, 9 and 13 lit, the frame on 7 |
@@ -271,8 +271,8 @@ Positions in mm from the top-left corner (`uv run pocket-instruments/design/make
 | jack TRIGGERS (out, 16 channels) | 12.40 | 116.30 | | |
 | jack VOICES (out, 16 channels) | 25.40 | 116.30 | | |
 | jack RETURN (in, 16 channels) | 38.40 | 116.30 | | |
-| jack FX SEND (out) | 84.00 | 116.30 | | |
-| jack FX RETURN (in) | 96.00 | 116.30 | | |
+| jack FX SEND (out, 16 channels) | 84.00 | 116.30 | | |
+| jack FX RETURN (in, 16 channels) | 96.00 | 116.30 | | |
 | jack AUDIO (out) | 109.67 | 116.30 | | |
 
 Until Session 18 there were six, in one row at y 116.30: CLOCK 10.67, RESET 22.33, RETURN
@@ -302,8 +302,8 @@ lower row, y 116.3 (triggers and sound):
 | TRIGGERS (out, 16 channels) | 10 V for 1 ms as each sound fires |
 | VOICES (out, 16 channels) | each sound alone, 5 V to 1.0, before the effects and the volume |
 | RETURN (in, 16 channels) | channel *n* takes sound *n*'s place in the mix and, if that sound is switched in, in the effects |
-| FX SEND (out) | the sounds switched into the effects, before any effect and before the volume |
-| FX RETURN (in) | what an effect ticked in the menu is heard from, while it is held |
+| FX SEND (out, 16 channels) | a channel an effect: the sounds switched into the effects, before any effect and before the volume, ramped in over 2 ms on channel *n* while effect *n* is heard and out after (D88; until Session 24, one channel, always the bus) |
+| FX RETURN (in, 16 channels) | every channel summed into the mix, before the volume, playing or stopped. Each effect is Ours, Rack's beside the dry or Rack's in place of the dry, by the menu (D88; until Session 24, one channel, heard in place of the effects ticked in the menu) |
 | AUDIO (out) | the mix |
 
 - **Each group reads as it is patched.** The sounds' loop left to right: TRIGGERS out,
@@ -314,9 +314,10 @@ lower row, y 116.3 (triggers and sound):
   ground with dark lettering, as wide as its stitches or its label (R33 asks for an
   inverted background on outputs). TRIGGERS' and VOICES' meet and read as one. An input
   sits on the dark body with pale lettering.
-- **Sixteen channels:** eight of the thirteen have sixteen stitches round the socket, one
-  for each key, dark on a plate and pale on the body. CLOCK, RESET, FX SEND, FX RETURN and
-  AUDIO have none.
+- **Sixteen channels:** ten of the thirteen have sixteen stitches round the socket, one
+  for each key, dark on a plate and pale on the body. CLOCK, RESET and AUDIO have none.
+  (FX SEND and FX RETURN gained theirs in Session 24, D87: nothing moved, and `--check`
+  holds FX SEND to FX RETURN at 1.20 mm and FX RETURN to AUDIO at 1.57 mm.)
 - **AUDIO is the main output.** It alone has a solid frame inside its plate, and its label
   is a size larger.
 - **FX SEND and FX RETURN have FX on a line of its own** over the word. Why: on one line,

@@ -24,6 +24,10 @@
 # to drums, the drums back in, a punch heard on them), one with FX SEND into FX RETURN and
 # effect 4 punched, one with A OUT into A IN and B OUT into B IN, each held frame by frame to a
 # second engine given what its cables should carry; and one playing D78's fx latch.
+# Since Session 24 (ABI 11; D88) FX SEND is sixteen channels and FX RETURN sums them: three
+# modules loop them, effect 4 Ours, effect 2 Rack's beside the dry and effect 2 Rack's in place
+# of the dry (the settings given in each module's data), and FX SEND's sixteen channels are
+# held to jacks.hpp given the second engine's frame.
 #
 #   selftest.sh [seconds] [sample rate]
 #
@@ -71,9 +75,10 @@ cat > "$user/autosave/patch.json" <<JSON
  $(rhythm 14 '"fixture":"keeps-what-it-was-written-with"'),$(rhythm 15 '"fixture":"keeps-what-it-was-written-with"'),
  $(rhythm 16 '"fixture":"fx-repeat-punch"'),$(rhythm 17 '"fixture":"fx-repeat-swing"'),
  $(rhythm 18 '"fixture":"fx-repeat-punch"'),$(rhythm 19 '"fixture":"fx-repeat-swing"'),
- $(rhythm 20 '"loop":"return"'),$(rhythm 21 '"loop":"fx"'),$(rhythm 22 '"loop":"sliders"'),$(rhythm 23 '"loop":"latch"')],
+ $(rhythm 20 '"loop":"return"'),$(rhythm 21 '"loop":"fx"'),$(rhythm 22 '"loop":"sliders"'),$(rhythm 23 '"loop":"latch"'),
+ $(rhythm 24 '"loop":"fx","fxRack":2,"fxInPlace":0'),$(rhythm 25 '"loop":"fx","fxRack":2,"fxInPlace":2')],
  "cables":[$(cable 2),$(cable 3),$(cable 4),$(edge 10 10),$(edge 11 11),$(edge 12 12),$(edge 15 15),$(loop 20 9),$(loop 21 13),
-  $(edge 18 18),$(edge 19 19),$(loop 30 20),$(self 31 21 4 3),$(self 32 22 5 4),$(self 33 22 6 5)]}
+  $(edge 18 18),$(edge 19 19),$(loop 30 20),$(self 31 21 4 3),$(self 32 22 5 4),$(self 33 22 6 5),$(self 34 24 4 3),$(self 35 25 4 3)]}
 JSON
 (cd "$app" && (sleep "$secs"; echo) | ./Rack -h -u "$user" >/dev/null 2>&1) || { echo "selftest: Rack exited badly"; tail -5 "$user/log.txt"; exit 1; }
 lines=$(grep 'Pocket Instruments probe' "$user/log.txt" || true)
@@ -113,7 +118,7 @@ for f in keeps-what-it-was-written-with fx-repeat-punch fx-repeat-swing; do
 done
 [ "$(echo "$rl" | grep -c ' gates held, [1-9]')" = 0 ] || { echo "selftest: FAILED (FX GATES were not a view's fx)"; exit 1; }
 # The loops: every pass and every frame the second engine's, and the loop heard.
-for l in return fx sliders; do
+for l in return "fx effect 4 ours" "fx effect 2 beside the dry" "fx effect 2 in place of the dry" sliders; do
     echo "$rl" | grep -E "\(removed\): fixture none: .* rate $rate Hz, 0 events dropped, .* 0 samples not finite, .*; loop $l: [1-9][0-9]* passes held to the core, 0 not, [1-9][0-9]* frames the same, 0 not, [1-9][0-9]* where the loop was heard; 16 of 16" | grep -q . || { echo "selftest: FAILED (the $l loop at $rate Hz)"; exit 1; }
 done
 echo "$rl" | grep 'loop return:' | grep -vq 'audio peak 0\.00 V' || { echo "selftest: FAILED (the return loop was silent)"; exit 1; }
@@ -122,4 +127,4 @@ echo "$rl" | grep 'loop return:' | grep -qE ' [1-9][0-9]* frames with RETURN' ||
 echo "$rl" | grep -E "loop latch: [1-9][0-9]* passes held to the core, 0 not, [1-9][0-9]* frames the same, 0 not" | grep -q . || { echo "selftest: FAILED (the fx latch at $rate Hz)"; exit 1; }
 echo "selftest: 4 probes clean in Rack at $rate Hz, each sounding; one on the sixteen samples, from a version 1 snapshot."
 echo "selftest: 12 Rhythm modules held to the three format 2 fixtures, the two format 3 and the format 4 one on both clocks at $rate Hz, by their own parameters, FX GATES to each view's fx; one through RETURN; the instrument loaded a version 1 snapshot."
-echo "selftest: 3 Rhythm modules through their own cables (VOICES to RETURN with effect 2 punched, FX SEND to FX RETURN with effect 4, A OUT and B OUT to A IN and B IN), each frame the core's own; the fx latch (D78)."
+echo "selftest: 5 Rhythm modules through their own cables (VOICES to RETURN with effect 2 punched; FX SEND's sixteen channels to FX RETURN with effect 4 Ours, effect 2 beside the dry and effect 2 in place of the dry, FX SEND held to jacks.hpp; A OUT and B OUT to A IN and B IN), each frame the core's own; the fx latch (D78)."
