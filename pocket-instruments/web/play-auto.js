@@ -15,6 +15,8 @@
 //           second mark shows what the chosen sound was last hit with.
 //   punch   §17 (Session 19): fx-repeat-punch (format 3) played on the page, fx and key 11
 //           by touch, fx alone by the computer key; its views and its trace.
+//   shuffle §17, effect 13 (Session 28): fx-shuffle (format 3) played on the page by its
+//           edits; its views and its trace.
 //   written keeps-what-it-was-written-with (format 4) by touch: its views.
 //   fxlatch D78 by a mouse, fx + key by the computer keys, and the sounds sheet's "through
 //           fx" switch (D69); each gesture held to the commands it sent.
@@ -491,7 +493,7 @@ function runSteps() {
 }
 // A fixture's edits as the page sends them: [type, a, b, value] (ENGINE.md §6).
 const edit = (c) => ({ step: [16, c.track, c.step, c.value], length: [19, 0, 0, c.value], fxsound: [24, c.track, 0, c.value],
-  fx: [23, c.step, 0, c.value], play: [5, 0, 0, c.value] })[c.cmd];
+  fx: [23, c.step, 0, c.value], play: [5, 0, 0, c.value], prob: [17, c.track, c.step, c.value], swing: [18, 0, 0, c.value] })[c.cmd];
 // The computer keys (D57 item 5), by the key's number: a press as a keyboard gives it.
 const CODE = { 0: "Digit1", 1: "Digit2", 2: "Digit3", 10: "KeyD", 20: "KeyI" };
 const kb = (type, k) => window.dispatchEvent(new KeyboardEvent(type, { code: CODE[k], bubbles: true, cancelable: true }));
@@ -531,6 +533,45 @@ async function phasePunch() {
   const first = trace.length ? +trace[0].split(" ")[0] : 0;
   P.trace = trace.map((l) => l.replace(/^\d+/, (n) => String(+n - first))).filter((l) => +l.split(" ")[0] < fx.steps * fx.ticks_per_step);
   P.got = fx.views.map((x) => (t.views[x.at] ? viewText(t.views[x.at], 3) : `no view at run step ${x.at}`));
+}
+
+// fx-shuffle (format 3, ENGINE.md §17, designed 2026-11-24: effect 13), played on the page by
+// its edits, as the page sends them. A fixture's edit at run step n lands on the frame of the
+// tick that begins step n, before the clock moves (fixtures/README.md): the page cannot aim a
+// message at a frame, so it sends each one during run step n − 1, a few milliseconds after the
+// view says that step began. ⚠ Nothing in fx-shuffle reads the lane or the switches between
+// those two moments: step n − 1's notes were read at its own boundary. Every view is held to
+// the fixture's, as text, and the trace (its ticks counted from the first) to its `expect`.
+async function phaseShuffle() {
+  await r.ready;
+  await r.ctx.resume();
+  const fx = await (await fetch("../fixtures/fx-shuffle.json")).json();
+  const Q = (out.shuffle = { want: fx.views.map((x) => x.view), wantTrace: fx.expect });
+  await settle();
+  const t = runSteps();
+  r.post({ mark: true });
+  const sendable = (c) => {
+    const e = edit(c);
+    if (!e) throw new Error(`a command the page cannot send: ${c.cmd}`);
+    return e;
+  };
+  // A reset first: the fixture's engine is fresh, at tick 0, and the page's clock has counted
+  // since the page loaded. Its swing is by the grid step's parity (§5), so without this the
+  // pattern's step 1 can land on an odd one and play 32 ticks late (found in Session 28).
+  r.send([2, 0, 0, 0], ...fx.commands.filter((c) => c.at === 0).map(sendable));
+  for (const c of fx.commands.filter((c) => c.at > 0)) {
+    await t.at(c.at - 1);
+    r.send(sendable(c));
+  }
+  await t.at(fx.steps);
+  t.stop();
+  r.post({ trace: true });
+  const trace = traceLines((await next("trace")).trace);
+  r.send([5, 0, 0, 0]);
+  await settle((v) => !(v[24] & 1), "stopped");
+  const first = trace.length ? +trace[0].split(" ")[0] : 0;
+  Q.trace = trace.map((l) => l.replace(/^\d+/, (n) => String(+n - first))).filter((l) => +l.split(" ")[0] < fx.steps * fx.ticks_per_step);
+  Q.got = fx.views.map((x) => (t.views[x.at] ? viewText(t.views[x.at], 3) : `no view at run step ${x.at}`));
 }
 
 // keeps-what-it-was-written-with (format 4, §20), by touch and the page's slide(): the three
@@ -682,7 +723,7 @@ async function phaseStill() {
 }
 
 const PHASES = { 1: [phase1, "reload"], reload: [phaseReload, "bpm"], bpm: [phaseBpm, "latch"], latch: [phaseLatch, "keep"],
-  keep: [phaseKeep, "punch"], punch: [phasePunch, "written"], written: [phaseWritten, "fxlatch"], fxlatch: [phaseFxLatch, "still"], still: [phaseStill, null] };
+  keep: [phaseKeep, "punch"], punch: [phasePunch, "shuffle"], shuffle: [phaseShuffle, "written"], written: [phaseWritten, "fxlatch"], fxlatch: [phaseFxLatch, "still"], still: [phaseStill, null] };
 const [run, then] = PHASES[phase] || [async () => { throw new Error(`no phase ${phase}`); }, null];
 try {
   await run();

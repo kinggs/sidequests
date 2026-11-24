@@ -38,7 +38,8 @@
 //     fx-repeat-punch (format 3) played on the page, fx and key 11 by touch and fx alone by
 //     the computer key: its four views, as text, are the fixture's, and its trace (ticks from
 //     the first) is the fixture's `expect`; keeps-what-it-was-written-with (format 4) by
-//     touch: its five views are the fixture's;
+//     touch: its five views are the fixture's; fx-shuffle (format 3, effect 13; added in
+//     Session 28) by its edits: its four views and its trace are the fixture's;
 //   - fx + key 11 by the computer keys: fx down, then the key, heard 11, and up in reverse;
 //   - D78 by a mouse: Ctrl+click fx lights it and sends nothing; a click on key 2 sends fx
 //     down then the key and is heard as effect 2; its release sends the key up then fx; a bar
@@ -118,7 +119,7 @@ function judge(phases) {
   const bad = [];
   const p = Object.fromEntries(phases.map((r) => [r.phase, r]));
   for (const r of phases) for (const f of r.failed) bad.push(`phase ${r.phase}: ${f}`);
-  for (const name of ["1", "reload", "bpm", "latch", "keep", "punch", "written", "fxlatch", "still"]) if (!p[name]) bad.push(`phase ${name} never reported`);
+  for (const name of ["1", "reload", "bpm", "latch", "keep", "punch", "shuffle", "written", "fxlatch", "still"]) if (!p[name]) bad.push(`phase ${name} never reported`);
   // Each phase reports under its own name: p.reload.reload, p.bpm.bpm. (A first draft read
   // p.bpm.last, and undefined equalled undefined: the bpm line passed with nothing checked.)
   const one = p["1"] || {}, reload = p.reload?.reload || {}, bpm = p.bpm?.bpm || {};
@@ -162,6 +163,14 @@ function judge(phases) {
   if (!P.wantTrace?.length || P.trace?.join("\n") !== P.wantTrace.join("\n")) {
     const at = (P.trace || []).findIndex((l, i) => l !== P.wantTrace?.[i]);
     bad.push(`fx-repeat-punch's trace: ${P.trace?.length} lines, not ${P.wantTrace?.length}; first difference at line ${at + 1}: "${P.trace?.[at]}" for "${P.wantTrace?.[at]}"`);
+  }
+  // Session 28: effect 13.
+  const Q = p.shuffle?.shuffle || {};
+  if (!Q.want?.length || Q.got?.join("\n") !== Q.want.join("\n"))
+    bad.push(`fx-shuffle's views:\n${(Q.want || []).map((w, i) => `     got  ${Q.got?.[i]}\n     want ${w}`).join("\n")}`);
+  if (!Q.wantTrace?.length || Q.trace?.join("\n") !== Q.wantTrace.join("\n")) {
+    const at = (Q.trace || []).findIndex((l, i) => l !== Q.wantTrace?.[i]);
+    bad.push(`fx-shuffle's trace: ${Q.trace?.length} lines, not ${Q.wantTrace?.length}; first difference at line ${at + 1}: "${Q.trace?.[at]}" for "${Q.wantTrace?.[at]}"`);
   }
   const W = p.written?.written || {};
   if (!W.want?.length || W.got?.join("\n") !== W.want.join("\n"))

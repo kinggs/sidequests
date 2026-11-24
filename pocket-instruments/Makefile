@@ -137,7 +137,7 @@ listen:
 	node web/listen.mjs
 
 # The same server, left running, to listen by ear in a desktop browser (the voices, the samples,
-# and the seven effects over the minimum beat): open the address it prints. Ctrl+C to stop.
+# and the nine sound effects over the minimum beat): open the address it prints. Ctrl+C to stop.
 hear:
 	node web/listen.mjs --serve
 

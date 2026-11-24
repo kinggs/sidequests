@@ -92,11 +92,11 @@ const std::vector<RhythmFixture> FIXTURES = {
 const char *const SOUND_NAMES[PI_TRACKS] = {"Bass drum", "Snare", "Closed hat", "Open hat", "Synth snare", "Sticks",
     "Cymbal", "Noise", "Clap", "Click", "Low tom", "High tom", "Cow bell", "Blip", "Tone", "Bass tone"};
 const char *const FN_NAMES[7] = {"sound", "pattern", "bpm", "function", "fx", "play", "write"};
-// What each effect key is, in our words (ENGINE.md §17 and §18; 4 and 13 to 16 have no sound in
-// the core yet: set to Ours they leave the sound dry).
+// What each effect key is, in our words (ENGINE.md §17 and §18; 15 and 16 have no sound in
+// the core yet: set to Ours they leave the sound dry. 4 and 14 sound once a line is lent, 13 since ABI 13).
 const char *const FX_NAMES[PI_TRACKS] = {"low sample rate", "distortion", "bit crush", "delay", "lowpass", "lowpass sweep",
-    "hipass", "hipass sweep", "repeat, 4 a beat", "repeat, 3 a beat", "repeat, 8 a beat", "repeat, 6 a beat", "13 (no sound here yet)",
-    "14 (no sound here yet)", "15 (no sound here yet)", "16 (no sound here yet)"};
+    "hipass", "hipass sweep", "repeat, 4 a beat", "repeat, 3 a beat", "repeat, 8 a beat", "repeat, 6 a beat", "note shuffle",
+    "feedback", "15 (no sound here yet)", "16 (no sound here yet)"};
 // The loop self-tests (selftest.sh): which of the module's own cables a patch has looped.
 const char *const LOOP_NAMES[5] = {"none", "return", "fx", "sliders", "latch"};
 enum Loop { LOOP_NONE, LOOP_RETURN, LOOP_FX, LOOP_SLIDERS, LOOP_LATCH };
