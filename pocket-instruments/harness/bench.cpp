@@ -14,7 +14,10 @@
 //   both    "beat" in PI_AUDIO_BOTH, 17 channels: what the Rack module asks for with none of
 //           RETURN and the seven jacks of Session 18 in use (ABI 9 on: section 19)
 //   loop    "beat" in PI_AUDIO_LOOP, 18 channels, every sound taken from the input: RETURN patched
-//   loop fx the same with effect 4 on every step, heard from the input: FX RETURN patched too
+//   loop fx the same with effect 4 on every step, Rack's beside the dry: FX SEND and FX RETURN
+//           patched (ABI 11: the bus stays idle and channel 17 is summed; until ABI 11 the bus
+//           crossed over to channel 17)
+//   loop in the same with effect 4 Rack's in place of the dry (ABI 11: an insert)
 //   sliders "beat" in PI_AUDIO_LOOP_SLIDERS, 50 channels, every sound's A and B from the input
 //
 // Numbers move between machines and between runs by a few percent: compare runs made on the
@@ -111,6 +114,11 @@ int main() {
     loopfx.insert(loopfx.begin(), cmd(PI_CMD_ROUTE, PI_ROUTE_FX, 0, 1u << 3));
     for (uint8_t s = 0; s < PI_STEPS; s++) loopfx.insert(loopfx.begin(), cmd(PI_CMD_FX, s, 0, 4));
     report("loop fx", loopfx, PI_AUDIO_LOOP);
+#if PI_ABI_VERSION >= 11
+    std::vector<pi_cmd> loopin = loopfx;
+    loopin.insert(loopin.begin(), cmd(PI_CMD_ROUTE, PI_ROUTE_FX_INSERT, 0, 1u << 3));
+    report("loop in", loopin, PI_AUDIO_LOOP);
+#endif
     std::vector<pi_cmd> sliders = beat;
     sliders.insert(sliders.begin(), cmd(PI_CMD_ROUTE, PI_ROUTE_A, 0, 0xffff));
     sliders.insert(sliders.begin(), cmd(PI_CMD_ROUTE, PI_ROUTE_B, 0, 0xffff));

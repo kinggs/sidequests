@@ -21,11 +21,20 @@
 //                  punched by fx and key 2. AUDIO is the core's own render of that punch, to
 //                  the same bound through the distortion's gain, and is not the dry beat: the
 //                  effect is heard on the returned drums (it was not, until Session 18).
-//   fx-loop        FX SEND is the bus at 5 V to 1.0; with effect 4 punched and FX RETURN
-//                  patched, AUDIO crosses to what FX RETURN carries; unpatched it does not.
+//   fx-send        (ABI 11, D88 items 4 and 5) FX SEND's sixteen channels: channel n is 0 V, or
+//                  5 V times the bus times a gain that moves 500 / rate a frame towards 1 while
+//                  effect n is heard and towards 0 after; 2 ms at three rates; two gains cross
+//                  without a step; a channel never heard is not visited; the gains and the
+//                  core's ramp leave 0 on the same frame; a new engine's gains are all 0.
+//   fx-loop        the three settings through the volts (D88 item 1): effect 4 Ours (the core
+//                  has none), effect 2 Ours, beside the dry and in place of it, each with FX
+//                  RETURN's two channels summed into AUDIO; and unpatched, every effect Ours.
+//                  (Until ABI 11: AUDIO crossed over to FX RETURN's one channel.)
 //   sliders        A OUT's volts, patched back into A IN, give the hit the value they said.
 //   mask           which channels RETURN takes, by the cable and by the menu (D62 item 3);
-//                  which effects FX RETURN takes; which layout a frame needs.
+//                  the two masks the sixteen settings give, and none with neither FX jack
+//                  patched; an old patch's "fx"; FX RETURN as the sum of its cable's channels;
+//                  which layout a frame needs.
 //   not-finite     a NaN returned is silence; nothing non-finite goes out.
 //
 // Each check names itself when it fails. Exit 0 only if all pass.
@@ -130,6 +139,7 @@ static void sameMix(uint32_t volume) {
         // With nothing routed nothing is read: what is in the frame beforehand does not matter.
         for (float &x : l) x = std::numeric_limits<float>::quiet_NaN();
         for (float &x : s) x = 3.f;
+        s[PI_LOOP_FX] = 0.f; // but FX RETURN, read on every frame since ABI 11: unpatched it carries 0 V
         loop.run(setup.data(), n, l, PI_AUDIO_LOOP, ev2);
         sliders.run(setup.data(), n, s, PI_AUDIO_LOOP_SLIDERS, ev2);
         pi::JackFrame o0, ol, os, o1, o2;
@@ -262,31 +272,126 @@ static void punch() {
     check(most > 0.05f, "punch", why);
 }
 
-// FX SEND and FX RETURN: the scaling, and that an effect the core has no sound for (4) crosses
-// to the cable only while FX RETURN is patched.
+// FX SEND's sixteen channels (D88 items 4 and 5), against the rule written plainly here: a
+// gain a channel, up 500 / rate a frame while its effect is heard, down after, held to 0 and 1.
+static void fxSend() {
+    for (uint32_t rate : {44100u, 48000u, 96000u}) {
+        const float step = pi::rampStep(rate);
+        const uint32_t full = rate / 500;
+        pi::Jacks j;
+        float volts[PI_TRACKS], loop[PI_AUDIO_LOOP] = {}, g[PI_TRACKS] = {};
+        for (float &v : volts) v = 7.f; // a channel never heard must never be written
+        uint32_t upAt = 0;
+        bool bad = false, jumped = false, touched = false;
+        char why[200] = "";
+        // Nothing heard for ten frames; effect 2 for 3 * full; effect 5 straight after for 3 * full;
+        // then nothing, until both are back at 0.
+        const uint32_t a = 10, b = a + 3 * full, c = b + 3 * full, end = c + 2 * full + 4;
+        for (uint32_t f = 0; f < end; f++) {
+            uint32_t heard = f >= a && f < b ? 2 : f >= b && f < c ? 5 : 0;
+            loop[PI_LOOP_FX] = float(int(f % 97) - 48) / 97.f;
+            float before[PI_TRACKS];
+            std::memcpy(before, g, sizeof g);
+            for (uint32_t t = 0; t < PI_TRACKS; t++) {
+                if (t + 1 == heard) g[t] = g[t] + step > 1.f ? 1.f : g[t] + step;
+                else g[t] = g[t] - step <= 0.f ? 0.f : g[t] - step;
+                if (std::fabs(g[t] - before[t]) > step * 1.0001f) jumped = true;
+            }
+            j.fxSend(loop, heard, step, volts);
+            if (heard == 2 && g[1] == 1.f && !upAt) upAt = f - a + 1;
+            for (uint32_t t = 0; t < PI_TRACKS; t++) {
+                // A channel is visited from the frame its effect is first heard; before, it is untouched.
+                bool visited = (t == 1 && f >= a) || (t == 4 && f >= b);
+                float want = visited ? (g[t] == 0.f ? 0.f : 5.f * loop[PI_LOOP_FX] * g[t]) : 7.f;
+                if (bits(volts[t]) != bits(want) || j.fxGain[t] != g[t]) {
+                    if (!bad) std::snprintf(why, sizeof why, "rate %u, frame %u, channel %u: %g V, the rule gives %g V", rate, f, t + 1, double(volts[t]), double(want));
+                    bad = true;
+                }
+            }
+            if (f >= b && f < b + full && g[1] > 0.f && g[4] > 0.f) touched = true; // both on: they cross
+        }
+        check(!bad, "fx-send", why);
+        check(!jumped, "fx-send", "a gain moved by more than 500 / rate in a frame: two gains do not cross without a step");
+        check(touched, "fx-send", "from effect 2 straight to 5 the two gains did not cross");
+        std::snprintf(why, sizeof why, "rate %u: full after %u frames, not 2 ms (%u)", rate, upAt, full);
+        check(upAt == full || upAt == full + 1, "fx-send", why);
+        check(j.fxLive == 0 && volts[1] == 0.f && volts[4] == 0.f, "fx-send", "after the effects the channels are not back at exactly 0 V and unvisited");
+        j.fxSend(loop, 9, step, volts);
+        j.clearSend();
+        bool zero = j.fxLive == 0;
+        for (float x : j.fxGain) zero = zero && x == 0.f;
+        check(zero, "fx-send", "a new engine's send gains are not all 0");
+    }
+    // The send's ramp and the core's leave 0 on the same frame (ENGINE.md, §19 designed
+    // 2026-11-24, "The ramps start together"): sound 1 returned at a steady 0.25, effect 2
+    // punched on frame 300 of one engine and not of its twin. The first frame the mixes differ
+    // is the first frame FX SEND's channel 2 is not 0 V.
+    Engine punched(RATE), twin(RATE);
+    pi::Jacks j;
+    float volts[PI_TRACKS] = {};
+    int32_t mixFrom = -1, sendFrom = -1;
+    for (uint32_t f = 0; f < 600; f++) {
+        const pi_cmd start[2] = {cmd(PI_CMD_ROUTE, PI_ROUTE_SOUNDS, 0, 1), cmd(PI_CMD_PLAY, 0, 0, 1)};
+        const pi_cmd punch[2] = {cmd(PI_CMD_KEY_DOWN, PI_KEY_FX), cmd(PI_CMD_KEY_DOWN, 1)};
+        const pi_cmd *c = !f ? start : f == 300 ? punch : nullptr, *ct = !f ? start : nullptr;
+        float io[PI_AUDIO_LOOP] = {}, it[PI_AUDIO_LOOP] = {};
+        io[0] = it[0] = 0.25f;
+        pi_event ev[PI_EVENTS_MIN];
+        punched.run(c, c ? 2 : 0, io, PI_AUDIO_LOOP, ev);
+        twin.run(ct, ct ? 2 : 0, it, PI_AUDIO_LOOP, ev);
+        j.fxSend(io, punched.view(PI_VIEW_HEARD), pi::rampStep(RATE), volts);
+        if (mixFrom < 0 && bits(io[PI_LOOP_MIX]) != bits(it[PI_LOOP_MIX])) mixFrom = int32_t(f);
+        if (sendFrom < 0 && volts[1] != 0.f) sendFrom = int32_t(f);
+    }
+    char why[160];
+    std::snprintf(why, sizeof why, "the core's ramp left 0 on frame %d and FX SEND's on frame %d", mixFrom, sendFrom);
+    check(mixFrom == 300 && sendFrom == 300, "fx-send", why);
+}
+
+// The three settings through the volts: sound 1 returned at 1.25 V (0.25, in the bus), FX
+// RETURN carrying 1 V and 1.5 V on two channels (0.5 summed), the effect held for 400 frames.
 static void fxLoop() {
-    for (int patched = 0; patched < 2; patched++) {
+    const float x = 1.5f, clip = x * (27.f + x * x) / (27.f + 9.f * x * x) * 0.7f;
+    struct Case {
+        const char *what;
+        int effect;
+        pi::FxSetting setting;
+        bool patched;
+        float mix;
+    } cases[] = {
+        {"effect 4 Ours (no sound of ours): the dry and the return", 4, pi::FX_OURS, true, (0.25f + 0.5f) * 1.f},
+        {"effect 2 Ours: our distortion, and the return", 2, pi::FX_OURS, true, ((0.f + 0.25f + 1.f * (clip - 0.25f)) + 0.5f) * 1.f},
+        {"effect 2 Rack's beside the dry: the dry and the return", 2, pi::FX_BESIDE, true, (0.25f + 0.5f) * 1.f},
+        {"effect 2 Rack's in place of the dry: the return alone", 2, pi::FX_IN_PLACE, true, ((0.f + 0.25f + 1.f * (0.f - 0.25f)) + 0.5f) * 1.f},
+        {"effect 2 in place of the dry, neither jack patched: Ours, nothing back", 2, pi::FX_IN_PLACE, false, (0.f + 0.25f + 1.f * (clip - 0.25f)) * 1.f},
+    };
+    for (const Case &k : cases) {
+        pi::FxSettings fx;
+        fx.set(k.effect, k.setting);
         Engine e(RATE);
         pi::Jacks j;
-        float last = -1.f, send = -1.f;
+        float volts[PI_TRACKS] = {};
+        pi::JackFrame o{};
         for (uint32_t f = 0; f < 400; f++) {
             std::vector<pi_cmd> c;
-            if (!f) c = {cmd(PI_CMD_ROUTE, PI_ROUTE_SOUNDS, 0, 1), cmd(PI_CMD_ROUTE, PI_ROUTE_FX, 0, pi::fxMask(-1, patched)),
-                         cmd(PI_CMD_PLAY, 0, 0, 1), cmd(PI_CMD_KEY_DOWN, PI_KEY_FX), cmd(PI_CMD_KEY_DOWN, 3)};
+            if (!f) c = {cmd(PI_CMD_ROUTE, PI_ROUTE_SOUNDS, 0, 1), cmd(PI_CMD_ROUTE, PI_ROUTE_FX, 0, fx.route(k.patched)),
+                         cmd(PI_CMD_ROUTE, PI_ROUTE_FX_INSERT, 0, fx.insert(k.patched)), cmd(PI_CMD_PLAY, 0, 0, 1),
+                         cmd(PI_CMD_KEY_DOWN, PI_KEY_FX), cmd(PI_CMD_KEY_DOWN, uint8_t(k.effect - 1))};
             float io[PI_AUDIO_LOOP] = {};
-            const float volts[PI_TRACKS] = {1.25f}; // sound 1 returned at 1.25 V: 0.25
-            pi::returnIn(io, volts, 1);
-            pi::fxReturnIn(io, 2.5f);               // FX RETURN at 2.5 V: 0.5
+            const float ret[PI_TRACKS] = {1.25f};
+            pi::returnIn(io, ret, 1);
+            const float back[2] = {1.f, 1.5f};
+            pi::fxReturnIn(io, back, k.patched ? 2 : 0);
             pi_event ev[PI_EVENTS_MIN];
             uint32_t ne = e.run(c.data(), uint32_t(c.size()), io, PI_AUDIO_LOOP, ev);
-            pi::JackFrame o;
             j.frame(io, ev, ne, 48, o);
-            last = o.mix;
-            send = j.send(io);
+            j.fxSend(io, e.view(PI_VIEW_HEARD), pi::rampStep(RATE), volts);
         }
-        check(send == 1.25f, "fx-loop", "FX SEND is not the bus at 5 V to 1.0");
-        if (patched) check(last == 0.5f, "fx-loop", "with FX RETURN patched, effect 4 held does not cross to what FX RETURN carries");
-        else check(last == 0.25f, "fx-loop", "with FX RETURN unpatched, effect 4 held changed the mix");
+        char why[220];
+        std::snprintf(why, sizeof why, "%s: AUDIO's mix is %.7g, not %.7g", k.what, double(o.mix), double(k.mix));
+        check(bits(o.mix) == bits(k.mix), "fx-loop", why);
+        std::snprintf(why, sizeof why, "%s: FX SEND channel %d is %g V, not the bus (1.25 V)", k.what, k.effect, double(volts[k.effect - 1]));
+        check(volts[k.effect - 1] == 1.25f, "fx-loop", why);
     }
     check(pi::gate(0, 0) == 0.f && pi::gate(4, 3) == 10.f && pi::gate(4, 4) == 0.f && pi::gate(16, 15) == 10.f, "fx-loop",
           "FX GATES is not 10 V on the heard effect's channel alone");
@@ -327,9 +432,41 @@ static void masks() {
     check(pi::returnMask(-1, 16) == 0xffff, "mask", "a sixteen-channel cable does not take all sixteen");
     check(pi::returnMask(0x10, 5) == 0x10, "mask", "the menu's tick on sound 5 alone is not kept");
     check(pi::returnMask(0x10, 0) == 0, "mask", "ticks with no cable take a channel");
-    check(pi::fxMask(-1, false) == 0 && pi::fxMask(0xffff, false) == 0, "mask", "an unpatched FX RETURN takes an effect");
-    check(pi::fxMask(-1, true) == 0xf008, "mask", "by default FX RETURN does not take effects 4 and 13 to 16 alone");
-    check(pi::fxMask(0x2, true) == 0x2 && pi::fxMask(0, true) == 0, "mask", "the menu's ticks for FX RETURN are not kept");
+    // ABI 11 (D88): the sixteen settings, as two masks. All Ours at first.
+    pi::FxSettings fx;
+    check(fx.route(true) == 0 && fx.insert(true) == 0, "mask", "a new module's effects are not all Ours");
+    for (int n = 1; n <= 16; n++)
+        for (pi::FxSetting st : {pi::FX_BESIDE, pi::FX_IN_PLACE, pi::FX_OURS}) {
+            pi::FxSettings one;
+            one.set(n, st);
+            uint32_t bit = 1u << (n - 1);
+            bool ok = one.of(n) == st && one.route(true) == (st == pi::FX_OURS ? 0 : bit) && one.insert(true) == (st == pi::FX_IN_PLACE ? bit : 0);
+            for (int k = 1; k <= 16; k++) ok = ok && (k == n || one.of(k) == pi::FX_OURS);
+            check(ok, "mask", "a setting does not give its masks, or reads back as another");
+        }
+    fx.set(2, pi::FX_BESIDE);
+    fx.set(4, pi::FX_IN_PLACE);
+    fx.set(11, pi::FX_IN_PLACE);
+    fx.set(4, pi::FX_BESIDE); // changed again: in place of the dry no more
+    check(fx.route(true) == (1u << 1 | 1u << 3 | 1u << 10) && fx.insert(true) == 1u << 10, "mask", "three settings do not give ROUTE 1 and ROUTE 4");
+    check(fx.route(false) == 0 && fx.insert(false) == 0, "mask", "with neither FX jack patched an effect is not Ours");
+    bool offers = true;
+    for (int n = 1; n <= 16; n++) offers = offers && pi::offersBeside(n) == (n < 9 || n > 12);
+    check(offers, "mask", "the repeats (9 to 12) offer beside the dry, or another effect does not (D88 item 3)");
+    pi::FxSettings old = pi::FxSettings::fromOld(-1), ticked = pi::FxSettings::fromOld(0x1f008);
+    check(old.route(true) == 0 && old.insert(true) == 0, "mask", "an old patch's default ticks (-1) are not all Ours");
+    check(ticked.route(true) == 0xf008 && ticked.insert(true) == 0xf008, "mask", "an old patch's ticks are not in place of the dry for those effects");
+    float io[PI_AUDIO_LOOP] = {};
+    const float three[3] = {1.f, 2.f, -0.5f}, sixteen[16] = {0.3125f, 0.3125f, 0.3125f, 0.3125f, 0.3125f, 0.3125f, 0.3125f, 0.3125f,
+                                                           0.3125f, 0.3125f, 0.3125f, 0.3125f, 0.3125f, 0.3125f, 0.3125f, 0.3125f};
+    pi::fxReturnIn(io, three, 3);
+    bool sum = io[PI_LOOP_FX] == 2.5f / 5.f;
+    pi::fxReturnIn(io, sixteen, 16);
+    sum = sum && io[PI_LOOP_FX] == 1.f;
+    io[PI_LOOP_FX] = 7.f;
+    pi::fxReturnIn(io, three, 0);
+    sum = sum && bits(io[PI_LOOP_FX]) == bits(0.f);
+    check(sum, "mask", "FX RETURN is not the sum of its cable's channels at 5 V to 1.0, or unpatched is not 0");
     check(pi::layout(false, false) == PI_AUDIO_BOTH && pi::layout(false, true) == PI_AUDIO_LOOP &&
               pi::layout(true, false) == PI_AUDIO_LOOP_SLIDERS && pi::layout(true, true) == PI_AUDIO_LOOP_SLIDERS,
           "mask", "the layout is not the smallest that carries what is patched");
@@ -352,7 +489,7 @@ static void notFinite() {
         pi_event ev[PI_EVENTS_MIN], ev2[PI_EVENTS_MIN];
         pi::returnIn(a, ret, 0x3u);
         pi::returnIn(b, zero, 0x3u);
-        pi::fxReturnIn(a, ret[0]);
+        pi::fxReturnIn(a, ret, 1);
         uint32_t ne = e.run(setup.data(), f ? 0 : uint32_t(setup.size()), a, PI_AUDIO_LOOP, ev);
         uint32_t nz = ze.run(setup.data(), f ? 0 : uint32_t(setup.size()), b, PI_AUDIO_LOOP, ev2);
         pi::JackFrame o, oz;
@@ -361,15 +498,18 @@ static void notFinite() {
         if (!std::isfinite(o.audio) || bits(o.mix) != bits(oz.mix) || bits(o.audio) != bits(oz.audio)) bad = true;
         for (uint32_t t = 0; t < PI_TRACKS; t++)
             if (!std::isfinite(o.voices[t]) || !std::isfinite(o.triggers[t])) bad = true;
-        if (!std::isfinite(j.send(a))) bad = true;
+        float send[PI_TRACKS] = {};
+        j.fxSend(a, 1, pi::rampStep(RATE), send);
+        if (!std::isfinite(send[0])) bad = true;
         if (o.audio != 0.f) sounding++;
     }
     check(sounding > 0, "setup", "nothing but the two returned sounds was playing");
     check(!bad, "not-finite", "a NaN or infinity returned was not silence for its own sound alone");
     check(j.notFinite == 0, "not-finite", "something not finite reached an output and had to be cleaned there");
-    float nan[PI_AUDIO_LOOP] = {};
+    float nan[PI_AUDIO_LOOP] = {}, send[PI_TRACKS] = {};
     nan[PI_LOOP_FX] = std::numeric_limits<float>::infinity();
-    check(j.send(nan) == 0.f && j.notFinite == 1, "not-finite", "a send that is not finite is not 0 V, counted");
+    j.fxSend(nan, 1, pi::rampStep(RATE), send);
+    check(send[0] == 0.f && j.notFinite == 1, "not-finite", "a send that is not finite is not 0 V, counted");
 }
 
 int main() {
@@ -381,6 +521,7 @@ int main() {
     sameMix(11);
     silence();
     punch();
+    fxSend();
     fxLoop();
     sliders();
     masks();
@@ -392,7 +533,8 @@ int main() {
     std::printf("rack/test/jacks: the jacks hold. Unpatched: the core's mix bit for bit at volumes 16 and 11, in three layouts. Own sound "
                 "returned: within %.1e of it (largest %.1e). Silence on channel 1: the mix without the bass drum, bit for bit, VOICES and "
                 "TRIGGERS as they were. Every sound returned and effect 2 punched: the core's own punched render within %.1e (largest "
-                "%.1e), and heard. FX SEND and FX RETURN; A OUT into A IN; masks; not-finite.\n",
+                "%.1e), and heard. FX SEND's sixteen ramps at three rates; the three settings through FX SEND and FX RETURN; A OUT into "
+                "A IN; masks; not-finite.\n",
                 double(OWN_RETURN_BOUND), double(worstOwnReturn), double(PUNCH_BOUND), double(worstPunch));
     return 0;
 }

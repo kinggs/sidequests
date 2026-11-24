@@ -8,6 +8,16 @@
 //! out bit for bit; a return that is not a number is silence. Then a test for each rule of
 //! §19, and §18's model (`tests/bus.rs`), given what came back, held bit for bit on every
 //! frame of a tour through every kind of change, at three rates and on edges.
+//!
+//! ABI 11 (Session 24; D87, D88; ENGINE.md, "§19, designed 2026-11-24"): channel 17 in is FX
+//! RETURN, read on every loop frame and added last, before the volume; `ROUTE` 1 names the
+//! effects that are the host's (the core does not sound them); `ROUTE` 4 names those, of them,
+//! that take the dry's place. Session 18's crossing over is gone, and with it two tests, each
+//! replaced by the rule that took its place (`PLAN-HISTORY.md`, Session 24's Handover):
+//! "an outside effect's wet is the input, ramped" became `in_place_of_the_dry_...`, and "an
+//! effect the core sounds is heard from outside when ROUTE marks it" became
+//! `an_effect_route_1_names_is_the_host_s_...`. The model and its tour were written again
+//! from the new text.
 
 use super::bus::{Model, at_zero, beat, down, fx, fxsound, on, play, tour, up};
 use super::*;
@@ -27,6 +37,8 @@ const B_OUT: usize = 34;
 fn route(what: u8, mask: u32) -> Cmd {
     cmd(CMD_ROUTE, what, 0, mask)
 }
+/// `ROUTE` 4, `PI_ROUTE_FX_INSERT` (ABI 11).
+const INSERT: u8 = 4;
 fn sound(track: u8, slider: u8, v: u32) -> Cmd {
     cmd(CMD_SOUND, track, slider, v)
 }
@@ -100,7 +112,8 @@ const TWO_SECONDS: u64 = 2 * SR as u64; // past a bar at 132 bpm
 #[test]
 fn nothing_routed_and_nothing_punched_channel_16_is_layout_17_s_mix_bit_for_bit() {
     // Both loop layouts against PI_AUDIO_BOTH, at volume 16 and at 11. What is on the inputs
-    // does not matter: with nothing routed nothing is read, not even a NaN.
+    // does not matter: with nothing routed nothing is read, not even a NaN; but channel 17,
+    // which since ABI 11 is always read, carries nothing back (0, or a NaN, which is silence).
     for vol in [16u8, 11] {
         let cmds = jacks_beat(true, vol);
         let (both, looped, sliders) = (with_sample(), with_sample(), with_sample());
@@ -110,6 +123,7 @@ fn nothing_routed_and_nothing_punched_channel_16_is_layout_17_s_mix_bit_for_bit(
             let mut a = [0f32; 17];
             let mut b = [f32::NAN; LOOP];
             let mut s = [7.5f32; SLIDERS];
+            s[SEND] = 0.0; // channel 17 is FX RETURN, read on every frame since ABI 11: nothing back (a NaN is nothing too)
             let ev = frame(&both, &c, &mut a);
             assert_eq!(frame(&looped, &c, &mut b), ev, "volume {vol}, frame {f}: the events");
             assert_eq!(frame(&sliders, &c, &mut s), ev, "volume {vol}, frame {f}: the events");
@@ -193,7 +207,8 @@ fn a_silent_return_takes_the_sound_out_bit_for_bit_and_its_voice_and_trigger_sta
 #[test]
 fn a_return_that_is_not_a_number_is_silence_for_its_own_sound_alone() {
     // A NaN on sound 1, an infinity on 2 and the other infinity on 3, held to silence on the
-    // three; and a NaN on channel 17 while an outside effect is heard, held to silence there.
+    // three; and a NaN on channel 17, which is read on every loop frame (ABI 11), held to
+    // silence there, with effect 4 the host's and held.
     let mut cmds = jacks_beat(true, 16);
     cmds.insert(0, (0, route(0, 7)));
     cmds.insert(0, (0, route(1, 1 << 3)));
@@ -225,7 +240,9 @@ fn a_returned_sound_in_fx_sounds_is_in_the_bus_and_one_outside_it_is_not() {
     let h = Host::new(SR, 1);
     let setup = [route(0, 1 << 5 | 1 << 9), fxsound(9, 0), play()];
     let mut io = [0f32; LOOP];
-    let give = |io: &mut [f32; LOOP]| (io[5], io[9]) = (0.25, 0.25);
+    // Channel 17 is FX RETURN since ABI 11, read on every frame: nothing back (the frame is
+    // reused, and holds the last frame's send until given again).
+    let give = |io: &mut [f32; LOOP]| (io[5], io[9], io[SEND]) = (0.25, 0.25, 0.0);
     give(&mut io);
     frame(&h, &setup, &mut io);
     assert_eq!((io[SEND], io[MIX]), (0.25, 0.5), "the bus holds sound 6 alone; the mix holds both");
@@ -254,33 +271,36 @@ fn a_returned_sound_in_fx_sounds_is_in_the_bus_and_one_outside_it_is_not() {
 }
 
 #[test]
-fn an_outside_effect_s_wet_is_the_input_ramped_in_and_out_over_2_ms() {
-    // Nothing sounds, so the bus is silence, and effect 4 (which the core has no sound for)
-    // is marked as from outside: the mix is channel 17's input times the ramp, 500 / rate a
-    // frame up and the same down, and the plain mix before and after.
+fn in_place_of_the_dry_the_bus_leaves_over_2_ms_and_comes_back_2_ms_after_and_the_return_stays() {
+    // Replaces Session 18's "an outside effect's wet is the input, ramped": with D88 an insert
+    // is §18's ramp with silence for the effect. A steady 0.25 returned as sound 1 (in the
+    // bus), and 0.5 on channel 17. Effect 4 is the host's, in place of the dry: the mix is
+    // `(0 + 0.25 + w (0 - 0.25) + 0.5) × 1` as `w` goes up 500 / rate a frame and back down,
+    // and `(0.25 + 0.5) × 1` before and after. The return is in the mix throughout.
     for rate in [44_100u32, 48_000, 96_000] {
         let h = Host::new(rate, 1);
         let run = |cmds: &[Cmd]| {
             let mut io = [0f32; LOOP];
-            io[SEND] = 0.5;
+            (io[0], io[SEND]) = (0.25, 0.5);
             frame(&h, cmds, &mut io);
             io[MIX]
         };
-        assert_eq!(run(&[route(1, 1 << 3), play()]), 0.0);
+        assert_eq!(run(&[route(0, 1), route(1, 1 << 3), route(INSERT, 1 << 3), play()]), 0.75);
         for _ in 0..50 {
-            assert_eq!(run(&[]), 0.0, "rate {rate}: nothing is heard until the punch");
+            assert_eq!(run(&[]), 0.75, "rate {rate}: the dry and the return, until the punch");
         }
         let step = 500.0 / rate as f32;
         let mut w = 0.0f32;
         let mut first = vec![down(FX), down(3)];
         let full = rate as usize / 500;
+        let want = |w: f32| ((0.0f32 + 0.25 + w * (0.0 - 0.25)) + 0.5) * 1.0;
         for k in 0..2 * full {
             w = if w + step > 1.0 { 1.0 } else { w + step };
             let got = run(&first);
             first.clear();
-            assert_eq!(got.to_bits(), (0.0f32 + 0.0 + w * (0.5 - 0.0)).to_bits(), "rate {rate}: frame {k} of the ramp in");
+            assert_eq!(got.to_bits(), want(w).to_bits(), "rate {rate}: frame {k} of the ramp in");
         }
-        assert_eq!(w, 1.0, "rate {rate}: full after 2 ms");
+        assert_eq!((w, run(&[])), (1.0, 0.5), "rate {rate}: after 2 ms the bus is out and the return alone is heard");
         let mut last = vec![up(3)];
         let mut frames = 0;
         loop {
@@ -289,33 +309,52 @@ fn an_outside_effect_s_wet_is_the_input_ramped_in_and_out_over_2_ms() {
             last.clear();
             frames += 1;
             if w <= 0.0 {
-                assert_eq!(got, 0.0, "rate {rate}: idle again");
+                assert_eq!(got, 0.75, "rate {rate}: idle again");
                 break;
             }
-            assert_eq!(got.to_bits(), (0.0f32 + 0.0 + w * (0.5 - 0.0)).to_bits(), "rate {rate}: frame {frames} of the ramp out");
+            assert_eq!(got.to_bits(), want(w).to_bits(), "rate {rate}: frame {frames} of the ramp out");
         }
-        assert!(frames >= full && frames <= full + 1, "rate {rate}: out in {frames} frames");
+        assert!(frames >= full && frames <= full + 1, "rate {rate}: back in {frames} frames");
         assert_eq!(unsafe { &(*h.e).bus }.probe().0, 0, "rate {rate}: the bus is idle");
     }
 }
 
 #[test]
-fn an_effect_the_core_sounds_is_heard_from_outside_when_route_marks_it_and_an_unmarked_one_is_not() {
-    // A steady 0.25 returned as sound 1. Effect 2 unmarked is the core's own distortion;
-    // marked, its wet is channel 17 and no distortion runs. Effect 4 unmarked is nothing.
+fn an_effect_route_1_names_is_the_host_s_beside_the_dry_the_bus_stays_idle_in_place_of_it_the_bus_leaves() {
+    // Replaces Session 18's "an effect the core sounds is heard from outside when ROUTE marks
+    // it". A steady 0.25 returned as sound 1, and 0.125 on channel 17, which is always added.
+    // §19's table, a row a case, for effect 2 (ours: the distortion) and effect 4 (no sound of
+    // ours): not named, ours if there is one; named, beside the dry: no effect at all, and the
+    // bus never leaves idle; named in both, in place of the dry: the bus out. `ROUTE` 4 alone
+    // changes nothing.
     let x = 1.5f32;
     let clip = x * (27.0 + x * x) / (27.0 + 9.0 * x * x) * 0.7;
-    for (mark, key, want) in [(0u32, 1u8, clip), (1 << 1, 1, 0.125), (0, 3, 0.25), (1 << 3, 3, 0.125)] {
+    let ours = 0.0f32 + 0.25 + 1.0 * (clip - 0.25);
+    let out = 0.0f32 + 0.25 + 1.0 * (0.0 - 0.25);
+    for (named, insert, key, dry, idle) in [
+        (0u32, 0u32, 1u8, ours, false),
+        (1 << 1, 0, 1, 0.25, true),
+        (1 << 1, 1 << 1, 1, out, false),
+        (0, 1 << 1, 1, ours, false),
+        (0, 0, 3, 0.25, true),
+        (1 << 3, 0, 3, 0.25, true),
+        (1 << 3, 1 << 3, 3, out, false),
+        (0, 1 << 3, 3, 0.25, true),
+    ] {
         let h = Host::new(SR, 1);
-        let mut out = 0.0;
+        let mut got = 0.0;
         for f in 0..300 {
             let mut io = [0f32; LOOP];
             (io[0], io[SEND]) = (0.25, 0.125);
-            let c = if f == 0 { vec![route(0, 1), route(1, mark), play(), down(FX), down(key)] } else { vec![] };
+            let c = if f == 0 { vec![route(0, 1), route(1, named), route(INSERT, insert), play(), down(FX), down(key)] } else { vec![] };
             frame(&h, &c, &mut io);
-            out = io[MIX];
+            got = io[MIX];
+            if idle {
+                assert_eq!(unsafe { &(*h.e).bus }.probe().0, 0, "effect {} named {named:04x} insert {insert:04x}, frame {f}: the bus left idle", key + 1);
+            }
         }
-        assert_eq!(out.to_bits(), (0.0f32 + 0.25 + 1.0 * (want - 0.25)).to_bits(), "effect {} marked {mark:04x}", key + 1);
+        assert_eq!(h.view()[55], key + 1, "the effect is heard, whoever sounds it");
+        assert_eq!(got.to_bits(), ((dry + 0.125) * 1.0).to_bits(), "effect {} named {named:04x} insert {insert:04x}", key + 1);
     }
 }
 
@@ -355,14 +394,15 @@ fn route_is_the_patch_s_not_saved_no_generation_kept_by_a_load_and_gone_with_ini
         io[MIX]
     };
     assert_eq!(listen(&h), 0.0);
-    frame(&h, &[route(0, 1), route(1, 0xffff), route(2, 0xffff), route(3, 0xffff)], &mut [0f32; LOOP]);
+    frame(&h, &[route(0, 1), route(1, 0xffff), route(2, 0xffff), route(3, 0xffff), route(INSERT, 0xffff)], &mut [0f32; LOOP]);
     assert_eq!(h.generation(), 0, "ROUTE moves no generation");
     assert_eq!(h.save(), before, "ROUTE is in no snapshot");
     assert_eq!(listen(&h), 0.25, "sound 1 comes from the input");
     assert_eq!(h.load(&before), 0);
     assert_eq!(listen(&h), 0.25, "a load leaves the routes: the cables did not move");
-    frame(&h, &[route(4, 0xffff), route(255, 1)], &mut [0f32; LOOP]);
-    assert_eq!(listen(&h), 0.25, "an `a` past 3 is ignored");
+    // (Until ABI 11 this sent `a` 4 as the first one past the end; 4 is ROUTE_FX_INSERT now.)
+    frame(&h, &[route(5, 0xffff), route(255, 1)], &mut [0f32; LOOP]);
+    assert_eq!(listen(&h), 0.25, "an `a` past 4 is ignored");
     frame(&h, &[route(0, 0x1_0000)], &mut [0f32; LOOP]);
     assert_eq!(listen(&h), 0.0, "bits past the sixteenth are not a sound");
     let fresh = Host::new(SR, 1);
@@ -376,7 +416,7 @@ fn in_the_other_three_layouts_nothing_is_read_in_and_route_changes_nothing_heard
     let mut cmds = at_zero(&beat());
     cmds.extend([(STEP + 1, down(FX)), (STEP + 1, down(3)), (3 * STEP + 1, up(3)), (3 * STEP + 1, up(FX))]);
     let mut routed = cmds.clone();
-    for a in 0..4 {
+    for a in 0..5 {
         routed.insert(0, (0, route(a, 0xffff)));
     }
     for channels in [1usize, 16, 17] {
@@ -400,6 +440,7 @@ fn a_loop_changes_no_event_and_no_view_whatever_comes_in() {
     let mut cmds = tour(STEP);
     cmds.insert(0, (0, route(0, 0xffff)));
     cmds.insert(0, (0, route(1, 0xffff)));
+    cmds.insert(0, (0, route(INSERT, 0x00ff)));
     let (mut silent, looped) = (Host::new(SR, 1), Host::new(SR, 1));
     for f in 0..20 * STEP {
         let c = at(&cmds, f);
@@ -418,11 +459,13 @@ fn a_loop_changes_no_event_and_no_view_whatever_comes_in() {
 fn eighteen_channels_are_written_and_no_more_and_fifty_are_all_written() {
     let h = Host::new(SR, 1);
     let mut buf = [7.0f32; 2 * LOOP + 8];
+    (buf[SEND], buf[LOOP + SEND]) = (0.0, 0.0); // FX RETURN, read since ABI 11: nothing back
     let mut ev = [Event::default(); CAP];
     unsafe { pi_process(h.e, 2, core::ptr::null(), 0, ev.as_mut_ptr(), CAP as u32, buf.as_mut_ptr(), LOOP as u32) };
     assert!(buf[..2 * LOOP].iter().all(|x| *x == 0.0), "two frames of eighteen, silent");
     assert!(buf[2 * LOOP..].iter().all(|x| *x == 7.0), "nothing past them");
     let mut buf = [7.0f32; 2 * SLIDERS + 8];
+    (buf[SEND], buf[SLIDERS + SEND]) = (0.0, 0.0);
     unsafe { pi_process(h.e, 2, core::ptr::null(), 0, ev.as_mut_ptr(), CAP as u32, buf.as_mut_ptr(), SLIDERS as u32) };
     assert!(buf[..2 * SLIDERS].iter().all(|x| *x != 7.0), "two frames of fifty, every channel written");
     assert!(buf[2 * SLIDERS..].iter().all(|x| *x == 7.0), "nothing past them");
@@ -445,18 +488,18 @@ fn come_back(f: u64, before: &[f32; LOOP]) -> [f32; LOOP] {
 
 /// Runs `cmds` a frame at a time in the 18-channel loop and holds every frame's mix and send
 /// to the model's, which is told what came in, what `ROUTE` said and what the view says.
-/// Returns the frames an outside effect ran on, and the frames one of the core's own did.
+/// Returns the frames an insert ran on, and the frames one of the core's own effects did.
 fn hold_loop_to_model(rate: u32, cmds: &[(u64, Cmd)], frames: u64) -> (usize, usize) {
     let h = Host::new(rate, 1);
     let mut m = Model::new();
-    let mut routes = [0u32; 4];
+    let mut routes = [0u32; 5];
     let mut before = [0f32; LOOP];
     let mut e_before = 0u32;
     let (mut outside, mut inside) = (0, 0);
     for f in 0..frames {
         let these = at(cmds, f);
-        for c in these.iter().filter(|c| c.kind == CMD_ROUTE) {
-            routes[c.a as usize] = c.value;
+        for c in these.iter().filter(|c| c.kind == CMD_ROUTE && c.a < 5) {
+            routes[c.a as usize] = c.value & 0xffff;
         }
         let input = come_back(f, &before);
         let mut io = input;
@@ -467,15 +510,17 @@ fn hold_loop_to_model(rate: u32, cmds: &[(u64, Cmd)], frames: u64) -> (usize, us
         e_before = tick;
         let heard = v[55];
         let sounds = u16::from_le_bytes([v[58], v[59]]);
-        // §19: a returned sound takes its own voice's place; an effect ROUTE marks is heard
-        // from channel 17, whether or not the core has a sound for it.
+        // §19: a returned sound takes its own voice's place. ABI 11's table: an effect ROUTE 1
+        // names is the host's; named in ROUTE 4 too, it is an insert, an effect whose sound
+        // is silence; named in ROUTE 1 alone, no effect at all.
         let mut mixed = [0f32; 16];
         for t in 0..16 {
             // What is not a number is silence.
             mixed[t] = if routes[0] >> t & 1 == 0 { io[t] } else if input[t].is_finite() { input[t] } else { 0.0 };
         }
-        let effect = if heard != 0 && routes[1] >> (heard - 1) & 1 == 1 {
-            0x80 | heard
+        let named = |mask: u32| heard != 0 && mask >> (heard - 1) & 1 == 1;
+        let effect = if named(routes[1]) {
+            if named(routes[4]) { 0x80 | heard } else { 0 }
         } else if [1, 2, 3, 5, 6, 7, 8].contains(&heard) {
             heard
         } else {
@@ -497,9 +542,14 @@ fn hold_loop_to_model(rate: u32, cmds: &[(u64, Cmd)], frames: u64) -> (usize, us
 }
 
 /// §18's tour with §19's changes laid over it: three sounds returned from the start, one of
-/// them (the snare's neighbour, sound 10) not; effects 4 and 13 from outside by default, then
-/// the distortion and a sweep marked too while they are held, then nothing marked; the
-/// returns changed mid-bar and taken away.
+/// them (the snare's neighbour, sound 10) not; the returns changed mid-bar and taken away.
+/// And ABI 11's three settings (written again in Session 24): effect 4 the host's in place of
+/// the dry and 13 beside it from the start; the distortion made the host's beside the dry
+/// while it is heard (ours ramps out), and later in place of it while held (from idle); a
+/// sweep beside the dry while heard, then in place of it while ramping out (D80 item 6: it
+/// starts again as the other kind, the ramp as it is), then back to the core's mid-sweep;
+/// `ROUTE` 4 naming an effect `ROUTE` 1 does not; an insert unnamed while heard; and the
+/// insert's own mask cleared and set again.
 fn loop_tour(step: u64) -> Vec<(u64, Cmd)> {
     let mut c = tour(step);
     c.insert(0, (0, fx(12, 4)));
@@ -507,12 +557,17 @@ fn loop_tour(step: u64) -> Vec<(u64, Cmd)> {
     c.insert(0, (0, fx(15, 4)));
     c.insert(0, (0, route(0, 1 | 1 << 5 | 1 << 9)));
     c.insert(0, (0, route(1, 1 << 3 | 1 << 12)));
-    c.push((3 * step + 40, route(1, 1 << 3 | 1 << 12 | 1 << 1))); // the distortion, while it is heard
-    c.push((7 * step + 9, route(1, 1 << 3 | 1 << 5)));            // a sweep, while it is heard
+    c.insert(0, (0, route(INSERT, 1 << 3 | 1 << 6))); // 4 in place of the dry; 7's bit alone is nothing
+    c.push((3 * step + 40, route(1, 1 << 3 | 1 << 12 | 1 << 1))); // the distortion beside the dry, while it is heard
+    c.push((5 * step + 20, route(INSERT, 1 << 3 | 1 << 1)));      // and in place of it, while it is heard again
+    c.push((7 * step + 9, route(1, 1 << 3 | 1 << 5)));            // a sweep beside the dry, while it is heard
+    c.push((7 * step + 60, route(INSERT, 1 << 3 | 1 << 5)));      // in place of it, while ours ramps out
     c.push((8 * step + 9, route(1, 1 << 3)));                     // and back to the core's, mid-sweep
     c.push((10 * step, route(0, 1 << 5)));
-    c.push((12 * step + 30, route(1, 0)));                        // an outside effect unmarked while heard
+    c.push((12 * step + 30, route(1, 0)));                        // an insert unnamed while heard
     c.push((14 * step, route(1, 1 << 3 | 1 << 12)));
+    c.push((15 * step + 70, route(INSERT, 0)));                   // an insert made beside while held
+    c.push((15 * step + 3000, route(INSERT, 1 << 3)));            // and back
     c.push((20 * step, route(0, 0xffff & !(1 << 3))));
     c.push((26 * step, route(0, 0)));
     c.sort_by_key(|x| x.0);
@@ -717,15 +772,17 @@ fn a_load_shows_on_the_slider_outputs_of_the_sounds_not_yet_hit() {
 }
 
 #[test]
-fn a_host_that_leaves_the_loop_while_an_outside_effect_ramps_out_hears_the_bus_as_it_is() {
-    // Effect 4 from outside, held, with 0.5 on channel 17, and the click sounding. Then the
-    // host asks for layout 17 (its cables were pulled): nothing can come back, so for the 2 ms
-    // the effect takes to go, the mix is a twin's that never had the effect, bit for bit.
+fn a_host_that_leaves_the_loop_while_an_insert_ramps_out_hears_the_bus_at_once() {
+    // Effect 4 the host's in place of the dry, held, with 0.5 on channel 17, and the click
+    // sounding. Then the host asks for layout 17 (its cables were pulled): `Bus::mix` has no
+    // input and ducks nothing, so for the 2 ms the insert takes to go, the mix is a twin's
+    // that never had the effect, bit for bit (§19, designed 2026-11-24; until ABI 11 the same
+    // held for an outside effect that crossed over).
     let (h, twin) = (Host::new(SR, 1), Host::new(SR, 1));
     let start = [cmd(CMD_STEP, 9, 0, 1), play()];
     let mut io = [0f32; LOOP];
     io[SEND] = 0.5;
-    frame(&h, &[route(1, 1 << 3), start[0], start[1], down(FX), down(3)], &mut io);
+    frame(&h, &[route(1, 1 << 3), route(INSERT, 1 << 3), start[0], start[1], down(FX), down(3)], &mut io);
     frame(&twin, &start, &mut [0f32; 17]);
     for _ in 0..200 {
         io[SEND] = 0.5;
@@ -743,4 +800,114 @@ fn a_host_that_leaves_the_loop_while_an_outside_effect_ramps_out_hears_the_bus_a
         sounding += (a[MIX] != 0.0) as u32;
     }
     assert!(ramping > 90 && ramping < 100 && sounding > 200, "{ramping} frames ramping out, {sounding} sounding");
+}
+
+// ---- ABI 11 (D87, D88): FX RETURN summed, and the three settings an effect ----
+
+#[test]
+fn the_return_exactly_0_adds_nothing_a_non_number_is_silence_and_the_volume_turns_it() {
+    // Every sound returned as −0, so the dry mix is −0: with +0 on channel 17 it stays −0, the
+    // bytes it was (−0 + 0 would be +0). A NaN or an infinity back is silence too. Then 0.5
+    // back with nothing else, at volume 11: `(0 + 0.5) × 121 / 256`.
+    let h = Host::new(SR, 1);
+    for back in [0.0f32, -0.0, f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+        let mut io = [-0.0f32; LOOP];
+        io[SEND] = back;
+        frame(&h, &[route(0, 0xffff)], &mut io);
+        assert_eq!(io[MIX].to_bits(), (-0.0f32).to_bits(), "{back} back: the mix of −0 is not −0");
+    }
+    let mut io = [0f32; LOOP];
+    frame(&h, &[route(0, 0)], &mut io);
+    let mut keys = volume(11);
+    let mut io = [0f32; LOOP];
+    io[SEND] = 0.5;
+    frame(&h, &keys.drain(..).collect::<Vec<_>>(), &mut io);
+    assert_eq!(h.view()[27], 11, "the volume is 11");
+    assert_eq!(io[MIX].to_bits(), ((0.0f32 + 0.5) * (121.0 / 256.0)).to_bits(), "the volume turns the return");
+}
+
+#[test]
+fn the_return_is_heard_stopped_and_playing_on_every_loop_frame_with_nothing_heard() {
+    // D88 item 7 and D80 item 5 superseded: channel 17 is read on every loop frame, an effect
+    // heard or not, stopped or playing. Nothing sounds; the mix is what came back, each frame.
+    let h = Host::new(SR, 1);
+    for f in 0..3 * STEP {
+        let back = ((f % 113) as f32 - 56.0) / 113.0;
+        let c = if f == STEP { vec![play()] } else if f == 2 * STEP { vec![cmd(CMD_PLAY, 0, 0, 0)] } else { vec![] };
+        let mut io = [0f32; LOOP];
+        io[SEND] = back;
+        frame(&h, &c, &mut io);
+        let want = if back == 0.0 { 0.0f32 } else { (0.0f32 + back) * 1.0 };
+        assert_eq!(io[MIX].to_bits(), want.to_bits(), "frame {f}");
+        assert_eq!(unsafe { &(*h.e).bus }.probe().0, 0, "frame {f}: nothing heard, the bus idle");
+    }
+}
+
+#[test]
+fn what_comes_back_is_never_on_channel_17_out_or_a_track_channel_and_route_4_alone_is_nothing() {
+    // §18's tour, with nothing returned on 0 to 15, against a twin. Given 0.7 on channel 17,
+    // every channel but the mix is the twin's bit for bit, and the mix differs. Then a third
+    // engine given `ROUTE` 4 for every effect and no `ROUTE` 1: every channel the twin's.
+    let cmds = tour(STEP);
+    let mut alone = cmds.clone();
+    alone.insert(0, (0, route(INSERT, 0xffff)));
+    let (h, twin, insert) = (Host::new(SR, 1), Host::new(SR, 1), Host::new(SR, 1));
+    let mut differs = 0;
+    for f in 0..32 * STEP {
+        let (mut a, mut b, mut c) = ([0f32; LOOP], [0f32; LOOP], [0f32; LOOP]);
+        a[SEND] = 0.7;
+        frame(&h, &at(&cmds, f), &mut a);
+        frame(&twin, &at(&cmds, f), &mut b);
+        frame(&insert, &at(&alone, f), &mut c);
+        assert_eq!(bits(&a[..MIX]), bits(&b[..MIX]), "frame {f}: a track channel");
+        assert_eq!(a[SEND].to_bits(), b[SEND].to_bits(), "frame {f}: channel 17 out");
+        assert_eq!(bits(&c), bits(&b), "frame {f}: ROUTE 4 without ROUTE 1");
+        differs += (a[MIX] != b[MIX]) as u32;
+    }
+    assert_eq!(differs as u64, 32 * STEP, "the return was not in every frame's mix");
+}
+
+#[test]
+fn a_named_repeat_still_repeats_its_trace_the_same_and_named_in_both_the_bus_leaves_while_held() {
+    // D88 item 3: effect 11 (eight a beat) on steps 1 to 4 of the minimum beat (a repeat
+    // holds the step its run began on, §17, and step 1 has the bass drum and a hat). Named in
+    // `ROUTE` 1 the trace is the same as not named, and the bus stays idle; named in `ROUTE` 4
+    // too, the trace is still the same and the bus is out while it is held (an insert at full
+    // ramp), and idle again 2 ms after.
+    let mut edits = beat();
+    edits.extend((0..4).map(|s| fx(s, 11)));
+    let cmds = at_zero(&edits);
+    let mut beside = cmds.clone();
+    beside.insert(0, (0, route(1, 1 << 10)));
+    let mut inplace = beside.clone();
+    inplace.insert(0, (0, route(INSERT, 1 << 10)));
+    let (plain, b, i) = (Host::new(SR, 1), Host::new(SR, 1), Host::new(SR, 1));
+    let (mut held, mut ducked, mut repeats) = (0u64, 0u64, 0u32);
+    for f in 0..8 * STEP {
+        let (mut x, mut y, mut z) = ([0f32; LOOP], [0f32; LOOP], [0f32; LOOP]);
+        let ev = frame(&plain, &at(&cmds, f), &mut x);
+        assert_eq!(frame(&b, &at(&beside, f), &mut y), ev, "frame {f}: beside the dry, the trace");
+        assert_eq!(frame(&i, &at(&inplace, f), &mut z), ev, "frame {f}: in place of the dry, the trace");
+        assert_eq!(bits(&y), bits(&x), "frame {f}: beside the dry, the sound");
+        assert_eq!(bits(&z[..MIX]), bits(&x[..MIX]), "frame {f}: in place of the dry, the voices");
+        repeats += ev.iter().filter(|e| e.kind == EV_TRIG).count() as u32;
+        let heard = i.view()[55];
+        let (on, w, ..) = unsafe { &(*i.e).bus }.probe();
+        if heard == 11 {
+            held += 1;
+            if w == 1.0 {
+                assert_eq!(on, 0x80 | 11, "frame {f}: held at full ramp, the insert");
+                assert_eq!(z[MIX].to_bits(), 0.0f32.to_bits(), "frame {f}: every sound is in the bus, so the mix is silence");
+                ducked += 1;
+            }
+        }
+        if f > 5 * STEP && f < 8 * STEP {
+            assert_eq!(on, 0, "frame {f}: idle again after the lane");
+        }
+    }
+    assert!(held > 3 * STEP && ducked > 3 * STEP, "{held} frames held, {ducked} at full ramp");
+    // By hand: eight a beat is two a step, so steps 1 to 4 re-fire step 1's two sounds eight
+    // times, and steps 5 to 8 hit four (the bass drum, snare and hat on 5, the open hat on 7).
+    // Without the lane the same eight steps hit seven times.
+    assert_eq!(repeats, 8 * 2 + 4, "the repeat did not repeat");
 }

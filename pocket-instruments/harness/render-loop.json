@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "render-loop",
-  "about": "ENGINE.md section 19, sound in: the minimum beat with a click and a tone, the closed hat switched out of the effects, a lane of effects 4, 2, 6, 13 and 5, and ROUTE taking sounds 1, 6 and 10 from the input, effects 4 and 13 from channel 17, and sliders A and B for three sounds from their channels. Rendered as the mix (where nothing is read in and ROUTE changes nothing heard) and, by \"loops\", in the 18 and 50 channel layouts, each harness giving every input channel the same numbers (harness.cpp, run), for the native and WebAssembly renders to be compared: the same bits on every host for sound in as for sound out. In bar 2 effect 4 and then 2 are punched, then the routes change. Not a trace fixture: it has no expect.",
+  "about": "ENGINE.md section 19, sound in: the minimum beat with a click and a tone, the closed hat switched out of the effects, a lane of effects 4, 2, 6, 13 and 5, and ROUTE taking sounds 1, 6 and 10 from the input, effects 4 and 13 as the host's (4 in place of the dry, 13 beside it: ABI 11, D88), and sliders A and B for three sounds from their channels; channel 17 is FX RETURN, summed on every frame. Rendered as the mix (where nothing is read in and ROUTE changes nothing heard) and, by \"loops\", in the 18 and 50 channel layouts, each harness giving every input channel the same numbers (harness.cpp, run), for the native and WebAssembly renders to be compared: the same bits on every host for sound in as for sound out. In bar 2 effect 4 and then 2 are punched, then the routes change: the distortion becomes the host's, beside the dry and then in place of it. Not a trace fixture: it has no expect.",
   "ticks_per_step": 96,
   "seed": 1,
   "mbpm": 120000,
@@ -205,6 +205,12 @@
     },
     {
       "at": 0,
+      "cmd": "route",
+      "what": 4,
+      "value": 8
+    },
+    {
+      "at": 0,
       "cmd": "play",
       "value": 1
     },
@@ -242,6 +248,12 @@
       "at": 24,
       "cmd": "route",
       "what": 1,
+      "value": 2
+    },
+    {
+      "at": 25,
+      "cmd": "route",
+      "what": 4,
       "value": 2
     },
     {

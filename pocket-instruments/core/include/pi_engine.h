@@ -1,4 +1,4 @@
-/* Pocket Instruments: the engine's C ABI, version 10 (1 plus sound: D44; 3 adds samples: D50;
+/* Pocket Instruments: the engine's C ABI, version 11 (1 plus sound: D44; 3 adds samples: D50;
  * 4 adds keys and the view: D51; 5 adds snapshot version 2 and PI_AUDIO_BOTH: D55, D57;
  * 6 adds the lane, the fx key, the four repeats and snapshot version 3: D66, D67;
  * 7 adds the bus and seven sound effects on the mix, with no new call or command: D67;
@@ -6,7 +6,9 @@
  * snapshot version 4: D75;
  * 9 adds sound in: the loop layouts and ROUTE, for Rack's returns, effects loop and slider
  * jacks: D68, D76, D80;
- * 10 adds the weave: view bytes 48 to 54 and pi_weave, a first attempt: D53, D84).
+ * 10 adds the weave: view bytes 48 to 54 and pi_weave, a first attempt: D53, D84;
+ * 11 makes channel 17 in FX RETURN, summed, and PI_ROUTE_FX the host's effects, with
+ * PI_ROUTE_FX_INSERT for those in place of the dry: D87, D88).
  *
  * The contract both hosts link. ENGINE.md beside the crate is the specification; this file is
  * the same thing in C. Where they disagree, ENGINE.md is right.
@@ -29,7 +31,7 @@
 extern "C" {
 #endif
 
-#define PI_ABI_VERSION 10u
+#define PI_ABI_VERSION 11u
 
 #define PI_TICKS_PER_STEP 96u /* a step is a sixteenth note */
 #define PI_TRACKS 16u         /* one per grid key: key n plays track n (D30) */
@@ -62,11 +64,13 @@ extern "C" {
  *   channel   in (before the call)                       out (after it)
  *   0..15     sound n as it comes back; read only for    sound n's own voice, as PI_AUDIO_TRACKS
  *             the sounds PI_CMD_ROUTE 0 names
- *   16        not read                                   the mix. With nothing routed and no
- *                                                        effect heard: PI_AUDIO_BOTH's, the same bits
- *   17        what an outside effect sends back; read    the bus: the sounds through the effects,
- *             only while an effect PI_CMD_ROUTE 1        returned ones included, before any effect
- *             marks is heard or ramping out              and before the volume
+ *   16        not read                                   the mix. With nothing routed, nothing
+ *                                                        back and no effect heard: PI_AUDIO_BOTH's,
+ *                                                        the same bits
+ *   17        FX RETURN (ABI 11): read on every frame    the bus: the sounds through the effects,
+ *             and added to the mix last, before the      returned ones included, before any effect
+ *             volume; exactly 0 adds nothing. It is in   and before the volume
+ *             no bus, no effect and no other channel
  * and with the sliders, 1 is the slider's full travel (65535):
  *   18..33    slider A for sound n; read only on the     the A sound n was last hit with by the
  *             frame it is hit, for the sounds             instrument's own reckoning (its own until
@@ -111,12 +115,15 @@ extern "C" {
 /* Sound in (ABI 9; ENGINE.md section 19): what a loop layout reads. The patch's to keep: in no
  * snapshot, moves no generation, untouched by pi_load, nothing at pi_init. In the layouts
  * that read nothing it changes nothing heard. */
-#define PI_CMD_ROUTE 25u    /* a: PI_ROUTE_*; value: a mask of sixteen. An a past 3: ignored */
+#define PI_CMD_ROUTE 25u    /* a: PI_ROUTE_*; value: a mask of sixteen. An a past 4: ignored */
 #define PI_ROUTE_SOUNDS 0u  /* bit t: sound t is taken from input channel t */
-#define PI_ROUTE_FX 1u      /* bit n - 1: effect n is heard from input channel 17 (the bus crosses
-                               over to it with the 2 ms ramp), whether or not the core sounds it */
+#define PI_ROUTE_FX 1u      /* bit n - 1: effect n is the host's (ABI 11): the core does not sound
+                               it, and the dry stays. A repeat named still repeats */
 #define PI_ROUTE_A 2u       /* bit t: sound t's slider A comes from its input at each hit */
 #define PI_ROUTE_B 3u       /* the same for slider B */
+#define PI_ROUTE_FX_INSERT 4u /* bit n - 1 (ABI 11): while effect n is heard, and PI_ROUTE_FX names it
+                               too, the bus leaves the mix, with the 2 ms ramp, and comes back 2 ms
+                               after. A bit PI_ROUTE_FX does not name changes nothing */
 /* A step's own sliders (ABI 8; ENGINE.md section 20). An edit; in snapshot version 4. */
 #define PI_CMD_KEEP 26u     /* a: track, b: step, value: A in the high 16 bits, B in the low. That
                                step plays with these from now on. PI_CMD_STEP 0 forgets them */

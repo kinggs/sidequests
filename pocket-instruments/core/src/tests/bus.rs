@@ -102,9 +102,13 @@ impl Model {
         self.frame_looped(effect, ticks, rate, v, sounds, volume, 0.0)
     }
 
-    /// The same with §19's one addition (Session 18; `tests/route.rs` drives it): an effect
-    /// whose number carries 0x80 is heard from outside, so its output is `back`, what the
-    /// loop's channel 17 brought; it has no state here, and the ramp is the same ramp.
+    /// The same with §19's additions (`tests/route.rs` drives it). As designed 2026-11-24
+    /// (D88, ABI 11): an effect whose number carries 0x80 is an insert, an effect whose sound
+    /// is silence: its output is 0, it has no state here, and the ramp is the same ramp. And
+    /// `back`, what the loop's channel 17 brought, is added last, before the volume:
+    /// `(dry + back) × gain`, where `dry` is the mix before the volume; when `back` is exactly
+    /// 0 nothing is added. (Session 18's model gave an outside effect `back` as its output, the
+    /// crossing over; D87 and D88 replaced that rule, and this model with it.)
     #[allow(clippy::too_many_arguments)]
     pub(super) fn frame_looped(&mut self, effect: u8, ticks: u32, rate: u32, v: &[f32], sounds: u16, volume: u8, back: f32) -> f32 {
         let gain = (volume as u32 * volume as u32) as f32 / 256.0;
@@ -150,12 +154,13 @@ impl Model {
                 }
             }
         }
+        let with_back = |dry: f32| if back == 0.0 { dry * gain } else { (dry + back) * gain };
         if self.on == 0 {
             let mut sum = v[0];
             for s in &v[1..] {
                 sum += *s;
             }
-            return sum * gain;
+            return with_back(sum);
         }
         let (mut rest, mut b) = (0.0f32, 0.0f32);
         for (t, s) in v.iter().enumerate() {
@@ -166,7 +171,7 @@ impl Model {
             }
         }
         let wet = match self.on {
-            e if e & 0x80 != 0 => back,
+            e if e & 0x80 != 0 => 0.0,
             1 => {
                 self.acc += 6000;
                 if self.acc >= rate {
@@ -206,7 +211,7 @@ impl Model {
                 if self.on <= 6 { lp } else { hp }
             }
         };
-        (rest + b + self.w * (wet - b)) * gain
+        with_back(rest + b + self.w * (wet - b))
     }
 }
 

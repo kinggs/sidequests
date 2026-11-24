@@ -369,3 +369,15 @@ It holds no expected cells, on purpose. The weave is a first attempt the owner h
 accepted (D84), so there is no picture to hold to yet; when there is, three views and their
 cells are committed beside this file (`PLAN.md`, Session 14's fourth box). The rules
 themselves are tested in `core/src/tests/weave.rs`.
+
+## `harness/render-loop.json` rendered again (Session 24: ABI 11, D87, D88)
+
+Not a fixture with a trace, and no trace or view here moved. Its 18 and 50 channel renders
+(24 files: both clocks, three rates, native and `.wasm`) are new bytes, on purpose: the
+harnesses give every input channel numbers, channel 17 among them, and since ABI 11 channel
+17 is FX RETURN, read on every frame and added to the mix, where until then it was read only
+while an effect crossed over to it. Two commands were added to the scenario so the insert
+is rendered too: `ROUTE` 4 for effect 4 from the start, and for the distortion in bar 2.
+Every other render file, its mix-only renders included, and the report are the same bytes
+as before the session. What the loop's mix must be is held by the model in
+`core/src/tests/route.rs`; these files hold native and `.wasm` to the same bits.

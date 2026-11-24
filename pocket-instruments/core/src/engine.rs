@@ -134,10 +134,13 @@ impl Engine {
                 // the ramp at 0) costs a comparison in `advance` and one in the mix.
                 if stale || out.ticks != 0 {
                     let heard = self.heard();
-                    // §19: an effect `ROUTE` marks is heard from the input, whether or not
-                    // the core has a sound for it; only a loop layout reads anything in.
-                    effect = if channels >= LOOP && heard != 0 && self.bus.route[1] >> (heard - 1) & 1 == 1 {
-                        OUTSIDE | heard
+                    // §19 (ABI 11; D88): an effect `ROUTE` 1 names is the host's, so the core
+                    // does not sound it. Named in `ROUTE` 4 too, it takes the dry's place: an
+                    // insert, an effect whose sound is silence. Named in 1 alone it is no
+                    // effect, and the bus stays idle. Only a loop layout has a host's effect.
+                    let host = |mask: u16| heard != 0 && mask >> (heard - 1) & 1 == 1;
+                    effect = if channels >= LOOP && host(self.bus.route[1]) {
+                        if host(self.bus.route[4]) { OUTSIDE | heard } else { 0 }
                     } else if is_sound_effect(heard) {
                         heard
                     } else {
@@ -287,8 +290,9 @@ impl Engine {
                 self.pat.fx_sounds = if v != 0 { old | bit } else { old & !bit };
                 self.pat.fx_sounds != old
             }
-            // §19: which inputs are taken. The patch's, so nothing a snapshot holds changes.
-            CMD_ROUTE if a < 4 => {
+            // §19: which inputs are taken, and (ABI 11) which effects are the host's and which
+            // of those take the dry's place. The patch's, so nothing a snapshot holds changes.
+            CMD_ROUTE if a < 5 => {
                 self.bus.route[a] = v as u16;
                 false
             }

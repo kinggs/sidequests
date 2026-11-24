@@ -63,6 +63,8 @@ pub const HIGH_SWEEP_FROM_HZ: f32 = 100.0;
 pub const HIGH_SWEEP_BY: f32 = 1.002_404_5;
 /// Sixteen steps of ticks: a sweep's length, then it starts again.
 pub const SWEEP_TICKS: u32 = 16 * TICKS_PER_STEP;
+// `Bus::swept` is a u16 (Session 24): a sweep must fit in it.
+const _: () = assert!(SWEEP_TICKS <= u16::MAX as u32);
 /// The filter's damping, `r` in stmlib (1 / Q), as `voice.rs` uses the word ⚠.
 pub const DAMPING: f32 = 0.5;
 /// The filter's `f = cutoff / rate` is held to this at most.
@@ -104,8 +106,9 @@ pub fn is_sound_effect(effect: u8) -> bool {
     matches!(effect, 1 | 2 | 3 | 5 | 6 | 7 | 8)
 }
 
-/// §19: set on an effect's number while its sound comes from outside (the loop's channel 17)
-/// and not from here. Such an effect has no state of ours.
+/// §19: set on an effect's number while it is the host's and takes the dry's place (ABI 11,
+/// D88 item 8: an insert, an effect whose sound is silence). Such an effect has no state of
+/// ours. (Until ABI 11 its sound was the loop's channel 17, and the bus crossed over to it.)
 pub const OUTSIDE: u8 = 0x80;
 
 /// Effects that share state: the four filters are one filter (§18), each other its own; and
@@ -133,21 +136,23 @@ pub struct Bus {
     acc: u32,
     held: f32,
     /// Effects 5 to 8: the filter's two states and coefficients, its cutoff in hertz, ticks
-    /// into a sweep, and whether `g` and `h` are the cutoff's.
+    /// into a sweep, and whether `g` and `h` are the cutoff's. `swept` counts to 1536 at most,
+    /// so a u16: the two bytes it gave up hold `route`'s fifth mask, and the bus, and so the
+    /// engine around it, keep their size and layout (Session 24, measured: `LEARNINGS.md`).
     s1: f32,
     s2: f32,
     g: f32,
     h: f32,
     cutoff: f32,
-    swept: u32,
+    swept: u16,
     tuned: bool,
     /// §19, the engine's to set, kept here because the loop's frame is mixed here, and so
     /// that the engine's own fields stay where they were (the voices' place in memory is
     /// worth a nanosecond a frame: measured, Session 18). What `ROUTE` set, by its `a`: the
-    /// sounds taken from the input, the effects whose sound comes from outside (bit n - 1:
-    /// effect n), and the sounds whose A, and whose B, come from the input at a hit. The
-    /// patch's to keep: not saved, and no generation.
-    pub route: [u16; 4],
+    /// sounds taken from the input; the effects that are the host's (bit n - 1: effect n); the
+    /// sounds whose A, and whose B, come from the input at a hit; and (ABI 11) the effects of
+    /// the host's that take the dry's place. The patch's to keep: not saved, and no generation.
+    pub route: [u16; 5],
     /// §19's addition: what the thirty-two slider outputs say, A for sounds 1 to 16 then B,
     /// 0 to 1: each sound's own until it is hit, then what it was last hit with by the
     /// instrument's own reckoning, before any input took its place.
@@ -174,7 +179,7 @@ impl Bus {
             cutoff: 0.0,
             swept: 0,
             tuned: false,
-            route: [0; 4],
+            route: [0; 5],
             outs: [MIDDLE; 2 * TRACKS],
         }
     }
@@ -246,7 +251,7 @@ impl Bus {
             let (from, by) = if self.on == 6 { (LOW_SWEEP_FROM_HZ, LOW_SWEEP_BY) } else { (HIGH_SWEEP_FROM_HZ, HIGH_SWEEP_BY) };
             for _ in 0..ticks {
                 self.swept += 1;
-                if self.swept >= SWEEP_TICKS {
+                if self.swept as u32 >= SWEEP_TICKS {
                     self.swept = 0;
                     self.cutoff = from;
                 } else {
@@ -283,8 +288,9 @@ impl Bus {
         }
     }
 
-    /// The effect's output for one frame of the bus. `outside` is what came back for an
-    /// effect that is heard from outside (§19).
+    /// The effect's output for one frame of the bus. `outside` is what an effect of the
+    /// host's gives: silence in a loop layout (an insert, ABI 11), and the bus itself in a
+    /// layout with no loop, where nothing ducks it.
     #[inline]
     fn wet(&mut self, x: f32, outside: f32) -> f32 {
         if self.on & OUTSIDE != 0 {
@@ -329,19 +335,22 @@ impl Bus {
                 rest += *s;
             }
         }
-        // No loop in this layout, so an outside effect still ramping out has nothing to
-        // cross to: the bus as it is.
+        // No loop in this layout, so an insert still ramping out (its host's cables pulled)
+        // ducks nothing: the bus as it is (§19, designed 2026-11-24).
         let wet = self.wet(bus, bus);
         (rest + bus + self.w * (wet - bus)) * gain
     }
 
     /// §19: one frame of a loop layout, read and written in place. In: channels 0 to 15, of
     /// which only the sounds in `returned` are read, each taking its own voice's place in the
-    /// bus or the rest; channel 17, read only while an outside effect runs. Out: the sixteen
-    /// voices as they are, the mix, and the bus before any effect and before the volume.
-    /// With nothing returned and nothing running the mix is §13's sum, the same bytes.
-    /// An input that is not a number is silence: one NaN would otherwise stay in a filter.
-    /// And in the layout that has them, the thirty-two slider outputs after those.
+    /// bus or the rest; and channel 17, FX RETURN, read on every frame (ABI 11) and added
+    /// last, before the volume: `(dry + back) × gain`, where `dry` is §18's mix before the
+    /// volume. Exactly 0 back adds nothing, so with nothing returned and nothing running the
+    /// mix is §13's sum, the same bytes (a mix of −0 stays −0). What comes back is in no bus,
+    /// no effect and no output channel but the mix. Out: the sixteen voices as they are, the
+    /// mix, and the bus before any effect and before the volume. An input that is not a
+    /// number is silence: one NaN would otherwise stay in a filter. And in the layout that has
+    /// them, the thirty-two slider outputs after those.
     #[inline(never)]
     pub fn looped(&mut self, frame: &mut [f32], v: &[f32; TRACKS], fx_sounds: u16, gain: f32) {
         let returned = self.route[0];
@@ -368,17 +377,19 @@ impl Bus {
                 rest += *s;
             }
         }
-        let mix = if self.on == 0 {
+        let dry = if self.on == 0 {
             let mut sum = m[0];
             for s in &m[1..] {
                 sum += *s;
             }
-            sum * gain
+            sum
         } else {
-            let back = if self.on & OUTSIDE != 0 { clean(io[TRACKS + 1]) } else { 0.0 };
-            let wet = self.wet(bus, back);
-            (rest + bus + self.w * (wet - bus)) * gain
+            // An insert's sound is silence: §18's ramp takes the bus out, and back in after.
+            let wet = self.wet(bus, 0.0);
+            rest + bus + self.w * (wet - bus)
         };
+        let back = clean(io[TRACKS + 1]);
+        let mix = if back == 0.0 { dry * gain } else { (dry + back) * gain };
         io[..TRACKS].copy_from_slice(v);
         io[TRACKS] = mix;
         io[TRACKS + 1] = bus;
