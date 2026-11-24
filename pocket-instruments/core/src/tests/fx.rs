@@ -493,13 +493,115 @@ fn a_repeat_waits_for_the_first_step_after_play() {
     assert_eq!(trigs(&ev).iter().map(|t| t.0).collect::<Vec<_>>(), [96, 160, 224]);
 }
 
+// ---- §17, designed 2026-11-24: effect 13, a note plays as another sound (ABI 13; D93) ----
+// One test a bullet. Each expectation was worked by hand from the section before it ran. A
+// note of track `s` sounds as track `(s + 12) & 15`. Draws % 100 from seed 1: 69, 89, 61.
+
+#[test]
+fn under_13_every_sound_plays_as_the_one_twelve_keys_on() {
+    // Track t on step t; 13 on every step: step s sounds as (s + 12) & 15, one hit a step,
+    // on the step's own tick. 1 as 13 (the trace's 0 as 12), 5 as 1 (4 as 0), 16 as 12.
+    let mut edits: Vec<Cmd> = (0..16).map(|t| on(t, t)).collect();
+    edits.extend((0..16).map(|s| fx(s, 13)));
+    let (h, ev) = from_zero(&edits, 16 * STEP - 2);
+    let want: Vec<(u32, u8, u8)> = (0..16u8).map(|s| (96 * s as u32, (s + 12) & 15, s)).collect();
+    assert_eq!(trigs(&ev), want);
+    // The view's fires say what was heard: one each, every sound.
+    assert_eq!(h.view()[32..48], [1u8; 16]);
+}
+
+#[test]
+fn thirteen_punched_in_the_middle_of_a_step_begins_with_the_next_step() {
+    // Swing 48: step 1's note fires at 144. fx + 13 go down a frame after tick 96, before
+    // that firing: it is still the plain one, (0, 1). Step 2 arrives with the punch: 12.
+    let got = with_later(&[cmd(CMD_SWING, 0, 0, 48), on(0, 1), on(0, 2)], &[(after(1), down(FX)), (after(1), down(12))], 3 * STEP - 2);
+    assert_eq!(got, [(144, 0, 1), (192, 12, 2)]);
+}
+
+#[test]
+fn under_13_a_note_stays_on_its_step_swung_and_a_sound_out_of_the_effects_plays_its_own() {
+    // Swing 30, step 1 odd: its notes fire at 126. Track 0 (in) plays as 12; track 1 (out)
+    // plays its own, and is not taken by track 13 (whose note would be (1 + 4) & 15 = 5's).
+    let got = with_later(&[cmd(CMD_SWING, 0, 0, 30), on(0, 1), on(1, 1), fxsound(1, 0), fx(1, 13)], &[], 2 * STEP - 2);
+    assert_eq!(got, [(126, 1, 1), (126, 12, 1)]);
+}
+
+#[test]
+fn under_13_two_notes_on_one_sound_draw_twice_its_own_first_and_trig_once() {
+    // Step 0: track 1 out of the effects at 80, track 5 in at 65 and played as 1. Track 1's
+    // own takes 69 (passes), track 5's takes 89 (does not): one trig 1. Drawn the other way
+    // round neither would pass. Both draws are taken: track 2's step 1 at 70 then takes 61
+    // and fires (had the second been skipped, it would take 89 and not).
+    let (h, ev) = from_zero(
+        &[on(1, 0), cmd(CMD_PROB, 1, 0, 80), on(5, 0), cmd(CMD_PROB, 5, 0, 65), fxsound(1, 0), fx(0, 13), on(2, 1), cmd(CMD_PROB, 2, 1, 70)],
+        2 * STEP - 2,
+    );
+    assert_eq!(trigs(&ev), [(0, 1, 0), (96, 2, 1)]);
+    // `TRIG`'s track is the sound that sounds: the view's fires count 1, never 5.
+    assert_eq!((h.view()[32 + 1], h.view()[32 + 5]), (1, 0));
+}
+
+#[test]
+fn a_tap_under_13_is_its_own_sound() {
+    let mut edits: Vec<Cmd> = (0..16).map(|s| fx(s, 13)).collect();
+    edits.push(fxsound(0, 1));
+    let got = with_later(&edits, &[(after(1), down(0)), (after(1) + 10, up(0))], 2 * STEP - 2);
+    assert_eq!(got.len(), 1);
+    assert_eq!(got[0].1, 0, "sound 1 tapped is sound 1, not 13");
+}
+
+#[test]
+fn under_13_a_and_b_are_the_sounding_sound_s_own_or_what_its_step_keeps() {
+    let mark = |h: &Host| {
+        let v = h.view();
+        (u16::from_le_bytes([v[60], v[61]]), u16::from_le_bytes([v[62], v[63]]))
+    };
+    let sound = |t: u8, slider: u8, v: u32| cmd(CMD_SOUND, t, slider, v);
+    let keep = |t: u8, s: u8, a: u16, b: u16| cmd(CMD_KEEP, t, s, (a as u32) << 16 | b as u32);
+    // Sound 13 chosen (choosing hits it with its own: 32768, 32768), then its own set to
+    // (300, 400). Track 0's note on step 0 keeps (7, 8) and plays as 12: sound 13 is hit with
+    // its own, (300, 400), not the note's (7, 8).
+    let choose = [down(SOUND), down(12), up(12), up(SOUND)];
+    let mut h = Host::new(SR, 1);
+    h.block(1, &choose);
+    h.block(1, &[sound(12, 0, 300), sound(12, 1, 400), on(0, 0), keep(0, 0, 7, 8), fx(0, 13)]);
+    assert_eq!(mark(&h), (32768, 32768));
+    h.block(1, &[play()]);
+    h.run(STEP, 128, &[]);
+    assert_eq!(mark(&h), (300, 400), "the sounding sound's own");
+    // Sound 13's own step 0 keeps (1111, 2222), with no note of its own there: that is used.
+    let mut h = Host::new(SR, 1);
+    h.block(1, &choose);
+    h.block(1, &[sound(12, 0, 300), sound(12, 1, 400), on(0, 0), keep(0, 0, 7, 8), keep(12, 0, 1111, 2222), fx(0, 13)]);
+    h.block(1, &[play()]);
+    h.run(STEP, 128, &[]);
+    assert_eq!(mark(&h), (1111, 2222), "what the sounding sound's step keeps");
+}
+
+#[test]
+fn a_repeat_straight_to_13_and_back_is_the_repeat_s_rule_and_13_is_not_a_run() {
+    // Track 0 on steps 1 to 4. 11 on step 1: hits at 96 and 144 from column 1. 13 on step 2:
+    // one hit, as 12. 11 again on step 3: a new run from column 3, at 288 and 336. Step 4
+    // has no effect: plain.
+    let got = with_later(&[on(0, 1), on(0, 2), on(0, 3), on(0, 4), fx(1, 11), fx(2, 13), fx(3, 11)], &[], 5 * STEP - 2);
+    assert_eq!(got, [(96, 0, 1), (144, 0, 1), (192, 12, 2), (288, 0, 3), (336, 0, 3), (384, 0, 4)]);
+}
+
+#[test]
+fn thirteen_named_in_route_1_still_shuffles() {
+    // D88 item 3: a named sequencer effect is still the sequencer's.
+    let got = with_later(&[cmd(CMD_ROUTE, 1, 0, 1 << 12), on(0, 0), fx(0, 13)], &[], STEP - 2);
+    assert_eq!(got, [(0, 12, 0)]);
+}
+
 #[test]
 fn effects_the_core_does_not_sound_yet_change_nothing_but_the_lane_and_heard() {
     // Every effect but the four repeats and §18's seven, on every step: the same events and
     // the same sound. (Session 16 held 1 to 8 here too, "until §18 is built"; Session 17
     // built it, and `the_seven_sound_effects_change_the_mix_and_nothing_else` holds them.)
+    // Session 28 took 13 out (D93: it shuffles; `fx-shuffle` and the shuffle tests hold it).
     let beat: Vec<Cmd> = (0..16).flat_map(|t| [on(t, t), on(t, (t + 5) % 16)]).collect();
-    for effect in [4u32, 13, 14, 15, 16] {
+    for effect in [4u32, 14, 15, 16] {
         let mut lane: Vec<Cmd> = beat.clone();
         lane.extend((0..16).map(|s| fx(s, effect)));
         let mut cmds: Vec<(u64, Cmd)> = lane.iter().map(|c| (0, *c)).collect();

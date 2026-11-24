@@ -332,10 +332,12 @@ lines of `seq.rs`, not kept) passed this fixture at the first run, on both sourc
 rates, three block sizes and from a snapshot; the core as it is failed it. That is a check
 of the working, not where the trace came from.
 
-## `designed/fx-shuffle`, worked by hand (Session 27: effect 13, D93; in `designed/` until Session 28)
+## `fx-shuffle`, worked by hand (Session 27: effect 13, D93; in `designed/` until Session 28)
 
-In `designed/`: no harness reads it until Session 28 builds the rule and moves it up,
-unchanged. From `ENGINE.md` §17, "designed 2026-11-24: effect 13", and §5. Every tick,
+Was in `designed/`: no harness read it until Session 28 built the rule and moved it up,
+unchanged (a rename with no change). It passed at the first run: Rust, C++ and Node, both
+sources, three rates, three block sizes, and from a snapshot; the report's 330 older runs
+and all 420 render files stayed the same bytes. `designed/` is empty again. From `ENGINE.md` §17, "designed 2026-11-24: effect 13", and §5. Every tick,
 track and count was typed in; the draws are the generator's first nine from seed 1, the
 table above and `fx-repeat-holds`' two more: 69, 89, 61, 95, 33, 4, 82, 10, 29. Length 8,
 swing 32, the lane (effect 13 on steps 2, 3 and 4) by `fx` edits at step 0. Numbers are

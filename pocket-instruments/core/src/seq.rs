@@ -50,6 +50,42 @@ fn held_step(cur: u8, pat: &Pattern) -> u8 {
     cur
 }
 
+/// §17, designed 2026-11-24 (ABI 13; D93): effect 13, "note shuffle".
+pub const SHUFFLE: u8 = 13;
+
+/// §17's draw: at 100 or over it passes with no draw; under, one draw, passing when
+/// `draw % 100 < p`.
+#[inline]
+fn draw(p: u8, rng: &mut Rng) -> bool {
+    let p = p as u32;
+    p >= 100 || rng.draw() % 100 < p
+}
+
+/// §17, designed 2026-11-24 (ABI 13; D93): the step's firing while effect 13 is read. A note
+/// of a sound in the effects plays as the sound twelve keys on, round the sixteen; a sound out
+/// of the effects plays its own notes too. By rising track of the sound that sounds; each note
+/// takes its own draw (its own first), and one `TRIG` says either passed. ⚠ The map is a
+/// reading of three sounds (R70): `(m + 4) & 15` is the one line to change. Out of line: the
+/// plain firing pays one comparison for it.
+#[inline(never)]
+fn shuffle(k: u32, cur: usize, pat: &Pattern, rng: &mut Rng, out: &mut Out) {
+    for m in 0..TRACKS {
+        let mut fire = false;
+        if pat.fx_sounds >> m & 1 == 0 && pat.on[m] >> cur & 1 == 1 {
+            fire |= draw(pat.prob[m][cur], rng);
+        }
+        let s = (m + 4) & 15; // the sound whose note m plays: s + 12 is m
+        if pat.fx_sounds >> s & 1 == 1 && pat.on[s] >> cur & 1 == 1 {
+            // Both draws are taken, whatever the first gave.
+            let d = draw(pat.prob[s][cur], rng);
+            fire |= d;
+        }
+        if fire {
+            out.trig(k, m as u8, cur as u8, true);
+        }
+    }
+}
+
 /// What a snapshot holds of the sequencer.
 pub struct Pattern {
     /// One word per track; bit `s` is step `s`.
@@ -245,6 +281,11 @@ impl Seq {
             if self.pending && t == self.offset {
                 self.pending = false;
                 let cur = (self.cur & 15) as usize;
+                if self.eff == SHUFFLE {
+                    // §17, designed 2026-11-24: effect 13 takes the plain firing's place.
+                    shuffle(k, cur, pat, rng, out);
+                    return lane_changed;
+                }
                 for track in 0..TRACKS {
                     if pat.on[track] >> cur & 1 == 1 {
                         let p = pat.prob[track][cur] as u32;
