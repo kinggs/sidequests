@@ -155,6 +155,9 @@ CI on four platforms in about a minute.
 phone: everything from Session 21 onwards. Every look in it is a stand-in until the owner
 rules. The effects are first guesses from the hardware's names and are not tuned.
 
+**Designed and not built:** FX SEND and FX RETURN as sixteen channels, a channel an
+effect, the return always summed (D87, D88; Session 24).
+
 ## Done so far
 
 Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
@@ -186,10 +189,11 @@ Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
 | 14, the weave: a **first attempt** (Fable; D53, D84), not finished | ABI 10: the view's bytes 48 to 54, `pi_weave` (78 by 15 cells) and its rule tests, the page and the Rack display painting the same cells, `make play` holding every painting to `pi_weave`; `fixtures/weave-views.txt`; `design/rack-weave-*.png`. The owner has not watched it: its list stays below | 2026-11-23 |
 | 22, the hardware's effects measured (Fable, with the owner): **two of three takes**, not finished | `harness/hardware-take.sh` and `harness/hardware-fx.py`; R64 to R68; `WORKFLOW.md`'s four effects rows answered; proposals in `ENGINE.md` §17 and §18; D87 (the owner's ruling on D86 item 1). Take c and a timing take are left: its list stays below | 2026-11-24 |
 
+| 23, FX SEND and FX RETURN designed (Fable, with the owner; D87, D88) | D88: three settings an effect (ours, beside the dry, in place of the dry), the send's ramp in the module, the return summed in the core before the volume; `ENGINE.md`, "§19, designed 2026-11-24"; the fork measured in a scratch copy (`LEARNINGS.md`); Session 24's list. Nothing built | 2026-11-24 |
+
 ## Next, in order
 
-1. **Session 23,** FX SEND and FX RETURN a channel an effect, the return summed: below.
-   A design session; it ends in a build list.
+1. **Session 24,** FX SEND and FX RETURN a channel an effect, built: below. Opus.
 2. **Session 22's two takes left,** when the owner has fifteen minutes with the PO-12:
    below. Start it with "Read `pocket-instruments/PLAN.md` and finish Session 22".
 3. **The owner's looks and rulings** on what 2026-11-23 built, and on Session 22's
@@ -199,45 +203,69 @@ Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
 5. **Session 14's fourth box,** the weave accepted or redrawn: below.
 6. Then from "Not planned yet", as the owner chooses.
 
-## Session 23 — FX SEND and FX RETURN: a channel an effect, the return summed (design, Fable; D86 item 1, D87)
+## Session 24 — FX SEND and FX RETURN: a channel an effect, built (build, Opus; D87, D88)
 
-The owner ruled it on 2026-11-24 after patching it by hand (D87). This session designs it
-and writes the build list; it builds nothing. Read `ENGINE.md` §18 (the ramp) and §19,
-D68, D80, D86, D87, R58, R60 and R63, and `rack/src/jacks.hpp`.
+The brief is `ENGINE.md`, "§19, designed 2026-11-24" (at the end of the file), and D88.
+Read also §18 (the ramp) and §19 as built, D80, D87, R60, `rack/src/jacks.hpp`, and
+`LEARNINGS.md` for Sessions 18 and 23 (where things sit in memory; the scratch bench).
+ABI 11. The page does not change; FX GATES does not change; no breakout is built (O20).
 
-- [ ] **The send.** FX SEND, sixteen channels: channel *n* carries the bus while effect *n*
-      is heard (punched or replayed by the lane), with the core's ramp, and silence
-      otherwise. Where the ramp is made: in the core (a wider loop layout) or in the Rack
-      module from what the core already says. Recommended: wherever it costs the core
-      least; measure with `make bench`.
-- [ ] **The return.** FX RETURN adds up every channel that comes back and is always in
-      the mix (D87 item 2). Say where it is added (before or after the volume), and what
-      happens to it while stopped.
-- [ ] **How an effect is marked as Rack's.** A returned channel cannot be the only sign:
-      the owner's patch returns nothing (stereo, to a mixer) and the core then plays its
-      own effect too (D87). Recommended: the menu's ticks stay and mean "the core's own
-      effect *n* does not play"; every send channel is always live; the default ticks
-      are the effects the core has no sound for. Rule it with the owner.
-- [ ] **The dry while an outside effect is held.** A send keeps it; an insert (a Rack
-      distortion in place of ours) wants it out. Recommended: the dry stays, and a second
-      tick is added only if it is missed.
-- [ ] **The owner's idea (2026-11-24), to design with the two boxes above:** "a toggle in
-      the expander for some wet / dry signals and possibly for adding to or replacing the
-      internal effect". Read as two switches an effect: does our own effect play, and
-      does the dry stay while it is held. That gives a send (dry stays, ours off), an
-      insert (dry out, ours off), and both effects at once (ours on). Recommended: in
-      the menu first, since no expander is ruled yet (D86 items 3 to 5, O20), and as
-      switches on the effects' breakout if one is built; switches, not sixteen mix knobs,
-      because the Rack effect has its own mix.
-- [ ] **The comb** (R60, D87): the return summed with the dry, two samples late. What the
-      jack's label and the docs must say (send fully wet), and whether anything in the
-      module should guard it.
-- [ ] **What is kept of today's loop:** D86 item 1 says a menu entry keeps the single
-      channel insert. Keep it, or drop it? And stereo: FX RETURN stays mono, or not.
-- [ ] Written: `ENGINE.md` §19 amended (marked as designed, not built), a decision, the ABI
-      number if the core changes, the proofs each rule is held by (`rack/test/jacks.cpp`,
-      the self-test's FX SEND to FX RETURN module, `core/src/tests/route.rs`), and
-      **Session 24's build list** here (Opus). The page does not change.
+Before the first change: `make test`, then keep `target/report-rust.txt`, a `sha256sum`
+of `target/render-*.f32`, two runs of `make bench`, and a perf profile of the module with
+FX SEND patched (Machine state).
+
+- [ ] **The core's tests first** (`core/src/tests/route.rs`), failing before the core
+      changes: §18's model given `back` and the two masks, which the loop's mix equals bit
+      for bit through every kind of change, at three rates and on edges, stopped and
+      playing; and each row of the section's "Proven when built by" that names this file.
+      The tests of the crossing over are replaced by the decision, not edited to pass:
+      list in the Handover which, and the rule that took each one's place.
+- [ ] **The core, ABI 11:** channel 17 in read on every loop frame and added last, before
+      the volume, and not at all when it is exactly 0; an outside effect's `wet` is 0;
+      `ROUTE` 1's new meaning and `ROUTE` 4 (`PI_ROUTE_FX_INSERT`); the header's comments
+      on channel 17 and `PI_ROUTE_FX`. `Bus::mix` (no loop) still gives the bus for an
+      outside effect ramping out. `make web`, since the `.wasm` is committed.
+- [ ] **What does not move:** the report and every earlier render file the same bytes,
+      but `harness/render-loop.json`'s, which are rendered again (channel 17 is given in
+      it and now means something else). Say so in `fixtures/README.md`.
+- [ ] **The cost, held.** `make bench` twice, runs interleaved with the build from before
+      (keep its library): idle, beat, all and both no slower than the spread between two
+      runs of one build. The scratch copy was 1 ns slower on idle and the beat with a
+      fifth mask in `Bus::route`; if the build is too, keep the fifth mask somewhere else
+      until it is not, and write what worked. `harness/bench.cpp`: "loop fx" becomes
+      beside the dry, and a case is added for in place of the dry. Numbers to
+      `LEARNINGS.md`.
+- [ ] **`rack/src/jacks.hpp`, its tests first** (`rack/test/jacks.cpp`): the sixteen send
+      gains with their mask (a channel at gain 0 is exactly 0 V and is not visited);
+      FX RETURN as the sum of the cable's channels; the two masks from the sixteen
+      settings, and 0 for both with neither jack patched. `FX_OUTSIDE_DEFAULT`, `fxMask`
+      and the one-channel `send` go. A new engine (`fresh`) puts every gain to 0.
+- [ ] **`rack/src/Rhythm.cpp`:** FX SEND sixteen channels; FX RETURN summed; a loop layout
+      while either is patched. The menu: one submenu, "FX SEND and FX RETURN", sixteen
+      rows, each showing its setting and opening the three (two for 9 to 12: D88 item 3),
+      and one greyed line, "Not fully wet? In place of the dry". Saved with the patch as
+      two masks; a patch from before reads `"fx"` 0 or more as in place of the dry for
+      those effects, and -1 as all Ours; Initialize is all Ours. Both jacks' tooltips say
+      what they now carry, FX RETURN's with "send it fully wet" (D88 item 10).
+- [ ] **The self-test** (`rack/selftest.sh`, the FX SEND to FX RETURN module), each frame
+      held to a second engine given what the cable carries, and the send's sixteen
+      channels held to `jacks.hpp`: effect 4 as Ours; effect 2 beside the dry; effect 2
+      in place of the dry. A pass still needs the loop to have been heard.
+- [ ] **The panel:** FX SEND and FX RETURN drawn as sixteen-channel jacks
+      (`design/make_panel.py`, the fourth field; `--check`). If their stitches do not
+      clear a neighbour, stop on that point: the positions are the owner's (D76). The lit
+      screenshots again; `design/DESIGN.md`'s two rows for the jacks.
+- [ ] Faults planted in the core and in `jacks.hpp`, each built, each failing a named test.
+- [ ] Written: `ENGINE.md` (the section marked built, with what turned out different; the
+      ABI table's row 11; the note at the top), `README.md`'s status, `LEARNINGS.md`, the
+      Handover with steps for the owner's hands: the kept patch with its reverb's effect
+      beside the dry; a Rack distortion in place of the dry; a delay at half wet in each
+      setting (O21).
+
+Where the brief is silent, it is PLAN's rule: stop on that point, build round it, mark it
+⚠. Two places it may be: what a row for effects 4 and 13 to 16 says while Ours has no
+sound (today: "no sound here yet"), and whether the settings' submenu sits where FX
+RETURN's ticks were.
 
 ## Session 22 — the hardware's effects, measured from a recording (with the owner, Fable; two of three takes done 2026-11-24)
 
@@ -323,7 +351,7 @@ In the order they are likely wanted. Each needs a design pass (Fable) before a b
 | **The effects tuned:** the constants of 1, 2, 3 and 5 to 8 | the owner's ruling on the proposals (R64, R65); take c for 1 and the sweeps; then the owner's ear | `ENGINE.md` §18, "Proposed after Session 22"; `core/src/bus.rs`, "TUNING THE EFFECTS" |
 | **Effects 4 and 14** (delay, feedback): how much stored sound, and whose memory | a ruling on memory; measured: R67 | D67 item 4; R57; §18's proposals |
 | **Effects 13, 15, 16** | take c for 15 and 16; 13 is measured ⚠ (R67) | D67 item 4; R48 |
-| **Each effect to its own Rack module, the rest:** the breakouts, a trigger in for each sound (the sixteen channels are Session 23) | the owner's ruling on D86 items 3 to 5 (O20) | D86; D87; R63 |
+| **Each effect to its own Rack module, the rest:** the breakouts, a trigger in for each sound (the sixteen channels are Sessions 23 and 24) | the owner's ruling on D86 items 3 to 5 (O20) | D86; D87; R63 |
 | **The sliders, the rest:** change one held step; record a slider's movement while write is held; live record of notes (write becomes a held key) | the simple rule played first | D75 item 3; `WORKFLOW.md`, "The sliders" |
 | **A OUT back to A IN is one hit late** | the owner: does it matter? | O18; `ENGINE.md` §19, "Found" |
 | **The clock in Rack:** the menu's "one edge a beat"; the tempo measured from the edges, with "ext" | nothing; touches `ENGINE.md` §4 and §14, so plan first | D64; D65 item 2 |
@@ -384,6 +412,9 @@ originals are in `PLAN-HISTORY.md`); nothing was dropped, each thing is here onc
       the Handovers of Sessions 19, 20 and 21 (`PLAN-HISTORY.md`), each ruled as built.
 - [x] **D86,** each effect to its own Rack module: the recommendation, yes or no.
       Item 1 ruled yes, the return summed (D87, 2026-11-24). Items 3 to 5 are open (O20).
+- [ ] **Session 23's rulings** (D88 items 4 to 12; O21), once Session 24 has built them:
+      the return before the volume; the settings counting only while FX SEND or FX RETURN
+      is patched; nothing guarding the comb (try a delay at half wet in each setting).
 - [ ] **Session 22's proposals** (`ENGINE.md` §17 and §18, "Proposed after Session 22"):
       a repeat holds the last step that sounded; the targets for effects 1 to 8; the delay
       as one tap. Yes, no, or by ear first.
@@ -422,21 +453,6 @@ originals are in `PLAN-HISTORY.md`); nothing was dropped, each thing is here onc
 
 The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
 
-### After the tidy: the docs brought up to date (2026-11-24)
-
-- **No code changed.** This file was made compact: stale sections moved to
-  `PLAN-HISTORY.md` word for word; the owner's lists merged into one; the rules of the
-  build sessions written once; "Not planned yet" is the backlog, each row with where it is
-  written down.
-- **Checked against the repo:** every session in "Done so far" has its list and Handover in
-  `PLAN-HISTORY.md`; every open question is in `DECISIONS.md`'s Open table (O3, O6, O7,
-  O10, O18, O19, and O20 for D86); `README.md`'s status and map say what is built.
-- **New, from the owner on 2026-11-24:** each effect to its own Rack module. Researched
-  (R63) and recommended as D86, not decided.
-- **Next: Session 22,** the recording, in a new session with the owner, the PO-12 and the
-  Scarlett. Its list is above. It is a Fable session: it measures, writes facts into
-  `REFERENCES.md`, and proposes; it builds nothing in the core.
-
 ### After Session 22: the PO-12's effects measured from two takes; D86 item 1 ruled (2026-11-24)
 
 - **Nothing in the core changed.** Two scripts are new: `harness/hardware-take.sh` (record
@@ -466,3 +482,27 @@ The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
 - **Machine:** the PO-12 on input 2 was linked to the headphones with `pw-link` for the
   takes. It is not saved and goes at the next restart of PipeWire.
 - **Next: Session 23,** the design of D87, on Fable. Its list is above.
+
+### After Session 23: FX SEND and FX RETURN designed; three rulings by the owner (2026-11-24)
+
+- **Nothing was built.** `DECISIONS.md` has D88 and O21; `ENGINE.md` has "§19, designed
+  2026-11-24" at its end, and a note at its top that one thing is designed and unbuilt.
+- **The owner ruled three things** (D88 items 1 to 3): each effect is Ours, Rack's beside
+  the dry, or Rack's in place of the dry, all starting as Ours; today's one-channel loop
+  is dropped; a repeat always repeats.
+- **The session ruled nine more** (D88 items 4 to 12; O21), the owner's to overrule: the
+  send's sixteen ramps in the Rack module; every send channel always live; the return
+  added in the core, last, before the volume, stopped or playing; an insert as an effect
+  whose sound is silence; the settings counting only while one of the two jacks is
+  patched; nothing guarding the comb but the setting and a line of text; FX RETURN mono.
+- **Measured before designing** (`LEARNINGS.md`, Session 23): the ramps in the core would
+  cost 2 to 3 ns a frame while FX SEND is patched; in the module about 0.1 ns. Beside the
+  dry is 1 to 2 ns cheaper than today's crossing over.
+- ⚠ **For Session 24:** a fifth mask in the bus moved idle and the beat by about 1 ns in
+  the scratch copy. Its list has a box to hold them.
+- ⚠ **Not looked at:** whether sixteen-channel stitches round FX SEND and FX RETURN clear
+  their neighbours on the panel. Session 24 checks and stops if not.
+- **Three of the list's recommendations did not stand,** each for a reason found in the
+  session; the list in `PLAN-HISTORY.md` is annotated.
+- **Next: Session 24,** the build, on Opus. Its list is above.
+

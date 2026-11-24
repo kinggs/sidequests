@@ -1948,3 +1948,66 @@ Word for word, each as it stood in `PLAN.md`.
   play`. When it is accepted: three views and their cells committed beside
   `fixtures/weave-views.txt`, box 4 ticked, the list moved to `PLAN-HISTORY.md`.
 - **CI:** run 45217909351 (a24f85b, the push with the core and `rack/` changes) green on win-x64, lin-x64, mac-x64 and mac-arm64.
+
+## Session 23 — FX SEND and FX RETURN: a channel an effect, the return summed (design, Fable; D86 item 1, D87; done 2026-11-24)
+
+The owner ruled it on 2026-11-24 after patching it by hand (D87). This session designs it
+and writes the build list; it builds nothing. Read `ENGINE.md` §18 (the ramp) and §19,
+D68, D80, D86, D87, R58, R60 and R63, and `rack/src/jacks.hpp`.
+
+- [x] **The send.** FX SEND, sixteen channels: channel *n* carries the bus while effect *n*
+      is heard (punched or replayed by the lane), with the core's ramp, and silence
+      otherwise. Where the ramp is made: in the core (a wider loop layout) or in the Rack
+      module from what the core already says. Recommended: wherever it costs the core
+      least; measure with `make bench`.
+- [x] **The return.** FX RETURN adds up every channel that comes back and is always in
+      the mix (D87 item 2). Say where it is added (before or after the volume), and what
+      happens to it while stopped.
+- [x] **How an effect is marked as Rack's.** A returned channel cannot be the only sign:
+      the owner's patch returns nothing (stereo, to a mixer) and the core then plays its
+      own effect too (D87). Recommended: the menu's ticks stay and mean "the core's own
+      effect *n* does not play"; every send channel is always live; the default ticks
+      are the effects the core has no sound for. Rule it with the owner.
+- [x] **The dry while an outside effect is held.** A send keeps it; an insert (a Rack
+      distortion in place of ours) wants it out. Recommended: the dry stays, and a second
+      tick is added only if it is missed.
+- [x] **The owner's idea (2026-11-24), to design with the two boxes above:** "a toggle in
+      the expander for some wet / dry signals and possibly for adding to or replacing the
+      internal effect". Read as two switches an effect: does our own effect play, and
+      does the dry stay while it is held. That gives a send (dry stays, ours off), an
+      insert (dry out, ours off), and both effects at once (ours on). Recommended: in
+      the menu first, since no expander is ruled yet (D86 items 3 to 5, O20), and as
+      switches on the effects' breakout if one is built; switches, not sixteen mix knobs,
+      because the Rack effect has its own mix.
+- [x] **The comb** (R60, D87): the return summed with the dry, two samples late. What the
+      jack's label and the docs must say (send fully wet), and whether anything in the
+      module should guard it.
+- [x] **What is kept of today's loop:** D86 item 1 says a menu entry keeps the single
+      channel insert. Keep it, or drop it? And stereo: FX RETURN stays mono, or not.
+- [x] Written: `ENGINE.md` §19 amended (marked as designed, not built), a decision, the ABI
+      number if the core changes, the proofs each rule is held by (`rack/test/jacks.cpp`,
+      the self-test's FX SEND to FX RETURN module, `core/src/tests/route.rs`), and
+      **Session 24's build list** here (Opus). The page does not change.
+
+(Annotated when moved, 2026-11-24. How each box was answered is D88 and `ENGINE.md`,
+"§19, designed 2026-11-24". Three recommendations above did not stand: the default ticks
+(all sixteen start as Ours, D88 item 1); "a second tick only if it is missed" (the insert
+is in from the start, D88 items 1 and 8); and the menu entry that keeps the single channel
+(dropped, D88 item 2). The owner ruled items 1 to 3 in the session.)
+
+## Handover note moved here by Session 23 (2026-11-24)
+
+### After the tidy: the docs brought up to date (2026-11-24)
+
+- **No code changed.** This file was made compact: stale sections moved to
+  `PLAN-HISTORY.md` word for word; the owner's lists merged into one; the rules of the
+  build sessions written once; "Not planned yet" is the backlog, each row with where it is
+  written down.
+- **Checked against the repo:** every session in "Done so far" has its list and Handover in
+  `PLAN-HISTORY.md`; every open question is in `DECISIONS.md`'s Open table (O3, O6, O7,
+  O10, O18, O19, and O20 for D86); `README.md`'s status and map say what is built.
+- **New, from the owner on 2026-11-24:** each effect to its own Rack module. Researched
+  (R63) and recommended as D86, not decided.
+- **Next: Session 22,** the recording, in a new session with the owner, the PO-12 and the
+  Scarlett. Its list is above. It is a Fable session: it measures, writes facts into
+  `REFERENCES.md`, and proposes; it builds nothing in the core.

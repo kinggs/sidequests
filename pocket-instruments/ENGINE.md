@@ -68,8 +68,13 @@ to 54 and one function, `pi_weave`, a pure function of a view. Every trace, view
 render file is as it was. The drawing is not accepted yet (O19): its numbers may change,
 its interface should not.
 
-**Where everything is, at ABI 10** (2026-11-24; nothing in this file is designed and
-unbuilt):
+**Designed, not built (Session 23, D87, D88):** FX SEND and FX RETURN as sixteen channels,
+a channel an effect, with the return always summed: "§19, designed 2026-11-24" at the end
+of this file. Session 24 builds it (`PLAN.md`) as ABI 11. Until then the code does §19 as
+it is written there.
+
+**Where everything is, at ABI 10** (2026-11-24; ~~nothing in this file is designed and
+unbuilt~~ one thing is, since Session 23: the note above):
 
 | ABI | Session | Section | Adds |
 |---|---|---|---|
@@ -1228,7 +1233,8 @@ the bus.
   moves the generation: which cables are in is the patch's to keep. In the other three
   layouts nothing is read in and `ROUTE` changes nothing heard.
 - **Nothing routed, nothing punched:** channel 16 is layout 17's mix, the same bytes.
-- **The loop is an insert, not a second copy.** When an outside effect is heard the bus
+- (Superseded for ABI 11 by D87 and D88, "§19, designed 2026-11-24" below; this is what is
+  built until Session 24.) **The loop is an insert, not a second copy.** When an outside effect is heard the bus
   crosses over to what came back; it is never summed with itself, so the two samples a
   cable loop costs in Rack 2 (R60) cannot comb, and no rule here depends on that number.
 - The repeats (§17) are not sound and cannot go outside: they go out as triggers.
@@ -1445,3 +1451,93 @@ sounds 1 to 16, and 34 to 49 are B.
   at different positions the sequence of values is shifted by one hit. It follows from the
   two rules above and is built as designed.
 
+### §19, designed 2026-11-24: a channel an effect, the return summed (ABI 11; D87, D88; designed in Session 23, not built)
+
+The owner patched D86 item 2 by hand and ruled (D87): FX SEND and FX RETURN carry sixteen
+channels, a channel an effect, and what comes back is always in the mix. This replaces the
+effects loop above (channel 17 as an insert that crosses over, and `ROUTE` 1's meaning).
+The returns (`ROUTE` 0), the sliders (`ROUTE` 2 and 3) and both layouts stay as built.
+
+**In the core.** The layouts keep their sizes, 18 and 50.
+
+- **Channel 17 in is FX RETURN, read on every frame of a loop layout** and added to the
+  mix last, before the volume:
+  `mix = (dry + back) × volume gain`, where `dry` is the mix before the volume as §18 and
+  §19 already make it (idle: every sound summed in track order; an effect running:
+  `rest + bus + w × (wet − bus)`), and `back` is channel 17's input, with what is not a
+  number taken as silence (D80 item 4). **When `back` is exactly 0 nothing is added,** so
+  with nothing returned channel 16 is the bytes it was (a mix of −0 stays −0).
+- What comes back is **not** in the bus, not through any effect, not on channel 17's
+  output and not in the sixteen track channels. Stopped or playing makes no difference.
+- **Channel 17 out does not change:** the bus before any effect and before the volume.
+- **`ROUTE` 1, `PI_ROUTE_FX`, changes meaning.** Bit *n* − 1: effect *n* is the host's, so
+  the core's own sound for it does not play.
+- **`ROUTE` 4, new, `PI_ROUTE_FX_INSERT`.** Bit *n* − 1: while effect *n* is heard, and
+  `ROUTE` 1 names it too, the bus leaves the mix. A bit here that `ROUTE` 1 does not name
+  changes nothing. An `a` past 4 is ignored.
+- So, for the effect that is heard, in a loop layout:
+
+  | `ROUTE` 1 | `ROUTE` 4 | The bus is given | `dry` |
+  |---|---|---|---|
+  | 0 | either | the effect, if the core sounds it (§18), else none | as §18 |
+  | 1 | 0 | no effect: it goes idle, or stays so | every sound, summed in track order |
+  | 1 | 1 | an outside effect, whose `wet` is 0 | `rest + bus + w × (0 − bus)` |
+
+  The third row is §18's ramp and formula with silence for the effect, so the bus fades
+  out in 2 ms and back in 2 ms after. Every outside effect is one kind with no state, as
+  built: from one straight to another the ramp stays at 1.
+- **The repeats do not change** (D88 item 3): a repeat named in `ROUTE` 1 still repeats.
+  Named in both, the bus leaves the mix while it is held.
+- D80 item 6 stands: changing what `ROUTE` names while an effect is held starts it again
+  as the other kind, with the ramp as it is. D80 item 5 is superseded: channel 17 is read
+  always. A host that leaves the loop layouts while an insert is held hears the bus come
+  back at once (`Bus::mix` has no input and ducks nothing).
+- Neither mask is saved or moves the generation; in the three older layouts nothing is
+  read in and `ROUTE` changes nothing heard. No view byte, snapshot byte, trace or call
+  changes.
+
+**In the Rack module** (`rack/src/jacks.hpp`, `rack/src/Rhythm.cpp`; D88 items 4, 5, 9
+to 12). The page has no loop (D69) and does not change.
+
+- **FX SEND, sixteen channels.** Channel *n* is `5 V × bus × g[n]`, where `bus` is channel
+  17's output and `g[n]` moves `500 / rate` a frame towards 1 while the view's `heard` is
+  *n*, towards 0 otherwise, held to 0 and 1. All sixteen, whatever each effect's setting.
+  A channel whose gain is 0 is exactly 0 V and costs nothing: the module keeps a mask of
+  the gains that are not 0.
+- **FX RETURN** is the sum of its cable's channels, divided by 5 V, into channel 17.
+- **A setting an effect** (menu; saved with the patch; Initialize puts all to Ours):
+  Ours, Rack's beside the dry, Rack's in place of the dry. 9 to 12 offer the first and the
+  third. The module sends `ROUTE` 1 (every effect not Ours) and `ROUTE` 4 (those in place
+  of the dry) while FX SEND or FX RETURN is patched, and 0 for both otherwise; it asks for
+  a loop layout while either is patched.
+- **The ramps start together.** `heard` changes only by a command or a tick, a step always
+  emits an event, and the module reads the view on any frame with either; so `g[n]` and
+  the core's `w` leave 0 on the same frame.
+
+**The comb** (R60, D88 item 10). Summed with the dry, anything that comes back carrying
+the dry is two samples late and notches at a quarter of the rate (12 kHz at 48 kHz).
+Beside the dry, send fully wet. An effect that keeps some dry of its own goes in place of
+the dry: then the bus is in the mix once, from outside. ⚠ In Rack 3 the loop may be a
+block long.
+
+**What it costs,** measured in a scratch copy before anything was designed further
+(`LEARNINGS.md`, Session 23; the same machine, runs interleaved): beside the dry, the
+loop with an effect on every step is 1 to 2 ns a frame cheaper than today's crossing
+over, because the bus stays idle; in place of the dry costs what the crossing over does;
+the loop with nothing heard is unchanged. ⚠ The bus's routes growing from four masks to
+five moved idle and the beat by about 1 ns in the layouts that have no loop, in each of
+four runs: where things sit in memory again (Session 18). The build holds those to what
+they were.
+
+**Proven when built by:**
+
+| Rule | Held by |
+|---|---|
+| Nothing returned, nothing named: every layout's bytes as before | the report and every earlier render file but `render-loop`'s, the same bytes |
+| The mix is this section's formula, bit for bit, through every kind of change | `core/src/tests/route.rs`: §18's model given `back` and the two masks, at three rates and on edges, stopped and playing |
+| `back` exactly 0 adds nothing; a non-number is silence; the volume turns the return | `core/src/tests/route.rs` |
+| Beside the dry starts no effect in the bus (from idle it stays idle); in place of the dry the bus is out at `w` = 1 and back 2 ms after | `core/src/tests/route.rs` |
+| What comes back is never on channel 17 out or a track channel; `ROUTE` 4 without `ROUTE` 1 is nothing; a named repeat still repeats (its trace the same) | `core/src/tests/route.rs` |
+| The loop layouts, native and `.wasm`, the same bytes | `harness/render-loop.json`, rendered again, with the model above as its expectation |
+| A send channel is 0 V or the bus exactly once ramped; 2 ms at three rates; two gains cross without a step; FX RETURN is the sum of the cable's channels; the masks for each setting, and none unpatched | `rack/test/jacks.cpp` |
+| The module's frame is the core's own, given what its cables carry | the self-test's FX SEND to FX RETURN module, held to a second engine: effect 4 as Ours, effect 2 beside the dry, effect 2 in place of the dry |

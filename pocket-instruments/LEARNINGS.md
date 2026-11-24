@@ -924,3 +924,42 @@ above; these are what only the chain showed.
 - **Patching by hand before building paid for itself in an hour** (D86 item 2, D87): it
   showed the menu's ticks were a trap, that the insert cuts a reverb's tail, and that the
   owner's favourite patch does not use FX RETURN at all. None of that was in the proposal.
+
+## Session 23: FX SEND and FX RETURN designed, a channel an effect (2026-11-24)
+
+- **Measure the design's fork before designing either branch.** The list asked where the
+  send's ramp is made. Three scratch copies of the core (as it is; the return summed and an
+  insert; those plus a 34-channel layout with sixteen ramps), one bench, two interleaved
+  runs each, about ten minutes. Nanoseconds a frame, best of five:
+
+  | Case | As it is | Return summed, insert | Plus the 34 channels |
+  |---|---|---|---|
+  | idle (the mix) | 26.0, 25.9 | 26.9, 27.6 | 27.2, 26.8 |
+  | beat (the mix) | 27.9, 28.6 | 28.8, 30.3 | 29.2, 29.5 |
+  | all | 42.2, 44.2 | 42.3, 44.3 | 44.0, 45.6 |
+  | both, 17 channels | 28.9, 28.6 | 29.2, 30.6 | 28.3, 30.2 |
+  | loop, every sound returned | 36.0, 36.5 | 36.4, 37.9 | 36.3, 37.5 |
+  | loop, effect 4 on every step ("loop fx": crossing over; then beside the dry) | 38.4, 38.8 | 36.3, 38.0 | 36.9, 37.1 |
+  | the same, in place of the dry | | 37.2, 38.7 | 36.9, 38.0 |
+  | loop, nothing returned or heard | | 32.2, 32.8 | 31.8, 34.0 |
+  | 34 channels, nothing heard | | | 35.6, 34.5 |
+  | 34 channels, effect 4 beside the dry | | | 39.6, 39.9 |
+
+  The wider layout is 2 to 3 ns a frame for as long as FX SEND is patched. The same ramps
+  in the module, with a mask of the gains that are not 0, timed alone: 2.33 ns a frame of
+  harness with nothing heard, 2.43 with one effect held, 2.49 with a new one every step.
+  So about 0.1 ns. The scratch copies are not kept; the patch was thirty lines.
+- **An insert is an effect whose sound is silence, and a send is no effect at all.** Seen
+  only once the return was taken out of the crossover: `bus + w × (0 − bus)` is the ramp
+  that was already there. The owner's two switches became one mask and no new path.
+- ⚠ **One more u16 in the bus moved idle and the beat by about 1 ns,** in the layouts that
+  never touch it, in four runs of four. Session 18 found the same of the voices' place in
+  memory. The scratch copy grew `route` from four to five; Session 24 has to hold idle and
+  the beat, and may need to keep the fifth mask somewhere else.
+- **A recommendation written before the measurement can be stale by the next box.** The
+  list recommended default ticks on the effects with no sound of ours. With every send
+  live and the return summed, those ticks change nothing heard, so the default is "all
+  Ours" and the trap D87 named is gone, not moved.
+- **Three questions, each with a recommended answer, took the owner one screen.** The
+  rest (twelve points) were ruled by the session and listed as the owner's to overrule.
+

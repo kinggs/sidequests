@@ -14,7 +14,8 @@ Not finished: most of what was built on 2026-11-23 has not been seen or heard by
 and every look in it is a stand-in until then; the effects are first guesses from the
 hardware's names, untuned, and now measured against the owner's PO-12 (R64 to R68;
 proposals in `ENGINE.md` §17 and §18, not built); five of the sixteen effects are not
-designed. What is next is
+designed. Designed and not built: FX SEND and FX RETURN as sixteen channels, a channel an
+effect, with what comes back always in the mix (D87, D88). What is next is
 `PLAN.md`, "Next, in order". How it got here, session by session, is `PLAN.md`'s "Done so
 far" and `PLAN-HISTORY.md`. Started 2026-11-18.
 

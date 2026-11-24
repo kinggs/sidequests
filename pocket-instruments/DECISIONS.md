@@ -1629,6 +1629,78 @@ What the owner's hand patch showed, for the design (Session 23):
 Not ruled: D86 items 3 to 5 (the breakouts, a trigger in for each sound). O20 stays open
 for them.
 
+### D88 — D87 designed: the send's ramp in the module, the return summed in the core, three settings an effect
+**2026-11-24 · Session 23 (design, Fable) · items 1 to 3 decided by the owner in the session; items 4 to 12 by the session, each the owner's to overrule (O21) · not built: Session 24 · `ENGINE.md`, "§19, designed 2026-11-24"**
+
+Ruled by the owner, each as recommended:
+
+1. **Each effect has one of three settings, in the module's menu.**
+   - **Ours:** the core's own effect plays, as on the phone.
+   - **Rack's, beside the dry:** a send. Ours is silent and the dry stays.
+   - **Rack's, in place of the dry:** an insert. Ours is silent and the dry leaves the mix
+     while the effect is held, with the 2 ms ramp.
+
+   All sixteen start as Ours, so there is no default set to know about (D87 item 3). This
+   is the owner's idea of 2026-11-24 ("a toggle ... for some wet / dry signals and possibly
+   for adding to or replacing the internal effect") as one choice, not two ticks: of two
+   ticks' four combinations, "ours on, dry out" means nothing, because our effect already
+   takes the dry's place. "Both effects at once" is Ours with a Rack effect patched.
+2. **Today's loop is dropped:** FX SEND as one channel that always carries the bus, and FX
+   RETURN as a single-channel insert that crosses over (D68 item 2, D86 item 1's menu
+   entry). The third setting does the insert's job an effect at a time and does not cut
+   the tail. Lost: an always-on send of the bus. A patch saved before reads its old ticks
+   as "in place of the dry".
+3. **A repeat always repeats** (D80 item 3 stands). The repeating is the sequencer's and
+   goes out as triggers. For effects 9 to 12 the menu offers two settings: the dry stays
+   (Ours), or in place of the dry.
+
+Decided by the session:
+
+4. **The send's ramp is made in the Rack module, not the core.** FX SEND's channel *n* is
+   the bus (the loop's channel 17, as now) times a gain that moves `500 / rate` a frame
+   towards 1 while the view's `heard` is *n*, and towards 0 otherwise: sixteen gains in
+   `rack/src/jacks.hpp`, the same 2 ms as §18's ramp. Measured in a scratch copy
+   (`LEARNINGS.md`, Session 23): a wider layout with the ramps in the core costs 2 to 3 ns
+   a frame whenever FX SEND is patched, an effect heard or not; in the module it is about
+   0.1 ns over a frame with nothing heard, and the core is not touched. Sixteen gains and
+   not the core's one ramp: from one effect straight to another the core's ramp stays
+   where it is (§18), which on a send would be a hard edge into a reverb.
+5. **Every send channel is always live,** whatever its effect's setting, the repeats and
+   the effects with no sound of ours included. So the owner's kept patch (D87: sent in
+   stereo to a mixer, nothing returned) works with FX RETURN empty.
+6. **The return is added in the core, last, before the volume:**
+   `mix = (the mix as it was + what came back) × volume gain`. So the master volume turns
+   the whole instrument, returns and all, as a mixer's master does; and what comes back is
+   never in the bus, never through an effect of ours and never on FX SEND, so the loop
+   cannot feed itself inside the module.
+7. **The return is heard stopped as well as playing.** It is an input to the mix, nothing
+   more: a tail rings out after stop.
+8. **In the core an insert is an effect whose sound is silence,** and a send is no effect
+   at all. `mix = rest + bus + w × (0 − bus)` is §18's formula with `wet` 0; beside the
+   dry, the bus stays idle and the frame costs what an idle one does. So the core gains
+   one mask (`ROUTE` 4) and no new path. **ABI 11.**
+9. **The settings count only while FX SEND or FX RETURN is patched.** With neither, every
+   effect is ours, as on the phone, and the module asks the core for the frame it always
+   did. Why: an effect set to Rack's with no cable would be a key that does nothing.
+10. **Nothing guards the comb** (R60). The module cannot know what an effect passes. What
+    answers it is the setting: an effect that is not fully wet goes "in place of the dry",
+    where nothing is summed with itself. FX RETURN's tooltip and the menu say so in a line.
+    ⚠ Rack 3 may make the loop a block long (R60): then the comb's notches fall and an
+    insert is late; look again when Rack 3 is real.
+11. **FX RETURN adds up every channel its cable carries** (`getVoltageSum`, R63 d) **and
+    stays mono.** AUDIO is one channel; a stereo return belongs in a mixer beside AUDIO,
+    as in the owner's patch.
+12. **FX GATES does not change.** With D87 it is no longer needed to gate a send, and
+    still drives anything else from the performance.
+
+Superseded: `ENGINE.md` §19's "the loop is an insert, not a second copy" and D68 item 2
+(the crossing over, the default ticks); D80 items 5 (when channel 17 is read: now always),
+9 (the default ticks) and 10 (one channel). D80 item 3 and item 6 stand.
+
+Not chosen: sixteen wet and dry knobs (the Rack effect has its own mix; switches say what
+the patch is); a second tick only when missed (PLAN's first recommendation: the insert
+costs the core nothing, and the owner asked for it); a new jack.
+
 ## Open
 
 | ID | Question | Needs |
@@ -1653,3 +1725,4 @@ for them.
 | O18 | Session 18's rulings (D80): the eighteen items as built? And its three open points: the two-row panel judged with cables in; A OUT to A IN being one hit late; a marked repeat crossing the bus | The owner, in Rack. Recommended: accept the items; play the slider loop before ruling on the lateness |
 | O19 | The weave's first attempt (Session 14, D84): does it read as a cloth being woven when it moves, on the phone and in Rack? D84's sixteen items as built? Above all item 8 (a diamond growing as its beat fills), item 9 (the jump a beat), item 11 (the flash's length) and item 14 (every cell a square) | The owner, watching it play: `web/rhythm.html` and the Rhythm module. `PLAN.md`, "After Session 14's first attempt", lists what to look at. When accepted, three views and their cells are committed as the picture to hold to (Session 14's fourth box) |
 | O20 | Each effect to its own Rack module (D86): sixteen channels on FX SEND and FX RETURN first, then small breakouts, in place of one large expander? And a trigger in for each sound? | The owner, after trying D86 item 2's patch by hand. Recommended: yes to both. **Answered in part 2026-11-24: D87** (the sixteen channels, the return summed). Open: the breakouts and the trigger in |
+| O21 | Session 23's rulings (D88 items 4 to 12): as designed? Above all item 6 (the return before the volume), item 9 (the settings count only while FX SEND or FX RETURN is patched) and item 10 (nothing guards the comb) | The owner, in Rack, once Session 24 has built it. Recommended: accept; judge item 10 with a delay at half wet in each setting |
