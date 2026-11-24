@@ -892,3 +892,35 @@ above; these are what only the chain showed.
   lights), overturned one decision three sessions old (the lights with write off, D37),
   and replaced another (the sliders following the chosen sound, D54). Every one of those
   had been marked as a guess. None would have been found by more reading.
+
+## Session 22: the hardware's effects, measured (2026-11-24)
+
+- **Three guesses from the names were wrong in kind, not in size.** The sweeps go both ways
+  on their own clock; the low sample rate is not one rate; 9 and 10 are not slower 11 and
+  12. No amount of tuning the constants would have found these. Measure before tuning.
+- **The owner's ear was right and the design was wrong.** "It just feels like it mutes
+  things": the hardware's repeats carry on through empty steps and ours go silent (R66).
+- **Instructions for a take are written for the hands, not the engineer.** Drum names
+  failed (the keys have numbers); "bar" failed (is it sixteen steps?). What worked: sound
+  numbers, steps 1 to 16, and "a pass" for one round of the sixteen. Say how long to hold
+  in passes, and say it twice.
+- **One long take was too much to hold in the head.** The plan asked for one file. Three
+  short ones (a, b, c), each checked before the next, caught a clipped input and a
+  one-pass-not-two mistake while they were cheap. After about forty minutes the owner said
+  so: "I'm losing focus a little, so it's getting easier to screw up". Stop there.
+- **Check the level again after the first effect, not only dry.** The dry pattern peaked at
+  -4.8 dBFS and effects 2 and 16 hit 0.0. The hardware's effects are up to 9.5 dB louder
+  than its dry sound: leave 12 dB.
+- **A script written before the first real file assumed the pattern was already looping.**
+  Real takes open on silence; it took a half-silent pass as its dry reference and found no
+  effect anywhere. Its 103 self-tests all passed, on files it had made itself. Fixed by
+  anchoring on the first sound; the lesson is to run on a real take before trusting it.
+- **Time goes missing in the takes, in whole buffers of 1024, and it is not explained**
+  (R68). The dry pattern recorded clean three times with Rack closed. Do not record a
+  measurement take with Rack open until this is known.
+- **A kick's tail is a low sine, so matching by lag is ambiguous on it.** A sliding-window
+  lag search for the lost time gave several answers a hit. Onsets were the better clock.
+- **`pkill -f` with a pattern that matches your own shell's command line kills the shell.**
+- **Patching by hand before building paid for itself in an hour** (D86 item 2, D87): it
+  showed the menu's ticks were a trap, that the insert cuts a reverb's tail, and that the
+  owner's favourite patch does not use FX RETURN at all. None of that was in the proposal.

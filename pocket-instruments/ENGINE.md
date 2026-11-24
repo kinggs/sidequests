@@ -1085,6 +1085,20 @@ with an empty lane. The design held. What it did not say, built on and marked:
   held while playing, it lets steps write the lane at the audio thread's pace, which its
   model (a frame an edit) cannot keep; the lane goes in by `FX` instead.
 
+**Proposed after Session 22 (2026-11-24; measured, R66), for the owner. Nothing here is built.**
+
+- **A repeat holds the last step that sounded, not the step it began on.** The hardware's
+  11 and 12 retrigger the kick through two passes when only step 1 has a note; ours re-fire
+  the step the run began on and are silent if it is empty, which the owner hears as a mute.
+  Proposed: when a run begins, the step it repeats is the latest step, at or before it,
+  on which a switched-in sound had a note; if the pattern has none, silence as now. ⚠ The
+  hardware repeated the kick alone and dropped the hats and the snare (one pattern);
+  whether ours repeats that whole step (as now) or one sound of it is the owner's ear to say.
+  Recommended: the whole step, until it is heard.
+- **The rates of 11 and 12 hold:** 8 and 6 a beat, measured 7.94 and 5.97.
+- **9 and 10 stay as they are, and stay ours.** The hardware's 9 and 10 are not 11 and 12
+  at half speed, and their rule is not known (R66). No change is proposed on a guess.
+
 ## 18. The bus and the first sound effects (ABI 7; designed in Session 15; D67; built in Session 17)
 
 - **The bus** is the sum of the sounds in `fx_sounds`, in track order; **the rest** is the
@@ -1176,6 +1190,22 @@ over the dry beat. What it did not say, built on and marked:
 - Not yet heard in Rack with RETURN patched: the module rebuilds AUDIO from the sixteen
   channels (`rack/src/jacks.hpp`, D62), which are before the effects. Session 18 moves the
   returns into the core (§19).
+
+**Proposed after Session 22 (2026-11-24; measured, R64, R65, R67), for the owner. Targets
+for a build session; the constants are set there and then by ear. Nothing here is built.**
+
+| Effect | Built | Measured on the PO-12 | Proposed |
+|---|---|---|---|
+| 1 low sample rate | a hold at 6 kHz | holds of 2 to 70 ticks on an 11.7 kHz grid, about 1.5 ms on average; 7 dB louder | a far slower hold, first try about 1 kHz, with the level made up; ⚠ the irregular lengths wait for take c |
+| 2 distortion | `SoftLimit(6 × bus) × 0.7` | a gain of 3 into a hard clip | a gain of 3 and a hard clip; ⚠ the ceiling by ear |
+| 3 bit crush | `trunc(12 × bus) / 12` | about 7 levels across the sound; not silent on silence | about 7 levels across the bus's range, and a quantiser that does not rest at zero ⚠ |
+| 5 low pass | 600 Hz, Q 2 | 230 to 340 Hz, +7 dB at the cutoff | 300 Hz, Q as now |
+| 7 high pass | 2 kHz, Q 2 | 1.8 kHz, +15.5 dB (Q 6) | 1.8 kHz, Q 6 |
+| 6, 8 sweeps | one way over sixteen steps, from the punch | both ways, a cycle every 8.5 to 9 steps, 200 Hz to 2.5 or 2.9 kHz, running on across steps | a cutoff that goes up and down on its own clock ⚠ shape and the difference between 6 and 8 wait for take c |
+| 4 delay | not designed | one echo at 175 ms, quiet, nearly no feedback | a single tap: about 8400 samples of the bus at 48 kHz (answers D67 item 4's "how much stored sound") ⚠ whether the time follows the tempo |
+| 14 feedback | not designed | builds and rings near 1 kHz | a short delay (about 1 ms) fed back hard ⚠ |
+| 13 note shuffle | not designed | each note plays as another sound | in the sequencer, as the repeats are: a hit fires a different sound ⚠ |
+| 15, 16 | not designed | pitch wobbles, 6.5 Hz small and 3.5 Hz large | wait for take c |
 
 ## 19. Sound in: the returns and the effects loop (ABI 9; designed in Session 15; D68; built in Session 18)
 

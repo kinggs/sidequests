@@ -1853,3 +1853,98 @@ Decided when P1 to P4 are in, not before:
   another sound (sound + its key): its steps light instead. In Rack (`make install`), the same.
 - **Next:** a first weave (Session 14, D79), which reads the same view; or the owner's eye on
   the write-off grid first.
+
+## Handover notes moved here after the tidy of 2026-11-24
+
+Word for word, each as it stood in `PLAN.md`.
+
+### After Session 14's first attempt: the display weaves; the owner has not watched it (2026-11-23)
+
+- **What this is:** a first attempt, made while the owner was away (D79, D83). Boxes 1, 2, 3
+  and 5 of the list are done. **Box 4 is open:** nothing is accepted, and no view is kept as
+  the picture to hold to. Session 14 is not finished.
+- **Built (ABI 10; D84):** the sequencer fills the view's bytes 48 to 54 (steps woven since
+  play, which of the last sixteen had a sound set, tracks fired on this step);
+  `pi_weave(view, len, flags, out, cap)` in `core/src/weave.rs`, a pure function from a view
+  to 78 by 15 cells of seven palette numbers, integers only, no engine. The page paints the
+  cells on a canvas, only when they change, with `prefers-reduced-motion` as the flag; the
+  Rack display paints the same cells, with "Display: reduced motion" in its menu. Neither
+  host holds a rule. `ENGINE.md` §16 is marked built as a first attempt, with a table of
+  what turned out different; `design/DESIGN.md` has "How each rule is drawn" and its "Not
+  done"; `web/pi_core.wasm` rebuilt and committed (41 170 bytes, from 39 832).
+- **How each rule is drawn** (the table in `design/DESIGN.md`): a beat is 16 columns of
+  cloth with a diamond in it, 4 columns a step; four beats show and the cloth jumps left a
+  beat at a time; the diamond reaches 0, 2, 4, 6 or 7 cells by how many of the beat's steps
+  had a sound set (ecru, then ochre, then madder); the beater is an ochre bar 1 to 4 cells
+  wide at the cloth's edge; the shuttle is a 3 by 4 ecru block crossing the warp once a
+  step, down then back, with a thread behind; two sounds together turn the three newest
+  columns white for a quarter of a step; stopped, nothing reads the clock and the shuttle
+  rests at the top.
+- **Proven:** before the first change, `make test` (205 Rust tests, 300 runs a harness), its
+  report and the sha256 of all 408 render files kept, and `make bench`. At the end: 228 Rust
+  tests (23 new, in `core/src/tests/weave.rs`: 8 for the three fields, 15 for `pi_weave`,
+  one or more a rule); the report and all 408 render files the same bytes as before; the
+  three harnesses weave `fixtures/weave-views.txt`'s 60 views to the same bytes (Rust's
+  tests, C++ on the static library, Node on the `.wasm`). `make play` in Chromium and
+  Firefox: 9 phases (one new, `still`), about 1 040 drawings each, every one's cells read
+  back off the canvas by colour and held to `pi_weave` in the checker's own instance of the
+  `.wasm`, and painted if and only if the cells changed; played with two sounds a step, 37
+  drawings with a flash and 7 drawings inside one step; with reduced motion asked for, 0 and
+  1; stopped, 0 paints. The same with both browsers launched asking for reduced motion
+  themselves (`PI_REDUCED=1 node web/play.mjs target/report-node.txt`): 0 flashes, 1 drawing
+  a step, in every phase. `make p4` (24 of 24, both browsers, ABI 10). Rack: `make install`,
+  `make selftest` at 44.1, 48 and 96 kHz, all clean (12 Rhythm modules on the six fixtures,
+  three through their own cables, D78's latch; the self-test's name still shows where the
+  weave is). Planted, the unplanted copy passing first: 22 faults in the core, 22 caught by
+  named tests; one each in the C++ and Node harnesses' weave (the comparison failed); 7 on
+  the page (`make play` failed on each, by a named line). The repo's `make verify`. CI: see
+  the last line of this note.
+- **Measured:** `pi_process`, old and new back to back, twice: idle 25.6 and 26.2 ns a frame
+  old, 25.0 and 25.3 new; the minimum beat 27.8 and 28.2 old, 27.8 and 27.6 new; all sixteen
+  42.2 and 44.1 old, 41.2 and 41.4 new. No difference to see. ⚠ One build in between
+  measured 3.5 ns a frame slower in every case, idle too, from the weave's code changing
+  where the compiler put `pi_process`; keeping the weave out of line brought it back
+  (`LEARNINGS.md`). One `pi_weave` call: about 1.9 µs natively, on the drawing side, called
+  only when the view changes (sixty times a second at most). The engine is 3 712 bytes
+  (from 3 704).
+- **Rulings (D84, sixteen items; Fable's, a first attempt, each the owner's to overrule):**
+  ABI 10; a reset while playing starts a new cloth; "set" is set, not fired; byte 54 counts
+  tracks and is 0 unless a step has arrived; 78 by 15 cells; palette 5 tile and 6 madder;
+  the beat's and the diamond's sizes; the beat on the loom drawn from its steps so far; the
+  jump a beat; the beater's four widths; **the flash a quarter of a step, not a sixteenth**
+  (a sixteenth is 7.8 ms at 120 bpm, under a frame); five warp threads; the shuttle's size,
+  place and direction; a cell painted as a square five sixths of its place; reduced motion
+  in Rack's menu; no weave during a self-test.
+- **For the owner to look at** (O19), in this order:
+  1. `design/rack-weave-bare-200.png`, `-step07-200.png`, `-step13-200.png`,
+     `-busy-200.png`, `-stopped-200.png`, then the `-100.png` ones at the size Rack shows;
+     `design/phone-weave-step13.png`. `DESIGN.md`'s file table says what each shows.
+  2. On the phone, `web/rhythm.html`: write a kick on 1, 5, 9, 13 and a hat between, and
+     play. Does it read as a cloth being woven? Then add a snare on 5 and 13 and watch
+     those steps flash. Then fill a beat's four steps and watch its diamond grow.
+  3. In Rack (`make install`), the same beat. Right-click, "Display: reduced motion".
+  4. On the phone with the system's reduced motion on: no flash, the shuttle jumping.
+- **The choices least sure, most first:**
+  1. A diamond grows after its first columns are woven (D84 item 8). With steps set late
+     in a beat, cloth already woven changes. Honest to the inputs, odd for a cloth.
+  2. Every cell is a square with a gap, the beater, warp and shuttle too (item 14). The
+     picture has the grid on the cloth only and thin warp lines.
+  3. The flash's quarter step (item 11), and whether a flash on every step of a busy beat
+     is too much.
+  4. The cloth jumping a whole beat every beat (item 9), not creeping.
+  5. The half diamond's ochre running into the ochre beater (`rack-weave-busy-200.png`).
+  6. Whether the shuttle and its thread could be read as a needle and thread (R6, D20): it
+     is a block crossing bare warp, but it is the part nearest the original's subject.
+  7. On the phone the weave is 42 px tall in a place 72 px tall.
+- **Not done, and why:** box 4 (the owner's). The Rack drawing has no checker and was seen
+  only in screenshot mode, from scratch builds that fill the face by hand (kept out of the
+  tree; `grep SCRATCH rack/src` is clean); its drawing cost in Rack was not measured.
+  Nothing was seen on a real phone or a real Rack window, so nothing was seen moving except
+  by `make play`'s counts. `harness/race.cpp`'s `look()` holds the three new fields to what
+  any view is, and no fault was planted for that. D64 (the clock menu), which PLAN once
+  tied to this session's ABI number, was not touched.
+- **Next:** the owner watches it. What is wrong is changed in `core/src/weave.rs`, once
+  (each number is a constant under "THE DRAWING"), then `make web`, `make test`, `make
+  play`. When it is accepted: three views and their cells committed beside
+  `fixtures/weave-views.txt`, box 4 ticked, the list moved to `PLAN-HISTORY.md`.
+- **CI:** run 45217909351 (a24f85b, the push with the core and `rack/` changes) green on win-x64, lin-x64, mac-x64 and mac-arm64.

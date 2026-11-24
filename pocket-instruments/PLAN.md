@@ -184,17 +184,54 @@ Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
 | 19, the page's effects (Opus; D69, D78, D81) | fx and a key on the page by touch, mouse and keys; the display's effect block and lane ticks on the page and in Rack (D81's stand-in); the sheet's "through fx"; D78's latch on the page; `make play`'s three new phases, format 3 and 4 fixtures played on the page; the lit Rack screenshots again | 2026-11-23 |
 | 20, the grid's lights (Opus; D71, D72, D82) | with write off the grid lights the chosen sound's steps, as the hardware does: one line of the core, twelve fixture views worked again by hand; `make play` holds every key's white; `design/rack-face-writeoff-*.png` | 2026-11-23 |
 | 14, the weave: a **first attempt** (Fable; D53, D84), not finished | ABI 10: the view's bytes 48 to 54, `pi_weave` (78 by 15 cells) and its rule tests, the page and the Rack display painting the same cells, `make play` holding every painting to `pi_weave`; `fixtures/weave-views.txt`; `design/rack-weave-*.png`. The owner has not watched it: its list stays below | 2026-11-23 |
+| 22, the hardware's effects measured (Fable, with the owner): **two of three takes**, not finished | `harness/hardware-take.sh` and `harness/hardware-fx.py`; R64 to R68; `WORKFLOW.md`'s four effects rows answered; proposals in `ENGINE.md` §17 and §18; D87 (the owner's ruling on D86 item 1). Take c and a timing take are left: its list stays below | 2026-11-24 |
 
 ## Next, in order
 
-1. **Session 22,** the recording: below. It unblocks the tuning, the repeat's fix and the
-   five effects not designed.
-2. **The owner's looks and rulings** on what 2026-11-23 built: "The owner's hands", first
-   part. Each may send a session back (the weave and the panel most likely).
-3. **Session 14's fourth box,** the weave accepted or redrawn: below.
-4. Then from "Not planned yet", as the owner chooses.
+1. **Session 23,** FX SEND and FX RETURN a channel an effect, the return summed: below.
+   A design session; it ends in a build list.
+2. **Session 22's two takes left,** when the owner has fifteen minutes with the PO-12:
+   below. Start it with "Read `pocket-instruments/PLAN.md` and finish Session 22".
+3. **The owner's looks and rulings** on what 2026-11-23 built, and on Session 22's
+   proposals: "The owner's hands", first part.
+4. **The effects tuned and the repeat's rule built,** from Session 22's proposals once
+   ruled: "Not planned yet", first rows.
+5. **Session 14's fourth box,** the weave accepted or redrawn: below.
+6. Then from "Not planned yet", as the owner chooses.
 
-## Session 22 — the hardware's effects, measured from a recording (with the owner, Fable)
+## Session 23 — FX SEND and FX RETURN: a channel an effect, the return summed (design, Fable; D86 item 1, D87)
+
+The owner ruled it on 2026-11-24 after patching it by hand (D87). This session designs it
+and writes the build list; it builds nothing. Read `ENGINE.md` §18 (the ramp) and §19,
+D68, D80, D86, D87, R58, R60 and R63, and `rack/src/jacks.hpp`.
+
+- [ ] **The send.** FX SEND, sixteen channels: channel *n* carries the bus while effect *n*
+      is heard (punched or replayed by the lane), with the core's ramp, and silence
+      otherwise. Where the ramp is made: in the core (a wider loop layout) or in the Rack
+      module from what the core already says. Recommended: wherever it costs the core
+      least; measure with `make bench`.
+- [ ] **The return.** FX RETURN adds up every channel that comes back and is always in
+      the mix (D87 item 2). Say where it is added (before or after the volume), and what
+      happens to it while stopped.
+- [ ] **How an effect is marked as Rack's.** A returned channel cannot be the only sign:
+      the owner's patch returns nothing (stereo, to a mixer) and the core then plays its
+      own effect too (D87). Recommended: the menu's ticks stay and mean "the core's own
+      effect *n* does not play"; every send channel is always live; the default ticks
+      are the effects the core has no sound for. Rule it with the owner.
+- [ ] **The dry while an outside effect is held.** A send keeps it; an insert (a Rack
+      distortion in place of ours) wants it out. Recommended: the dry stays, and a second
+      tick is added only if it is missed.
+- [ ] **The comb** (R60, D87): the return summed with the dry, two samples late. What the
+      jack's label and the docs must say (send fully wet), and whether anything in the
+      module should guard it.
+- [ ] **What is kept of today's loop:** D86 item 1 says a menu entry keeps the single
+      channel insert. Keep it, or drop it? And stereo: FX RETURN stays mono, or not.
+- [ ] Written: `ENGINE.md` §19 amended (marked as designed, not built), a decision, the ABI
+      number if the core changes, the proofs each rule is held by (`rack/test/jacks.cpp`,
+      the self-test's FX SEND to FX RETURN module, `core/src/tests/route.rs`), and
+      **Session 24's build list** here (Opus). The page does not change.
+
+## Session 22 — the hardware's effects, measured from a recording (with the owner, Fable; two of three takes done 2026-11-24)
 
 No open-source project got close to the PO-12's effects and nobody has measured them (R55,
 R57); ours are first guesses from the names, and mild beside the hardware ("Some of theirs
@@ -202,29 +239,41 @@ is rather intense", the owner, 2026-11-23). This session gives the tuning a targ
 the owner has ten minutes with the PO-12 and the Scarlett; best before the effects are
 tuned by ear and before the delay is designed. It needs no build to have happened.
 
-- [ ] Recording on this laptop, worked out with the owner: the PO-12's output into the
+- [x] Recording on this laptop, worked out with the owner: the PO-12's output into the
       Scarlett, captured with PipeWire (`pw-record`, 48 kHz, 24-bit). Check the level
       first; the PulseAudio and ALSA note in Machine state applies if Rack is open.
 - [ ] The take: at 80 bpm, one bar of kick, snare and hat; two bars dry, then each effect
       1 to 16 held for two bars, in key order, with a bar dry between. Then the same with
       only a kick on step 1, for the repeats. One long file.
-- [ ] **The file stays out of the repo** (README rule 6), in a folder of the owner's. We
+      **Part done, and changed (2026-11-24):** three short takes in place of one long
+      file, each checked before the next (`LEARNINGS.md`). **a** (the pattern) and **b**
+      (sound 1 on step 1) are made. Left, with Rack closed:
+      - [ ] **Take c:** sound 8 on steps 1 and 9, sound 15 on steps 5 and 13 (for 15, knob
+            A down and B up); three passes dry, then each effect 1 to 16 held for two
+            passes with one dry between. `harness/hardware-take.sh check`, then
+            `harness/hardware-take.sh c`. It firms up 1, 5, 6, 8, 15 and 16.
+      - [ ] **The timing take** (R68): fx + 11 held for two passes, fx alone for two,
+            three times. `harness/hardware-take.sh t11`. Then read both with
+            `uv run harness/hardware-fx.py`, and correct R64 to R68 and the proposals.
+- [x] **The file stays out of the repo** (README rule 6), in a folder of the owner's. We
       take numbers and character from it, never audio. Measuring a device's sound is not
       reading its firmware.
-- [ ] Read off it, with a script kept in `harness/` and its plots outside the repo: the
+- [x] Read off it, with a script kept in `harness/` and its plots outside the repo: the
       hold rate of 1; the levels of 3; the curve and drive of 2; cutoff, resonance, speed
       and direction of 5 to 8; and what 9 to 12 are (retriggered hits or looped sound, how
       many a beat, which step). A sentence each for 4 and 13 to 16.
-- [ ] `REFERENCES.md`: the measurements, as measured facts with the date. `WORKFLOW.md`:
+- [x] `REFERENCES.md`: the measurements, as measured facts with the date. `WORKFLOW.md`:
       the effects' rows ticked or corrected. `ENGINE.md` §17 and §18: what changes, as
       proposals for the owner; the constants in a build session after.
-- [ ] **The repeats, in particular.** The owner: "I find the repeating one the weirdest
+- [x] **The repeats, in particular.** The owner: "I find the repeating one the weirdest
       (especially when there aren't many sounds going, since it just feels like it mutes
       things)". In ours that is designed behaviour and may be wrong: a repeat re-fires
       the step its run began on, and if no switched-in sound has a note on that step,
       those sounds are silent for the run (§17). On the hardware the owner heard no repeat
       on 9 at all. Decide from the recording what a repeat should hold when the step is
       empty (the last step that had a hit is the obvious candidate).
+      **Proposed (2026-11-24):** the last step that sounded, as the hardware's 11 and 12
+      do (R66; `ENGINE.md` §17, "Proposed after Session 22"). The owner rules.
 
 ## Session 14 — the weave (build, with the owner's eye; a first attempt after Session 20, D79)
 
@@ -262,11 +311,11 @@ In the order they are likely wanted. Each needs a design pass (Fable) before a b
 
 | What | Waits on | Where it is written |
 |---|---|---|
-| **The repeat's rule for an empty step.** A repeat on a step with no switched-in sound mutes those sounds; the owner hears it as a mute | Session 22: what 9 to 12 do on the hardware | Session 22's last box; `ENGINE.md` §17; D67 item 1 |
-| **The effects tuned:** the constants of 1, 2, 3 and 5 to 8 | Session 22's measurements, then the owner's ear | `core/src/bus.rs`, "TUNING THE EFFECTS"; `ENGINE.md` §18 |
-| **Effects 4 and 14** (delay, feedback): how much stored sound, and whose memory | a ruling; Session 22 for what they sound like | D67 item 4; R57 |
-| **Effects 13, 15, 16** | Session 22: nobody describes them | D67 item 4; R48 |
-| **Each effect to its own Rack module** (the owner, 2026-11-24): FX SEND and FX RETURN a channel an effect, and breakouts | the owner's ruling on D86 | D86; R63 |
+| **The repeat's rule for an empty step.** A repeat on a step with no switched-in sound mutes those sounds; the owner hears it as a mute | the owner's ruling on the proposal (measured: R66) | `ENGINE.md` §17, "Proposed after Session 22"; D67 item 1 |
+| **The effects tuned:** the constants of 1, 2, 3 and 5 to 8 | the owner's ruling on the proposals (R64, R65); take c for 1 and the sweeps; then the owner's ear | `ENGINE.md` §18, "Proposed after Session 22"; `core/src/bus.rs`, "TUNING THE EFFECTS" |
+| **Effects 4 and 14** (delay, feedback): how much stored sound, and whose memory | a ruling on memory; measured: R67 | D67 item 4; R57; §18's proposals |
+| **Effects 13, 15, 16** | take c for 15 and 16; 13 is measured ⚠ (R67) | D67 item 4; R48 |
+| **Each effect to its own Rack module, the rest:** the breakouts, a trigger in for each sound (the sixteen channels are Session 23) | the owner's ruling on D86 items 3 to 5 (O20) | D86; D87; R63 |
 | **The sliders, the rest:** change one held step; record a slider's movement while write is held; live record of notes (write becomes a held key) | the simple rule played first | D75 item 3; `WORKFLOW.md`, "The sliders" |
 | **A OUT back to A IN is one hit late** | the owner: does it matter? | O18; `ENGINE.md` §19, "Found" |
 | **The clock in Rack:** the menu's "one edge a beat"; the tempo measured from the edges, with "ext" | nothing; touches `ENGINE.md` §4 and §14, so plan first | D64; D65 item 2 |
@@ -325,14 +374,20 @@ originals are in `PLAN-HISTORY.md`); nothing was dropped, each thing is here onc
       D80 (O18: its eighteen items; A OUT to A IN one hit late; FX RETURN's default
       effects; a marked repeat crossing to FX RETURN), D81 to D84. And the ⚠ readings in
       the Handovers of Sessions 19, 20 and 21 (`PLAN-HISTORY.md`), each ruled as built.
-- [ ] **D86,** each effect to its own Rack module: the recommendation, yes or no.
+- [x] **D86,** each effect to its own Rack module: the recommendation, yes or no.
+      Item 1 ruled yes, the return summed (D87, 2026-11-24). Items 3 to 5 are open (O20).
+- [ ] **Session 22's proposals** (`ENGINE.md` §17 and §18, "Proposed after Session 22"):
+      a repeat holds the last step that sounded; the targets for effects 1 to 8; the delay
+      as one tap. Yes, no, or by ear first.
 
 **With the PO-12 in hand:**
 
-- [ ] Session 22's recording, with the Scarlett.
+- [ ] Session 22's two takes left, with the Scarlett and Rack closed: take c and the
+      timing take (its list above has the pattern and the commands). About fifteen minutes.
 - [ ] The four effects checks left (`WORKFLOW.md`, "The effects: what to check on the
       PO-12"; nine were done on 2026-11-23): what 9 to 12 do, whether every sound repeats,
       the sweeps, effects 4 and 13 to 16. Session 22 answers most of them.
+      Answered from the takes, 2026-11-24 (R64 to R67); what stays ⚠ is in each row.
 - [ ] The sliders' four checks (`WORKFLOW.md`, "The sliders").
 - [ ] The rest of the hour: tick or correct each row of `WORKFLOW.md` and its eleven
       questions, as mismatches turn up (D29). Measure it (width, height, key pitch, jack
@@ -359,97 +414,6 @@ originals are in `PLAN-HISTORY.md`); nothing was dropped, each thing is here onc
 
 The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
 
-### After Session 14's first attempt: the display weaves; the owner has not watched it (2026-11-23)
-
-- **What this is:** a first attempt, made while the owner was away (D79, D83). Boxes 1, 2, 3
-  and 5 of the list are done. **Box 4 is open:** nothing is accepted, and no view is kept as
-  the picture to hold to. Session 14 is not finished.
-- **Built (ABI 10; D84):** the sequencer fills the view's bytes 48 to 54 (steps woven since
-  play, which of the last sixteen had a sound set, tracks fired on this step);
-  `pi_weave(view, len, flags, out, cap)` in `core/src/weave.rs`, a pure function from a view
-  to 78 by 15 cells of seven palette numbers, integers only, no engine. The page paints the
-  cells on a canvas, only when they change, with `prefers-reduced-motion` as the flag; the
-  Rack display paints the same cells, with "Display: reduced motion" in its menu. Neither
-  host holds a rule. `ENGINE.md` §16 is marked built as a first attempt, with a table of
-  what turned out different; `design/DESIGN.md` has "How each rule is drawn" and its "Not
-  done"; `web/pi_core.wasm` rebuilt and committed (41 170 bytes, from 39 832).
-- **How each rule is drawn** (the table in `design/DESIGN.md`): a beat is 16 columns of
-  cloth with a diamond in it, 4 columns a step; four beats show and the cloth jumps left a
-  beat at a time; the diamond reaches 0, 2, 4, 6 or 7 cells by how many of the beat's steps
-  had a sound set (ecru, then ochre, then madder); the beater is an ochre bar 1 to 4 cells
-  wide at the cloth's edge; the shuttle is a 3 by 4 ecru block crossing the warp once a
-  step, down then back, with a thread behind; two sounds together turn the three newest
-  columns white for a quarter of a step; stopped, nothing reads the clock and the shuttle
-  rests at the top.
-- **Proven:** before the first change, `make test` (205 Rust tests, 300 runs a harness), its
-  report and the sha256 of all 408 render files kept, and `make bench`. At the end: 228 Rust
-  tests (23 new, in `core/src/tests/weave.rs`: 8 for the three fields, 15 for `pi_weave`,
-  one or more a rule); the report and all 408 render files the same bytes as before; the
-  three harnesses weave `fixtures/weave-views.txt`'s 60 views to the same bytes (Rust's
-  tests, C++ on the static library, Node on the `.wasm`). `make play` in Chromium and
-  Firefox: 9 phases (one new, `still`), about 1 040 drawings each, every one's cells read
-  back off the canvas by colour and held to `pi_weave` in the checker's own instance of the
-  `.wasm`, and painted if and only if the cells changed; played with two sounds a step, 37
-  drawings with a flash and 7 drawings inside one step; with reduced motion asked for, 0 and
-  1; stopped, 0 paints. The same with both browsers launched asking for reduced motion
-  themselves (`PI_REDUCED=1 node web/play.mjs target/report-node.txt`): 0 flashes, 1 drawing
-  a step, in every phase. `make p4` (24 of 24, both browsers, ABI 10). Rack: `make install`,
-  `make selftest` at 44.1, 48 and 96 kHz, all clean (12 Rhythm modules on the six fixtures,
-  three through their own cables, D78's latch; the self-test's name still shows where the
-  weave is). Planted, the unplanted copy passing first: 22 faults in the core, 22 caught by
-  named tests; one each in the C++ and Node harnesses' weave (the comparison failed); 7 on
-  the page (`make play` failed on each, by a named line). The repo's `make verify`. CI: see
-  the last line of this note.
-- **Measured:** `pi_process`, old and new back to back, twice: idle 25.6 and 26.2 ns a frame
-  old, 25.0 and 25.3 new; the minimum beat 27.8 and 28.2 old, 27.8 and 27.6 new; all sixteen
-  42.2 and 44.1 old, 41.2 and 41.4 new. No difference to see. ⚠ One build in between
-  measured 3.5 ns a frame slower in every case, idle too, from the weave's code changing
-  where the compiler put `pi_process`; keeping the weave out of line brought it back
-  (`LEARNINGS.md`). One `pi_weave` call: about 1.9 µs natively, on the drawing side, called
-  only when the view changes (sixty times a second at most). The engine is 3 712 bytes
-  (from 3 704).
-- **Rulings (D84, sixteen items; Fable's, a first attempt, each the owner's to overrule):**
-  ABI 10; a reset while playing starts a new cloth; "set" is set, not fired; byte 54 counts
-  tracks and is 0 unless a step has arrived; 78 by 15 cells; palette 5 tile and 6 madder;
-  the beat's and the diamond's sizes; the beat on the loom drawn from its steps so far; the
-  jump a beat; the beater's four widths; **the flash a quarter of a step, not a sixteenth**
-  (a sixteenth is 7.8 ms at 120 bpm, under a frame); five warp threads; the shuttle's size,
-  place and direction; a cell painted as a square five sixths of its place; reduced motion
-  in Rack's menu; no weave during a self-test.
-- **For the owner to look at** (O19), in this order:
-  1. `design/rack-weave-bare-200.png`, `-step07-200.png`, `-step13-200.png`,
-     `-busy-200.png`, `-stopped-200.png`, then the `-100.png` ones at the size Rack shows;
-     `design/phone-weave-step13.png`. `DESIGN.md`'s file table says what each shows.
-  2. On the phone, `web/rhythm.html`: write a kick on 1, 5, 9, 13 and a hat between, and
-     play. Does it read as a cloth being woven? Then add a snare on 5 and 13 and watch
-     those steps flash. Then fill a beat's four steps and watch its diamond grow.
-  3. In Rack (`make install`), the same beat. Right-click, "Display: reduced motion".
-  4. On the phone with the system's reduced motion on: no flash, the shuttle jumping.
-- **The choices least sure, most first:**
-  1. A diamond grows after its first columns are woven (D84 item 8). With steps set late
-     in a beat, cloth already woven changes. Honest to the inputs, odd for a cloth.
-  2. Every cell is a square with a gap, the beater, warp and shuttle too (item 14). The
-     picture has the grid on the cloth only and thin warp lines.
-  3. The flash's quarter step (item 11), and whether a flash on every step of a busy beat
-     is too much.
-  4. The cloth jumping a whole beat every beat (item 9), not creeping.
-  5. The half diamond's ochre running into the ochre beater (`rack-weave-busy-200.png`).
-  6. Whether the shuttle and its thread could be read as a needle and thread (R6, D20): it
-     is a block crossing bare warp, but it is the part nearest the original's subject.
-  7. On the phone the weave is 42 px tall in a place 72 px tall.
-- **Not done, and why:** box 4 (the owner's). The Rack drawing has no checker and was seen
-  only in screenshot mode, from scratch builds that fill the face by hand (kept out of the
-  tree; `grep SCRATCH rack/src` is clean); its drawing cost in Rack was not measured.
-  Nothing was seen on a real phone or a real Rack window, so nothing was seen moving except
-  by `make play`'s counts. `harness/race.cpp`'s `look()` holds the three new fields to what
-  any view is, and no fault was planted for that. D64 (the clock menu), which PLAN once
-  tied to this session's ABI number, was not touched.
-- **Next:** the owner watches it. What is wrong is changed in `core/src/weave.rs`, once
-  (each number is a constant under "THE DRAWING"), then `make web`, `make test`, `make
-  play`. When it is accepted: three views and their cells committed beside
-  `fixtures/weave-views.txt`, box 4 ticked, the list moved to `PLAN-HISTORY.md`.
-- **CI:** run 45217909351 (a24f85b, the push with the core and `rack/` changes) green on win-x64, lin-x64, mac-x64 and mac-arm64.
-
 ### After the tidy: the docs brought up to date (2026-11-24)
 
 - **No code changed.** This file was made compact: stale sections moved to
@@ -464,3 +428,33 @@ The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
 - **Next: Session 22,** the recording, in a new session with the owner, the PO-12 and the
   Scarlett. Its list is above. It is a Fable session: it measures, writes facts into
   `REFERENCES.md`, and proposes; it builds nothing in the core.
+
+### After Session 22: the PO-12's effects measured from two takes; D86 item 1 ruled (2026-11-24)
+
+- **Nothing in the core changed.** Two scripts are new: `harness/hardware-take.sh` (record
+  the PO-12 through the Scarlett, to a folder outside the repo) and
+  `harness/hardware-fx.py` (read a take; `uv run`, `--selftest` 103 of 103).
+- **Measured, in `REFERENCES.md` R64 to R68,** from takes a and b. Firm: distortion is a
+  gain of 3 into a hard clip; the high pass is 1.8 kHz with Q 6; 11 and 12 retrigger 8 and
+  6 times a beat through empty steps; the delay is one echo at 175 ms. Wrong in kind in
+  ours: the sweeps (both ways, on their own clock), the low sample rate (not one rate),
+  and 9 and 10 (not slower repeats; rule unknown ⚠).
+- **Proposed, not built:** `ENGINE.md` §17 (a repeat holds the last step that sounded) and
+  §18 (a table of targets). The owner rules; then a build session.
+- **Session 22 is not finished.** Left: take c and the timing take, with Rack closed. The
+  owner lost focus after about forty minutes of takes, and said so; that was the time to
+  stop.
+- ⚠ **Time went missing in both takes, in whole buffers, beside held effects** (R68). Not
+  explained. The readings do not lean on it.
+- ⚠ **Take a clipped at the Scarlett on effects 2 and 16;** the distortion's ceiling and
+  16's level are not measured.
+- **Ruled by the owner, in Rack: D87.** FX SEND and FX RETURN become sixteen channels, a
+  channel an effect, with the return always summed. The owner's hand patch (D86 item 2)
+  showed the menu's ticks are a trap and the insert cuts a reverb's tail; the patch the
+  owner kept sends two effects out in stereo to a mixer and returns nothing.
+- **Until Session 24 is built:** with FX RETURN unpatched the core plays its own effect on
+  AUDIO as well as sending. Effects 4 and 13 to 16 have none, so punch those for an
+  outside reverb or delay and AUDIO stays dry.
+- **Machine:** the PO-12 on input 2 was linked to the headphones with `pw-link` for the
+  takes. It is not saved and goes at the next restart of PipeWire.
+- **Next: Session 23,** the design of D87, on Fable. Its list is above.

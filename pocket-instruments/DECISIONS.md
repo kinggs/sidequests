@@ -1597,6 +1597,38 @@ Rack 3 arrives, before anyone has patched even two effects this way. The small o
 to the same place in steps, and each step can be judged with cables in, which is how the
 owner judges (D76: "you have to use for a while").
 
+### D87 — D86 item 1 ruled: sixteen channels on FX SEND and FX RETURN, the return always summed
+**2026-11-24 · decided by the owner, after patching D86 item 2 by hand (Session 22) · answers O20's first half**
+
+The owner: "Yes to D86 item 1, with the return always summed - I have everything working
+now. Didn't know it's only for some channels. Ultimately we will make it for all of them,
+right?"
+
+1. **FX SEND and FX RETURN become sixteen channels, a channel an effect** (D86 item 1).
+2. **The return is always in the mix,** so a reverb or a delay rings on after its key is
+   let go. This supersedes §19's "the loop is an insert, not a second copy" for Rack's
+   effects loop, and D68 item 6's one channel.
+3. **Any of the sixteen effects can be Rack's,** with no default set the owner has to know
+   about.
+
+What the owner's hand patch showed, for the design (Session 23):
+
+- **FX RETURN's ticks were a trap.** Nothing came back until the effect was ticked in the
+  menu; only 4 and 13 to 16 are by default (D80), and nothing on the panel says so.
+- **The insert cut the tail.** A reverb stopped within 2 ms of the key coming up.
+- **The patch the owner kept does not come back at all:** FX SEND, gated outside, into a
+  reverb and a delay processed in stereo to a Rack mixer, beside AUDIO. "Suddenly adds so
+  much to the overall instrument." FX RETURN is one channel and cannot carry stereo.
+- **So "a channel on FX RETURN" cannot be the only sign that an effect is Rack's.** With
+  nothing returned, the core plays its own effect on AUDIO as well (1 to 3 and 5 to 12;
+  4 and 13 to 16 have none, so AUDIO stays dry). The owner's concern: "our module then
+  applies the internal FX as well, correct?" Correct, today.
+- ⚠ **Summed with the dry, the loop's two samples comb** (R60) unless what comes back is
+  fully wet. The insert was built to avoid exactly this; the design has to answer it.
+
+Not ruled: D86 items 3 to 5 (the breakouts, a trigger in for each sound). O20 stays open
+for them.
+
 ## Open
 
 | ID | Question | Needs |
@@ -1620,4 +1652,4 @@ owner judges (D76: "you have to use for a while").
 | O9 | ~~How do the three blocks stack on a phone, and does one instrument fill the screen or share it?~~ | Answered 2026-11-19: D36 |
 | O18 | Session 18's rulings (D80): the eighteen items as built? And its three open points: the two-row panel judged with cables in; A OUT to A IN being one hit late; a marked repeat crossing the bus | The owner, in Rack. Recommended: accept the items; play the slider loop before ruling on the lateness |
 | O19 | The weave's first attempt (Session 14, D84): does it read as a cloth being woven when it moves, on the phone and in Rack? D84's sixteen items as built? Above all item 8 (a diamond growing as its beat fills), item 9 (the jump a beat), item 11 (the flash's length) and item 14 (every cell a square) | The owner, watching it play: `web/rhythm.html` and the Rhythm module. `PLAN.md`, "After Session 14's first attempt", lists what to look at. When accepted, three views and their cells are committed as the picture to hold to (Session 14's fourth box) |
-| O20 | Each effect to its own Rack module (D86): sixteen channels on FX SEND and FX RETURN first, then small breakouts, in place of one large expander? And a trigger in for each sound? | The owner, after trying D86 item 2's patch by hand. Recommended: yes to both |
+| O20 | Each effect to its own Rack module (D86): sixteen channels on FX SEND and FX RETURN first, then small breakouts, in place of one large expander? And a trigger in for each sound? | The owner, after trying D86 item 2's patch by hand. Recommended: yes to both. **Answered in part 2026-11-24: D87** (the sixteen channels, the return summed). Open: the breakouts and the trigger in |
