@@ -1774,6 +1774,19 @@ Not blocked by Session 22's two takes: they firm up 1's lengths, the sweeps, 15 
    side by side. Then the ear.
 10. **ABI 12.**
 
+### D92 — Session 25's rulings accepted, before the build
+**2026-11-24 · decided by the owner, at the end of Session 25 · answers O22 · built in Session 26**
+
+The owner, on the three rulings put forward by name: "Happy with all your decisions /
+suggestions." D91 stands as designed, the three asked about included:
+
+1. **A second repeat looks back for itself** (D91 item 2).
+2. **Our delay has no tail** (D91 item 5).
+3. **Effect 3 rests off zero, and so thumps softly on silence** (D91 item 7).
+
+Accepted on the description, not yet by ear: nothing is built. Each stays cheap to change
+after Session 26 if it sounds wrong.
+
 ## Open
 
 | ID | Question | Needs |
@@ -1799,4 +1812,4 @@ Not blocked by Session 22's two takes: they firm up 1's lengths, the sweeps, 15 
 | O19 | The weave's first attempt (Session 14, D84): does it read as a cloth being woven when it moves, on the phone and in Rack? D84's sixteen items as built? Above all item 8 (a diamond growing as its beat fills), item 9 (the jump a beat), item 11 (the flash's length) and item 14 (every cell a square) | The owner, watching it play: `web/rhythm.html` and the Rhythm module. `PLAN.md`, "After Session 14's first attempt", lists what to look at. When accepted, three views and their cells are committed as the picture to hold to (Session 14's fourth box) |
 | O20 | Each effect to its own Rack module (D86): sixteen channels on FX SEND and FX RETURN first, then small breakouts, in place of one large expander? And a trigger in for each sound? | The owner, after trying D86 item 2's patch by hand. Recommended: yes to both. **Answered in part 2026-11-24: D87** (the sixteen channels, the return summed). Open: the breakouts and the trigger in |
 | O21 | ~~Session 23's rulings (D88 items 4 to 12): as designed? Above all item 6 (the return before the volume), item 9 (the settings count only while FX SEND or FX RETURN is patched) and item 10 (nothing guards the comb) | The owner, in Rack, once Session 24 has built it. Recommended: accept; judge item 10 with a delay at half wet in each setting. **Built 2026-11-24 (Session 24):** ready to play; its Handover in `PLAN.md` has the steps and the builder's readings (⚠)~~ **Answered 2026-11-24: D89** |
-| O22 | Session 25's rulings (D91 items 1, 2 and 4 to 8): as designed? Above all item 2 (a second repeat looks back for itself, or keeps the step), item 5 (no tail on our delay) and item 7 (effect 3 rests off zero, so it thumps on silence) | The owner, by ear, once Session 26 has built it. Recommended: accept; judge item 7 on the phone and in Rack, where AUDIO carries the offset |
+| O22 | ~~Session 25's rulings (D91 items 1, 2 and 4 to 8): as designed? Above all item 2 (a second repeat looks back for itself, or keeps the step), item 5 (no tail on our delay) and item 7 (effect 3 rests off zero, so it thumps on silence) | The owner, by ear, once Session 26 has built it. Recommended: accept; judge item 7 on the phone and in Rack, where AUDIO carries the offset~~ **Answered 2026-11-24: D92** (accepted before the build; the ear may still overrule) |

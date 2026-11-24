@@ -456,9 +456,10 @@ originals are in `PLAN-HISTORY.md`); nothing was dropped, each thing is here onc
       before the volume; the settings counting only while FX SEND or FX RETURN is patched;
       nothing guarding the comb (try a delay at half wet in each setting). The steps are in
       Session 24's Handover below, with its five readings (⚠).
-- [ ] **Session 25's rulings** (D91; O22), to judge by ear once Session 26 has built them:
-      a second repeat looking back for itself; no tail on our delay; effect 3 resting off
-      zero, so it thumps softly on silence.
+- [x] **Session 25's rulings** (D91; O22): a second repeat looking back for itself; no
+      tail on our delay; effect 3 resting off zero, so it thumps softly on silence.
+      Accepted 2026-11-24, before the build (D92). Listen for all three once Session 26
+      has built them; each is cheap to change.
 - [x] **Session 22's proposals** (`ENGINE.md` §17 and §18, "Proposed after Session 22"):
       a repeat holds the last step that sounded; the targets for effects 1 to 8; the delay
       as one tap. Ruled yes on all three, 2026-11-24 (D90).
@@ -573,4 +574,6 @@ The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
   set effect 4 to "Rack's, beside the dry".
 - **The session ruled eight things** (D91 items 1, 2, 4 to 8 and 10), yours to overrule
   (O22). The three worth your ear are in "The owner's hands".
+- **Added after the session:** the owner accepted them all (D92), so Session 26 builds
+  D91 as written.
 - **Next: Session 26,** the build, on Opus. Its list is above.
