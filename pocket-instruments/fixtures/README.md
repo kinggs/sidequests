@@ -204,7 +204,9 @@ A future version adds its own file beside this one, written before its change.
 **Session 16:** both fixtures below were moved up out of `designed/`, unchanged (git shows
 each as a rename with no change), and only then run. Both passed at the first run on all
 three harnesses. `designed/` is empty until the next session that designs ahead of a core.
-(Session 25 is the next: `designed/fx-repeat-holds`, below.)
+(Session 25 is the next: `designed/fx-repeat-holds`, below.) **Session 26** moved it up the
+same way, unchanged, and it passed at the first run on all three harnesses; `designed/` is
+empty again.
 The Rack self-tests left format 3 out until Session 18; since then the Rhythm module plays
 both format 3 fixtures on both clocks and holds its FX GATES to each view's `fx=`
 (`rack/rhythm.jq`, `rack/selftest.sh`). Since Session 16,
@@ -286,10 +288,12 @@ snapshot" run holds it to snapshot version 3 as well.
   a pass: 8. 32 lines. The view in step 2 says `fx=10` (nothing punched; the playhead's step
   holds 10) and `fxsteps=001e`; the last, on step 7, `fx=0`.
 
-## `designed/fx-repeat-holds`, worked by hand (Session 25: the repeat's new rule, D90 item 1, D91)
+## `fx-repeat-holds`, worked by hand (Session 25: the repeat's new rule, D90 item 1, D91; in `designed/` until Session 26)
 
-In `designed/`: no harness reads it until Session 26 has built the rule and moves it up,
-unchanged. From `ENGINE.md` §17, "Designed 2026-11-24", and §5. Every tick, column and
+Was in `designed/`: no harness read it until Session 26 built the rule and moved it up,
+unchanged (a rename with no change). It passed at the first run: Rust, C++ and Node, both
+sources, three rates, three block sizes, and from a snapshot; the 300 older runs of the
+report and all 408 render files stayed the same bytes. From `ENGINE.md` §17, "Designed 2026-11-24", and §5. Every tick, column and
 count was typed in; the generator's ninth and tenth draws were computed (§5's three lines),
 as the first eight were for `probability-seed-1`. Length 8, no swing; the lane by `fx`
 edits at step 0, so the "from a snapshot" run holds it too. Numbers are the trace's: track

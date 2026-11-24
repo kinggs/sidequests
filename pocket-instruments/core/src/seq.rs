@@ -26,6 +26,30 @@ pub const fn repeat_period(effect: u8) -> u32 {
     }
 }
 
+/// §17, designed 2026-11-24 (ABI 12; D90 item 1, D91): the step a run repeats. From `cur`
+/// back to step 1, then from the pattern's last step down to `cur + 1`, the first step on
+/// which any sound in the effects is on, by the pattern (whatever its probability, whether or
+/// not it has played). None anywhere in the length: `cur`, as before. Looked for once, when a
+/// run begins; never inlined into the tick, which pays only at a run's start.
+#[inline(never)]
+fn held_step(cur: u8, pat: &Pattern) -> u8 {
+    let mut any = 0u16;
+    for (track, on) in pat.on.iter().enumerate() {
+        if pat.fx_sounds >> track & 1 == 1 {
+            any |= *on;
+        }
+    }
+    let length = pat.length.clamp(1, STEPS as u8);
+    let mut s = cur;
+    for _ in 0..length {
+        if any >> (s & 15) & 1 == 1 {
+            return s;
+        }
+        s = if s == 0 { length - 1 } else { s - 1 };
+    }
+    cur
+}
+
 /// What a snapshot holds of the sequencer.
 pub struct Pattern {
     /// One word per track; bit `s` is step `s`.
@@ -209,7 +233,7 @@ impl Seq {
             if self.eff != self.last {
                 self.period = repeat_period(self.eff);
                 if self.period != 0 {
-                    self.run_step = self.cur;
+                    self.run_step = held_step(self.cur, pat);
                     self.run_tick = k;
                 }
                 self.last = self.eff;
