@@ -219,14 +219,55 @@ Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
 1. **The owner's ear on Sessions 26 and 28** (restart Rack first: `make install` ran):
    Session 26's steps are in `PLAN-HISTORY.md`, Session 28's in its Handover below. D92's
    and D93's rulings are cheap to change if they sound wrong; so is 14's gain (⚠ below).
-2. **Session 22's takes left,** when the owner has twenty minutes with the PO-12:
+2. **Session 29, efficiency: the bench made to read work, then the idle cost** (Opus; the
+   owner asked for it 2026-11-24): its list below. Needs nothing from the owner.
+3. **Session 22's takes left,** when the owner has twenty minutes with the PO-12:
    below. They firm up effect 1 (what makes it longer and lower, R69), the sweeps' shape,
    effect 8's bottom (which take a cannot read: Session 26), the delay's time at a second
    tempo, 15 and 16. Start it with "Read `pocket-instruments/PLAN.md` and finish Session 22".
-3. **The owner's looks and rulings** on what 2026-11-23 built: "The owner's hands", first
+4. **The owner's looks and rulings** on what 2026-11-23 built: "The owner's hands", first
    part.
-4. **Session 14's fourth box,** the weave accepted or redrawn: below.
-5. Then from "Not planned yet", as the owner chooses.
+5. **Session 14's fourth box,** the weave accepted or redrawn: below.
+6. Then from "Not planned yet", as the owner chooses.
+
+## Session 29 — efficiency: the bench made to read work, then the idle cost (build, Opus)
+
+Asked for by the owner after Session 28 ("Efficient, measured", the ground rules). Two parts,
+in this order: the second needs the first's bench to be believed. **Nothing a host hears or
+sees may change:** the report and every render file the same bytes, before and after, is the
+proof of that (the rules for every build session). Read `LEARNINGS.md` for Sessions 17, 26 and
+28 (the bench, placement, where code sits) and "Later: efficiency" below.
+
+- [ ] **Before any change:** keep `target/report-rust.txt`, a `sha256sum` of every
+      `target/render-*.f32`, and the release library as `target/old/libpi_core.a` with a bench
+      built on it. `make bench` three times.
+- [ ] **Does pinning alignment make the bench read work?** Three builds whose differences
+      never run in the idle, beat, all, both and loop cases: commit `0465202` (Session 27),
+      `4e37617` (effect 13 alone) and `main`. Unpinned, `4e37617` read about 4 ns a frame
+      faster than `0465202` (Session 28). Build each in a scratch copy (`--manifest-path`,
+      `CARGO_TARGET_DIR`; Machine state), each bench against its own header, interleaved, ten
+      pairs, medians: unpinned; `-C llvm-args=-align-all-functions=6`; that and
+      `-align-all-nofallthru-blocks=6` (or `-align-loops=64`). Passes if one setting puts the
+      three within 0.5 ns of each other on those cases. Write every reading in `LEARNINGS.md`.
+- [ ] **If one passes, pin it** where every native build gets it: `make build` and `make
+      rack-lib` (whose `RUSTFLAGS` replaces any config file's), CI's four platforms included;
+      not the `.wasm`, unless its bytes stay the same. Check aarch64 and x86_64 both accept the
+      flag (`make targets`). The report and every render file the same bytes. `make bench` and
+      ten pairs against the old library: say what pinning costs or saves. If none passes, write
+      that up and do the second part with interleaved pairs, as before.
+- [ ] **The idle cost** ("Later: efficiency", first box): profile first, in Rack with perf, as
+      Machine state says (a patch with the module stopped; then with nothing patched). Write
+      where the frame goes before changing anything. A cheap idle path (stopped, every voice
+      silent, nothing patched moving, no effect ramping) must keep §4's rule that the clock
+      counts while stopped, so a tap lands on the right tick. ⚠ If the path needs anything
+      `ENGINE.md` does not already say, stop and write the question into the Handover: that
+      is Fable's. Otherwise build it, with a test that a stopped engine skipping the path and
+      one taking it give the same events, view and audio bit for bit over a long run with taps.
+- [ ] **The cost:** `make bench`, ten pairs, every case, and perf in Rack before and after;
+      the idle number in Rack's CPU meter if it can be read headless (`LEARNINGS.md` says how
+      Session 13 read it).
+- [ ] **The end:** `make verify`; `make install` in `rack/`; "Later: efficiency" ticked or
+      annotated; `LEARNINGS.md`; the Handover; this list to `PLAN-HISTORY.md`.
 
 ## Session 22 — the hardware's effects, measured from a recording (with the owner, Fable; two of three takes done 2026-11-24)
 
