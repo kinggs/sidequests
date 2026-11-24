@@ -906,3 +906,27 @@ fn no_echo_outlives_the_ramp_and_a_line_lent_changes_nothing_without_effect_4() 
     let _line = lend(&h, SR);
     assert!(same_bits(&render(&mut h, 6 * STEP as usize, 128, 1, &at_zero(&beat())).0, &plain), "lent, no 4");
 }
+
+#[test]
+fn a_line_lent_again_mid_run_is_never_heard_before_it_is_written() {
+    // Found by a planted fault (Session 26: "lending keeps where the echo was" passed every
+    // other test). Effect 4 on every step with a line that has gone round; then, between two
+    // blocks, a second line full of junk is lent. For `pi_delay_frames` frames after it the
+    // mix is the bus as it comes in (`bus + w (bus − bus)` at w = 1, the bus exactly), as it
+    // was in the first run's own first stretch: the old place in the line is not carried over.
+    let d = pi_delay_frames(SR) as usize;
+    let xs = moving(4 * d);
+    let lane: Vec<Cmd> = (0..16).map(|s| fx(s, 4)).chain([play()]).collect();
+    let (_, _, h) = looped_with(SR, &lane, &xs[..2 * d], true, 0);
+    assert_eq!(bus(&h).echo_state().1, true, "the first line has gone round");
+    let mut junk = vec![123.0f32; d];
+    assert_eq!(unsafe { pi_set_delay(h.e, junk.as_mut_ptr(), d as u32) }, 1);
+    for (f, x) in xs[2 * d..3 * d].iter().enumerate() {
+        let mut io = [0f32; 18];
+        io[0] = *x;
+        let mut ev = [Event::default(); CAP];
+        unsafe { pi_process(h.e, 1, core::ptr::null(), 0, ev.as_mut_ptr(), CAP as u32, io.as_mut_ptr(), 18) };
+        assert_eq!(io[16].to_bits(), (0.0f32 + x + (x - x)).to_bits(), "frame {f} after the second line was lent");
+    }
+    assert_eq!(bus(&h).echo_state(), (0, true), "the second line has gone round once");
+}
