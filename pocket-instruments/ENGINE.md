@@ -1297,12 +1297,12 @@ reading of Session 22's reports.
 | Effect | `wet`, for this frame's `bus` | Was | Source |
 |---|---|---|---|
 | 1 low sample rate | the hold as built, at **1 000 Hz**. No level | 6 000 Hz | D90 item 2. R64's mean hold of 1.5 ms is 667 Hz: the slowest worth trying. No gain: the PO-12's peak is within 2 dB of dry on two takes of three (R69); its 7 dB is a sound that lasts three times as long, which a hold on the bus cannot make ⚠ |
-| 2 distortion | `3 × bus`, held to **±1**: over 1 is 1, under −1 is −1 | `SoftLimit(6 × bus) × 0.7` | gain 3.0 (R64; 2.93 on take b). The ceiling: take b is flat at 2.12 of the kick's peak, and a sound of ours peaks near 0.5 (D48), so 1.06, taken as 1 (R69) ⚠ the spare take read 0.67 of its peak |
-| 3 bit crush | `(floor(4 × bus) + 0.5) / 4`: steps of a **quarter**, levels at ±1/8, ±3/8, ±5/8 … | `trunc(12 × bus) / 12` | R69: on take b the levels sit at ±½ and ±1½ steps, and a step is 1 / 4.02 of the clip's ceiling. On silence it is **+1/8 exactly**, as the hardware rests half a step off zero |
+| 2 distortion | `3 × bus`, held to **±0.88** (was ±1, Session 26: ours read a ceiling of 2.41 × the kick's dry peak against the PO-12's 2.12; at 0.88, 2.12) | `SoftLimit(6 × bus) × 0.7` | gain 3.0 (R64; 2.93 on take b). The ceiling: take b is flat at 2.12 of the kick's peak, and a sound of ours peaks near 0.5 (D48), so 1.06, taken as 1 (R69) ⚠ the spare take read 0.67 of its peak. Our kick peaks at 0.41, not 0.5: hence 0.88 |
+| 3 bit crush | `(floor(4.6 × bus) + 0.5) / 4.6`: steps of **1 / 4.6** (was 4 levels a unit, a quarter, Session 26: ours read a step of the kick's dry peak / 1.65 against the PO-12's / 1.90; at 4.6, / 1.91), levels at ±½, ±1½ … steps | `trunc(12 × bus) / 12` | R69: on take b the levels sit at ±½ and ±1½ steps, and a step is 1 / 4.02 of the clip's ceiling (ours at 4.6 and 0.88: 1 / 4.05). On silence it is **+½ step exactly** (0.5 / 4.6), as the hardware rests half a step off zero |
 | 5 low pass | the filter's low output at **300 Hz**, `r` 0.5 | 600 Hz | R65: 233 to 344 Hz, +7 dB at the cutoff (Q 2.2) |
 | 7 high pass | its high output at **1 800 Hz**, `r` **1/6** | 2 kHz, `r` 0.5 | R65: 1 796 Hz, +15.5 dB (Q 6) |
-| 6 low-pass sweep | low output, `r` 0.5; the cutoff from **2 500 Hz down to 190 Hz** in 432 ticks, back up in 432, and again | 8 kHz to 200 Hz in 1 536 ticks, one way | R65: 190 Hz to 2.5 kHz, both ways, a cycle every 8.5 to 9 steps: nine steps is 864 ticks. Ruled by the owner to move now (D91 item 3) |
-| 8 high-pass sweep | high output, `r` 1/6; from **220 Hz up to 2 900 Hz** in 432 ticks, back down in 432, and again | 100 Hz to 4 kHz in 1 536 ticks, one way | R65: 220 Hz to 2.9 kHz, the same cycle |
+| 6 low-pass sweep | low output, `r` 0.5; the cutoff from **3 240 Hz down to 190 Hz** in 432 ticks, back up in 432, and again (was from 2 500 Hz, Session 26: read every half step as the PO-12 was, ours spanned 186 to 1 930 Hz against its 190 to 2 500; from 3 240, 190 to 2 383) | 8 kHz to 200 Hz in 1 536 ticks, one way | R65: 190 Hz to 2.5 kHz, both ways, a cycle every 8.5 to 9 steps: nine steps is 864 ticks. Ruled by the owner to move now (D91 item 3) |
+| 8 high-pass sweep | high output, `r` 1/6; from **220 Hz up to 2 900 Hz** in 432 ticks, back down in 432, and again (Session 26: its top read 2 728 Hz, in; its bottom cannot be read on take a, so it stays as designed ⚠) | 100 Hz to 4 kHz in 1 536 ticks, one way | R65: 220 Hz to 2.9 kHz, the same cycle |
 | 4 delay | `bus + 0.15 × echo`, the echo being the bus **8 192 / 46 875 s** ago (174.76 ms) | no sound | R67: one echo at 174.8 ms, 0.09 to 0.25 of the hit (0.15 is the middle, as a ratio), the next 0.04 of that |
 
 - **`floor`, with casts and compares only:** `y = 4 × bus`; `t = (y as i32) as f32`; if
@@ -1313,7 +1313,8 @@ reading of Session 22's reports.
   whenever the effect changes, as it already is. From one filter effect to the next the two
   states are kept, as built.
 - **A sweep,** counted in ticks since `heard` became it, as built (D77's first-tick reading
-  stands):
+  stands). Effect 6 starts from 3 240 Hz since Session 26 (below), its constants `OUT`
+  0.993_456 and `BACK` 1.006_587_1; the numbers in the block are as designed:
 
   ```
   heard becomes 6 (8):   swept = 0;  cutoff = 2500 (220)

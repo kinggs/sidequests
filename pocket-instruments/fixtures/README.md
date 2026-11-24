@@ -451,3 +451,9 @@ seven's shape, with `"delay": 1`, a scenario field that makes `harness.cpp` and
 `trace.test.mjs` lend each engine `pi_delay_frames(rate)` floats after `pi_init`. Its 12 files
 are new; adding it moved nothing else (the 330 report runs and the 408 earlier render files,
 the same bytes as after the retune).
+
+**After the comparison with the hardware (Session 26, the same day):** three constants moved
+(`ENGINE.md` §18: effect 2's ceiling, effect 3's levels a unit, effect 6's top end), so the
+render files were made again after the last move: `render-fx-2`, `-3` and `-6` (36 files)
+and all 36 of `render-loop`'s, whose lane holds 2 and 6. `render-fx-4` and the rest, and the
+report, the same bytes as before the moves.

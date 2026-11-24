@@ -46,15 +46,19 @@ use crate::seq::TRACKS;
 // §18, designed 2026-11-24 (ABI 12; D90, D91): retuned to the PO-12's measurements
 // (REFERENCES.md R64 to R69). Each was, before: 6 000 Hz; SoftLimit(6 × bus) × 0.7; twelve
 // levels a unit, towards zero; 600 Hz and 2 kHz at `r` 0.5; sweeps of 1 536 ticks, one way.
+// Then Session 26 read ours with harness/hardware-fx.py as the PO-12 was read, and moved three
+// (ENGINE.md §18's table says was, now and both readings): the ceiling 1 → 0.88, the crush
+// 4 → 4.6 levels a unit, effect 6's top 2 500 → 3 240 Hz.
 
 /// Effect 1: the hold's rate in hertz, whatever the engine's rate.
 pub const REDUCE_HZ: u32 = 1000;
-/// Effect 2: the gain into the clip at ±`CEILING`.
+/// Effect 2: the gain into the clip at ±`CEILING` (2.12 times our kick's peak, as the PO-12's
+/// is its kick's: Session 26).
 pub const DRIVE: f32 = 3.0;
-pub const CEILING: f32 = 1.0;
-/// Effect 3: levels a unit, `(floor(CRUSH_LEVELS × bus) + 0.5) / CRUSH_LEVELS`: steps of a
-/// quarter, resting half a step off zero.
-pub const CRUSH_LEVELS: f32 = 4.0;
+pub const CEILING: f32 = 0.88;
+/// Effect 3: levels a unit, `(floor(CRUSH_LEVELS × bus) + 0.5) / CRUSH_LEVELS`: a step of
+/// the kick's peak / 1.9 and about a quarter of the ceiling, resting half a step off zero.
+pub const CRUSH_LEVELS: f32 = 4.6;
 /// Effects 5 and 7: the fixed cutoffs, in hertz.
 pub const LOWPASS_HZ: f32 = 300.0;
 pub const HIPASS_HZ: f32 = 1800.0;
@@ -66,10 +70,10 @@ pub const HIGH_R: f32 = 1.0 / 6.0;
 /// ticks and back over as many, then again. Each constant is (end / start) to the power
 /// 1 / 432, worked out once off the engine (Session 25, numpy) and rounded to an f32, so no
 /// exponential is computed here; both ends are set exactly, so no rounding builds up.
-pub const LOW_SWEEP_FROM_HZ: f32 = 2500.0;
+pub const LOW_SWEEP_FROM_HZ: f32 = 3240.0;
 pub const LOW_SWEEP_TO_HZ: f32 = 190.0;
-pub const LOW_SWEEP_OUT: f32 = 0.994_052_41;
-pub const LOW_SWEEP_BACK: f32 = 1.005_983_1;
+pub const LOW_SWEEP_OUT: f32 = 0.993_456;
+pub const LOW_SWEEP_BACK: f32 = 1.006_587_1;
 pub const HIGH_SWEEP_FROM_HZ: f32 = 220.0;
 pub const HIGH_SWEEP_TO_HZ: f32 = 2900.0;
 pub const HIGH_SWEEP_OUT: f32 = 1.005_987_4;

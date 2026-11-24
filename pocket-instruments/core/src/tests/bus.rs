@@ -145,11 +145,12 @@ impl Model {
                 }
                 self.on = effect;
                 self.swept = 0;
-                // §18, designed 2026-11-24: 5 at 300 Hz, 6 from 2 500, 7 at 1 800, 8 from 220.
-                self.cutoff = [0.0, 0.0, 0.0, 0.0, 0.0, 300.0, 2500.0, 1800.0, 220.0].get(effect as usize).copied().unwrap_or(0.0);
+                // §18, designed 2026-11-24: 5 at 300 Hz, 6 from 3 240 (2 500 as designed; Session 26's
+                // comparison moved it), 7 at 1 800, 8 from 220.
+                self.cutoff = [0.0, 0.0, 0.0, 0.0, 0.0, 300.0, 3240.0, 1800.0, 220.0].get(effect as usize).copied().unwrap_or(0.0);
             } else if self.on == 6 || self.on == 8 {
                 // The sweep's pseudo-code, exactly: each tick one of four cases, in its order.
-                let (start, end, out, back) = if self.on == 6 { (2500.0, 190.0, 0.994_052_41, 1.005_983_1) } else { (220.0, 2900.0, 1.005_987_4, 0.994_048_24) };
+                let (start, end, out, back) = if self.on == 6 { (3240.0, 190.0, 0.993_456, 1.006_587_1) } else { (220.0, 2900.0, 1.005_987_4, 0.994_048_24) };
                 for _ in 0..ticks {
                     self.swept += 1;
                     if self.swept == 864 {
@@ -202,13 +203,13 @@ impl Model {
                 }
                 self.held
             }
-            // Three times the bus, held to ±1.
+            // Three times the bus, held to ±0.88 (±1 as designed; Session 26's comparison).
             2 => {
                 let x = 3.0 * b;
-                if x > 1.0 {
-                    1.0
-                } else if x < -1.0 {
-                    -1.0
+                if x > 0.88 {
+                    0.88
+                } else if x < -0.88 {
+                    -0.88
                 } else {
                     x
                 }
@@ -224,14 +225,15 @@ impl Model {
                 }
                 b + 0.15 * echo
             }
-            // `(floor(4 × bus) + 0.5) / 4`, the floor by a cast and a compare.
+            // `(floor(4.6 × bus) + 0.5) / 4.6`, the floor by a cast and a compare (4 as designed;
+            // Session 26's comparison).
             3 => {
-                let y = 4.0 * b;
+                let y = 4.6 * b;
                 let mut t = (y as i32) as f32;
                 if t > y {
                     t -= 1.0;
                 }
-                (t + 0.5) / 4.0
+                (t + 0.5) / 4.6
             }
             _ => {
                 let pi = core::f64::consts::PI;
@@ -416,12 +418,12 @@ fn a_sound_switched_out_of_the_effects_is_the_same_in_the_mix_with_and_without_o
         if effect != 3 {
             assert!(same_bits(&with, &without), "effect {effect}: alone");
         } else {
-            // Effect 3 on a silent bus is +1/8 times the ramp (D91 item 7), heard from frame 0:
-            // the drum, plus that, to a float's rounding.
+            // Effect 3 on a silent bus is half a step times the ramp (D91 item 7), heard from
+            // frame 0: the drum, plus that, to a float's rounding.
             let (step, mut w) = (500.0 / SR as f32, 0.0f32);
             for f in 0..with.len() {
                 w = if w + step > 1.0 { 1.0 } else { w + step };
-                assert!((with[f] - without[f] - w * 0.125).abs() < 1e-6, "effect 3 alone, frame {f}");
+                assert!((with[f] - without[f] - w * (0.5f32 / 4.6)).abs() < 1e-6, "effect 3 alone, frame {f}");
             }
         }
 
@@ -451,8 +453,8 @@ fn the_sixteen_track_channels_are_never_touched() {
 #[test]
 fn every_effect_on_silence_is_exact_silence_but_3_which_is_an_eighth_ramped() {
     // Replaces "every effect on silence is exact silence" (D91 item 7): 1, 2 and 5 to 8 still
-    // are, and 4 with a line lent; effect 3 rests half a step off zero, so silence is +1/8
-    // times the ramp, exactly.
+    // are, and 4 with a line lent; effect 3 rests half a step off zero, so silence is half a
+    // step (0.5 / 4.6 since Session 26's comparison; 1/8 as designed) times the ramp, exactly.
     for effect in [1u32, 2, 3, 4, 5, 6, 7, 8] {
         let lane: Vec<Cmd> = (0..16).map(|s| fx(s, effect)).collect();
         let mut h = Host::new(SR, 1);
@@ -469,7 +471,7 @@ fn every_effect_on_silence_is_exact_silence_but_3_which_is_an_eighth_ramped() {
         let (step, mut w) = (500.0 / SR as f32, 0.0f32);
         for (f, x) in out.iter().enumerate() {
             w = if w + step > 1.0 { 1.0 } else { w + step };
-            assert_eq!(x.to_bits(), (w * 0.125).to_bits(), "effect 3, frame {f}");
+            assert_eq!(x.to_bits(), (w * (0.5f32 / 4.6)).to_bits(), "effect 3, frame {f}");
         }
     }
 }
@@ -522,26 +524,31 @@ fn assert_holds_at_1_khz(second: &[f32], rate: u32) {
 }
 
 #[test]
-fn effect_2_is_three_times_the_bus_under_a_third_and_never_past_1() {
-    // Replaces "effect 2 is soft clipped under 0.7" (D90 item 2, D91 item 7).
-    for (x, want) in [(0.25f32, 0.75f32), (-0.25, -0.75), (0.3125, 0.9375), (-0.3125, -0.9375), (0.5, 1.0), (-2.0, -1.0), (10.0, 1.0)] {
+fn effect_2_is_three_times_the_bus_under_the_ceiling_and_never_past_it() {
+    // Replaces "effect 2 is soft clipped under 0.7" (D90 item 2, D91 item 7). The ceiling is
+    // 0.88 since Session 26's comparison (±1 as designed). Values whose sums are exact.
+    for (x, want) in [(0.25f32, 0.75f32), (-0.25, -0.75), (0.28125, 0.84375), (-0.28125, -0.84375), (0.5, 0.88), (-1.0, -0.88), (1.0, 0.88)] {
         assert_eq!(steady(2, x), want, "effect 2 on a bus of {x}");
     }
     let out = full_wet(2, SR);
     let peak = out.iter().fold(0f32, |m, x| m.max(x.abs()));
-    assert!(peak <= 1.0 && peak > 0.9, "effect 2 on the beat peaks at {peak}");
+    assert!(peak <= 0.88 + 1e-6 && peak > 0.8, "effect 2 on the beat peaks at {peak}");
 }
 
 #[test]
-fn effect_3_gives_only_odd_eighths_and_silence_is_plus_an_eighth() {
-    // Replaces "effect 3 is twelve levels a unit" (D91 item 7): `(floor(4 bus) + 0.5) / 4`.
-    // Just under zero is −1/8, not +1/8: a floor, not a cast towards zero.
-    for (x, want) in [(0.0f32, 0.125f32), (-1.0 / 1024.0, -0.125), (0.3125, 0.375), (-0.3125, -0.375), (0.25, 0.375), (-0.25, -0.125), (0.9375, 0.875)] {
-        assert_eq!(steady(3, x), want, "effect 3 on a bus of {x}");
+fn effect_3_sits_on_half_steps_and_silence_is_plus_half_a_step() {
+    // Replaces "effect 3 is twelve levels a unit" (D91 item 7): `(floor(L bus) + 0.5) / L`,
+    // L = 4.6 since Session 26's comparison (4 as designed). Level k is (k + 0.5) / L. Just
+    // under zero is level −1, not 0: a floor, not a cast towards zero. Silence is exact.
+    assert_eq!(steady(3, 0.0), 0.5f32 / 4.6);
+    for (x, k) in [(-1.0f32 / 1024.0, -1i32), (0.3, 1), (-0.3, -2), (0.25, 1), (-0.25, -2), (0.9, 4), (-0.9, -5)] {
+        let want = (k as f32 + 0.5) / 4.6;
+        let got = steady(3, x);
+        assert!((got - want).abs() < 1e-6, "effect 3 on a bus of {x}: {got}, not level {k} ({want})");
     }
     for x in full_wet(3, SR) {
-        let k = x * 8.0;
-        assert!((k - k.round()).abs() < 1e-5 && k.round() as i32 % 2 != 0, "effect 3: {x} is not an odd eighth");
+        let h = x * 4.6 * 2.0;
+        assert!((h - h.round()).abs() < 1e-4 && h.round() as i32 % 2 != 0, "effect 3: {x} is not on a half step");
     }
 }
 
@@ -614,16 +621,17 @@ fn cutoff_after(effect: u32, ticks: u64, edges: bool) -> f32 {
 #[test]
 fn a_sweep_turns_at_432_ticks_is_back_at_864_exactly_and_is_the_same_on_both_clocks() {
     // Replaces "starts again after sixteen steps" (D91 item 3): out over 432 ticks, back over
-    // 432, each end set exactly. 431 multiplies of 6 reach 191.1 Hz, 431 back 2 485 Hz; of 8,
-    // 2 883 Hz and 221.3 Hz (§18, designed 2026-11-24).
-    for (effect, from, to, back) in [(6u32, 2500.0f32, 190.0f32, 1.005_983_1f32), (8, 220.0, 2900.0, 0.994_048_24)] {
+    // 432, each end set exactly. 431 multiplies of 6 reach 191.25 Hz, 431 back 3 218.8 Hz
+    // (from 3 240 since Session 26's comparison; from 2 500 as designed, 191.1 and 2 485); of
+    // 8, 2 883 Hz and 221.3 Hz (§18, designed 2026-11-24).
+    for (effect, from, to, back) in [(6u32, 3240.0f32, 190.0f32, 1.006_587_1f32), (8, 220.0, 2900.0, 0.994_048_24)] {
         // Edges come a step at a time, so compare at step boundaries: tick 96 n.
         for steps in [1u64, 5, 9, 15] {
             let (t, e) = (cutoff_after(effect, steps * 96, false), cutoff_after(effect, steps * 96, true));
             assert_eq!(t.to_bits(), e.to_bits(), "effect {effect}, {steps} steps: {t} on the table, {e} on edges");
         }
         assert_eq!(cutoff_after(effect, 0, false), from, "effect {effect}: where it starts");
-        let (near_far, near_back) = if effect == 6 { (191.1f32, 2485.0f32) } else { (2883.0, 221.3) };
+        let (near_far, near_back) = if effect == 6 { (191.25f32, 3218.8f32) } else { (2883.0, 221.3) };
         let a = cutoff_after(effect, 431, false);
         assert!((a - near_far).abs() < 1.0, "effect {effect}: {a} Hz after 431 ticks");
         assert_eq!(cutoff_after(effect, 432, false), to, "effect {effect}: the far end, exactly");
@@ -637,22 +645,22 @@ fn a_sweep_turns_at_432_ticks_is_back_at_864_exactly_and_is_the_same_on_both_clo
 
 #[test]
 fn a_sweep_starts_again_with_each_run() {
-    // Effect 6 on steps 1 and 3, not 2: at step 3 it is back at 2.5 kHz; on steps 1 and 2 held
-    // over both, it is not.
+    // Effect 6 on steps 1 and 3, not 2: at step 3 it is back at its start; on steps 1 and 2
+    // held over both, it is not.
     let at = |lane: &[(u8, u32)], frames: u64| {
         let mut h = Host::new(SR, 1);
         let edits: Vec<Cmd> = lane.iter().map(|(s, e)| fx(*s, *e)).collect();
         render(&mut h, frames as usize, 128, 1, &at_zero(&edits));
         bus(&h).probe().2
     };
-    assert_eq!(at(&[(1, 6), (3, 6)], 3 * STEP + 1), 2500.0);
-    assert!(at(&[(1, 6), (2, 6), (3, 6)], 3 * STEP + 1) < 2400.0);
+    assert_eq!(at(&[(1, 6), (3, 6)], 3 * STEP + 1), 3240.0);
+    assert!(at(&[(1, 6), (2, 6), (3, 6)], 3 * STEP + 1) < 3000.0);
     // A punch of 6 over a lane of 6 is still 6 heard: no new run.
     let mut h = Host::new(SR, 1);
     let mut c = at_zero(&[fx(1, 6), fx(2, 6), fx(3, 6)]);
     c.extend([(2 * STEP + 1, down(FX)), (2 * STEP + 1, down(5))]);
     render(&mut h, 3 * STEP as usize + 1, 128, 1, &c);
-    assert!(bus(&h).probe().2 < 2400.0);
+    assert!(bus(&h).probe().2 < 3000.0);
     // Heard 6, then none, then 6 again a millisecond later, while the first is still ramping
     // out: heard became 6 again, so the sweep starts again, though the bus never went idle.
     let mut h = Host::new(SR, 1);
@@ -661,7 +669,7 @@ fn a_sweep_starts_again_with_each_run() {
     render(&mut h, 2 * STEP as usize + 49, 128, 1, &c);
     let (on, w, cutoff, ..) = bus(&h).probe();
     assert!(on == 6 && w > 0.0 && w < 1.0, "still ramping: {on} at {w}");
-    assert_eq!(cutoff, 2500.0);
+    assert_eq!(cutoff, 3240.0);
 }
 
 #[test]
