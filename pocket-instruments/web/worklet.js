@@ -3,7 +3,10 @@
 // and its buffers there (ENGINE.md §8), exactly as harness/trace.test.mjs does in Node.
 //
 // With `samples` each track can play the starter pack's sample in place of its code voice
-// (D50), chosen by command (22) like any other.
+// (D50), chosen by command (22) like any other. With `instrument` or `delay` the engine is
+// lent effect 4's line (ABI 12, ENGINE.md §18): pi_delay_frames(sampleRate) floats in pages
+// of their own after the samples', lent once after pi_init. The copies and a P4 run get none:
+// they play no effect 4.
 //
 // Two uses, by what the page sends in processorOptions:
 //   a run     { cmds, end }: commands at absolute frames, as a P2 harness sends them. At `end`
@@ -59,6 +62,13 @@ class Engine extends AudioWorkletProcessor {
         if (this.pi.pi_set_sample(this.e, t, at, b.byteLength / 2) !== 1) throw new Error(`track ${t}'s sample was refused`);
         at += b.byteLength + (b.byteLength & 1);
       });
+    }
+    // ABI 12: effect 4's line. Allocated here, before the first block, never on the audio
+    // path; the page's rate does not change under a worklet, so it is lent once.
+    if (o.instrument || o.delay) {
+      const frames = this.pi.pi_delay_frames(sampleRate);
+      const at = this.pi.memory.grow(Math.ceil((4 * frames) / PAGE)) * PAGE;
+      if (this.pi.pi_set_delay(this.e, at, frames) !== 1) throw new Error("effect 4's line was refused");
     }
     // The other copies, one engine's size apart (pi_size, rounded to its alignment) in pages
     // of their own. It was a fixed 512 bytes until the drums took the engine past that.

@@ -94,7 +94,7 @@ const char *const SOUND_NAMES[PI_TRACKS] = {"Bass drum", "Snare", "Closed hat", 
 const char *const FN_NAMES[7] = {"sound", "pattern", "bpm", "function", "fx", "play", "write"};
 // What each effect key is, in our words (ENGINE.md §17 and §18; 4 and 13 to 16 have no sound in
 // the core yet: set to Ours they leave the sound dry).
-const char *const FX_NAMES[PI_TRACKS] = {"low sample rate", "distortion", "bit crush", "delay (no sound here yet)", "lowpass", "lowpass sweep",
+const char *const FX_NAMES[PI_TRACKS] = {"low sample rate", "distortion", "bit crush", "delay", "lowpass", "lowpass sweep",
     "hipass", "hipass sweep", "repeat, 4 a beat", "repeat, 3 a beat", "repeat, 8 a beat", "repeat, 6 a beat", "13 (no sound here yet)",
     "14 (no sound here yet)", "15 (no sound here yet)", "16 (no sound here yet)"};
 // The loop self-tests (selftest.sh): which of the module's own cables a patch has looped.
@@ -187,13 +187,19 @@ struct Rhythm : Module {
     uint32_t loadsAsked = 0;
 
     // ---- The audio thread's own. ----
-    alignas(16) uint8_t mem[4096]; // the engine is 3 568 bytes (ENGINE.md §8; 2 352 until §20)
+    alignas(16) uint8_t mem[4096]; // the engine is 3 728 bytes (ENGINE.md §8; 2 352 until §20)
     std::vector<int16_t> pack[PI_TRACKS]; // read once, before any audio; never changed (pi_set_sample)
     int packLoaded = 0;
     pi_engine *e = nullptr;
     pi::Jacks jacks;
     uint32_t routeSent[5] = {};  // the masks ROUTE last gave the core (§19): sounds, effects, A, B, inserts
     float sendStep = 500.f / 48000.f; // FX SEND's ramp a frame: pi::rampStep at the rate
+    // ABI 12 (ENGINE.md §18, designed 2026-11-24): effect 4's line for each engine, the
+    // module's own and the self-test's second. Sized in onSampleRateChange, which Rack calls
+    // with the engine locked when the rate changes and when the module is added (the SDK's
+    // Module.hpp says both), so never in process(); only ever grown, so a rate change back
+    // down allocates nothing. Lent after every pi_init and every rate change (lend()).
+    std::vector<float> line, line2;
     // The loop self-tests: a second engine, given what the module's own cables should carry.
     alignas(16) uint8_t mem2[4096];
     pi_engine *shadow = nullptr;
@@ -281,6 +287,22 @@ struct Rhythm : Module {
             WARN("Pocket Instruments: %d of 16 samples found; the rest play their code voices", packLoaded);
     }
     void givePack() { givePack(e); }
+
+    // ABI 12: lend `to` its line, if the vector is already long enough for `at` (it is, once
+    // Rack has told the module its rate). A line too short is never lent: effect 4 then has
+    // no sound of the core's, as before ABI 12.
+    void lend(pi_engine *to, std::vector<float> &l, uint32_t at) {
+        if (to && at && l.size() >= pi_delay_frames(at)) pi_set_delay(to, l.data(), uint32_t(l.size()));
+    }
+
+    void onSampleRateChange(const SampleRateChangeEvent &ev) override {
+        Module::onSampleRateChange(ev);
+        size_t need = pi_delay_frames(uint32_t(std::lround(ev.sampleRate)));
+        // Growing moves the floats: process() lends again before its next pi_process, because
+        // the same event changes the rate it reads (or the engine was never lent the old ones).
+        if (line.size() < need) line.assign(need, 0.f);
+        if (line2.size() < need) line2.assign(need, 0.f);
+    }
     void givePack(pi_engine *to) {
         for (uint32_t t = 0; t < PI_TRACKS; t++)
             if (!pack[t].empty()) pi_set_sample(to, t, pack[t].data(), uint32_t(pack[t].size()));
@@ -353,6 +375,7 @@ struct Rhythm : Module {
     void fresh(uint32_t seed) {
         e = pi_init(mem, sizeof mem, rate ? rate : 48000, seed);
         givePack();
+        lend(e, line, rate ? rate : 48000);
         for (int k = 0; k < 23; k++) {
             params[KEY_PARAMS + k].setValue(0.f);
             keyDown[k] = false;
@@ -543,6 +566,7 @@ struct Rhythm : Module {
             fresh(SEED);
             shadow = pi_init(mem2, sizeof mem2, rate, SEED);
             if (shadow) givePack(shadow);
+            lend(shadow, line2, rate);
             for (int k = 0; k < 23; k++) holders[k] = 0;
             latched = 0;
             cmds[n++] = pi_cmd{0, PI_CMD_TEMPO, 0, 0, 0, MBPM};
@@ -695,6 +719,7 @@ struct Rhythm : Module {
         }
         if (r != rate) {
             pi_set_sample_rate(e, r);
+            lend(e, line, r); // a new rate forgets the line (§18): lend it again
             if (rate != 0 && fixture >= 0 && running && !edgesRun) { // the table's frames start again
                 aborted++;
                 running = false;

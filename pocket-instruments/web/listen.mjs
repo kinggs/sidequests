@@ -20,9 +20,9 @@
 //     one, and the first wording, 14 keys and 0.3, let it through);
 //   - "All code" brings the code voices back: keys 1, 10 and 16 peak as they first did;
 //   - slider B reaches the engine: the bass drum at B = 100 % lasts over twice B = 0 %.
-//   - the seven sound effects reach the engine (Session 17, ENGINE.md section 18): over a bar of
+//   - the eight sound effects reach the engine (Session 17, ENGINE.md section 18; effect 4, the delay, with a line lent since Session 26): over a bar of
 //     the minimum beat, the dry beat sounds (its loudest sample over 0.05), and each of the
-//     seven sounds too and gives a loudest sample that is not the dry beat's.
+//     eight sounds too and gives a loudest sample that is not the dry beat's.
 // (Added in Session 8 with the samples: the three lines on samples and code. The last added
 // in Session 17, before the page had the effects.)
 //
@@ -92,7 +92,7 @@ function judge(r) {
   if (distinct < 14) bad.push(`only ${distinct} different voices behind the sixteen keys`);
   if (!(r.kick.short > 0 && r.kick.long > 2 * r.kick.short)) bad.push(`slider B: the bass drum lasted ${r.kick.short} reports at 0 % and ${r.kick.long} at 100 %`);
   const fx = r.fx || [];
-  if (fx.length !== 8 || fx[0][0] !== 0) bad.push(`${fx.length} effect runs, not the dry beat and seven`);
+  if (fx.length !== 9 || fx[0][0] !== 0) bad.push(`${fx.length} effect runs, not the dry beat and eight`);
   else {
     const dry = fx[0][1];
     if (!(dry > 0.05)) bad.push(`the dry beat: no sound (loudest ${dry})`);

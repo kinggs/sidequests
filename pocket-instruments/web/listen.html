@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Listen: all sixteen, and the effects</title>
 <!-- A page to hear the sixteen voices, each key either the sound the core builds in code or
-     the starter pack's sample (D35), and to choose which per key (D50); and the seven sound
+     the starter pack's sample (D35), and to choose which per key (D50); and the eight sound
      effects over the minimum beat beside it dry (ENGINE.md section 18). Not the instrument
      and not its look (design/): a bare page, like index.html and samples/index.html.
      ?auto checks its own wiring and posts the result back (web/listen.mjs). -->
@@ -84,7 +84,7 @@
 <p id="status">Loading…</p>
 <div class="panel">
   <h2>Effects over the minimum beat</h2>
-  <p>The bass drum, snare and two hats, dry or through one of the seven sound effects
+  <p>The bass drum, snare and two hats, dry or through one of the eight sound effects
   (ENGINE.md §18). Every number in them is a first value for your ear.</p>
   <div class="switch">
     <button id="whole" aria-pressed="true">Every step</button>
@@ -116,9 +116,9 @@ const SLIDERS = [
   ["A2 to A4 in semitones", "50 to 500 ms"], ["A0 to A2 in semitones", "50 to 500 ms"],
 ];
 const CMD = { reset: 2, tempo: 4, play: 5, step: 16, sound: 20, fire: 21, voice: 22, fx: 23 };
-// ENGINE.md §18's seven, on the keys the PO-12 has them on (R48). 0 is the beat dry.
+// ENGINE.md §18's eight (effect 4, the delay, since ABI 12), on the keys the PO-12 has them on (R48). 0 is the beat dry.
 const EFFECTS = [[0, "Dry beat"], [1, "1 Low sample rate"], [2, "2 Distortion"], [3, "3 Bit crush"],
-  [5, "5 Lowpass"], [6, "6 Lowpass sweep"], [7, "7 Hipass"], [8, "8 Hipass sweep"]];
+  [4, "4 Delay"], [5, "5 Lowpass"], [6, "6 Lowpass sweep"], [7, "7 Hipass"], [8, "8 Hipass sweep"]];
 // The minimum beat (harness/bench.cpp's, and the render-fx scenarios'): tracks 1 to 4.
 const MINIMUM = { 0: [0, 4, 8, 12], 1: [4, 12], 2: [0, 2, 4, 8, 10, 12], 3: [6, 14] };
 const MIDDLE = 32768;         // PARAM_DEFAULT in core/src/voice.rs
@@ -159,7 +159,7 @@ async function start() {
   const cmds = [[0, CMD.tempo, 0, 0, 120000], ...sampled.map((s, t) => [0, CMD.voice, t, 0, s ? 1 : 0])];
   node = new AudioWorkletNode(ctx, "pi-engine", {
     numberOfInputs: 0, outputChannelCount: [1],
-    processorOptions: { wasm, seed: 1, cmds, every: 8, samples: pack },
+    processorOptions: { wasm, seed: 1, cmds, every: 8, samples: pack, delay: true },
   });
   // Under ?auto the engine still runs, into a gain of zero: nothing is heard.
   node.connect(new GainNode(ctx, { gain: auto ? 0 : 1 })).connect(ctx.destination);
@@ -238,7 +238,7 @@ function beat() {
   fxButtons.forEach((b) => b.setAttribute("aria-pressed", false));
   playBeat(BEAT, () => 0);
 }
-// One of the seven over the minimum beat: on every step, or (half) on steps 9 to 16 only,
+// One of the eight over the minimum beat: on every step, or (half) on steps 9 to 16 only,
 // so each bar is the beat dry and then the same beat wet.
 let half = false;
 const fxButtons = [];
@@ -339,7 +339,7 @@ if (auto) {
     out.kick.short = (await hit(0)).reports;
     setSlider(0, 1, 65535);
     out.kick.long = (await hit(0)).reports;
-    // The seven effects reach the engine: the loudest sample over a bar of the minimum beat,
+    // The eight effects reach the engine: the loudest sample over a bar of the minimum beat,
     // dry and through each (§18). A bar is the same every time, so the dry one is a fixed
     // number and an effect that was never heard gives it again.
     setSlider(0, 1, MIDDLE);
