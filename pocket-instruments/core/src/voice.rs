@@ -220,6 +220,12 @@ impl Click {
         self.env = 1.0;
     }
 
+    /// Silent: `next` returns 0 and changes nothing, its first test word for word.
+    #[inline]
+    fn silent(&self) -> bool {
+        self.env == 0.0
+    }
+
     #[inline]
     fn next(&mut self) -> f32 {
         if self.env == 0.0 {
@@ -291,6 +297,12 @@ impl Kick {
         self.sweep = 1.0;
         self.click = Self::CLICK_LEVEL;
         self.noise = Noise(Noise::SEED);
+    }
+
+    /// Silent: `next` returns 0 and changes nothing, its first test word for word.
+    #[inline]
+    fn silent(&self) -> bool {
+        self.env == 0.0
     }
 
     #[inline]
@@ -373,6 +385,12 @@ impl Snare {
         self.wires = Self::WIRES_LEVEL;
         self.noise = Noise(Noise::SEED);
         self.filter.clear();
+    }
+
+    /// Silent: `next` returns 0 and changes nothing, its first test word for word.
+    #[inline]
+    fn silent(&self) -> bool {
+        self.body == 0.0 && self.wires == 0.0
     }
 
     #[inline]
@@ -470,6 +488,12 @@ impl Hat {
         self.filter.clear();
     }
 
+    /// Silent: `next` returns 0 and changes nothing, its first test word for word.
+    #[inline]
+    fn silent(&self) -> bool {
+        self.env == 0.0
+    }
+
     #[inline]
     fn next(&mut self) -> f32 {
         if self.env == 0.0 {
@@ -544,6 +568,12 @@ impl SynthSnare {
         self.filter.clear();
     }
 
+    /// Silent: `next` returns 0 and changes nothing, its first test word for word.
+    #[inline]
+    fn silent(&self) -> bool {
+        self.env == 0.0
+    }
+
     #[inline]
     fn next(&mut self) -> f32 {
         if self.env == 0.0 {
@@ -610,6 +640,12 @@ impl Sticks {
         self.noise = Noise(Noise::SEED);
     }
 
+    /// Silent: `next` returns 0 and changes nothing, its first test word for word.
+    #[inline]
+    fn silent(&self) -> bool {
+        self.env == 0.0
+    }
+
     #[inline]
     fn next(&mut self) -> f32 {
         if self.env == 0.0 {
@@ -662,6 +698,12 @@ impl Wash {
         self.env = Self::LEVEL;
         self.noise = Noise(Noise::SEED);
         self.filter.clear();
+    }
+
+    /// Silent: `next` returns 0 and changes nothing, its first test word for word.
+    #[inline]
+    fn silent(&self) -> bool {
+        self.env == 0.0
     }
 
     #[inline]
@@ -734,6 +776,12 @@ impl Clap {
         self.tail = 0.0;
         self.noise = Noise(Noise::SEED);
         self.filter.clear();
+    }
+
+    /// Silent: `next` returns 0 and changes nothing, its first test word for word.
+    #[inline]
+    fn silent(&self) -> bool {
+        self.t == u32::MAX
     }
 
     #[inline]
@@ -813,6 +861,12 @@ impl Tom {
         self.sweep = 1.0;
     }
 
+    /// Silent: `next` returns 0 and changes nothing, its first test word for word.
+    #[inline]
+    fn silent(&self) -> bool {
+        self.env == 0.0
+    }
+
     #[inline]
     fn next(&mut self) -> f32 {
         if self.env == 0.0 {
@@ -872,6 +926,12 @@ impl Cowbell {
         self.filter.clear();
     }
 
+    /// Silent: `next` returns 0 and changes nothing, its first test word for word.
+    #[inline]
+    fn silent(&self) -> bool {
+        self.env == 0.0
+    }
+
     #[inline]
     fn next(&mut self) -> f32 {
         if self.env == 0.0 {
@@ -929,6 +989,12 @@ impl Blip {
         self.phase = 0;
         self.rise = 1.0;
         self.env = Self::LEVEL;
+    }
+
+    /// Silent: `next` returns 0 and changes nothing, its first test word for word.
+    #[inline]
+    fn silent(&self) -> bool {
+        self.env == 0.0
     }
 
     #[inline]
@@ -1006,6 +1072,12 @@ impl Tone {
         self.phase = if self.bass { 0 } else { 1 << 30 };
         self.env = if self.bass { Self::BASS_LEVEL } else { Self::LEVEL };
         self.filter.clear();
+    }
+
+    /// Silent: `next` returns 0 and changes nothing, its first test word for word.
+    #[inline]
+    fn silent(&self) -> bool {
+        self.env == 0.0
     }
 
     #[inline]
@@ -1191,6 +1263,11 @@ pub struct Voices {
     /// Bit t: track t plays its sample when it fires, if it has one; otherwise its code
     /// voice. All code to start with (D50).
     pub sampled: u16,
+    /// Every voice and every sample silent, so each `next` would return +0 and change nothing:
+    /// `render` skips them (Session 29, the idle cost). Only ever true when that holds: a
+    /// trigger clears it, and `render` sets it again only after asking every voice. False when
+    /// they are silent costs the long way round and nothing else. Not saved: the moment's.
+    pub quiet: bool,
 }
 
 /// Calls `$f` on track `$t`'s voice with the remaining arguments. One line a track, in
@@ -1245,13 +1322,22 @@ impl Voices {
                 Sample::new(12), Sample::new(13), Sample::new(14), Sample::new(15),
             ],
             sampled: 0,
+            quiet: true,
         }
+    }
+
+    /// Every code voice and every sample silent: `quiet` may be set.
+    pub(crate) fn silent(&self) -> bool {
+        (0..TRACKS).all(|t| on_voice!(self, t, silent()) && !self.samples[t].sounding())
     }
 
     /// The tracks that fired on this frame start their voices on this frame, each with the
     /// A and B it was hit with (§20: `hit`, the engine's reckoning of step or tap).
     #[inline]
     pub fn trigger(&mut self, fired: u16, hit: &[[u16; 2]; TRACKS], rate: u32) {
+        if fired != 0 {
+            self.quiet = false;
+        }
         for t in 0..TRACKS {
             if fired >> t & 1 == 1 {
                 let p = hit[t];
@@ -1285,15 +1371,14 @@ impl Voices {
     ///
     /// §19: a loop layout (18 or 50 channels) is also read: the bus does that mix, out of
     /// line, so the three layouts above cost what they did.
+    ///
+    /// Quiet (every voice silent), the sixteen are +0, the bits each silent voice gives
+    /// (0 × LEVEL), and no voice is asked: the same frame for less (Session 29).
     #[inline]
     pub fn render(&mut self, frame: &mut [f32], gain: f32, bus: &mut Bus, fx_sounds: u16) {
         let mut v = [0.0f32; TRACKS];
-        for (t, out) in v.iter_mut().enumerate() {
-            let code = on_voice!(self, t, next());
-            // Both can sound at once after a switch: the old one's tail plays out. Only
-            // added when a sample is sounding, so the code voices alone keep their bits.
-            let s = &mut self.samples[t];
-            *out = (if s.sounding() { code + s.next() } else { code }) * LEVEL;
+        if !self.quiet {
+            self.sound(&mut v);
         }
         let mut mix = |v: &[f32; TRACKS]| {
             if !bus.idle() {
@@ -1313,6 +1398,25 @@ impl Voices {
             }
             tracks if tracks.len() == TRACKS => tracks.copy_from_slice(&v),
             looped => bus.looped(looped, &v, fx_sounds, gain),
+        }
+    }
+
+    /// The sixteen, each voice asked, as before Session 29. A frame of sixteen +0s (each
+    /// bit 0; a −0 does not count) is the only one that can follow silence, so only then is
+    /// every voice asked whether it is silent: next to nothing while a sound plays.
+    #[inline]
+    fn sound(&mut self, v: &mut [f32; TRACKS]) {
+        let mut bits = 0u32;
+        for (t, out) in v.iter_mut().enumerate() {
+            let code = on_voice!(self, t, next());
+            // Both can sound at once after a switch: the old one's tail plays out. Only
+            // added when a sample is sounding, so the code voices alone keep their bits.
+            let s = &mut self.samples[t];
+            *out = (if s.sounding() { code + s.next() } else { code }) * LEVEL;
+            bits |= out.to_bits();
+        }
+        if bits == 0 {
+            self.quiet = self.silent();
         }
     }
 }

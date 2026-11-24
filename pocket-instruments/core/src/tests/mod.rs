@@ -10,6 +10,7 @@ mod keys;
 mod route;
 mod rules;
 mod samples;
+mod quiet;
 mod snapshot;
 mod sound;
 mod weave;
