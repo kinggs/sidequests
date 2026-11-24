@@ -516,6 +516,12 @@ fn thirteen_punched_in_the_middle_of_a_step_begins_with_the_next_step() {
     // that firing: it is still the plain one, (0, 1). Step 2 arrives with the punch: 12.
     let got = with_later(&[cmd(CMD_SWING, 0, 0, 48), on(0, 1), on(0, 2)], &[(after(1), down(FX)), (after(1), down(12))], 3 * STEP - 2);
     assert_eq!(got, [(144, 0, 1), (192, 12, 2)]);
+    // Found by a planted fault (Session 28: "13 read off the lane at the firing" passed): a
+    // punch writes no lane, so an edit is needed. The lane's step 1 set to 13 a frame after
+    // its boundary, before its swung firing: still the plain note. And the other way: 13 on
+    // step 2 emptied a frame after its boundary: still shuffled.
+    let got = with_later(&[cmd(CMD_SWING, 0, 0, 48), on(0, 1), on(0, 3), fx(3, 13)], &[(after(1), fx(1, 13)), (after(3), fx(3, 0))], 4 * STEP - 2);
+    assert_eq!(got, [(144, 0, 1), (336, 12, 3)]);
 }
 
 #[test]
@@ -539,6 +545,10 @@ fn under_13_two_notes_on_one_sound_draw_twice_its_own_first_and_trig_once() {
     assert_eq!(trigs(&ev), [(0, 1, 0), (96, 2, 1)]);
     // `TRIG`'s track is the sound that sounds: the view's fires count 1, never 5.
     assert_eq!((h.view()[32 + 1], h.view()[32 + 5]), (1, 0));
+    // Found by a planted fault (Session 28: "a TRIG for each draw" passed): both notes at 100,
+    // both pass, and still one trigger.
+    let (_, ev) = from_zero(&[on(1, 0), on(5, 0), fxsound(1, 0), fx(0, 13)], STEP - 2);
+    assert_eq!(trigs(&ev), [(0, 1, 0)]);
 }
 
 #[test]

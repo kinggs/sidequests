@@ -1214,6 +1214,45 @@ fn a_zero_for_less_than_a_millisecond_does_not_stop_it() {
             assert_eq!(got, 0.0);
         }
     }
+    // Found by a planted fault (Session 28: "near zero counts as zero" passed): only exact zero
+    // counts. A bus of 1e-30 for 100 frames is a sound: the loop runs on every one.
+    v[0] = 1e-30;
+    for i in 0..100 {
+        let before = b.echo_state().0;
+        b.advance(14, 0, SR);
+        b.mix(&v, 0xffff, 1.0);
+        assert_eq!(b.echo_state().0, (before + 1) % n as u32, "1e-30, frame {}", i + 1);
+    }
+}
+
+#[test]
+fn fourteen_heard_again_while_it_stands_still_keeps_standing_still() {
+    // Found by a planted fault (Session 28: "still forgotten when heard again" passed). A made
+    // bus: 14 builds on a moving bus, then the bus is exact zero for 60 frames (it stands
+    // still), 14 is let go for 10 frames (ramping out) and heard again. `still` is kept with
+    // the rest of its state, so the loop goes on standing still: the head never moves.
+    let n = comb(SR);
+    let mut line = vec![0f32; pi_delay_frames(SR) as usize];
+    let mut b = Bus::new();
+    b.lend(line.as_mut_ptr(), line.len() as u32);
+    let mut v = [0f32; 16];
+    for x in moving(3 * n) {
+        v[0] = x;
+        b.advance(14, 0, SR);
+        b.mix(&v, 0xffff, 1.0);
+    }
+    v[0] = 0.0;
+    for _ in 0..60 {
+        b.advance(14, 0, SR);
+        b.mix(&v, 0xffff, 1.0);
+    }
+    let head = b.echo_state();
+    for f in 0..70 {
+        b.advance(if (0..10).contains(&f) { 0 } else { 14 }, 0, SR);
+        assert_eq!(b.mix(&v, 0xffff, 1.0), 0.0, "frame {f}");
+        assert_eq!(b.echo_state(), head, "frame {f}: the head moved");
+    }
+    assert_eq!(b.probe().0, 14);
 }
 
 #[test]
