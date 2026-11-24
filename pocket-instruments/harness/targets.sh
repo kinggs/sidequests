@@ -44,8 +44,10 @@ for sym in $needs; do
     *:memcpy | *:memset | *:memmove | *:memcmp | *:bcmp | *:abort) ;;
     # macOS only: the compiler's own spellings of memset. Both are in libSystem on every
     # macOS Rack runs on (memset_pattern16 since 10.5). First met when the core got its
-    # voice parameters, which are filled with a 16-bit pattern (Session 3).
-    *-apple-darwin:__bzero | *-apple-darwin:memset_pattern16) ;;
+    # voice parameters, which are filled with a 16-bit pattern (Session 3). On Apple Silicon
+    # the compiler calls plain bzero, also in libSystem (found failing in Session 29, from
+    # before it: `make targets` is not in `make verify`, and the unpinned library failed too).
+    *-apple-darwin:__bzero | *-apple-darwin:bzero | *-apple-darwin:memset_pattern16) ;;
     *) fail "the core's object needs $sym" ;;
     esac
 done

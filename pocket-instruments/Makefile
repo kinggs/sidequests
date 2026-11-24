@@ -11,12 +11,19 @@ CXX    ?= c++
 include rack/math.mk
 RACK_ARCH := $(if $(filter x86_64,$(shell uname -m)),-march=nehalem,-march=armv8-a+fp+simd)
 
-.PHONY: build test check-toolchain check-p1 clean rack-lib race targets web p4 listen hear play bench
+.PHONY: build test check-toolchain check-p1 clean rack-lib race targets web p4 listen hear play bench pairs
+
+# Every native library starts each function on a 64-byte line (Session 29, LEARNINGS.md).
+# Unpinned, where pi_process happened to land moved the bench by up to 3 ns a frame between
+# builds whose differences never ran; pinned, three such builds read within 0.5 ns, and the
+# pin cost nothing measured. Given after `--`, so it reaches our crate alone and survives
+# rack-lib's RUSTFLAGS. Not the .wasm: WebAssembly has no addresses to align.
+ALIGN := -C llvm-args=-align-all-functions=6
 
 # Both targets from one crate, one crate type each: a static library for Rack and the C++
 # harness, a bare module for the browser and Node.
 build: check-toolchain
-	cargo rustc -p pi-core --release --locked --crate-type staticlib
+	cargo rustc -p pi-core --release --locked --crate-type staticlib -- $(ALIGN)
 	cargo rustc -p pi-core --release --locked --target wasm32-unknown-unknown --crate-type cdylib
 
 # The static library for one Rack target, with Rack's own CPU flags (R16; the SDK's
@@ -29,7 +36,7 @@ RACK_RUSTFLAGS_aarch64 := -C target-cpu=generic
 rack-lib: check-toolchain
 	@rustup target list --installed | grep -qx $(T) || rustup target add $(T)
 	RUSTFLAGS="$(RACK_RUSTFLAGS_$(firstword $(subst -, ,$(T))))" MACOSX_DEPLOYMENT_TARGET=10.9 \
-	  cargo rustc -p pi-core --release --locked --target $(T) --crate-type staticlib
+	  cargo rustc -p pi-core --release --locked --target $(T) --crate-type staticlib -- $(ALIGN)
 
 # P5, the local half: the library for all four Rack targets from this machine, each checked
 # against R16 (harness/targets.sh). A staticlib needs no linker and no SDK, only rustup's
@@ -85,9 +92,19 @@ race:
 # What a frame of pi_process costs, in nanoseconds, on the release library: idle, the minimum
 # beat, all sixteen sounds (harness/bench.cpp says how). Not part of `make test`: a number, not
 # a pass or fail. A change on the audio path records it before and after (PLAN.md).
+# Pinned to one CPU (BENCH_CPU): on a CPU of two dies, as this laptop's 7950X3D is, a run
+# lands on either and reads ~2 ns apart (Session 29). `make pairs OLD=<another bench>` reads
+# this build beside another, ten rounds interleaved, medians (harness/pairs.sh).
+BENCH_CPU ?= 2
+BENCH_PIN := $(if $(shell command -v taskset),taskset -c $(BENCH_CPU))
 bench: build
 	$(CXX) -std=c++17 -O2 -Wall -Wextra -Werror -Icore/include harness/bench.cpp $(NATIVE) -o target/bench
-	target/bench
+	$(BENCH_PIN) target/bench
+
+OLD ?= target/old/bench
+pairs: build
+	$(CXX) -std=c++17 -O2 -Wall -Wextra -Werror -Icore/include harness/bench.cpp $(NATIVE) -o target/bench
+	sh harness/pairs.sh $(BENCH_CPU) $(OLD) target/bench
 
 # rust-toolchain.toml is the pin. mise.toml must name the same version, and so must the
 # compiler that actually runs: mise sets RUSTUP_TOOLCHAIN, which wins over the file. For the
