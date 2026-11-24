@@ -850,3 +850,45 @@ belongs in `PROOFS.md`, a change of course in `DECISIONS.md`, an outside fact in
   plants one marked line, builds into a scratch user folder, and restores on exit.
   Screenshot mode shows the real build's bare loom, since the display now weaves an
   all-zero view when it has none.
+
+## The day of eight sessions, from the chair that ran them (2026-11-23 and 24)
+
+Sessions 16, 17, 21, 18, 19, 20 and 14's first attempt were each run by a fresh builder
+(Opus, or Fable where the plan says so) from the plan's one start line, with the session
+that designed them verifying each before starting the next. Each builder's own notes are
+above; these are what only the chain showed.
+
+- **The start line and a short brief were enough.** "Read `PLAN.md` and do Session N", plus
+  the rules that bite and what to report. No builder needed the conversation that led to
+  its list: the list, `ENGINE.md` and the decisions carried it. Where they did not, the
+  builder marked a reading ⚠ and asked, which is the rule working.
+- **Verify the claim, not the report.** After each session the gate was run again here, CI
+  was read for the commit that changed code, and the diff of the fixtures was read for any
+  line of trace. Nothing was found wrong in seven sessions. The check is still worth its
+  two minutes: a builder's "all passed" is model output until someone runs it.
+- **Design writing collides with a builder in one working tree.** Decisions and plan edits
+  made while a builder ran were left uncommitted until it finished, and each builder was
+  told to stage only its own files. It worked, but twice a builder's commit and the
+  designer's edits touched the same file. A worktree for each builder would remove the
+  care this needed.
+- **A session killed mid-build lost nothing.** The parent process was closed by accident
+  during Session 16. The work was on disk, two commits were local, and the builder resumed
+  from its own transcript; the one instruction that mattered was to re-check the tree for
+  a planted fault left in by a cut-off command.
+- **The owner's "it does nothing" in Rack had two causes, neither a bug.** With RETURN
+  patched the module rebuilt the mix after the core's effects (Session 18 fixed it); and a
+  quick click on a key with fx latched is too short for a repeat, which starts at the next
+  step (D78 fixed it). The owner's own patch file, read from Rack's autosave, showed the
+  first in a minute. Read the patch before reading the code.
+- **A new plugin does nothing until Rack restarts.** `make install` drops a package; Rack
+  unpacks it at start. A builder's install during a session reaches the owner's Rack only
+  then, and it may be a build from the middle of a session.
+- **A wrong fact in a ruling was caught by the builder who had to draw it.** D81 called
+  madder "the fx key's own colour"; it is the sound key's. Session 19 built what was
+  written, said so, and asked. Rulings made without the owner get the same ⚠ and the same
+  question as anything else.
+- **What the hardware in hand was worth:** two rounds of checks by the owner, about fifteen
+  minutes in all, corrected three rulings before any code (two keys held, stopped, the
+  lights), overturned one decision three sessions old (the lights with write off, D37),
+  and replaced another (the sliders following the chosen sound, D54). Every one of those
+  had been marked as a guess. None would have been found by more reading.

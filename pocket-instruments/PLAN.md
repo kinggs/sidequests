@@ -7,19 +7,20 @@ bottom of this file.
 **Start every session with:** "Read `pocket-instruments/PLAN.md` and do Session N."
 Design sessions run on Fable; build sessions on Opus, on the laptop (Arch, Omarchy). A build
 session whose heading says Fable is one where a contract first meets code (2, 3, 10, 18) or is
-drawn by eye (14, 18): there the session may rule on a gap; on Opus it stops and asks.
+drawn by eye (14, 18): there the session may rule on a gap, and writes each ruling into
+`DECISIONS.md` as the owner's to overrule; on Opus it stops and asks.
 
 ## Read first, every session
 
 In this order, and no more than this before starting. Why so exact: the folder's documents
-are about 300 KB, and a session that reads them all has spent its attention before it builds.
+are about 650 KB, and a session that reads them all has spent its attention before it builds.
 
 1. This file, whole. It is kept short for that (below).
 2. `README.md` in this folder: the doc map and the rules.
 3. `ENGINE.md`: the sections your session's list names, and §3 and §8 if you have not built
    on the engine before.
 4. `DECISIONS.md`: the decisions your list and those sections cite, and the **Open** table
-   at its end. For Sessions 12 to 15 that is D51 onwards; for 16 to 20, D62 onwards. Not
+   at its end. From D66 onwards for anything about effects, sliders or Rack's jacks. Not
    the whole log.
 5. `PROOFS.md`: the ladder table at its top, and the proof your session runs, if it runs
    one. Do not change a pass bar to make it pass; record the failure.
@@ -39,17 +40,59 @@ done, and the latest two Handover notes. A session that finishes:
    `PLAN-HISTORY.md`, word for word. Annotate there if something needs saying; do not
    reword what was written.
 
+(Tidied on 2026-11-24: the sections that had gone stale were moved to `PLAN-HISTORY.md`
+whole, under "PLAN.md's sections as they stood before the tidy of 2026-11-24".)
+
 ## Ground rules
 
-- No Teenage Engineering material in the repo: no samples, firmware, photos, traced art, logos.
-- ~~Nothing visual before P3 passes (D15).~~ P3 passed on 2026-11-19; the look is Sessions 12
-  to 14. No framework before a second instrument (README rule 5).
+- No Teenage Engineering material in the repo: no samples, firmware, photos, traced art,
+  logos, recordings of the hardware.
+- No framework before a second instrument (README rule 5).
 - Stable Rust only. A nightly feature would block every reproducible build (R13).
 - No secrets. Commit direct to `main`, small commits, `make verify` before a push.
 - **Efficient, measured (the owner, 2026-11-23: "I really want the module (and everything we
   do) to be pretty efficient").** A change on the audio path says what it costs a frame,
-  before and after, measured, not guessed: cycles in Rack's `process`, nanoseconds in the
-  engine. How it was measured in Session 13 is under "Found in Rack after Session 13".
+  before and after, measured, not guessed: `make bench` for the engine (nanoseconds a
+  frame), perf for Rack's `process` (Machine state).
+
+### Rules for every build session
+
+They were written for Sessions 10 to 14 and held through 16 to 21 unchanged.
+
+- **Decide nothing** on Opus. `ENGINE.md` and the decisions the list cites are the brief.
+  Where they are silent or wrong, stop on that point, write the question into the
+  Handover, and build round it, marking the reading ⚠.
+- **Expected output before the core runs it.** A fixture's trace and views are worked out
+  by hand from `ENGINE.md`, committed (in `fixtures/designed/` if no core can run them
+  yet), and only then run. If the core disagrees, `ENGINE.md` decides which is wrong.
+- **No trace and no pass bar is edited to pass a build.** A view changed by an owner's
+  decision is worked again by hand before the code, and `fixtures/README.md` says which
+  lines and why (Sessions 20 and 21 did this).
+- **What exists does not move** unless the session says so. Keep `target/report-rust.txt`
+  and a `sha256sum` of `target/render-*.f32` from before the first change and compare at
+  the end; save the old snapshots (`fixtures/snapshots-v*.txt`) before a new version.
+- **The same bits on every host:** the sound path uses only `+ − × ÷` and casts; the core
+  stays `no_std`, with no allocator and no dependencies.
+- **A planted fault counts only if it built and a named test failed.** Run the unplanted
+  copy first.
+- Each session ends by marking its sections of `ENGINE.md` built, with what turned out
+  different, and by writing `LEARNINGS.md` and the Handover.
+
+### How the pieces join
+
+```
+finger ─► host ─ KEY_DOWN / KEY_UP / PARAM ─► core: keys ─► edits, FIRE ─► sequencer ─► voices ─► bus, effects ─► mix
+                                                │                              ▲
+lights, caps, display, weave ◄─ host draws ◄─ view                Rack: returns, FX RETURN, A and B in
+```
+
+- **A host sends what a finger did and draws what it is told.** The core holds the
+  workflow and says what to light in one 64-byte view; the page and the Rack module read
+  the same block, so they cannot differ. The weave is a pure function of that view.
+- **The snapshot** (version 4) holds the beat: steps, the effects lane, what each step
+  keeps of the sliders, the settings. Every older version still loads.
+- **In Rack** sound also comes in: a returned sound takes its own voice's place before the
+  effects (`ENGINE.md` §19).
 
 ## Machine state (checked 2026-11-18)
 
@@ -99,6 +142,19 @@ done, and the latest two Handover notes. A session that finishes:
 
 ---
 
+## Where it stands (2026-11-24)
+
+The instrument plays on a phone (`web/rhythm.html`) and in Rack (the Rhythm module, 24 HP,
+thirteen jacks). In the core: sixteen sounds, each a code voice or a sample; the workflow
+of every "in" row of `WORKFLOW.md`; effects recorded as they are punched, with four
+repeats and seven sound effects; sliders that are the hand's, with steps that keep what
+they were written with; a display that weaves. ABI 10, snapshot version 4, 228 Rust tests,
+CI on four platforms in about a minute.
+
+**Built on 2026-11-23 and not yet seen or heard by the owner** except the effects on a
+phone: everything from Session 21 onwards. Every look in it is a stand-in until the owner
+rules. The effects are first guesses from the hardware's names and are not tuned.
+
 ## Done so far
 
 Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
@@ -129,211 +185,14 @@ Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
 | 20, the grid's lights (Opus; D71, D72, D82) | with write off the grid lights the chosen sound's steps, as the hardware does: one line of the core, twelve fixture views worked again by hand; `make play` holds every key's white; `design/rack-face-writeoff-*.png` | 2026-11-23 |
 | 14, the weave: a **first attempt** (Fable; D53, D84), not finished | ABI 10: the view's bytes 48 to 54, `pi_weave` (78 by 15 cells) and its rule tests, the page and the Rack display painting the same cells, `make play` holding every painting to `pi_weave`; `fixtures/weave-views.txt`; `design/rack-weave-*.png`. The owner has not watched it: its list stays below | 2026-11-23 |
 
-## Still the owner's hands
+## Next, in order
 
-Unticked in the finished lists. None blocks a build session.
-
-**First, the morning after 2026-11-23** (eight sessions were built while the owner was away
-for part of the day; each of these is a look or a ruling only the owner can give):
-
-- [ ] Restart Rack and play the owner's own patch: a punch (fx + key) on the returned Rack
-      drums; the sticky fx latch by mouse (D78); the sliders (move one, tap any key: D75).
-- [ ] The panel at 100% with cables in (D76, O18): `design/rack-face-lit-200.png` first.
-- [ ] On the phone: the effects with their display block and ticks (D81; madder or ecru,
-      D82 item 1); the second mark on the sliders (D79 item 3); the grid with write off
-      (D82).
-- [ ] The weave (O19): the pictures in `design/rack-weave-*.png`, then the live page, then
-      Rack. The builder's seven doubts are in the Handover, most doubtful first.
-- [ ] O18: A OUT back to A IN is one hit late; FX RETURN's default effects; D80's items.
-- [ ] Session 22's recording, with the PO-12 and the Scarlett.
-- [ ] By ear on `web/listen.html`: the seven sound effects against the hardware's.
-- [ ] The rulings made while away, to accept or overrule: D73, D77, D79, D81 to D83.
-
-- [ ] In Rack, by hand: the sliders by mouse. The owner heard no change dragging A or B and
-      tapping key 1 (2026-11-23). The engine does change the kick (tested the same day:
-      44, 67 and 90 zero crossings in half a second for A low, middle and high; 131 ms
-      against over 500 for B). ⚠ Not found yet: the likeliest cause is that key 1 was not
-      the chosen sound (hold sound and see which key has the bar); if it was, the drag
-      path has a bug the self-test cannot see, because it sets the sliders directly.
-      (Later the same day: D75 makes the sliders the hand's for every sound, so the trap
-      of tuning a sound that is not the one being tapped goes away with Session 21.)
-      (Session 21 built it: try it again by mouse; a slider now moves every sound.)
-- [ ] Session 21's second mark on each slider, on the phone and in Rack: a stand-in (a thin
-      thread-coloured line), to be drawn with the owner's eye (`design/DESIGN.md`, "Not
-      done"); and Session 21's readings (its Handover).
-- [ ] Session 18 in Rack, by hand (its Handover has the steps): the two rows at 100% zoom
-      and with cables in (`design/rack-face-*.png` first); the owner's patch, a punch heard
-      on the returned drums; the fx latch by mouse (D78); FX SEND through a Rack delay to FX
-      RETURN with effect 4 held; A OUT and A IN. And D80's eighteen items and three open
-      points (O18).
-- [ ] Session 19's look, on the phone and in Rack (`design/DESIGN.md`, "The effects on the
-      display" and "Not done"): the madder `fx` block and the lane's ticks, D81's stand-in;
-      whether madder or the fx key's ecru (Session 19's Handover); the sheet's "through fx"
-      switch; D78 on the page by mouse (Ctrl+click fx, then click and hold keys while it plays).
-- [ ] Session 20's grid with write off, on the phone and in Rack (`design/rack-face-writeoff-100.png`
-      first): the chosen sound's steps lit, a lit key white as it fires and lit again, no
-      stitch (D82 item 3); and Session 20's three ⚠ readings (its Handover).
-- [ ] **The weave, watched** (Session 14's fourth box; O19; D84's sixteen items): on the
-      phone and in Rack, and the pictures first (`design/rack-weave-*.png`). The Handover
-      "After Session 14's first attempt" lists what to look at and the choices least sure.
-- [ ] Session 22's recording: ten minutes with the PO-12 and the Scarlett, when it suits.
-- [ ] The four effects checks left on the PO-12 (`WORKFLOW.md`, "The effects: what to check
-      on the PO-12"; nine were done on 2026-11-23): what 9 to 12 do (9 gave no repeat the
-      owner could hear), whether every sound repeats, the sweeps, and effects 4 and 13 to
-      16. ~~And D71's open point~~ (answered): with write off, do keys flash for their own
-      sound as it fires?
-- [ ] By ear, the seven sound effects (Session 17) on `web/listen.html` (`make hear`):
-      every number in `core/src/bus.rs`'s "TUNING THE EFFECTS" is a first value. And
-      Session 17's two questions (its Handover).
-- [ ] P4: iOS Safari (no iPhone yet), and the tap pad filmed for latency. `PROOFS.md` P4.
-- [ ] P5: the four loads in Rack, one a platform. `PROOFS.md` P5, "What the full proof
-      still needs". CI has the four artefacts. ~~And VCV's answer (O2).~~ Answered
-      2026-11-23 (R46): binary packages from an identity-verified author, by email.
-- [ ] Reply to VCV: ask for the binary submission and identity verification details (R46).
-      Recommended: ask now; it costs nothing and nothing is submitted until the gate.
-- [ ] The hour with the PO-12: tick or correct each row of `WORKFLOW.md` and answer its
-      eleven questions. By D29 this is done as mismatches turn up, not in one sitting.
-- [ ] Measure the PO-12 (width, height, key pitch, jack spacing) for D16.
-- [ ] By ear, on the listening page or in Rack: which keys become samples (D35, D50).
-- [ ] Play `web/rhythm.html` on the phone (P8's start), and listen for a dropout while
-      editing it as it plays: the last of P6 (`PROOFS.md`).
-- [ ] A look at Session 12's four ⚠ readings on the phone (`design/DESIGN.md`, "Not done").
-- [ ] Try D61 by mouse on the desktop: Ctrl+click sound, click a key; the sheet's names and switches.
-- [ ] A look at D59, Session 10's eight rulings.
-- [ ] Two readings Session 11 built on (⚠ in `ENGINE.md` §15): a loaded chosen sound past
-      15 becomes 15; snapshot bytes 381 to 383 are not read.
-- [ ] The Rhythm module in Rack, by hand (Session 13): the look at 100% zoom (the ⚠ rows of
-      `design/DESIGN.md`'s table and its "Not done"; the wordmark at 3.0 mm, 0.5 mm from
-      RETURN and the plate); the latch (Ctrl+click); the computer keys, several at once (R25);
-      a double-click on each slider, with and without bpm held; MIDI-Map on a slider (D54's
-      ⚠); the round trip by ear: TRIGGERS ch 1 to any kick, back into RETURN ch 1 (D62); the
-      CPU meter. (Played by the owner 2026-11-23: the face, clock and reset, RETURN with
-      Rack drums, clear. Session 13's nine readings accepted, D65.)
-
-## The instrument's build: Sessions 10 to 14
-
-Designed in Session 9. These two parts were written under its list and are in force.
-
-### How the pieces join
-
-```
-finger ─► host ─ KEY_DOWN / KEY_UP / PARAM ─► core: keys ─► edits, FIRE ─► sequencer ─► voices ─► sound
-                                                │
-lights, caps, display ◄─ host draws ◄─ view ◄───┘        saved beat ◄─► snapshot version 2
-```
-
-- **A host sends what a finger did and draws what it is told.** The core holds the
-  workflow (which key is held, write, the chosen sound, volume) and turns presses into the
-  edits and `FIRE` that already exist. Nothing below the keys changes.
-- **The view** is one 64-byte block the core fills: three masks for the grid's lights, the
-  sliders as they should show, the playhead, and a count of firings per track. The page
-  and the Rack module read the same block, so they cannot light differently.
-- **The snapshot** grows to hold what the keys can now change (sliders, the code-or-sample
-  switch, volume, the chosen sound). An old one still loads.
-- **The page** is the worklet that exists plus a face: keys and sliders send three message
-  kinds; the view comes back as a message. Multi-touch is real, so nothing latches.
-- **The Rack module** is the Probe's plumbing (`handoff.hpp`, the clock, reset, the saving
-  scheme) plus a face: every key and slider a Rack parameter, the view handed to the
-  drawing thread through `pi::Latest`. A click latches (D23, D57).
-- **The weave** is a pure function from a view to a grid of cells, in the core. Each host
-  paints cells.
-
-### Rules for Sessions 10 to 14
-
-The standing ones: stable Rust; voices use only `+ − × ÷`; no trace and no pass bar is
-edited; every new check fails once on a fault put in on purpose; `make verify` before a
-push; no Teenage Engineering material. And for these five:
-
-- **Decide nothing** (on Opus; see the top of this file). `ENGINE.md` §13 to §16 and D51 to
-  D59 are the brief. Where they are
-  silent or wrong, stop, write the question into the Handover, and build round it.
-- **Expected output before the core runs it:** a fixture's trace and views are worked out by
-  hand from `ENGINE.md`, committed, and only then run (as `reset-mid-bar` was).
-- **What exists does not move** unless the session says so: the four fixtures' traces and
-  the 114 render pairs stay the same bytes. Since Session 10 that is seven fixtures, with
-  the three key fixtures' views. To prove it, keep `target/report-rust.txt` and a
-  `sha256sum` of `target/render-*.f32` from before the first change and compare at the end.
-  (Session 11 changes one thing in the report on purpose: the snapshot's hex in each
-  "snapshot" label. The lines under every label stay. Done: they stayed, and the 114 render
-  pairs are the same bytes. Session 11 added 18 pairs: `render-both`.)
-- **A planted fault counts only if it built and a named test failed.** Run the unplanted
-  copy first (`LEARNINGS.md`, Session 10).
-- Each session ends by moving its sections of `ENGINE.md` from "designed" to built, with
-  what turned out different marked, and by writing `LEARNINGS.md` and the Handover.
-
-## Found in Rack after Session 13 (2026-11-23), for a session to take
-
-- [ ] D64: the menu's "one edge a beat" for CLOCK, and (D65 item 2, decided) the tempo
-      measured from the edges, with "ext", on an external clock. Both touch `ENGINE.md` §4
-      and §14, so plan them first; Session 14 opens the view for ABI 6 anyway.
-- [x] Room to trim in the module: done the same day, measured with perf (`LEARNINGS.md`,
-      Session 13, "Profiled with perf"). The module's time fell 31%: the big one was an
-      atomic store, a full memory barrier, every frame. The engine is now about half of it.
-- [x] CI's Linux job is slow in `apt-get update` (12.5 of 13 minutes): a prebuilt image is
-      Session 15's small first task (D65 item 4). Done in Session 15: the job is 28 s.
-- [ ] The self-test failed once in 32 runs (96 kHz: a module on the LFO never saw its clock).
-      Not reproduced in 14 more. If it fails again, its log is kept in `rack/build/`
-      (`LEARNINGS.md`, Session 13). Read it before changing anything.
-
-## Later: efficiency (measured first, PLAN's ground rules)
-
-None blocks anything; each is done when wanted, profiled before and after (Machine state).
-
-- [ ] **Idle cost:** the module shows about 0.6% in Rack with nothing playing (owner,
-      2026-11-23), where SEQ-3 shows 0.2% and many modules 0.0%. (Session 16's `make bench`:
-      a stopped engine is 26 ns a frame, as much as the minimum beat playing.) ⚠ Not profiled yet; the
-      likely cause is that the engine runs every frame while stopped (the clock keeps
-      counting, so a tap lands on the right tick, §4). A cheap idle path (stopped, every voice
-      silent, nothing patched moving) has to keep that rule; profile it first.
-- [ ] Still a question for the owner: read the parameters every 16 or 32 frames (under 1 ms
-      late) rather than on the frame the brief asks for, as VCV's own modules do. Measured
-      cost of reading them every frame now: a small part of `Rhythm::process`, no longer the
-      biggest.
-- [ ] Next for efficiency, when wanted: the core itself (`pi_process` is about half the
-      module now). That one speeds up the phone too. Profile first (Machine state).
-
-## Session 14 — the weave (build, with the owner's eye; a first attempt after Session 20, D79)
-
-Recommended on Fable: which cells each of the seven rules lights is not designed, only its
-inputs and its tests. That is drawing by judgment, with the owner watching.
-
-The next ABI number (this line said 6, from before the effects: D83). `ENGINE.md` §16,
-`design/DESIGN.md` "The animation", `design/loom/frames.html`. A first attempt while the
-owner is away (D79, D83): the fourth box stays open for the owner.
-
-**Where this stands (2026-11-23): a first attempt is built and waits for the owner.** Boxes
-1, 2, 3 and 5 are done (D84 has the rulings; the Handover at the bottom says what to look
-at). Box 4 is open, so the session is not finished and this list stays here. Whoever takes
-it up changes the drawing in `core/src/weave.rs`, once, with the owner watching.
-
-- [x] The view's bytes 48 to 54 (§16: a u32, a u16, a u8; this line said 48 to 55), filled
-      by the sequencer; fixtures' view text is unchanged (it leaves them out). Rust tests
-      for the three fields. `harness/race.cpp`'s `look()` and `the_view_follows_edits…` in
-      `core/src/tests/keys.rs` both hold bytes 48 to 63 to zero: change them with it.
-- [x] `pi_weave`: the seven rules as cells. Tests of the rules, not of a picture: stopped,
-      the cells do not depend on the tick; the beater is 1 cell wide at no firings and 4 at
-      sixteen; a beat with nothing set weaves one stitch; reduced motion never draws white
-      rows. Natively and from the `.wasm`, the same bytes for a set of views.
-- [x] The page paints the cells (its own instance of the `.wasm`), the Rack display paints
-      the same cells. Neither holds a rule. (Rack: `RhythmDisplay::draw` in
-      `rack/src/Rhythm.cpp` leaves the weave's area dark; a self-test writes its name there.)
-- [ ] The owner watches it move, on the phone and in Rack. What is wrong is changed in the
-      core, once. When it is accepted, three views and their cells are committed as the
-      picture to hold to.
-- [x] `DESIGN.md`'s "Not done" list brought up to date.
-
-## Sessions 16 to 19 — the effects, built (designed in Session 15: D66 to D69)
-
-`ENGINE.md` §17 to §19 are the brief, with D66 to D69 and `REFERENCES.md` R48 to R62 behind
-them. The rules for Sessions 10 to 14 above hold for these four: decide nothing on Opus;
-expected output before the core runs it; what exists does not move; a planted fault counts
-only if it built and a named test failed. And the ground rule: each says what it costs a
-frame, measured before and after. Each takes the next `PI_ABI_VERSION`, whatever the weave
-has done by then. In order; the weave (Session 14) and the lights (Session 20) fit anywhere
-the owner says.
-
-**Ruled 2026-11-23 (D72):** D66 to D69 accepted; the jacks on the panel; D71 yes; D70
-after the effects.
+1. **Session 22,** the recording: below. It unblocks the tuning, the repeat's fix and the
+   five effects not designed.
+2. **The owner's looks and rulings** on what 2026-11-23 built: "The owner's hands", first
+   part. Each may send a session back (the weave and the panel most likely).
+3. **Session 14's fourth box,** the weave accepted or redrawn: below.
+4. Then from "Not planned yet", as the owner chooses.
 
 ## Session 22 — the hardware's effects, measured from a recording (with the owner, Fable)
 
@@ -367,98 +226,138 @@ tuned by ear and before the delay is designed. It needs no build to have happene
       on 9 at all. Decide from the recording what a repeat should hold when the step is
       empty (the last step that had a hit is the obvious candidate).
 
-## After Session 14
+## Session 14 — the weave (build, with the owner's eye; a first attempt after Session 20, D79)
 
-In the order they are likely wanted; none is planned in detail yet.
+Recommended on Fable: which cells each of the seven rules lights is not designed, only its
+inputs and its tests. That is drawing by judgment, with the owner watching.
 
-- **P8,** the owner's: the list of differences against the PO-12, and which keys become
-  samples. It starts after Session 12.
-- **The showpiece's last mile (D19):** a link that carries a beat (the snapshot in the URL),
-  `web/` opening on the instrument, an offline shell. Then P9 and the approach to Teenage
-  Engineering.
-- **Live record,** the first "later" row: fixture format 3 for a press inside a step.
-- **The sliders, the rest (D75 item 3; was under Session 21's list):** holding a step and
-  moving a slider; holding write to record a slider's movement; live record of notes.
-- A gesture for probability and a short length (O10). The hat cut (D47). A player's own
-  samples (D34). The neighbour connection (D40). The expander (D33).
-- Still the owner's hands: P4 on an iPhone and the tap film; P5's loads ~~and VCV's reply~~
-  (VCV replied 2026-11-23, R46: the submission details are the owner's to ask for).
+The next ABI number (this line said 6, from before the effects: D83). `ENGINE.md` §16,
+`design/DESIGN.md` "The animation", `design/loom/frames.html`. A first attempt while the
+owner is away (D79, D83): the fourth box stays open for the owner.
 
-## After the gate
+**Where this stands (2026-11-23): a first attempt is built and waits for the owner.** Boxes
+1, 2, 3 and 5 are done (D84 has the rulings; the Handover at the bottom says what to look
+at). Box 4 is open, so the session is not finished and this list stays here. Whoever takes
+it up changes the drawing in `core/src/weave.rs`, once, with the owner watching.
 
-(Where this stands, 2026-11-20: the first two lines became Sessions 5 to 14 once P1 to P3 and
-P7 passed. The last three still wait; "After Session 14" above orders them.)
+- [x] The view's bytes 48 to 54 (§16: a u32, a u16, a u8; this line said 48 to 55), filled
+      by the sequencer; fixtures' view text is unchanged (it leaves them out). Rust tests
+      for the three fields. `harness/race.cpp`'s `look()` and `the_view_follows_edits…` in
+      `core/src/tests/keys.rs` both hold bytes 48 to 63 to zero: change them with it.
+- [x] `pi_weave`: the seven rules as cells. Tests of the rules, not of a picture: stopped,
+      the cells do not depend on the tick; the beater is 1 cell wide at no firings and 4 at
+      sixteen; a beat with nothing set weaves one stitch; reduced motion never draws white
+      rows. Natively and from the `.wasm`, the same bytes for a set of views.
+- [x] The page paints the cells (its own instance of the `.wasm`), the Rack display paints
+      the same cells. Neither holds a rule. (Rack: `RhythmDisplay::draw` in
+      `rack/src/Rhythm.cpp` leaves the weave's area dark; a self-test writes its name there.)
+- [ ] The owner watches it move, on the phone and in Rack. What is wrong is changed in the
+      core, once. When it is accepted, three views and their cells are committed as the
+      picture to hold to.
+- [x] `DESIGN.md`'s "Not done" list brought up to date.
 
-Decided when P1 to P4 are in, not before:
+## Not planned yet
 
-- The tiny rhythm machine (D12): one voice in the core first (P7), then the instrument.
-- **The showpiece (D19):** the tiny rhythm machine, playable from a link on a phone, with its
-  own look inside D20's limits and its own display animation. This is what Teenage Engineering
-  is shown, with a Rack module beside it. It has to be good enough to be worth their time.
-- The look's gate (P9), then the approach to Teenage Engineering.
-- P5 (shipping) and P6 (editing while playing) before a second instrument.
-- Extraction to a standalone repository: licence file, name (O3), contribution rules.
+In the order they are likely wanted. Each needs a design pass (Fable) before a build list.
+
+| What | Waits on | Where it is written |
+|---|---|---|
+| **The repeat's rule for an empty step.** A repeat on a step with no switched-in sound mutes those sounds; the owner hears it as a mute | Session 22: what 9 to 12 do on the hardware | Session 22's last box; `ENGINE.md` §17; D67 item 1 |
+| **The effects tuned:** the constants of 1, 2, 3 and 5 to 8 | Session 22's measurements, then the owner's ear | `core/src/bus.rs`, "TUNING THE EFFECTS"; `ENGINE.md` §18 |
+| **Effects 4 and 14** (delay, feedback): how much stored sound, and whose memory | a ruling; Session 22 for what they sound like | D67 item 4; R57 |
+| **Effects 13, 15, 16** | Session 22: nobody describes them | D67 item 4; R48 |
+| **Each effect to its own Rack module** (the owner, 2026-11-24): FX SEND and FX RETURN a channel an effect, and breakouts | the owner's ruling on D86 | D86; R63 |
+| **The sliders, the rest:** change one held step; record a slider's movement while write is held; live record of notes (write becomes a held key) | the simple rule played first | D75 item 3; `WORKFLOW.md`, "The sliders" |
+| **A OUT back to A IN is one hit late** | the owner: does it matter? | O18; `ENGINE.md` §19, "Found" |
+| **The clock in Rack:** the menu's "one edge a beat"; the tempo measured from the edges, with "ext" | nothing; touches `ENGINE.md` §4 and §14, so plan first | D64; D65 item 2 |
+| **The breakout for MixMaster:** sixteen voice jacks and one "Connect" | after the effects (D72) | D70; R61 |
+| **More of the hardware's workflow:** sixteen patterns, chains, copy, the step multiplier | P8's list of differences | `WORKFLOW.md`'s "later" rows |
+| **Ours:** a gesture for probability and a short length; the hat cut; a player's own samples; the neighbour connection | each its own question | O10; D47; D34; D40 |
+| **The showpiece's last mile:** a link that carries a beat, `web/` opening on the instrument, an offline shell | the look accepted | D19 |
+| **The gate, then the approach to Teenage Engineering:** the name, the registers, a lawyer's view | the showpiece | P9; O3, O6, O7; D11, D19 |
+| **Its own repository:** licence file, name, contribution rules | the proofs passed (`PROOFS.md`) | README |
+
+Watch, not work: Rack's self-test failed once in 32 runs on 2026-11-23 (96 kHz, a module on
+the LFO never saw its clock) and not since; if it fails again its log is kept in
+`rack/build/`. Read it before changing anything (`LEARNINGS.md`, Session 13).
+
+## Later: efficiency (measured first, PLAN's ground rules)
+
+None blocks anything; each is done when wanted, profiled before and after (Machine state).
+
+- [ ] **Idle cost:** the module shows about 0.6% in Rack with nothing playing (owner,
+      2026-11-23), where SEQ-3 shows 0.2% and many modules 0.0%. (Session 16's `make bench`:
+      a stopped engine is 26 ns a frame, as much as the minimum beat playing.) ⚠ Not profiled yet; the
+      likely cause is that the engine runs every frame while stopped (the clock keeps
+      counting, so a tap lands on the right tick, §4). A cheap idle path (stopped, every voice
+      silent, nothing patched moving) has to keep that rule; profile it first.
+- [ ] Still a question for the owner: read the parameters every 16 or 32 frames (under 1 ms
+      late) rather than on the frame the brief asks for, as VCV's own modules do. Measured
+      cost of reading them every frame now: a small part of `Rhythm::process`, no longer the
+      biggest.
+- [ ] Next for efficiency, when wanted: the core itself (`pi_process` is about half the
+      module now). That one speeds up the phone too. Profile first (Machine state).
+
+## The owner's hands
+
+Only the owner can do these. Merged on 2026-11-24 from the lists each session left (the
+originals are in `PLAN-HISTORY.md`); nothing was dropped, each thing is here once.
+
+**What 2026-11-23 built, to see, hear and rule on:**
+
+- [ ] **In Rack, by hand** (restart Rack first; Session 18's Handover in `PLAN-HISTORY.md`
+      has the steps): the owner's own patch, a punch (fx + key) heard on the returned
+      drums; the fx latch by mouse (D78); a slider moved, then any key tapped (D75; on
+      2026-11-23, before D75, the owner heard no change and the cause was never found);
+      FX SEND through a Rack delay to FX RETURN with effect 4 held; A OUT to A IN.
+- [ ] **The panel** at 100% zoom with cables in (D76; `design/rack-face-lit-200.png`
+      first): do the two rows and their groups work?
+- [ ] **On the phone:** the `fx` block and the lane's ticks (D81's stand-in; madder, or the
+      fx key's ecru: D82 item 1); the sheet's "through fx"; the fx latch by mouse on a
+      desktop; the second mark on each slider (a stand-in: a thin line); the grid with
+      write off (no stitches: D82 item 3).
+- [ ] **The weave, watched** (Session 14's fourth box; O19): the pictures
+      `design/rack-weave-*.png`, then the page, then Rack. The Handover below lists what to
+      look at and the seven choices least sure.
+- [ ] **By ear,** the seven sound effects on `web/listen.html` (`make hear`), after
+      Session 22 gives them a target.
+- [ ] **Rulings made while the owner was away, to accept or overrule:** D73, D77, D79,
+      D80 (O18: its eighteen items; A OUT to A IN one hit late; FX RETURN's default
+      effects; a marked repeat crossing to FX RETURN), D81 to D84. And the ⚠ readings in
+      the Handovers of Sessions 19, 20 and 21 (`PLAN-HISTORY.md`), each ruled as built.
+- [ ] **D86,** each effect to its own Rack module: the recommendation, yes or no.
+
+**With the PO-12 in hand:**
+
+- [ ] Session 22's recording, with the Scarlett.
+- [ ] The four effects checks left (`WORKFLOW.md`, "The effects: what to check on the
+      PO-12"; nine were done on 2026-11-23): what 9 to 12 do, whether every sound repeats,
+      the sweeps, effects 4 and 13 to 16. Session 22 answers most of them.
+- [ ] The sliders' four checks (`WORKFLOW.md`, "The sliders").
+- [ ] The rest of the hour: tick or correct each row of `WORKFLOW.md` and its eleven
+      questions, as mismatches turn up (D29). Measure it (width, height, key pitch, jack
+      spacing) for D16.
+
+**Older, none blocking:**
+
+- [ ] Reply to VCV: ask for the binary submission and identity verification details (R46).
+      Recommended: ask now; it costs nothing and nothing is submitted until the gate.
+- [ ] P4: iOS Safari (no iPhone yet), and the tap pad filmed for latency. `PROOFS.md` P4.
+- [ ] P5: the four loads in Rack, one a platform. `PROOFS.md` P5. CI has the artefacts.
+- [ ] P6's last: play `web/rhythm.html` on the phone and listen for a dropout while
+      editing it as it plays (`PROOFS.md`).
+- [ ] By ear: which keys become samples (D35, D50).
+- [ ] In Rack, left from Session 13: the computer keys, several at once (R25); a
+      double-click on each slider, with and without bpm held; MIDI-Map on a slider; the
+      CPU meter.
+- [ ] Readings never looked at: Session 12's four on the phone (`design/DESIGN.md`, "Not
+      done"); D59, Session 10's eight rulings; Session 11's two (⚠ in `ENGINE.md` §15).
 
 ---
 
 ## Handover
 
 The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
-
-### After Session 20: the grid's lights, as the hardware has them (2026-11-23)
-
-- **Built (D71, D72 item 3, D82; ABI 9, no byte moved):** with write off the grid's field is
-  the chosen sound's steps, as with write on and as on the owner's PO-12; no stitch, no bar,
-  and the grid is still sounds, so every key goes white as its own sound fires and the frame
-  marks the playhead. One line in `Engine::view` (`core/src/keys.rs`). `ENGINE.md` §14's
-  table changed first and is marked; `web/pi_core.wasm` rebuilt and committed. Neither host
-  needed a change: the page and the Rack module already lit every key from the field and
-  drew a firing's white over it.
-- **The fixtures, before any code:** every view of every fixture listed with the row it
-  takes. Sixteen lines in four fixtures take the write-off row (not only the three key
-  fixtures: both format 3 ones too); twelve change, in `field=` only: `fx-repeat-punch` at
-  4, 7, 14, 23 (`0011`); `fx-repeat-swing` at 2, 15 (`0007`); `keys-tap-and-choose` at 7, 10
-  (`0004`); `keys-write-a-beat` at 11, 15, 27, 31 (`1010`). Why, line by line, in
-  `fixtures/README.md` ("The views worked again for the write-off row"). No trace changed.
-- **Proven:** before the first change, `make test` (204 Rust tests, 300 runs a harness), its
-  report and the sha256 of all 408 render files kept. At the end: 205 Rust tests; the report
-  differs in exactly 360 of 14 191 lines (twelve a run, 30 runs), each only in `field=`
-  (checked by a script); the three harnesses agree; all 408 render files the same bytes.
-  `make play` in Chromium and Firefox: 8 phases, about 735 drawings each, the field read back
-  on every one, and new: every drawn key's white held to §14's rule, and with write off a lit
-  key seen going white and lit again (26 and 7 times in Chromium, 27 and 7 in Firefox).
-  `make p4` (24 of 24, both browsers). Rack: `make install`, `make selftest` at 44.1, 48 and
-  96 kHz (12 Rhythm modules on the six fixtures of formats 2 to 4, both clocks, every view
-  held; three through their own cables; D78's latch), all clean. Planted, the unplanted copy
-  passing first: 7 in the core, 7 caught by named tests (one, the field masked by the
-  length, only after a test was added that holds write off to write on's field); one each in
-  the C++ and Node harnesses' view text, one in Rack's view text, three on the page: each
-  failed its check. The repo's `make verify`. CI run 45209366419 (15bfd44, the last push
-  that changed the core) green on win-x64, lin-x64, mac-x64 and mac-arm64.
-- **Measured:** `pi_process` unchanged. `pi_view`, back to back with the old build, best of
-  seven: write off 6.56 to 6.82 ns old, 6.48 to 6.53 new; write on about 12.9 both.
-- **Opus decided nothing. Readings built on (⚠):**
-  1. No `PI_ABI_VERSION` bump: no byte moved and the field means what it meant; only which
-     row fills it changed. D82 is silent on the ABI.
-  2. "With write off as with write on" (the session's brief) is read as the field and the
-     host's drawing; the white for a firing still shows only while the grid is sounds
-     (§14), so with write on a firing still does not whiten a key (D82 item 5).
-  3. A step past a short length is lit with write off, as write on has always lit it: §14
-     names the same steps in both rows, and a test now holds the two fields equal.
-- **Questions for the owner:**
-  1. The look with write off (`design/rack-face-writeoff-100.png`, `-200.png`; on the phone
-     by playing with write off): does it read like the PO-12?
-  2. D82 item 3 (Fable's, the owner away): no stitches with write off. Keep?
-  3. The three readings above: accept as built?
-- **Not done, and limits:** nothing on the list is left. The Rack drawing has no checker; its
-  write-off face was seen only in screenshot mode from a scratch build (kept out of the tree;
-  `grep SCRATCH` is clean). Nothing was seen on a phone, and nothing was heard (no sound
-  changed).
-- **For the owner to try now:** on `web/rhythm.html`, write a kick on 1, 5, 9 and 13, turn
-  write off and play: the four keys stay lit and flash white as the kick fires. Choose
-  another sound (sound + its key): its steps light instead. In Rack (`make install`), the same.
-- **Next:** a first weave (Session 14, D79), which reads the same view; or the owner's eye on
-  the write-off grid first.
 
 ### After Session 14's first attempt: the display weaves; the owner has not watched it (2026-11-23)
 
@@ -550,3 +449,18 @@ The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
   play`. When it is accepted: three views and their cells committed beside
   `fixtures/weave-views.txt`, box 4 ticked, the list moved to `PLAN-HISTORY.md`.
 - **CI:** run 45217909351 (a24f85b, the push with the core and `rack/` changes) green on win-x64, lin-x64, mac-x64 and mac-arm64.
+
+### After the tidy: the docs brought up to date (2026-11-24)
+
+- **No code changed.** This file was made compact: stale sections moved to
+  `PLAN-HISTORY.md` word for word; the owner's lists merged into one; the rules of the
+  build sessions written once; "Not planned yet" is the backlog, each row with where it is
+  written down.
+- **Checked against the repo:** every session in "Done so far" has its list and Handover in
+  `PLAN-HISTORY.md`; every open question is in `DECISIONS.md`'s Open table (O3, O6, O7,
+  O10, O18, O19, and O20 for D86); `README.md`'s status and map say what is built.
+- **New, from the owner on 2026-11-24:** each effect to its own Rack module. Researched
+  (R63) and recommended as D86, not decided.
+- **Next: Session 22,** the recording, in a new session with the owner, the PO-12 and the
+  Scarlett. Its list is above. It is a Fable session: it measures, writes facts into
+  `REFERENCES.md`, and proposes; it builds nothing in the core.

@@ -1,6 +1,8 @@
 # The workflow
 
-**Status:** a draft from the published guide (R23), not checked on the hardware. By D29 it is
+**Status:** a draft from the published guide (R23). Since 2026-11-23 partly checked on the
+owner's PO-12: the effects (nine of thirteen checks), the lights with write off, and how
+the knobs act; each such row says so. The rest is still not checked on the hardware. By D29 it is
 built from as it stands: a row is ticked, or a mismatch added to the differences table, as
 the owner meets it. P8 is judged against this file (D22).
 

@@ -58,10 +58,31 @@ still load). Every trace and every earlier render file is as it was. By the deci
 view lines of `keys-tap-and-choose` changed (`fixtures/README.md`). (ABI 7, Session 17,
 added §18's bus with no new call or command.) (§20 was "designed, not built" until then.)
 
-**Designed, not built (Session 9, D51 to D57):** §16 is the rest of the instrument: the
+~~**Designed, not built (Session 9, D51 to D57):** §16 is the rest of the instrument: the
 weave. Session 14 builds it (`PLAN.md`) and moves `PI_ABI_VERSION` by one. Until then the
 code does not do it. (§13 and §14 were in this list until Session 10 built them, §15 until
-Session 11.)
+Session 11.)~~ Built as a first attempt:
+
+**ABI 10 (Session 14's first attempt, D53, D84)** adds §16, the weave: the view's bytes 48
+to 54 and one function, `pi_weave`, a pure function of a view. Every trace, view text and
+render file is as it was. The drawing is not accepted yet (O19): its numbers may change,
+its interface should not.
+
+**Where everything is, at ABI 10** (2026-11-24; nothing in this file is designed and
+unbuilt):
+
+| ABI | Session | Section | Adds |
+|---|---|---|---|
+| 1 | 2 | §1 to §10 | the clock, the sequencer, commands, events, the snapshot |
+| 2 | 3 | §11 | sound |
+| 3 | 8 | §12 | samples |
+| 4 | 10 | §13, §14 | keys and the view |
+| 5 | 11 | §15 | snapshot version 2, the tracks and the mix from one call |
+| 6 | 16 | §17 | the effects lane, the fx key, the four repeats, snapshot version 3 |
+| 7 | 17 | §18 | the bus and seven sound effects |
+| 8 | 21 | §20 | the sliders as the hand's, a step keeping its values, snapshot version 4 |
+| 9 | 18 | §19 | sound in from Rack: returns, the effects loop, the sliders out and in |
+| 10 | 14 | §16 | the weave (a first attempt) |
 
 ## 1. The shape
 

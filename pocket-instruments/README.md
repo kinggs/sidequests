@@ -1,9 +1,20 @@
 # Pocket Instruments
 
-**Status:** P1, P2, P3 and P7 passed. The instrument is designed (Session 9, 2026-11-20) and its workflow is in the core (Session 10, ABI 4: keys, sliders, and a view that says what to light), and the snapshot holds all of it (Session 11, ABI 5). It plays on a phone: `web/rhythm.html` (Session 12, 2026-11-23), and in Rack: the Rhythm module, with each sound out and back through RETURN (Session 13, 2026-11-23). The effects are researched and designed (Session 15, 2026-11-23: `ENGINE.md` §17 to §19, D66 to D71, accepted in D72). The lane, the fx key and the four repeats are in the core (Session 16, ABI 6), and the bus with seven sound effects, ported with credit from Émilie Gillet's stmlib and Plaits (Session 17, ABI 7; hear them on `web/listen.html`). The sliders are the hand's, for every sound, and a step keeps the positions it was written with, a second mark on each slider showing what was last played (Session 21, ABI 8, D75). In Rack the sounds that come back through RETURN go through the effects, an effect can be a Rack module (FX GATES, FX SEND, FX RETURN), and each sound's slider voltages go out and come back, on a panel of thirteen jacks in two rows (Session 18, ABI 9, D76, D80). On the page fx and a key punch an effect, the display (there and in Rack) says the effect heard and marks the lane, the sounds sheet switches a sound out of the effects, and Ctrl+click on fx stays latched (Session 19, D78, D81). With write off the grid lights the chosen sound's steps, as the hardware does (Session 20, D82). The display weaves as the pattern plays, on the page and in Rack, from cells the core draws (`pi_weave`, Session 14, ABI 10): a first attempt, D84, waiting for the owner to watch it. Next: the owner's eye on the weave. P4, P5 and P6 are part-run (2026-11-19): the core runs in
-Rack and in an AudioWorklet, on a phone too, and plays all sixteen voices; CI builds the plugin
-for all four Rack platforms. Each key plays its code voice or a sample (D50). What is left needs an iPhone, other machines and the instrument
-itself (`PROOFS.md`). Started 2026-11-18.
+**Status (2026-11-24):** it plays, on a phone (`web/rhythm.html`) and in VCV Rack (the
+Rhythm module). Sixteen sounds, each built in code or a public-domain sample; the hardware's
+workflow for writing a beat; effects punched in and recorded as they are played, with four
+repeats and seven sound effects; sliders that are the hand's, with steps that keep what
+they were written with; a display that weaves. In Rack, thirteen jacks: every sound's
+trigger, audio and slider voltages go out and come back, and an effect can be a Rack
+module. The engine is at ABI 10 with snapshot version 4; CI builds the plugin for all four
+Rack platforms. Proofs P1, P2, P3 and P7 passed; P4, P5 and P6 are part-run and wait for an
+iPhone and other machines (`PROOFS.md`).
+
+Not finished: most of what was built on 2026-11-23 has not been seen or heard by the owner,
+and every look in it is a stand-in until then; the effects are first guesses from the
+hardware's names, untuned; five of the sixteen effects are not designed. What is next is
+`PLAN.md`, "Next, in order". How it got here, session by session, is `PLAN.md`'s "Done so
+far" and `PLAN-HISTORY.md`. Started 2026-11-18.
 
 Small calculator-format musical instruments, free and open source, playable as VCV Rack modules
 and in a browser, from one shared engine. An affectionate, credited homage to Teenage

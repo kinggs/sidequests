@@ -1551,6 +1551,52 @@ Built and verified on this one day, each before the next began: Sessions 15, 16,
 18, 19, 20 and 14's first attempt. Not started, by D79: the recording (Session 22),
 tuning by ear, the repeat's rule for an empty step, accepting the weave.
 
+### D86 — Each effect to its own Rack module: a channel an effect on the two jacks there are; breakouts later, small and many
+**2026-11-24 · proposed (the owner asked: "if I e.g. hit FX+1, I can send it to one module in Rack, but if I hit FX+2 the sound goes to another ... almost like an addressable sequential splitter"; and leans to one large expander of sixteen rows) · not decided (O20)**
+
+The owner's sketch: an expander with sixteen rows and a column each for trigger out,
+trigger return, voice out, voice return, A out, A return, B out, B return, fx out and fx
+return; "thats's a huuuge expander. But maybe fun?"; and "the FX channels are actually for
+FX effect 1 to 16, not voice 1 to 16".
+
+1. **First, with no new jack: FX SEND and FX RETURN become sixteen channels, a channel an
+   effect.** FX SEND's channel *n* carries the bus while effect *n* is heard, ramped as
+   the core already ramps an effect, and silence otherwise. FX RETURN adds up whatever
+   comes back (R63 d: what an audio input does with a cable's channels). That is the
+   addressable splitter, on the panel as it is. A menu entry keeps today's single channel.
+   The detail is a design pass: above all whether the return is always in the mix, so a
+   delay rings on after its key is let go, as a send does (R63 h), where today's loop
+   switches it off with the effect.
+2. **It can be tried today, before anything is built** (R63 a, b): FX SEND into VCV's 3 HP
+   VCA, FX GATES into its CV; out to Split; an effect on each channel wanted; Merge; Sum;
+   FX RETURN, with those effects ticked in FX RETURN's menu. The gate's edge is hard, which
+   ours would not be. If it is not fun this way, the jacks will not make it so.
+3. **The large expander as drawn does not fit:** sixteen jacks cannot stand in one column
+   (R63 e), so 160 jacks are two blocks of eight rows and twenty columns, forty HP or more,
+   wider than the instrument's 24. It also puts two different sixteens on one row: sounds
+   1 to 16 and effects 1 to 16, as the owner saw.
+4. **Recommended in its place: one small breakout, used as many times as wanted.** About
+   8 HP, thirty-two jacks: sixteen out and sixteen in, two columns of eight each, numbered.
+   A menu says what it carries: the sounds (VOICES and RETURN), the triggers (out, and in:
+   below), slider A, slider B, or the effects (FX SEND and FX RETURN, numbered by effect).
+   It only mirrors one pair of the instrument's jacks, so it holds no rule and needs no
+   new work in the core. Five side by side are the owner's whole matrix; one is enough for
+   most patches; the one for sounds carries D70's "Connect to MixMaster". Built one kind
+   at a time, each useful alone. ⚠ No precedent was found for an expander that mirrors a
+   neighbour's jack (R63 g), and Rack 3 is to rework expanders (R60): keeping it a dumb
+   panel of jacks keeps that rewrite small.
+5. **New in the owner's sketch: a trigger in for each sound,** so any Rack sequencer can
+   play the instrument's voices. It is `FIRE` (D45) from a jack. It belongs on the
+   triggers' breakout; the panel has no room for a fourteenth jack.
+
+Order proposed: try item 2 by hand; if it is wanted, item 1 as a small design and build;
+the breakout after the effects are tuned, starting with the kind most missed.
+
+Why not start with the large expander: it is the most to build and the most to redo when
+Rack 3 arrives, before anyone has patched even two effects this way. The small one gets
+to the same place in steps, and each step can be judged with cables in, which is how the
+owner judges (D76: "you have to use for a while").
+
 ## Open
 
 | ID | Question | Needs |
@@ -1574,3 +1620,4 @@ tuning by ear, the repeat's rule for an empty step, accepting the weave.
 | O9 | ~~How do the three blocks stack on a phone, and does one instrument fill the screen or share it?~~ | Answered 2026-11-19: D36 |
 | O18 | Session 18's rulings (D80): the eighteen items as built? And its three open points: the two-row panel judged with cables in; A OUT to A IN being one hit late; a marked repeat crossing the bus | The owner, in Rack. Recommended: accept the items; play the slider loop before ruling on the lateness |
 | O19 | The weave's first attempt (Session 14, D84): does it read as a cloth being woven when it moves, on the phone and in Rack? D84's sixteen items as built? Above all item 8 (a diamond growing as its beat fills), item 9 (the jump a beat), item 11 (the flash's length) and item 14 (every cell a square) | The owner, watching it play: `web/rhythm.html` and the Rhythm module. `PLAN.md`, "After Session 14's first attempt", lists what to look at. When accepted, three views and their cells are committed as the picture to hold to (Session 14's fourth box) |
+| O20 | Each effect to its own Rack module (D86): sixteen channels on FX SEND and FX RETURN first, then small breakouts, in place of one large expander? And a trigger in for each sound? | The owner, after trying D86 item 2's patch by hand. Recommended: yes to both |
