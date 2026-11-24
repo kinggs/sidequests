@@ -523,7 +523,7 @@ fn hold_loop_to_model(rate: u32, cmds: &[(u64, Cmd)], frames: u64) -> (usize, us
         let named = |mask: u32| heard != 0 && mask >> (heard - 1) & 1 == 1;
         let effect = if named(routes[1]) {
             if named(routes[4]) { 0x80 | heard } else { 0 }
-        } else if [1, 2, 3, 4, 5, 6, 7, 8].contains(&heard) {
+        } else if [1, 2, 3, 4, 5, 6, 7, 8, 14].contains(&heard) {
             heard
         } else {
             0
@@ -557,6 +557,7 @@ fn loop_tour(step: u64) -> Vec<(u64, Cmd)> {
     c.insert(0, (0, fx(12, 4)));
     c.insert(0, (0, fx(14, 13)));
     c.insert(0, (0, fx(15, 4)));
+    c.insert(0, (0, fx(0, 14))); // ABI 13: the feedback, from idle at play, in the loop
     c.insert(0, (0, route(0, 1 | 1 << 5 | 1 << 9)));
     c.insert(0, (0, route(1, 1 << 3 | 1 << 12)));
     c.insert(0, (0, route(INSERT, 1 << 3 | 1 << 6))); // 4 in place of the dry; 7's bit alone is nothing

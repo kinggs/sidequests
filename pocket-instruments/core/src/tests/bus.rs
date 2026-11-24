@@ -94,11 +94,13 @@ pub(super) struct Model {
     line: Vec<f32>,
     head: usize,
     full: bool,
+    /// Effect 14 (ABI 13): frames of exact zero on the bus, counted with no ceiling.
+    still: u64,
 }
 
 impl Model {
     pub(super) fn new() -> Self {
-        Model { on: 0, heard: 0, w: 0.0, acc: 0, held: 0.0, s1: 0.0, s2: 0.0, cutoff: 0.0, swept: 0, line: Vec::new(), head: 0, full: false }
+        Model { on: 0, heard: 0, w: 0.0, acc: 0, held: 0.0, s1: 0.0, s2: 0.0, cutoff: 0.0, swept: 0, line: Vec::new(), head: 0, full: false, still: 0 }
     }
 
     /// With a line of `delay` frames lent, as `pi_delay_frames` gives.
@@ -141,6 +143,14 @@ impl Model {
                     if effect == 4 {
                         self.head = 0;
                         self.full = false;
+                    }
+                    // Effect 14 (ABI 13): `head`, `full`, the filter's two states and `still`.
+                    if effect == 14 {
+                        self.head = 0;
+                        self.full = false;
+                        self.s1 = 0.0;
+                        self.s2 = 0.0;
+                        self.still = 0;
                     }
                 }
                 self.on = effect;
@@ -225,6 +235,43 @@ impl Model {
                 }
                 b + 0.15 * echo
             }
+            // §18, designed 2026-11-24: effect 14's frame, as its pseudo-code. The loop is the
+            // first `comb` floats of the line, 858 / 46 875 s; the bus's filter, band output,
+            // at 1 093 Hz and `r` 2; 2.24 round, held to ±0.25; still after 1 ms of exact zero.
+            14 => {
+                self.still = if b == 0.0 { self.still + 1 } else { 0 };
+                if self.still * 1000 >= rate as u64 {
+                    b
+                } else {
+                    let comb = ((rate as u64 * 858 + 23_437) / 46_875) as usize;
+                    let back = if self.full { self.line[self.head] } else { 0.0 };
+                    let pi = core::f64::consts::PI;
+                    let f = 1093.0f32 / rate as f32;
+                    let a = (0.326_f32 as f64 * pi * pi * pi) as f32;
+                    let c = (0.1823_f32 as f64 * pi * pi * pi * pi * pi) as f32;
+                    let g = f * (pi as f32 + f * f * (a + c * (f * f)));
+                    let r = 2.0f32;
+                    let h = 1.0 / (1.0 + r * g + g * g);
+                    let hp = (back - r * self.s1 - g * self.s1 - self.s2) * h;
+                    let bp = g * hp + self.s1;
+                    self.s1 = g * hp + bp;
+                    let lp = g * bp + self.s2;
+                    self.s2 = g * bp + lp;
+                    let mut fb = 2.24 * bp;
+                    if fb > 0.25 {
+                        fb = 0.25;
+                    } else if fb < -0.25 {
+                        fb = -0.25;
+                    }
+                    self.line[self.head] = b + fb;
+                    self.head += 1;
+                    if self.head == comb {
+                        self.head = 0;
+                        self.full = true;
+                    }
+                    b + fb
+                }
+            }
             // `(floor(4.6 × bus) + 0.5) / 4.6`, the floor by a cast and a compare (4 as designed;
             // Session 26's comparison).
             3 => {
@@ -293,7 +340,7 @@ fn hold_to_model(rate: u32, cmds: &[(u64, Cmd)], frames: u64, line: bool) -> usi
         let ticks = if f == 0 { 0 } else { tick.wrapping_sub(e_before) };
         e_before = tick;
         let heard = v[55];
-        let effect = if SEVEN.contains(&(heard as u32)) || (heard == 4 && line) { heard } else { 0 };
+        let effect = if SEVEN.contains(&(heard as u32)) || ((heard == 4 || heard == 14) && line) { heard } else { 0 };
         let sounds = u16::from_le_bytes([v[58], v[59]]);
         let want = m.frame(effect, ticks, rate, &out[..16], sounds, v[27]);
         assert_eq!(out[16].to_bits(), want.to_bits(), "rate {rate}, frame {f}: the mix {} against the model's {}", out[16], want);
@@ -339,6 +386,25 @@ fn tour_with_echo(step: u64) -> Vec<(u64, Cmd)> {
     c
 }
 
+/// The echo's tour with effect 14 on steps 12 and 15 (ABI 13): from a filter (5 on step
+/// 11) and straight to another (7 on 13); then from 4 (step 14) and straight to 4 (step 0).
+fn tour_with_feedback(step: u64) -> Vec<(u64, Cmd)> {
+    let mut c = tour_with_echo(step);
+    let at = c.iter().position(|x| x.1.kind == CMD_PLAY).unwrap();
+    for s in [12, 15] {
+        c.insert(at, (0, fx(s, 14)));
+    }
+    c
+}
+
+/// A sparse beat for effect 14 (ABI 13): the kick on step 1 and the snare on step 11, 14 on
+/// every step. Between them the bus is exact zero for long stretches: the loop stands still.
+fn sparse_feedback() -> Vec<Cmd> {
+    let mut edits = vec![on(0, 0), on(1, 10)];
+    edits.extend((0..16).map(|s| fx(s, 14)));
+    edits
+}
+
 #[test]
 fn the_mix_is_the_model_s_bit_for_bit_at_three_rates() {
     for rate in [44_100u32, 48_000, 96_000] {
@@ -348,6 +414,11 @@ fn the_mix_is_the_model_s_bit_for_bit_at_three_rates() {
         // ABI 12: with a line lent, effect 4 echoes in the tour.
         let running = hold_to_model(rate, &tour_with_echo(step), 32 * step, true);
         assert!(running as u64 > 13 * step, "rate {rate}, a line lent: effects ran on {running} frames");
+        // ABI 13: and effect 14 feeds back in it, and over a sparse beat stands still.
+        let running = hold_to_model(rate, &tour_with_feedback(step), 32 * step, true);
+        assert!(running as u64 > 15 * step, "rate {rate}, 14 in the tour: effects ran on {running} frames");
+        let running = hold_to_model(rate, &at_zero(&sparse_feedback()), 32 * step, true);
+        assert!(running as u64 > 31 * step, "rate {rate}, 14 over a sparse beat: effects ran on {running} frames");
     }
 }
 
@@ -355,7 +426,8 @@ fn the_mix_is_the_model_s_bit_for_bit_at_three_rates() {
 fn the_mix_is_the_model_s_on_edges_too() {
     // The same, on an external clock, an edge a step: the sweeps move by ticks, so they
     // follow the edges, a burst at each. With a line lent, and effect 4 in the tour.
-    let mut c = tour_with_echo(STEP);
+    // ABI 13: the tour with effect 14 in it.
+    let mut c = tour_with_feedback(STEP);
     c.insert(0, (0, cmd(CMD_SOURCE, 0, 0, 1)));
     for s in 0..32 {
         c.push((s * STEP, cmd(CMD_CLOCK, 0, 0, 0)));
@@ -675,7 +747,10 @@ fn a_sweep_starts_again_with_each_run() {
 #[test]
 fn the_repeats_and_the_effects_not_built_leave_the_mix_the_plain_sum() {
     // §18's seven only: with 4 and 9 to 16 on every step the bus never runs, and the mix is
-    // the sum of the sixteen channels in track order, bit for bit.
+    // the sum of the sixteen channels in track order, bit for bit. Session 28 (ABI 13) kept 13
+    // and 14 here, though §17 said both would go: 13 is the sequencer's, as 9 to 12 are (it
+    // moves which voices sound, never the mix's sum), and 14 with no line lent is the plain
+    // sum, as 4 is (§18's own table: "keeps 14 with no line, as it keeps 4").
     for effect in [4u32, 9, 10, 11, 12, 13, 14, 15, 16] {
         let mut edits = beat();
         edits.extend((0..16).map(|s| fx(s, effect)));
@@ -937,4 +1012,310 @@ fn a_line_lent_again_mid_run_is_never_heard_before_it_is_written() {
         assert_eq!(io[16].to_bits(), (0.0f32 + x + (x - x)).to_bits(), "frame {f} after the second line was lent");
     }
     assert_eq!(bus(&h).echo_state(), (0, true), "the second line has gone round once");
+}
+
+// ---- §18, designed 2026-11-24: effect 14, the bus fed back (ABI 13; D93 items 5 to 8) ----
+// One test a row of "Proven when built by". The model's tours (above) hold the frame bit for
+// bit; these hold each rule alone.
+
+/// Effect 14's loop at `rate`, as §18's table gives it.
+fn comb(rate: u32) -> usize {
+    crate::bus::comb_frames(rate) as usize
+}
+
+/// A fresh engine, lent `pi_delay_frames + extra` floats of junk (7.0, the last `extra` a
+/// guard) if `line`, in the 18-channel loop: `xs[f]` returned as sound 1 on frame `f`, and
+/// `cmds` at their frames. The mix of each frame, the line and the engine.
+fn looped_at(rate: u32, cmds: &[(u64, Cmd)], xs: &[f32], line: bool) -> (Vec<f32>, Vec<f32>, Host) {
+    let h = Host::new(rate, 1);
+    let mut l = vec![7.0f32; pi_delay_frames(rate) as usize];
+    if line {
+        assert_eq!(unsafe { pi_set_delay(h.e, l.as_mut_ptr(), l.len() as u32) }, 1);
+    }
+    let mut out = Vec::with_capacity(xs.len());
+    for (f, x) in xs.iter().enumerate() {
+        let mut io = [0f32; 18];
+        io[0] = *x;
+        let mut c: Vec<Cmd> = if f == 0 { vec![cmd(CMD_ROUTE, 0, 0, 1)] } else { vec![] };
+        c.extend(cmds.iter().filter(|c| c.0 == f as u64).map(|c| c.1));
+        let mut ev = [Event::default(); CAP];
+        unsafe { pi_process(h.e, 1, c.as_ptr(), c.len() as u32, ev.as_mut_ptr(), CAP as u32, io.as_mut_ptr(), 18) };
+        out.push(io[16]);
+    }
+    (out, l, h)
+}
+
+/// 14 on every step and play, at frame 0.
+fn all_14() -> Vec<(u64, Cmd)> {
+    (0..16).map(|s| (0, fx(s, 14))).chain([(0, play())]).collect()
+}
+
+#[test]
+fn the_first_comb_frames_of_14_are_the_bus_and_comb_is_807_879_and_1757() {
+    assert_eq!([comb(44_100), comb(48_000), comb(96_000)], [807, 879, 1757]);
+    assert_eq!(comb(46_875), 858);
+    // Heard from frame 0: for `comb` frames nothing has come round, so `wet` is the bus and
+    // the mix `0 + bus + w (bus − bus)`. On frame `comb` the first of it comes back.
+    for rate in [44_100u32, 48_000, 96_000] {
+        let n = comb(rate);
+        let xs = moving(n + 50);
+        let (out, ..) = looped_at(rate, &all_14(), &xs, true);
+        let (step, mut w) = (500.0 / rate as f32, 0.0f32);
+        for (f, got) in out.iter().enumerate().take(n) {
+            w = if w + step > 1.0 { 1.0 } else { w + step };
+            let x = xs[f];
+            assert_eq!(got.to_bits(), ((0.0f32 + x + w * (x - x)) * 1.0).to_bits(), "rate {rate}, frame {f}");
+        }
+        assert!(out[n..].iter().zip(&xs[n..]).any(|(o, x)| o != x), "rate {rate}: something came round at {n}");
+    }
+}
+
+#[test]
+fn what_goes_round_is_never_past_a_quarter_whatever_is_played() {
+    // render-all's pattern (every sound on four steps of its own, the loudest there is), 14
+    // on every step, four bars: the mix less the dry mix, frame by frame, inside ±0.25 × the
+    // volume's gain (1 at 16), but for the rounding of two sums in different orders. And it
+    // gets there: the ceiling is reached.
+    let all = json::parse(include_str!("../../../harness/render-all.json"));
+    let edits: Vec<Cmd> = all.arr("commands").iter().filter(|c| c.str("cmd") == "step" && c.num("at") == 0).map(|c| on(c.num("track") as u8, c.num("step") as u8)).collect();
+    assert_eq!(edits.len(), 63);
+    let frames = 64 * STEP as usize;
+    let mut a = Host::new(SR, 1);
+    let _line = lend(&a, SR);
+    let mut lane = edits.clone();
+    lane.extend((0..16).map(|s| fx(s, 14)));
+    let wet = render(&mut a, frames, 128, 1, &at_zero(&lane)).0;
+    let dry = mix(&edits, SR, frames);
+    let most = wet.iter().zip(&dry).map(|(w, d)| (w - d).abs()).fold(0.0f32, f32::max);
+    assert!(most <= 0.25 + 1e-6, "{most}");
+    assert!(most > 0.249, "the ceiling is reached: {most}");
+}
+
+#[test]
+fn it_builds_a_click_comes_round_comb_frames_apart_and_grows_until_the_clip() {
+    // A made bus (`Bus::mix` directly), at 48 kHz: one click of 0.5, then a steady 0.000 001 so
+    // it never stands still. Against the model, bit for bit. Round 0 is the bus itself; the
+    // click comes back at `comb` frames and every `comb` after. ⚠ Not "louder each time" from
+    // the first round, as §18 says: a click is broadband, and the band output loses what is
+    // off its centre first, so rounds 1 and 2 are quieter than round 1 was. From round 3 each
+    // round is louder than the one before, until the clip holds it at 0.25 (round 30 here).
+    let n = comb(SR);
+    let mut line = vec![0f32; pi_delay_frames(SR) as usize];
+    let mut b = Bus::new();
+    b.lend(line.as_mut_ptr(), line.len() as u32);
+    let mut m = Model::lent(pi_delay_frames(SR));
+    let mut v = [0f32; 16];
+    let mut energy = Vec::new();
+    let mut peaks = Vec::new();
+    for round in 0..40 {
+        let (mut e, mut p) = (0f64, 0f32);
+        for i in 0..n {
+            let f = round * n + i;
+            v[0] = if f == 0 { 0.5 } else { 0.000_001 };
+            b.advance(14, 0, SR);
+            let got = b.mix(&v, 0xffff, 1.0);
+            let want = m.frame(14, 0, SR, &v, 0xffff, 16);
+            assert_eq!(got.to_bits(), want.to_bits(), "frame {f}");
+            let d = got - v[0];
+            if f > 0 {
+                e += d as f64 * d as f64;
+                p = p.max(d.abs());
+            }
+        }
+        energy.push(e);
+        peaks.push(p);
+    }
+    assert_eq!(peaks[0], 0.0, "round 0: nothing has come round");
+    assert!(peaks[1] > 0.1, "round 1: the click is back");
+    let clipped = peaks.iter().position(|p| *p == 0.25).expect("the clip holds it");
+    assert!(clipped > 10 && peaks[clipped..].iter().all(|p| *p == 0.25), "{peaks:?}");
+    for r in 3..clipped {
+        assert!(energy[r + 1] > energy[r], "round {}: {} after {}", r + 1, energy[r + 1], energy[r]);
+    }
+}
+
+/// The kick alone on step 1 of each bar, 14 on every step, a line lent: (the 17 channels of
+/// each frame, the engine), rendered up to `frames`, then on to `more` in a second render.
+fn sparse_kick(frames: usize) -> (Vec<f32>, Host, Vec<f32>) {
+    let mut h = Host::new(SR, 1);
+    let line = lend(&h, SR);
+    let mut lane = vec![on(0, 0)];
+    lane.extend((0..16).map(|s| fx(s, 14)));
+    let out = render(&mut h, frames, 128, 17, &at_zero(&lane)).0;
+    (out, h, line)
+}
+
+#[test]
+fn after_a_millisecond_of_exact_zero_it_stands_still_and_the_next_sound_brings_it_back() {
+    // The kick ends at exact zero long before step 9 (frame 48 000). From 1 ms after it ends
+    // the mix is exact zero, and nothing moves: not the head, not the filter's states. The
+    // next kick, on bar 2's first frame, brings back what the loop held: the mix is not the
+    // dry kick from that first frame, where a fresh loop is the dry kick for `comb` frames.
+    let (out, mut h, _line) = sparse_kick(8 * STEP as usize);
+    let quiet = out.chunks(17).rposition(|f| f[..16].iter().any(|x| *x != 0.0)).unwrap() + 1;
+    assert!(quiet + 48 < 8 * STEP as usize, "the kick ends inside the first half bar: {quiet}");
+    for (f, frame) in out.chunks(17).enumerate().skip(quiet + 48) {
+        assert_eq!(frame[16], 0.0, "frame {f}: still");
+    }
+    let (head, (_, _, _, s1, s2)) = (bus(&h).echo_state(), bus(&h).probe());
+    let out2 = render(&mut h, 8 * STEP as usize, 128, 17, &[]).0;
+    assert!(out2.chunks(17).all(|f| f[16] == 0.0));
+    assert_eq!(bus(&h).echo_state(), head, "the head does not move");
+    let (.., t1, t2) = bus(&h).probe();
+    assert_eq!((t1.to_bits(), t2.to_bits()), (s1.to_bits(), s2.to_bits()), "nor the filter");
+    assert!(head.1, "it had gone round before it stood still");
+    // Bar 2: from the kick's first frame the loop gives back what it held.
+    let bar2 = render(&mut h, 200, 128, 17, &[]).0;
+    let first = bar2.chunks(17).position(|f| f[0] != 0.0).unwrap();
+    let differs = bar2.chunks(17).skip(first).take(comb(SR)).any(|f| f[16] != f[0]);
+    assert!(differs, "the next sound brings back what the loop held");
+    let (fresh, ..) = sparse_kick(200);
+    let first_fresh = fresh.chunks(17).position(|f| f[0] != 0.0).unwrap();
+    assert!(fresh.chunks(17).skip(first_fresh).all(|f| f[16] == f[0]), "a fresh loop is the dry kick at first");
+}
+
+#[test]
+fn a_zero_for_less_than_a_millisecond_does_not_stop_it() {
+    // A made bus at 48 kHz: three rounds of a moving bus, then 47 frames of exact zero (1 ms is
+    // 48): the head moves on each and what comes round is heard. Then the bus moves again, and
+    // after 48 zeros the 48th frame stands still: the head does not move on it.
+    let n = comb(SR);
+    let mut line = vec![0f32; pi_delay_frames(SR) as usize];
+    let mut b = Bus::new();
+    b.lend(line.as_mut_ptr(), line.len() as u32);
+    let mut v = [0f32; 16];
+    let xs = moving(3 * n);
+    for x in &xs {
+        v[0] = *x;
+        b.advance(14, 0, SR);
+        b.mix(&v, 0xffff, 1.0);
+    }
+    v[0] = 0.0;
+    let mut heard = 0;
+    for i in 0..47 {
+        let before = b.echo_state().0;
+        b.advance(14, 0, SR);
+        heard += (b.mix(&v, 0xffff, 1.0) != 0.0) as usize;
+        assert_eq!(b.echo_state().0, (before + 1) % n as u32, "zero {}: the loop runs", i + 1);
+    }
+    assert!(heard > 40, "what came round is heard through the gap: {heard} of 47");
+    v[0] = 0.25;
+    b.advance(14, 0, SR);
+    b.mix(&v, 0xffff, 1.0);
+    v[0] = 0.0;
+    for i in 0..48 {
+        let before = b.echo_state().0;
+        b.advance(14, 0, SR);
+        let got = b.mix(&v, 0xffff, 1.0);
+        if i < 47 {
+            assert_eq!(b.echo_state().0, (before + 1) % n as u32, "zero {}", i + 1);
+        } else {
+            assert_eq!(b.echo_state().0, before, "the 48th zero: still");
+            assert_eq!(got, 0.0);
+        }
+    }
+}
+
+#[test]
+fn fourteen_is_cleared_from_idle_and_from_another_kind_and_nothing_of_4_is_heard_in_it_or_of_it_in_4() {
+    // As the echo's test: a run on steps 4 and 5 sounds as it does in an engine whose line
+    // never held anything. From idle (a dry step 3), from effect 4 (14 straight after 4), and
+    // 4 straight after 14. The returned bus moves on every frame, so 14 never stands still.
+    let xs = moving(6 * STEP as usize);
+    let lanes = |e: &[(u8, u32)]| -> Vec<(u64, Cmd)> { e.iter().map(|(s, x)| (0, fx(*s, *x))).chain([(0, play())]).collect() };
+    for (name, a, b) in [
+        ("14 from idle", lanes(&[(1, 14), (2, 14), (4, 14), (5, 14)]), lanes(&[(4, 14), (5, 14)])),
+        ("14 from 4", lanes(&[(1, 14), (2, 14), (3, 4), (4, 14), (5, 14)]), lanes(&[(3, 4), (4, 14), (5, 14)])),
+        ("4 from 14", lanes(&[(1, 4), (2, 4), (3, 14), (4, 4), (5, 4)]), lanes(&[(3, 14), (4, 4), (5, 4)])),
+        ("14 from a filter", lanes(&[(1, 14), (2, 14), (3, 5), (4, 14), (5, 14)]), lanes(&[(3, 5), (4, 14), (5, 14)])),
+    ] {
+        let (x, ..) = looped_at(SR, &a, &xs, true);
+        let (y, ..) = looped_at(SR, &b, &xs, true);
+        let from = 4 * STEP as usize;
+        assert!(same_bits(&x[from..], &y[from..]), "{name}: steps 4 and 5");
+        let two = 2 * STEP as usize..3 * STEP as usize;
+        assert!(!same_bits(&x[two.clone()], &y[two]), "{name}: the first run was heard");
+    }
+}
+
+#[test]
+fn fourteen_heard_again_inside_its_ramp_keeps_its_place() {
+    // 14 on steps 1 and 2, heard from frame 6 000; let go at 18 000, heard again by a punch
+    // 48 frames later, still ramping out. The loop ran on every one of those frames.
+    let xs = moving(3 * STEP as usize + 49);
+    let mut c: Vec<(u64, Cmd)> = vec![(0, fx(1, 14)), (0, fx(2, 14)), (0, play())];
+    c.extend([(3 * STEP + 48, down(FX)), (3 * STEP + 48, down(13))]);
+    let (_, _, h) = looped_at(SR, &c, &xs, true);
+    let (on, w, ..) = bus(&h).probe();
+    assert!(on == 14 && w > 0.0 && w < 1.0, "still ramping: {on} at {w}");
+    assert_eq!(bus(&h).echo_state(), (((2 * STEP + 49) % comb(SR) as u64) as u32, true), "kept");
+}
+
+#[test]
+fn a_lend_clears_fourteen_s_place_and_what_was_in_the_line_is_never_heard() {
+    // 14 on every step until the loop has gone round twice; then a second line, full of junk,
+    // is lent. Its head and `full` are cleared (§18: "`head` and `full` when a line is lent";
+    // the filter's states are not, and ring down). Two engines with the same history, lent
+    // different junk, give the same bits for three rounds: the junk is never read.
+    let n = comb(SR);
+    let xs = moving(5 * n);
+    let after = |junk: f32| {
+        let (_, _, h) = looped_at(SR, &all_14(), &xs[..2 * n + 5], true);
+        assert!(bus(&h).echo_state().1);
+        let mut room = vec![junk; pi_delay_frames(SR) as usize];
+        assert_eq!(unsafe { pi_set_delay(h.e, room.as_mut_ptr(), room.len() as u32) }, 1);
+        assert_eq!(bus(&h).echo_state(), (0, false));
+        let mut out = Vec::new();
+        for x in &xs[2 * n + 5..] {
+            let mut io = [0f32; 18];
+            io[0] = *x;
+            let mut ev = [Event::default(); CAP];
+            unsafe { pi_process(h.e, 1, core::ptr::null(), 0, ev.as_mut_ptr(), CAP as u32, io.as_mut_ptr(), 18) };
+            out.push(io[16]);
+        }
+        out
+    };
+    assert!(same_bits(&after(123.0), &after(-55.0)));
+}
+
+#[test]
+fn fourteen_never_writes_past_comb() {
+    // A line of junk; 14 runs ten rounds at each rate: nothing from `comb` on is touched.
+    for rate in [44_100u32, 48_000, 96_000] {
+        let n = comb(rate);
+        let (_, line, h) = looped_at(rate, &all_14(), &moving(10 * n + 3), true);
+        assert!(bus(&h).echo_state().1);
+        assert!(line[n..].iter().all(|x| *x == 7.0), "rate {rate}: written at or past {n}");
+        assert!(line[..n].iter().all(|x| *x != 7.0), "rate {rate}: the loop's own floats all written");
+    }
+}
+
+#[test]
+fn under_200_hz_the_mix_with_14_is_the_dry_mix_to_within_a_decibel() {
+    // The kick alone on every beat, 14 held two bars, against the same with no effect: both
+    // through a one-pole low-pass at 100 Hz in the test (a multiply and an add a frame), the
+    // level over the two bars within 1 dB. The band output is 0 at 0 Hz: the lows do not go
+    // round, and the dry sound passes whole. ⚠ §18 named no corner. Session 28 read +0.62 dB
+    // at 100 Hz and +1.15 dB at 200 Hz: a one-pole falls only 6 dB an octave, so at 200 Hz the
+    // 1 kHz ring (18 to 29 dB over the dry there, as the PO-12's) comes through it ~15 dB down.
+    let kick: Vec<Cmd> = (0..16).filter(|s| s % 4 == 0).map(|s| on(0, s)).collect();
+    let frames = 32 * STEP as usize;
+    let mut lane = kick.clone();
+    lane.extend((0..16).map(|s| fx(s, 14)));
+    let mut h = Host::new(SR, 1);
+    let _line = lend(&h, SR);
+    let wet = render(&mut h, frames, 128, 1, &at_zero(&lane)).0;
+    let dry = mix(&kick, SR, frames);
+    let low = |xs: &[f32]| {
+        let a = (-2.0 * core::f64::consts::PI * 100.0 / SR as f64).exp();
+        let (mut y, mut e) = (0f64, 0f64);
+        for x in xs {
+            y = (1.0 - a) * *x as f64 + a * y;
+            e += y * y;
+        }
+        e
+    };
+    let db = 10.0 * (low(&wet) / low(&dry)).log10();
+    assert!(db.abs() < 1.0, "{db} dB");
+    assert!(!same_bits(&wet, &dry), "and 14 was heard");
 }

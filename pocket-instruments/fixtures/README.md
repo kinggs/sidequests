@@ -493,3 +493,11 @@ the same bytes as after the retune).
 render files were made again after the last move: `render-fx-2`, `-3` and `-6` (36 files)
 and all 36 of `render-loop`'s, whose lane holds 2 and 6. `render-fx-4` and the rest, and the
 report, the same bytes as before the moves.
+
+## `harness/render-fx-14.json` (new, Session 28: ABI 13, D93)
+
+Effect 14 over the minimum beat in `render-fx-4`'s shape, with `"delay": 1` (each harness
+lends `pi_delay_frames(rate)` floats; 14 uses the first 18.30 ms of them). Its 12 files are
+new, native and `.wasm` the same bytes. Adding it, and effect 13 before it, moved nothing
+else: the report's 330 runs from before the session and all 420 earlier render files are the
+same bytes. The report has 360 runs since `fx-shuffle` moved up.

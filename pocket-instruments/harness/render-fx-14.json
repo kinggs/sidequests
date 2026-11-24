@@ -1,0 +1,31 @@
+{
+  "format": 1,
+  "name": "render-fx-14",
+  "about": "ENGINE.md section 18, designed 2026-11-24: effect 14 (ABI 13): feedback, one loop on the bus 18.30 ms round through the bus's filter's band output at 1 093 Hz, 2.24 into it, held to 0.25, standing still after 1 ms of exact zero) over the minimum beat (the bench's: bass drum, snare and the two hats), with a line lent (\"delay\": 1: each harness lends pi_delay_frames(rate) floats after pi_init; 14 uses the first 18.30 ms of it), for the native and WebAssembly renders to be compared. Two bars at 120 bpm. fx and key 14 go down a frame after step 1's boundary and up a frame after step 9's: heard at once from the punch, ramped in over 2 ms, the loop building on what is played, the steps that arrive (2 to 9) written into the lane, ramped out after step 9 with no tail; then the lane plays it again on steps 18 to 25. Not a trace fixture: it has no expect.",
+  "ticks_per_step": 96,
+  "seed": 1,
+  "mbpm": 120000,
+  "steps": 32,
+  "delay": 1,
+  "commands": [
+    {"at": 0, "cmd": "step", "track": 0, "step": 0, "value": 1},
+    {"at": 0, "cmd": "step", "track": 0, "step": 4, "value": 1},
+    {"at": 0, "cmd": "step", "track": 0, "step": 8, "value": 1},
+    {"at": 0, "cmd": "step", "track": 0, "step": 12, "value": 1},
+    {"at": 0, "cmd": "step", "track": 1, "step": 4, "value": 1},
+    {"at": 0, "cmd": "step", "track": 1, "step": 12, "value": 1},
+    {"at": 0, "cmd": "step", "track": 2, "step": 0, "value": 1},
+    {"at": 0, "cmd": "step", "track": 2, "step": 2, "value": 1},
+    {"at": 0, "cmd": "step", "track": 2, "step": 4, "value": 1},
+    {"at": 0, "cmd": "step", "track": 2, "step": 8, "value": 1},
+    {"at": 0, "cmd": "step", "track": 2, "step": 10, "value": 1},
+    {"at": 0, "cmd": "step", "track": 2, "step": 12, "value": 1},
+    {"at": 0, "cmd": "step", "track": 3, "step": 6, "value": 1},
+    {"at": 0, "cmd": "step", "track": 3, "step": 14, "value": 1},
+    {"at": 0, "cmd": "play", "value": 1},
+    {"at": 1, "cmd": "key_down", "key": 20},
+    {"at": 1, "cmd": "key_down", "key": 13},
+    {"at": 9, "cmd": "key_up", "key": 13},
+    {"at": 9, "cmd": "key_up", "key": 20}
+  ]
+}

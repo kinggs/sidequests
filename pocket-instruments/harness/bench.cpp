@@ -21,6 +21,8 @@
 //   sliders "beat" in PI_AUDIO_LOOP_SLIDERS, 50 channels, every sound's A and B from the input
 //   fx 4    "beat" with effect 4 on every step and a line lent (ABI 12: section 18, designed
 //           2026-11-24: one echo 174.76 ms behind)
+//   fx 14   "beat" with effect 14 on every step and a line lent (ABI 13: section 18, designed
+//           2026-11-24: the bus fed back, one loop 18.30 ms round)
 //
 // Numbers move between machines and between runs by a few percent: compare runs made on the
 // same machine, one after the other. LEARNINGS.md keeps the ones a session measured.
@@ -140,6 +142,12 @@ int main() {
     echo.insert(echo.end() - 2, 16, cmd(PI_CMD_FX));
     for (uint8_t s = 0; s < PI_STEPS; s++) echo[echo.size() - 18 + s] = cmd(PI_CMD_FX, s, 0, 4);
     report("fx 4", echo, PI_AUDIO_MIX, true);
+#endif
+#if PI_ABI_VERSION >= 13
+    std::vector<pi_cmd> feedback = beat;
+    feedback.insert(feedback.end() - 2, 16, cmd(PI_CMD_FX));
+    for (uint8_t s = 0; s < PI_STEPS; s++) feedback[feedback.size() - 18 + s] = cmd(PI_CMD_FX, s, 0, 14);
+    report("fx 14", feedback, PI_AUDIO_MIX, true);
 #endif
     return 0;
 }

@@ -1,7 +1,8 @@
 //! §18 (D67 items 2 and 3): the bus and the seven sound effects. The sounds switched into the
 //! effects (`fx_sounds`, §17) are summed into the bus; an effect acts on the bus only, and is
 //! mixed back in with a 2 ms ramp. While no sound effect is heard and the ramp is at 0 the mix
-//! is §13's, the same bytes as before the bus existed.
+//! is §13's, the same bytes as before the bus existed. Since ABI 12 effect 4 echoes in a line
+//! the host lends, and since ABI 13 effect 14 feeds the bus back in the first tenth of it.
 //!
 //! Only `+ - * /` and conversions, as in `voice.rs`: the same bits on every host (§11).
 //!
@@ -85,6 +86,28 @@ pub const ECHO_LEVEL: f32 = 0.15;
 pub const ECHO_FRAMES_NUM: u64 = 8192;
 pub const ECHO_FRAMES_DEN: u64 = 46_875;
 
+/// Effect 14 (ABI 13; §18, designed 2026-11-24: D93, R70): "feedback", one loop on the bus
+/// `FEEDBACK_FRAMES_NUM / ECHO_FRAMES_DEN` seconds round (858 samples at 46 875 Hz, 18.30 ms),
+/// in the first `comb` floats of effect 4's line; through the bus's filter, its band output at
+/// `FEEDBACK_HZ` and `FEEDBACK_R`; `FEEDBACK_GAIN` into it (1.12 a round at the centre), what
+/// goes round held to ±`FEEDBACK_CEILING`; standing still after a thousandth of a second of
+/// exact zero on the bus (`STILL_PER_SECOND`). The ceiling is a model's first value; the rest
+/// is measured (R70).
+pub const FEEDBACK: u8 = 14;
+pub const FEEDBACK_FRAMES_NUM: u64 = 858;
+pub const FEEDBACK_HZ: f32 = 1093.0;
+pub const FEEDBACK_R: f32 = 2.0;
+pub const FEEDBACK_GAIN: f32 = 2.24;
+pub const FEEDBACK_CEILING: f32 = 0.25;
+pub const STILL_PER_SECOND: u32 = 1000;
+
+/// Effect 14's loop in frames at `rate`, the nearest to 18.30 ms, in 64 bits: 807 at 44.1 kHz,
+/// 879 at 48 kHz, 1 757 at 96 kHz. A tenth of `delay_frames` at every rate, so it fits the line.
+#[inline]
+pub const fn comb_frames(rate: u32) -> u32 {
+    ((rate as u64 * FEEDBACK_FRAMES_NUM + ECHO_FRAMES_DEN / 2) / ECHO_FRAMES_DEN) as u32
+}
+
 /// `pi_delay_frames`: the nearest frame to 174.76 ms at `rate`, in 64 bits. 7 707 at 44.1 kHz,
 /// 8 389 at 48 kHz, 16 777 at 96 kHz. Fits a u32 for any u32 rate.
 #[inline]
@@ -116,12 +139,16 @@ fn tan(f: f32) -> f32 {
     f * (PI_F + f2 * (TAN_A + TAN_B * f2))
 }
 
-/// Whether an effect is one the core sounds on the bus (§18's table). 4 is only while a line
-/// is lent (`Bus::lent`, ABI 12), and 9 to 16 are not: the repeats are the sequencer's (§17),
-/// the rest wait (D67 item 4).
+/// Whether an effect is one the core sounds on the bus (§18's table). 4 and 14 only while a
+/// line is lent (`lent`: `Bus::lent`, ABI 12 and 13); 9 to 13 are the sequencer's (§17), and
+/// 15 and 16 wait (D67 item 4).
 #[inline]
-pub fn is_sound_effect(effect: u8) -> bool {
-    matches!(effect, 1 | 2 | 3 | 5 | 6 | 7 | 8)
+pub fn is_sound_effect(effect: u8, lent: bool) -> bool {
+    match effect {
+        1 | 2 | 3 | 5 | 6 | 7 | 8 => true,
+        4 | FEEDBACK => lent,
+        _ => false,
+    }
 }
 
 /// §19: set on an effect's number while it is the host's and takes the dry's place (ABI 11,
@@ -129,8 +156,9 @@ pub fn is_sound_effect(effect: u8) -> bool {
 /// ours. (Until ABI 11 its sound was the loop's channel 17, and the bus crossed over to it.)
 pub const OUTSIDE: u8 = 0x80;
 
-/// Effects that share state: the four filters are one filter (§18), each other its own; and
-/// every outside effect is one kind, with none.
+/// Effects that share state: the four filters are one filter (§18), each other its own (14
+/// too: it uses the filter's fields and 4's line, but is a kind of its own, D77); and every
+/// outside effect is one kind, with none.
 #[inline]
 fn family(effect: u8) -> u8 {
     match effect {
@@ -150,7 +178,10 @@ pub struct Bus {
     /// The rate `step` and the filter's coefficients were made for; 0 before any.
     rate: u32,
     step: f32,
-    /// Effect 1: the phase accumulator and the sample held.
+    /// Effect 1: the phase accumulator and the sample held. Effect 14 (ABI 13): `acc` holds
+    /// `comb`, the loop's length in frames, made with `g` and `h`; and `swept` holds `still`,
+    /// frames of exact zero on the bus, counted to a millisecond's and held there. Both are
+    /// free while 14 runs, so the bus keeps its size and layout (§18 asked for no new field).
     acc: u32,
     held: f32,
     /// Effects 5 to 8: the filter's two states and coefficients, its cutoff in hertz, ticks
@@ -231,10 +262,17 @@ impl Bus {
         (self.g, self.h)
     }
 
-    /// The filter's `r`, by the output the effect running takes (§18, designed 2026-11-24).
+    /// The filter's `r`, by the output the effect running takes (§18, designed 2026-11-24):
+    /// and 14's band output (ABI 13).
     #[inline]
     fn r(&self) -> f32 {
-        if self.on <= 6 { LOW_R } else { HIGH_R }
+        if self.on <= 6 {
+            LOW_R
+        } else if self.on == FEEDBACK {
+            FEEDBACK_R
+        } else {
+            HIGH_R
+        }
     }
 
     /// Effect 4's line (ABI 12), `delay` floats of the host's: kept, and written inside
@@ -276,6 +314,13 @@ impl Bus {
                 self.head = 0;
                 self.full = false;
             }
+            FEEDBACK => {
+                self.head = 0;
+                self.full = false;
+                self.s1 = 0.0;
+                self.s2 = 0.0;
+                self.swept = 0; // `still`
+            }
             5 => {
                 self.s1 = 0.0;
                 self.s2 = 0.0;
@@ -309,11 +354,15 @@ impl Bus {
                 self.clear(effect);
             }
             self.on = effect;
-            self.swept = 0;
+            if effect != FEEDBACK {
+                // 14 keeps `still` here when heard again inside its ramp; `clear` empties it.
+                self.swept = 0;
+            }
             self.cutoff = match effect {
                 5 => LOWPASS_HZ,
                 6 => LOW_SWEEP_FROM_HZ,
                 7 => HIPASS_HZ,
+                FEEDBACK => FEEDBACK_HZ,
                 _ => HIGH_SWEEP_FROM_HZ, // 8; the others have no cutoff
             };
             self.tuned = false;
@@ -357,13 +406,16 @@ impl Bus {
             }
         }
 
-        if family(self.on) == 5 && !self.tuned {
+        if (family(self.on) == 5 || self.on == FEEDBACK) && !self.tuned {
             let mut f = self.cutoff / self.rate.max(1) as f32;
             if f > F_MAX {
                 f = F_MAX;
             }
             self.g = tan(f);
             self.h = 1.0 / (1.0 + self.r() * self.g + self.g * self.g);
+            if self.on == FEEDBACK {
+                self.acc = comb_frames(self.rate); // `comb`, never worked out in the frame
+            }
             self.tuned = true;
         }
     }
@@ -446,6 +498,54 @@ impl Bus {
         x + ECHO_LEVEL * echo
     }
 
+    /// Effect 14's output for one frame of the bus (§18, designed 2026-11-24: ABI 13; D93):
+    /// the bus and what came round the loop. Out of line, and asked for before `wet` in `mix`
+    /// and `looped`, not from inside it as `echo` is: called from `wet`, `wet` stopped being
+    /// inlined and the four loop layouts cost 13 to 19 ns a frame more with no effect running;
+    /// asked for before it, every case is the old build's (Session 28, measured: `LEARNINGS.md`).
+    #[inline(never)]
+    fn feedback(&mut self, x: f32) -> f32 {
+        if self.delay == 0 {
+            // A rate change while 14 ramps out forgot the line: the bus, as built for 4.
+            return x;
+        }
+        // `still`: exact zero counts, anything else starts again; held at a millisecond's, so
+        // it cannot wrap. While it is there nothing is read, written or filtered.
+        if x == 0.0 {
+            if (self.swept as u32) * STILL_PER_SECOND < self.rate {
+                self.swept += 1;
+            }
+        } else {
+            self.swept = 0;
+        }
+        if (self.swept as u32) * STILL_PER_SECOND >= self.rate {
+            return x;
+        }
+        // SAFETY: as `echo`'s: the line holds `delay` floats and `head < comb <= delay`.
+        let slot = unsafe { &mut *self.line.add(self.head as usize) };
+        let back = if self.full { *slot } else { 0.0 };
+        // stmlib's Svf::Process, in its order, fed what came round; its band output.
+        let (g, s1, s2) = (self.g, self.s1, self.s2);
+        let hp = (back - FEEDBACK_R * s1 - g * s1 - s2) * self.h;
+        let bp = g * hp + s1;
+        self.s1 = g * hp + bp;
+        let lp = g * bp + s2;
+        self.s2 = g * bp + lp;
+        let mut fb = FEEDBACK_GAIN * bp;
+        if fb > FEEDBACK_CEILING {
+            fb = FEEDBACK_CEILING;
+        } else if fb < -FEEDBACK_CEILING {
+            fb = -FEEDBACK_CEILING;
+        }
+        *slot = x + fb;
+        self.head += 1;
+        if self.head == self.acc {
+            self.head = 0;
+            self.full = true;
+        }
+        x + fb
+    }
+
     /// §18's mix while an effect runs: `(rest + bus + w (wet - bus)) × gain`, each sum in
     /// track order. Out of line, as `frame` is.
     #[inline(never)]
@@ -460,7 +560,7 @@ impl Bus {
         }
         // No loop in this layout, so an insert still ramping out (its host's cables pulled)
         // ducks nothing: the bus as it is (§19, designed 2026-11-24).
-        let wet = self.wet(bus, bus);
+        let wet = if self.on == FEEDBACK { self.feedback(bus) } else { self.wet(bus, bus) };
         (rest + bus + self.w * (wet - bus)) * gain
     }
 
@@ -508,7 +608,7 @@ impl Bus {
             sum
         } else {
             // An insert's sound is silence: §18's ramp takes the bus out, and back in after.
-            let wet = self.wet(bus, 0.0);
+            let wet = if self.on == FEEDBACK { self.feedback(bus) } else { self.wet(bus, 0.0) };
             rest + bus + self.w * (wet - bus)
         };
         let back = clean(io[TRACKS + 1]);

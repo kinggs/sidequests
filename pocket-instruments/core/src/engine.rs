@@ -143,7 +143,7 @@ impl Engine {
                     let host = |mask: u16| heard != 0 && mask >> (heard - 1) & 1 == 1;
                     effect = if channels >= LOOP && host(self.bus.route[1]) {
                         if host(self.bus.route[4]) { OUTSIDE | heard } else { 0 }
-                    } else if is_sound_effect(heard) || (heard == 4 && self.bus.lent()) {
+                    } else if is_sound_effect(heard, self.bus.lent()) {
                         heard
                     } else {
                         0
