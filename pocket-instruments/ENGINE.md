@@ -1097,7 +1097,7 @@ with an empty lane. The design held. What it did not say, built on and marked:
   held while playing, it lets steps write the lane at the audio thread's pace, which its
   model (a frame an edit) cannot keep; the lane goes in by `FX` instead.
 
-**Proposed after Session 22 (2026-11-24; measured, R66), for the owner. Nothing here is built.**
+**Proposed after Session 22 (2026-11-24; measured, R66), for the owner. Nothing here is built.** Ruled yes by the owner, 2026-11-24 (D90 item 1); Session 25 designs it exactly.
 
 - **A repeat holds the last step that sounded, not the step it began on.** The hardware's
   11 and 12 retrigger the kick through two passes when only step 1 has a note; ours re-fire
@@ -1203,7 +1203,7 @@ over the dry beat. What it did not say, built on and marked:
   channels (`rack/src/jacks.hpp`, D62), which are before the effects. Session 18 moves the
   returns into the core (§19).
 
-**Proposed after Session 22 (2026-11-24; measured, R64, R65, R67), for the owner. Targets
+(Ruled yes by the owner, 2026-11-24: D90 items 2 and 3; Session 25 designs them.) **Proposed after Session 22 (2026-11-24; measured, R64, R65, R67), for the owner. Targets
 for a build session; the constants are set there and then by ear. Nothing here is built.**
 
 | Effect | Built | Measured on the PO-12 | Proposed |

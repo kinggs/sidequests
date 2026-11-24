@@ -1701,6 +1701,38 @@ Not chosen: sixteen wet and dry knobs (the Rack effect has its own mix; switches
 the patch is); a second tick only when missed (PLAN's first recommendation: the insert
 costs the core nothing, and the owner asked for it); a new jack.
 
+### D89 — Session 23's rulings accepted, after playing Session 24
+**2026-11-24 · decided by the owner, in Rack, after Session 24 was built · answers O21**
+
+The owner, having rewired with Tangents as a send and return on effect 1 ("Loving it"):
+"Yes on all three." D88 items 4 to 12 stand as built, the three asked about by name:
+
+1. **The return comes back before the master volume** (D88 item 6).
+2. **The settings count only while FX SEND or FX RETURN is patched** (D88 item 9).
+3. **Nothing guards the comb but the setting and a line of text** (D88 item 10).
+
+Session 24's five readings (`ENGINE.md`, "§19, designed 2026-11-24", the ⚠ lines) were not
+asked about separately and stay the owner's to overrule.
+
+### D90 — Session 22's proposals ruled: the repeat holds the last step that sounded, the effects retuned, the delay as one echo
+**2026-11-24 · decided by the owner · on `ENGINE.md` §17 and §18, "Proposed after Session 22" (R64 to R67) · design: Session 25 (Fable); build after it**
+
+The owner: "Yes on repeat hold. Yes on retune. Yes on delay."
+
+1. **A repeat holds the last step that sounded,** not the step its run began on (§17's
+   proposal; R66). Whole step or one sound of it stays as recommended: the whole step,
+   until heard.
+2. **The effects are retuned towards the PO-12's measurements** (§18's table; R64, R65):
+   1 slower with its level made up, 2 a gain of 3 into a hard clip, 3 about seven levels
+   that do not rest at zero, 5 at 300 Hz, 7 at 1.8 kHz with Q 6. Every constant is still
+   a first value for the ear. 6 and 8 (the sweeps) and 1's irregular lengths wait for take
+   c (Session 22); the design may choose to move the sweeps on what is measured.
+3. **Effect 4 is a delay of one echo,** about 175 ms, quiet, nearly no feedback (R67).
+   This answers D67 item 4's "how much stored sound" (about 8 400 samples at 48 kHz); whose
+   memory, and whether the time follows the tempo, are the design's.
+
+Not blocked by Session 22's two takes: they firm up 1's lengths, the sweeps, 15 and 16.
+
 ## Open
 
 | ID | Question | Needs |
@@ -1725,4 +1757,4 @@ costs the core nothing, and the owner asked for it); a new jack.
 | O18 | Session 18's rulings (D80): the eighteen items as built? And its three open points: the two-row panel judged with cables in; A OUT to A IN being one hit late; a marked repeat crossing the bus | The owner, in Rack. Recommended: accept the items; play the slider loop before ruling on the lateness |
 | O19 | The weave's first attempt (Session 14, D84): does it read as a cloth being woven when it moves, on the phone and in Rack? D84's sixteen items as built? Above all item 8 (a diamond growing as its beat fills), item 9 (the jump a beat), item 11 (the flash's length) and item 14 (every cell a square) | The owner, watching it play: `web/rhythm.html` and the Rhythm module. `PLAN.md`, "After Session 14's first attempt", lists what to look at. When accepted, three views and their cells are committed as the picture to hold to (Session 14's fourth box) |
 | O20 | Each effect to its own Rack module (D86): sixteen channels on FX SEND and FX RETURN first, then small breakouts, in place of one large expander? And a trigger in for each sound? | The owner, after trying D86 item 2's patch by hand. Recommended: yes to both. **Answered in part 2026-11-24: D87** (the sixteen channels, the return summed). Open: the breakouts and the trigger in |
-| O21 | Session 23's rulings (D88 items 4 to 12): as designed? Above all item 6 (the return before the volume), item 9 (the settings count only while FX SEND or FX RETURN is patched) and item 10 (nothing guards the comb) | The owner, in Rack, once Session 24 has built it. Recommended: accept; judge item 10 with a delay at half wet in each setting. **Built 2026-11-24 (Session 24):** ready to play; its Handover in `PLAN.md` has the steps and the builder's readings (⚠) |
+| O21 | ~~Session 23's rulings (D88 items 4 to 12): as designed? Above all item 6 (the return before the volume), item 9 (the settings count only while FX SEND or FX RETURN is patched) and item 10 (nothing guards the comb) | The owner, in Rack, once Session 24 has built it. Recommended: accept; judge item 10 with a delay at half wet in each setting. **Built 2026-11-24 (Session 24):** ready to play; its Handover in `PLAN.md` has the steps and the builder's readings (⚠)~~ **Answered 2026-11-24: D89** |

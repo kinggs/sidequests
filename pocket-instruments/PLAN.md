@@ -202,15 +202,46 @@ Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
 
 ## Next, in order
 
-1. **The owner plays Session 24 in Rack** (O21): the Handover's steps, about ten minutes.
+1. **Session 25,** the repeat's rule, the retune and the delay designed (D90): below.
+   Fable. It ends with Session 26's list, the build, on Opus.
 2. **Session 22's two takes left,** when the owner has fifteen minutes with the PO-12:
-   below. Start it with "Read `pocket-instruments/PLAN.md` and finish Session 22".
-3. **The owner's looks and rulings** on what 2026-11-23 built, and on Session 22's
-   proposals: "The owner's hands", first part.
-4. **The effects tuned and the repeat's rule built,** from Session 22's proposals once
-   ruled: "Not planned yet", first rows.
-5. **Session 14's fourth box,** the weave accepted or redrawn: below.
-6. Then from "Not planned yet", as the owner chooses.
+   below. Not blocking Sessions 25 and 26 (D90); they firm up effect 1's lengths, the
+   sweeps, 15 and 16. Start it with "Read `pocket-instruments/PLAN.md` and finish Session 22".
+3. **The owner's looks and rulings** on what 2026-11-23 built: "The owner's hands", first
+   part.
+4. **Session 14's fourth box,** the weave accepted or redrawn: below.
+5. Then from "Not planned yet", as the owner chooses.
+
+## Session 25 — the repeat's rule, the retune and the delay, designed (design, Fable; D90)
+
+The owner ruled yes to Session 22's three proposals (D90). The brief is `ENGINE.md` §17 and
+§18, "Proposed after Session 22", and R64 to R67. Design only: what Session 26 (Opus)
+builds, exactly enough that it decides nothing. Read `LEARNINGS.md` for Sessions 16, 17
+and 24 (the model tests, the bench, where things sit in memory).
+
+- [ ] **The repeat's rule, exact** (D90 item 1). "The latest step, at or before the run's
+      first, on which a switched-in sound had a note": does it look back across the
+      pattern's wrap (a note only on step 13, a run from step 3)? Does a step whose
+      probability did not fire count? A tap? What a punch that moves to another repeat does.
+      Which fixture traces and views change (`fx-repeat-punch`, `fx-repeat-swing`, the
+      designed ones), worked again by hand from the new text before any code, and
+      committed as `fixtures/README.md` says.
+- [ ] **The retune as a table of constants** (D90 item 2), each with its source: 1's rate
+      and level (and whether its hold stays a fixed rate until take c), 2's gain, clip and
+      ceiling, 3's levels and the quantiser that does not rest at zero, 5's and 7's
+      cutoffs and Q. Which render files move (the `render-fx-*` pairs, by decision) and
+      how the bus model in `core/src/tests/bus.rs` changes with them. Whether the sweeps (6
+      and 8) move now on R65's numbers or wait for take c: the owner's, with a
+      recommendation.
+- [ ] **The delay** (D90 item 3; D67 item 4): about 8 400 samples of the bus at 48 kHz,
+      so whose memory (the engine's fixed size, §8, grows by about 33 KB at f32, or the
+      host lends it as it lends samples, §12), at which rates (96 kHz doubles it), and
+      whether the time is fixed or follows the tempo. Its level and its one quiet repeat.
+      What a send of it in Rack (D88) means beside ours. Measure before choosing, as
+      Session 23 did: a scratch copy, `make bench`, `pi_size`.
+- [ ] Every new or changed rule's "Proven when built by", and the ABI number (12).
+- [ ] Session 26's list, the build, in this file; `DECISIONS.md` for any ruling the
+      session makes (the owner's to overrule); a Handover.
 
 ## Session 22 — the hardware's effects, measured from a recording (with the owner, Fable; two of three takes done 2026-11-24)
 
@@ -292,9 +323,9 @@ In the order they are likely wanted. Each needs a design pass (Fable) before a b
 
 | What | Waits on | Where it is written |
 |---|---|---|
-| **The repeat's rule for an empty step.** A repeat on a step with no switched-in sound mutes those sounds; the owner hears it as a mute | the owner's ruling on the proposal (measured: R66) | `ENGINE.md` §17, "Proposed after Session 22"; D67 item 1 |
-| **The effects tuned:** the constants of 1, 2, 3 and 5 to 8 | the owner's ruling on the proposals (R64, R65); take c for 1 and the sweeps; then the owner's ear | `ENGINE.md` §18, "Proposed after Session 22"; `core/src/bus.rs`, "TUNING THE EFFECTS" |
-| **Effects 4 and 14** (delay, feedback): how much stored sound, and whose memory | a ruling on memory; measured: R67 | D67 item 4; R57; §18's proposals |
+| ~~**The repeat's rule for an empty step.**~~ Ruled (D90 item 1): Session 25 | | |
+| **The effects tuned:** ~~1, 2, 3, 5, 7~~ (D90 item 2: Session 25); the sweeps 6 and 8, and 1's irregular lengths | take c (Session 22); then the owner's ear | `ENGINE.md` §18, "Proposed after Session 22"; `core/src/bus.rs`, "TUNING THE EFFECTS" |
+| **Effect 14** (feedback): a short delay fed back hard. (Effect 4, the delay, is ruled: D90 item 3, Session 25) | Session 25's answer on memory; measured: R67 | D67 item 4; R57; §18's proposals |
 | **Effects 13, 15, 16** | take c for 15 and 16; 13 is measured ⚠ (R67) | D67 item 4; R48 |
 | **Each effect to its own Rack module, the rest:** the breakouts, a trigger in for each sound (the sixteen channels are Sessions 23 and 24) | the owner's ruling on D86 items 3 to 5 (O20) | D86; D87; R63 |
 | **The sliders, the rest:** change one held step; record a slider's movement while write is held; live record of notes (write becomes a held key) | the simple rule played first | D75 item 3; `WORKFLOW.md`, "The sliders" |
@@ -357,13 +388,14 @@ originals are in `PLAN-HISTORY.md`); nothing was dropped, each thing is here onc
       the Handovers of Sessions 19, 20 and 21 (`PLAN-HISTORY.md`), each ruled as built.
 - [x] **D86,** each effect to its own Rack module: the recommendation, yes or no.
       Item 1 ruled yes, the return summed (D87, 2026-11-24). Items 3 to 5 are open (O20).
-- [ ] **Session 23's rulings** (D88 items 4 to 12; O21), built in Session 24: the return
+- [x] **Session 23's rulings** (D88 items 4 to 12; O21), built in Session 24, ruled yes
+      2026-11-24 (D89): the return
       before the volume; the settings counting only while FX SEND or FX RETURN is patched;
       nothing guarding the comb (try a delay at half wet in each setting). The steps are in
       Session 24's Handover below, with its five readings (⚠).
-- [ ] **Session 22's proposals** (`ENGINE.md` §17 and §18, "Proposed after Session 22"):
+- [x] **Session 22's proposals** (`ENGINE.md` §17 and §18, "Proposed after Session 22"):
       a repeat holds the last step that sounded; the targets for effects 1 to 8; the delay
-      as one tap. Yes, no, or by ear first.
+      as one tap. Ruled yes on all three, 2026-11-24 (D90).
 
 **With the PO-12 in hand:**
 
@@ -463,8 +495,9 @@ The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
   tour were written again from the new text. Changed with the decision: the ABI pins (10 to
   11), "an `a` past 3" to "past 4", and five tests' inputs that left junk on channel 17,
   now read (`LEARNINGS.md`). Their claims did not change.
-- **Next:** your hands above, then Session 22's two takes.
+- **Next:** ~~your hands above, then Session 22's two takes~~ Session 25 (D90), on Fable.
 - **Added after the session:** it ended without `make install`, so the owner's Rack kept the
   old plugin until it was installed and Rack restarted (Machine state now says so). Then,
   the owner: "it looks right now. Rewired with Tangents as an FX send and return on FX 1.
-  Loving it." (Tangents is a Rack effect.) O21's three rulings are still open.
+  Loving it." (Tangents is a Rack effect.) The same day the owner ruled O21 yes (D89) and
+  Session 22's proposals yes (D90), and said take c is hard to do now: it does not block.
