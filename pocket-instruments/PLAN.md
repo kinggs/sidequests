@@ -135,6 +135,11 @@ lights, caps, display, weave ◄─ host draws ◄─ view                Rack: 
   minutes, in apt). It cannot be built here: Docker is installed but the user is not in
   its group. `yt-dlp` is present: `yt-dlp --skip-download --write-auto-subs --sub-langs en
   --sub-format vtt <url>` fetches a video's captions (how R53 was read).
+- Found after Session 24: **the owner's Rack only gets a build when someone runs `make
+  install` in `rack/`.** `make selftest` installs into a throwaway folder, so a session can
+  pass every check while the owner's Rack still runs the morning's plugin (it did: FX SEND
+  looked one-channel). A build session ends with `make install`, and the owner restarts Rack
+  (it unpacks the `.vcvplugin` at start).
 - Found in Session 10: `cargo` only works with this folder as the working directory. From
   anywhere else the mise shim fails with "No version is set". To build a scratch copy, stay
   here and pass `--manifest-path` and `CARGO_TARGET_DIR`. `jq` (1.8) is present; the Rack
@@ -459,3 +464,7 @@ The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
   11), "an `a` past 3" to "past 4", and five tests' inputs that left junk on channel 17,
   now read (`LEARNINGS.md`). Their claims did not change.
 - **Next:** your hands above, then Session 22's two takes.
+- **Added after the session:** it ended without `make install`, so the owner's Rack kept the
+  old plugin until it was installed and Rack restarted (Machine state now says so). Then,
+  the owner: "it looks right now. Rewired with Tangents as an FX send and return on FX 1.
+  Loving it." (Tangents is a Rack effect.) O21's three rulings are still open.
