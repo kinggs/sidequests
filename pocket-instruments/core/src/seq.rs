@@ -3,7 +3,7 @@
 //! repeats.
 
 use crate::abi::{EV_STEP, Out};
-use crate::clock::TICKS_PER_STEP;
+use crate::clock::{TICKS_PER_BEAT, TICKS_PER_STEP};
 
 pub const TRACKS: usize = 16;
 pub const STEPS: usize = 16;
@@ -134,8 +134,9 @@ pub struct Seq {
     eff: u8,
     last: u8,
     /// §17: the repeat in force, as its period in ticks (0: none), and the run it belongs to:
-    /// the step it began on and the tick.
-    period: u32,
+    /// the step it began on and the tick. A u16 (a period is at most 128 ticks) since Session
+    /// 35, so `beats` fits the struct's padding and `pi_size` does not move.
+    period: u16,
     run_step: u8,
     /// §17, Session 30 (D95 item 1, the owner: "as close as possible to the PO"): the last
     /// `write` seen, and the step that was playing when it changed, `NO_DOWN` until a step has
@@ -149,11 +150,15 @@ pub struct Seq {
     woven: u32,
     /// §16: bit `i`, the step woven `i` steps ago had a sound set as it arrived. Bytes 52, 53.
     wove: u16,
+    /// §4, ruled 2026-11-25 (D101 item 1): the clock follows one edge a beat, so a pattern not
+    /// yet started waits for a multiple of 384. Told by the engine whenever `SOURCE` is applied
+    /// (`Clock::span`); not saved, as the source is not.
+    beats: bool,
 }
 
 impl Seq {
     pub const fn new() -> Self {
-        Seq { playing: false, fresh: false, pending: false, cur: 0, offset: 0, eff: 0, last: 0, period: 0, run_step: 0, run_tick: 0, wrote: NO_WRITE, down: NO_DOWN, woven: 0, wove: 0 }
+        Seq { playing: false, fresh: false, pending: false, cur: 0, offset: 0, eff: 0, last: 0, period: 0, run_step: 0, run_tick: 0, wrote: NO_WRITE, down: NO_DOWN, woven: 0, wove: 0, beats: false }
     }
 
     /// §16: how many steps the cloth holds, and which of the last sixteen had a sound set.
@@ -202,6 +207,13 @@ impl Seq {
         self.cur
     }
 
+    /// The ticks an edge stands for, `span`, as the clock has it after a `SOURCE`: 96 or 384.
+    /// Told once a command, not read every tick: given every frame, it cost every playing case
+    /// about 0.3 ns a frame (Session 35, `LEARNINGS.md`).
+    pub fn set_span(&mut self, span: u32) {
+        self.beats = span == TICKS_PER_BEAT;
+    }
+
     pub fn reset(&mut self) {
         self.fresh = true;
         self.pending = false;
@@ -215,10 +227,9 @@ impl Seq {
     }
 
     /// One tick. `write` is what an arriving step takes into the lane (`NO_WRITE` while fx
-    /// is up). `span` is the ticks an edge stands for (`Clock::span`): 96, or 384 on one edge a
-    /// beat. Returns whether the lane changed, which moves the generation.
+    /// is up). Returns whether the lane changed, which moves the generation.
     #[inline]
-    pub fn tick(&mut self, k: u32, pat: &mut Pattern, rng: &mut Rng, out: &mut Out, write: u8, span: u32) -> bool {
+    pub fn tick(&mut self, k: u32, pat: &mut Pattern, rng: &mut Rng, out: &mut Out, write: u8) -> bool {
         if !self.playing {
             return false;
         }
@@ -226,10 +237,10 @@ impl Seq {
         let g = k / TICKS_PER_STEP;
         let t = (k % TICKS_PER_STEP) as u8;
         // §4, ruled 2026-11-25 (D101 item 1): a pattern not yet started begins on a tick that is
-        // a multiple of `span`, so on one edge a beat play waits for the next edge. Until then a
-        // step's tick 0 is any other tick of a pattern not started. With `span` 96 this is
+        // a multiple of the span, so on one edge a beat play waits for the next edge. Until then
+        // a step's tick 0 is any other tick of a pattern not started. With a span of 96 this is
         // `t == 0`, as it always was; a reset sets tick 0, a multiple of both.
-        let boundary = t == 0 && !(self.fresh && k % span != 0);
+        let boundary = t == 0 && !(self.fresh && self.beats && k % TICKS_PER_BEAT != 0);
 
         // §17, Session 30: where a punch came down. Before a step has arrived since play or
         // reset no step is being played, and a run there begins on its own step.
@@ -281,7 +292,7 @@ impl Seq {
             }
             self.eff = pat.fx[cur];
             if self.eff != self.last {
-                self.period = repeat_period(self.eff);
+                self.period = repeat_period(self.eff) as u16;
                 if self.period != 0 {
                     // §17, Session 30 (D95 item 1, the hardware's rule): a run repeats the step
                     // the key came down on, so an empty step repeats as silence. Begun from the
@@ -323,7 +334,7 @@ impl Seq {
     /// own grid, unswung; one outside plays its own step as §5 says. Rising track order, one
     /// draw a firing at under 100, repeats and plain firings together.
     fn repeat(&mut self, k: u32, t: u8, pat: &Pattern, rng: &mut Rng, out: &mut Out) {
-        let hit = k.wrapping_sub(self.run_tick) % self.period == 0;
+        let hit = k.wrapping_sub(self.run_tick) % self.period as u32 == 0;
         let plain = self.pending && t == self.offset;
         if plain {
             self.pending = false;

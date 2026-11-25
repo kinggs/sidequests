@@ -110,10 +110,9 @@ impl Engine {
             }
             let Engine { clock, seq, pat, rng, generation, keys, .. } = self;
             let write = keys.lane_write;
-            let span = clock.span();
             clock.frame(thr, &mut |k| {
                 out.ticks += 1;
-                if seq.tick(k, pat, rng, &mut out, write, span) {
+                if seq.tick(k, pat, rng, &mut out, write) {
                     *generation = generation.wrapping_add(1); // §17: the lane is in the snapshot ⚠
                 }
             });
@@ -220,10 +219,9 @@ impl Engine {
             CMD_CLOCK => {
                 let Engine { clock, seq, pat, rng, generation, keys, sample_rate, .. } = self;
                 let write = keys.lane_write;
-                let span = clock.span();
                 clock.edge(*sample_rate, &mut |k| {
                     out.ticks += 1;
-                    if seq.tick(k, pat, rng, out, write, span) {
+                    if seq.tick(k, pat, rng, out, write) {
                         *generation = generation.wrapping_add(1);
                     }
                 });
@@ -236,6 +234,8 @@ impl Engine {
             }
             CMD_SOURCE => {
                 self.clock.set_source(v);
+                // §4, ruled 2026-11-25 (D101 item 1): where play begins follows the source.
+                self.seq.set_span(self.clock.span());
                 false
             }
             CMD_TEMPO => self.clock.set_tempo(v),
