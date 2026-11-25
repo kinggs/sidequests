@@ -102,11 +102,15 @@ pub(super) struct Model {
     full: bool,
     /// Effect 14 (ABI 13): frames of exact zero on the bus, counted with no ceiling.
     still: u64,
+    /// The rate the last frame that ran was at, 0 before any: a ruling of 2026-11-25 on
+    /// Session 32's question 3 (Fable): when the rate changes, `acc` wraps to the new rate,
+    /// `acc mod 4 × rate`, so `mu` never passes 1.
+    rate: u32,
 }
 
 impl Model {
     pub(super) fn new() -> Self {
-        Model { on: 0, heard: 0, w: 0.0, acc: 0, fresh: false, mu: 0.0, s1: 0.0, s2: 0.0, cutoff: 0.0, swept: 0, line: Vec::new(), head: 0, full: false, still: 0 }
+        Model { on: 0, heard: 0, w: 0.0, acc: 0, fresh: false, mu: 0.0, s1: 0.0, s2: 0.0, cutoff: 0.0, swept: 0, line: Vec::new(), head: 0, full: false, still: 0, rate: 0 }
     }
 
     /// With a line of `delay` frames lent, as `pi_delay_frames` gives.
@@ -138,6 +142,12 @@ impl Model {
     pub(super) fn advance(&mut self, effect: u8, ticks: u32, rate: u32) {
         let filter = |e: u8| (5..=8).contains(&e);
         if effect != 0 || self.on != 0 {
+            // The ruling of 2026-11-25 (Session 34's list): the grid wrapped to a new rate on
+            // the first frame that runs at it, before anything else.
+            if rate != self.rate {
+                self.rate = rate;
+                self.acc %= 4 * rate as u64;
+            }
             if effect != 0 && effect != self.heard {
                 // Cleared from idle; the filter kept from one filter effect to the next; and
                 // (the ⚠ reading) the hold cleared whenever effect 1 starts from another.
@@ -455,7 +465,14 @@ fn hold_to_model(rate: u32, cmds: &[(u64, Cmd)], frames: u64, line: bool) -> usi
 
 /// The same, keeping every frame's seventeen channels in `kept`.
 fn hold_to_model_keeping(rate: u32, cmds: &[(u64, Cmd)], frames: u64, line: bool, kept: &mut Vec<[f32; 17]>) -> usize {
+    hold_to_model_with(rate, cmds, frames, line, kept, |_| {})
+}
+
+/// The same, with `setup` given the engine before its first frame (a sample lent, say: the
+/// model's voices are a copy of the engine's taken after it).
+fn hold_to_model_with(rate: u32, cmds: &[(u64, Cmd)], frames: u64, line: bool, kept: &mut Vec<[f32; 17]>, setup: impl Fn(&Host)) -> usize {
     let h = Host::new(rate, 1);
+    setup(&h);
     let _keep = if line { lend(&h, rate) } else { Vec::new() };
     let mut m = if line { Model::lent(pi_delay_frames(rate)) } else { Model::new() };
     let mut vm = Voicing::of(&h);
@@ -1540,7 +1557,7 @@ fn under_200_hz_the_mix_with_14_is_the_dry_mix_to_within_a_decibel() {
 const TONE: u8 = 14;
 
 /// §18's line from the section's words alone: effect 1 from frame 0 (`acc` 0), the host at
-/// `rate(f)` on frame `f`, a sound hit on each frame of `hits` (silent before the first), whose
+/// `rate(f)` on frame `f` (`acc` wrapped to a new rate on its first frame: the ruling below), a sound hit on each frame of `hits` (silent before the first), whose
 /// values at 46 875 Hz from a hit are `bs`. On a fresh frame `from = to`, `to =` the next value;
 /// every frame `from + (to − from) × mu`. Returns the frames' values, the fresh frames and `mu`.
 fn on_the_line(bs: &[f32], rate: impl Fn(usize) -> u32, frames: usize, hits: &[usize]) -> (Vec<f32>, Vec<usize>, Vec<f32>) {
@@ -1549,6 +1566,13 @@ fn on_the_line(bs: &[f32], rate: impl Fn(usize) -> u32, frames: usize, hits: &[u
     let (mut out, mut fresh, mut mus) = (Vec::new(), Vec::new(), Vec::new());
     for f in 0..frames {
         let four = 4 * rate(f) as u64;
+        // The ruling of 2026-11-25 on Session 32's question 3 (Fable), written here before the
+        // code (Session 34): when the rate changes, `acc` wraps to the new rate, `acc mod 4 ×
+        // rate`, so `mu` never passes 1. (Session 32's model took the code's formula, which
+        // let `mu` run to 2 on the frame of a fall, and so approved it.)
+        if f > 0 && rate(f) != rate(f - 1) {
+            acc %= four;
+        }
         let is_fresh = acc < 46_875;
         let mu = acc as f32 * (1.0f32 / four as f32);
         acc = (acc + 46_875) % four;
@@ -1757,5 +1781,135 @@ fn a_sound_sounding_when_1_comes_on_falls_two_octaves_and_when_1_goes_off_comes_
         let biggest = (1..tone.len()).filter(|f| !near(*f)).map(step).fold(0.0, f32::max);
         let at_changes = (1..tone.len()).filter(|f| near(*f)).map(step).fold(0.0, f32::max);
         assert!(at_changes <= 2.0 * biggest, "rate {rate}: a jump of {at_changes} at a change, {biggest} elsewhere");
+    }
+}
+
+// ---- Two rulings on Session 32's questions (Fable, 2026-11-25) and the three tests its review
+// asked for (Session 34's list). Written before the code. ----
+
+/// Effect 1 on every step from frame 0, the tone (slider B at its longest) hit at frame 0, run
+/// one frame at a time at `rates[i].1` from frame `rates[i].0`: what the bus's grid said each
+/// frame, `(fresh, mu)`.
+fn grid_across(rates: &[(usize, u32)], frames: usize) -> Vec<(bool, f32)> {
+    let mut h = Host::new(rates[0].1, 1);
+    let mut c: Vec<(u64, Cmd)> = (0..16).map(|s| (0, fx(s, 1))).collect();
+    c.extend([(0, cmd(CMD_SOUND, TONE, 1, 65_535)), (0, play()), (0, cmd(CMD_FIRE, TONE, 0, 0))]);
+    let mut out = Vec::new();
+    for f in 0..frames {
+        if let Some((_, r)) = rates.iter().find(|(at, _)| *at == f && f > 0) {
+            unsafe { pi_set_sample_rate(h.e, *r) };
+        }
+        let these: Vec<(u64, Cmd)> = if f == 0 { c.clone() } else { Vec::new() };
+        render(&mut h, 1, 1, 16, &these);
+        out.push((bus(&h).fresh, bus(&h).mu));
+    }
+    out
+}
+
+#[test]
+fn a_rate_falling_96_to_48_khz_while_slowed_wraps_the_grid_as_the_ruling_has_it_by_hand() {
+    // By hand. Five frames at 96 kHz from `acc` 0: acc = 5 × 46 875 = 234 375 (under 4 × 96 000
+    // = 384 000). The rate falls to 48 kHz: 4 × rate = 192 000, and the ruling wraps first:
+    // 234 375 mod 192 000 = 42 375. Frame 5: fresh (42 375 < 46 875), mu = 42 375 / 192 000 =
+    // 0.220703125. Then acc 89 250, 136 125, 183 000 (mu 0.46484375, 0.708984375, 0.953125,
+    // none fresh), then 229 875 mod 192 000 = 37 875: frame 9 fresh, mu 0.197265625. (Unwrapped,
+    // frame 5 was not fresh and its mu 234 375 / 192 000 = 1.2207: the line ran past its end.)
+    let got = grid_across(&[(0, 96_000), (5, 48_000)], 10);
+    let want = [
+        (true, 0.0),
+        (false, 46_875.0 / 384_000.0),
+        (false, 93_750.0 / 384_000.0),
+        (false, 140_625.0 / 384_000.0),
+        (false, 187_500.0 / 384_000.0),
+        (true, 0.220_703_125),
+        (false, 0.464_843_75),
+        (false, 0.708_984_375),
+        (false, 0.953_125),
+        (true, 0.197_265_625),
+    ];
+    for (f, ((gf, gm), (wf, wm))) in got.iter().zip(want).enumerate() {
+        assert_eq!(*gf, wf, "frame {f}: fresh");
+        assert!((gm - wm).abs() < 1e-6, "frame {f}: mu {gm}, by hand {wm}");
+    }
+}
+
+#[test]
+fn mu_never_passes_1_across_a_rate_change() {
+    // Every change between the three rates, each made on many phases of the grid (frames 1 to
+    // 40, then back on 41 to 80, ...): mu stays in [0, 1) on every frame. Session 32's
+    // rate-change test took the code's own formula into its model, so it approved the overshoot.
+    for (a, b) in [(96_000u32, 48_000u32), (96_000, 44_100), (48_000, 44_100), (44_100, 96_000), (48_000, 96_000)] {
+        let mut rates = vec![(0usize, a)];
+        for k in 1..60 {
+            rates.push((k * 7 + k % 5, if k % 2 == 1 { b } else { a }));
+        }
+        for (f, (_, mu)) in grid_across(&rates, 440).iter().enumerate() {
+            assert!((0.0..1.0).contains(mu), "{a} and {b}: mu {mu} on frame {f}");
+        }
+    }
+}
+
+#[test]
+fn a_rate_change_while_some_sounds_are_slowed_still_retunes_the_ones_that_are_not() {
+    // The tone switched out of the effects, the bass drum in; effect 1 on every step; both hit
+    // at frame 0; the rate doubled mid-sound and halved again. The tone's channel is the same
+    // bytes as the same run with no effect at all (retuned with every rate change, as any voice
+    // not slowed is), and the bass drum, slowed, stays on the line through the dry engine's
+    // values at 46 875 Hz. (Session 32's test slowed all sixteen, so it could not tell.)
+    let (n1, n2, end) = (7_003usize, 19_001usize, 30_000usize);
+    let rate = |f: usize| if (n1..n2).contains(&f) { 96_000 } else { 48_000 };
+    let run = |lane: bool| {
+        let mut a = Host::new(48_000, 1);
+        let mut c: Vec<(u64, Cmd)> = if lane { (0..16).map(|s| (0, fx(s, 1))).collect() } else { Vec::new() };
+        c.extend([
+            (0, fxsound(TONE, 0)),
+            (0, cmd(CMD_SOUND, TONE, 1, 65_535)),
+            (0, cmd(CMD_SOUND, 0, 1, 65_535)),
+            (0, play()),
+            (0, cmd(CMD_FIRE, TONE, 0, 0)),
+            (0, cmd(CMD_FIRE, 0, 0, 0)),
+        ]);
+        let mut out = render(&mut a, n1, 128, 16, &c).0;
+        unsafe { pi_set_sample_rate(a.e, 96_000) };
+        out.extend(render(&mut a, n2 - n1, 128, 16, &[]).0);
+        unsafe { pi_set_sample_rate(a.e, 48_000) };
+        out.extend(render(&mut a, end - n2, 128, 16, &[]).0);
+        out
+    };
+    let (slowed, dry) = (run(true), run(false));
+    let (tone, tone_dry) = (track(&slowed, TONE), track(&dry, TONE));
+    assert!(tone[n2 - 10..n2].iter().any(|x| *x != 0.0), "the tone still sounds at the second change");
+    for f in 0..end {
+        assert_eq!(tone[f].to_bits(), tone_dry[f].to_bits(), "frame {f} ({} Hz): the tone, not slowed", rate(f));
+    }
+    let bs = dry_at_46_875(0, None, 20_000);
+    let (want, ..) = on_the_line(&bs, rate, end, &[0]);
+    let kick = track(&slowed, 0);
+    for f in 0..end {
+        assert_eq!(kick[f].to_bits(), want[f].to_bits(), "frame {f} ({} Hz): the bass drum, slowed", rate(f));
+    }
+    assert!(!same_bits(&kick, &track(&dry, 0)), "and the bass drum was slowed");
+}
+
+#[test]
+fn a_sample_sounding_when_1_comes_on_and_when_it_goes_off_is_the_model_s_frame_by_frame() {
+    // Track 6 playing a sample (no tour loads one), hit dry; 1 punched mid-sample and let go
+    // while it still sounds: held to the models frame by frame through both changes, at three
+    // rates. The sample (30 000 values, 0.68 s dry at 44.1 kHz) is a quarter as fast from 100 ms,
+    // so it sounds on past the release at 500 ms and after.
+    let data = buzz();
+    for rate in [44_100u32, 48_000, 96_000] {
+        let ms = |m: u64| (m * rate as u64 / 1000) as usize;
+        let (on1, release) = (ms(100) + 3, ms(490) + 7);
+        let mut c = vec![(0, cmd(CMD_VOICE, 6, 0, 1)), (0, play()), (0, cmd(CMD_FIRE, 6, 0, 0))];
+        c.extend([(on1 as u64, down(FX)), (on1 as u64, down(0)), (release as u64, up(0)), (release as u64, up(FX))]);
+        let mut kept = Vec::new();
+        hold_to_model_with(rate, &c, ms(700) as u64, false, &mut kept, |h| {
+            assert_eq!(unsafe { pi_set_sample(h.e, 6, data.as_ptr(), data.len() as u32) }, 1);
+        });
+        let s: Vec<f32> = kept.iter().map(|fr| fr[6]).collect();
+        assert!(s[on1 - ms(5)..on1].iter().any(|x| *x != 0.0), "rate {rate}: sounding as 1 comes on");
+        assert!(s[ms(500)..ms(505)].iter().any(|x| *x != 0.0), "rate {rate}: sounding as 1 goes off");
+        assert!(s[ms(600)..].iter().any(|x| *x != 0.0), "rate {rate}: and after");
     }
 }

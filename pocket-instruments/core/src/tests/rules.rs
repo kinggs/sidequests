@@ -25,7 +25,7 @@ fn trigs(ev: &[(u64, Event)]) -> Vec<(u64, u32, u8)> {
 
 #[test]
 fn the_records_and_the_engine_have_the_sizes_the_header_says() {
-    assert_eq!(pi_abi_version(), 14); // ABI 14: effect 1 the voices slowed (D98)
+    assert_eq!(pi_abi_version(), 15); // ABI 15: one edge a beat, `SOURCE` 2, and the view's `ext` (D100)
     assert_eq!(size_of::<Cmd>(), 12);
     assert_eq!(size_of::<Event>(), 12);
     // The upper bound is the hosts' fixed room for one engine: 4 KiB before the snapshot in

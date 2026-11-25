@@ -262,6 +262,42 @@ fn every_fixture_everywhere() {
     }
 }
 
+/// ENGINE.md §4, designed 2026-11-25 (ABI 15; D100): "each format 1 fixture whose commands are
+/// all at frame 0, run with an edge every fourth step's frame under `SOURCE` 2, the table's
+/// trace". Every tick is emitted once, in order, so frames decide only when: the first beat at
+/// the stored tempo's guess, each later one at the beat just measured.
+#[test]
+fn every_format_1_fixture_with_its_commands_at_frame_0_gives_the_table_s_trace_on_one_edge_a_beat() {
+    let mut tried = 0;
+    for (name, fx) in fixtures() {
+        if fx.num("format") != 1 || fx.arr("commands").iter().any(|c| c.num("at") != 0) {
+            continue;
+        }
+        let want = expect(&fx);
+        for rate in RATES {
+            for block in BLOCKS {
+                let label = format!("{name} beats {rate} {block}");
+                let mut plan = schedule(&fx, rate, 1, false);
+                let beats: Vec<u64> = plan.step_frames.iter().step_by(4).copied().collect();
+                plan.cmds.retain(|(at, c)| c.kind != CMD_CLOCK || beats.contains(at));
+                for (_, c) in plan.cmds.iter_mut().filter(|(_, c)| c.kind == CMD_SOURCE) {
+                    c.value = 2;
+                }
+                let mut h = Host::new(rate, fx.num("seed") as u32);
+                let (events, _) = play(&mut h, &plan, block, &label);
+                assert_eq!(trace(&events), want, "{label}");
+                assert_eq!(h.dropped(), 0, "{label}");
+                // And each beat's first step leaves on its edge's frame.
+                let got: Vec<u64> = events.iter().filter(|(_, e)| e.kind == EV_STEP && e.tick % 384 == 0).map(|(f, _)| *f).collect();
+                assert_eq!(got, beats, "{label}: steps 0, 4, 8, ... on the edges");
+                assert_eq!(h.view()[24] >> 2 & 1, 1, "{label}: the view says edges");
+            }
+        }
+        tried += 1;
+    }
+    assert_eq!(tried, 2, "straight-sixteenths and probability-seed-1");
+}
+
 /// `fixtures/snapshots-v1.txt`, `-v2.txt` and `-v3.txt`: each fixture's snapshot, as the core
 /// of the day wrote it before the next version existed (Sessions 11, 16 and 21).
 fn old_snapshots(file: &str) -> Vec<(String, Vec<u8>)> {

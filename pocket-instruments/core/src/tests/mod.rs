@@ -2,6 +2,7 @@
 //! functions, the way a host does, in memory the test owns.
 
 mod bus;
+mod clock;
 mod fixtures;
 mod fx;
 mod json;
