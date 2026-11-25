@@ -600,14 +600,21 @@ impl Bus {
     /// track order. Out of line, as `frame` is.
     #[inline(never)]
     pub fn mix(&mut self, v: &[f32; TRACKS], fx_sounds: u16, gain: f32) -> f32 {
-        let (mut rest, mut bus) = (0.0f32, 0.0f32);
-        for (t, s) in v.iter().enumerate() {
-            if fx_sounds >> t & 1 == 1 {
-                bus += *s;
-            } else {
-                rest += *s;
+        let (rest, bus) = if fx_sounds == u16::MAX {
+            // With every track sent, the same +0 and ordered additions need no per-track
+            // mask test (fx 2, 20.5 to 18.9 ns a frame, CPU 4, ten interleaved runs).
+            (0.0, v.iter().fold(0.0, |sum, &s| sum + s))
+        } else {
+            let (mut rest, mut bus) = (0.0f32, 0.0f32);
+            for (t, s) in v.iter().enumerate() {
+                if fx_sounds >> t & 1 == 1 {
+                    bus += *s;
+                } else {
+                    rest += *s;
+                }
             }
-        }
+            (rest, bus)
+        };
         // No loop in this layout, so an insert still ramping out (its host's cables pulled)
         // ducks nothing: the bus as it is (§19, designed 2026-11-24).
         let wet = if self.on == FEEDBACK { self.feedback(bus) } else { self.wet(bus, bus) };
@@ -634,14 +641,22 @@ impl Bus {
             sliders.copy_from_slice(&self.outs);
         }
         let clean = |x: f32| if x.is_finite() { x } else { 0.0 };
-        let mut m = *v;
-        if returned != 0 {
-            for (t, s) in m.iter_mut().enumerate() {
-                if returned >> t & 1 == 1 {
-                    *s = clean(io[t]);
+        let m = if returned == u16::MAX {
+            // A full return can read straight from the inputs. In ten interleaved runs
+            // on CPU 4, loop went from 20.9 to 18.6 ns a frame and loop in from 22.2 to
+            // 19.8. The sliders case (no returns) went from 18.9 to 21.1.
+            core::array::from_fn(|t| clean(io[t]))
+        } else {
+            let mut m = *v;
+            if returned != 0 {
+                for (t, s) in m.iter_mut().enumerate() {
+                    if returned >> t & 1 == 1 {
+                        *s = clean(io[t]);
+                    }
                 }
             }
-        }
+            m
+        };
         let (mut rest, mut bus) = (0.0f32, 0.0f32);
         for (t, s) in m.iter().enumerate() {
             if fx_sounds >> t & 1 == 1 {
