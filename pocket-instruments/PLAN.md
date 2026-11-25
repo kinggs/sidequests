@@ -111,6 +111,10 @@ lights, caps, display, weave ◄─ host draws ◄─ view                Rack: 
 - Since Session 3: rustup also holds `x86_64-pc-windows-gnu`, `x86_64-apple-darwin` and
   `aarch64-apple-darwin` (for `make targets`). The plugin is installed in
   `~/.local/share/Rack2/plugins-lin-x64/`. Rack runs headless: `rack/selftest.sh` (R40).
+- ⚠ A recording through PipeWire loses a few hundredths of a second about every 30 s on
+  this laptop, Rack open or closed (R71: whole 512s of samples, 3 to 5 at a time). Not
+  found why. `harness/hardware-fx.py` lays its grid across a loss; anything read by hand
+  from a take must do the same.
 - ⚠ In Rack's Audio module use the PulseAudio driver, not ALSA. On ALSA Rack takes the
   Scarlett whole and the desktop loses it until its profile is switched off and on again
   (it happened during P3's ten minutes; the fix is in `~/.dotfiles/docs/kenny-archy.md`).
@@ -151,7 +155,7 @@ lights, caps, display, weave ◄─ host draws ◄─ view                Rack: 
 
 ---
 
-## Where it stands (2026-11-24)
+## Where it stands (2026-11-25)
 
 The instrument plays on a phone (`web/rhythm.html`) and in Rack (the Rhythm module, 24 HP,
 thirteen jacks). In the core: sixteen sounds, each a code voice or a sample; the workflow
@@ -179,6 +183,12 @@ each host lends.
 **Built on 2026-11-24 and not yet heard by the owner** (Session 28; D93): effect 13, a note
 plays as the sound twelve keys on, and effect 14, the bus fed back in the line effect 4 is
 lent, its gain moved to 2.05 after ours was read beside the PO-12.
+
+**Measured on 2026-11-25 and not yet ruled on** (Session 22's last takes; R71 to R76, O24):
+the PO-12's effect 1 is its sounds at a quarter of the rate, where ours holds the bus; its
+sweeps go round in 6 steps, where ours take 9; its repeats fall silent on an empty step, so
+our rule (D90) is ours and not a copy; its 9 and 10 are mutes; 13's map is not settled.
+Nothing was built: `ENGINE.md` §17 and §18, "proposed 2026-11-25".
 
 ## Done so far
 
@@ -209,7 +219,7 @@ Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
 | 19, the page's effects (Opus; D69, D78, D81) | fx and a key on the page by touch, mouse and keys; the display's effect block and lane ticks on the page and in Rack (D81's stand-in); the sheet's "through fx"; D78's latch on the page; `make play`'s three new phases, format 3 and 4 fixtures played on the page; the lit Rack screenshots again | 2026-11-23 |
 | 20, the grid's lights (Opus; D71, D72, D82) | with write off the grid lights the chosen sound's steps, as the hardware does: one line of the core, twelve fixture views worked again by hand; `make play` holds every key's white; `design/rack-face-writeoff-*.png` | 2026-11-23 |
 | 14, the weave: a **first attempt** (Fable; D53, D84), not finished | ABI 10: the view's bytes 48 to 54, `pi_weave` (78 by 15 cells) and its rule tests, the page and the Rack display painting the same cells, `make play` holding every painting to `pi_weave`; `fixtures/weave-views.txt`; `design/rack-weave-*.png`. The owner has not watched it: its list stays below | 2026-11-23 |
-| 22, the hardware's effects measured (Fable, with the owner): **two of three takes**, not finished | `harness/hardware-take.sh` and `harness/hardware-fx.py`; R64 to R68; `WORKFLOW.md`'s four effects rows answered; proposals in `ENGINE.md` §17 and §18; D87 (the owner's ruling on D86 item 1). Take c, b120 and the timing take recorded 2026-11-25, not yet read: its list stays below | 2026-11-24 |
+| 22, the hardware's effects measured (Fable, with the owner; takes 2026-11-24 and 2026-11-25) | `harness/hardware-take.sh` and `harness/hardware-fx.py` (`--first`); R64 to R76; `WORKFLOW.md`'s effects rows answered and three corrected; proposals in `ENGINE.md` §17 and §18 (2026-11-24, ruled D90; 2026-11-25, open: O24); D87. Seven takes read; two short ones asked for after (14 at 120 bpm, 13's map) | 2026-11-25 |
 
 | 23, FX SEND and FX RETURN designed (Fable, with the owner; D87, D88) | D88: three settings an effect (ours, beside the dry, in place of the dry), the send's ramp in the module, the return summed in the core before the volume; `ENGINE.md`, "§19, designed 2026-11-24"; the fork measured in a scratch copy (`LEARNINGS.md`); Session 24's list. Nothing built | 2026-11-24 |
 | 24, FX SEND and FX RETURN built (Opus; D87, D88) | ABI 11: FX RETURN summed before the volume, `ROUTE` 1 the host's effects, `ROUTE` 4 an insert; FX SEND's sixteen ramps, FX RETURN summed, the three settings in the menu and the patch; the self-test's three FX modules; the two jacks with stitches; `render-loop`'s loop files rendered again; 30 faults caught by name | 2026-11-24 |
@@ -222,86 +232,20 @@ Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
 ## Next, in order
 
 1. **The owner's ear on Sessions 26 and 28** (restart Rack first: `make install` ran):
-   Session 26's steps are in `PLAN-HISTORY.md`, Session 28's in its Handover below. D92's
+   Session 26's and Session 28's steps are in their Handovers in `PLAN-HISTORY.md`. D92's
    and D93's rulings are cheap to change if they sound wrong; so is 14's gain (⚠ below).
-2. **Session 22's takes left,** when the owner has twenty minutes with the PO-12:
-   below. They firm up effect 1 (what makes it longer and lower, R69), the sweeps' shape,
-   effect 8's bottom (which take a cannot read: Session 26), the delay's time at a second
-   tempo, 15 and 16. Start it with "Read `pocket-instruments/PLAN.md` and finish Session 22".
+2. **Session 22's proposals of 2026-11-25, to rule on** (O24; `ENGINE.md` §17 and §18,
+   "proposed 2026-11-25"; the Handover below has them in six lines). Then a design session
+   for effect 1 if ruled yes (Fable), and a build session for the constants (Opus).
+   **Two short takes, when the PO-12 is out** ("The owner's hands"): 14 at 120 bpm, and
+   13's map. Read them with "Read `pocket-instruments/PLAN.md` and read Session 22's two
+   last takes".
 3. **The owner's looks and rulings** on what 2026-11-23 built: "The owner's hands", first
    part.
 4. **Session 14's fourth box,** the weave accepted or redrawn: below.
 5. **The host's idle cost, when wanted** ("Later: efficiency"): the owner's answer to reading
    the parameters less often decides the next step (Session 29's Handover).
 6. Then from "Not planned yet", as the owner chooses.
-
-## Session 22 — the hardware's effects, measured from a recording (with the owner, Fable; takes a and b 2026-11-24, c, b120 and t11 2026-11-25; not yet read)
-
-No open-source project got close to the PO-12's effects and nobody has measured them (R55,
-R57); ours are first guesses from the names, and mild beside the hardware ("Some of theirs
-is rather intense", the owner, 2026-11-23). This session gives the tuning a target. When
-the owner has ten minutes with the PO-12 and the Scarlett; best before the effects are
-tuned by ear and before the delay is designed. It needs no build to have happened.
-
-- [x] Recording on this laptop, worked out with the owner: the PO-12's output into the
-      Scarlett, captured with PipeWire (`pw-record`, 48 kHz, 24-bit). Check the level
-      first; the PulseAudio and ALSA note in Machine state applies if Rack is open.
-- [ ] The take: at 80 bpm, one bar of kick, snare and hat; two bars dry, then each effect
-      1 to 16 held for two bars, in key order, with a bar dry between. Then the same with
-      only a kick on step 1, for the repeats. One long file.
-      **Part done, and changed (2026-11-24):** three short takes in place of one long
-      file, each checked before the next (`LEARNINGS.md`). **a** (the pattern) and **b**
-      (sound 1 on step 1) are made. Left, with Rack closed:
-      - [x] **Take c:** sound 8 on steps 1 and 9, sound 15 on steps 5 and 13 (for 15, knob
-            A down and B up); three passes dry, then each effect 1 to 16 held for two
-            passes with one dry between. `harness/hardware-take.sh check`, then
-            `harness/hardware-take.sh c`. It firms up 1, 5, 6, 8, 15 and 16.
-            (Added by Session 27; D93 item 1.) And 13: if a note plays as the sound
-            twelve keys on, sound 8 sounds as 4 and sound 15 as 11. A dry bar of sounds
-            4, 11, 13, 14, 15 and 16, a hit each, makes that certain.
-            **Recorded 2026-11-25, not yet read:** `po12-c-20261125-084947.wav`, 167.5 s,
-            peak −4.4 dBFS (input 2; input 1 silent, as before). ⚠ The owner: one of 10 or
-            11 "was just quiet", so after fx + 16 one more pass of (they think) 10, then 11.
-            Possibly not a slip: on this sparse pattern a repeat that begins on an empty step
-            may hold silence (R66). Mark the bars with `--bars` when reading. The dry map is
-            its own file, `po12-map-20261125-085437.wav`: six hits, 1.1 to 1.7 s apart, asked
-            for in the order 4, 11, 13, 14, 15, 16, peak −5.3 dBFS.
-      - [x] **Effect 4 at another tempo** (added by Session 25; D91 item 5): sound 1 on
-            step 1, at 120 bpm ("disco"), two passes dry, then fx + 4 held for two. If the
-            echo is still 174.8 ms after the hit the time is fixed, as designed; if it is
-            0.93 of a step (116 ms) it follows the tempo. `harness/hardware-take.sh b`,
-            read with `--bpm 120`. (Added by Session 27.) Then fx + 14 held for two the
-            same way: is its loop still 18.30 ms (R70)?
-            **Recorded 2026-11-25, not yet read:** `po12-b120-20261125-085642.wav`, 19.4 s,
-            nine kicks exactly 2.00 s apart (120 bpm), peak −8.3 dBFS. Read with `--pass b
-            --bpm 120`.
-      - [x] **The timing take** (R68): fx + 11 held for two passes, fx alone for two,
-            three times. `harness/hardware-take.sh t11`. Then read both with
-            `uv run harness/hardware-fx.py`, and correct R64 to R68 and the proposals.
-            **Recorded 2026-11-25, Rack closed, not yet read:** `po12-t11-20261125-091624.wav`,
-            46.0 s, peak −9.2 dBFS: one dry pass, then wet, wet, dry, dry three times, as asked
-            (by the level a pass). Two earlier files that morning are false starts: `-091452`
-            (9 s) and `-091501` (21.4 s, one round only); the second may still be read.
-      - [ ] **Read the four new takes** (c, map, b120, t11), a session with Fable.
-- [x] **The file stays out of the repo** (README rule 6), in a folder of the owner's. We
-      take numbers and character from it, never audio. Measuring a device's sound is not
-      reading its firmware.
-- [x] Read off it, with a script kept in `harness/` and its plots outside the repo: the
-      hold rate of 1; the levels of 3; the curve and drive of 2; cutoff, resonance, speed
-      and direction of 5 to 8; and what 9 to 12 are (retriggered hits or looped sound, how
-      many a beat, which step). A sentence each for 4 and 13 to 16.
-- [x] `REFERENCES.md`: the measurements, as measured facts with the date. `WORKFLOW.md`:
-      the effects' rows ticked or corrected. `ENGINE.md` §17 and §18: what changes, as
-      proposals for the owner; the constants in a build session after.
-- [x] **The repeats, in particular.** The owner: "I find the repeating one the weirdest
-      (especially when there aren't many sounds going, since it just feels like it mutes
-      things)". In ours that is designed behaviour and may be wrong: a repeat re-fires
-      the step its run began on, and if no switched-in sound has a note on that step,
-      those sounds are silent for the run (§17). On the hardware the owner heard no repeat
-      on 9 at all. Decide from the recording what a repeat should hold when the step is
-      empty (the last step that had a hit is the obvious candidate).
-      **Proposed (2026-11-24):** the last step that sounded, as the hardware's 11 and 12
-      do (R66; `ENGINE.md` §17, "Proposed after Session 22"). The owner rules.
 
 ## Session 14 — the weave (build, with the owner's eye; a first attempt after Session 20, D79)
 
@@ -339,10 +283,10 @@ In the order they are likely wanted. Each needs a design pass (Fable) before a b
 
 | What | Waits on | Where it is written |
 |---|---|---|
-| **The effects tuned, the rest:** effect 1's kick, three times longer and lower on the hardware (R69), and its irregular holds; the sweeps' shape and what separates 6 from 8 (1 to 8 as measured so far are Sessions 25 and 26) | take c (Session 22); then the owner's ear | `ENGINE.md` §18, "Designed 2026-11-24"; `core/src/bus.rs`, "TUNING THE EFFECTS" |
-| **The delay, if the ear asks:** a tail after the key is let go; the second echo | the owner, after Session 26 | D91 item 5 |
-| **Effects 15 and 16** (13 and 14 are Sessions 27 and 28, built) | take c | D67 item 4; R48; R67 |
-| **Effect 14, the rest:** the PO-12's loop inside its 8 192 line, the echo in it, whether it follows the tempo | the 120 bpm take; then the owner's ear | R70; `ENGINE.md` §18, "effect 14", "Not modelled" |
+| **The effects tuned, the rest:** effect 1 as the sounds at a quarter rate (R72: a design pass, it reaches into the voices); the sweeps' cycle (9 → 6 steps), their ends and peaks, 5's cutoff (R73: constants) | the owner's ruling (O24); then the owner's ear | `ENGINE.md` §18, "proposed 2026-11-25"; `core/src/bus.rs`, "TUNING THE EFFECTS" |
+| **The delay, if the ear asks:** a tail after the key is let go; the second echo; the line standing still in silence, as the PO-12's does (R75; recommended no) | the owner, after Session 26 | D91 item 5; `ENGINE.md` §18, "proposed 2026-11-25" |
+| **Effects 15 and 16** (13 and 14 are Sessions 27 and 28, built) | 16: effect 1 designed first (it reads as 1 with the rate wobbling, R76). 15: a take that explains it (sound 15 a bar long under fx + 15) | D67 item 4; R48; R67; R76 |
+| **Effect 14, the rest:** the PO-12's loop inside its 8 192 line, the echo in it, whether it follows the tempo; ours read on take c's pattern beside R75 | the 120 bpm take again (the first held 13); then the owner's ear | R70; R75; `ENGINE.md` §18, "effect 14", "Not modelled" |
 | **Each effect to its own Rack module, the rest:** the breakouts, a trigger in for each sound (the sixteen channels are Sessions 23 and 24) | the owner's ruling on D86 items 3 to 5 (O20) | D86; D87; R63 |
 | **The sliders, the rest:** change one held step; record a slider's movement while write is held; live record of notes (write becomes a held key) | the simple rule played first | D75 item 3; `WORKFLOW.md`, "The sliders" |
 | **A OUT back to A IN is one hit late** | the owner: does it matter? | O18; `ENGINE.md` §19, "Found" |
@@ -427,7 +371,7 @@ originals are in `PLAN-HISTORY.md`); nothing was dropped, each thing is here onc
 - [ ] **Session 27's rulings** (D93; O23), built in Session 28: a note plays as the sound
       twelve keys on; a shuffled note takes the sounding sound's sliders; the feedback stands
       still while nothing sounds (or rings on, or fades).
-- [ ] **Session 28, by ear and to rule on:** its Handover below has the steps (about ten
+- [ ] **Session 28, by ear and to rule on:** its Handover (now in `PLAN-HISTORY.md`) has the steps (about ten
       minutes) and its readings (⚠), above all 14's gain.
 - [ ] **Session 26, by ear and to rule on:** its Handover (now in `PLAN-HISTORY.md`) has the steps (about ten
       minutes) and its five readings (⚠).
@@ -435,7 +379,26 @@ originals are in `PLAN-HISTORY.md`); nothing was dropped, each thing is here onc
       a repeat holds the last step that sounded; the targets for effects 1 to 8; the delay
       as one tap. Ruled yes on all three, 2026-11-24 (D90).
 
+- [ ] **Session 22's proposals of 2026-11-25** (O24; `ENGINE.md` §17 and §18, "proposed
+      2026-11-25"): keep our repeat's rule though the PO-12's is the mute; 9 and 10 stay
+      ours; effect 1 designed as the sounds at a quarter rate; the sweeps at 6 steps round
+      with new ends and peaks, 5 at 210 Hz; the delay not standing still.
+- [ ] **In Rack, a steady voltage on AUDIO while stopped** (the owner, 2026-11-25: 1.650 V
+      on MixMaster's input, a level on its meter, nothing heard). It is DC, not sound. ⚠ Not
+      found: the core's only resting level is effect 3's half step, 0.54 V at full volume
+      (D91 item 7), so 1.65 V is more than the core makes alone; FX RETURN is summed before
+      the volume, so a module in the return chain resting off zero would show here. To tell:
+      stopped, pull FX RETURN's cable, then RETURN's, and watch the voltage; then fx alone
+      to clear the lane. If it stays with both out and no effect on, it is ours: a bug for
+      a build session, with the patch saved beside it.
+
 **With the PO-12 in hand:**
+
+- [ ] **Two short takes, asked for by Session 22's reading (2026-11-25).** Knobs untouched.
+      **14 at 120 bpm:** sound 1 on step 1, two passes dry, fx + **14** for two, one dry
+      (`harness/hardware-take.sh b14`; the first try held 13). **13's map:** a pattern with
+      sound *n* on step *n* for all sixteen, at 80 bpm, two passes dry, fx + 13 for two, one
+      dry (`harness/hardware-take.sh map13`).
 
 - [x] Session 22's takes left, with the Scarlett and Rack closed: take c, effect 4 at
       120 bpm and the timing take. All recorded 2026-11-25 (with a dry map of sounds 4,
@@ -469,65 +432,6 @@ originals are in `PLAN-HISTORY.md`); nothing was dropped, each thing is here onc
 ## Handover
 
 The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
-
-### After Session 28: effects 13 and 14 built, and ours read beside the PO-12 (2026-11-24)
-
-- **Built, ABI 13.** Effect 13 plays a note of a sound in the effects as the sound twelve keys
-  on; effect 14 feeds the bus back through one loop, 18.30 ms round, in the first tenth of the
-  line effect 4 is lent, standing still while nothing sounds. Rack's menu says "note shuffle"
-  and "feedback". `make install` ran: **restart Rack.** `ENGINE.md` §17 and §18, "Built
-  (Session 28)", say what turned out different.
-- **Then ours was read as the PO-12 was** (takes a and b's patterns, `hardware-fx.py`
-  unchanged). 13: two onsets a beat on the dry steps, as the PO-12's; each hit our own sound.
-  14: the lows untouched, the loop 18.34 ms, the lift strongest at 1 kHz, as the PO-12's.
-  **Moved in one round: 14's gain 2.24 → 2.05:** at 2.24 the 1 kHz ring read +47 and +40 dB
-  against the PO-12's +29 and +18; at 2.05, +30 and +22. Every reading, and a grid of 17
-  builds, are in `ENGINE.md` §18 and `LEARNINGS.md`.
-- **Proven:** 270 Rust tests; the hand-worked fixture at the first run on all three harnesses,
-  in Rack on both clocks at three rates and on the page; both models given 14 before the code,
-  matching at the first run; the report's 330 older runs and all 420 older render files the
-  same bytes; `render-fx-14` native and `.wasm` the same bytes; `make play`, `make listen`,
-  `make selftest`, `make verify`; 27 faults caught by name (23 at the first run, four after
-  the tests they named a hole in were added).
-- **Tests the decision changed, not edited to pass:** `effects_the_core_does_not_sound_yet_…`
-  lost 13, as §17 said. ⚠ `the_repeats_and_the_effects_not_built_…` kept 13 and 14, though
-  §17 said both would go: its claim holds for both (`ENGINE.md` §17, "Built"). The ABI pins
-  12 → 13.
-- **Cost:** with 14's loop asked for before `wet`, idle, the beat, all, both and the loops are
-  inside the old build's spread or under it; "fx 14" is 40.7 ns, about 10 over the dry beat.
-  Called from inside `wet`, the loop layouts read 13 to 19 ns over: tried and dropped.
-- **For your ears, about ten minutes, Rack restarted first:**
-  1. **13 over a beat with returns in Rack:** TRIGGERS out to Rack drums and back on RETURN,
-     hold fx + 13: each sound's notes play as the sound twelve keys on (1 as 13, 5 as 1), on
-     Rack's drums too. On the phone, the same with the built-in sounds.
-  2. **14 over a sparse beat:** only sound 1 on step 1, hold fx + 14 for two bars. It rings on
-     the kick and falls silent between (D93 item 7). Then **over a busy beat** (the minimum
-     beat): it builds slowly, about three seconds to its ceiling on a steady sound. D93 item
-     7's two other readings, if the stillness sounds wrong: **ring on** while the key is held
-     (drop the stillness), or **fade** in about half a second (a gain under 1 a round).
-     `make hear` has 14 beside the others.
-  3. **14's gain** (⚠ below): if the ring is too tame, 2.08 matches the PO-12's level on take
-     a and rings 12 dB stronger at 1 kHz. One constant, `FEEDBACK_GAIN` in `core/src/bus.rs`.
-- **Readings to rule on (⚠ in `ENGINE.md` §17 and §18):**
-  1. **14's gain, 2.05, chosen by the 1 kHz reading,** the table's order. It leaves take a's
-     level low (+1.9 dB against +5.0) and both peaks low (+0.1 and +0.0 against +4.4 and +3.9),
-     and the ceiling cannot help: at 2.05 it is never reached on the takes. Between 2.04 and
-     2.10 the loop crosses from fading to ringing, so small moves change a lot.
-  2. **The low end, flagged mid-session:** §18's "under 200 Hz within 1 dB" read +1.15 dB at
-     the designed gain through the test's one-pole at 200 Hz, and passed only at 100 Hz (+0.62).
-     The test was held at 100 Hz until the gain moved; at 2.05 it reads +0.44 dB at the
-     design's 200 Hz, and the test is back there. If the gain goes back up this test fails
-     again: that is the ring leaking through a one-pole, not the lows going round.
-  3. **Steps 6 and 14 of take a are not silent wet,** where the PO-12's are: our snare and hat
-     end at exact zero later than the script's floor, so the loop runs on. Nothing was moved.
-  4. **A click falls for some rounds before it builds,** not "louder each time"; the test
-     holds that shape. A lend clears 14's place, not its filter, as §18 says.
-  5. **Effect 3 read 0.2 ns over its spread** in the bench; not a listed case.
-- **Small things found:** the page's clock is not a fixture's (swing goes by grid parity), so
-  `make play` resets before `fx-shuffle`; the Rack self-test now plays `fx-repeat-holds` too,
-  which Session 26 left out.
-- **Next:** your ears above; then Session 22's takes when the PO-12 is to hand (take c also
-  checks 13's map: sound 8 should play as 4, and 15 as 11).
 
 ### After Session 29: the bench made to read work, then the idle cost (2026-11-24)
 
@@ -570,3 +474,50 @@ The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
 - **Added 2026-11-25, with the PO-12:** take c, the dry map and b120 are recorded and
   checked for length, level and hits only (Session 22's list has the files), then the timing
   take (t11), three rounds at the second try. Reading the four is a session with Fable.
+
+### After Session 22's last takes: the PO-12 read on a second pattern (2026-11-25)
+
+- **Four takes read; nothing built.** `REFERENCES.md` has R71 to R76, and R64 to R70 say
+  where they were wrong. `ENGINE.md` §17 and §18 each end with "proposed 2026-11-25": yours
+  to rule (O24). `hardware-fx.py` gained `--first` (take c's first sound swells in, and the
+  script laid every bar four steps late); its self-test reads 103 of 103.
+- **What the takes say, most surprising first:**
+  1. **Effect 1 is the sounds at a quarter of the rate:** two octaves down, four times as
+     long, no louder (the 440 Hz tone at 109.9 Hz). Ours holds the bus at 1 kHz: a
+     different effect.
+  2. **A repeat held from an empty step is silent on the PO-12**, for as long as it is held.
+     That was the pass you called "just quiet" (11, two whole bars at the noise floor); the
+     second try landed on step 1 and repeated sound 8's quiet start. So yesterday's reading
+     (R66, "the last sound") was one lucky press, and D90's rule mends the hardware; it does
+     not copy it.
+  3. **9 and 10 are mutes:** a sound is cut from 0.44 to 1.0 of a step (9) or 0.67 to 1.33
+     (10), and comes back where it would have been.
+  4. **The sweeps go round in 6.0 steps,** a triangle, 6 from the top down and 8 from the
+     bottom up, starting when the key comes down. Ours take 9 steps.
+  5. **The delay's time is fixed** (174.8 ms at 120 bpm too), as built. Its line stands
+     still in silence, so a short sound's echo waits for the next sound.
+  6. **The lost time is the laptop's, not the PO-12's and not Rack** (R68 answered): whole
+     512s of capture samples about every 30 s, with Rack closed.
+- **Not answered.** **14 at 120 bpm:** that take's second effect reads as 13 (the kick as
+  the 841 Hz sound, to the hertz). **13's map:** on take c sound 15 did not play as the
+  map's sound 11, nor 8 as 4; the knobs may be why. Two takes of a minute each were asked
+  for while you had the PO-12 out ("The owner's hands"); ⚠ they had not arrived when this
+  was written. **15** is not understood. **16** reads as effect 1 with the rate wobbling.
+- **To rule on (recommended answer first):**
+  1. Our repeat's rule: **keep D90's** (you asked for it because the mute felt wrong), and
+     `WORKFLOW.md` says it differs. Or the hardware's back.
+  2. 9 and 10: **leave ours** (repeats at 4 and 3 a beat). Or design the hardware's chop.
+  3. Effect 1: **a design session** for the voices at a quarter rate. It reaches into the
+     voices, and a sound returned from Rack can only be held, not slowed.
+  4. The sweeps and 5: **yes**, one build session: `SWEEP_HALF` 432 → 288 ticks, 6's ends
+     2 700 and 165 Hz, 8's top 3 300 Hz, both peaks at Q 4.5, 5 at 210 Hz and Q 3.
+  5. The delay standing still in silence: **no**.
+  6. 13's table and 14's gain: **wait** for the two takes and a reading of ours on take c's
+     pattern.
+- **Your bug report (a steady 1.650 V on AUDIO while stopped): not found, and written up**
+  in "The owner's hands" with a two-minute test. It is DC. The core alone rests at 0.54 V
+  at most (effect 3's half step), so look first at what comes back on FX RETURN.
+- **Proven:** the script's self-test, 103 of 103; `make verify`. No code but the script
+  changed, so no build, bench or install.
+- **Next:** your rulings above; the two takes; your ears on Sessions 26 and 28 (still
+  first in the list).

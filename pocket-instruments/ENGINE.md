@@ -1304,6 +1304,42 @@ draws passing, one `TRIG`; a lane edit between a boundary and its swung firing).
   snare as the blip, 1 331 Hz and 25 ms (1 841 Hz and pure); the hat as the tone, 220 Hz held 95
   ms (74 Hz held). Nothing moved: 13 has no constant.
 
+### §17, proposed 2026-11-25 after Session 22's last takes (R74, R76), for the owner. Nothing here is built
+
+Take c (sound 8 and sound 15, four notes a bar) showed three things about the hardware
+that this section had wrong or had guessed. Each is the owner's to rule; no constant moves
+until a build session.
+
+1. **The repeat's rule is ours, not the PO-12's (corrects "Proposed after Session 22" above,
+   and D90 item 1's reason).** The PO-12's 11 and 12 repeat what is on the step where the key
+   came down, and an empty step repeats as silence for as long as the key is held (R74: two
+   whole bars at the noise floor). That is what §17 first did, and what the owner heard as
+   "it just feels like it mutes things". R66 read "the last sound, on through empty steps"
+   from one take where the key happened to land on the kick. So D90's rule (the nearest note
+   behind) does not copy the hardware; it mends it. **Recommended: keep D90's rule, and say
+   in `WORKFLOW.md` that it differs.** The owner asked for it because the hardware's mute
+   felt wrong, and that reason stands. The other choice is the hardware's rule back (one
+   line of `held_step`, and `fx-repeat-holds` worked again by hand).
+2. **11's and 12's rates: no change.** Measured 94.21 and 125.60 ms a repeat at 80 bpm,
+   0.5024 and 0.6698 of a step: a hair slower than 8 and 6 a beat (⚠ whole blocks of 64
+   samples, R74), so the PO-12's repeats drift about 4 ms a beat behind its grid. Ours are
+   exact, and stay exact.
+3. **9 and 10 on the PO-12 are mutes, not repeats (R74).** 9: a sound is heard for 0.44 of
+   a step, silent to 1.0, heard to 1.44, then fades in 150 ms. 10: heard to about 0.67,
+   silent to 1.33, then heard. Ours are repeats at 4 and 3 a beat, kept "ours" on
+   2026-11-24 because the rule was unknown. It is now known in outline. **Recommended: leave
+   ours as they are.** A chop that silences most of a short sound is the same complaint as
+   item 1, and ⚠ what the windows are counted from (each note, or the key) and whether
+   they act on a sound or the mix are not measured. If the owner wants the hardware's chop,
+   it is a design pass first (a gate on the bus, counted in ticks), and a take to settle
+   the two unknowns.
+4. **13's map is not confirmed (D93 item 1; O23).** On take c sound 15 did not play as the
+   map's sound 11, nor sound 8 as its sound 4 (R76). The readings fit neither "twelve keys
+   on" nor any other constant shift as recorded, and the knobs may be why: a shuffled note
+   seems to sound with other knob values than the target's own hit. **Proposed: change
+   nothing yet.** One more take settles it (every sound on its own step, two passes dry,
+   two with fx + 13); then `shuffle`'s table is one line.
+
 ## 18. The bus and the first sound effects (ABI 7; designed in Session 15; D67; built in Session 17)
 
 - **The bus** is the sum of the sounds in `fx_sounds`, in track order; **the rest** is the
@@ -1770,6 +1806,34 @@ scratch copies (each read by the same script):
   than they fall under the script's floor, so the loop runs on through those steps, where the
   PO-12's falls silent. Not moved (nothing may); the owner's ear on a sparse beat says if it
   matters.
+
+### §18, proposed 2026-11-25 after Session 22's last takes (R72, R73, R75, R76), for the owner. Nothing here is built
+
+Against what Sessions 26 and 28 built. The constants are in `core/src/bus.rs`; none moves
+until a build session, and each number below is from one take.
+
+| Effect | Ours now | The PO-12 (take c, b120) | Proposed |
+|---|---|---|---|
+| 1 | the bus held at `REDUCE_HZ`, 1 000 Hz | the sounds played at a quarter of the rate: two octaves down, four times as long, each value held four samples (11.7 kHz), no louder (R72) | **A design pass: the voices run at a quarter rate while 1 is held, and the bus holds at 46 875 / 4 Hz.** Ours is a different effect in kind. ⚠ It reaches into the voices (a rate each voice steps by), which no effect does yet; a sound returned from Rack cannot be slowed, only held; and a note written under 1 lasts four times as long, past its step. Recommended: design it; it is the PO-12's most recognisable effect and the cheapest to tell apart by ear |
+| 2 | gain 3.0, clip at 0.88 | gain 2.95, the ceiling 4.02 crush steps: as before | none |
+| 3 | 4.6 levels a unit, half a step off zero | as before | none |
+| 4, the time | 8 192 / 46 875 s, fixed | 174.77 ms at 120 bpm: fixed (R75) | none: D91 item 5 holds |
+| 4, in silence | the echo sounds 175 ms after the hit whatever follows | the line stands still while nothing sounds: a short sound's echo waits for the next sound (R75) | **Recommended: do not copy.** It reads as the PO-12 skipping its work in silence, and an echo that arrives four steps late on another sound is not what "delay" promises. If wanted, 14's `still` already does it |
+| 4, the level | `ECHO_LEVEL` 0.15 | 0.09 to 0.25 on a kick, about 0.45 to 0.6 on a tone and noise ⚠ rough; the echo of the kick is strongest near 1.3 kHz | none on a rough number. A later design pass could put the echo through 14's band filter and read it again |
+| 5 | 300 Hz, `r` 0.5 (Q 2) | 209 Hz, Q about 3 | `LOWPASS_HZ` 300 → 210; `LOW_R` 0.5 → 0.33 for 5 |
+| 7 | 1 800 Hz, Q 6 | 1 804 Hz, Q 5.2 | none |
+| 6 and 8, the cycle | 9 steps round (`SWEEP_HALF` 432 ticks) | 5.96 steps round on both, a triangle in octaves (R73) | `SWEEP_HALF` 432 → 288 ticks (6 steps round). ⚠ one tempo: 6 steps or 1.12 s is not known; ours follows the tempo, and stays so until a take at 120 bpm says otherwise |
+| 6, the ends | 3 240 down to 190 Hz | from the top at key down, 2 680 to 163 Hz by the fit; 2 155 to 170 Hz read | 3 240 → 2 700; 190 → 165. The start (the top, going down) is as ours |
+| 8, the ends | 220 up to 2 900 Hz | from the bottom at key down, 212 to 3 390 Hz by the fit; 269 to 3 048 Hz read | 2 900 → 3 300; 220 stays |
+| 6 and 8, the peak | `r` 0.5 (6), Q 6 (8) | about +13 dB on both (Q about 4.5) | 6: `r` 0.5 → 0.22; 8: Q 6 → 4.5. With 5's change the low output needs two values of `r` (5 and 6 share `LOW_R` now) |
+| 14 | one loop 18.30 ms round, gain 2.05, what goes round held to ±0.25 | take c: rings on the comb's 24th line (1 311 Hz), steady at −14 dBFS, most samples near ±0.35 of the clip's ceiling, peaks 0.64 (R75) | none yet. Ours is ±0.28 of our ceiling, near the PO-12's ±0.35. ⚠ Read ours on take c's pattern before moving the gain or the ceiling (Session 28's "14's gain" question): take c is a third reading beside takes a and b |
+| 14, the tempo | fixed | not measured: the 120 bpm take held 13 (R75) | none; a take is asked for |
+| 15, 16 | not designed | 15: the tone's line splits to about 320 to 345 and 590 to 650 Hz, level unmoved ⚠ not understood. 16: effect 1's slowed sounds with the rate wobbling about ten times a second, 8.7 dB louder (R76) | **16 after 1:** if 1 is designed as above, 16 is the same machinery with the rate moved by a slow wave. 15 waits for a reading that explains it: sound 15 held for a whole bar under fx + 15 would show the parameter moving |
+
+**What to rule on, in order of how much it changes:** effect 1 as a slowed engine (a design
+session, Fable); the sweeps' cycle and ends and 5's cutoff (constants, one build session with
+the retune's method: move, read ours beside the PO-12, write both readings down); the delay
+standing still (recommended no).
 
 ## 19. Sound in: the returns and the effects loop (ABI 9; designed in Session 15; D68; built in Session 18)
 

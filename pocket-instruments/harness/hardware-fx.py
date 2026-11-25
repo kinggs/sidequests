@@ -13,7 +13,10 @@ The takes are made by harness/hardware-take.sh (48 kHz, 24-bit, the PO-12 on one
 
     a   kick on steps 1 and 9, snare on 5 and 13, closed hat on 3, 7, 11, 15
     b   a kick on step 1 only
-    c   noise (key 8) on 1 and 9, tone (key 15) on 5 and 13; effects 1 to 8 only
+    c   noise (key 8) on 1 and 9, tone (key 15) on 5 and 13; effects 1 to 8 by default. The
+        take of 2026-11-25 holds all sixteen: read it with --effects 1-16, and with --first,
+        the second where bar 0's step 1 begins (sound 8 swells in over two steps, so the
+        script takes sound 15 on step 5 for the first sound and lays every bar four steps late)
 
 Each pass: two or more bars dry, then every effect in key order held two bars with a bar
 dry between. The hand is never on the bar line and miscounts, so the script prints every bar
@@ -430,8 +433,9 @@ def zc_track(w, fs, f0):
 # ---- the take ----
 
 class Take:
-    def __init__(self, x, fs, pas, bpm=80.0, effects=None, onset_k=1.0, say=print):
+    def __init__(self, x, fs, pas, bpm=80.0, effects=None, onset_k=1.0, say=print, first=None):
         self.x, self.fs, self.pas, self.say = x, fs, pas, say
+        self.first = first
         self.clip_at = 0.9985 - abs(float(getattr(x, "dc", 0.0)))  # full scale, less the mean taken off
         self.pattern = PATTERNS[pas]
         self.effects = list(effects or EFFECTS[pas])
@@ -589,10 +593,15 @@ class Take:
         loud = float(np.percentile(np.abs(x), 99.9))
         over = np.flatnonzero(np.abs(x) > 0.1 * loud)
         cross = int(over[0]) if len(over) else 0
+        if self.first is not None:
+            # --first: the hand says where bar 0's step 1 is. Take c needed it (2026-11-25): its
+            # step 1 is sound 8, which swells in over two steps, so the first sound over a tenth
+            # of the loudest was sound 15 on step 5 and every bar was laid four steps late.
+            cross = int(round(self.first * fs))
         quiet = x[:max(cross - int(0.02 * fs), 0)]
         # 0.75 s: longer than any rest inside pattern a or c, so a file cut mid-pattern is not
         # taken for one. (Pass b has one note a bar: its first sound is step 1 either way.)
-        self.silent_start = bool(cross > int(0.75 * fs) and rms(quiet) < 0.003 * loud)
+        self.silent_start = bool(cross > int(0.75 * fs) and rms(quiet) < 0.003 * loud) or self.first is not None
         self.lead = cross / fs if self.silent_start else 0.0
         n0 = max(cross - int(0.1 * fs), 0) if self.silent_start else 0
         n1 = int(min(len(x), n0 + 2.2 * bar * fs))
@@ -602,7 +611,7 @@ class Take:
         t = t + n0 / fs
         pk = pick(fl, 0.2 * fl.max(), 12)
         if self.silent_start:
-            near = [t[i] for i in pk if abs(t[i] - cross / fs) < 0.03]
+            near = [] if self.first is not None else [t[i] for i in pk if abs(t[i] - cross / fs) < 0.03]
             t0 = (near[0] if near else cross / fs) - PRE
             options = [t0]
         else:
@@ -1907,6 +1916,8 @@ def main():
     ap.add_argument("--effects", help='the effects punched, in order, if not the pass\'s: "1-8" or "1,2,9-12"')
     ap.add_argument("--only", help='analyse only these effects: "9-12"')
     ap.add_argument("--onset-thr", type=float, default=1.0, help="onset threshold, times the default")
+    ap.add_argument("--first", type=float,
+                    help="seconds into the file where bar 0's step 1 begins, when the script lays it wrong")
     ap.add_argument("--selftest", action="store_true", help="synthetic takes with known effects")
     a = ap.parse_args()
     if a.out and inside_repo(a.out):
@@ -1920,7 +1931,7 @@ def main():
     x, fs, note = read_wav(a.take)
     print(f"{a.take}: {note}")
     t = Take(x, fs, a.pas, bpm=a.bpm, effects=parse_ranges(a.effects) if a.effects else None,
-             onset_k=a.onset_thr)
+             onset_k=a.onset_thr, first=a.first)
     bars = None
     if a.bars:
         bars = {}

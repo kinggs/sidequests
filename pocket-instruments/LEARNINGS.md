@@ -1327,3 +1327,45 @@ above; these are what only the chain showed.
   voice's `silent` to its sound directly (every track, three lengths, code and sample). All
   nine again from fresh copies of the final code, and a tenth (the snare says silent early):
   10 of 10, each caught by a named `quiet::` test.
+
+## Session 22, the takes left: the PO-12 read on a second pattern (2026-11-25)
+
+- **A second pattern overturned what one pattern had "measured".** Takes a and b (a kick, a
+  snare, hats) gave R66's "11 and 12 retrigger the last sound, on through empty steps", and
+  D90 was ruled on it. Take c (two sounds, four notes a bar, long silences) shows the rule
+  is "the step the key came down on, and silence if it is empty": on take b the key had
+  landed on the kick. One take cannot tell a rule from the press that happened. What would
+  have caught it yesterday: holding the same effect from two different steps.
+- **A swelling sound defeats "the first sound is step 1".** Sound 8 here rises for two steps;
+  the script's first sound over a tenth of the loudest was sound 15 on step 5, so every bar
+  was laid four steps late and the report was nonsense that still looked like a report
+  (fifteen of sixteen effects "seen"). The level every 25 ms over the first three seconds
+  showed it in one look. `--first` now says where bar 0 begins. Look at the opening of a
+  take before believing a layout.
+- **A sound that is the same sample for sample is the best probe.** Sound 8 repeats to
+  0.9996, bar to bar. So held less dry is the effect alone: the delay's echo was read as a
+  residual (the tone, 80 ms into the next sound), and the filters as held over dry every
+  quarter step, which gave the sweeps 28 points where a kick and hats had given a handful.
+  The cost: a retrigger and a loop of the same sound look alike.
+- **The tone's waveform is a bad clock.** Sound 15's oscillator does not start again with
+  each note, so matching its waveform drifts by a period (2.3 ms) and by nine periods; the
+  first timing read off it showed losses that were not there. Onsets by level are the clock.
+- **Lost time has a size, and the size names the owner.** Whole 512s of samples at 48 kHz
+  (10.67 ms), not of the PO-12's 46 875 Hz, about 30.7 s apart, in dry bars as well as held
+  ones: the laptop's capture. Yesterday's "each in or beside a held effect" was true only
+  because most of a take is a held effect. ⚠ Why every 30 s is not found.
+- **My change to a default broke a self-test, and the self-test was right.** Making pass c's
+  effects 1 to 16 by default turned "the effect that was not punched is warned of" from
+  true to false (102 of 103). Put back; the real take is read with `--effects 1-16`.
+- **An effect named for what it does to a sample player.** "Low sample rate" is the sounds
+  played at a quarter of the rate, as on a sampler, not a hold on the mix: 440.2 Hz became
+  109.9. R64's "irregular holds, 2 to 70 ticks" and R69's "three times as long and lower"
+  were both this, read on a kick whose pitch falls. A pitched, steady sound in the first
+  take would have said so in one line.
+- **Asked for one effect, got its neighbour.** The 120 bpm take holds 13 where 14 was asked
+  for: the kick reads as R70's 841 Hz sound to the hertz. A check that would have caught
+  it at the desk: the level a pass (14 on a kick is not 16 dB down).
+- **A bug report mid-session (the owner): 1.650 V steady on AUDIO, stopped.** Not found.
+  The core's only resting level is effect 3's half step (0.109 of a unit, 0.54 V), and 14
+  returns the bus untouched while still, so the core alone does not make 1.65 V; FX RETURN
+  is summed before the volume. Left as a test for the owner in `PLAN.md`.
