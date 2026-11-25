@@ -4,10 +4,12 @@
 //   c++ -std=c++17 -O2 -Icore/include harness/ours-take.cpp target/release/libpi_core.a -o target/ours-take
 //   target/ours-take a target/ours/a.wav      then: uv run harness/hardware-fx.py target/ours/a.wav --pass a
 //   target/ours-take b target/ours/b.wav
+//   target/ours-take c target/ours/c.wav      then: ... --pass c --effects 1-16
 //
 // At 80 bpm and 48 kHz (9 000 frames a step). Pass a: sounds 1, 2 and 3 (bass drum, snare,
 // closed hat) on take a's steps: kick 1 and 9, snare 5 and 13, closed hat 3, 7, 11 and 15.
-// Pass b: sound 1 on step 1 alone. Half a second of silence, then play; three bars dry; then fx
+// Pass b: sound 1 on step 1 alone. Pass c (Session 30): sound 8 on steps 1 and 9, sound 15 on 5
+// and 13, as take c's noise and tone were (read with --pass c --effects 1-16). Three steps of silence (0.56 s), then play, on a step boundary; three bars dry; then fx
 // held from there to the end, with each key 1 to 16 down for two bars and up for one (fx alone
 // plays dry and clears the lane; the step a key goes up on still holds its effect). Keys land a
 // frame after a bar's first step, as the fixtures' keys do. Effect 4 is lent a line.
@@ -30,12 +32,17 @@
 static pi_cmd cmd(uint8_t type, uint8_t a = 0, uint8_t b = 0, uint32_t value = 0) { return pi_cmd{0, type, a, b, 0, value}; }
 
 int main(int argc, char **argv) {
-    if (argc != 3 || (std::string(argv[1]) != "a" && std::string(argv[1]) != "b")) {
-        std::fprintf(stderr, "usage: ours-take a|b <out.wav>\n");
+    const std::string pass = argc == 3 ? argv[1] : "";
+    if (pass != "a" && pass != "b" && pass != "c") {
+        std::fprintf(stderr, "usage: ours-take a|b|c <out.wav>\n");
         return 1;
     }
-    const bool a = std::string(argv[1]) == "a";
-    const uint32_t rate = 48000, step = 9000, bar = 16 * step, lead = rate / 2;
+    const bool a = pass == "a";
+    // lead: play on a step boundary of the table clock. Session 30 found that half a second
+    // (24 000 frames, 2.67 steps) put the first step 3 000 frames after play, so every key
+    // landed a third into the bar before's step 16, not a frame after step 1. D91's look-back
+    // hid it from the repeats; nothing else read here depends on a third of a step.
+    const uint32_t rate = 48000, step = 9000, bar = 16 * step, lead = 3 * step;
     const uint32_t FX_KEY = PI_KEY_FX;
     std::vector<uint64_t> mem((pi_size() + 7) / 8);
     pi_engine *e = pi_init(mem.data(), uint32_t(mem.size() * 8), rate, 1);
@@ -47,7 +54,12 @@ int main(int argc, char **argv) {
     // (frame, command), in order.
     std::vector<std::pair<uint64_t, pi_cmd>> at;
     at.push_back({0, cmd(PI_CMD_TEMPO, 0, 0, 80000)});
-    at.push_back({0, cmd(PI_CMD_STEP, 0, 0, 1)});
+    if (pass == "c") {
+        for (uint8_t s : {0, 8}) at.push_back({0, cmd(PI_CMD_STEP, 7, s, 1)});
+        for (uint8_t s : {4, 12}) at.push_back({0, cmd(PI_CMD_STEP, 14, s, 1)});
+    } else {
+        at.push_back({0, cmd(PI_CMD_STEP, 0, 0, 1)});
+    }
     if (a) {
         at.push_back({0, cmd(PI_CMD_STEP, 0, 8, 1)});
         for (uint8_t s : {4, 12}) at.push_back({0, cmd(PI_CMD_STEP, 1, s, 1)});
