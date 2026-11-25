@@ -291,6 +291,24 @@ Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
 6. **Session 37** (design, Fable): Antigravity's parts designed in.
 7. Then from "Not planned yet", as the owner chooses.
 
+## Session 38 — the beat clock: a pause only against a measured period (build, Opus; D103)
+
+Read `ENGINE.md` §4, "Ruled 2026-11-25 after Session 35's review"; D101, D103; Session
+35's Handover. The rules for every build session hold. No ABI change.
+
+- [ ] **Before any change:** the report, a `sha256sum` of every render file, the old
+      library and a bench built on it.
+- [ ] **By hand first:** the section's two worked cases and the six cases it lists from
+      the review, as rule tests in `core/src/tests/clock.rs`, committed before the code
+      (the two fail on Session 35's code; say which of the six do).
+- [ ] **The core:** the one condition in `Clock::edge` (`core/src/clock.rs`). The table
+      and `SOURCE` 1 the same bytes: the report, every render file, and `make fuzz`
+      against the old library differing only on seeds that send `SOURCE` 2.
+- [ ] Faults planted and caught by name. `make pairs`: every case inside the old spread.
+- [ ] **The end:** `make verify`, `make selftest` in `rack/`, `make play`, `make listen`,
+      `make web`, `make install` in `rack/`; §4's ruling marked built; `LEARNINGS.md`; the
+      Handover; this list to `PLAN-HISTORY.md`.
+
 ## Session 37 — the core's cost a frame, the rest: Antigravity's parts designed in (design, Fable; D102 item 2)
 
 Not started. `harness/efficiency-candidates/README.md`, `antigravity.patch`, `opus.patch`.

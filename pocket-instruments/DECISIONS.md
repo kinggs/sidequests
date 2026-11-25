@@ -2023,6 +2023,16 @@ what a rate change does to the kept guess. Session 34 built the nearest reading 
 5. **Order:** Session 36 before Session 35, because 36 gives back 1.8 KB of the `.wasm`'s
    50 KB and 35 would otherwise pass the bar.
 
+### D103 — The beat clock: an edge is a pause only against a measured period
+**2026-11-25 · Fable, after the review of Session 35 · corrects D101 item 2 · the owner's to overrule with O27 · not built: Session 38 · `ENGINE.md` §4, "Ruled 2026-11-25 after Session 35's review"**
+
+D101 item 2 compared every edge with `2 × period`, and after a pause `period` is only the
+guess. A reviewer showed a clock that drops to under half the guessed tempo (120 to 55 bpm)
+is then never measured again; worked through and confirmed. Now an edge is a pause only
+when `measured` is set. One slow edge is still read as a pause, and the next one measures.
+Why it was missed: the ruling's own worked case stopped at the edge that ends the pause;
+one more edge would have shown it.
+
 ## Open
 
 | ID | Question | Needs |

@@ -338,6 +338,30 @@ the design above, each only with one edge a beat; `SOURCE` 1 and the table do no
 48 → 96 kHz, the first beat's steps 12 000 frames apart); the report, every render file and
 every `SOURCE` 1 test the same; faults planted and caught by name.
 
+**Ruled 2026-11-25 after Session 35's review (D103; not built: Session 38).** Ruling 2 above
+is wrong as written: after a pause, or a first edge, `period` is a guess, and the next edge
+was compared with that guess. A clock that falls to under half the guessed tempo is then a
+pause on every edge and is never measured again. So:
+
+- **An edge is a pause only against a measured period:** on `SOURCE` 2, an edge with
+  `measured` set and `since > 2 × period`. Any other edge after the first measures
+  (`period = since`, `measured` set, `guess = since`), as §4's rule first had it.
+- By hand, 48 kHz: a beat of 24 000 frames measured, then an edge every 52 364 (55 bpm).
+  The first slow edge is a pause (`period` 24 000, `measured` cleared, `ext` 0); the second
+  measures 52 364 (`ext` 550), and the steps after it fall 13 091 frames apart. As built in
+  Session 35: every edge a pause, `ext` 0 for good.
+- And from `pi_init` on beats with the stored tempo 300 (a beat of 9 600 frames) and an edge
+  every 24 000: the second edge measures 24 000. As built: never.
+- ⚠ Left: a clock that gives one edge, stops for a long time and starts again has no
+  measured period to call that a pause by, so the wait is measured as a beat and the next
+  beat's steps bunch, once.
+
+**Proven when built by:** the two cases above as rule tests by hand first, failing on
+Session 35's code; and the cases its review found no test for: a `RESET` while play waits
+for the beat (step 1 on tick 0), stop then play while waiting, `SOURCE` 2 to 1 while
+waiting (the next step), a repeated and an invalid `SOURCE` while waiting (still waits), a
+rate change on beats before any edge (`period` stays 0).
+
 **Built (Session 34; ABI 15).** `core/src/clock.rs`: `SOURCE_BEATS`, `TICKS_PER_BEAT`, the
 clock's `guess` and `measured` (both fit the struct's padding: `pi_size` stays 3 872), `edge`
 given the engine's rate. The view's flag 2 is any source but the table (`core/src/keys.rs`);
