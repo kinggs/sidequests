@@ -11,7 +11,7 @@ CXX    ?= c++
 include rack/math.mk
 RACK_ARCH := $(if $(filter x86_64,$(shell uname -m)),-march=nehalem,-march=armv8-a+fp+simd)
 
-.PHONY: build test check-toolchain check-p1 clean rack-lib race targets web p4 listen hear play bench pairs
+.PHONY: build test check-toolchain check-p1 clean rack-lib race targets web p4 listen hear play bench pairs fuzz
 
 # Every native library starts each function on a 64-byte line (Session 29, LEARNINGS.md).
 # Unpinned, where pi_process happened to land moved the bench by up to 3 ns a frame between
@@ -105,6 +105,37 @@ OLD ?= target/old/bench
 pairs: build
 	$(CXX) -std=c++17 -O2 -Wall -Wextra -Werror -Icore/include harness/bench.cpp $(NATIVE) -o target/bench
 	sh harness/pairs.sh $(BENCH_CPU) $(OLD) target/bench
+
+# The differential fuzz (D102 item 4; harness/fuzz.cpp says what it covers and does not):
+# `make fuzz OLD=<an older libpi_core.a>` builds it on that library and on this build's, runs
+# seeds 1 to SEEDS on each, a chunk a CPU, and fails on any seed whose hash differs, naming it
+# and how to find its first difference. The only check here that an efficiency change moves no
+# byte on inputs no test was written for. Not in `make test`: it needs an older build. The
+# harness must not call fmod, which the library carries as a weak symbol (fuzz.cpp's header).
+SEEDS ?= 400
+FUZZ_JOBS ?= $(shell nproc 2>/dev/null || echo 4)
+fuzz: build
+	@case "$(OLD)" in *.a) ;; *) echo "make fuzz OLD=<an older libpi_core.a> (OLD is $(OLD))"; exit 1;; esac
+	@[ -f "$(OLD)" ] || { echo "make fuzz: no library at $(OLD)"; exit 1; }
+	$(CXX) -std=c++17 -O2 -Wall -Wextra -Werror -Icore/include harness/fuzz.cpp $(OLD) -o target/fuzz-old
+	$(CXX) -std=c++17 -O2 -Wall -Wextra -Werror -Icore/include harness/fuzz.cpp $(NATIVE) -o target/fuzz-new
+	@for b in target/fuzz-old target/fuzz-new; do \
+	  if nm "$$b" | grep -qE ' [TtWw] fmodf?$$'; then echo "make fuzz: $$b defines fmod (fuzz.cpp's header says why it must not)"; exit 1; fi; done
+	@mkdir -p target/fuzz-runs
+	@for b in old new; do \
+	  seq 0 $$(( $(FUZZ_JOBS) - 1 )) | xargs -P $(FUZZ_JOBS) -I{} sh -c \
+	    'n=$(SEEDS); j=$(FUZZ_JOBS); a=$$(( 1 + {} * n / j )); z=$$(( 1 + ({} + 1) * n / j )); if [ $$z -gt $$a ]; then target/fuzz-'$$b' $$a $$(( z - a )); fi > target/fuzz-runs/'$$b'-{}.txt' || exit 1; \
+	  cat $$(seq -f "target/fuzz-runs/$$b-%g.txt" 0 $$(( $(FUZZ_JOBS) - 1 ))) | sort -n > target/fuzz-$$b.txt; done
+	@[ $$(wc -l < target/fuzz-old.txt) -eq $(SEEDS) ] && [ $$(wc -l < target/fuzz-new.txt) -eq $(SEEDS) ] || { echo "make fuzz: a run did not give $(SEEDS) seeds"; exit 1; }
+	@if cmp -s target/fuzz-old.txt target/fuzz-new.txt; then \
+	  echo "make fuzz: seeds 1 to $(SEEDS), the same bytes as $(OLD) on every one."; \
+	else \
+	  d=$$(paste target/fuzz-old.txt target/fuzz-new.txt | awk '$$1 != $$3 || $$2 != $$4 {print $$1}'); \
+	  echo "make fuzz: $$(echo "$$d" | wc -l) of $(SEEDS) seeds differ from $(OLD): $$(echo $$d | cut -c1-200)"; \
+	  s=$$(echo "$$d" | head -1); \
+	  echo "  the first difference: target/fuzz-old --dump $$s target/fuzz-a && target/fuzz-new --dump $$s target/fuzz-b && python3 -I harness/fuzz-firstdiff.py target/fuzz-a target/fuzz-b"; \
+	  exit 1; \
+	fi
 
 # rust-toolchain.toml is the pin. mise.toml must name the same version, and so must the
 # compiler that actually runs: mise sets RUSTUP_TOOLCHAIN, which wins over the file. For the

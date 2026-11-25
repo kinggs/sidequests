@@ -7,6 +7,38 @@
 //
 // Every choice comes from a PRNG seeded by the seed and never from anything the engine returns,
 // so every build gets exactly the same calls.
+//
+// Why it is kept (D102 item 4): it is the only check here that an efficiency change moves no
+// byte on inputs nobody thought to write a test for. Written by the agent that fuzzed the three
+// attempts of 2026-11-25 (harness/efficiency-candidates/README.md); kept as it left it but this
+// comment. `make fuzz OLD=<an older libpi_core.a>` builds it on that library and on this build's,
+// runs seeds 1 to 400 on each (`SEEDS=` for more) and compares the lines; on a difference, `--dump`
+// both and `python3 -I harness/fuzz-firstdiff.py <prefix A> <prefix B>` names the first record
+// that differs. Not in `make test`: it needs an older build. A seed is about 0.04 s of one CPU
+// (Session 36: 400 seeds each way in 5 s on this laptop's 32 threads, 10 000 in 32 s).
+//
+// What it covers, each a choice of the PRNG: every command, out-of-range values and unknown
+// kinds included, on slot 0 and others, out of order and past the block; held keys (fx and a
+// key, effects switched, effect 1 on and off within a millisecond with sounds ringing); the
+// three rates, changed mid-sound and while an effect is held; every layout (1, 16, 17, 18, 50),
+// no buffer, a null buffer and layouts the core refuses; loop inputs of zeros, -0, denormals,
+// NaN, infinities, large values, and what the last call wrote; blocks of 0 to 512 frames and
+// event buffers too small; the table clock, one edge a step and one edge a beat, regular,
+// irregular, with gaps and double edges; snapshots saved (to short buffers too) and loaded
+// (version 1's length, truncated, a bit flipped); samples set, replaced and cleared while
+// sounding, of 1 to 44 100 frames, misaligned and on tracks past 15; effect 4's line lent,
+// too short, null, after a rate change. It hashes every output: the audio a block writes, the
+// events, the view, the generation, `pi_dropped`, every snapshot byte and every return value.
+//
+// What it does not: the .wasm (native only; `make test` holds the two to each other); `pi_weave`;
+// threads (harness/race.cpp); more than one engine, or `pi_init` given bad memory; a sample's
+// data changed while the core holds it (the contract forbids it); rates other than the three;
+// whether anything sounds right. It proves the same bytes as the older build, nothing more: a
+// change meant to move bytes fails it by design.
+//
+// It must not call `fmod`: libpi_core.a carries compiler_builtins' `fmod` as a weak symbol, so
+// the link would take it from whichever library it is linked with, and the two builds would no
+// longer run the same harness. `make fuzz` checks that neither binary defines it.
 #include "pi_engine.h"
 
 #include <cmath>
