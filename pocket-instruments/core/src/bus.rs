@@ -6,12 +6,15 @@
 //!
 //! Only `+ - * /` and conversions, as in `voice.rs`: the same bits on every host (§11).
 //!
-//! Ported, not linked (D67 item 3; REFERENCES.md R56). Read from Emilie Gillet's stmlib
-//! (`dsp/filter.h` at d18def8: the state-variable filter `Svf::Process` and the polynomial
-//! `OnePole::tan<FREQUENCY_FAST>`) and written again in Rust. (Until ABI 14 effect 1 was also
-//! read from Plaits, `plaits/dsp/fx/sample_rate_reducer.h` at eurorack f4cfa76: the hold on a
-//! phase accumulator, without its polyBLEP. Effect 1 is now the voices slowed, §18, designed
-//! 2026-11-25, and ours; its grid keeps the accumulator's idea.) Their notice:
+//! Ported, not linked (D67 item 3; REFERENCES.md R56). What is in this code of anyone else's
+//! is one thing: read from Emilie Gillet's stmlib (`dsp/filter.h` at d18def8: the
+//! state-variable filter `Svf::Process` and the polynomial `OnePole::tan<FREQUENCY_FAST>`) and
+//! written again in Rust. The credits on `web/rhythm.html` and in `rack/plugin.json` name that
+//! alone (a ruling of 2026-11-25 on Session 32's question 4, Fable; built in Session 34). (Until
+//! ABI 14 effect 1 was also read from Plaits, `plaits/dsp/fx/sample_rate_reducer.h` at eurorack
+//! f4cfa76: the hold on a phase accumulator, without its polyBLEP. Effect 1 is now the voices
+//! slowed, §18, designed 2026-11-25, and ours; its grid keeps the accumulator's idea. Plaits'
+//! code is no longer in it.) stmlib's notice:
 //!
 //! Copyright 2014 Emilie Gillet.
 //!
@@ -36,8 +39,9 @@
 //! THE SOFTWARE.
 //!
 //! (Until ABI 12 effect 2 also used `SoftLimit` and `SoftClip` from `dsp/dsp.h`, under the
-//! same notice dated 2012; §18, designed 2026-11-24, replaced them with a plain clip.) The
-//! rest of this file is ours, under the crate's licence. SPDX-License-Identifier: MIT
+//! same notice dated 2012; §18, designed 2026-11-24, replaced them with a plain clip, so stmlib's
+//! soft clip is no longer in it either.) The rest of this file is ours, under the crate's
+//! licence. SPDX-License-Identifier: MIT
 
 use crate::clock::TICKS_PER_STEP;
 use crate::seq::TRACKS;
