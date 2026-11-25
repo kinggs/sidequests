@@ -408,15 +408,6 @@ impl Voicing {
         }
     }
 
-    /// `pi_set_sample_rate`: only the sounds not slowed are retuned.
-    pub(super) fn rate(&mut self, rate: u32) {
-        for t in 0..16 {
-            if self.slowed >> t & 1 == 0 {
-                self.tune(t, rate);
-            }
-        }
-    }
-
     /// The sixteen: a slowed sound on the grid's line (on a fresh frame `from = to`, `to =`
     /// its next value; on every frame `from + (to − from) × mu`), any other asked.
     pub(super) fn sound(&mut self, m: &Model) -> [f32; 16] {
@@ -1740,30 +1731,31 @@ fn crossings(x: &[f32], range: core::ops::Range<usize>, rate: u32) -> f32 {
 
 #[test]
 fn a_sound_sounding_when_1_comes_on_falls_two_octaves_and_when_1_goes_off_comes_back_up() {
-    // The tone (slider B at its longest, 500 ms) hit dry; 1 punched mid-note, then let go
-    // mid-note: on the frame each time, nothing cut. Held to the models frame by frame through
-    // both changes, at three rates, and its pitch read: 220 Hz, a quarter, then 220 again.
+    // The tone (slider B at its longest, 500 ms) hit dry; 1 punched mid-note and let go: on
+    // the frame each time, nothing cut. A punch is recorded on the steps that arrive under it
+    // (§17), so let go at 490 ms 1 is heard on to the step at 500 ms, where the lane is empty.
+    // Held to the models frame by frame through both changes, at three rates, and its pitch
+    // read: 220 Hz, a quarter, then 220 again.
     for rate in [44_100u32, 48_000, 96_000] {
-        let ms = |m: u64| m * rate as u64 / 1000;
-        let (on1, off1) = (ms(100) + 3, ms(500) + 7);
+        let ms = |m: u64| (m * rate as u64 / 1000) as usize;
+        let (on1, release) = (ms(100) + 3, ms(490) + 7);
         let mut c = vec![(0, cmd(CMD_SOUND, TONE, 1, 65_535)), (0, play()), (0, cmd(CMD_FIRE, TONE, 0, 0))];
-        c.extend([(on1, down(FX)), (on1, down(0)), (off1, up(0)), (off1, up(FX))]);
+        c.extend([(on1 as u64, down(FX)), (on1 as u64, down(0)), (release as u64, up(0)), (release as u64, up(FX))]);
         let mut kept = Vec::new();
-        hold_to_model_keeping(rate, &c, ms(700), false, &mut kept);
+        hold_to_model_keeping(rate, &c, ms(700) as u64, false, &mut kept);
         let tone: Vec<f32> = kept.iter().map(|fr| fr[TONE as usize]).collect();
-        let (on1, off1) = (on1 as usize, off1 as usize);
-        let dry = crossings(&tone, ms(5) as usize..on1, rate);
-        let slow = crossings(&tone, on1 + ms(5) as usize..off1, rate);
-        let back = crossings(&tone, off1 + ms(5) as usize..ms(150) as usize + off1, rate);
+        let dry = crossings(&tone, ms(5)..on1, rate);
+        let slow = crossings(&tone, on1 + ms(5)..ms(495), rate);
+        let back = crossings(&tone, ms(505)..ms(650), rate);
         assert!((dry / 440.0 - 1.0).abs() < 0.05, "rate {rate}: dry {dry} crossings a second");
         assert!((slow * 4.0 / dry - 1.0).abs() < 0.05, "rate {rate}: under 1 {slow}, a quarter of {dry}");
         assert!((back / dry - 1.0).abs() < 0.05, "rate {rate}: after 1 {back}, as dry {dry}");
-        // Nothing cut: the tone sounds on every stretch, and no jump at either change is more
-        // than two of the voice's own steps (§18: "a step of at most two of the voice's own").
+        // Nothing cut: no jump at either change is more than two of the voice's own steps
+        // (§18: "a step of at most two of the voice's own").
         let step = |f: usize| (tone[f] - tone[f - 1]).abs();
-        let biggest = (1..tone.len()).filter(|f| *f != on1 && *f != off1).map(step).fold(0.0, f32::max);
-        for f in [on1, off1] {
-            assert!(step(f) <= 2.0 * biggest + 1e-6, "rate {rate}: a jump of {} at frame {f}", step(f));
-        }
+        let near = |f: usize| f.abs_diff(on1) <= 2 || f.abs_diff(ms(500)) <= 2;
+        let biggest = (1..tone.len()).filter(|f| !near(*f)).map(step).fold(0.0, f32::max);
+        let at_changes = (1..tone.len()).filter(|f| near(*f)).map(step).fold(0.0, f32::max);
+        assert!(at_changes <= 2.0 * biggest, "rate {rate}: a jump of {at_changes} at a change, {biggest} elsewhere");
     }
 }

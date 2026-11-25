@@ -13,7 +13,7 @@
 //! Every voice keeps the slider values it was triggered with, so a rate change retunes it to
 //! the same pitch and length in hertz and seconds, whatever the sliders say since (§11).
 
-use crate::bus::Bus;
+use crate::bus::{Bus, SLOW_RATE};
 use crate::seq::TRACKS;
 
 /// §19: the loop layouts' channel counts: the sixteen sounds, the mix and the bus; and the
@@ -1333,15 +1333,18 @@ impl Voices {
     }
 
     /// The tracks that fired on this frame start their voices on this frame, each with the
-    /// A and B it was hit with (§20: `hit`, the engine's reckoning of step or tap).
+    /// A and B it was hit with (§20: `hit`, the engine's reckoning of step or tap). A sound in
+    /// `slowed` is tuned for `SLOW_RATE` (§18, designed 2026-11-25: effect 1), any other for
+    /// the host's `rate`.
     #[inline]
-    pub fn trigger(&mut self, fired: u16, hit: &[[u16; 2]; TRACKS], rate: u32) {
+    pub fn trigger(&mut self, fired: u16, hit: &[[u16; 2]; TRACKS], rate: u32, slowed: u16) {
         if fired != 0 {
             self.quiet = false;
         }
         for t in 0..TRACKS {
             if fired >> t & 1 == 1 {
                 let p = hit[t];
+                let rate = if slowed >> t & 1 == 1 { SLOW_RATE } else { rate };
                 // A track switched to its sample with none given plays its code voice.
                 if self.sampled >> t & 1 == 1 && self.samples[t].loaded() {
                     self.samples[t].trigger(p, rate);
@@ -1353,13 +1356,63 @@ impl Voices {
     }
 
     /// A voice that is sounding keeps its pitch and length in seconds across a rate change.
-    pub fn set_sample_rate(&mut self, rate: u32) {
+    /// A slowed one (§18, designed 2026-11-25) stays tuned for `SLOW_RATE`, whatever the host's.
+    pub fn set_sample_rate(&mut self, rate: u32, slowed: u16) {
         for t in 0..TRACKS {
-            on_voice!(self, t, tune(rate));
-            if self.samples[t].sounding() {
-                self.samples[t].tune(rate);
+            if slowed >> t & 1 == 0 {
+                self.retune(t, rate);
             }
         }
+    }
+
+    /// Track `t`'s code voice retuned, and its sample too if it is sounding.
+    #[inline(never)]
+    fn retune(&mut self, t: usize, rate: u32) {
+        on_voice!(self, t, tune(rate));
+        if self.samples[t].sounding() {
+            self.samples[t].tune(rate);
+        }
+    }
+
+    /// One sound's next value, as `sound` gives it: its code voice's, and its sample's if that
+    /// is sounding, times the level.
+    #[inline(never)]
+    fn ask(&mut self, t: usize) -> f32 {
+        let code = on_voice!(self, t, next());
+        let s = &mut self.samples[t];
+        (if s.sounding() { code + s.next() } else { code }) * LEVEL
+    }
+
+    /// §18, designed 2026-11-25 (effect 1): what is slowed is now `now`, read where what is
+    /// heard is read, before the frame's hits. Each sound whose bit changed is retuned, for
+    /// `SLOW_RATE` if it is now slowed, for the host's `rate` if not; each that became slowed
+    /// is asked once, there, `from = to =` that value; and if any became slowed the grid
+    /// starts again, so this frame is fresh for all with `mu` 0. Out of line: it runs only on
+    /// a frame where what is slowed changes.
+    #[inline(never)]
+    pub fn slow(&mut self, now: u16, bus: &mut Bus, rate: u32) {
+        // Each set bit in turn, lowest first: a loop the compiler does not unroll sixteen
+        // times, which kept the `.wasm` under P1's 50 KB (Session 32, measured).
+        let was = bus.slowed;
+        let mut changed = now ^ was;
+        while changed != 0 {
+            let t = changed.trailing_zeros() as usize;
+            changed &= changed - 1;
+            self.retune(t, if now >> t & 1 == 1 { SLOW_RATE } else { rate });
+        }
+        let became = now & !was;
+        if became != 0 {
+            let mut left = became;
+            while left != 0 {
+                let t = left.trailing_zeros() as usize;
+                left &= left - 1;
+                let x = self.ask(t);
+                bus.from[t] = x;
+                bus.to[t] = x;
+            }
+            bus.restart();
+        }
+        bus.slowed = now;
     }
 
     /// One frame. `frame` is `channels` floats: 1 is the mix, 16 is each track on its own,
@@ -1379,7 +1432,12 @@ impl Voices {
     pub fn render(&mut self, frame: &mut [f32], gain: f32, bus: &mut Bus, fx_sounds: u16) {
         let mut v = [0.0f32; TRACKS];
         if !self.quiet {
-            self.sound(&mut v);
+            // §18, designed 2026-11-25: one test of `slowed` on a frame that asks the voices.
+            if bus.slowed != 0 {
+                self.sound_slow(&mut v, bus);
+            } else {
+                self.sound(&mut v);
+            }
         }
         let mut mix = |v: &[f32; TRACKS]| {
             if !bus.idle() {
@@ -1415,6 +1473,35 @@ impl Voices {
             let s = &mut self.samples[t];
             *out = (if s.sounding() { code + s.next() } else { code }) * LEVEL;
             bits |= out.to_bits();
+        }
+        if bits == 0 {
+            self.quiet = self.silent();
+        }
+    }
+
+    /// The sixteen while effect 1 slows some (§18, designed 2026-11-25): a slowed sound is
+    /// asked only on a fresh frame of the grid (`from = to`, `to =` its next value) and is the
+    /// straight line `from + (to − from) × mu` on every frame, so it runs one grid step behind
+    /// its voice; any other is asked as in `sound`. Quiet may be set only on a frame where
+    /// every channel is +0 and every slowed sound's `from` and `to` are +0: a line can cross
+    /// zero between two values that are not. Out of line, so `sound` is as it was.
+    #[inline(never)]
+    fn sound_slow(&mut self, v: &mut [f32; TRACKS], bus: &mut Bus) {
+        let (slowed, fresh, mu) = (bus.slowed, bus.fresh, bus.mu);
+        let mut bits = 0u32;
+        for (t, out) in v.iter_mut().enumerate() {
+            if slowed >> t & 1 == 1 {
+                if fresh {
+                    bus.from[t] = bus.to[t];
+                    bus.to[t] = self.ask(t);
+                }
+                let (a, b) = (bus.from[t], bus.to[t]);
+                *out = a + (b - a) * mu;
+                bits |= out.to_bits() | a.to_bits() | b.to_bits();
+            } else {
+                *out = self.ask(t);
+                bits |= out.to_bits();
+            }
         }
         if bits == 0 {
             self.quiet = self.silent();

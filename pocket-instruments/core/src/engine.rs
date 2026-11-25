@@ -69,7 +69,8 @@ impl Engine {
         }
         self.clock.rescale(self.sample_rate, sample_rate);
         self.sample_rate = sample_rate;
-        self.voices.set_sample_rate(sample_rate);
+        // §18, designed 2026-11-25: a slowed voice stays tuned for 46 875 Hz.
+        self.voices.set_sample_rate(sample_rate, self.bus.slowed);
         // §18, designed 2026-11-24: the line was sized for the old rate. The host lends again.
         self.bus.forget();
     }
@@ -116,10 +117,37 @@ impl Engine {
                 }
             });
 
+            // §18: what is heard, as of this frame's ticks, and (ABI 14) what effect 1 slows,
+            // read before this frame's hits sound (§18, designed 2026-11-25: a frame's
+            // commands, then its ticks, then this, then its hits). Idle (no sound effect heard,
+            // the ramp at 0) costs a comparison in `advance` and one in the mix.
+            if audio.is_some() && (stale || out.ticks != 0) {
+                let heard = self.heard();
+                // §19 (ABI 11; D88): an effect `ROUTE` 1 names is the host's, so the core
+                // does not sound it. Named in `ROUTE` 4 too, it takes the dry's place: an
+                // insert, an effect whose sound is silence. Named in 1 alone it is no
+                // effect, and the bus stays idle. Only a loop layout has a host's effect.
+                let host = |mask: u16| heard != 0 && mask >> (heard - 1) & 1 == 1;
+                effect = if channels >= LOOP && host(self.bus.route[1]) {
+                    if host(self.bus.route[4]) { OUTSIDE | heard } else { 0 }
+                } else if is_sound_effect(heard, self.bus.lent()) {
+                    heard
+                } else {
+                    0
+                };
+                // Effect 1 slows the sounds in the effects while the core sounds it (D98 item 2).
+                let slowed = if effect == 1 { self.pat.fx_sounds } else { 0 };
+                if slowed != self.bus.slowed {
+                    self.voices.slow(slowed, &mut self.bus, self.sample_rate);
+                }
+                stale = false;
+            }
+
             // §20: what each track that fired on this frame is hit with, sound or no sound,
             // so the view says the same either way. Then (§11) whatever fired on this frame,
-            // by an edge or by the clock, sounds from this frame. One comparison on a frame
-            // where nothing fired. With no audio buffer the voices do not run at all.
+            // by an edge or by the clock, sounds from this frame (a slowed one from the grid's
+            // next frame: §18, designed 2026-11-25). One comparison on a frame where nothing
+            // fired. With no audio buffer the voices do not run at all.
             let fired = out.fired;
             let at = f as usize * channels;
             if fired != 0 {
@@ -128,28 +156,10 @@ impl Engine {
                 let ins = if channels == LOOP_SLIDERS { audio.as_deref().and_then(|a| a.get(at + LOOP..at + LOOP_SLIDERS)) } else { None };
                 self.hits(fired, out.stepped, &out.col, ins);
                 if audio.is_some() {
-                    self.voices.trigger(fired, &self.hit, self.sample_rate);
+                    self.voices.trigger(fired, &self.hit, self.sample_rate, self.bus.slowed);
                 }
             }
             if let Some(audio) = audio.as_deref_mut() {
-                // §18: what is heard, as of this frame's ticks. Idle (no sound effect heard,
-                // the ramp at 0) costs a comparison in `advance` and one in the mix.
-                if stale || out.ticks != 0 {
-                    let heard = self.heard();
-                    // §19 (ABI 11; D88): an effect `ROUTE` 1 names is the host's, so the core
-                    // does not sound it. Named in `ROUTE` 4 too, it takes the dry's place: an
-                    // insert, an effect whose sound is silence. Named in 1 alone it is no
-                    // effect, and the bus stays idle. Only a loop layout has a host's effect.
-                    let host = |mask: u16| heard != 0 && mask >> (heard - 1) & 1 == 1;
-                    effect = if channels >= LOOP && host(self.bus.route[1]) {
-                        if host(self.bus.route[4]) { OUTSIDE | heard } else { 0 }
-                    } else if is_sound_effect(heard, self.bus.lent()) {
-                        heard
-                    } else {
-                        0
-                    };
-                    stale = false;
-                }
                 self.bus.advance(effect, out.ticks, self.sample_rate);
                 if let Some(frame) = audio.get_mut(at..at + channels) {
                     // §13: the master volume, read on each frame, so a key changes it at once.

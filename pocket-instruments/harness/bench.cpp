@@ -23,6 +23,9 @@
 //           2026-11-24: one echo 174.76 ms behind)
 //   fx 14   "beat" with effect 14 on every step and a line lent (ABI 13: section 18, designed
 //           2026-11-24: the bus fed back, one loop 18.30 ms round)
+//   fx 1/0  "beat" with effect 1 on every other step of the lane, none between (ABI 14: section
+//           18, designed 2026-11-25: what is slowed changes on every step, each change up to
+//           sixteen retunes on one frame). Built on any ABI from 7, so an older library reads it
 //
 // Numbers move between machines and between runs by a few percent: compare runs made on the
 // same machine, one after the other. LEARNINGS.md keeps the ones a session measured.
@@ -116,6 +119,14 @@ int main() {
         char name[8];
         std::snprintf(name, sizeof name, "fx %u", effect);
         report(name, lane);
+    }
+#endif
+#if PI_ABI_VERSION >= 7
+    {
+        std::vector<pi_cmd> lane = beat;
+        lane.insert(lane.end() - 2, 16, cmd(PI_CMD_FX));
+        for (uint8_t s = 0; s < PI_STEPS; s++) lane[lane.size() - 18 + s] = cmd(PI_CMD_FX, s, 0, s % 2 == 0 ? 1 : 0);
+        report("fx 1/0", lane);
     }
 #endif
 #if PI_ABI_VERSION >= 9

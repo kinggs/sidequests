@@ -8,7 +8,7 @@ use crate::voice::{LOOP, LOOP_SLIDERS};
 use crate::snapshot;
 use crate::weave;
 
-pub const ABI_VERSION: u32 = 13;
+pub const ABI_VERSION: u32 = 14;
 
 pub const CMD_CLOCK: u8 = 1;
 pub const CMD_RESET: u8 = 2;

@@ -8,10 +8,10 @@
 //!
 //! Ported, not linked (D67 item 3; REFERENCES.md R56). Read from Emilie Gillet's stmlib
 //! (`dsp/filter.h` at d18def8: the state-variable filter `Svf::Process` and the polynomial
-//! `OnePole::tan<FREQUENCY_FAST>`) and Plaits
-//! (`plaits/dsp/fx/sample_rate_reducer.h` at eurorack f4cfa76: the hold on a phase
-//! accumulator, here without its polyBLEP, as ENGINE.md §18 has it) and written again in Rust.
-//! Their notice:
+//! `OnePole::tan<FREQUENCY_FAST>`) and written again in Rust. (Until ABI 14 effect 1 was also
+//! read from Plaits, `plaits/dsp/fx/sample_rate_reducer.h` at eurorack f4cfa76: the hold on a
+//! phase accumulator, without its polyBLEP. Effect 1 is now the voices slowed, §18, designed
+//! 2026-11-25, and ours; its grid keeps the accumulator's idea.) Their notice:
 //!
 //! Copyright 2014 Emilie Gillet.
 //!
@@ -53,8 +53,14 @@ use crate::seq::TRACKS;
 // c): the sweeps six steps round, not nine; 6 from 2 700 (3 240) to 165 Hz (190); 8 up to
 // 3 300 Hz (2 900); both sweeps at Q 4.5; 5 at 210 Hz (300) and Q 3 (2).
 
-/// Effect 1: the hold's rate in hertz, whatever the engine's rate.
-pub const REDUCE_HZ: u32 = 1000;
+/// Effect 1 (ABI 14; §18, designed 2026-11-25: D98, R72, R77): the voices in the effects are
+/// tuned for this rate and asked for a value on a grid a quarter of it, with a straight line
+/// between values: a quarter speed at every host rate, the same values at every host rate. Was
+/// a hold at `REDUCE_HZ` (6 000 Hz, then 1 000 from ABI 12), on the bus. Not a tuning: R69's
+/// reading of the PO-12's rate (46 875 Hz) and R72's quarter. Nothing here is for the ear.
+pub const SLOW_RATE: u32 = 46_875;
+/// The grid: a value every `QUARTER` of the slow rate's samples.
+pub const QUARTER: u64 = 4;
 /// Effect 2: the gain into the clip at ±`CEILING` (2.12 times our kick's peak, as the PO-12's
 /// is its kick's: Session 26).
 pub const DRIVE: f32 = 3.0;
@@ -184,11 +190,13 @@ pub struct Bus {
     /// The rate `step` and the filter's coefficients were made for; 0 before any.
     rate: u32,
     step: f32,
-    /// Effect 1: the phase accumulator and the sample held. Effect 14 (ABI 13): `acc` holds
+    /// Effect 1: the phase accumulator, the grid's since ABI 14 (`held` is not used since then:
+    /// kept so the fields after it stay where they were). Effect 14 (ABI 13): `acc` holds
     /// `comb`, the loop's length in frames, made with `g` and `h`; and `swept` holds `still`,
     /// frames of exact zero on the bus, counted to a millisecond's and held there. Both are
     /// free while 14 runs, so the bus keeps its size and layout (§18 asked for no new field).
     acc: u32,
+    #[allow(dead_code)]
     held: f32,
     /// Effects 5 to 8: the filter's two states and coefficients, its cutoff in hertz, ticks
     /// into a sweep, and whether `g` and `h` are the cutoff's. `swept` counts to 864 at most,
@@ -219,6 +227,17 @@ pub struct Bus {
     /// 0 to 1: each sound's own until it is hit, then what it was last hit with by the
     /// instrument's own reckoning, before any input took its place.
     pub outs: [f32; 2 * TRACKS],
+    /// Effect 1 (ABI 14; §18, designed 2026-11-25), the bus's last fields: what the grid said
+    /// this frame, `fresh` (a slowed sound is asked for its next value) and `mu` (how far the
+    /// frame is past the grid's last point, 0 to 1); `inv`, 1 / (4 × rate), made with the rate;
+    /// `slowed`, the sounds slowed (`fx_sounds` while the effect the core sounds is 1, else 0:
+    /// the engine's to set, with `Voices::slow`); and each slowed sound's last two grid values.
+    pub fresh: bool,
+    pub mu: f32,
+    inv: f32,
+    pub slowed: u16,
+    pub from: [f32; TRACKS],
+    pub to: [f32; TRACKS],
 }
 
 /// A slider in the middle, where `pi_init` puts every one: 32768 of 65535.
@@ -247,6 +266,12 @@ impl Bus {
             full: false,
             route: [0; 5],
             outs: [MIDDLE; 2 * TRACKS],
+            fresh: false,
+            mu: 0.0,
+            inv: 0.0,
+            slowed: 0,
+            from: [0.0; TRACKS],
+            to: [0.0; TRACKS],
         }
     }
 
@@ -311,10 +336,7 @@ impl Bus {
     /// next").
     fn clear(&mut self, effect: u8) {
         match family(effect) {
-            1 => {
-                self.acc = 0;
-                self.held = 0.0;
-            }
+            1 => self.acc = 0, // the grid, from its point 0
             4 => {
                 self.head = 0;
                 self.full = false;
@@ -334,6 +356,13 @@ impl Bus {
         }
     }
 
+    /// Effect 1 (§18, designed 2026-11-25): a sound became slowed, so the grid starts again:
+    /// this frame is fresh for every slowed sound, with `mu` 0.
+    #[inline]
+    pub fn restart(&mut self) {
+        self.acc = 0;
+    }
+
     /// Once a frame, after the frame's ticks and before its sound. `effect` is what is heard
     /// if the core sounds it (§18), else 0; `ticks` is how many the clock emitted this frame.
     #[inline]
@@ -350,6 +379,7 @@ impl Bus {
         if rate != self.rate {
             self.rate = rate;
             self.step = RAMP_PER_SECOND / rate.max(1) as f32;
+            self.inv = 1.0 / (QUARTER * rate.max(1) as u64) as f32;
             self.tuned = false;
         }
         if effect != 0 && effect != self.heard {
@@ -411,6 +441,14 @@ impl Bus {
             }
         }
 
+        if self.on == 1 {
+            // Effect 1's grid (§18, designed 2026-11-25), once a frame while the bus runs it,
+            // through its ramp out too. In 64 bits, kept as a u32: below 4 × rate.
+            self.fresh = self.acc < SLOW_RATE;
+            self.mu = self.acc as f32 * self.inv;
+            self.acc = ((self.acc as u64 + SLOW_RATE as u64) % (QUARTER * self.rate.max(1) as u64)) as u32;
+        }
+
         if (family(self.on) == 5 || self.on == FEEDBACK) && !self.tuned {
             let mut f = self.cutoff / self.rate.max(1) as f32;
             if f > F_MAX {
@@ -436,15 +474,9 @@ impl Bus {
         match self.on {
             // Effect 4, out of line (Session 26's bench chose this place: `ENGINE.md` §18).
             4 => self.echo(x),
-            1 => {
-                // Plaits' sample-rate reducer, without its polyBLEP: in hertz at any rate.
-                self.acc += REDUCE_HZ;
-                if self.acc >= self.rate {
-                    self.acc %= self.rate.max(1);
-                    self.held = x;
-                }
-                self.held
-            }
+            // Effect 1 is in the voices (§18, designed 2026-11-25): the bus runs it only to keep
+            // the grid, so its wet is the bus itself and the ramp adds `w × 0`.
+            1 => x,
             2 => {
                 let y = DRIVE * x;
                 if y > CEILING {

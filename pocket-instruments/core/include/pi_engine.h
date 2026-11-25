@@ -1,4 +1,4 @@
-/* Pocket Instruments: the engine's C ABI, version 13 (1 plus sound: D44; 3 adds samples: D50;
+/* Pocket Instruments: the engine's C ABI, version 14 (1 plus sound: D44; 3 adds samples: D50;
  * 4 adds keys and the view: D51; 5 adds snapshot version 2 and PI_AUDIO_BOTH: D55, D57;
  * 6 adds the lane, the fx key, the four repeats and snapshot version 3: D66, D67;
  * 7 adds the bus and seven sound effects on the mix, with no new call or command: D67;
@@ -12,7 +12,10 @@
  * 12 makes a repeat hold the nearest note behind it, retunes effects 1, 2, 3 and 5 to 8,
  * and gives effect 4 a delay in a line the host lends, pi_set_delay: D90, D91;
  * 13 gives effects 13 and 14 their sound, with no new call or command: a note plays as the
- * sound twelve keys on, and the bus fed back in the first tenth of effect 4's line: D93).
+ * sound twelve keys on, and the bus fed back in the first tenth of effect 4's line: D93;
+ * 14 makes effect 1 the sounds in the effects at a quarter of the rate, the voices tuned for
+ * 46 875 Hz and asked on a grid a quarter of it, a line between, on the track channels too,
+ * with no new call or command: D98).
  *
  * The contract both hosts link. ENGINE.md beside the crate is the specification; this file is
  * the same thing in C. Where they disagree, ENGINE.md is right.
@@ -36,7 +39,7 @@
 extern "C" {
 #endif
 
-#define PI_ABI_VERSION 13u
+#define PI_ABI_VERSION 14u
 
 #define PI_TICKS_PER_STEP 96u /* a step is a sixteenth note */
 #define PI_TRACKS 16u         /* one per grid key: key n plays track n (D30) */
@@ -62,7 +65,8 @@ extern "C" {
                                sounds through the effects are a bus, the effect acts on it, and the
                                mix is the rest plus the bus, ramped to the effect's output in 2 ms */
 #define PI_AUDIO_TRACKS 16u /* PI_TRACKS floats a frame: track n alone in channel n, before the master
-                               and before any effect */
+                               and before any effect but effect 1, which slows the voices
+                               themselves (ABI 14, D98 item 7) */
 #define PI_AUDIO_BOTH 17u   /* PI_AUDIO_TRACKS's sixteen, then PI_AUDIO_MIX's one: the same bits as each */
 /* Sound in (ABI 9; ENGINE.md section 19). A loop layout is read and written in place: the
  * host fills each frame's input channels before the call and reads its outputs after.

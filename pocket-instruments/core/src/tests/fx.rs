@@ -713,8 +713,8 @@ fn effects_the_core_does_not_sound_yet_change_nothing_but_the_lane_and_heard() {
 
 #[test]
 fn the_seven_sound_effects_change_the_mix_and_nothing_else() {
-    // §18: the same events, the same sixteen track channels (direct outputs, D57), and a
-    // mix that is not the plain one.
+    // §18: the same events, the same sixteen track channels (direct outputs, D57) but under
+    // effect 1 (ABI 14), and a mix that is not the plain one.
     let beat: Vec<Cmd> = (0..16).flat_map(|t| [on(t, t), on(t, (t + 5) % 16)]).collect();
     let mut plain: Vec<(u64, Cmd)> = beat.iter().map(|c| (0, *c)).collect();
     plain.push((0, play()));
@@ -731,7 +731,9 @@ fn the_seven_sound_effects_change_the_mix_and_nothing_else() {
             tracks_same &= x[f * 17..f * 17 + 16].iter().zip(&y[f * 17..f * 17 + 16]).all(|(p, q)| p.to_bits() == q.to_bits());
             mix_differs += (x[f * 17 + 16].to_bits() != y[f * 17 + 16].to_bits()) as usize;
         }
-        assert!(tracks_same, "effect {effect}: the sixteen tracks are untouched");
+        // ABI 14 (D98 item 7): effect 1 slows the voices themselves, so the track channels
+        // carry them slowed; every other sound effect leaves them as they are.
+        assert_eq!(tracks_same, effect != 1, "effect {effect}: the sixteen tracks untouched but by 1");
         assert!(mix_differs > x.len() / 17 / 2, "effect {effect}: the mix differs on {mix_differs} frames");
         assert_eq!(heard(&a), effect as u8);
     }
