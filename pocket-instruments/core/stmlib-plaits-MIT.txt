@@ -1,7 +1,6 @@
-Pocket Instruments' effects (core/src/bus.rs in the source) are ported from Emilie Gillet's
-stmlib (dsp/filter.h: the state-variable filter and its tan; dsp/dsp.h: the soft clip and
-soft limit) and Plaits (plaits/dsp/fx/sample_rate_reducer.h: the hold), written again in
-Rust. This plugin is a copy of that software, so it carries their notice (DECISIONS.md D77):
+Pocket Instruments' effects' filter (core/src/bus.rs in the source) is ported from Emilie
+Gillet's stmlib (dsp/filter.h: the state-variable filter and its tan), written again in Rust.
+This plugin is a copy of that software, so it carries its notice (DECISIONS.md D77):
 
 Copyright 2014 Emilie Gillet.
 
