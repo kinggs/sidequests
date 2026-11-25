@@ -290,21 +290,57 @@ Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
 
 ## Next, in order
 
-1. **Your ears and rulings on the run of 2026-11-25** (restart Rack first): the last
-   Handover note below has the three checks (effect 1, the clock, the scan and the cost:
-   thirteen minutes) and the seven rulings, each with a recommended answer (O26, O27, the
-   `.wasm`'s bar, Session 37, Rack's next idle cost, two trades).
-2. **Your ear on Sessions 26, 28 and 30** (still unheard): their Handovers' steps in
-   `PLAN-HISTORY.md`; O23, O25. D92's and D93's rulings are cheap to change; so is 14's gain.
-3. **Takes, when the PO-12 is out** ("The owner's hands"): 16's (sound 15 a bar long, dry,
+The owner ruled the run of 2026-11-25's seven as recommended (D104), before hearing it.
+
+1. **Session 39** (build, Opus), below: Rack's jacks worked out only when something reads
+   them. Nothing waits on the owner.
+2. **Session 37** (design, Fable), below: Antigravity's parts designed in. Nothing waits on
+   the owner; it ends in a build list.
+3. **Your ears** (restart Rack first): the run of 2026-11-25's three checks, thirteen
+   minutes, in its Handover below (effect 1, the clock, the scan and the cost); then
+   Sessions 26, 28 and 30, still unheard (`PLAN-HISTORY.md`; O23, O25).
+4. **Takes, when the PO-12 is out** ("The owner's hands"): 16's (sound 15 a bar long, dry,
    then fx + 16, then fx + 1; it serves 15 too), 14 at 120 bpm, and 13's map. Read them
    with "Read `pocket-instruments/PLAN.md` and read the takes asked for".
-4. **Your looks and rulings** on what 2026-11-23 built: "The owner's hands", first part.
+5. **Your looks and rulings** on what 2026-11-23 built: "The owner's hands", first part.
    **Session 14's fourth box,** the weave accepted or redrawn: below.
-5. **Efficiency, when wanted, each after its ruling:** Session 37 (design, Fable:
-   Antigravity's parts); Rack's next idle cost (a build: the module works out all sixteen
-   VOICES and TRIGGERS channels every frame, patched or not, 54% of its idle cost).
 6. Then from "Not planned yet", as you choose.
+
+## Session 39 — Rack's jacks worked out only when something reads them (build, Opus; D104 item 5)
+
+`rack/` only: nothing in `core/` changes. Read Session 33's Handover (`PLAN-HISTORY.md`:
+`jacks.frame` is 54% of `Rhythm::process` stopped); `rack/src/jacks.hpp` (`Jacks::frame`,
+and `fxSend`, whose mask of live gains is the pattern); `rack/src/Rhythm.cpp`, `process`
+from "The jacks, out"; Machine state (perf, pinned to CPU 2; Rack's stdin). The rules for
+every build session hold. **No volt on any patched jack may change.**
+
+- [ ] **Before any change:** perf on the installed build, stopped and unpatched, and again
+      playing the minimum beat, pinned, by Machine state's recipe: the module's samples,
+      `Rhythm::process`'s and `jacks.frame`'s, written down.
+- [ ] **Tests first,** in `rack/test/jacks.cpp`, written to today's volts and passing on
+      today's code where today's code can run them: a trigger is 10 V for 1 ms at 44.1, 48
+      and 96 kHz and 0 V after; a hit again inside a pulse starts the millisecond again;
+      **TRIGGERS patched in the middle of a pulse carries the rest of it** (the timers
+      count whether or not anything reads them); a channel is written 0 V on the frame its
+      pulse ends; VOICES is `safe(5 V × the track)` on every channel.
+- [ ] **VOICES:** the sixteen `safe(5 × track)` are worked out only on a frame VOICES is
+      patched.
+- [ ] **TRIGGERS:** a mask of the tracks whose pulse is live (`trigLeft[t] != 0`), as
+      `fxLive` is for the send. An event sets the timer and the bit; each frame only the
+      live tracks count down, patched or not; patched (or in a fixture self-test, which
+      writes TRIGGERS anyway) each live track is 10 V, and a track whose pulse ends is
+      written 0 V once and its bit cleared, so the output's voltages must start at 0 and
+      a cable patched in later reads 0 on every channel not live. `process`'s own loop
+      over the sixteen for `before` (the self-test's count of pulses) uses the mask.
+- [ ] AUDIO, FX GATES and FX SEND do not change.
+- [ ] Faults planted and caught by name (the timers not counted while unpatched; the 0 V
+      not written at a pulse's end; the bit not set by a second hit). `make selftest` in
+      `rack/`: every fixture's TRIGGERS count and the loop tests as before.
+- [ ] **Measured:** perf again, the same patches and seconds: stopped, and playing, before
+      and after, and what is now `Rhythm::process`'s largest part.
+- [ ] **The end:** `make verify`, `make selftest` in `rack/`, `make install` in `rack/`;
+      "Later: efficiency" gains the numbers; `LEARNINGS.md`; the Handover; this list to
+      `PLAN-HISTORY.md`.
 
 ## Session 37 — the core's cost a frame, the rest: Antigravity's parts designed in (design, Fable; D102 item 2)
 
@@ -470,7 +506,7 @@ originals are in `PLAN-HISTORY.md`); nothing was dropped, each thing is here onc
       minutes) and its five readings (⚠).
 - [ ] **Session 33, two minutes in Rack** (restart Rack first): its Handover (now in `PLAN-HISTORY.md`).
 - [ ] **Session 34, three minutes in Rack** (restart Rack first; O27): its Handover (now in `PLAN-HISTORY.md`).
-- [ ] **Session 35, two minutes in Rack** (restart Rack first; O27): its Handover below.
+- [ ] **Session 35, two minutes in Rack** (restart Rack first; O27): its Handover (now in `PLAN-HISTORY.md`).
 - [ ] **Session 36, one minute in Rack** (restart Rack first): its Handover (now in `PLAN-HISTORY.md`); above all
       ⚠ 1, the sliders case's 2 ns.
 - [ ] **Session 38, one minute in Rack** (restart Rack first; O27): its Handover below.
@@ -626,6 +662,7 @@ each build. Each session's own note is in `PLAN-HISTORY.md` (38's is above).
   3. **The scan and the cost, three minutes** (Rack). Stopped, Engine → CPU meter: about a
      fifth under what it read; playing, lower again. Tap keys, hold bpm and move a slider,
      Ctrl+click fx and punch a key: nothing missed, nothing different.
+- **Ruled by the owner the same day, all seven as recommended (D104).** As they were put:
 - **Rulings waiting for you (recommended answer first):**
   1. **Effect 1 as designed (O26)?** **Accept.** Its points: a ringing note changes speed
      the moment 1 comes on or goes off; a sound returned from Rack is left as it came;

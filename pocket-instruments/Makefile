@@ -157,7 +157,7 @@ check-toolchain:
 # libc's memory routines and, if a panic path ever survives, abort. Nothing else.
 check-p1:
 	@size=$$(stat -c %s $(WASM)); \
-	[ $$size -lt 50000 ] || { echo "P1: the .wasm is $$size bytes, over 50 KB"; exit 1; }; \
+	[ $$size -lt 64000 ] || { echo "P1: the .wasm is $$size bytes, over 64 KB (the bar was 50 KB until D104)"; exit 1; }; \
 	if ar t $(NATIVE) | grep -qE '^(alloc|std)-'; then echo "P1: the static library holds alloc or std"; exit 1; fi; \
 	wants="$$(nm -A --undefined-only $(NATIVE) 2>/dev/null | grep ':pi_core-' | awk '{print $$NF}' | sort -u | tr '\n' ' ')"; \
 	for sym in $$wants; do case $$sym in memcpy|memset|memmove|memcmp|bcmp|abort) ;; \

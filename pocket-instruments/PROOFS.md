@@ -37,7 +37,9 @@ for `x86_64-unknown-linux-gnu` (`staticlib`) and `wasm32-unknown-unknown`.
 - one command builds both from a clean checkout;
 - the core crate does not link `alloc` at all (strongest form of "no allocation in the callback");
 - `panic = "abort"`; no unwinding can reach C;
-- the `.wasm` is under 50 KB.
+- the `.wasm` is under 50 KB. **Moved by the owner, 2026-11-25 (D104 item 3): under 64 KB.**
+  It was set when the file was 5 KB; at 48 150 bytes the next feature would have passed it.
+  The result below was read against 50 KB and stands.
 
 **If it fails:** nothing dies; the constraint that failed gets relaxed and recorded.
 
