@@ -1747,3 +1747,29 @@ above; these are what only the chain showed.
 - **A guard can be proved for a part that is left out.** Part 8's three plants each fired its
   guard in `cargo test` and failed the tour in release, so if it is ruled back in its proof is
   already done (`~/.cache/pocket-instruments/session41/part8-left-out.diff`).
+
+## Session 42: one place asks a voice, the sums in one type, the mix once (2026-11-25)
+
+- **The sums were the cost, not the asking.** The list alone (sixteen direct lines in place of
+  `Voices::ask`'s jump table) moved the beat 0.5 ns a frame; taking the frame's sums over what it
+  emits, with the silent fours skipped, moved it 1.4 more, `sliders` 4.9 and every effect case 1.5
+  to 3.4. Today's loops added sixteen values whatever was sounding.
+- **A walk of set bits is slow when the mask is dense.** `Sum::over` walking each set bit read
+  fx 1 2.7 and `loop` 3.3 ns slower than the plain sixteen additions it replaced (all sixteen in
+  the mask there); adding every track whatever the mask cost idle 1.6. Adding a four at a time,
+  whole, when any of its bits is set (safe: a sum from +0 is never −0, so a +0 added changes
+  nothing) was the only form near the best of both. Branch prediction on a trip count that
+  changes frame to frame is the likely reason; not profiled.
+- **A choice the compiler turns back into a branch is not a choice.** `sound_slow` written as one
+  loop for every mask (`if slowed { line } else { out }`) became scalar branches, fx 1 24.5
+  against 19.0; written with bit masks so the sixteen were done together, 27.3. Keeping today's
+  every-sound-slowed loop and asking straight into `to` read 17.6. The line itself is written once
+  (`line()`), so no rule is written twice.
+- **Asking into an array and copying it cost 2 ns.** The same list call writing into `v` and then
+  `to = *v`, against writing into `to` directly: fx 1 19.5 against 17.6. Not understood.
+- **fx 1 read 0.5 ns slower after the Sum in every form tried** (0.2 to 2.7), until effect 1's
+  lines by fours left the silent fours out of its mask (18.1 → 17.1). By the amended bar the Sum
+  step alone would have been left out; it was kept as a question (the Handover).
+- **D105 item 9's path earns its place now.** With the sums masked, the loop without its
+  every-sound-returned path was 3.4 ns slower and `sliders` 1.5 slower too: the 2 ns `sliders`
+  paid in Session 36 was where code landed, and the masked sums gave it back (21.1 → 15.6).

@@ -773,6 +773,25 @@ the `TRIG` events they already make.
   fx 2 18.7 → 18.2; fx 14 21.5 → 20.8; loop 18.6 → 18.2; sliders 21.2 → 21.1; rack 22.4 → 21.7;
   rack lp 24.2 → 23.9; repeat 22.6 → 22.9 ⚠ (inside the old spread by one slow round). The
   `.wasm` 48 150 → 47 961. No host names `pi_size`'s value.
+  **Since Session 42 (D105 items 1 to 4, 8, 9; D107):** the core reads as D105's four rules ask.
+  One place asks a voice (`Voices::list`: sixteen lines in track order, one macro, each the code
+  voice's `next`, the sample's if it sounds, times the level), called by `sound`, `sound_slow`
+  and `slow` with their own masks, each keeping its own bookkeeping (the render callers let a
+  track go on the frame it gives +0 and says silent; `slow` lets none go and writes `from = to`
+  for every sound that became slowed). The arithmetic of zeros in one type (`Sum`, `bus.rs`):
+  the frame's sums are taken over the sixteen values it emits, with the tracks a mask leaves
+  out skipped, and its three facts are stated there once and held to plain loops
+  (`tests/sum.rs`). §18's mix written once (`Bus::dry`). Under effect 1 a four of tracks whose
+  values are all exact +0 is left out of the mask (`Sum::fours`). The cold handlers out of line
+  and `clear` as loops (Session 41's part 1, by D107). The path for every sound returned is kept
+  (D105 item 9: without it `loop` 3.4 ns a frame slower). Nothing in this contract changed: the
+  report, the weave and all 432 render files the same bytes; `make fuzz` against Session 41's
+  library, 10 000 seeds, none different, the guarded run every line. `make pairs` against
+  Session 41's build, CPU 2, ten rounds, ns a frame (old → new): idle 3.7 → 3.5; beat 13.9 →
+  11.9; all 41.7 → 35.6; both 14.4 → 12.9; repeat 22.9 → 22.2; fx 1 18.9 → 16.9; fx 2 18.2 →
+  16.2; fx 3 22.6 → 17.9; fx 14 20.8 → 18.8; loop 18.2 → 16.9; loop in 19.7 → 19.3; sliders
+  21.1 → 15.7; rack 21.8 → 18.5; rack lp 23.9 → 22.4. The `.wasm` 47 961 → 44 597; `pi_size`
+  3 672 as before.
 - **The sliders.** `SOUND` sets slider A or B of a track, 0 to 65535 (the reserved `PARAM`
   command will become this, for the selected sound, when the keys are built: D26). A value
   is read when the voice is next triggered. A sounding voice keeps its pitch and length, in

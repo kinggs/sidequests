@@ -3862,3 +3862,145 @@ out and why, with their numbers, ⚠ and all.) Not started. Needs Session 40. `h
   is ported, and kept or left by D105 item 8. Antigravity was not asked again: its patch was
   the subject, and a second reader from another house was worth more than a second attempt.
 - **Next:** Session 40 (the model, the guard, the bench as Rack calls), then 41, then 42.
+
+## Session 42 — the core's cost a frame: one place asks a voice, the sums in one type, the mix once (build, Opus; D105 items 1 to 4, 8, 9; done 2026-11-25)
+
+(Done 2026-11-25: the Handover note "After Session 42" says what was kept, what left out and
+why, with its numbers, ⚠ and all.) Not started. Needs Session 41. This is the session where code a maintainer reads changes
+shape; D105 items 1 to 4 are the brief, and its item 8 judges each step. **No byte moves.**
+
+- [x] **Before anything:** as Session 41's first box.
+- [x] **D107 first:** its item 1 amends the bar every step below is judged by. Then its item
+      2: Session 41's part 1 (the cold handlers out of line, `clear` as loops), from the port
+      Session 41 left in `~/.cache/pocket-instruments/session41/`, measured and committed
+      alone.
+- [x] **`Sum`, with its tests first** (D105 item 3), in `bus.rs`: `Sum::start(mask)`,
+      `add(y)`, `plain()`, `bus_all()` (`plain + 0.0`), and `split(v, mask, fx_sounds)` giving
+      `(rest, bus)` by two walks of set bits. Its doc states the three facts once. Tests, in
+      their own file, hold each to a plain loop written in the test: every combination of ten
+      values (±0, ±1, the smallest denormals, ±3e38, 0.1, 2²⁴) over six tracks exhaustively
+      and sixteen tracks by a seeded draw, with the mask the non-zero tracks, all sixteen, and
+      random supersets. Committed passing before anything uses it.
+- [x] **The list** (D105 item 2): one function holding one macro, sixteen lines in track
+      order, each: if the mask has the track, the code voice's `next`, plus the sample's `next`
+      if it is sounding, times `LEVEL` once, written to that track's place in the array it is
+      given. `Sample::next` out of line. Three callers, each keeping today's bookkeeping word
+      for word: `sound` (mask `active_tracks`; a track let go on the frame its value is +0 and
+      both say silent, so the guard and `quiet` keep their timing); `sound_slow` (a fresh
+      frame asks the active sounds; a slowed one's value is its `to`, a plain one's its
+      channel; a plain sound is asked on every frame; quiet decided after the emitted values
+      and both ends are read); `slow` (asks the sounds that became slowed and are active, lets
+      none go, and writes `from = to` for **every** sound that became slowed, +0 for a silent
+      one). `Voices::ask`, `sound_active` and `sound_track` go. Then place it by the bench:
+      the whole function out of line; the first four lines in the frame loop and twelve out
+      of line (a second expansion of the same macro: allowed only as placement, and only if
+      it reads faster); nibble tests round each four. Take the best; say all the readings.
+- [x] **The `Sum` is over what the frame emits** (D105 item 3): in `sound`, the tracks asked;
+      under effect 1, taken after the lines, every slowed sound in the mask with the plain
+      ones asked; in a loop layout, after the returned sounds take their places, those in the
+      mask too.
+- [x] **The mix once** (D105 item 4): `Bus::dry(rest, bus, outside)`, the one place §18's
+      `rest + bus + w × (wet − bus)` is written, with `wet`, `echo` and `feedback` where they
+      are. `Bus::mix` and `Bus::looped` take the frame's `Sum` and mask: with every sound in
+      the effects `bus_all()` and a `rest` of +0, otherwise `split`; idle, the dry is
+      `plain()`. In `looped` channel 17 is the bus from +0 on every frame, idle too, and FX
+      RETURN is added as today, exact zero adding nothing.
+- [x] **D105 item 9:** read `loop`, `loop fx`, `loop in`, `rack lp` and `sliders` with and
+      without the all-returned path; keep or drop by the item's words.
+- [x] **The two options** (D105 item 8), each measured alone and kept only by its bar: effect
+      1's lines by fours; the loop's returned sum by fours. A group of four whose bits are all
+      0 is left out of the mask and nothing else changes: no subtotal, one order of addition.
+      The same code for each of the four groups, and a test that drives each group alone (one sound in tracks 4 to 7, 8 to 11,
+      12 to 15, each in turn) through the tour.
+- [x] **Faults,** the unplanted copy first, each built, each caught by name: the `Sum` started
+      from +0 with all sixteen active (a frame of sixteen −0s); a line of the list writing the
+      next channel; the sample not added on one track; `slow` leaving a silent sound's old
+      ends in place; a line's sound left out of the `Sum` once its bit has cleared; the idle
+      loop's channel 17 taken from `plain()`; `dry` given `bus` for `rest`; the loop's mask without the returned
+      sounds. And the guard: a bit cleared one frame early, caught by the guarded fuzz.
+- [x] **The end:** as Session 41's, and: `harness/efficiency-candidates/README.md`'s table
+      gains this build's column and its "Ruled" rows say what was taken;
+      `antigravity.patch` and `opus.patch` are deleted (git keeps them); "Later: efficiency"
+      gains the last box, with D105 item 15's recommendation for the owner to accept or not.
+
+## Handover note moved here by Session 42 (2026-11-25)
+
+### After Session 40: the model to every layout, the guard in the fuzz, the bench as Rack calls (2026-11-25)
+
+- **Built as D105 items 10, 11 and 13 ask, tests and harness only, nothing to hear.** Not a line
+  of `core/src/` outside `core/src/tests/` changed. `target/report-rust.txt` and the 432 render
+  files the same bytes as before the first change; `make fuzz` 10 000 seeds the same bytes as
+  Session 38's core (Rack's nehalem build of it, `target/x86_64-unknown-linux-gnu/release/`,
+  the only library of that core left in `target/`), the guarded run finishing every seed with
+  the same lines. `make fuzz` against the library this session kept reads "this build's own
+  library" and is refused, which is right: nothing in the core moved.
+- **`OLD` for Sessions 41 and 42:** `~/.cache/pocket-instruments/session40/libpi_core.a`
+  (sha256 `35b99974…`, the release library of `5c7c2e4`'s core) and `bench` beside it, built
+  from this session's `harness/bench.cpp` on that library, so it has `rack` and `rack lp`.
+- **What was built:**
+  1. `core/src/tests/tour.rs`: the model (`Model` and `Voicing`, `tests/bus.rs`) given the
+     frame each of layouts 1, 16, 17, 18 and 50 writes, from §15 and §19's words, in plain
+     loops over sixteen; and a seeded tour: hits on all sixteen (taps and a pattern), samples
+     given and switched, sounds in and out of the effects, every effect 1 to 16 held, `ROUTE`
+     0 to 4 none, some and all, loop inputs of zeros, −0, moving values and not-numbers
+     (∞ too), a line lent and taken away, rate changes with sounds ringing, silences, the
+     volume, and the layout changed mid-run. 13 seeds a layout over three rates (65), and 8
+     seeds of effects 1 and 14 at 8 kHz and 100 Hz; every channel of every frame bit for bit,
+     about 11 million frames, `cargo test` 6.5 → 10 s. Each short way counted from the
+     engine's fields before the frame and asserted not 0 (counts below).
+  2. The cargo profile `guarded`; `make fuzz` builds a third library with it in
+     `target/guarded`, runs the same seeds, and fails unless every seed finishes with
+     `fuzz-new`'s line, naming the seed and the gdb command that names the guard.
+  3. `fuzz --stats`' five short ways, from what the harness sent; bench `rack` and `rack lp`.
+  4. `ENGINE.md`: "§18, as built, Session 40" and "§19, as built, Session 40".
+- **Where the build differs from the list, or reads it (⚠):**
+  1. ⚠ **The profile is in the workspace's `Cargo.toml`,** not `core/Cargo.toml`: cargo reads
+     profiles only from the workspace manifest. It also has `strip = false`, line tables, and
+     the Makefile builds it with tail merging off: without that every panic in `pi_process`
+     shares one call (the handler reads nothing, so even the message is dropped) and gdb named
+     the ABI's bounds check at `abi.rs:221`, not the guard. With it: `render () at
+     core/src/voice.rs:1462`. Neither changes a line out (10 000 seeds, the same lines).
+  2. ⚠ **What the model is given:** the commands it sent, the inputs it filled, the rate and
+     the line; and from the engine the view's tick (ticks are its difference), what is heard,
+     which sounds are in the effects, the volume and the events that fired, as `Voicing`
+     already took them. The hits it works out itself, so the tour writes no step that keeps
+     sliders (`KEEP`), moves no slider of the hand (`PARAM`), and sends no `RESET` or
+     `SOURCE` (the tick difference would wrap). Edges stay with `tests/bus.rs` and
+     `tests/route.rs`' tours.
+  3. ⚠ **The three bits the list named, as built:** an infinity in is silence; a line forgotten
+     while 4 or 14 ramps out leaves the bus as it is (and 14 counts no silence then); 14's count
+     stops at a millisecond's and is kept across a rate change. And one more: back in a loop
+     layout an insert ducks the bus again from that frame. In `ENGINE.md`, for the owner.
+  4. **One fix to the model, from §18's words:** 14's filter holds `f` to 0.3 like the others;
+     at 100 Hz it is 10.9 and the model disagreed. The engine was right.
+  5. "Every sound in the effects and not" is counted in layouts 1 and 17 with an effect running
+     before the frame (where `Bus::mix` runs); "returned" in 18 and 50.
+- **Counts the tour spends in each short way** (frames; layout 1 / 17 / 18 / 50 / 16 / low
+  rates): every sound in the effects 332 855 / 277 776 / – / 2 546 / 5 581 / 6 740; some
+  385 041 / 632 132 / – / 6 437 / 0 / 22 219; every sound returned – / – / 73 597 / 1 121 144;
+  some 1 381 862 / 359 951; none 719 445 / 604 921; every sound slowed 216 675 / 192 052 /
+  165 408 / 253 473 / 290 892 / 14 931; some slowed 318 986 / 428 076 / 246 606 / 260 769 /
+  337 008 / 28 101; quiet 566 126 / 673 845 / 307 745 / 464 624 / 489 598 / 62 625. (Layout 16's
+  and others' small counts in other columns are its mid-run layout changes.)
+- **Faults planted,** in a scratch copy, the unplanted copy first (339 tests passed), each
+  built, each caught by name by the tour: `sound_active` writing track 6 into channel 7 (all
+  six tour tests; `quiet.rs` too); `Bus::mix`'s all-sounds path one track short (layouts 1, 16,
+  17 and the low rates); `Bus::looped`'s all-returned path leaving track 4 uncleaned (layout 50
+  only: layout 18's seeds never had all sixteen returned while not-numbers came in); the
+  all-slowed path's line for track 10 starting from 0 (all six); Session 36's escape, track 3
+  never asked beside fifteen lines (all six). `quiet.rs` caught only the first. And the guard:
+  the bit not set on a hit (track 2) in a guarded scratch build, the unplanted copy first (400
+  seeds through): `make fuzz` stops at seed 1 and gdb names `render` at `voice.rs:1462`.
+- **The fuzz's new `--stats`,** seeds 1 to 400, frames: every sound in the effects while an
+  effect is held 1 441 833; every sound returned 1 268 860; effect 1 over all sixteen 282 504; an
+  effect held steady over 2 ms 3 731 670; a second with nothing sent that sounds 11 248 544. Each
+  over a thousand, so the PRNG gained no choice and no seed's line moved.
+- **The bench as Rack calls** (`make pairs`, CPU 2, ten rounds, medians, ns a frame): `rack`
+  22.4 (22.3–22.5) beside `both` 14.8; `rack lp` 24.1 (24.1–25.7) beside `loop` 18.5. A frame a
+  call costs 6 to 8 ns more than a frame in a block of 128: about a third of what the module pays
+  the core is the call. Every other case inside the kept bench's spread.
+- **Questions for the design session (⚠):** the four as-built bits above, to rule or leave as
+  built; whether the tour should take `KEEP`, `PARAM` and edges in before Session 42 changes
+  `sound`; and whether the call's cost (`rack` against `both`) is worth a design pass of its
+  own, since D105 item 15 calls Session 42 the last on the core's cost.
+- **Next:** Session 41, against `~/.cache/pocket-instruments/session40/`.
