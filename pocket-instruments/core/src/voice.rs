@@ -117,7 +117,7 @@ fn step_env(env: &mut f32, k: f32) -> f32 {
 /// exact in an f32, and never -0, as the float sum from +0 it replaces never was (x + -x is +0).
 /// The hats' six and the cow bell's two.
 #[inline]
-fn squares<const N: usize>(phase: &mut [u32; N], inc: &[u32; N]) -> f32 {
+pub(crate) fn squares<const N: usize>(phase: &mut [u32; N], inc: &[u32; N]) -> f32 {
     let mut high = 0u32;
     for p in phase.iter() {
         high += *p >> 31;

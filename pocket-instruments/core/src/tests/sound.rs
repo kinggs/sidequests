@@ -390,6 +390,68 @@ fn a_voice_sounding_across_a_rate_change_keeps_its_length_in_seconds() {
     }
 }
 
+/// Session 41 (D105 item 5): the hats' six squares and the cow bell's two are counted in
+/// integers (`voice::squares`). Held to the float loop they replaced, written here as it was:
+/// from +0, add +1 while a phase is under 2^31 and -1 otherwise, then step that phase. Every
+/// value and every phase after, bit for bit, over seeded phases and steps and the edges of the
+/// top bit, a million frames each.
+#[test]
+fn the_squares_counted_in_integers_are_the_float_sum_they_replaced() {
+    fn old<const N: usize>(phase: &mut [u32; N], inc: &[u32; N]) -> f32 {
+        let mut sum = 0.0f32;
+        for i in 0..N {
+            sum += if phase[i] < 1 << 31 { 1.0 } else { -1.0 };
+            phase[i] = phase[i].wrapping_add(inc[i]);
+        }
+        sum
+    }
+    fn check<const N: usize>(seed: u32) {
+        let mut x = seed;
+        let mut draw = || {
+            x ^= x << 13;
+            x ^= x >> 17;
+            x ^= x << 5;
+            x
+        };
+        let edges = [0u32, 1, (1 << 31) - 1, 1 << 31, (1 << 31) + 1, u32::MAX];
+        let mut a: [u32; N] = core::array::from_fn(|i| edges[i % edges.len()]);
+        let mut inc: [u32; N] = core::array::from_fn(|_| draw() >> 6);
+        let mut b = a;
+        for f in 0..1_000_000 {
+            if f % 4096 == 0 {
+                inc = core::array::from_fn(|_| draw() >> (f % 7 + 1));
+            }
+            let (got, want) = (crate::voice::squares(&mut a, &inc), old(&mut b, &inc));
+            assert_eq!(got.to_bits(), want.to_bits(), "{N} squares, frame {f}");
+            assert_eq!(a, b, "{N} squares, frame {f}: the phases after");
+        }
+    }
+    check::<6>(0x2545_F491);
+    check::<2>(0x9E37_79B9);
+}
+
+/// §11: a sounding voice keeps its pitch in hertz across a rate change. Session 41 (D105 item
+/// 5): the kick, the synth snare and the toms keep their step once the sweep is 0 as an integer
+/// (`base_inc`), which a retune must make again; a plant that made it only on a hit passed every
+/// other test. Each is hit at 48 kHz, the rate doubled once its sweep is 0 and it still sounds,
+/// and its cycles counted after: as many as the same hit at one rate, within a cycle.
+#[test]
+fn a_voice_sounding_across_a_rate_change_keeps_its_pitch_after_its_sweep() {
+    // (track, the change in ms, then counted from, over ms): each sweep under -80 dB first.
+    for (t, at, from, ms) in [(KICK, 250, 300, 200), (SYNTH_SNARE, 90, 100, 40), (LOW_TOM, 380, 400, 100), (HIGH_TOM, 380, 400, 80)] {
+        let whole = hit(t, 32768, 65535, 48000, 48000);
+        let mut h = Host::new(48000, 1);
+        let fire = [(0, cmd(CMD_SOUND, t, 0, 32768)), (0, cmd(CMD_SOUND, t, 1, 65535)), (0, cmd(CMD_FIRE, t, 0, 0))];
+        let (first, _) = render(&mut h, at * 48, 128, 1, &fire);
+        assert!(first.iter().rev().take(48).any(|&s| s != 0.0), "track {t} still sounds at {at} ms");
+        unsafe { pi_set_sample_rate(h.e, 96000) };
+        let (rest, _) = render(&mut h, (from + ms - at) * 96, 128, 1, &[]);
+        let one = cycles_between(&whole, 48000, from, ms) as i64;
+        let across = crossings(&rest[(from - at) * 96..]) as i64;
+        assert!(one > 4 && (one - across).abs() <= 1, "track {t}: {one} cycles at one rate, {across} across the change");
+    }
+}
+
 #[test]
 fn a_slider_moved_while_a_voice_sounds_waits_for_its_next_hit() {
     // §11: a value is read when the voice is next triggered, and a rate change does not
