@@ -106,19 +106,12 @@ struct Engine {
 struct Module : pi::Jacks {
     float trig[PI_TRACKS] = {}, voices[PI_TRACKS] = {}, mix = 0.f, audio = 0.f;
     uint32_t pulses = 0;
+    // (Until Session 39's change this drove the old jacks.frame, which worked out all sixteen
+    // channels every frame, and copied them as Rhythm.cpp did while each was patched.)
     void out(const float *f, const pi_event *ev, uint32_t n, uint32_t trigFrames, bool trigPatched = true, bool voicesPatched = true) {
-        uint32_t before = 0;
-        for (uint32_t t = 0; t < PI_TRACKS; t++) before |= (trigLeft[t] ? 1u : 0u) << t;
-        pi::JackFrame o;
-        frame(f, ev, n, trigFrames, o);
-        if (trigPatched)
-            for (uint32_t t = 0; t < PI_TRACKS; t++) {
-                trig[t] = o.triggers[t];
-                if (trig[t] != 0.f && !(before >> t & 1)) pulses++;
-            }
-        if (voicesPatched) std::memcpy(voices, o.voices, sizeof voices);
-        mix = o.mix;
-        audio = o.audio;
+        pulses += frame(f, ev, n, trigFrames, trig, trigPatched, voicesPatched ? voices : nullptr);
+        mix = f[PI_LOOP_MIX];
+        audio = audioOut(mix);
     }
 };
 
@@ -690,6 +683,18 @@ static void triggers() {
             check(m.pulses == k.pulses, "triggers", why);
         }
     }
+    // A cost guard, written after the change (the old code wrote all sixteen every frame, so it
+    // fails there): a channel no firing reached is never visited, and a pulse leaves no channel
+    // live once it has ended. 7 V marks what must not be written.
+    Module g;
+    for (float &v : g.trig) v = 7.f;
+    g.trig[5] = 0.f;
+    const float silent[PI_AUDIO_BOTH] = {};
+    const pi_event hit = anEvent(PI_EV_TRIG, 5);
+    for (uint32_t f = 0; f < 200; f++) g.out(silent, &hit, f == 10 ? 1 : 0, 48, f % 2 == 0);
+    bool untouched = g.trig[5] == 0.f && g.trigLive == 0;
+    for (uint32_t t = 0; t < PI_TRACKS; t++) untouched = untouched && (t == 5 || g.trig[t] == 7.f);
+    check(untouched, "triggers", "a channel no firing reached was written, or an ended pulse left its channel live");
 }
 
 // VOICES: each track times 5, a non-finite sample 0 V and counted; unpatched, the output keeps

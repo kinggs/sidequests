@@ -938,25 +938,18 @@ struct Rhythm : Module {
         }
         if (viewRead) reseat = false;
 
-        // The jacks, out (jacks.hpp). An unpatched output is left alone.
+        // The jacks, out (jacks.hpp). VOICES is worked out only while patched (Session 39);
+        // TRIGGERS' timers count every frame and only its live channels are written, patched or
+        // not, so its voltages are always the pulses' (they start at 0 in Rack).
         if (route[PI_ROUTE_SOUNDS]) returnFrames.store(++returnFramesSeen, std::memory_order_relaxed);
-        uint32_t before = 0;
-        for (uint32_t t = 0; t < PI_TRACKS; t++) before |= (jacks.trigLeft[t] ? 1u : 0u) << t;
-        pi::JackFrame out;
-        jacks.frame(io, ev, count, msFrames, out);
         // The self-test writes TRIGGERS and FX GATES anyway, to count and to hold them.
-        if (outputs[TRIGGERS_OUTPUT].isConnected() || fixture >= 0) {
-            outputs[TRIGGERS_OUTPUT].setChannels(PI_TRACKS);
-            for (uint32_t t = 0; t < PI_TRACKS; t++) {
-                outputs[TRIGGERS_OUTPUT].setVoltage(out.triggers[t], t);
-                if (outputs[TRIGGERS_OUTPUT].getVoltage(t) != 0.f && !(before >> t & 1)) pulses++; // what left, counted
-            }
-        }
-        if (outputs[VOICES_OUTPUT].isConnected()) {
-            outputs[VOICES_OUTPUT].setChannels(PI_TRACKS);
-            for (uint32_t t = 0; t < PI_TRACKS; t++) outputs[VOICES_OUTPUT].setVoltage(out.voices[t], t);
-        }
-        outputs[AUDIO_OUTPUT].setVoltage(out.audio);
+        bool trigOut = outputs[TRIGGERS_OUTPUT].isConnected() || fixture >= 0, voicesOut = outputs[VOICES_OUTPUT].isConnected();
+        if (trigOut) outputs[TRIGGERS_OUTPUT].setChannels(PI_TRACKS);
+        if (voicesOut) outputs[VOICES_OUTPUT].setChannels(PI_TRACKS);
+        uint32_t left = jacks.frame(io, ev, count, msFrames, outputs[TRIGGERS_OUTPUT].getVoltages(), trigOut,
+                                    voicesOut ? outputs[VOICES_OUTPUT].getVoltages() : nullptr);
+        if (left) pulses += left; // what left, counted
+        outputs[AUDIO_OUTPUT].setVoltage(jacks.audioOut(io[PI_LOOP_MIX]));
         // FX GATES (D68 item 1): what is heard is the view's, which is read on every frame a
         // command or a step could have changed it.
         if (outputs[FX_GATES_OUTPUT].isConnected() || fixture >= 0) {

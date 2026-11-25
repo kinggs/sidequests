@@ -4,7 +4,8 @@
 //
 // Until Session 18 this file also rebuilt AUDIO's mix when RETURN was patched (D62). The
 // returns are in the core now (§19), so that the effects reach a returned sound, and what is
-// left here is the scaling, the trigger pulses and the masks.
+// left here is the scaling, the trigger pulses and the masks. Since Session 39 an output no
+// cable reads costs nothing but TRIGGERS' live timers (RACK-RULES.md).
 //
 //   in    RETURN     sixteen channels, 5 V to 1.0, as VOICES: the core's channels 0 to 15
 //         FX RETURN  every channel its cable carries, summed, 5 V to 1.0: the core's channel 17,
@@ -36,13 +37,6 @@
 #include "pi_engine.h"
 
 namespace pi {
-
-struct JackFrame {
-    float voices[PI_TRACKS];
-    float triggers[PI_TRACKS];
-    float mix;   // AUDIO before the 5 V and the tanh: what the tests hold to the core's
-    float audio;
-};
 
 // ---- Volts in: the host fills the core's loop frame before pi_process. ----
 
@@ -117,6 +111,7 @@ inline float rampStep(uint32_t rate) { return 500.f / float(rate ? rate : 1); }
 
 struct Jacks {
     uint32_t trigLeft[PI_TRACKS] = {}; // frames each trigger has still to stay high
+    uint32_t trigLive = 0;             // bit t: TRIGGERS' channel t is not yet back at 0 V
     uint32_t notFinite = 0;            // samples that would have gone out as NaN or infinity
     float fxGain[PI_TRACKS] = {};      // FX SEND: each effect's gain, 0 to 1
     uint32_t fxLive = 0;               // bit n - 1: effect n's gain is not 0
@@ -127,20 +122,51 @@ struct Jacks {
         return 0.f;
     }
 
-    // `frame` is one frame from pi_process, PI_AUDIO_BOTH or either loop layout: sixteen
-    // tracks, then the core's mix. `events` are that frame's. `trigFrames` is 1 ms at the
-    // rate, at least 1.
-    void frame(const float *frame, const pi_event *events, uint32_t nevents, uint32_t trigFrames, JackFrame &out) {
+    // VOICES and TRIGGERS from one frame of pi_process (PI_AUDIO_BOTH or either loop layout:
+    // sixteen tracks, then the core's mix) and that frame's events. `trigFrames` is 1 ms at the
+    // rate, at least 1. Until Session 39 both were worked out on all sixteen channels every frame,
+    // patched or not: 54% of Rhythm::process with the module stopped (Session 33). Now:
+    //
+    //   TRIGGERS  a firing sets its track's timer and its bit in trigLive; each frame only the
+    //             live tracks are visited, patched or not, so a cable patched in the middle of a
+    //             pulse carries the rest of it. A live track is 10 V; on the frame its pulse ends
+    //             it is written 0 V once and its bit cleared. `trig` is the output's own voltages,
+    //             written whether a cable is in or not, so they must start at 0, and a cable patched
+    //             in later reads 0 V on every channel not live. Returns the pulses that started on
+    //             this frame while `trigPatched` (a fixture self-test counts as patched): what the
+    //             self-test counts as having left. A firing inside a pulse starts the millisecond
+    //             again and is not a new pulse.
+    //   VOICES    5 V times each track, only while patched: `voices` is the output's voltages, or
+    //             nullptr and nothing is worked out.
+    uint32_t frame(const float *frame, const pi_event *events, uint32_t nevents, uint32_t trigFrames, float *trig, bool trigPatched,
+                   float *voices) {
+        uint32_t started = 0;
         for (uint32_t i = 0; i < nevents; i++)
-            if (events[i].type == PI_EV_TRIG && events[i].track < PI_TRACKS) trigLeft[events[i].track] = trigFrames;
-        for (uint32_t t = 0; t < PI_TRACKS; t++) {
-            out.voices[t] = safe(5.f * frame[t]);
-            out.triggers[t] = trigLeft[t] ? 10.f : 0.f;
-            if (trigLeft[t]) trigLeft[t]--;
+            if (events[i].type == PI_EV_TRIG && events[i].track < PI_TRACKS) {
+                uint32_t t = events[i].track;
+                if (!trigLeft[t]) started |= 1u << t;
+                trigLeft[t] = trigFrames;
+                trigLive |= 1u << t;
+            }
+        for (uint32_t m = trigLive; m; m &= m - 1) {
+            uint32_t t = uint32_t(__builtin_ctz(m));
+            if (trigLeft[t]) {
+                trig[t] = 10.f;
+                trigLeft[t]--;
+            } else {
+                trig[t] = 0.f;
+                trigLive &= ~(1u << t);
+            }
         }
-        out.mix = frame[PI_LOOP_MIX];
-        float v = safe(5.f * out.mix);
-        out.audio = v == 0.f ? v : 10.f * std::tanh(v / 10.f); // silence (±0) costs no tanh; tanh(±0) is ±0
+        if (voices)
+            for (uint32_t t = 0; t < PI_TRACKS; t++) voices[t] = safe(5.f * frame[t]);
+        return trigPatched ? uint32_t(__builtin_popcount(started)) : 0;
+    }
+
+    // AUDIO: the core's mix (a frame's PI_LOOP_MIX) at 5 V to 1.0, bent by tanh towards 10 V.
+    float audioOut(float mix) {
+        float v = safe(5.f * mix);
+        return v == 0.f ? v : 10.f * std::tanh(v / 10.f); // silence (±0) costs no tanh; tanh(±0) is ±0
     }
 
     // FX SEND, from a loop frame (D88 items 4 and 5): channel n is 5 V times the bus times
