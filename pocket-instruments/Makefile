@@ -112,15 +112,26 @@ pairs: build
 # and how to find its first difference. The only check here that an efficiency change moves no
 # byte on inputs no test was written for. Not in `make test`: it needs an older build. The
 # harness must not call fmod, which the library carries as a weak symbol (fuzz.cpp's header).
+# Session 40 (D105 item 11): a third library, this build with its debug assertions on (the cargo
+# profile `guarded`, in its own target folder), runs the same seeds: every seed must finish and
+# give fuzz-new's line. A guard that fires aborts its seed (the core's panic is an abort, and it
+# has no way to print); the failure names the seed and the command whose backtrace names the guard.
 SEEDS ?= 400
 FUZZ_JOBS ?= $(shell nproc 2>/dev/null || echo 4)
+GUARDED := target/guarded/guarded/libpi_core.a
+# The core's panic handler reads nothing, so the guard's message is dropped and every panic in
+# `pi_process` shares one call: a backtrace named the ABI's bounds check, not the guard. With
+# tail merging off each keeps its own call, and gdb names the line (Session 40, planted).
+GUARD_NAMES := -C llvm-args=-enable-tail-merge=false
 fuzz: build
 	@case "$(OLD)" in *.a) ;; *) echo "make fuzz OLD=<an older libpi_core.a> (OLD is $(OLD))"; exit 1;; esac
 	@[ -f "$(OLD)" ] || { echo "make fuzz: no library at $(OLD)"; exit 1; }
 	@! cmp -s "$(OLD)" $(NATIVE) || { echo "make fuzz: $(OLD) is this build's own library: nothing to compare (Session 36's review)"; exit 1; }
 	$(CXX) -std=c++17 -O2 -Wall -Wextra -Werror -Icore/include harness/fuzz.cpp $(OLD) -o target/fuzz-old
 	$(CXX) -std=c++17 -O2 -Wall -Wextra -Werror -Icore/include harness/fuzz.cpp $(NATIVE) -o target/fuzz-new
-	@for b in target/fuzz-old target/fuzz-new; do \
+	cargo rustc -p pi-core --profile guarded --locked --target-dir target/guarded --crate-type staticlib -- $(ALIGN) $(GUARD_NAMES)
+	$(CXX) -std=c++17 -O2 -Wall -Wextra -Werror -Icore/include harness/fuzz.cpp $(GUARDED) -o target/fuzz-guarded
+	@for b in target/fuzz-old target/fuzz-new target/fuzz-guarded; do \
 	  if nm "$$b" | grep -qE ' [TtWw] fmodf?$$'; then echo "make fuzz: $$b defines fmod (fuzz.cpp's header says why it must not)"; exit 1; fi; done
 	@mkdir -p target/fuzz-runs
 	@for b in old new; do \
@@ -128,6 +139,17 @@ fuzz: build
 	    'n=$(SEEDS); j=$(FUZZ_JOBS); a=$$(( 1 + {} * n / j )); z=$$(( 1 + ({} + 1) * n / j )); if [ $$z -gt $$a ]; then target/fuzz-'$$b' $$a $$(( z - a )); fi > target/fuzz-runs/'$$b'-{}.txt' || exit 1; \
 	  cat $$(seq -f "target/fuzz-runs/$$b-%g.txt" 0 $$(( $(FUZZ_JOBS) - 1 ))) | sort -n > target/fuzz-$$b.txt; done
 	@[ $$(wc -l < target/fuzz-old.txt) -eq $(SEEDS) ] && [ $$(wc -l < target/fuzz-new.txt) -eq $(SEEDS) ] || { echo "make fuzz: a run did not give $(SEEDS) seeds"; exit 1; }
+	@seq 0 $$(( $(FUZZ_JOBS) - 1 )) | xargs -P $(FUZZ_JOBS) -I{} sh -c \
+	  'n=$(SEEDS); j=$(FUZZ_JOBS); a=$$(( 1 + {} * n / j )); z=$$(( 1 + ({} + 1) * n / j )); if [ $$z -gt $$a ]; then target/fuzz-guarded $$a $$(( z - a )); fi > target/fuzz-runs/guarded-{}.txt' 2>/dev/null || true
+	@cat $$(seq -f "target/fuzz-runs/guarded-%g.txt" 0 $$(( $(FUZZ_JOBS) - 1 ))) | sort -n > target/fuzz-guarded.txt
+	@if [ $$(wc -l < target/fuzz-guarded.txt) -ne $(SEEDS) ]; then \
+	  cut -d' ' -f1 target/fuzz-guarded.txt > target/fuzz-runs/guarded-done.txt; \
+	  s=$$(seq 1 $(SEEDS) | grep -vxF -f target/fuzz-runs/guarded-done.txt | head -1); \
+	  echo "make fuzz: the guarded build (debug assertions on) did not finish seed $$s: a guard fired. To name it: gdb -batch -ex run -ex bt --args target/fuzz-guarded $$s 1"; \
+	  exit 1; \
+	fi
+	@cmp -s target/fuzz-new.txt target/fuzz-guarded.txt || { echo "make fuzz: the guarded build finished every seed, but these lines are not this build's: $$(paste target/fuzz-new.txt target/fuzz-guarded.txt | awk '$$2 != $$4 { print $$1 }' | head -20 | tr '\n' ' ')"; exit 1; }
+	@echo "make fuzz: the guarded build (debug assertions on) finished seeds 1 to $(SEEDS), every line this build's."
 	@if cmp -s target/fuzz-old.txt target/fuzz-new.txt; then \
 	  echo "make fuzz: seeds 1 to $(SEEDS), the same bytes as $(OLD) on every one."; \
 	else \

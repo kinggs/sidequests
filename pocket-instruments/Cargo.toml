@@ -14,3 +14,15 @@ opt-level = 3
 lto = true
 codegen-units = 1
 strip = true
+
+# Session 40 (D105 item 11): the release build with its debug assertions on, so the guard on
+# Session 36's mask (`Voices::render`) meets the fuzz's inputs as well as the tests'. `make fuzz`
+# builds a third library with it, in its own target folder, and runs the same seeds on it. Not
+# stripped, with line tables, so a guard that fires can be named from the run it stops
+# (`gdb -batch -ex run -ex bt --args target/fuzz-guarded <seed> 1`). Cargo reads profiles from
+# the workspace's manifest only, so it is here and not in `core/Cargo.toml`.
+[profile.guarded]
+inherits = "release"
+debug-assertions = true
+strip = false
+debug = "line-tables-only"
