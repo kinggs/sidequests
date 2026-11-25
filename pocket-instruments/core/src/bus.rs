@@ -744,6 +744,9 @@ impl Bus {
             // copied first. Session 36 (Codex's), `make pairs`, CPU 2: loop and loop fx 20.9
             // → 18.6 ns a frame, loop in 22.2 → 19.9; but sliders (nothing returned) 19.0 →
             // 21.2, where code lands. Taken as the patch had it (D102 item 1), cost and all.
+            // Read again with the sums masked (Session 42, D105 item 9), without this way
+            // against with it: loop 16.9 → 20.3, loop fx 16.9 → 20.3, loop in 19.4 → 22.7,
+            // rack lp 22.2 → 25.1, and sliders 15.7 → 17.2 (slower too). Kept.
             core::array::from_fn(|t| clean(io[t]))
         } else {
             let mut m = *v;
