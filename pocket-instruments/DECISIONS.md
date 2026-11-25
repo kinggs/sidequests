@@ -2053,6 +2053,147 @@ one more edge would have shown it.
 7. **Session 36's trade is kept:** the path for every sound returned costs the 50-channel
    layout 2.2 ns a frame, which still reads 21.2 from 40.3.
 
+### D105 — The core's cost a frame, the rest: one mask, one place that asks a voice, one mix; the model grows before the code
+**2026-11-25 · Fable · Session 37, the design pass D102 item 2 and D104 item 4 asked for · the owner's to overrule · not built: Sessions 40 to 42 · `harness/efficiency-candidates/antigravity.patch` read whole, against today's core (58e4ceb)**
+
+What is at stake, so nobody over-reads it: the beat costs 14.4 ns a frame, which at 48 kHz is
+0.07% of one core. Antigravity's 9.5 would save 0.02% of a core a module in Rack; "all" 47.1 →
+29.3 saves 0.09%. A phone is slower by a factor not measured ⚠. So the speed is small. What the
+pass is worth beyond it: the mix written once where today it is written twice, one place that
+asks a voice where today there are two, a smaller `.wasm` and engine, and a model and a guard
+that hold every short way round from now on, whoever adds the next.
+
+**The four rules a part must meet to be taken** (this is what "no rule written in two places"
+comes to, part by part):
+
+1. **One invariant, Session 36's, and no second.** A track out of `active_tracks` is silent,
+   code voice and sample, so the +0 it is given is the +0 asking would give. A *set* bit for a
+   silent track must always be safe: nothing may be wrong because the mask said "maybe". So
+   Antigravity's `step()` is not taken (a voice's body without its first test: called on a
+   silent Kick it gives −0, `sine × 0`), nor its `code_active` and `sample_active` (two more
+   masks, each with its own rule for when a bit may clear). Every voice's `next` keeps its
+   first test. Why: the patch's speed leaned on three masks being exactly right; ours leans on
+   one being never too small, and that one is checked on every frame of every test.
+2. **One place asks a voice.** A list of sixteen lines, one a track in track order, written
+   once as a macro inside one function: `if mask has t { code voice's next, plus the sample's
+   if it sounds, × LEVEL }`. `sound`, `sound_slow`'s fresh frame and `slow`'s "asked once" all
+   call that function with their own mask. What each caller does with a value stays the
+   caller's, as today (Codex's review, finding 4): the render callers let a track go on the
+   frame it gives +0 and says silent; `slow` lets none go, and writes `from = to` for every
+   sound that became slowed, the +0 of a silent one included (a stale end from an earlier run
+   must not survive). `Voices::ask` and its jump table go. Why: each voice's `next` then has one caller and is inlined once (the Opus
+   attempt's finding, `LEARNINGS.md` Session 36: a second caller is what cost Session 32 its
+   4 ns), and the direct branches are what Antigravity's `sound` and `sound_upper` buy, for
+   all sixteen and for samples, not for tracks 0 to 3 and code voices only. Whether the first
+   four lines sit in the frame loop and the other twelve out of line is where code lands, not
+   a second path: the same macro, placed by the bench.
+3. **The arithmetic of zeros lives in one type.** Skipping a silent track's addition is only
+   right because of three facts about +0 and −0, which the patch restates in comments at six
+   places. They go in one small type (`Sum`, in `bus.rs`), with a test that holds each to the
+   plain loop: (a) the plain sum `v[0] + … + v[15]`, when every track out of `mask` is exactly
+   +0, is the masked additions in track order from −0 if `mask` is all sixteen, else from +0;
+   (b) a sum from +0 (§18's `bus` and `rest`) is the masked additions from +0, whatever the
+   mask; (c) with every sound in the effects, `bus` is (a) `+ 0.0` and `rest` is +0. Checked
+   here by brute force before it was written down: six tracks of ten values (±0, ±1, the
+   smallest denormals, ±3e38, 0.1, 2²⁴), every combination, four masks each, 4 000 000 cases,
+   none different. A mask too large is always safe (it adds a +0 the plain loop adds too).
+   Three things the review pinned down (Codex, findings 1, 5, 8). The `Sum` is over the
+   sixteen values the frame **emits**, so under effect 1 it is taken after the lines, with
+   every slowed sound in the mask: a line still sounds on frames that ask no voice, and after
+   its sound's bit has cleared. "Zero" is `to_bits() == 0`: a voice does give −0 (the clap,
+   the frame after its hit). And a group left out is left out of the mask, never subtotalled:
+   one order of addition, track 0 to 15 (`−2²⁴, …, 2²⁴, 1` is 1 in order and 0 by groups). In a
+   loop layout the bus on channel 17 is fact (b) on every frame, idle or not.
+4. **§18's mix is written once:** `rest + bus + w × (wet − bus)`, in one function both
+   `Bus::mix` and `Bus::looped` call (today each has its own copy; the patch has five). Not
+   taken, each because it restates the mix or a zero fact for under a nanosecond by the
+   patch's own numbers: `mix_bus_only`, `mix_echo` and `mix_feedback` as tail calls, effect
+   1's `(rest + bus) × gain`, `mix_bus(rest, bus, 1.0)` for the loop, the quiet frame written
+   as a literal 0, voices written straight into the frame, the block's scratch array.
+
+**Taken as written,** each alone, ported onto today's core, kept only if measured (item 8):
+
+5. `Clock::advance` returning the first tick and a count (no closure in the frame loop);
+   `clear` as loops; the cold handlers out of line (`key_down`, `key_up`, `param`, `own_out`,
+   `Clock::edge`, every `tune`); the hats' and toms' ranges in a table and a flag, out of each
+   voice; `Tone` and `Bass` as two types; `base_inc` in the kick, the synth snare and the toms
+   (`(base × (1 + 0)) as u32` is `base as u32`); the six squares counted in integers (one
+   helper for the hats' six and the cowbell's two: the sum is one of −6 to 6 in twos, exact in
+   an f32, never −0); the volume read again only on a frame with a command (as `effect` is
+   already); the grid's wrap by a subtraction (with the `%` kept behind it for a rate under
+   12 kHz). `pi_size` falls; no host may name its value.
+6. **The bus's steady path, with a guard.** `Bus::advance` skips `Bus::frame` when the effect
+   heard is the one `frame` last left fully ramped and tuned at this rate, and no tick came
+   (effect 1 steps its grid there; the grid's step is one function both call). That is a
+   cached "frame would change nothing", so it gets what the mask has: in a build with debug
+   assertions, the skip and a full `frame` are both run from the same state, on copies, and
+   every field must come out the same bits, the grid's three included (a guard that let the
+   grid differ would pass a skip that forgot to step it: Codex, finding 6). Every test frame
+   then checks it. The grid's step is also held to the old `%` by its own test, at rates
+   down to 3 Hz, since guard and skip share it (finding 7: at 8 kHz one subtraction is not
+   enough, and no harness here runs under 44.1 kHz).
+7. **The no-audio call out of the audio loop, the frame's first half written once.** Commands,
+   then the clock, then the ticks: one inlined function, called by the loop with a buffer and
+   by the loop without. The patch wrote that half twice. The audio loop takes its frames by
+   `chunks_exact_mut`: `abi.rs` already gives `process` a buffer of exactly `frames ×
+   channels` in a known layout, or none, and a `debug_assert!` says so. A call with no buffer
+   no longer multiplies by its channel count (a build with overflow checks trapped there on a
+   null buffer and 2³¹ channels: gone, and meant to be).
+
+**How a part is judged:**
+
+8. Each part is one commit's worth, measured alone against the build before it by `make pairs`
+   (CPU 2, ten rounds). Kept if no case reads slower outside the spread and it either gains
+   0.3 ns on some case outside the spread, or shrinks the `.wasm` by 200 bytes, or removes
+   code. Otherwise left out and named in the Handover with its numbers. Two parts are
+   options by this bar and not designs: the lines of effect 1 and the loop's returned sum
+   taken **by fours** (a group of four exact +0s skipped, the same code for all four groups:
+   the general form of the patch's "tracks 4 to 15 are silent" test and of its chunk skip).
+9. **D104 item 7 is measured again.** Codex's path for every sound returned cost the 50-channel
+   layout 2.2 ns. With the sums masked it may buy nothing: if `loop`, `loop fx` and `loop in`
+   read no worse without it, it goes, and `sliders` gets its 2 ns back.
+10. **The model before the code** (Session 36's review, finding 1). `quiet.rs` holds the engine
+   to itself. The model that is written apart is `Model` and `Voicing` in `tests/bus.rs`; it
+   reads layout 17 only. Session 40 grows it to every layout (the loop's returned sounds, FX
+   RETURN, the sliders out) and drives it with a seeded tour: hits on all sixteen tracks,
+   samples on some, sounds switched in and out of the effects, every effect, routes, rate
+   changes. It runs in `cargo test`, a debug build, so the guard meets it. All of it passes on
+   today's core before any part is ported, and catches a planted fault in each of today's
+   three short ways.
+11. **The fuzz meets the guard** (finding 2): `make fuzz` builds a third library with debug
+   assertions on (a cargo profile inheriting release) and runs the same seeds on it; it must
+   finish and give the release build's lines. And `--stats` counts the frames that took each
+   short way (every sound in the effects, returned, slowed; the steady bus; a quiet frame), so
+   a gate the seeds never open is seen, and given a choice of the PRNG if so.
+12. **The bar for every build session:** `make fuzz` against the library from before the
+   session, 10 000 seeds, no byte different; the report and the 432 render files the same
+   bytes; the model's tour. Voice arithmetic (item 5's `base_inc`, the squares) is held by the
+   fuzz and the renders, since the model shares the voices' `next`.
+13. **The bench gains what Rack pays:** a case of 17 channels, one frame a call, the way the
+   module calls. Every case today is blocks of 128; a per-call cost is in none of them.
+14. **Read by Codex before any of it was built** (`gpt-6.2-sol`, high effort, read only: the
+   owner offered it). Twelve findings: six changed this decision or the lists (the sum taken
+   over what is emitted; the three callers' bookkeeping; the bus on channel 17 while idle;
+   the guard comparing the grid; a low-rate test of the wrap; `make web` before each part's
+   `make test`), three found nothing in the clock, `base_inc` and the squares, and two are
+   older than this design and are D106 and O28.
+15. **Expected, not measured ⚠:** the beat between Antigravity's 9.5 and today's 14.4, nearer
+   the first. After this there is nothing left in the frame but single nanoseconds:
+   recommended that Session 42 is the last efficiency session on the core until a profile of
+   a real patch or a phone says otherwise.
+
+### D106 — Effect 14's loop is at least one frame long
+**2026-11-25 · Fable, from Codex's review of D105 (finding 3) · the owner's to overrule · not built: Session 41's first part · `core/src/bus.rs`, `comb_frames`**
+
+`pi_init` takes any rate. Under 28 Hz `comb_frames` is 0, and at 3 Hz a line of one float is
+accepted: `feedback` then moves its head to 1, never meets a comb of 0, and writes past the
+line the host lent. Traced, not run. No host asks for such a rate, but the ABI allows it and
+the write is in the host's memory. Ruled: `comb_frames` is never under 1. Why this and not
+"14 is no effect when the comb is 0": one `max`, no new state, and `head < comb <= delay`
+holds again at every rate a line can be lent at. It moves bytes only under 28 Hz, where today
+there is no behaviour to keep. A test first: 3 Hz, effect 14 held, a line of one float with
+guard floats round it, a returned sound moving; the guards untouched.
+
 ## Open
 
 | ID | Question | Needs |
@@ -2084,3 +2225,4 @@ one more edge would have shown it.
 | O25 | Session 30's readings (D96 items 2 to 4; **item 2 answered the same day: D97**): ~~a replayed lane repeats its own first step, not the step the key came down on in the performance;~~ a second repeat inside a run holds its own key's step; `r` exact | The owner, by ear, on the phone or in Rack: punch 11 on a kick's step, let go, and hear the next pass. Recommended: accept until a take of a replayed repeat on the PO-12 says otherwise |
 | O26 | ~~Session 31's rulings (D98): as designed? Above all item 3 (a sounding note changes speed on the frame 1 comes on and goes off), item 6 (a returned sound is left as it came), item 7 (VOICES carries the slowed sound), item 10 (how bright it is above 10 kHz) and item 9 (16 waits for a take)~~ | **Answered 2026-11-25: D104** (accepted before hearing; the ear may still overrule). Was: The owner, by ear, once Session 32 has built it. Recommended: accept; judge item 3 on a long tom or the tone with 1 punched mid-note **Built 2026-11-25 (Session 32)** as written: ready to hear; its Handover in `PLAN.md` has the steps and three readings (⚠), above all the cost (every playing case 3 to 5 ns a frame over the old build) |
 | O27 | ~~The clock in Rack as designed (D100)? Above all item 2 (the first beat at a guess), item 4 (`--` on a stopped clock) and item 5 (`ext` in place of `bpm`)~~ | **Answered 2026-11-25: D104** (accepted before hearing; the ear may still overrule). Was: The owner, in Rack, once Session 34 has built it: Clocked at ×1 into CLOCK, the menu's "one edge a beat". Recommended: accept **Built 2026-11-25 (Session 34)** as written: ready to play; its Handover in `PLAN.md` has the steps and its readings (⚠), above all the play key on a beat clock (read as edges) **D101 built 2026-11-25 (Session 35):** play waits for the next edge, a pause is a first edge, a rate change carries the beat; its Handover in `PLAN.md` has a two-minute check **D103 built 2026-11-25 (Session 38):** a pause only against a measured period, so a clock that slows to under half its tempo is measured on its second slow edge; its Handover in `PLAN.md` has a one-minute check |
+| O28 | A sum that overflows gives a not-a-number whose bits no rule fixes: two sounds returned at 3e38 with an effect held make `∞ − ∞` in §18's mix, and Rust and WebAssembly both leave that NaN's sign open. So "the same bits on every host" (§11) does not hold for it. Found by Codex reading D105; older than it. Clamp what is returned (to ±10, say), make the mix's NaN a fixed one, or accept it as outside the contract? | The owner. Recommended: accept, and say so in §11: a returned sound of 3e38 is 3e39 V in Rack. D105's sessions keep the arithmetic's order, so they do not move it |

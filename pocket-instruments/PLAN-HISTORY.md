@@ -3563,3 +3563,92 @@ every build session hold. **No volt on any patched jack may change.**
   beat, then `55` (before this session it stayed `--`), and the four steps of each beat fall
   evenly.
 - **Next:** Session 37 (design); your ear on Sessions 26, 28, 30 and 32; your checks of 33 to 38.
+
+## Session 37 — the core's cost a frame, the rest: Antigravity's parts designed in (design, Fable; D102 item 2; done 2026-11-25)
+
+`harness/efficiency-candidates/README.md`, `antigravity.patch`, `opus.patch`.
+Design only: which parts are taken as written (its review names them: `Clock::advance`,
+`clear`, the cold handlers out of line, the Hat and Tom tables, the Tone and bass split,
+the steady path in `Bus::advance`, `process_silent`), and for the rest (a voice's second
+copy, the paths for tracks 0 to 3, the loop's chunk skip) either one general form or a
+test that holds each fast path to the general one on tracks 4 to 15 and samples. Then a
+build list. The bar: `make fuzz`, and no rule written in two places.
+
+Two findings from Session 36's review to design for: `quiet.rs`'s "engine that asks every
+voice" shares the engine's own code and holds only the mask, so a fast path needs a model
+written apart from it (as `Voicing` in `tests/bus.rs` is); and the mask's guard is a
+`debug_assert!` that the fuzz never meets, because the fuzz builds in release: a debug
+build of the fuzz would close that.
+
+*(Session 37, 2026-11-25: done as D105 and the lists of Sessions 40 to 42. Its Handover note is in `PLAN.md` until two newer ones move it here.)*
+
+## Handover note moved here by Session 37 (2026-11-25)
+
+### After the run of 2026-11-25: Sessions 31 to 38, one note for all of it
+
+Run while you were away, on Fable, with Opus agents building and a second agent reviewing
+each build. Each session's own note is in `PLAN-HISTORY.md` (38's is above).
+
+- **Built, all on `main`, `make install` run: restart Rack.**
+  1. **Effect 1 is the PO-12's** (Sessions 31, 32; D98): the sounds at a quarter of the
+     rate, two octaves down, four times as long, no louder. A model read beside take c
+     changed the design before the build: no hold, straight lines (R77).
+  2. **Rack reads the keys and sliders every 16 frames** (Session 33; your ruling, D99):
+     the module's idle cost 0.43% → 0.34% of a core.
+  3. **The clock in Rack** (Sessions 34, 35, 38; D100, D101, D103): the menu's "CLOCK: one
+     edge a beat"; the display shows the tempo measured from the edges, `ext` in place of
+     `bpm`, `--` when the clock stops. Two reviews each found a gap in my design, both
+     closed and built: play waits for the beat; a pause is not measured as a beat; a slow
+     clock is still measured.
+  4. **The core costs under half what it did** (Session 36; D102): the beat 36.4 → 14.4 ns
+     a frame, idle 6.0 → 3.7, the phone too. Session 32 had made every playing case 4 ns
+     slower; three attempts were run on one brief (Codex, Opus, Antigravity), all three
+     held to the same bytes by a new fuzz over 10 000 seeds, and Codex's adopted.
+     `harness/efficiency-candidates/README.md` has the table.
+  5. ABI 15, 333 Rust tests, `make fuzz`, the `.wasm` 48 150 bytes.
+- **To hear and check, restart Rack first:**
+  1. **Effect 1, five minutes** (Rack or the phone). The tone (key 15), slider B up, on
+     step 1. Punch fx + 1 while it rings: it drops two octaves at once and rings on slow;
+     let go: it jumps back up. Hold fx + 1 over a beat: everything slow and dark, nothing
+     louder. Switch one sound out of the effects: it stays as it was. Listen to how bright
+     it is on top (ours is about 12 dB brighter above 10 kHz than the PO-12).
+  2. **The clock, five minutes** (Rack). Clocked at ×1 into CLOCK, the menu's "CLOCK: one
+     edge a beat" on, play: the beat at Clocked's tempo, the display `ext` and Clocked's
+     number. Change Clocked's tempo: the number follows. Drop it from 120 to 55: the number
+     follows after two beats. Stop the beat and press play mid-beat: it starts on the next
+     beat. Stop Clocked a few seconds and start it: the next beat's four steps are even.
+  3. **The scan and the cost, three minutes** (Rack). Stopped, Engine → CPU meter: about a
+     fifth under what it read; playing, lower again. Tap keys, hold bpm and move a slider,
+     Ctrl+click fx and punch a key: nothing missed, nothing different.
+- **Ruled by the owner the same day, all seven as recommended (D104).** As they were put:
+- **Rulings waiting for you (recommended answer first):**
+  1. **Effect 1 as designed (O26)?** **Accept.** Its points: a ringing note changes speed
+     the moment 1 comes on or goes off; a sound returned from Rack is left as it came;
+     VOICES carries the slowed sound (so does a mixer fed from it; switch a sound out of the
+     effects, or set effect 1 to Rack's, to keep it clean). If the top is too bright, say
+     so: a low-pass after it is a small build.
+  2. **The clock as designed (O27)?** **Accept.** `ext` in place of `bpm` is a stand-in
+     for your eye.
+  3. **The `.wasm` is 1 850 bytes under P1's 50 KB bar.** **Raise the bar to 64 KB.** It
+     was set when the file was 5 KB; the next feature will pass it, and no builder may
+     move a pass bar.
+  4. **Go further on the core's cost (Session 37)?** **Yes, when wanted, as a design
+     session first.** Antigravity's attempt reads 9.5 ns for the beat with no byte moved,
+     but it writes the mix five times and each hot voice twice. The session picks its
+     clean parts and says what tests hold the rest.
+  5. **Rack's next idle cost.** **Yes: a small build.** The module works out all sixteen
+     VOICES and TRIGGERS channels every frame, patched or not: now 54% of its idle cost.
+  6. **Session 33's edge:** two mapped parameters changed inside one 16-frame window lose
+     their order (a mapped slider, then bpm 5 frames later, reads as swing). **Accept:** a
+     hand cannot do it.
+  7. **Session 36's trade:** the path for every sound returned costs the 50-channel layout
+     2.2 ns (it still reads 21.2, from 40.3). **Keep.**
+- **Needs the PO-12:** 16 waits for one take (sound 15 a bar long, dry, then fx + 16, then
+  fx + 1; the same take serves 15). The two short takes from before still stand (14 at
+  120 bpm; 13's map).
+- **Not done, and why:** no Rack self-test runs a beat clock (the core's tests hold the
+  rule; your Clocked check above is the test). perf in Rack was not run for the playing
+  cases. Antigravity ran once with its permission prompts off inside its own sandbox and a
+  scratch copy; it made no commit, and its patch is in the tree unapplied.
+- **Next:** your ears and the rulings above; then Session 37 if wanted, the weave
+  (Session 14's fourth box), and the takes.

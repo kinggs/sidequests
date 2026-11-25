@@ -1664,3 +1664,29 @@ above; these are what only the chain showed.
 - **The idle saving was larger than the jacks' share of the lines said.** The jacks' lines were
   264 to 387 samples of `Rhythm::process`, yet it fell by about 540. Line attribution of inlined
   code is approximate (Session 33 counted 54%, this session 22 to 32%); trust the symbol totals.
+
+## Session 37: Antigravity's parts designed in (2026-11-25)
+
+- **"Fast and no byte differs" was three invariants, not one.** Read line by line, the patch's
+  speed rests on `code_active`, `sample_active` and each hot voice's `step()` all being exactly
+  right at once: `step()` is a voice's body without its first test, and on a silent kick it
+  gives −0 (`sine × 0`). The fuzz found no byte because the masks were right, not because the
+  code is safe when they are not. The question that sorted the parts: is this still right when
+  the mask says "maybe" for a silent track? Codex's mask passes it; `step()` cannot.
+- **Most of what read as "paths for tracks 0 to 3" is one macro placed twice.** `sound` and
+  `sound_upper` run the same sixteen direct branches; only the effect 1 path and the loop's
+  chunk skip are truly special to the bench's four drums. The general form of both is "by
+  fours": the same code for each group of four tracks, a group of exact +0s skipped.
+- **The zero facts fit in three lines and a brute force.** Skipping a silent track's addition
+  is right because: the plain sum from `v[0]` is the masked sum from −0 when all sixteen are
+  in the mask and from +0 otherwise; a sum from +0 is the masked sum from +0; and the second
+  is the first `+ 0.0`. Six tracks of ten values, four masks each, 4 000 000 cases in a
+  scratch C++ file, none different. The patch restates these in six comments; one type holds
+  them.
+- **What the numbers are worth.** 14.4 ns a frame at 48 kHz is 0.07% of a core. The table of
+  nanoseconds reads like a third faster; in a patch it is two hundredths of a percent. Say the
+  percentage of a core beside every nanosecond from here on.
+- **The bench has never measured what Rack pays.** Every case is blocks of 128; the module
+  calls `pi_process` one frame at a time. Session 33's unexplained +43% in `pi_process` by
+  perf may live in the call, not the frame. Session 40 adds the case.
+
