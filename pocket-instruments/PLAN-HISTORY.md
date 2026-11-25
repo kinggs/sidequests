@@ -3313,3 +3313,80 @@ hold. No ABI change: no call, command, view or snapshot byte moves.
   speed, as before (one edge a step). Then judge O27: the first beat at a guess, `--` when
   stopped, `ext` in place of `bpm`.
 - **Next:** your ear on Sessions 26, 28, 30 and 32; your checks of Sessions 33 and 34.
+
+## Session 38 — the beat clock: a pause only against a measured period (build, Opus; D103; done 2026-11-25)
+
+Read `ENGINE.md` §4, "Ruled 2026-11-25 after Session 35's review"; D101, D103; Session
+35's Handover. The rules for every build session hold. No ABI change.
+
+- [x] **Before any change:** the report, a `sha256sum` of every render file, the old
+      library and a bench built on it. *(In `target/s38-old/`, the old `.wasm` too; the bench
+      also at `target/old/bench` for `make pairs`.)*
+- [x] **By hand first:** the section's two worked cases and the six cases it lists from
+      the review, as rule tests in `core/src/tests/clock.rs`, committed before the code
+      (the two fail on Session 35's code; say which of the six do). *(a4cb2db: the two fail;
+      none of the six does (they pass on both cores). Two of Session 35's tests asserted what
+      D103 overturns (a pause with no guess) and were worked again by hand by the ruling in the
+      same commit, their old reasoning kept in their comments; both fail on the old core. Every
+      number in the ruling checked first: all hold.)*
+- [x] **The core:** the one condition in `Clock::edge` (`core/src/clock.rs`). The table
+      and `SOURCE` 1 the same bytes: the report, every render file, and `make fuzz`
+      against the old library differing only on seeds that send `SOURCE` 2. *(432fa09: the
+      report and all 432 renders the same bytes; 3 036 of 10 000 seeds differ, a scratch copy
+      flagging `SOURCE` 2 at the `pi_process` call shows every one sent it inside a block, and
+      none without it differs.)*
+- [x] Faults planted and caught by name. `make pairs`: every case inside the old spread.
+      *(13 plants, the unplanted copy first, each built: 12 caught by name, 1 no test can
+      catch. Every case inside the old spread in both runs.)*
+- [x] **The end:** `make verify`, `make selftest` in `rack/`, `make play`, `make listen`,
+      `make web`, `make install` in `rack/`; §4's ruling marked built; `LEARNINGS.md`; the
+      Handover; this list to `PLAN-HISTORY.md`.
+
+## Handover note moved here by Session 38 (2026-11-25)
+
+### After Session 36: the core's cost a frame, Codex's patch adopted (2026-11-25)
+
+- **Built as D102 item 1 rules: Codex's patch, applied as written** (its own commit, with
+  Codex as co-author), then owned: its comments rewritten with this session's numbers, a guard,
+  tests. The core asks only the sounds that may be sounding (`Voices::active_tracks`); three
+  small paths for every sound in the effects, every sound returned, every sound slowed.
+  Nothing a host hears or sees moved: ABI 15, `pi_size` 3 872, the report's 360 runs, the
+  weave and all 432 render files the same bytes; `make fuzz` against Session 34's library,
+  10 000 seeds, 0 different. `make install` ran: **restart Rack** (nothing to hear: it should
+  sound exactly as before, for less).
+- **The cost,** `make pairs` against this session's own old build, CPU 2, two runs of ten
+  rounds, medians, ns a frame (old → new): idle 6.0 → 3.7; beat 36.4/36.5 → 14.4; all
+  55.7/54.8 → 47.1/47.2; both 38.0/36.8 → 15.0/14.9; repeat 42.1/41.7 → 22.7/22.8; fx 1
+  34.2/34.1 → 19.6; fx 1/0 37.7/36.5 → 17.6/17.4; fx 2 to 8 and 14 43.1 to 45.7 → 18.6 to
+  22.9; loop 45.4/45.0 → 18.7/18.6; loop in 47.5/47.0 → 19.9; sliders 40.3/39.8 → 21.2. Every
+  case under the build before Session 32. The `.wasm` 49 689 → 47 861 (2 139 bytes under P1's
+  bar, from 311): Session 35 can run.
+- **What you must decide or know (⚠):**
+  1. **The all-returned path costs the sliders case 2 ns** (19.0 → 21.2 without and with it,
+     the seven-build ablation) while it takes loop 20.9 → 18.6. Kept, as D102 adopts the patch
+     whole; one `if` to drop if the 50-channel layout matters more (it is Rack's with A and B
+     patched).
+  2. **Two lines in the patch do nothing** (zeroing `bus.to` on an all-slowed fresh frame;
+     a silent slowed sound's `to = 0.0`): a cleared track's `to` is already +0. Planted out, no
+     test and 2 000 fuzz seeds moved. Kept as written.
+  3. **Not measured in Rack by perf** (the ground rule names perf for `process`; the list asked
+     for `make pairs`). The module's share should fall with `pi_process`'s; unmeasured.
+  4. **`quiet.rs`'s model is the engine itself,** asked every voice: it holds the mask and is
+     blind to a fault on a path both engines take. One such plant got through it; `tests/bus.rs`'s
+     independent model caught it once given each sound out of the effects. Worth Session 37's
+     knowing before it holds Antigravity's fast paths to "the general one".
+- **Proven:** 312 Rust tests (8 new: six rule tests written first and committed passing on the
+  old core, as it asks every voice; two a plant asked for). A `debug_assert!` in `render` checks
+  on every frame of every test run that a track out of the mask is silent. Faults planted, the
+  unplanted copy first, each built: the four the list names caught by name (the bit not set on
+  a hit: the guard, naming the test, and 70 tests with the guard compiled out; cleared while a
+  sample rings: the guard, and 6 tests, four of them the new rule tests; the bus's all-sounds
+  path one bit short: 4 tests; the loop's: 2); five more caught by name (quiet with one bit
+  left, 57; the all-slowed path one bit short, 7; the walk skipping track 15, 13; clearing
+  without the +0 test, 1; a plain sound never asked beside fifteen lines, after the test it
+  asked for); 2 no test can catch (item 2 above). `make test`, `make fuzz` (10 000), `make web`,
+  `make selftest` at three rates, `make play` (both browsers), `make listen`, `make verify`,
+  `make install`.
+- **To check, one minute:** restart Rack, play the beat with an effect held: it should sound
+  exactly as before. The CPU meter may read lower while playing.
+- **Next:** Session 35 (the beat clock's three gaps), then Session 37 (design).

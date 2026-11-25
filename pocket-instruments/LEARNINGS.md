@@ -1612,3 +1612,26 @@ above; these are what only the chain showed.
   guess, so a plant keeping the old period over a pause passed every test until the stored tempo
   changed in between. A case worked by hand tests what its numbers distinguish; ask which wrong
   rule gives the same numbers.
+
+## Session 38: the beat clock, a pause only against a measured period (2026-11-25)
+
+- **A ruling that changes a rule changes old tests the list does not name.** The list asked
+  for the ruling's two worked cases and six review cases; two of Session 35's tests (a pause
+  with no guess, and the same after a tempo change) asserted exactly what D103 overturns,
+  and would have failed only once the code changed, inviting an edit to make the build pass.
+  Before writing a ruling's tests, read the old ones in its section against it by hand and
+  rework the ones it overturns in the same commit, before the code, saying so in the comment.
+  On the old core they then fail with the ruling's new cases, which is the evidence wanted.
+- **A new condition can make an old fall-back unreachable.** With the pause tied to
+  `measured`, the pause's fall-back to the stored tempo's beat never runs: `measured` on beats
+  is set only where `guess` is set to a non-zero `since`, and every path that clears `guess`
+  clears `measured` first or with it. A plant there passed every test; the argument, not a
+  missing test, is why. When a guard is added to a branch, ask what inside the branch it
+  makes dead.
+- **The differential fuzz differs on fewer seeds when the change is narrower:** 3 036 of
+  10 000 here, against Session 35's 6 184, all sending `SOURCE` 2 inside a block. A scratch copy
+  of `harness/fuzz.cpp` with four lines (a flag set at the `pi_process` call, printed beside
+  each seed's hash, the hash checked equal to the real fuzz's) answers "did every differing
+  seed send it" in a minute; 26 seeds sent `SOURCE` 2 only past the end of a block, and none of
+  those differ. If this question comes back a third time it is worth a `--flag` in the fuzz
+  itself (a design question, not taken here).

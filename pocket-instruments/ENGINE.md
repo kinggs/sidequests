@@ -338,7 +338,7 @@ the design above, each only with one edge a beat; `SOURCE` 1 and the table do no
 48 → 96 kHz, the first beat's steps 12 000 frames apart); the report, every render file and
 every `SOURCE` 1 test the same; faults planted and caught by name.
 
-**Ruled 2026-11-25 after Session 35's review (D103; not built: Session 38).** Ruling 2 above
+**Ruled 2026-11-25 after Session 35's review (D103; built in Session 38, below).** Ruling 2 above
 is wrong as written: after a pause, or a first edge, `period` is a guess, and the next edge
 was compared with that guess. A clock that falls to under half the guessed tempo is then a
 pause on every edge and is never measured again. So:
@@ -427,6 +427,32 @@ What turned out different, or is a reading:
 - **Session 34's ⚠ on the play key** (`PLAY 1` alone on a beat clock) is answered by ruling 1:
   kept, and step 1 now waits for the next edge.
 - **The `.wasm` 47 861 → 48 141 bytes**, 1 859 under P1's 50 000.
+
+**Built (Session 38; D103; no ABI change).** The one condition in `Clock::edge`
+(`core/src/clock.rs`): on one edge a beat an edge is a pause only with `measured` set. Every
+hand-worked number in the ruling was checked against §4's rules first and holds (the first
+slow edge a pause, `ext` 0; the second measures 52 364, `ext` 550, steps 13 091 apart; from
+`pi_init` at 300 the second edge measures 24 000). Proven by `core/src/tests/clock.rs`: the two
+worked cases, the six cases the review named, and Session 35's two tests of a pause with no
+guess worked again by hand by the ruling (below), committed before the code with Session 35's
+core failing four (the two worked cases and the two worked again; the six pass on both).
+`SOURCE` 1 and the table: the report's 360 runs and all 432 render files the same bytes; `make
+fuzz` against Session 35's library, 10 000 seeds: 3 036 differ, every one sending `SOURCE` 2
+inside a block (none without it differs).
+
+What turned out different, or is a reading:
+
+- **Two of Session 35's tests contradicted the ruling** and were worked again by hand before
+  the code, their old reasoning kept in their comments: one edge then a long wait is now
+  measured as a beat (the ruling's own ⚠ Left: the next beat's steps bunch, once), and the
+  case of a pause with no guess after a tempo change now measures. The list named only the two
+  worked cases and the six.
+- **A line no test can see:** the pause branch's fall-back to the stored tempo's beat. On one
+  edge a beat `measured` is only set where `guess` is set to a `since` over 0, a reset keeps
+  `guess`, a switch clears both, and a rescale holds it to at least 1; so a pause always finds
+  a guess. Planted (`self.guess` in place of `guessed`), no test moved. Built as the ruling
+  reads (it keeps D101's "or the stored tempo's beat").
+- **The `.wasm` 48 141 → 48 150 bytes**, 1 850 under P1's 50 000.
 
 ## 5. The sequencer
 
