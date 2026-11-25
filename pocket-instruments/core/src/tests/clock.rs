@@ -285,3 +285,60 @@ fn on_beats_the_play_key_sends_play_alone_as_on_edges() {
     let ev = h.run(36_001, 128, &c);
     assert_eq!(steps(&ev), [(36_000, 576, 0)]);
 }
+
+// ---- Added after the first round of planted faults (Session 34): three plants got through. ----
+
+#[test]
+fn the_guess_follows_the_rate_at_44_1_and_96_khz() {
+    // A plant that gave the first beat's guess 48 kHz's rate got through the rows, which are
+    // at 48 kHz. Stored tempo 120, an edge every half second. 44.1 kHz: the guess is 44 100 ×
+    // 60 000 / 120 000 = 22 050 frames: steps at ceil(96 n × 22 050 / 384) = 5 513, 11 025,
+    // 16 538, then the measured beat (22 050) from the edge at 22 050: 27 563, 33 075, 38 588.
+    // 96 kHz: the guess is 48 000: a step every 12 000.
+    let rows: [(u32, [u64; 9]); 2] = [
+        (44_100, [0, 5_513, 11_025, 16_538, 22_050, 27_563, 33_075, 38_588, 44_100]),
+        (96_000, [0, 12_000, 24_000, 36_000, 48_000, 60_000, 72_000, 84_000, 96_000]),
+    ];
+    for (rate, want) in rows {
+        let half = rate as u64 / 2;
+        let mut h = Host::new(rate, 1);
+        let ev = h.run(2 * half + 1, 128, &edges_from_a_reset(120_000, BEATS, &[0, half, 2 * half]));
+        let want: Vec<(u64, u32, u8)> = want.iter().enumerate().map(|(n, f)| (*f, 96 * n as u32, n as u8)).collect();
+        assert_eq!(steps(&ev), want, "rate {rate}");
+    }
+}
+
+#[test]
+fn a_switch_away_from_beats_and_back_forgets_the_measured_beat() {
+    // A plant that kept `guess` over a switch got through: the switch test measured on one edge
+    // a step, which sets no guess. 48 kHz, stored tempo 60 (a beat of 48 000 frames). Beats:
+    // edges at 0 and 24 000 measure 24 000 (row 60's steps 0 to 4). Frames 24 000 to 29 999
+    // interpolate to tick 479 (29 999 has since 5 999: 5 999 × 384 / 24 000 = 95.98). A switch
+    // to one edge a step at 30 000 (before tick 480's frame advance), and back to beats at
+    // 31 000: the guess is cleared, so the edge at 40 000 flushes ticks 480 to 767, emits 768,
+    // and its beat runs at the stored tempo's 48 000: step 9 (tick 864) at 40 000 + 12 000.
+    // (Keeping the guess would put it at 46 000.)
+    let mut c = edges_from_a_reset(60_000, BEATS, &[0, 24_000, 40_000]);
+    c.extend([(30_000, cmd(CMD_SOURCE, 0, 0, EDGES)), (31_000, cmd(CMD_SOURCE, 0, 0, BEATS))]);
+    c.sort_by_key(|x| x.0);
+    let mut h = Host::new(SR, 1);
+    let ev = h.run(52_001, 128, &c);
+    assert_eq!(
+        steps(&ev),
+        [
+            (0, 0, 0), (12_000, 96, 1), (24_000, 192, 2), (24_000, 288, 3), (24_000, 384, 4),
+            (40_000, 480, 5), (40_000, 576, 6), (40_000, 672, 7), (40_000, 768, 8), (52_000, 864, 9),
+        ]
+    );
+}
+
+#[test]
+fn a_source_past_2_is_ignored_on_the_table_too() {
+    // A plant that took 3 as a source got through: the view test sent 3 while on beats, where
+    // flag 2 is set either way. From the table, 3 leaves the table running.
+    let mut h = Host::new(SR, 1);
+    h.block(1, &[cmd(CMD_SOURCE, 0, 0, 3), cmd(CMD_PLAY, 0, 0, 1)]);
+    assert_eq!(h.view()[24] >> 2 & 1, 0, "still the table");
+    let ev = h.run(6_001, 128, &[]);
+    assert_eq!(steps(&ev).len(), 1, "the table's next step, with no edge");
+}
