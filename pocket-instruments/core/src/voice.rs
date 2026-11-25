@@ -1567,7 +1567,10 @@ impl Voices {
         } else {
             // Some sounds slowed: a silent one is not asked, but its line still runs out from
             // `from` to the +0 it is given. No bench case slows only some, so what this buys
-            // is not measured (every `fx 1` case slows all sixteen; Session 36).
+            // is not measured (every `fx 1` case slows all sixteen; Session 36). Kept from the
+            // patch's own comment, which Session 36's rewrite dropped: before the all-slowed
+            // case above was split off, the mask in this general loop took `fx 1` from 31.1
+            // to 26.9 ns a frame (Codex, on a busy machine's CPU 4: its reading, not ours).
             for (t, out) in v.iter_mut().enumerate() {
                 let bit = 1 << t;
                 let active = self.active_tracks & bit != 0;
@@ -1593,7 +1596,10 @@ impl Voices {
 
 /// For the rule tests' model of §18's effect 1 (`tests/bus.rs`, `Voicing`): one track's code
 /// voice asked, retuned or hit alone, and a sample retuned, the way the model reads them. Not
-/// the engine's own paths, so a slip in those shows as a difference.
+/// the engine's own paths, so a slip in those shows as a difference. (But `ask_every_voice`
+/// below: it only sets every bit of the mask, and the engine it makes still runs the engine's
+/// own `ask`, `sound_slow`, mix and loop. Tests built on it hold the mask and nothing else:
+/// Session 36's review.)
 #[cfg(test)]
 impl Voices {
     pub fn code_next(&mut self, t: usize) -> f32 {

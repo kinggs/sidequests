@@ -117,6 +117,7 @@ FUZZ_JOBS ?= $(shell nproc 2>/dev/null || echo 4)
 fuzz: build
 	@case "$(OLD)" in *.a) ;; *) echo "make fuzz OLD=<an older libpi_core.a> (OLD is $(OLD))"; exit 1;; esac
 	@[ -f "$(OLD)" ] || { echo "make fuzz: no library at $(OLD)"; exit 1; }
+	@! cmp -s "$(OLD)" $(NATIVE) || { echo "make fuzz: $(OLD) is this build's own library: nothing to compare (Session 36's review)"; exit 1; }
 	$(CXX) -std=c++17 -O2 -Wall -Wextra -Werror -Icore/include harness/fuzz.cpp $(OLD) -o target/fuzz-old
 	$(CXX) -std=c++17 -O2 -Wall -Wextra -Werror -Icore/include harness/fuzz.cpp $(NATIVE) -o target/fuzz-new
 	@for b in target/fuzz-old target/fuzz-new; do \
