@@ -1259,7 +1259,9 @@ pub struct Voices {
     /// The two sliders of each track, 0 to 65535: the sound's own. Since §20 a `PARAM` sets
     /// all sixteen alike (the hand's); `SOUND` still sets one.
     pub params: [[u16; 2]; TRACKS],
-    /// Each track's sample, if the host gave one (D50).
+    /// Each track's sample, if the host gave one (D50). A sample is only ever started by
+    /// `Voices::trigger`, which marks its track in `active_tracks` (Session 36): start one
+    /// anywhere else and the short way round never asks it. `pi_set_sample` only stops one.
     pub samples: [Sample; TRACKS],
     /// Bit t: track t plays its sample when it fires, if it has one; otherwise its code
     /// voice. All code to start with (D50).
@@ -1446,6 +1448,14 @@ impl Voices {
     /// (0 × LEVEL), and no voice is asked: the same frame for less (Session 29).
     #[inline]
     pub fn render(&mut self, frame: &mut [f32], gain: f32, bus: &mut Bus, fx_sounds: u16) {
+        // The mask's one rule, which nothing else states (Session 36, the review of D102): a
+        // track left out of `active_tracks` is silent, code voice and sample, so the +0 it is
+        // given is the +0 asking it would give. Checked on every frame of every test run.
+        debug_assert!(
+            (0..TRACKS).all(|t| self.active_tracks >> t & 1 == 1 || self.track_silent(t)),
+            "a track left out of active_tracks is sounding: {:#06x}",
+            self.active_tracks
+        );
         let mut v = [0.0f32; TRACKS];
         let quiet = self.quiet;
         if !quiet {
@@ -1581,8 +1591,11 @@ impl Voices {
 
     /// For the rule tests' model of the short ways round (`tests/quiet.rs`): on its next frame
     /// this engine asks every voice, as it did before Session 29.
+    /// Since Session 36 that is every bit of `active_tracks` set as well: each track is asked,
+    /// and the one that gives +0 and says silent is let go again, as the short way does.
     pub fn ask_every_voice(&mut self) {
         self.quiet = false;
+        self.active_tracks = u16::MAX;
     }
 }
 
