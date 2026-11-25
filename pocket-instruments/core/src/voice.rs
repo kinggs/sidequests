@@ -416,24 +416,44 @@ impl Snare {
 
 // ---- keys 3 and 4: the hats ----
 
-/// Six detuned squares through a high-pass (VOICES.md: one source for both hats, and the
-/// cymbal's). The two hats are two of these, apart: each sounds on its own and neither cuts
-/// the other off. The cymbal (key 7) is a third, with a lower, wider band and a long tail.
-#[derive(Clone, Copy)]
-pub struct Hat {
-    ab: [u16; 2],
-    phase: [u32; 6],
-    inc: [u32; 6],
-    env: f32,
-    k: f32,
-    filter: Svf,
+/// What each of the three is, apart from its slider values: a table, not fields of each voice
+/// (Session 41, D105 item 5, Antigravity's: the engine 120 bytes smaller). `Hat::kind` names
+/// its row.
+struct HatSpec {
     /// Slider B's range, 60 dB in this many microseconds.
     length_us: (u64, u64),
     /// Slider A's range: the high-pass's corner, in thousandths of a hertz.
     corner: (u64, u64),
     /// The filter's damping, 1 / Q.
     filter_k: f32,
+    /// The squares summed run to +-6; this brings the filtered hat near full scale.
     level: f32,
+}
+
+const HAT_SPECS: [HatSpec; 3] = [
+    // Key 3, the closed hat: 10 to 60 ms; the hats' corner, 5 to 10 kHz (7.5 at the middle);
+    // a little resonance at the corner (Q 1.4) for a ring.
+    HatSpec { length_us: (10_000, 60_000), corner: (5_000_000, 10_000_000), filter_k: 0.7, level: 0.4 },
+    // Key 4, the open hat: 100 to 500 ms, the same corner and ring.
+    HatSpec { length_us: (100_000, 500_000), corner: (5_000_000, 10_000_000), filter_k: 0.7, level: 0.4 },
+    // Key 7, the cymbal: 200 to 1200 ms; the corner lower, 3 to 7 kHz, and no ring (Q 0.7), so
+    // more of the squares' body comes through: a wider band. Quieter, since more passes.
+    HatSpec { length_us: (200_000, 1_200_000), corner: (3_000_000, 7_000_000), filter_k: 1.4, level: 0.3 },
+];
+
+/// Six detuned squares through a high-pass (VOICES.md: one source for both hats, and the
+/// cymbal's). The two hats are two of these, apart: each sounds on its own and neither cuts
+/// the other off. The cymbal (key 7) is a third, with a lower, wider band and a long tail.
+#[derive(Clone, Copy)]
+pub struct Hat {
+    ab: [u16; 2],
+    /// Its row of `HAT_SPECS`: 0 closed, 1 open, 2 the cymbal.
+    kind: u8,
+    phase: [u32; 6],
+    inc: [u32; 6],
+    env: f32,
+    k: f32,
+    filter: Svf,
 }
 
 impl Hat {
@@ -443,48 +463,48 @@ impl Hat {
     /// Half the squares start low, so their sum starts at 0: a sum starting at 6 is a step
     /// the high-pass passes whole, a loud tick louder than the hat.
     const START: [u32; 6] = [0, 1 << 31, 0, 1 << 31, 0, 1 << 31];
-    /// The hats' corner, 5 to 10 kHz (7.5 at the middle).
-    const HAT_CORNER: (u64, u64) = (5_000_000, 10_000_000);
-    /// The squares summed run to +-6; this brings the filtered hat near full scale.
-    const HAT_LEVEL: f32 = 0.4;
-    /// A little resonance at the corner (Q 1.4) for a ring.
-    const HAT_K: f32 = 0.7;
 
-    const fn new(length_us: (u64, u64), corner: (u64, u64), filter_k: f32, level: f32) -> Self {
-        Hat { ab: [PARAM_DEFAULT; 2], phase: [0; 6], inc: [0; 6], env: 0.0, k: 0.0, filter: Svf::new(), length_us, corner, filter_k, level }
+    const fn new(kind: u8) -> Self {
+        Hat { ab: [PARAM_DEFAULT; 2], kind, phase: [0; 6], inc: [0; 6], env: 0.0, k: 0.0, filter: Svf::new() }
     }
 
     /// Key 3: 10 to 60 ms.
     pub const fn closed() -> Self {
-        Hat::new((10_000, 60_000), Self::HAT_CORNER, Self::HAT_K, Self::HAT_LEVEL)
+        Hat::new(0)
     }
 
     /// Key 4: 100 to 500 ms.
     pub const fn open() -> Self {
-        Hat::new((100_000, 500_000), Self::HAT_CORNER, Self::HAT_K, Self::HAT_LEVEL)
+        Hat::new(1)
     }
 
-    /// Key 7: 200 to 1200 ms; the corner lower, 3 to 7 kHz, and no ring (Q 0.7), so more of
-    /// the squares' body comes through: a wider band. Quieter, since more passes.
+    /// Key 7: 200 to 1200 ms, a lower, wider band, quieter (`HAT_SPECS`).
     pub const fn cymbal() -> Self {
-        Hat::new((200_000, 1_200_000), (3_000_000, 7_000_000), 1.4, 0.3)
+        Hat::new(2)
+    }
+
+    /// Its row of the table (`% 3`: no bounds check, and `kind` is only ever 0 to 2).
+    #[inline]
+    fn spec(&self) -> &'static HatSpec {
+        &HAT_SPECS[self.kind as usize % 3]
     }
 
     /// Slider A is the filter's corner. Slider B is the length, to fall 60 dB.
     fn tune(&mut self, rate: u32) {
         let [a, b] = self.ab;
+        let spec = self.spec();
         for (i, p) in Self::PITCHES.iter().enumerate() {
             self.inc[i] = inc(*p, rate);
         }
-        self.k = fall_60db(span(self.length_us.0, self.length_us.1, b), rate);
-        self.filter.tune(span(self.corner.0, self.corner.1, a), self.filter_k, rate);
+        self.k = fall_60db(span(spec.length_us.0, spec.length_us.1, b), rate);
+        self.filter.tune(span(spec.corner.0, spec.corner.1, a), spec.filter_k, rate);
     }
 
     fn trigger(&mut self, ab: [u16; 2], rate: u32) {
         self.ab = ab;
         self.tune(rate);
         self.phase = Self::START;
-        self.env = self.level;
+        self.env = self.spec().level;
         self.filter.clear();
     }
 
@@ -819,10 +839,9 @@ pub struct Tom {
     k: f32,
     sweep: f32,
     k_sweep: f32,
-    /// Slider A's range: the base pitch, in thousandths of a hertz.
-    pitch: (u64, u64),
-    /// Slider B's range, 60 dB in this many microseconds.
-    length_us: (u64, u64),
+    /// The high tom (key 12), else the low (key 11): which ranges `tune` reads (Session 41,
+    /// D105 item 5, Antigravity's: a flag, not two ranges in each tom).
+    high: bool,
 }
 
 impl Tom {
@@ -831,25 +850,31 @@ impl Tom {
     const DEPTH: f32 = 0.5;
     const LEVEL: f32 = 0.9;
 
-    const fn new(pitch: (u64, u64), length_us: (u64, u64)) -> Self {
-        Tom { ab: [PARAM_DEFAULT; 2], phase: 0, base: 0.0, env: 0.0, k: 0.0, sweep: 0.0, k_sweep: 0.0, pitch, length_us }
+    const fn new(high: bool) -> Self {
+        Tom { ab: [PARAM_DEFAULT; 2], phase: 0, base: 0.0, env: 0.0, k: 0.0, sweep: 0.0, k_sweep: 0.0, high }
     }
 
     /// Key 11: 60 to 120 Hz, 150 to 600 ms.
     pub const fn low() -> Self {
-        Tom::new((60_000, 120_000), (150_000, 600_000))
+        Tom::new(false)
     }
 
     /// Key 12: 120 to 250 Hz, 100 to 400 ms.
     pub const fn high() -> Self {
-        Tom::new((120_000, 250_000), (100_000, 400_000))
+        Tom::new(true)
     }
 
-    /// Slider A is the base pitch. Slider B is the length, to fall 60 dB.
+    /// Slider A is the base pitch. Slider B is the length, to fall 60 dB. The ranges, in
+    /// thousandths of a hertz and in microseconds, are `low`'s and `high`'s.
     fn tune(&mut self, rate: u32) {
         let [a, b] = self.ab;
-        self.base = inc(span(self.pitch.0, self.pitch.1, a), rate) as f32;
-        self.k = fall_60db(span(self.length_us.0, self.length_us.1, b), rate);
+        let (pitch, length_us) = if self.high {
+            ((120_000, 250_000), (100_000, 400_000))
+        } else {
+            ((60_000, 120_000), (150_000, 600_000))
+        };
+        self.base = inc(span(pitch.0, pitch.1, a), rate) as f32;
+        self.k = fall_60db(span(length_us.0, length_us.1, b), rate);
         self.k_sweep = fall(frames(Self::SWEEP_US, rate) as f32);
     }
 
@@ -1027,7 +1052,8 @@ fn note(slider: u16, octaves_down: u32) -> u64 {
 }
 
 /// Key 15: a triangle held at one pitch, A2 to A4 by slider A in semitones (A3, 220 Hz, at
-/// the middle). Key 16: a square two octaves down, low-passed two octaves above its pitch.
+/// the middle). Until Session 41 (D105 item 5, Antigravity's) it was one type with the bass,
+/// told apart by a flag; each now carries only its own fields and branch.
 #[derive(Clone, Copy)]
 pub struct Tone {
     ab: [u16; 2],
@@ -1035,42 +1061,84 @@ pub struct Tone {
     inc: u32,
     env: f32,
     k: f32,
-    filter: Svf,
-    /// The bass: a low-passed square, two octaves down. Otherwise a triangle.
-    bass: bool,
 }
 
 impl Tone {
     const LEVEL: f32 = 0.8;
-    const BASS_LEVEL: f32 = 0.7;
-    /// The bass's low-pass, Q 0.7.
-    const BASS_K: f32 = 1.4;
 
-    pub const fn tone() -> Self {
-        Tone { ab: [PARAM_DEFAULT; 2], phase: 0, inc: 0, env: 0.0, k: 0.0, filter: Svf::new(), bass: false }
-    }
-
-    pub const fn bass() -> Self {
-        Tone { bass: true, ..Tone::tone() }
+    pub const fn new() -> Self {
+        Tone { ab: [PARAM_DEFAULT; 2], phase: 0, inc: 0, env: 0.0, k: 0.0 }
     }
 
     /// Slider A is the note. Slider B is the length, 50 to 500 ms to fall 60 dB.
     fn tune(&mut self, rate: u32) {
         let [a, b] = self.ab;
-        let pitch = note(a, if self.bass { 2 } else { 0 });
-        self.inc = inc(pitch, rate);
+        self.inc = inc(note(a, 0), rate);
         self.k = fall_60db(span(50_000, 500_000, b), rate);
-        if self.bass {
-            self.filter.tune(4 * pitch, Self::BASS_K, rate);
-        }
     }
 
     fn trigger(&mut self, ab: [u16; 2], rate: u32) {
         self.ab = ab;
         self.tune(rate);
         // The triangle starts a quarter turn in, where it is 0 and rising: no step.
-        self.phase = if self.bass { 0 } else { 1 << 30 };
-        self.env = if self.bass { Self::BASS_LEVEL } else { Self::LEVEL };
+        self.phase = 1 << 30;
+        self.env = Self::LEVEL;
+    }
+
+    /// Silent: `next` returns 0 and changes nothing, its first test word for word.
+    #[inline]
+    fn silent(&self) -> bool {
+        self.env == 0.0
+    }
+
+    #[inline]
+    fn next(&mut self) -> f32 {
+        if self.env == 0.0 {
+            return 0.0;
+        }
+        // -1 ..< 1 over the turn; the triangle is 2|x| - 1.
+        let x = (self.phase as i32) as f32 * (1.0 / 2_147_483_648.0);
+        let raw = 2.0 * if x < 0.0 { -x } else { x } - 1.0;
+        let s = raw * step_env(&mut self.env, self.k);
+        self.phase = self.phase.wrapping_add(self.inc);
+        s
+    }
+}
+
+/// Key 16: a square two octaves below the tone's note, low-passed two octaves above its pitch.
+#[derive(Clone, Copy)]
+pub struct Bass {
+    ab: [u16; 2],
+    phase: u32,
+    inc: u32,
+    env: f32,
+    k: f32,
+    filter: Svf,
+}
+
+impl Bass {
+    const LEVEL: f32 = 0.7;
+    /// The low-pass, Q 0.7.
+    const K: f32 = 1.4;
+
+    pub const fn new() -> Self {
+        Bass { ab: [PARAM_DEFAULT; 2], phase: 0, inc: 0, env: 0.0, k: 0.0, filter: Svf::new() }
+    }
+
+    /// Slider A is the note. Slider B is the length, 50 to 500 ms to fall 60 dB.
+    fn tune(&mut self, rate: u32) {
+        let [a, b] = self.ab;
+        let pitch = note(a, 2);
+        self.inc = inc(pitch, rate);
+        self.k = fall_60db(span(50_000, 500_000, b), rate);
+        self.filter.tune(4 * pitch, Self::K, rate);
+    }
+
+    fn trigger(&mut self, ab: [u16; 2], rate: u32) {
+        self.ab = ab;
+        self.tune(rate);
+        self.phase = 0;
+        self.env = Self::LEVEL;
         self.filter.clear();
     }
 
@@ -1085,14 +1153,8 @@ impl Tone {
         if self.env == 0.0 {
             return 0.0;
         }
-        let raw = if self.bass {
-            let square = if self.phase < 1 << 31 { 1.0 } else { -1.0 };
-            self.filter.next(square, Pass::Low)
-        } else {
-            // -1 ..< 1 over the turn; the triangle is 2|x| - 1.
-            let x = (self.phase as i32) as f32 * (1.0 / 2_147_483_648.0);
-            2.0 * if x < 0.0 { -x } else { x } - 1.0
-        };
+        let square = if self.phase < 1 << 31 { 1.0 } else { -1.0 };
+        let raw = self.filter.next(square, Pass::Low);
         let s = raw * step_env(&mut self.env, self.k);
         self.phase = self.phase.wrapping_add(self.inc);
         if self.env == 0.0 {
@@ -1255,7 +1317,7 @@ pub struct Voices {
     cowbell: Cowbell,
     blip: Blip,
     tone: Tone,
-    bass: Tone,
+    bass: Bass,
     /// The two sliders of each track, 0 to 65535: the sound's own. Since §20 a `PARAM` sets
     /// all sixteen alike (the hand's); `SOUND` still sets one.
     pub params: [[u16; 2]; TRACKS],
@@ -1325,8 +1387,8 @@ impl Voices {
             high_tom: Tom::high(),
             cowbell: Cowbell::new(),
             blip: Blip::new(),
-            tone: Tone::tone(),
-            bass: Tone::bass(),
+            tone: Tone::new(),
+            bass: Bass::new(),
             params: [[PARAM_DEFAULT; 2]; TRACKS],
             samples: [
                 Sample::new(0), Sample::new(1), Sample::new(2), Sample::new(3),
