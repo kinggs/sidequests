@@ -1475,3 +1475,37 @@ above; these are what only the chain showed.
 - **The script's pitch tracker reads a triangle at 55 Hz as its third harmonic** (164.8 Hz in
   the harmonics line). The spectrum's peak between 25 and 150 Hz gave 55.0. Know a reading's
   range before believing it on a low note.
+
+## Session 33: Rack reads the keys and sliders every 16 frames (2026-11-25)
+
+- **The scan was the cost Session 29 said it was, and it went.** perf, one Rhythm module
+  stopped and unpatched, 20 s at 48 kHz, Rack pinned to core 2, before and after interleaved:
+  the 23 keys' compare 479 to 534 samples of `Rhythm::process`'s 1 701 to 1 907 (28 to 29%)
+  before, 32 to 43 after (a sixteenth). (After: four runs of the scan's commit and two of
+  the final one, with the latch test's slider; they read alike.) `Rhythm::process` 1 807 → 1 227 (means of six runs,
+  −32%); the module 2 237 → 1 801 (−19%), about 0.43% → 0.34% of a core at an assumed 5.25 GHz.
+- **`pi_process` read more after, in every after build: 319 → 456 (+43%).** The library is
+  the same bytes and is given the same inputs on every non-scan frame. Not where it landed:
+  two scratch builds that moved it by a further 64 and 128 bytes read 423 to 461 the same. Not
+  found ⚠. Without call graphs (`perf_event_paranoid` 2) the likeliest reading is that the
+  scan's work used to overlap `pi_process`'s stalls, and the samples now land on the stalls;
+  the module's total still fell by 436.
+- **What is now `Rhythm::process`'s largest part: `jacks.frame`**, about 670 to 690 of its
+  1 210 to 1 290 samples (54%): sixteen VOICES channels times 5 with a finite test each, and
+  sixteen trigger counters, worked out every frame whether VOICES and TRIGGERS are patched or
+  not (only the writing is skipped). RACK-RULES says an unpatched jack should cost nothing;
+  this one costs the most. The next step if the idle cost is wanted lower.
+- **A planted fault no test caught named a hole, and a test closed it.** With the sliders read
+  only in a fixture self-test, every self-test passed: the fixtures are the only tests that
+  moved a slider, and they scan every frame. The latch loop test now moves slider A on the
+  module's parameter at step 12 and holds the view at step 13. A second plant (the frame
+  count never stepped, so every frame scans) changes nothing any test can see: it is the old
+  module, only slower. perf is its test.
+- **Rack `-h` exits at once when its stdin is at end of file.** It prints "Press enter to
+  exit." and reads stdin; two of my perf runs ended after 0.02 s with 5 and 8 samples and had
+  to be thrown away (two earlier runs from the same script had run their 20 s; why stdin
+  differed is not known). `sleep 25 | perf record ... timeout -s INT 20 ./Rack -h` holds it
+  open. Read the sample count before reading a profile.
+- **`git checkout <file>` to undo a plant also undoes the work not yet committed in that
+  file.** It cost me the latch test's first draft, written again from the same text. Commit
+  before planting, as Session 32's plants did in scratch copies.

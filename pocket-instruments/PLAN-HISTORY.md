@@ -2975,3 +2975,60 @@ moved nothing. `make install` ran in `rack/`.
   verify`; `make install` ran: **restart Rack.** **Heard by the owner the same day: consistent**
   (a press that repeats live repeats on every playback; a mistimed press mutes, as the
   PO-12's rule does).
+
+## Session 33 — Rack reads the keys and sliders every 16 frames (build, Opus; D99; done 2026-11-25)
+
+`rack/` only: nothing in `core/` changes. Read D99; Session 29's Handover
+(`PLAN-HISTORY.md`); Machine state (perf, pinned to CPU 2); `rack/src/Rhythm.cpp`,
+`process`. The rules for every build session hold.
+
+- [x] **Before any change:** perf on the installed build, stopped and idle, by Machine
+      state's recipe, pinned: the module's samples and `Rhythm::process`'s share, written
+      down.
+- [x] **The scan.** The 23 key parameters and the two sliders are read on every 16th frame
+      (a counter of the module's own, stepped every frame; the view's `frames` is stepped
+      only on some), and on the first frame as now. A change is sent as today, in today's
+      order, on the frame it is read. CLOCK, RESET, the menu's queue, the routes and the
+      jacks stay on every frame.
+- [x] **A fixture self-test scans every frame** (`fixture >= 0`): its views are held to the
+      frame. **The loop self-tests run on the 16-frame scan,** as a player's module does:
+      the shadow engine is given the module's commands on the frame the module sends them.
+      If a loop test depends on the frame a key lands, stop on it: make that test scan
+      every frame, say which in the Handover ⚠, and build on.
+- [x] **Tested:** whether a frame scans, as a pure function in `rack/src/jacks.hpp` with
+      cases in `rack/test/jacks.cpp` (every 16th, the first frame, every frame in a fixture
+      self-test); a fault planted in it and caught by name. ⚠ A press shorter than 16
+      frames is not seen; no hand can make one. Say so in `RACK-RULES.md`.
+- [x] **Measured:** perf again, the same patch and seconds: the module's idle cost before
+      and after, and what is now `Rhythm::process`'s largest part.
+- [x] **The end:** `make verify`, `make selftest` in `rack/`, `make install` in `rack/`;
+      "Later: efficiency", second box ticked with the numbers; `LEARNINGS.md`; the
+      Handover; this list to `PLAN-HISTORY.md`.
+
+(Annotated by Session 33, on moving this list.) Every box was done. Where it went otherwise:
+the list did not ask for a new self-test, and one was added: a planted fault that read the
+sliders only in a fixture self-test passed every self-test, so the latch loop test now moves
+slider A on a player's module (step 12) and holds the view (step 13). No loop test depended on
+the frame a key lands; none was made to scan every frame. The numbers are in the Handover
+note and `LEARNINGS.md`, Session 33.
+
+## Handover note moved here by Session 33 (2026-11-25)
+
+### After Session 31: effect 1 designed; the Rack clock designed; three build lists (2026-11-25)
+
+- **Designed, nothing built.** Effect 1 as the PO-12 does it: each sound in the effects is
+  retuned for 46 875 Hz and asked for a value 11 718.75 times a second, with a straight
+  line between values. A quarter speed at every host rate (`ENGINE.md` §18, D98).
+- **The model changed the design.** Holding each value, as R72 read the PO-12, measured
+  29 dB too bright above 10 kHz beside take c (R77). Lines read 12 dB too bright ⚠; a
+  low-pass is the next step if your ear asks.
+- **Rulings made for you (O26; D98):** a sounding note changes speed on the frame 1 comes
+  on and goes off (item 3); a sound returned from Rack is left as it came (item 6); VOICES
+  carries the slowed sound (item 7, reasoned at your request); 16 waits for a take
+  (item 9: sound 15 a bar long, dry, then fx + 16, then fx + 1).
+- **Your ruling recorded (D99):** Rack reads the keys and sliders every 16 frames, never
+  the clock or reset. Session 33.
+- **The clock in Rack designed (D100, O27):** "one edge a beat" as `SOURCE` 2 in the core,
+  the first beat run at a guess; the measured tempo in the view's bytes 30 and 31, shown
+  with `ext` in place of `bpm`, `--` on a stopped clock. Session 34.
+- **Next:** Sessions 32, 33 and 34, in order, each on Opus with its list as the brief.

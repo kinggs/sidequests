@@ -152,10 +152,14 @@ lights, caps, display, weave ◄─ host draws ◄─ view                Rack: 
   anywhere else the mise shim fails with "No version is set". To build a scratch copy, stay
   here and pass `--manifest-path` and `CARGO_TARGET_DIR`. `jq` (1.8) is present; the Rack
   build needs it.
+- Found in Session 33: **`./Rack -h` exits at once if its stdin is at end of file** ("Press
+  enter to exit."), and perf then holds a handful of samples. Hold stdin open and time the run:
+  `sleep 25 | perf record -e cycles:u -c 200000 -o <out> -- taskset -c 2 timeout -s INT 20
+  ./Rack -h -u <folder>`. Read the sample count before the profile.
 
 ---
 
-## Where it stands (2026-11-25, after Session 32)
+## Where it stands (2026-11-25, after Session 33)
 
 The instrument plays on a phone (`web/rhythm.html`) and in Rack (the Rhythm module, 24 HP,
 thirteen jacks). In the core: sixteen sounds, each a code voice or a sample; the workflow
@@ -199,6 +203,10 @@ between, on the track channels too. ⚠ Every playing case without effect 1 cost
 frame more than before (placement, not work, as far as measured); the `.wasm` is 802 bytes
 under P1's 50 KB.
 
+**Built on 2026-11-25 and not yet played by the owner** (Session 33; D99): in Rack the keys and
+sliders are read every 16th frame (0.36 ms at 44.1 kHz), the clock, reset and jacks on every
+frame. The module stopped costs about a fifth less by perf.
+
 ## Done so far
 
 Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
@@ -240,6 +248,7 @@ Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
 | 30, the repeat to the hardware's rule; the sweeps and 5 retuned (Opus; D95, D96) | a run repeats the step the key came down on, silent on an empty one (`held_step` gone); `fx-repeat-holds` and `fx-repeat-punch` worked again by hand; the sweeps six steps round, new ends, Q 4.5; 5 at 210 Hz, Q 3; ours read on take c's pattern, nothing moved; `ours-take.cpp`'s keys a third of a step early since Session 26, fixed; 17 faults caught by name | 2026-11-25 |
 | 31, effect 1 designed (Fable; D95 item 3, D98) | `ENGINE.md` §18, "designed 2026-11-25: effect 1": the voices retuned to 46 875 Hz and asked on a grid a quarter of it, straight lines between; D98 and O26; R77, a model off the engine read beside take c (it changed the design: no hold); 16 waits for a take; Session 32's list. With it, while Session 32 built: D99 (the owner: keys and sliders every 16 frames) and Session 33's list; the clock in Rack designed (§4, §14, D100, O27) and Session 34's list. Nothing built | 2026-11-25 |
 | 32, effect 1 built (Opus; D98) | ABI 14: the voices in the effects slowed to a quarter (`slow`, `sound_slow`, the grid in `Bus::frame`); the models and ten rule tests first, bit for bit at the first run; the report the same, only `render-fx-1` moved; ours beside the PO-12 on take c (220 → 55 Hz, ×3.85, +0.1 dB), nothing to move; 22 faults caught by name, 2 no test can catch; bench case fx 1/0. ⚠ every playing case 3 to 5 ns a frame over the old build, left as designed | 2026-11-25 |
+| 33, Rack reads the keys and sliders every 16 frames (Opus; D99) | `pi::scans` in `jacks.hpp` with its cases; a fixture self-test scans every frame, the loop self-tests on the 16-frame scan; the latch test moves a slider (a plant asked for it); the module stopped −19% by perf, `Rhythm::process` −32%, the scan 28% → a sixteenth of it; 10 faults caught by name, 1 no test can catch. ⚠ `pi_process` reads +43% in every after build, not found | 2026-11-25 |
 
 ## Next, in order
 
@@ -247,8 +256,8 @@ Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
    Session 26's and Session 28's steps are in their Handovers in `PLAN-HISTORY.md`. D92's
    and D93's rulings are cheap to change if they sound wrong; so is 14's gain (⚠ below).
 2. **Your ear on Sessions 30 and 32** (restart Rack first: `make install` ran): their
-   Handovers' steps, the rest of O25, O26. Then **Sessions 33 and 34** (build, Opus), below,
-   in that order. **Two short takes, when the PO-12 is out** ("The owner's hands"): 14 at
+   Handovers' steps, the rest of O25, O26. Then **Session 34** (build, Opus), below (Session
+   33 built 2026-11-25: its two-minute check is in its Handover). **Two short takes, when the PO-12 is out** ("The owner's hands"): 14 at
    120 bpm, and 13's map. Read them with "Read `pocket-instruments/PLAN.md` and read
    Session 22's two last takes".
 3. **The owner's looks and rulings** on what 2026-11-23 built: "The owner's hands", first
@@ -257,35 +266,6 @@ Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
 5. **The host's idle cost, when wanted** ("Later: efficiency"): the owner's answer to reading
    the parameters less often decides the next step (Session 29's Handover).
 6. Then from "Not planned yet", as the owner chooses.
-
-## Session 33 — Rack reads the keys and sliders every 16 frames (build, Opus; D99)
-
-`rack/` only: nothing in `core/` changes. Read D99; Session 29's Handover
-(`PLAN-HISTORY.md`); Machine state (perf, pinned to CPU 2); `rack/src/Rhythm.cpp`,
-`process`. The rules for every build session hold.
-
-- [ ] **Before any change:** perf on the installed build, stopped and idle, by Machine
-      state's recipe, pinned: the module's samples and `Rhythm::process`'s share, written
-      down.
-- [ ] **The scan.** The 23 key parameters and the two sliders are read on every 16th frame
-      (a counter of the module's own, stepped every frame; the view's `frames` is stepped
-      only on some), and on the first frame as now. A change is sent as today, in today's
-      order, on the frame it is read. CLOCK, RESET, the menu's queue, the routes and the
-      jacks stay on every frame.
-- [ ] **A fixture self-test scans every frame** (`fixture >= 0`): its views are held to the
-      frame. **The loop self-tests run on the 16-frame scan,** as a player's module does:
-      the shadow engine is given the module's commands on the frame the module sends them.
-      If a loop test depends on the frame a key lands, stop on it: make that test scan
-      every frame, say which in the Handover ⚠, and build on.
-- [ ] **Tested:** whether a frame scans, as a pure function in `rack/src/jacks.hpp` with
-      cases in `rack/test/jacks.cpp` (every 16th, the first frame, every frame in a fixture
-      self-test); a fault planted in it and caught by name. ⚠ A press shorter than 16
-      frames is not seen; no hand can make one. Say so in `RACK-RULES.md`.
-- [ ] **Measured:** perf again, the same patch and seconds: the module's idle cost before
-      and after, and what is now `Rhythm::process`'s largest part.
-- [ ] **The end:** `make verify`, `make selftest` in `rack/`, `make install` in `rack/`;
-      "Later: efficiency", second box ticked with the numbers; `LEARNINGS.md`; the
-      Handover; this list to `PLAN-HISTORY.md`.
 
 ## Session 34 — the clock in Rack: one edge a beat, and the measured tempo (build, Opus; D64, D65 item 2, D100)
 
@@ -392,12 +372,19 @@ None blocks anything; each is done when wanted, profiled before and after (Machi
       **Done in Session 29, the core's part:** most of it was the sixteen voices asked every
       frame; a quiet engine no longer asks them (idle 29.5 → 6.1 ns a frame, the same bits).
       The module in Rack −26%, about 0.45% by perf ⚠. The rest is the host's: the box below.
-- [ ] Still a question for the owner: read the parameters every 16 or 32 frames (under 1 ms
+- [x] Still a question for the owner: read the parameters every 16 or 32 frames (under 1 ms
       late) rather than on the frame the brief asks for, as VCV's own modules do. Measured
       cost of reading them every frame now: a small part of `Rhythm::process`, no longer the
       biggest. **Session 29:** with the core's idle cost gone it is the biggest again: the 23
       key parameters' scan is 29% of `Rhythm::process`'s samples stopped, and `Rhythm::process`
       is now about three quarters of the module's idle cost.
+      **Ruled every 16 (D99) and done in Session 33:** perf, one module stopped and unpatched,
+      20 s at 48 kHz, pinned to core 2, six runs each way: the scan 479 to 534 samples (28 to
+      29% of `Rhythm::process`) → 32 to 43; `Rhythm::process` 1 807 → 1 227 (−32%); the module
+      2 237 → 1 801 (−19%), about 0.43% → 0.34% ⚠ (an assumed 5.25 GHz). ⚠ `pi_process` read
+      319 → 456 in every after build (the same library, the same inputs; not placement by two
+      scratch layouts; not found). The largest part now: `jacks.frame`, VOICES' and TRIGGERS'
+      sixteen channels worked out every frame, patched or not (54% of `Rhythm::process`).
 - [x] **The bench reads where code lands** (Session 26, `LEARNINGS.md`): `pi_process`'s
       place in a 64-byte line moved idle by up to 3 ns a frame between builds that differ
       only in code that never runs while stopped. Before chasing a nanosecond, pin the hot
@@ -455,6 +442,7 @@ originals are in `PLAN-HISTORY.md`); nothing was dropped, each thing is here onc
       minutes) and its readings (⚠), above all 14's gain.
 - [ ] **Session 26, by ear and to rule on:** its Handover (now in `PLAN-HISTORY.md`) has the steps (about ten
       minutes) and its five readings (⚠).
+- [ ] **Session 33, two minutes in Rack** (restart Rack first): its Handover below.
 - [ ] **Session 32, by ear and to rule on** (O26): its Handover below has the steps (five
       minutes) and four readings (⚠), above all the cost on every playing case.
 - [x] **Session 22's proposals** (`ENGINE.md` §17 and §18, "Proposed after Session 22"):
@@ -519,25 +507,6 @@ originals are in `PLAN-HISTORY.md`); nothing was dropped, each thing is here onc
 
 The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
 
-### After Session 31: effect 1 designed; the Rack clock designed; three build lists (2026-11-25)
-
-- **Designed, nothing built.** Effect 1 as the PO-12 does it: each sound in the effects is
-  retuned for 46 875 Hz and asked for a value 11 718.75 times a second, with a straight
-  line between values. A quarter speed at every host rate (`ENGINE.md` §18, D98).
-- **The model changed the design.** Holding each value, as R72 read the PO-12, measured
-  29 dB too bright above 10 kHz beside take c (R77). Lines read 12 dB too bright ⚠; a
-  low-pass is the next step if your ear asks.
-- **Rulings made for you (O26; D98):** a sounding note changes speed on the frame 1 comes
-  on and goes off (item 3); a sound returned from Rack is left as it came (item 6); VOICES
-  carries the slowed sound (item 7, reasoned at your request); 16 waits for a take
-  (item 9: sound 15 a bar long, dry, then fx + 16, then fx + 1).
-- **Your ruling recorded (D99):** Rack reads the keys and sliders every 16 frames, never
-  the clock or reset. Session 33.
-- **The clock in Rack designed (D100, O27):** "one edge a beat" as `SOURCE` 2 in the core,
-  the first beat run at a guess; the measured tempo in the view's bytes 30 and 31, shown
-  with `ext` in place of `bpm`, `--` on a stopped clock. Session 34.
-- **Next:** Sessions 32, 33 and 34, in order, each on Opus with its list as the brief.
-
 ### After Session 32: effect 1 built, the sounds at a quarter of the rate (2026-11-25)
 
 - **Built as designed (D98), not yet heard.** Hold fx + 1 and every sound in the effects
@@ -578,3 +547,43 @@ The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
   slowed: either line could go); `make test`, `make play` (both browsers), `make listen`,
   `make selftest` in `rack/`, `make verify`; `make install`. `pi_size` 3 728 → 3 872.
 - **Next:** your ear on Sessions 26, 28, 30 and 32; then Sessions 33 and 34.
+
+### After Session 33: Rack reads the keys and sliders every 16 frames (2026-11-25)
+
+- **Built as ruled (D99), nothing in the core.** The module reads its 23 keys and two sliders
+  on every 16th frame (0.36 ms at 44.1 kHz) and sends a change on the frame it reads it; the
+  clock, reset, the menu, the routes and the jacks stay on every frame. A fixture self-test
+  reads every frame. `make install` ran: **restart Rack.**
+- **The cost, by perf** (one module stopped and unpatched, 20 s at 48 kHz, pinned to core 2,
+  six runs each way, interleaved): the module 2 237 → 1 801 samples (−19%; about 0.43% →
+  0.34% of a core ⚠ at an assumed 5.25 GHz); `Rhythm::process` 1 807 → 1 227 (−32%); the scan
+  28 to 29% of it → a sixteenth. Its largest part now is `jacks.frame`: VOICES' and TRIGGERS'
+  sixteen channels worked out every frame whether patched or not (54%). That is the next step
+  if you want the idle cost lower; not built.
+- **What you must know or decide (⚠):**
+  1. **`pi_process` reads 319 → 456 samples in every after build** though it is the same
+     library given the same inputs. Two scratch builds that move it 64 and 128 bytes further
+     read the same, so it is not where it landed. Not found; the module's total still falls
+     by 436. Likely the scan's work used to hide `pi_process`'s stalls; perf here cannot show
+     call graphs to tell.
+  2. **A press shorter than 16 frames is not seen** (RACK-RULES.md, as the list said). No
+     hand makes one; a module sending a trigger into a key by MIDI-Map could, in principle.
+  3. **One thing beyond the list:** a planted fault (the sliders read only in a fixture
+     self-test) passed every self-test, so the latch loop test now moves slider A on a
+     player's module and holds the view a step later. A test, not a rule; yours to drop.
+- **No loop test depended on the frame a key lands:** all five loop modules (return, three fx,
+  sliders) and the latch pass at 44.1, 48 and 96 kHz on the 16-frame scan, each frame still
+  the shadow engine's own; every fixture held view for view, scanning every frame.
+- **Proven:** `rack/test/jacks.cpp`'s `scan` cases (every 16th and only those, the first
+  frame, every frame in a fixture self-test, the count's wrap, a press of 16 frames always
+  seen and one of 15 sometimes not). Faults planted, the unplanted copy first: 7 in
+  `pi::scans`, each caught by a named `scan` check (one first written so it did not build;
+  it was planted again so it did); 3 in `Rhythm.cpp`, caught by the self-test (the fixtures
+  on the 16-frame scan: their views; never scanning outside a fixture: the loop tests; the
+  sliders read only in a fixture: the new latch check, after it was written); 1 no test can
+  catch (the frame count never stepped: every frame scans, the old module, only slower;
+  perf is its test). `make verify`, `make selftest`, `make install`.
+- **To check, two minutes:** Rack restarted, the module stopped, Engine → CPU meter: about a
+  fifth under what it read before. Then play: tap keys, hold bpm and move a slider, Ctrl+click
+  fx and punch a key. Everything should feel the same; nothing should be missed.
+- **Next:** your ear on Sessions 26, 28, 30 and 32; then Session 34.
