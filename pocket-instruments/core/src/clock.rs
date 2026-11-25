@@ -141,10 +141,14 @@ impl Clock {
         }
         let beats = self.source == SOURCE_BEATS;
         if self.have_edge && self.since > 0 {
-            if beats && self.since as u64 > 2 * self.period as u64 {
+            if beats && self.measured && self.since as u64 > 2 * self.period as u64 {
                 // §4, ruled 2026-11-25 (D101 item 2): on one edge a beat, an edge after a pause
                 // (the bar `ext` calls stopped) is a first edge: it does not measure, its beat
                 // runs at the guess, and the guess is left. One edge a step measures it, as ever.
+                // §4, ruled after Session 35's review (D103): a pause only against a measured
+                // period. Against a guess (after a first edge or a pause) every edge measures,
+                // or a clock under half the guessed tempo would never be measured again. With
+                // `measured` set on beats `guess` is never 0, so `guessed` here is the guess.
                 self.period = self.guessed(rate);
                 self.measured = false;
             } else {
