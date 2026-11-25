@@ -1138,6 +1138,8 @@ with an empty lane. The design held. What it did not say, built on and marked:
 
 ### §17, designed 2026-11-24: a repeat holds the nearest note behind it (ABI 12; D90 item 1, D91; designed in Session 25, built in Session 26)
 
+**Superseded by D95 item 1 and taken out in Session 30** ("§17, Built (Session 30)" below). Kept as it was written, for why the walk existed.
+
 The proposal above, exact. One thing changes: the step a run repeats. Where "The four
 repeats" says `run_step = cur`, it becomes:
 
@@ -1344,6 +1346,43 @@ until a build session.
    seems to sound with other knob values than the target's own hit. **Proposed: change
    nothing yet.** One more take settles it (every sound on its own step, two passes dry,
    two with fx + 13); then `shuffle`'s table is one line.
+
+### §17, Built (Session 30): the hardware's rule, the step the key came down on (D95 item 1, D96)
+
+`held_step` is gone. Where a run begins (`core/src/seq.rs`, at a step boundary, `eff` a
+repeat and not `last`):
+
+```
+each tick, playing:   if write changed:  wrote = write;  down = cur
+                      (mid-step, before any step has arrived since play or reset: down = none)
+                      (on a boundary's tick the change is looked at after cur moves)
+a run begins:         run_step = (write == eff and down is not none) ? down : cur
+play, reset:          wrote = none;  down = none
+```
+
+- **A punch held: the step its key came down on** (D96 item 1, the owner in the session). A
+  press during step 5 starts its run at step 6's boundary, as always, and repeats step 5. On
+  an empty step it is silent for as long as it lasts, and takes no draw. A punch on a
+  boundary's frame came down on the step arriving. A punch made while stopped, or before the
+  first step after play, repeats that first step.
+- **From the lane, no punch held: the run's own first step** (D96 item 2 ⚠). A replay of a
+  punch made mid-step therefore repeats the step after the one the hand heard.
+- **A second repeat is a new run** (D96 item 3 ⚠): its own key's step, or its own first step
+  from the lane. Nothing carries over from the run before.
+- Everything else in "The four repeats" stands: the periods, the run's grid from its first
+  boundary, no swing, a draw a hit, `TRIG`'s step `run_step`, what the step holds read at
+  each hit, a sound outside the effects playing on.
+- Cost: two bytes in `Seq`, one comparison a tick. `make pairs`: every case inside the old
+  build's spread (repeat 38.0 → 37.8 ns a frame, beat 32.2 → 32.4).
+
+**Proven by:** `fx-repeat-holds` (its runs begin on empty steps: now silent) and
+`fx-repeat-punch` (its first pass now repeats sound 1, where the key came down), each worked
+again by hand and committed before the code (`fixtures/README.md`); `fx-repeat-swing`
+unchanged. In `core/src/tests/fx.rs` D91's nine tests are replaced by seven for this rule and
+four for the key's step (a boundary's frame, a new key inside a run, the replay, a punch
+before the first step and across a stop); the mid-step punch test now expects step 1. Ten
+faults planted, all caught by name (one only after a test was added: `LEARNINGS.md`). The
+Rack self-test plays both fixtures on both clocks. The report's other runs did not move.
 
 ## 18. The bus and the first sound effects (ABI 7; designed in Session 15; D67; built in Session 17)
 
@@ -1842,6 +1881,48 @@ until a build session, and each number below is from one take.
 session, Fable); the sweeps' cycle and ends and 5's cutoff (constants, one build session with
 the retune's method: move, read ours beside the PO-12, write both readings down); the delay
 standing still (recommended no).
+
+### §18, Built (Session 30): the sweeps and 5 retuned (D95 item 4)
+
+In `core/src/bus.rs`: `SWEEP_HALF` 432 → 288 ticks (six steps round); 6 from 2 700 (3 240) to
+165 Hz (190); 8 from 220 to 3 300 Hz (2 900); the four per-tick constants (end / start) to the
+power 1 / 288, rounded to f32 off the engine: 6 `OUT` 0.990_341_84, `BACK` 1.009_752_3; 8 `OUT`
+1.009_447_3, `BACK` 0.990_641_1. After 287 multiplies 6 stands at 166.6 Hz and comes back to
+2 673.9; 8 at 3 269.2 and 222.1. `LOWPASS_HZ` 300 → 210. `r` by the effect, no longer by the
+output: `LOWPASS_R` 1/3 (5), `HIPASS_R` 1/6 (7), `SWEEP_R` 1/4.5 (6 and 8) (D96 item 4).
+
+The model in `core/src/tests/bus.rs` was written again first and failed seven tests on the
+old code; the code then matched it bit for bit at the first run. Seven faults planted, all
+caught by name. Moved, by this decision only: the six `render-fx-5`, `-6` and `-8` pairs on
+both clocks and `render-loop` (its lane holds 5 and 6): 72 files. `make pairs`: fx 5 40.8 →
+41.0, fx 6 41.7 → 41.5, fx 8 41.2 → 41.1 ns a frame, all inside the old build's spread.
+
+**Ours read beside the PO-12 on take c's pattern** (`harness/ours-take.cpp c`, sound 8 on
+steps 1 and 9, sound 15 on 5 and 13; `hardware-fx.py --pass c --effects 1-16`; the old library
+through the same harness for "was"). The script reads ours every half step where a sound
+plays; R73 read the PO-12 every quarter step, so the ends are not like for like.
+
+| Effect | The reading | The PO-12's (R73, R75) | Ours was | Ours now | Moved |
+|---|---|---|---|---|---|
+| 5 | cutoff by its track; the two-pole fit | 209 Hz; 214 Hz, Q 2.97 | 288 Hz; 286 Hz, Q 1.83 | 206 Hz; 191 Hz, Q 2.70 | nothing |
+| 6 | the highest and lowest points read; the cycle | 2 155 and 170 Hz read (fit 2 680 to 163); 5.96 steps | 3 079 and 220 Hz; about 9 | 2 553 and 233 Hz; 6 (tops at steps 0 and 12, bottom near 9) | nothing |
+| 8 | the same | 269 and 3 048 Hz read (fit 212 to 3 390); 5.96 steps | 175 and 2 711 Hz; about 9 | 180 and 2 959 Hz; 6 (tops at steps 9 and 21) | nothing |
+| 6, 8 | the peak at each point | about +13 dB, Q 4.5 | not read | not read ⚠: the script gives no peak a point for ours | nothing |
+| 7 | cutoff; fit (not on the list) | 1 804 Hz; Q 5.2 | 1 805 Hz; Q 5.45 | 1 803 Hz; Q 5.64 | nothing |
+| 11, 12 | hits a beat | 8 and 6 (R74) | 8.00; 6.00 | 8.00; 6.00 | nothing |
+| 14 | the ring (beside R75; D95 item 6: nothing moves) | 1 304 to 1 321 Hz, steady at −14 dBFS over sound 8; under 400 Hz 0 to +1 dB | +27 dB at the 1 016 Hz third, +18 at 1 280; loop 18.35 ms; under 400 Hz 0 to +2 dB | the same | nothing |
+
+- **No moves.** 5's track is within 0.02 octaves of the PO-12's; its fit is 0.16 octaves low
+  and Q 10% under, pulling the other way. The sweeps' ends were set from R73's fit, and the
+  points read here are sampled too coarsely to correct it (half steps; the PO-12's quarter).
+- ⚠ **14 rings lower than the PO-12 on this pattern:** about 1 kHz (`FEEDBACK_HZ` 1 093)
+  against its 1.31 kHz on take c (R70 read 1 093 Hz on take a). Left for the take D95 item 6
+  waits for.
+- **The harness had been playing every key early** (Session 26 on): half a second of lead
+  put the first step 3 000 frames after play, so each key landed a third into step 16 of the
+  bar before, not a frame after step 1. The look-back hid it. The lead is now three steps,
+  on a boundary. For held effects this moved nothing worth a third of a step; Sessions 26
+  and 28's readings stand ⚠ (not re-read).
 
 ## 19. Sound in: the returns and the effects loop (ABI 9; designed in Session 15; D68; built in Session 18)
 

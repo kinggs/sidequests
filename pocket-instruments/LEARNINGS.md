@@ -1369,3 +1369,29 @@ above; these are what only the chain showed.
   The core's only resting level is effect 3's half step (0.109 of a unit, 0.54 V), and 14
   returns the bus untouched while still, so the core alone does not make 1.65 V; FX RETURN
   is summed before the volume. Left as a test for the owner in `PLAN.md`.
+
+## Session 30: the repeat back to the hardware's rule; the sweeps and 5 retuned (2026-11-25)
+
+- **"The step the key came down on" and "the step the run begins on" are different steps
+  here.** Our lane is written by the steps that arrive, so a run begins one step after the
+  press. `run_step = cur`, which the plan named, would repeat the step after the kick and
+  bring back the mute the owner disliked. A side agent caught it mid-session; the owner chose
+  the PO-12's behaviour (D96). Before building a hardware rule, check which moment the
+  hardware counts from and which moment our sequencer acts on.
+- **A rule that mends can hide a harness bug.** `ours-take.cpp` had played every key a third
+  of a step early since Session 26 (half a second of lead is 2.67 steps, and the table clock
+  starts its first step at the next boundary). D91's look-back found the note anyway; the
+  hardware's rule repeated the empty step 16 and read as silence. Hold a harness's timing to
+  the trace (`step` events), not to its comment.
+- **My plant script mistook `error: test failed` for a build failure.** Cargo prints that
+  line whenever a test fails. Look for `could not compile`.
+- **A planted fault in state that play and reset clear got through** (K5: not clearing the
+  key's step at play) until a test held a punch across a stop. State with a reset path needs
+  a test that crosses it.
+- **Two hand workings were wrong, not the core:** `after(n)` is a frame *after* tick 96 n,
+  and play by edit mid-step waits for the next boundary on the table clock. Read the
+  helpers before working a trace by hand.
+- **A loosened check can go vacuous under a retune.** "Held over two steps, under 3 000 Hz"
+  passed for any sweep once 6 started at 2 700. It is now 2 000, worked (about 420 Hz).
+- **The model-first order held again:** seven tests failed on the old bus, all passed on the
+  new one at the first run, bit for bit.
