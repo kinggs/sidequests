@@ -234,6 +234,12 @@ service cloud.firestore {
       // Joining (0.4.0): anyone signed in makes their own card, once, and only an empty one.
       // Everything after that is staff's.
       allow create: if me(uid) && joinsClub(uid);
+      // A birthday (0.5.0): a member adds "MM-DD" to their own card, once. Changing it is staff's,
+      // so nobody moves it to collect the birthday reward twice.
+      allow update: if me(uid) && !('birthday' in resource.data)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['birthday', '_updatedAt'])
+        && request.resource.data.birthday is string
+        && request.resource.data.birthday.matches('^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$');
     }
     function joinsClub(uid) {
       let c = request.resource.data;

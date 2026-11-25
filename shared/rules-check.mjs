@@ -1207,6 +1207,17 @@ describe("Sessions Loyalty: a member", () => {
     await assertFails(setDoc(doc(user("ann"), SL + "cards/ann"), empty("ann")));
     await assertFails(setDoc(doc(signedOut(), SL + "cards/dan"), empty("dan")));
   });
+  test("a birthday: a member adds it to their own card once; changing it after is staff's (0.5.0)", async () => {
+    const db = user("ann");
+    await assertFails(updateDoc(doc(db, SL + "cards/ann"), { birthday: "13-40" }));
+    await assertFails(updateDoc(doc(db, SL + "cards/ann"), { birthday: "1125" }));
+    await assertFails(updateDoc(doc(db, SL + "cards/ann"), { birthday: "11-25", points: 9000 }));
+    await assertFails(updateDoc(doc(db, SL + "cards/member"), { birthday: "11-25" }));
+    await assertSucceeds(updateDoc(doc(db, SL + "cards/ann"), { birthday: "11-25" }));
+    await assertFails(updateDoc(doc(db, SL + "cards/ann"), { birthday: "11-26" }));
+    await assertFails(updateDoc(doc(db, SL + "cards/ann"), { birthday: deleteField() }));
+    await assertSucceeds(updateDoc(doc(user("bar"), SL + "cards/ann"), { birthday: "11-26" }));
+  });
   test("a household member is a plain member here: their own card, nobody else's, and no writes", async () => {
     const db = as(MEMBER);
     await assertSucceeds(getDoc(doc(db, SL + "cards/member")));

@@ -112,7 +112,10 @@ const ACCESS = [
   { path: /^sidequests\/sessions-loyalty\/cards\/([^/]+)$/, read: (m, u) => m[1] === u.uid || isStaff(u),
     // Joining: your own empty card, once (joinsClub in firestore.rules).
     write: (m, u, d, was) => isStaff(u) || (!was && !!d && m[1] === u.uid && d.uid === u.uid && d.by === u.uid
-      && d.points === 0 && d.xp === 0 && d.lastAt === 0 && d.memberNo === "" && d.status === "casual") },
+      && d.points === 0 && d.xp === 0 && d.lastAt === 0 && d.memberNo === "" && d.status === "casual")
+      // A birthday, added once by the member (0.5.0).
+      || (!!was && !!d && m[1] === u.uid && !("birthday" in was) && changed(was, d).every(k => ["birthday", "_updatedAt"].includes(k))
+        && /^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$/.test(String(d.birthday))) },
   { path: /^sidequests\/sessions-loyalty\/notes(\/[^/]+)?$/, read: (m, u) => isStaff(u), write: (m, u) => isStaff(u) },
   { path: /^sidequests\/sessions-loyalty\/entries$/, read: (m, u, d, was, ctx) => isStaff(u) || uidIs(ctx, u) },
   { path: /^sidequests\/sessions-loyalty\/entries\/([^/]+)$/,
