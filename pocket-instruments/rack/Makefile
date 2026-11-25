@@ -77,6 +77,17 @@ build/rhythm-fixtures.inc: rhythm.jq $(wildcard ../fixtures/*.json)
 	mv $@.tmp $@
 build/src/Rhythm.cpp.o: build/rhythm-fixtures.inc
 
+# The build stamp: the commit, and when pocket-instruments/ holds changes not committed,
+# "-dirty" and the minute it was built. Rack's log says it at load and each module's menu
+# shows it, so a restarted Rack can be checked against `git log`. stamp.inc is replaced only
+# when the stamp changes, so a clean tree does not rebuild; outside git it says "unknown".
+STAMP := $(shell git rev-parse --short=7 HEAD 2>/dev/null || echo unknown)$(shell test -n "$$(git status --porcelain -- .. 2>/dev/null)" && date '+-dirty %Y-%m-%d %H:%M')
+build/stamp.inc: FORCE
+	@mkdir -p build
+	@echo '#define PI_BUILD "$(STAMP)"' > build/stamp.new
+	@cmp -s build/stamp.new $@ || cp build/stamp.new $@
+build/src/plugin.cpp.o: build/stamp.inc
+
 # P3 ⚠ (PROOFS.md P1): the plugin must not need Rust's unwinder, and the core must be inside it.
 # On every target CI links (P5). Linux asks the dynamic table. A DLL has none to ask, but the
 # linked file keeps its COFF symbols until `dist` strips its copy. On macOS the plugin links

@@ -143,7 +143,10 @@ lights, caps, display, weave ◄─ host draws ◄─ view                Rack: 
   install` in `rack/`.** `make selftest` installs into a throwaway folder, so a session can
   pass every check while the owner's Rack still runs the morning's plugin (it did: FX SEND
   looked one-channel). A build session ends with `make install`, and the owner restarts Rack
-  (it unpacks the `.vcvplugin` at start).
+  (it unpacks the `.vcvplugin` at start). **Which build Rack runs** (2026-11-25, after
+  Session 39): right-click either module, and its menu's first line is `Build <commit>`. Rack's
+  `log.txt` has `Pocket Instruments build <commit>` too. Compare it with `git log -1`;
+  `-dirty <time>` means it was built from changes not committed.
 - Found in Session 29: **the CPU is a Ryzen 9 7950X3D, two dies.** One has the stacked cache
   and a lower clock (core 2 is on it), the other is faster (core 10). A run lands on either,
   so every bench case is bimodal by about 2 ns. `make bench` and `make pairs` pin to

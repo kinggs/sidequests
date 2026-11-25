@@ -34,6 +34,7 @@
 
 using namespace rack;
 extern Plugin *pluginInstance;
+extern const char *const pi_build; // plugin.cpp: the commit this plugin was built from
 
 struct FixtureCmd {
     uint32_t at;
@@ -406,6 +407,7 @@ struct ProbeWidget : ModuleWidget {
         Probe *p = getModule<Probe>();
         if (!p) return;
         menu->addChild(new MenuSeparator);
+        menu->addChild(createMenuLabel(string::f("Build %s", pi_build)));
         menu->addChild(createMenuLabel(string::f("%u passes matched, %u did not", p->passed.load(), p->failed.load())));
         menu->addChild(createSubmenuItem("Fixture", FIXTURES[p->fixtureWanted.load()].name, [=](Menu *sub) {
             for (size_t i = 0; i < FIXTURES.size(); i++)

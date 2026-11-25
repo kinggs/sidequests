@@ -67,6 +67,7 @@
 
 using namespace rack;
 extern Plugin *pluginInstance;
+extern const char *const pi_build; // plugin.cpp: the commit this plugin was built from
 
 namespace {
 
@@ -1522,6 +1523,7 @@ struct RhythmWidget : ModuleWidget {
         Rhythm *m = getModule<Rhythm>();
         if (!m) return;
         menu->addChild(new MenuSeparator);
+        menu->addChild(createMenuLabel(string::f("Build %s", pi_build)));
         // Each key's code or sample (D50). The switch, then the sound as it now is, in one frame
         // (VOICE first), as the page's sheet does (D60 item 4) ⚠.
         menu->addChild(createSubmenuItem("Sounds", "", [=](Menu *sub) {
