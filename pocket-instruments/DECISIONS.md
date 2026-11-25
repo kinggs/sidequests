@@ -2194,6 +2194,32 @@ holds again at every rate a line can be lent at. It moves bytes only under 28 Hz
 there is no behaviour to keep. A test first: 3 Hz, effect 14 held, a line of one float with
 guard floats round it, a returned sound moving; the guards untouched.
 
+### D107 — After Session 41: the bar reads placement apart; the cost of a call is left
+**2026-11-25 · Fable · on Session 41's five questions and Session 40's fifth · the owner's to overrule · Session 42 builds items 1 and 2**
+
+Session 41 kept three of Antigravity's nine parts and left six, most for 0.1 to 0.3 ns on
+cases the part's code never runs in.
+
+1. **D105 item 8's bar, amended:** a case reading under 0.3 ns slower counts against a part
+   only if that case's frames run code the part changed. Otherwise it is where code landed,
+   and the commit says so. Why: at 0.3 ns (0.0015% of a core) the bar was measuring the
+   linker. Larger than 0.3 still counts, whatever the cause: the owner pays it either way.
+2. **Part 1 is taken by that** (the cold handlers out of line, `clear` as loops): the `.wasm`
+   3.9 KB smaller, for idle 3.7 → 3.9 by placement. Session 42 ports it first.
+3. **Part 8, the steady bus, stays out.** 1.0 to 1.7 ns on frames with an effect held, for a
+   cached state and its guard. Not worth a second thing that must be kept right.
+4. **Parts 2, 6, 7 and 9 stay out:** no gain, or a loss where Rack is (the no-audio split
+   cost `rack` 3 ns; the cached volume 0.5).
+5. **The cost of a call a frame is left as it is.** Rack calls one frame at a time, and that
+   costs 7 ns over the frame (`rack` 21.7 against `both` 14.6). Measured in a scratch build:
+   reading what is heard afresh on every call is 1.0 ns of it (`rack` 21.7 → 20.7, `rack lp`
+   23.8 → 23.1); the rest is the call, its slices and its counters. Keeping what is heard
+   across calls needs a flag every load, loan and rate change must set: one more invariant
+   for 0.005% of a core. Not built, not planned.
+6. **`make fuzz` stays out of `make verify`:** it needs an older library to mean anything.
+7. **Session 40's four as-built readings** (`ENGINE.md`, ⚠ "as built, Session 40") stand as
+   built until the owner rules: they are what every build since Session 24 has done.
+
 ## Open
 
 | ID | Question | Needs |

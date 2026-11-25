@@ -342,6 +342,10 @@ Not started. Needs Session 41. This is the session where code a maintainer reads
 shape; D105 items 1 to 4 are the brief, and its item 8 judges each step. **No byte moves.**
 
 - [ ] **Before anything:** as Session 41's first box.
+- [ ] **D107 first:** its item 1 amends the bar every step below is judged by. Then its item
+      2: Session 41's part 1 (the cold handlers out of line, `clear` as loops), from the port
+      Session 41 left in `~/.cache/pocket-instruments/session41/`, measured and committed
+      alone.
 - [ ] **`Sum`, with its tests first** (D105 item 3), in `bus.rs`: `Sum::start(mask)`,
       `add(y)`, `plain()`, `bus_all()` (`plain + 0.0`), and `split(v, mask, fx_sounds)` giving
       `(rest, bus)` by two walks of set bits. Its doc states the three facts once. Tests, in
