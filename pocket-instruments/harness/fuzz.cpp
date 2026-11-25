@@ -1,7 +1,8 @@
 // Differential fuzz harness for the pocket-instruments engine (pi_engine.h, ABI 15).
 //
 //   fuzz-<lib> <first seed> <count>        one line a seed: "<seed> <fnv1a-64 of everything>"
-//   fuzz-<lib> --stats <first seed> <count> the same, plus how much sound and which effects
+//   fuzz-<lib> --stats <first seed> <count> the same, plus how much sound and which effects, and
+//                                           (Session 40) the frames that met each short way
 //   fuzz-<lib> --dump <seed> <prefix>       every output of every call, to <prefix>.bin, and a
 //                                           log line a call (what went in, what was live) to <prefix>.log
 //
@@ -35,6 +36,17 @@
 // data changed while the core holds it (the contract forbids it); rates other than the three;
 // whether anything sounds right. It proves the same bytes as the older build, nothing more: a
 // change meant to move bytes fails it by design.
+//
+// `--stats`' short ways (Session 40, D105 item 11), counted from what the harness itself sent, never
+// from anything the engine returns, so a gate the seeds never open shows: frames with a buffer and
+//   allfx    every sound in the effects (FXSOUND, a load) while an effect is held (fx and one grid key)
+//   returned every sound returned (ROUTE 0 all sixteen) in a loop layout
+//   fx1all   effect 1 held over all sixteen, and not the host's (ROUTE 1) in a loop layout
+//   steady   an effect held, the keys unchanged for more than 2 ms
+//   silent   stopped, no key held, nothing coming in, and nothing sent that sounds (a tap, play, a
+//            key, a load) for a second or more (a voice's tail longer than that is not known here)
+// Each command is taken on its frame as the engine takes it (array order, a frame past the block
+// on the last). Tracking uses no PRNG, so every seed's line is what it was.
 //
 // It must not call `fmod`: libpi_core.a carries compiler_builtins' `fmod` as a weak symbol, so
 // the link would take it from whichever library it is linked with, and the two builds would no
@@ -117,6 +129,12 @@ struct Session {
     std::string pending;
     int last_silent = -1;       // the last block's output: 1 all +0, 0 not, -1 nothing written
     uint64_t probes = 0, probes_silent = 0, probes_null = 0;        // what went in since the last call (for the log)
+    // Session 40: what the harness has sent, for --stats' short ways (the header says which)
+    uint16_t s_fx = 0xffff, s_route0 = 0, s_route1 = 0;
+    uint32_t s_held = 0;
+    bool s_playing = false;
+    uint64_t s_held_since = 0, s_last_sound = 0;
+    uint64_t st_allfx = 0, st_returned = 0, st_fx1all = 0, st_steady = 0, st_silent = 0;
 
     explicit Session(uint64_t seed, Mode m) : R(seed), mode(m) {}
 
@@ -255,6 +273,55 @@ struct Session {
         }
     }
 
+    // ---- what the harness sent (Session 40, --stats) ----
+    void sent(const pi_cmd &c, uint64_t at) {
+        switch (c.type) {
+        case PI_CMD_FXSOUND:
+            if (c.a < 16) s_fx = c.value ? uint16_t(s_fx | 1u << c.a) : uint16_t(s_fx & ~(1u << c.a));
+            break;
+        case PI_CMD_ROUTE:
+            if (c.a == 0) s_route0 = uint16_t(c.value);
+            if (c.a == 1) s_route1 = uint16_t(c.value);
+            break;
+        case PI_CMD_KEY_DOWN:
+            s_last_sound = at;
+            if (c.a == PI_KEY_PLAY) s_playing = true;   // a toggle the harness does not follow: assume it plays
+            if (c.a < 23 && !(s_held >> c.a & 1)) { s_held |= 1u << c.a; s_held_since = at; }
+            break;
+        case PI_CMD_KEY_UP:
+            if (c.a < 23 && (s_held >> c.a & 1)) { s_held &= ~(1u << c.a); s_held_since = at; }
+            break;
+        case PI_CMD_FIRE: s_last_sound = at; break;
+        case PI_CMD_PLAY:
+            s_playing = c.value != 0;
+            if (s_playing) s_last_sound = at;
+            break;
+        default: break;
+        }
+    }
+    void count(uint32_t n, const std::vector<pi_cmd> &cmds, uint32_t ch, bool loop, const float *buf) {
+        bool known = buf && (ch == 1 || ch == 16 || ch == 17 || loop);
+        bool still_in = true;   // nothing coming in: every input channel the core reads is exact zero
+        if (known && loop) {
+            for (uint32_t i = 0; i < n * ch && still_in; i++) { uint32_t k = i % ch; if (k < 18 && k != 16 && buf[i] != 0.f) still_in = false; }
+        }
+        size_t ci = 0;
+        for (uint32_t f = 0; f < n; f++) {
+            uint64_t at = frames_total + f;
+            while (ci < cmds.size() && std::min(cmds[ci].frame, n - 1) <= f) sent(cmds[ci++], at);
+            if (!still_in) s_last_sound = at;
+            if (!known) continue;
+            uint32_t grid = s_held & 0xffff, fns = s_held >> 16;
+            bool held = fns == (1u << (PI_KEY_FX - 16)) && grid && !(grid & (grid - 1));
+            if (held && s_fx == 0xffff) st_allfx++;
+            if (loop && s_route0 == 0xffff) st_returned++;
+            if (held && grid == 1 && s_fx == 0xffff && !(loop && (s_route1 & 1))) st_fx1all++;
+            if (held && at - s_held_since > rate / 500) st_steady++;
+            if (!s_playing && !s_held && still_in && at >= s_last_sound + rate) st_silent++;
+        }
+        while (ci < cmds.size()) sent(cmds[ci++], frames_total + (n ? n - 1 : 0));
+    }
+
     // ---- one pi_process ----
     void process(uint32_t n, std::vector<pi_cmd> &cmds) {
         // the layout: sticky, switched now and then
@@ -280,6 +347,7 @@ struct Session {
             }
         }
         uint32_t cap = R.p(0.97) ? 512 : R.p(0.5) ? PI_EVENTS_MIN : R.r(0, 8);
+        count(n, cmds, ch, loop, buf);   // before the call: a loop layout writes over its inputs
         uint32_t got = pi_process(e, n, cmds.data(), uint32_t(cmds.size()), ev, cap, buf, ch);
         uint8_t view[PI_VIEW_SIZE];
         uint32_t vs = pi_view(e, view, sizeof view);
@@ -353,6 +421,8 @@ struct Session {
             else if (k == 1) len = R.u(len);
             else if (k == 2) s[R.u(len)] ^= uint8_t(1u << R.u(8));
             int32_t r = pi_load(e, s.data(), len);
+            if (r == PI_OK && len >= 402) s_fx = uint16_t(s[400] | s[401] << 8);   // the snapshot's fx sounds (§17)
+            s_last_sound = frames_total;
             H.u32(uint32_t(r));
             rec(8, &r, 4);
             logf("load(%u)=%d ", len, r);
@@ -614,7 +684,9 @@ struct Session {
             fprintf(stdout, "  stats: frames %llu, mix non-zero %.3f, |mix|>1e-3 %.3f (of %llu mix frames), exact-silence stretches >=4410 frames: %llu; heard:",
                     (unsigned long long)frames_total, mixtot ? double(mixnz) / mixtot : 0.0, mixtot ? double(mixloud) / mixtot : 0.0, (unsigned long long)mixtot, (unsigned long long)quietruns);
             for (int i = 0; i <= 16; i++) fprintf(stdout, " %d:%llu", i, (unsigned long long)heard_frames[i]);
-            fprintf(stdout, "; quiet probes %llu: all +0 %llu, no buffer %llu\n", (unsigned long long)probes, (unsigned long long)probes_silent, (unsigned long long)probes_null);
+            fprintf(stdout, "; quiet probes %llu: all +0 %llu, no buffer %llu", (unsigned long long)probes, (unsigned long long)probes_silent, (unsigned long long)probes_null);
+            fprintf(stdout, "; short ways: allfx %llu returned %llu fx1all %llu steady %llu silent %llu\n", (unsigned long long)st_allfx,
+                    (unsigned long long)st_returned, (unsigned long long)st_fx1all, (unsigned long long)st_steady, (unsigned long long)st_silent);
         }
     }
 };
