@@ -1324,7 +1324,9 @@ impl Sample {
         self.active = true;
     }
 
-    #[inline]
+    /// Out of line (Session 42; D105 item 2): the list's sixteen lines each name it, and it
+    /// runs only while a sample sounds.
+    #[inline(never)]
     pub fn next(&mut self) -> f32 {
         if !self.active {
             return 0.0;
@@ -1350,6 +1352,14 @@ impl Sample {
 }
 
 // ---- all of them ----
+
+/// Effect 1's straight line between a slowed sound's last two grid values (§18, designed
+/// 2026-11-25): written once, for both of `sound_slow`'s loops.
+#[inline(always)]
+fn line(from: f32, to: f32, mu: f32) -> f32 {
+    from + (to - from) * mu
+}
+
 
 #[cfg_attr(test, derive(Clone, Copy))]
 pub struct Voices {
@@ -1388,7 +1398,7 @@ pub struct Voices {
     /// The sounds that may be sounding, a bit a track (Session 36, Codex's patch; D102): only
     /// these are asked, and every other is given the +0 a silent voice would give. A hit sets
     /// its track's bit (`trigger`); the frame a track gives +0 and says silent, code voice and
-    /// sample, clears it (`sound_track`). Nothing else may start a sound: a retune keeps a
+    /// sample, clears it (`let_go`). Nothing else may start a sound: a retune keeps a
     /// silent voice silent, and `pi_set_sample` only stops one. That rule is the mask's whole
     /// footing, so `render` checks it on every frame of every test run (`debug_assert!`).
     /// Not saved: the moment's, as `quiet` is. Before it, every voice was asked on every frame
@@ -1511,15 +1521,83 @@ impl Voices {
         }
     }
 
-    /// One sound's next value, as `sound` gives it: its code voice's, and its sample's if that
-    /// is sounding, times the level.
+    /// The one place a voice is asked (Session 42; D105 item 2): sixteen lines in track order,
+    /// written once by one macro, each: if `mask` has the track, its code voice's next value,
+    /// plus its sample's if that is sounding, times `LEVEL` once, written to the track's place
+    /// in `v`. Every other place in `v` is left as it is. `sound`, `sound_slow`'s fresh frame
+    /// and `slow` each call it with their own mask, and what each does with a value stays its
+    /// own (D105 item 2, Codex's finding 4). A set bit for a silent track is always safe: every
+    /// voice's `next` keeps its first test, so asking it gives the +0 the place would hold.
+    /// Each voice's `next` has this one caller, so it is inlined once (`LEARNINGS.md`, Session
+    /// 36: a second caller is what cost Session 32 its 4 ns), with a direct branch a track in
+    /// place of the jump table `Voices::ask` had (gone since Session 42).
+    ///
+    /// Placed by the bench (Session 42, `make pairs`, CPU 2, ten rounds, against the build
+    /// before, beat 14.0 and loop in 19.9 ns a frame there): out of line whole, with a test of
+    /// each four tracks' bits round its four lines (beat 13.4, loop in 20.0). Out of line with
+    /// no such tests, beat 13.6 and loop in 20.4; the first four lines in the frame loop and
+    /// twelve out of line, 13.7 and 20.4 (idle 4.3); that with the tests, 13.6 and 20.5.
     #[inline(never)]
-    fn ask(&mut self, t: usize) -> f32 {
-        let code = on_voice!(self, t, next());
-        // Both can sound at once after a switch: the old one's tail plays out. Only
-        // added when a sample is sounding, so the code voices alone keep their bits.
-        let s = &mut self.samples[t];
-        (if s.sounding() { code + s.next() } else { code }) * LEVEL
+    fn list(&mut self, mask: u16, v: &mut [f32; TRACKS]) {
+        macro_rules! lines {
+            ($($t:expr => $voice:ident),* $(,)?) => { $(
+                if mask >> $t & 1 == 1 {
+                    let code = self.$voice.next();
+                    // Both can sound at once after a switch: the old one's tail plays out. Only
+                    // added when a sample is sounding, so the code voices alone keep their bits.
+                    let s = &mut self.samples[$t];
+                    v[$t] = (if s.sounding() { code + s.next() } else { code }) * LEVEL;
+                }
+            )* };
+        }
+        if mask & 0x000F != 0 {
+            lines!(
+                KICK_TRACK => kick,
+                SNARE_TRACK => snare,
+                CLOSED_HAT_TRACK => closed_hat,
+                OPEN_HAT_TRACK => open_hat,
+            );
+        }
+        if mask & 0x00F0 != 0 {
+            lines!(
+                SYNTH_SNARE_TRACK => synth_snare,
+                STICKS_TRACK => sticks,
+                CYMBAL_TRACK => cymbal,
+                NOISE_TRACK => wash,
+            );
+        }
+        if mask & 0x0F00 != 0 {
+            lines!(
+                CLAP_TRACK => clap,
+                CLICK_TRACK => click,
+                LOW_TOM_TRACK => low_tom,
+                HIGH_TOM_TRACK => high_tom,
+            );
+        }
+        if mask & 0xF000 != 0 {
+            lines!(
+                COWBELL_TRACK => cowbell,
+                BLIP_TRACK => blip,
+                TONE_TRACK => tone,
+                BASS_TRACK => bass,
+            );
+        }
+    }
+
+    /// The render callers' bookkeeping, kept as it was (Session 36): each track in `asked`
+    /// whose value is +0 (each bit 0; a −0 does not count) and whose code voice and sample both
+    /// say silent is let go, its bit cleared, on that frame. So the guard and `quiet` keep
+    /// their timing. `slow` lets none go.
+    #[inline]
+    fn let_go(&mut self, asked: u16, v: &[f32; TRACKS]) {
+        let mut left = asked;
+        while left != 0 {
+            let t = left.trailing_zeros() as usize;
+            left &= left - 1;
+            if v[t].to_bits() == 0 && self.track_silent(t) {
+                self.active_tracks &= !(1 << t);
+            }
+        }
     }
 
     /// §18, designed 2026-11-25 (effect 1): what is slowed is now `now`, read where what is
@@ -1527,7 +1605,8 @@ impl Voices {
     /// `SLOW_RATE` if it is now slowed, for the host's `rate` if not; each that became slowed
     /// is asked once, there, `from = to =` that value; and if any became slowed the grid
     /// starts again, so this frame is fresh for all with `mu` 0. Out of line: it runs only on
-    /// a frame where what is slowed changes.
+    /// a frame where what is slowed changes. Since Session 42 the asking is the list's, given
+    /// the sounds that became slowed and are active.
     #[inline(never)]
     pub fn slow(&mut self, now: u16, bus: &mut Bus, rate: u32) {
         // Each set bit in turn, lowest first: a loop the compiler does not unroll sixteen
@@ -1541,13 +1620,17 @@ impl Voices {
         }
         let became = now & !was;
         if became != 0 {
+            // The active ones asked once (the list); every one that became slowed takes
+            // `from = to =` its value, a silent one's the +0 it would give, so no stale end
+            // from an earlier run survives. None is let go here.
+            let mut x = [0.0f32; TRACKS];
+            self.list(became & self.active_tracks, &mut x);
             let mut left = became;
             while left != 0 {
                 let t = left.trailing_zeros() as usize;
                 left &= left - 1;
-                let x = self.ask(t);
-                bus.from[t] = x;
-                bus.to[t] = x;
+                bus.from[t] = x[t];
+                bus.to[t] = x[t];
             }
             bus.restart();
         }
@@ -1614,91 +1697,68 @@ impl Voices {
         }
     }
 
-    /// The sixteen, in track order as before Session 29: only the tracks in `active_tracks`
-    /// are asked (Session 36), the rest stay the +0 `render` gave them. A track is asked
-    /// whether it is silent only on a frame it gives +0 (each bit 0; a −0 does not count),
-    /// which is next to nothing while it sounds; quiet is then every bit cleared, the same
-    /// moment Session 29's frame of sixteen +0s and every voice silent was.
+    /// The sixteen: the tracks in `active_tracks` asked (the list), the rest left the +0
+    /// `render` gave them, and each asked track that gives +0 and says silent let go. Quiet is
+    /// then every bit cleared, the same moment Session 29's frame of sixteen +0s and every
+    /// voice silent was. Session 36 (Codex's), against Session 34's build that asked all
+    /// sixteen (`make pairs`, CPU 2, ten rounds): beat 36.4 → 14.4 ns a frame, all sixteen
+    /// sounds 55.7 → 47.1, idle 6.0 → 3.7. It pays because most bits are clear: four drums on a
+    /// beat, at most a few ringing at once.
     #[inline]
     fn sound(&mut self, v: &mut [f32; TRACKS]) {
-        self.sound_active(v);
+        let asked = self.active_tracks;
+        self.list(asked, v);
+        self.let_go(asked, v);
         self.quiet = self.active_tracks == 0;
-    }
-
-    /// The tracks in `active_tracks` asked into a frame of +0s, lowest first, each set bit in
-    /// turn. Session 36, against Session 34's build that asked all sixteen (`make pairs`, CPU
-    /// 2, ten rounds): beat 36.4 → 14.4 ns a frame, all sixteen sounds 55.7 → 47.1, idle 6.0
-    /// → 3.7. The walk itself is no saving: with every bit kept set it read beat 74.2, twice
-    /// the old loop, since each track then goes through the out-of-line `ask`. It pays because
-    /// most bits are clear: four drums on a beat, at most a few ringing at once.
-    #[inline]
-    fn sound_active(&mut self, v: &mut [f32; TRACKS]) {
-        let mut remaining = self.active_tracks;
-        while remaining != 0 {
-            let t = remaining.trailing_zeros() as usize;
-            remaining &= remaining - 1;
-            v[t] = self.sound_track(t, 1 << t);
-        }
-    }
-
-    /// One track asked, and let go (its bit cleared) on the frame it gives +0 and says silent.
-    #[inline]
-    fn sound_track(&mut self, t: usize, bit: u16) -> f32 {
-        let out = self.ask(t);
-        if out.to_bits() == 0 && self.track_silent(t) {
-            self.active_tracks &= !bit;
-        }
-        out
     }
 
     /// The sixteen while effect 1 slows some (§18, designed 2026-11-25): a slowed sound is
     /// asked only on a fresh frame of the grid (`from = to`, `to =` its next value) and is the
     /// straight line `from + (to − from) × mu` on every frame, so it runs one grid step behind
-    /// its voice; any other is asked as in `sound`. Quiet may be set only on a frame where
+    /// its voice; any other is asked on every frame, as in `sound`. Only the sounds in
+    /// `active_tracks` are asked (the list): a slowed one that is not takes the +0 it would
+    /// give as its `to`, so its line runs out to +0. Quiet may be set only on a frame where
     /// every channel is +0 and every slowed sound's `from` and `to` are +0: a line can cross
     /// zero between two values that are not. Out of line, so `sound` is as small as it can be.
-    /// Since Session 36 a sound not in `active_tracks` is not asked here either: a slowed one's
-    /// `to` is the +0 it would give, a plain one's channel the +0 `render` gave.
     #[inline(never)]
     fn sound_slow(&mut self, v: &mut [f32; TRACKS], bus: &mut Bus) {
         let (slowed, fresh, mu) = (bus.slowed, bus.fresh, bus.mu);
+        let asked = if fresh { self.active_tracks } else { self.active_tracks & !slowed };
         let mut bits = 0u32;
         if slowed == u16::MAX {
-            // Every sound slowed, which is what effect 1 on a whole beat is: on a fresh frame
-            // each `from` takes its `to` and `to` is the active sounds asked (the rest +0),
-            // then every line drawn with no test of a bit. Session 36, `make pairs`, CPU 2:
-            // without this way, fx 1 26.5 ns a frame and fx 1/0 21.1; with it 19.8 and 17.4.
+            // Every sound slowed, which is what effect 1 on a whole beat is: the sixteen lines
+            // with no test of a bit, done together. Session 36, `make pairs`, CPU 2: without this
+            // way, fx 1 26.5 ns a frame and fx 1/0 21.1; with it 19.8 and 17.4. Session 42 tried
+            // one loop for every mask (the list asked into `v`, each line taken where `slowed`
+            // has it): fx 1 24.5 against 19.0 before, and 27.3 written as bit masks so the
+            // sixteen were done together; asking into `v` and copying it to `to` here, 19.5.
+            // Asked straight into `to`, as below, 17.6. The line itself is written once (`line`).
             if fresh {
                 bus.from = bus.to;
                 bus.to = [0.0; TRACKS];
-                self.sound_active(&mut bus.to);
+                self.list(asked, &mut bus.to);
+                self.let_go(asked, &bus.to);
             }
             for ((out, &a), &b) in v.iter_mut().zip(&bus.from).zip(&bus.to) {
-                *out = a + (b - a) * mu;
+                *out = line(a, b, mu);
                 bits |= out.to_bits() | a.to_bits() | b.to_bits();
             }
         } else {
-            // Some sounds slowed: a silent one is not asked, but its line still runs out from
-            // `from` to the +0 it is given. No bench case slows only some, so what this buys
-            // is not measured (every `fx 1` case slows all sixteen; Session 36). Kept from the
-            // patch's own comment, which Session 36's rewrite dropped: before the all-slowed
-            // case above was split off, the mask in this general loop took `fx 1` from 31.1
-            // to 26.9 ns a frame (Codex, on a busy machine's CPU 4: its reading, not ours).
+            if asked != 0 {
+                self.list(asked, v);
+                self.let_go(asked, v);
+            }
             for (t, out) in v.iter_mut().enumerate() {
-                let bit = 1 << t;
-                let active = self.active_tracks & bit != 0;
-                if slowed & bit != 0 {
+                if slowed >> t & 1 == 1 {
                     if fresh {
                         bus.from[t] = bus.to[t];
-                        bus.to[t] = if active { self.sound_track(t, bit) } else { 0.0 };
+                        bus.to[t] = *out;
                     }
                     let (a, b) = (bus.from[t], bus.to[t]);
-                    *out = a + (b - a) * mu;
-                    bits |= out.to_bits() | a.to_bits() | b.to_bits();
-                } else if active {
-                    *out = self.sound_track(t, bit);
-                    bits |= out.to_bits();
+                    *out = line(a, b, mu);
+                    bits |= a.to_bits() | b.to_bits();
                 }
+                bits |= out.to_bits();
             }
         }
         if bits == 0 {
@@ -1711,7 +1771,7 @@ impl Voices {
 /// voice asked, retuned or hit alone, and a sample retuned, the way the model reads them. Not
 /// the engine's own paths, so a slip in those shows as a difference. (But `ask_every_voice`
 /// below: it only sets every bit of the mask, and the engine it makes still runs the engine's
-/// own `ask`, `sound_slow`, mix and loop. Tests built on it hold the mask and nothing else:
+/// own list, `sound_slow`, mix and loop. Tests built on it hold the mask and nothing else:
 /// Session 36's review.)
 #[cfg(test)]
 impl Voices {
