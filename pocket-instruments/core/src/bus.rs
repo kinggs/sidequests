@@ -601,8 +601,9 @@ impl Bus {
     #[inline(never)]
     pub fn mix(&mut self, v: &[f32; TRACKS], fx_sounds: u16, gain: f32) -> f32 {
         let (rest, bus) = if fx_sounds == u16::MAX {
-            // With every track sent, the same +0 and ordered additions need no per-track
-            // mask test (fx 2, 20.5 to 18.9 ns a frame, CPU 4, ten interleaved runs).
+            // Every sound in the effects (the default): `rest` is +0 and `bus` the same
+            // additions in track order from +0, with no test of a bit. Session 36 (Codex's),
+            // `make pairs`, CPU 2: fx 2 to 8 and 14 1.4 to 2.4 ns a frame less, fx 1 2.1.
             (0.0, v.iter().fold(0.0, |sum, &s| sum + s))
         } else {
             let (mut rest, mut bus) = (0.0f32, 0.0f32);
@@ -642,9 +643,10 @@ impl Bus {
         }
         let clean = |x: f32| if x.is_finite() { x } else { 0.0 };
         let m = if returned == u16::MAX {
-            // A full return can read straight from the inputs. In ten interleaved runs
-            // on CPU 4, loop went from 20.9 to 18.6 ns a frame and loop in from 22.2 to
-            // 19.8. The sliders case (no returns) went from 18.9 to 21.1.
+            // Every sound returned: each channel is its input, cleaned, and no voice is
+            // copied first. Session 36 (Codex's), `make pairs`, CPU 2: loop and loop fx 20.9
+            // → 18.6 ns a frame, loop in 22.2 → 19.9; but sliders (nothing returned) 19.0 →
+            // 21.2, where code lands. Taken as the patch had it (D102 item 1), cost and all.
             core::array::from_fn(|t| clean(io[t]))
         } else {
             let mut m = *v;

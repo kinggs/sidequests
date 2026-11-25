@@ -1268,13 +1268,18 @@ pub struct Voices {
     pub sampled: u16,
     /// Every voice and every sample silent, so each `next` would return +0 and change nothing:
     /// `render` skips them (Session 29, the idle cost). Only ever true when that holds: a
-    /// trigger clears it, and `render` sets it again only once all tracks are known silent.
-    /// False when they are silent costs the long way round and nothing else.
-    /// Not saved: the moment's.
+    /// trigger clears it, and `render` sets it again only once every track is known silent
+    /// (Session 36: `active_tracks` empty; before, after asking every voice). False when they
+    /// are silent costs the long way round and nothing else. Not saved: the moment's.
     pub quiet: bool,
-    /// Tracks whose code voice or sample may still sound. A hit marks the track, and the
-    /// renderer clears it after +0 and a silence check. Retuning preserves silence and
-    /// replacing a sample stops its old tail, so only a hit can make a cleared track sound.
+    /// The sounds that may be sounding, a bit a track (Session 36, Codex's patch; D102): only
+    /// these are asked, and every other is given the +0 a silent voice would give. A hit sets
+    /// its track's bit (`trigger`); the frame a track gives +0 and says silent, code voice and
+    /// sample, clears it (`sound_track`). Nothing else may start a sound: a retune keeps a
+    /// silent voice silent, and `pi_set_sample` only stops one. That rule is the mask's whole
+    /// footing, so `render` checks it on every frame of every test run (`debug_assert!`).
+    /// Not saved: the moment's, as `quiet` is. Before it, every voice was asked on every frame
+    /// that was not quiet: the beat 36.4 ns a frame, now 14.4 (`make pairs`, CPU 2, Session 36).
     active_tracks: u16,
 }
 
@@ -1340,6 +1345,8 @@ impl Voices {
         (0..TRACKS).all(|t| self.track_silent(t))
     }
 
+    /// Track `t`'s code voice and its sample both silent: its bit may be cleared. Out of line:
+    /// it is asked only on a frame the track gives +0.
     #[inline(never)]
     fn track_silent(&self, t: usize) -> bool {
         on_voice!(self, t, silent()) && !self.samples[t].sounding()
@@ -1349,8 +1356,9 @@ impl Voices {
     /// A and B it was hit with (§20: `hit`, the engine's reckoning of step or tap). A sound in
     /// `slowed` is tuned for `SLOW_RATE` (§18, designed 2026-11-25: effect 1), any other for
     /// the host's `rate`.
-    // Outlining hit dispatch shortened the frame loop (idle, 4.1 to 3.7 ns a frame
-    // and fx 1, 21.4 to 20.9, CPU 4, ten interleaved runs).
+    /// Out of line since Session 36 (Codex's): it runs only on a frame something fires, and
+    /// inlined it lengthens the frame loop every frame pays for. Inlined again, idle reads 4.1
+    /// ns a frame against 3.7, and every playing case 0.1 to 0.4 more (`make pairs`, CPU 2).
     #[inline(never)]
     pub fn trigger(&mut self, fired: u16, hit: &[[u16; 2]; TRACKS], rate: u32, slowed: u16) {
         if fired != 0 {
@@ -1471,8 +1479,9 @@ impl Voices {
                 return bus.mix(v, fx_sounds, gain);
             }
             if quiet {
-                // The plain sum of sixteen +0s is +0. Skipping it took idle from
-                // 5.4 to 3.9 ns a frame (CPU 4, ten interleaved runs).
+                // Quiet, the sixteen are +0, and their plain sum from track 0 is +0: the same
+                // bits as `0.0 * gain`, without the fifteen additions. Idle 5.0 ns a frame
+                // with the sum, 3.7 without (Session 36, `make pairs`, CPU 2).
                 return 0.0 * gain;
             }
             let mut sum = v[0];
@@ -1492,17 +1501,23 @@ impl Voices {
         }
     }
 
-    /// The sixteen, in track order as before Session 29. A track is only checked for
-    /// silence after it gives +0 (each bit 0; a −0 does not count).
+    /// The sixteen, in track order as before Session 29: only the tracks in `active_tracks`
+    /// are asked (Session 36), the rest stay the +0 `render` gave them. A track is asked
+    /// whether it is silent only on a frame it gives +0 (each bit 0; a −0 does not count),
+    /// which is next to nothing while it sounds; quiet is then every bit cleared, the same
+    /// moment Session 29's frame of sixteen +0s and every voice silent was.
     #[inline]
     fn sound(&mut self, v: &mut [f32; TRACKS]) {
         self.sound_active(v);
         self.quiet = self.active_tracks == 0;
     }
 
-    /// Fill the active tracks in an already zeroed frame, in track order. Skipping the
-    /// other dispatches took beat from 36.3 to 14.4 and all from 54.5 to 46.6 ns a frame
-    /// (CPU 4, ten interleaved runs).
+    /// The tracks in `active_tracks` asked into a frame of +0s, lowest first, each set bit in
+    /// turn. Session 36, against Session 34's build that asked all sixteen (`make pairs`, CPU
+    /// 2, ten rounds): beat 36.4 → 14.4 ns a frame, all sixteen sounds 55.7 → 47.1, idle 6.0
+    /// → 3.7. The walk itself is no saving: with every bit kept set it read beat 74.2, twice
+    /// the old loop, since each track then goes through the out-of-line `ask`. It pays because
+    /// most bits are clear: four drums on a beat, at most a few ringing at once.
     #[inline]
     fn sound_active(&mut self, v: &mut [f32; TRACKS]) {
         let mut remaining = self.active_tracks;
@@ -1513,6 +1528,7 @@ impl Voices {
         }
     }
 
+    /// One track asked, and let go (its bit cleared) on the frame it gives +0 and says silent.
     #[inline]
     fn sound_track(&mut self, t: usize, bit: u16) -> f32 {
         let out = self.ask(t);
@@ -1527,17 +1543,18 @@ impl Voices {
     /// straight line `from + (to − from) × mu` on every frame, so it runs one grid step behind
     /// its voice; any other is asked as in `sound`. Quiet may be set only on a frame where
     /// every channel is +0 and every slowed sound's `from` and `to` are +0: a line can cross
-    /// zero between two values that are not. Out of line, so the plain path stays small.
-    /// Using the activity mask in the general loop took fx 1 from 31.1 to 26.9 ns a frame
-    /// before specializing the all-slowed case (CPU 4, ten interleaved runs).
+    /// zero between two values that are not. Out of line, so `sound` is as small as it can be.
+    /// Since Session 36 a sound not in `active_tracks` is not asked here either: a slowed one's
+    /// `to` is the +0 it would give, a plain one's channel the +0 `render` gave.
     #[inline(never)]
     fn sound_slow(&mut self, v: &mut [f32; TRACKS], bus: &mut Bus) {
         let (slowed, fresh, mu) = (bus.slowed, bus.fresh, bus.mu);
         let mut bits = 0u32;
         if slowed == u16::MAX {
-            // With every track slowed, advance the active voices together on fresh
-            // frames, then interpolate without a per-track mask test (fx 1, 26.8 to
-            // 21.4 ns a frame, CPU 4, ten interleaved runs).
+            // Every sound slowed, which is what effect 1 on a whole beat is: on a fresh frame
+            // each `from` takes its `to` and `to` is the active sounds asked (the rest +0),
+            // then every line drawn with no test of a bit. Session 36, `make pairs`, CPU 2:
+            // without this way, fx 1 26.5 ns a frame and fx 1/0 21.1; with it 19.8 and 17.4.
             if fresh {
                 bus.from = bus.to;
                 bus.to = [0.0; TRACKS];
@@ -1548,7 +1565,9 @@ impl Voices {
                 bits |= out.to_bits() | a.to_bits() | b.to_bits();
             }
         } else {
-            // Skip asking tracks known silent but keep their interpolation tails.
+            // Some sounds slowed: a silent one is not asked, but its line still runs out from
+            // `from` to the +0 it is given. No bench case slows only some, so what this buys
+            // is not measured (every `fx 1` case slows all sixteen; Session 36).
             for (t, out) in v.iter_mut().enumerate() {
                 let bit = 1 << t;
                 let active = self.active_tracks & bit != 0;
