@@ -230,6 +230,15 @@ impl Seq {
         if t != 0 && write != self.wrote {
             self.wrote = write;
             self.down = if self.fresh { NO_DOWN } else { self.cur };
+            // D97 (the owner: the replay must match the push): a repeat punched mid-step is
+            // recorded on the step being played too, so a replay's run begins there and
+            // repeats what the hand heard. Sound effects keep §17's rule (D66 item 3): the
+            // step being played is not recorded.
+            let at = (self.cur & 15) as usize;
+            if !self.fresh && repeat_period(write) != 0 && pat.fx[at] != write {
+                pat.fx[at] = write;
+                lane_changed = true;
+            }
         }
 
         if t == 0 {

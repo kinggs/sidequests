@@ -220,12 +220,30 @@ fn clear_empties_the_lane_and_keeps_the_sounds_switches() {
 
 #[test]
 fn each_step_arriving_with_a_punch_takes_it_and_the_step_being_played_does_not() {
+    // A sound effect (key 2, effect 3): the step being played is not recorded (D66 item 3).
     let mut h = playing(&[]);
-    let cmds = [(after(2), down(FX)), (after(2), down(10)), (after(5), up(10)), (after(5), up(FX))];
+    let cmds = [(after(2), down(FX)), (after(2), down(2)), (after(5), up(2)), (after(5), up(FX))];
     h.run(8 * STEP, 128, &cmds);
     let mut want = [0u8; 16];
-    want[3..6].fill(11);
+    want[3..6].fill(3);
     assert_eq!(lane(&h), want, "steps 3, 4 and 5 arrived with the punch; 2 was being played; 6 after");
+}
+
+#[test]
+fn a_repeat_punched_mid_step_records_the_step_being_played_too() {
+    // D97: a repeat (key 10, effect 11) is recorded where its key came down, step 2, on the
+    // punch's frame, moving the generation; then 3, 4 and 5 as they arrive.
+    let mut h = playing(&[]);
+    h.run(after(2) - 1, 128, &[]);
+    let g = h.generation();
+    h.run(100, 1, &[(after(2), down(FX)), (after(2), down(10))]);
+    let mut want = [0u8; 16];
+    want[2] = 11;
+    assert_eq!((lane(&h), h.generation()), (want, g + 1), "step 2 recorded mid-step, a tick after the press");
+    let n = h.now;
+    h.run(6 * STEP, 128, &[(n + 3 * STEP, up(10)), (n + 3 * STEP, up(FX))]);
+    want[3..6].fill(11);
+    assert_eq!(lane(&h), want);
 }
 
 #[test]
@@ -495,16 +513,17 @@ fn a_new_repeat_key_inside_a_run_repeats_the_step_it_came_down_on() {
 }
 
 #[test]
-fn the_lane_replayed_with_no_key_down_repeats_its_own_first_step() {
-    // ⚠ Not measured on the PO-12. Length 4; track 0 on step 1, track 1 on step 2. Punched
-    // in step 1 and let go in step 3: live, steps 2 and 3 repeat step 1. The next pass plays
-    // the lane alone: its run begins on step 2 and repeats step 2.
+fn the_lane_replayed_repeats_what_the_push_did() {
+    // D97. Length 4; track 0 on step 1, track 1 on step 2. Punched in step 1 and let go in
+    // step 3: live, steps 2 and 3 repeat step 1. The lane holds 1 to 3, so the next pass's
+    // run begins on step 1, a step earlier, and repeats step 1 too; track 1 is silent under
+    // both. (Before D97 the replay began on step 2 and repeated track 1.)
     let mut h = playing(&[cmd(CMD_LENGTH, 0, 0, 4), on(0, 1), on(1, 2)]);
     let keys = [(after(1) + 2000, down(FX)), (after(1) + 2000, down(10)), (after(3) + 2000, up(10)), (after(3) + 2000, up(FX))];
     let ev = h.run(8 * STEP - 2, 128, &keys);
     assert_eq!(
         trigs(&ev),
-        [(96, 0, 1), (192, 0, 1), (240, 0, 1), (288, 0, 1), (336, 0, 1), (480, 0, 1), (576, 1, 2), (624, 1, 2), (672, 1, 2), (720, 1, 2)]
+        [(96, 0, 1), (192, 0, 1), (240, 0, 1), (288, 0, 1), (336, 0, 1), (480, 0, 1), (528, 0, 1), (576, 0, 1), (624, 0, 1), (672, 0, 1), (720, 0, 1)]
     );
 }
 
@@ -523,6 +542,11 @@ fn a_punch_held_through_play_repeats_the_first_step() {
     let n = h.now;
     let ev = h.run(2 * STEP, 128, &[(n, cmd(CMD_PLAY, 0, 0, 0)), (n + 1, down(FX)), (n + 1, down(10)), (n + 100, play())]);
     assert_eq!(trigs(&ev), [(384, 2, 0), (432, 2, 0), (480, 2, 0)]);
+    // D97: no step was being played when the punch was seen, so none is recorded for it; the
+    // lane holds only the steps that arrived with it, 0 and 1. Step 3 stays empty.
+    let mut want = [0u8; 16];
+    want[0..2].fill(11);
+    assert_eq!(lane(&h), want);
     // And a punch held across the stop, put down in step 3 while playing: the step it came
     // down on is forgotten at the stop, and the run after play repeats step 0.
     let mut h = playing(&[on(2, 0), on(0, 3)]);
