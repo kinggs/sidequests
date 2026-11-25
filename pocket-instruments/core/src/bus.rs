@@ -51,7 +51,11 @@ use crate::seq::TRACKS;
 // (ENGINE.md §18's table says was, now and both readings): the ceiling 1 → 0.88, the crush
 // 4 → 4.6 levels a unit, effect 6's top 2 500 → 3 240 Hz. Session 30 (D95 item 4, R73, take
 // c): the sweeps six steps round, not nine; 6 from 2 700 (3 240) to 165 Hz (190); 8 up to
-// 3 300 Hz (2 900); both sweeps at Q 4.5; 5 at 210 Hz (300) and Q 3 (2).
+// 3 300 Hz (2 900); both sweeps at Q 4.5; 5 at 210 Hz (300) and Q 3 (2). Session 32 (ABI 14,
+// D98): effect 1 is no longer a hold here and has no constant for the ear: the voices slowed to
+// a quarter (`SLOW_RATE`, below; voice.rs). Read beside the PO-12 on take c, nothing to move
+// (ENGINE.md §18, "Built (Session 32)"). If the ear asks for less above 10 kHz, a low-pass
+// after the line is the next step (D98 item 10).
 
 /// Effect 1 (ABI 14; §18, designed 2026-11-25: D98, R72, R77): the voices in the effects are
 /// tuned for this rate and asked for a value on a grid a quarter of it, with a straight line

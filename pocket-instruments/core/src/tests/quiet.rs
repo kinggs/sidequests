@@ -170,3 +170,46 @@ fn once_every_voice_says_silent_each_gives_nothing_until_its_next_hit() {
         }
     }
 }
+
+/// §18, designed 2026-11-25 (ABI 14): under effect 1 quiet may be set only on a frame where
+/// every channel is +0 **and** every slowed sound's `from` and `to` are +0, since a line can
+/// cross zero between two values that are not. The tour above never lands a line exactly on
+/// zero (a planted fault that forgot `from` and `to` went through it, Session 32), so here one
+/// is put there by hand: every voice silent, effect 1 slowing all sixteen, and the tone's line
+/// set to run from `a` to 1.0 with `a` chosen so the frame's value is exactly +0. The frame
+/// after must still be on the line, not the +0 of a quiet engine.
+#[test]
+fn quiet_waits_for_a_slowed_line_that_crosses_zero() {
+    let h = Host::new(48_000, 1);
+    let lane: Vec<Cmd> = (0..16u8).map(|s| cmd(CMD_FX, s, 0, 1)).chain([cmd(CMD_PLAY, 0, 0, 1)]).collect();
+    let e = h.e;
+    let mut out = [0f32; 16];
+    let frame = |c: &[Cmd], out: &mut [f32; 16]| unsafe {
+        let mut ev = [Event::default(); CAP];
+        pi_process(e, 1, c.as_ptr(), c.len() as u32, ev.as_mut_ptr(), CAP as u32, out.as_mut_ptr(), 16);
+    };
+    frame(&lane, &mut out); // frame 0: effect 1 from idle, every sound slowed, the grid at 0
+    frame(&[], &mut out); // frame 1
+    assert_eq!(unsafe { (*h.e).bus.slowed }, 0xFFFF);
+    // Frames 2 and 3 are not fresh at 48 kHz; mu is 93 750 and 140 625 times 1 / 192 000.
+    let inv = 1.0f32 / 192_000.0;
+    let (mu2, mu3) = (93_750.0f32 * inv, 140_625.0f32 * inv);
+    let mut a = -mu2 / (1.0 - mu2);
+    let line = |a: f32, mu: f32| a + (1.0 - a) * mu;
+    let mut tries = 0;
+    while line(a, mu2).to_bits() != 0 {
+        a = f32::from_bits(if line(a, mu2) > 0.0 { a.to_bits() + 1 } else { a.to_bits() - 1 });
+        tries += 1;
+        assert!(tries < 1000, "no a puts the line on +0");
+    }
+    unsafe {
+        (*h.e).bus.from[14] = a;
+        (*h.e).bus.to[14] = 1.0;
+        (*h.e).voices.quiet = false;
+    }
+    frame(&[], &mut out); // frame 2: the tone's line is exactly +0, as is every other channel
+    assert!(out.iter().all(|x| x.to_bits() == 0), "frame 2 is sixteen +0s");
+    assert!(!unsafe { (*h.e).voices.quiet }, "not quiet: the tone's line is not +0 at its ends");
+    frame(&[], &mut out); // frame 3: still on the line
+    assert_eq!(out[14].to_bits(), line(a, mu3).to_bits(), "frame 3 is on the line, {} against {}", out[14], line(a, mu3));
+}
