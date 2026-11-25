@@ -556,3 +556,51 @@ fn a_source_past_2_is_ignored_on_the_table_too() {
     let ev = h.run(6_001, 128, &[]);
     assert_eq!(steps(&ev).len(), 1, "the table's next step, with no edge");
 }
+
+// ---- Added after Session 35's planted faults: three plants got through the rulings' tests. ----
+
+#[test]
+fn ruling_1_play_inside_the_first_beat_starts_on_the_second_edge() {
+    // A plant that waited for two beats (768) got through: both play cases above start at tick
+    // 768. Stored 120, edges at 0 and 24 000 and 48 000, `PLAY 1` at 1 000: the next multiple
+    // of 384 is 384 itself, the edge at 24 000 (frame 23 999 has since 23 999: 383.98, tick
+    // 383). Step 1 at 24 000 + 6 000.
+    let mut c = edges_from_a_reset(120_000, BEATS, &[0, 24_000, 48_000]);
+    c.retain(|(_, x)| x.kind != CMD_PLAY);
+    c.push((1_000, cmd(CMD_PLAY, 0, 0, 1)));
+    c.sort_by_key(|x| x.0);
+    let mut h = Host::new(SR, 1);
+    let ev = h.run(30_001, 128, &c);
+    assert_eq!(steps(&ev), [(24_000, 384, 0), (30_000, 480, 1)]);
+}
+
+#[test]
+fn ruling_2_a_pause_leaves_the_guess_for_a_reset_after_it() {
+    // A plant that set the guess to the pause (after the period) got through: no test read the
+    // guess after a pause. Stored 60 (a beat of 48 000), edges at 0 and 24 000 (the guess 24 000),
+    // a pause to 144 000 (the guess left at 24 000), then a reset and an edge at 145 000: the
+    // first beat runs at the guess, steps 6 000 apart. (A guess of 120 000 would put step 1 at
+    // 175 000; the stored tempo's, at 157 000.)
+    let mut c = edges_from_a_reset(60_000, BEATS, &[0, 24_000, 144_000]);
+    c.push((145_000, cmd(CMD_RESET, 0, 0, 0)));
+    c.push((145_000, clock()));
+    let mut h = Host::new(SR, 1);
+    let ev = h.run(163_001, 128, &c);
+    assert_eq!(steps_from(&ev, 145_000), [(145_000, 0, 0), (151_000, 96, 1), (157_000, 192, 2), (163_000, 288, 3)]);
+}
+
+#[test]
+fn ruling_2_with_no_guess_a_pause_takes_the_stored_tempo_as_it_is_then() {
+    // A plant that kept the old period over a pause got through: with a guess the period is the
+    // guess already. With none, the stored tempo can change between. Stored 120, one edge at 0
+    // (its beat 24 000, the guess 0), the tempo 60 at frame 30 000, the next edge at 60 000 (since
+    // 60 000 > 48 000): the period is the stored tempo's beat now, 48 000, so steps 5 and 6 at
+    // 72 000 and 84 000. (The old period would put step 5 at 66 000; as Session 34 built it,
+    // 60 000 measured, 75 000.)
+    let mut c = edges_from_a_reset(120_000, BEATS, &[0, 60_000]);
+    c.push((30_000, cmd(CMD_TEMPO, 0, 0, 60_000)));
+    c.sort_by_key(|x| x.0);
+    let mut h = Host::new(SR, 1);
+    let ev = h.run(84_001, 128, &c);
+    assert_eq!(steps_from(&ev, 60_000), [(60_000, 384, 4), (72_000, 480, 5), (84_000, 576, 6)]);
+}
