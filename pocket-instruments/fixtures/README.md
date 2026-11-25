@@ -248,6 +248,21 @@ the code changed, the first pass was worked again and committed on its own:
 - **Counts:** sound 1 2 + 6 a first pass, then 2 a pass: 12. Sound 2: 3. Sound 3: 0, 2, 2: 4.
   43 lines, as before. Views: `fires=2,0,0`, `8,1,0`, `10,2,2`, `12,3,4`; nothing else.
 
+**Worked again by hand a second time in Session 30, by decision (D97; the owner: the replay
+must match the push).** A repeat punched mid-step now also records the step being played,
+where the key came down. Before the code changed:
+
+- **The lane:** pattern step 4 takes effect 11 on the punch's frame. Views: `fxsteps=0010` at
+  4, `00f0` at 7, `00b0` at 14 (step 6 emptied, 7 not yet), `0030` at the end.
+- **The replays repeat what the hand heard.** Passes 2 and 3 begin their run on step 4 (one
+  step earlier than the performance's) and repeat sound 1: `trig 0 4` at 1152, 1200, 1248,
+  1296 and at 1920, 1968, 2016, 2064, in place of four `trig 2 5`. The run is two steps long
+  in both (fx alone empties 6 and 7 in pass 2). Sound 2 plays its step 6 at 1344 and 2112.
+- **Counts:** sound 1 8, 5, 5: 18; sound 2 3; sound 3 0. 49 lines. Views: `fires=2,0,0`,
+  `8,1,0`, `13,2,0`, `18,3,0`.
+- The first change's "the replay is no longer the performance ⚠" is answered: it is again,
+  but for one more step of repeats at the front of each replayed run.
+
 What follows is Session 15's working; its first pass's run is the line above's "was".
 
 Written from `ENGINE.md` §17 with no engine and no model: every tick, mask and count was
