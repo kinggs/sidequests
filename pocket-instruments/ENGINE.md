@@ -259,6 +259,61 @@ edges for 1 ms after a reset, as Rack's guide asks.
 sequencer to start again (§5). On the table clock, tick 0 fires in the same frame. On edges,
 tick 0 is the next edge. Reset does not touch the pattern, the tempo or the random generator.
 
+### §4, designed 2026-11-25: one edge a beat (ABI 15; D64 item 2, D100; designed after Session 31, not built: Session 34)
+
+A clock module's ×1 output is one pulse a beat (D64). The setting is in the core, so no host
+spreads steps itself.
+
+- **`SOURCE` 2, `PI_SOURCE_BEATS`:** the engine follows `CLOCK`, one edge a beat: four
+  steps, 384 ticks. `SOURCE` 1 is unchanged, bit for bit. The view's flag 2 ("the source is
+  edges") is set for both. Not saved; `pi_init` starts on the table.
+- **One rule for both, with `span` the ticks an edge stands for** (96 or 384):
+
+  ```
+  on CLOCK:
+    if have_edge and since > 0:  period = since;  measured = true
+                                 if span is 384:  guess = since
+    else if not have_edge and span is 384:
+                                 period = guess, or if guess is 0
+                                          max(1, sample_rate × 60 000 / mbpm)
+    have_edge = true;  since = 0
+    do tick() while E % span != 1
+
+  each frame, after the commands:
+    if period != 0:
+      want = min(span − 1, since × span / period)       in 64 bits
+      while (E − 1) % span < want:  tick()
+    since += 1
+  ```
+
+- **The first beat has a period.** With one edge a step, a first step with no period only
+  holds back swung ticks (§4). With one edge a beat it would hold back three whole steps and
+  fire them together on the second edge. So the first beat after a reset or a switch runs
+  at a guess: the last period measured since this source was chosen, or else the stored
+  tempo's beat. A guess too long is cut short by the second edge (what is left is flushed,
+  as any early edge does); too short, the clock holds at tick 383.
+- `RESET` clears `measured` with what it clears already, and keeps `guess`. A switch of
+  source (any two that differ) keeps `E` and clears `have_edge`, `period`, `measured` and
+  `guess`; to the table as §4 has it. Switching to beats when `E` is not on a beat: the
+  first edge flushes to the next multiple of 384, up to three steps at once.
+- Every tick is still emitted once, in order: the trace of a beat with no command after
+  frame 0 is the table's.
+
+Worked by hand, 48 kHz, a reset, then an edge every 24 000 frames (120 bpm), frames counted
+from the first edge; the frame each step's tick 0 falls on:
+
+| Stored tempo | Steps 0 to 3 | Step 4 on | Why |
+|---|---|---|---|
+| 120 | 0, 6 000, 12 000, 18 000 | 24 000, 30 000, 36 000, 42 000, 48 000 | the guess is 24 000 frames: tick *t* at `ceil(t × 24 000 / 384)` |
+| 60 | 0, 12 000, 24 000, 24 000 | 24 000, 30 000, 36 000, 42 000, 48 000 | the guess is 48 000: step 1 at 12 000; the second edge flushes ticks 192 to 383, so steps 2 and 3 fire with step 4 |
+| 240 | 0, 3 000, 6 000, 9 000 | 24 000, 30 000, 36 000, 42 000, 48 000 | the guess is 12 000: the clock holds at tick 383 from frame 11 969 to the edge |
+
+**Proven when built by:** a rule test for each row above, by the frame of each `STEP`
+event; `SOURCE` 1's fixtures, the report and every render file the same bytes; each format
+1 fixture whose commands are all at frame 0, run with an edge every fourth step's frame
+under `SOURCE` 2, the table's trace; a reset mid-beat (the guess kept); a switch off a beat
+(the flush); planted faults caught by name.
+
 ## 5. The sequencer
 
 Pattern: for each of 16 tracks, 16 steps, each `on` or off with a probability 0 to 100
@@ -789,6 +844,34 @@ the host rule above, and sees it happen on a lit key with write off.
 `fixtures/keys-*.json` on all three harnesses, and a test for each row of the grid's table
 in `core/src/tests/keys.rs`. `harness/race.cpp` hands a view from the audio thread to the
 other through `pi::Latest` after every block, as a module's drawing thread will get it.
+
+### §14, designed 2026-11-25: the tempo measured from the edges (ABI 15; D64 item 3, D65 item 2, D100; not built: Session 34)
+
+- **Bytes 30 and 31, `ext`, a u16 (`PI_VIEW_EXT`):** the tempo the edges are playing, in
+  tenths of a bpm, or 0 for none. Bytes 4 to 7 stay the stored tempo: it is what bpm and
+  slider B edit, and what a fixture's text shows.
+
+  ```
+  ext = 0 unless the source is 1 or 2, measured is set, and since ≤ 2 × period
+  ext = min(65 535, (K × sample_rate + period / 2) / period)     K: 150 a step, 600 a beat
+  ```
+
+  So it is 0 on the table, before the second edge, and once an edge is a whole period
+  late (a stopped clock). By hand at 48 kHz: an edge a step every 6 000 frames, 1 200; an
+  edge a beat every 23 415 frames (123 bpm), 1 230. At 44.1 kHz an edge a step every 5 512
+  or 5 513 frames, 1 200 both.
+- The view's text leaves these bytes out, as it does the tick: no fixture's text moves.
+  `core/src/tests/keys.rs` and `harness/race.cpp` hold bytes 30 and 31 to zero today:
+  changed with it (zero on the table).
+- **What a host does with it.** While flag 2 is set, the label beside the tempo reads
+  `ext` in place of `bpm` (the same place, size and colour: a stand-in, D65 item 2), and
+  the number is `ext / 10` rounded down, or `--` while `ext` is 0. A firing's white is held
+  for half a step at `ext × 100` thousandths of a bpm while `ext` is not 0. The page has no
+  clock in and never sees flag 2: it does not change.
+
+**Proven when built by:** rule tests for the four numbers above, for 0 on the table, before
+the second edge and after a late edge; the lit Rack screenshot with `ext` and a number
+(`design/rack-face-ext-200.png`, the view filled by hand as Session 13 did).
 
 ## 15. Snapshot version 2 (ABI 5; designed in Session 9; D55; built in Session 11)
 
@@ -1930,6 +2013,154 @@ plays; R73 read the PO-12 every quarter step, so the ends are not like for like.
   bar before, not a frame after step 1. The look-back hid it. The lead is now three steps,
   on a boundary. For held effects this moved nothing worth a third of a step; Sessions 26
   and 28's readings stand ⚠ (not re-read).
+
+### §18, designed 2026-11-25: effect 1, the sounds at a quarter of the rate (ABI 14; D95 item 3, D98; designed in Session 31, not built: Session 32)
+
+The PO-12's "low sample rate", as measured (R72, R77): every sound plays at a quarter of
+its speed, two octaves down and four times as long, no louder, with almost nothing above
+10 kHz. It reads as the device clocking its whole sound engine at 46 875 / 4 Hz and
+smoothing what comes out. Ours does that to the voices, and only to them. This replaces
+the hold at `REDUCE_HZ` (§18's table, row 1, and "designed 2026-11-24"), which was a
+different effect in kind.
+
+**The mechanism: the voices' own retune, one grid, straight lines between its values.**
+
+- **The slow rate is 46 875 Hz, and the grid is a quarter of it** (11 718.75 Hz; R69's
+  reading of the device's rate). A slowed voice is tuned for 46 875 Hz by the `tune` every
+  voice already has (§11: a sounding voice keeps its pitch and length across a rate
+  change), and is asked for its next value only on a frame of the grid. Asked 11 718.75
+  times a second for values made for 46 875 a second, it plays at exactly a quarter speed
+  **at every host rate**, and gives the same values at every host rate.
+- **The grid** is the phase accumulator effect 1 already had (`Bus::acc`), once a frame
+  while the bus runs effect 1 (`on == 1`, so through its ramp out too), in `Bus::frame`:
+
+  ```
+  fresh = acc < 46 875
+  mu    = acc as f32 × inv                     inv = 1 / (4 × rate) as f32, made when the rate is
+  acc   = (acc + 46 875) mod (4 × rate)        in 64 bits, kept as a u32
+  ```
+
+  `acc` is 0 when effect 1 starts from idle or from another kind (`clear`, as built), so
+  that frame is fresh with `mu` 0. Fresh frames, counted from that one: frame 0, then
+  `ceil(k × 4 × rate / 46 875)`. Worked by hand: at 48 kHz 0, 5, 9, 13, 17, 21, 25, 29, 33,
+  37, 41, 46, 50; at 44.1 kHz 0, 4, 8, 12, 16, 19, 23; at 96 kHz 0, 9, 17, 25, 33, 41, 50.
+  At 48 kHz `acc` on frames 0 to 5 is 0, 46 875, 93 750, 140 625, 187 500, 42 375, so `mu`
+  is 0, 0.2441, 0.4883, 0.7324, 0.9766, 0.2207: how far the frame is past the grid's last
+  point. Below 11 719 Hz every frame is fresh (the `mod` keeps it total; not a rate any
+  host has).
+- **A slowed sound's value on a frame** is a straight line between its last two grid
+  values, `from[t]` and `to[t]`, thirty-two floats in the bus:
+
+  ```
+  on a fresh frame:   from[t] = to[t];  to[t] = (code voice's next + its sample's next, if sounding) × LEVEL
+  on every frame:     out[t]  = from[t] + (to[t] − from[t]) × mu
+  ```
+
+  So it runs one grid step (0.085 ms) behind the voice. Why not a hold: a held value puts
+  mirror images of the sound at 10 to 16 kHz, 18 dB under it, where the PO-12 has them
+  48 dB under (R77). A sound not slowed is asked every frame as today.
+- **Which voices: `slowed`,** a mask in the bus. While the effect the core sounds is 1
+  (`effect == 1` in `Engine::process`: heard, and not the host's by `ROUTE` 1), `slowed` is
+  `fx_sounds`; otherwise 0. So a sound switched out of the effects is never slowed, as no
+  effect reaches it (D66 item 4), and an effect 1 given to a Rack module slows nothing.
+- **When `slowed` changes** (read where `effect` is read: only on a frame with a command or
+  a tick, and on a call's first frame; a frame's commands, then its ticks, then this,
+  then its hits):
+  - each sound whose bit changed has its code voice retuned (`tune`), and its sample too if
+    it is sounding, to 46 875 Hz if it is now slowed, to the host's rate if not;
+  - each sound that became slowed is asked once, there: `from[t] = to[t] =` that value;
+  - if any sound became slowed, `acc` is set to 0, so this frame is fresh for all with `mu`
+    0, and the newly slowed sound's value this frame is the one it was just asked for.
+- **A hit** on a slowed sound is tuned for 46 875 Hz (`Voices::trigger` is given the mask).
+  Its first value is asked on the next fresh frame and reached a grid step after: under
+  0.2 ms after its step, the line running from what the sound last gave. Any other hit is
+  §11's, on its frame.
+- **`pi_set_sample_rate`** retunes only the sounds not slowed; a slowed one is tuned for
+  46 875 Hz whatever the host's rate. The grid and `inv` follow the new rate from the next
+  frame.
+
+**The edges.**
+
+- **A sound already sounding when 1 comes on** carries on from where it is at a quarter
+  speed: its pitch falls two octaves on that frame, and what is left of it lasts four
+  times as long. No value is skipped or given twice.
+- **A sound still sounding when 1 goes off** carries on at full speed from the value after
+  `to[t]`: the line is dropped where it is, a step of at most two of the voice's own.
+  A note written under 1 that outlasts its step, or its run, is not cut: it finishes at
+  full speed under whatever follows. ⚠ The PO-12 at the release is not measured, and take
+  c cannot show it (every sound has ended by the bar the key goes up: R77).
+- **A slowed sound hit again** starts again, as dry: one voice a sound. (The PO-12's too:
+  sound 8 runs on only until its own next note, R72.)
+- **No ramp, and nothing done to the bus.** There is one copy of each sound, so there is
+  nothing to cross between: the rate changes on the frame. The bus runs effect 1 only to
+  keep the grid: its `wet` is the bus itself, so §18's formula adds `w × 0`. `held` is not
+  used.
+- **Straight to another effect:** `slowed` goes to 0 on that frame and the other effect
+  starts at once with `w` as it is (§18). Heard again inside its ramp out: `acc` is set to
+  0 by the rule above.
+- **Quiet** (§11, Session 29) under 1: the frame that may set it is one where every
+  channel is +0 **and** every slowed sound's `from` and `to` are +0 (a line can cross
+  zero between two values that are not).
+
+**What cannot slow** is left alone.
+
+- **A sound returned on RETURN** (`ROUTE` 0) is in the bus as it came: not slowed, not
+  held. Its own voice still slows, on its track channel. Not chosen: holding the bus on
+  the grid, which would put the hold's images on a returned sound and nothing of the
+  effect's character (the pitch and the length).
+- **What comes back on FX RETURN** is in no effect (§19).
+- **FX SEND** (channel 17 out) is the bus as the core sums it: the slowed voices and any
+  returned sound. "Before any effect" (§19) no longer covers the slowing, which is in the
+  voices.
+- **The sixteen track channels** carry a slowed voice slowed, so VOICES does. This is the
+  one sound effect that reaches them (§18 said none does; the repeats and the shuffle
+  always did): a voice exists once (D98 item 7).
+
+**What it costs** (the builder measures; these are the bars). Off: nothing a voice sees;
+one comparison of `slowed` on a frame that asks the voices, in `Voices::render`, choosing
+`sound` or an out-of-line `sound_slow`; nothing on a quiet frame; the reconcile above only
+on a frame that already reads what is heard. `make pairs`: idle, beat, all, repeat, both,
+the loops and every other effect inside the old build's spread. On: the slowed voices are
+asked one frame in 4.1 and cost a multiply and two adds a frame each; "fx 1" should read
+near or under the dry beat. A change of `slowed` is up to sixteen `tune`s on one frame:
+priced by a new bench case, "fx 1/0", effect 1 on every other step. The engine grows by
+the thirty-two floats and a few bytes (`pi_size` about 3 870, under the 4 096 the tests
+hold it to).
+
+**The model, off the engine** (Session 31; `LEARNINGS.md`): stand-in sounds on take c's
+pattern through this mechanism, read by `hardware-fx.py` beside the PO-12's take c.
+
+| Reading | The model | The PO-12 (R72, `report-c.txt`) |
+|---|---|---|
+| The tone, dry → under 1 | 440.2 → 110.0 Hz | 440.2 → 109.9 Hz |
+| Its length | 0.52 → 2.01 steps | half a step → two |
+| Its peak against dry | +0.0 dB | +0.2 dB |
+| Sound 8's swell | 1.02 → 4.08 steps to the peak, on under the tone | four times as slow, on under the tone |
+| The level over the run; the peak | +7.3; +3.4 dB | +7.2; +3.5 dB |
+| Above 10 kHz, against the whole sound: held | −18.5 dB | −47.8 dB |
+| The same: straight lines (this design) | −36.1 dB | |
+| The same: no images at all | −71.6 dB | |
+
+⚠ Straight lines leave ours about 12 dB brighter above 10 kHz than the PO-12, which
+smooths more than a line does. For the ear; a low-pass after is a constant's work later.
+
+**16 is not designed here** (D98 item 9): it waits for a take that reads its wave.
+
+**Proven when built by:**
+
+| Rule | Held by |
+|---|---|
+| The grid's fresh frames and `mu` are the lists above | a rule test at 44.1, 48 and 96 kHz, from the frame effect 1 starts |
+| A slowed voice's grid values are the values of the same voice in an engine at 46 875 Hz played dry, in order, none skipped or given twice; between them the line | a rule test for a code voice and a sample, at three host rates, on the track channel, bit for bit against a model written from this section |
+| A sound outside `fx_sounds` is the same bytes with and without effect 1 | a rule test |
+| A sound sounding when 1 comes on, and when it goes off; a hit under 1; a slowed sound hit again | rule tests against that model |
+| The mix through every kind of change is this section's, bit for bit | §18's model in `core/src/tests/bus.rs` and the loop's in `route.rs`, written again from this section before the code, failing on the old code first |
+| A returned sound is the same under 1 as dry; channel 17 out is the bus | `core/src/tests/route.rs` |
+| Quiet's contract holds under 1, a line through zero included | `core/src/tests/quiet.rs`, its tour given effect 1 |
+| A rate change while slowed leaves the slowed voices' tuning | a rule test |
+| Native and `.wasm`, the same bytes | `harness/render-fx-1.json` rendered again (it must move: name it); every other render file and the report the same bytes |
+| What it costs | `make pairs` against the old build, as above |
+| Ours beside the hardware | take c's pattern through `harness/ours-take.cpp`, read by `hardware-fx.py --pass c --effects 1` beside R72 and the model's table: the tone at a quarter of its dry pitch and four times its length, no louder; and above 10 kHz against the whole sound (the script's response table) |
 
 ## 19. Sound in: the returns and the effects loop (ABI 9; designed in Session 15; D68; built in Session 18)
 

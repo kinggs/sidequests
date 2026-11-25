@@ -2794,3 +2794,85 @@ Session 26, fixed. No constant moved after the comparison.
 - **Added 2026-11-25, with the PO-12:** take c, the dry map and b120 are recorded and
   checked for length, level and hits only (Session 22's list has the files), then the timing
   take (t11), three rounds at the second try. Reading the four is a session with Fable.
+
+## Session 31 — effect 1 as the sounds at a quarter of the rate (design, Fable; D95 item 3; done 2026-11-25)
+
+Design only: it ends in sections of `ENGINE.md`, a decision, a fixture or a model worked off
+the engine, and a build list here. R72; `ENGINE.md` §8 (the voices), §18, §19.
+
+- [x] **What slows.** While 1 is heard, each voice steps a quarter of a frame a frame (code
+      voices and samples both), and the bus holds each value for rate / 11 719 frames. Say
+      how a voice is told its rate without a branch a frame when 1 is off (Session 29's idle
+      path and the bench are the bar: no listed case slower).
+- [x] **The edges.** A sound already sounding when 1 comes on, and one still sounding when
+      it goes off (the PO-12: it runs on under the next note until its own next hit, R72);
+      a note written under 1 lasting four times as long, past its step and its run; the
+      2 ms ramp §18 gives every effect.
+- [x] **What cannot slow.** A sound returned on RETURN or FX RETURN can only be held: say
+      what 1 does to it (the hold alone is the candidate), and what FX SEND carries.
+- [x] **16 after it** (R76): the same rate moved by a slow wave. Decide whether 16 is
+      designed here or waits for a take that reads its wave.
+- [x] A model off the engine read with `hardware-fx.py` beside take c's effect 1 (the tone
+      at 109.9 Hz, two steps long; nothing above 12 kHz); the decision; Session 32's list.
+
+(Annotated by Session 31, on moving this list.) Every box was done; `ENGINE.md` §18,
+"designed 2026-11-25: effect 1", D98, R77. Where it went otherwise: the plan's "the bus holds
+each value for rate / 11 719 frames" was modelled and dropped (a hold reads 29 dB too bright
+above 10 kHz beside take c): a straight line between grid values instead, and the bus is
+not touched. A returned sound is left as it came, not held. 16 waits for a take (D98 item 9).
+
+
+## Handover note moved here by Session 31 (2026-11-25)
+
+### After Session 22's last takes: the PO-12 read on a second pattern (2026-11-25)
+
+- **Four takes read; nothing built.** `REFERENCES.md` has R71 to R76, and R64 to R70 say
+  where they were wrong. `ENGINE.md` §17 and §18 each end with "proposed 2026-11-25": yours
+  to rule (O24). `hardware-fx.py` gained `--first` (take c's first sound swells in, and the
+  script laid every bar four steps late); its self-test reads 103 of 103.
+- **What the takes say, most surprising first:**
+  1. **Effect 1 is the sounds at a quarter of the rate:** two octaves down, four times as
+     long, no louder (the 440 Hz tone at 109.9 Hz). Ours holds the bus at 1 kHz: a
+     different effect.
+  2. **A repeat held from an empty step is silent on the PO-12**, for as long as it is held.
+     That was the pass you called "just quiet" (11, two whole bars at the noise floor); the
+     second try landed on step 1 and repeated sound 8's quiet start. So yesterday's reading
+     (R66, "the last sound") was one lucky press, and D90's rule mends the hardware; it does
+     not copy it.
+  3. **9 and 10 are mutes:** a sound is cut from 0.44 to 1.0 of a step (9) or 0.67 to 1.33
+     (10), and comes back where it would have been.
+  4. **The sweeps go round in 6.0 steps,** a triangle, 6 from the top down and 8 from the
+     bottom up, starting when the key comes down. Ours take 9 steps.
+  5. **The delay's time is fixed** (174.8 ms at 120 bpm too), as built. Its line stands
+     still in silence, so a short sound's echo waits for the next sound.
+  6. **The lost time is the laptop's, not the PO-12's and not Rack** (R68 answered): whole
+     512s of capture samples about every 30 s, with Rack closed.
+- **Not answered.** **14 at 120 bpm:** that take's second effect reads as 13 (the kick as
+  the 841 Hz sound, to the hertz). **13's map:** on take c sound 15 did not play as the
+  map's sound 11, nor 8 as 4; the knobs may be why. Two takes of a minute each were asked
+  for while you had the PO-12 out ("The owner's hands"); ⚠ they had not arrived when this
+  was written. **15** is not understood. **16** reads as effect 1 with the rate wobbling.
+- **To rule on (recommended answer first):**
+  1. Our repeat's rule: **keep D90's** (you asked for it because the mute felt wrong), and
+     `WORKFLOW.md` says it differs. Or the hardware's back.
+  2. 9 and 10: **leave ours** (repeats at 4 and 3 a beat). Or design the hardware's chop.
+  3. Effect 1: **a design session** for the voices at a quarter rate. It reaches into the
+     voices, and a sound returned from Rack can only be held, not slowed.
+  4. The sweeps and 5: **yes**, one build session: `SWEEP_HALF` 432 → 288 ticks, 6's ends
+     2 700 and 165 Hz, 8's top 3 300 Hz, both peaks at Q 4.5, 5 at 210 Hz and Q 3.
+  5. The delay standing still in silence: **no**.
+  6. 13's table and 14's gain: **wait** for the two takes and a reading of ours on take c's
+     pattern.
+- **Your bug report (a steady 1.650 V on AUDIO while stopped): not found, and written up**
+  in "The owner's hands" with a two-minute test. It is DC. The core alone rests at 0.54 V
+  at most (effect 3's half step), so look first at what comes back on FX RETURN.
+- **Proven:** the script's self-test, 103 of 103; `make verify`. No code but the script
+  changed, so no build, bench or install.
+- **Next:** your rulings above; the two takes; your ears on Sessions 26 and 28 (still
+  first in the list).
+- **Added the same day, your rulings (D95):** "Lets keep to hardware" for the repeat, so
+  D90's rule goes and an empty step repeats as silence again; everything else as
+  recommended. Sessions 30 (build, Opus: the repeat, the sweeps, 5) and 31 (design, Fable:
+  effect 1) have their lists above. The steady voltage was not ours: the nozori_68_crush
+  module in the return chain.
+

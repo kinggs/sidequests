@@ -1906,6 +1906,89 @@ owner chose this, as recommended.
 repeats too. "Finicky to test, since miss-timing just mutes things": the hardware's rule
 (D95 item 1), kept; the owner lives with it for now.
 
+### D98 — Effect 1 designed: the voices retuned to 46 875 Hz and asked on a grid a quarter of it; 16 waits
+**2026-11-25 · Session 31 (design, Fable) · D95 item 3 · every item decided by the session, each the owner's to overrule (O26) · not built: Session 32 · `ENGINE.md` §18, "designed 2026-11-25: effect 1"**
+
+1. **A slowed voice is the same voice, tuned for 46 875 Hz and asked 11 718.75 times a
+   second,** with a straight line between its values (item 10). Why: every voice can already be retuned mid-sound
+   (§11, for a host's rate change), so nothing in the sixteen voices changes; and it is a
+   quarter speed at every host rate, with the same values. Not chosen: asking each voice
+   every fourth frame (a quarter speed, but the hold's grid would follow the host's rate:
+   12 kHz at 48 kHz, 24 kHz at 96 kHz, so the effect would sound different in each).
+2. **Only the sounds in `fx_sounds` slow,** and only while effect 1 is one the core
+   sounds. An effect 1 set to a Rack module slows nothing.
+3. **The rate changes on the frame, both ways, mid-sound.** A sounding voice drops two
+   octaves when 1 comes on and comes back up when it goes off; nothing is cut. ⚠ The
+   PO-12's release is not measured. Not chosen: letting a slowed note finish slowed after
+   the release (each voice its own rate until it ends), which a whole engine on one clock
+   would not do.
+4. **No ramp on the rate,** and the bus is not touched: the bus runs effect 1 only to keep
+   the grid.
+5. **A hit under 1 sounds from the grid's next frame,** reached a grid step after: under
+   0.2 ms late. §11's "sounds
+   from frame `f`" gives way here, as the PO-12's whole engine is on that grid.
+6. **A returned sound (RETURN) is left as it came:** it cannot be slowed, and holding it
+   on the grid would give it the hold's images and none of the effect's character. FX
+   RETURN is untouched; FX SEND carries the slowed voices and a returned sound as it came.
+7. **The sixteen track channels carry a slowed voice slowed,** so Rack's VOICES jack does
+   too. §18's "no effect touches them" gives way for this one effect. Why (the owner asked
+   for the choice to be reasoned, 2026-11-25, after a side agent raised it): the repeats and
+   the shuffle (9 to 13) already change what VOICES and TRIGGERS carry, because they change
+   how the sounds play, and effect 1 is of that kind; with VOICES in a mixer a punch of 1
+   would otherwise do nothing heard; and the way out exists (a sound switched out of the
+   effects, or effect 1 set to Rack's, stays clean). Not chosen: clean track channels, which
+   needs two copies of every voice while 1 is held (twice the voices' cost, about 3 KB more
+   engine) that then disagree at the release.
+8. **The engine grows** by thirty-two floats (`pi_size` up by about 140 bytes) and the
+   ABI goes to 14 by the rule for effect sessions; no call, command, view or snapshot byte
+   changes.
+9. **16 is not designed with it.** R76's three readings do not fit one mechanism: values
+   held four samples as under 1 (so the sample clock does not wobble), a tone six times as
+   long where 1 gives four, and 8.7 dB louder where 1 is no louder. The wave's shape and
+   rate are one rough count ("about ten crossings a second"). A guess would cost a build and
+   a retune. It waits for one take: sound 15 a bar long, dry, then fx + 16, then fx + 1
+   (the same take serves 15). When read, 16 either moves this grid's rate or the voices'
+   tuning; nothing is built ahead for either.
+10. **Straight lines between the grid's values, not a hold.** The first design held each
+   value, as R72 read the PO-12 ("each value held four samples"). A model of it off the
+   engine, read by the same script, put −18.5 dB of the sound above 10 kHz where the
+   PO-12 has −47.8 dB (R77); the script finds no hold in take c. A line reads −36 dB for a
+   multiply and two adds a slowed sound a frame, and one grid step of delay. ⚠ Still
+   about 12 dB brighter up there than the PO-12; a low-pass after it is the next step if
+   the ear asks.
+
+### D99 — In Rack the keys and sliders are read every 16 frames; the clock and reset on every frame
+**2026-11-25 · decided by the owner · answers Session 29's question ("Later: efficiency", second box) · not built: Session 33**
+
+The owner: "yes, read the keys and sliders every 16 frames, never the clock or reset."
+Under 1 ms late at any rate Rack runs at (0.36 ms at 44.1 kHz), as VCV's own modules read
+their parameters; the 23 keys' scan was 29% of `Rhythm::process` stopped (Session 29).
+CLOCK and RESET are edges and stay on their frame. What else is read on which frame is
+Session 33's list (`PLAN.md`).
+
+### D100 — The clock in Rack designed: one edge a beat in the core, the measured tempo in the view's spare bytes
+**2026-11-25 · design, Fable, while Session 32 built · builds D64 item 2 and D65 item 2 · every item decided by the session, each the owner's to overrule (O27) · not built: Session 34 · `ENGINE.md` §4 and §14, "designed 2026-11-25"**
+
+1. **One edge a beat is `SOURCE` 2, in the core** (D64 item 2's "in the core"). One rule
+   serves both edge sources; `SOURCE` 1 does not move by a bit.
+2. **The first beat runs at a guess** (the last measured period, else the stored tempo),
+   only with one edge a beat. Why: with no period the three steps inside the first beat
+   would fire together on the second edge. One edge a step keeps its rule: changing it
+   would move what exists for no one's asking.
+3. **The measured tempo is a new field, `ext`, in the view's bytes 30 and 31,** in tenths
+   of a bpm, 0 for none. Not chosen: putting it in the tempo field (bytes 4 to 7), which
+   would move every fixture's edges run and leave bpm + slider B editing a number the
+   display no longer shows.
+4. **`ext` is 0 once an edge is a whole period late,** so a stopped clock shows `--`, not
+   the last tempo.
+5. **The mark is the label:** `ext` in place of `bpm` while the source is edges. A stand-in
+   for the owner's eye, as every look is.
+6. **The Rack menu's "CLOCK: one edge a beat"** is saved with the patch as `"clockBeat"`;
+   Initialize clears it.
+7. **Not built: a Rack self-test on a beat clock.** The self-test's patch clocks a step an
+   edge; the core's tests hold the beat rule, and the module's part is choosing the source
+   (a pure function, tested) and one label. The owner's check is Clocked at ×1.
+
 ## Open
 
 | ID | Question | Needs |
@@ -1935,3 +2018,5 @@ repeats too. "Finicky to test, since miss-timing just mutes things": the hardwar
 | O23 | Session 27's rulings (D93): as designed? Above all item 1 (twelve keys on: is that what the PO-12's 13 does on other sounds?), item 4 (a shuffled note takes the sounding sound's sliders) and item 7 (the feedback stands still while nothing sounds, or rings on, or fades) | The owner. Recommended: accept, build (Session 28), then judge 7 by ear on a sparse beat and a busy one; take c settles item 1 (sound 8 should play as 4, and 15 as 11). **Built 2026-11-24 (Session 28)** as written, but item 5's gain, 2.24 → 2.05 by the comparison item 9 asked for (`ENGINE.md` §18): ready to hear; its Handover in `PLAN.md` has the steps **Take c read 2026-11-25 (R76): item 1 is not confirmed.** Sound 8 did not play as the map's sound 4, nor 15 as its 11; a take with every sound on its own step is asked for |
 | O24 | ~~Session 22's proposals of 2026-11-25 (`ENGINE.md` §17 and §18, "proposed 2026-11-25"; R71 to R76): keep D90's rule for a repeat now that the PO-12's is known to be the mute (an empty step repeats as silence)? Leave 9 and 10 as our repeats, though the PO-12's are mutes? Design effect 1 as the sounds at a quarter of the rate? The sweeps at 6 steps round with new ends and peaks, and 5 at 210 Hz? The delay's line standing still in silence, as the PO-12's does?~~ | **Answered 2026-11-25: D95** (the repeat back to the hardware's rule; the rest as recommended). Was: The owner. Recommended: keep D90; leave 9 and 10; yes to a design session for 1; yes to the sweeps and 5 in one build session; no to the delay standing still. Nothing is built until ruled |
 | O25 | Session 30's readings (D96 items 2 to 4; **item 2 answered the same day: D97**): ~~a replayed lane repeats its own first step, not the step the key came down on in the performance;~~ a second repeat inside a run holds its own key's step; `r` exact | The owner, by ear, on the phone or in Rack: punch 11 on a kick's step, let go, and hear the next pass. Recommended: accept until a take of a replayed repeat on the PO-12 says otherwise |
+| O26 | Session 31's rulings (D98): as designed? Above all item 3 (a sounding note changes speed on the frame 1 comes on and goes off), item 6 (a returned sound is left as it came), item 7 (VOICES carries the slowed sound), item 10 (how bright it is above 10 kHz) and item 9 (16 waits for a take) | The owner, by ear, once Session 32 has built it. Recommended: accept; judge item 3 on a long tom or the tone with 1 punched mid-note |
+| O27 | The clock in Rack as designed (D100)? Above all item 2 (the first beat at a guess), item 4 (`--` on a stopped clock) and item 5 (`ext` in place of `bpm`) | The owner, in Rack, once Session 34 has built it: Clocked at ×1 into CLOCK, the menu's "one edge a beat". Recommended: accept |

@@ -1395,3 +1395,22 @@ above; these are what only the chain showed.
   passed for any sweep once 6 started at 2 700. It is now 2 000, worked (about 420 Hz).
 - **The model-first order held again:** seven tests failed on the old bus, all passed on the
   new one at the first run, bit for bit.
+
+## Session 31: effect 1 designed (2026-11-25)
+
+- **The model changed the design before anything was built.** The first design held each
+  slowed value to the next grid point, because R72 said the PO-12 does. A stand-in model of
+  it, read by `hardware-fx.py` beside take c, matched on pitch, length and level and missed
+  by 29 dB above 10 kHz (R77): a hold mirrors the sound round the grid's rate. The design
+  now draws a straight line between grid values. A reference's sentence is a reading; model
+  it and read the model the same way before a build list quotes it.
+- **The measuring script does not say "held four samples" for any signal.** On a held model
+  it reports the period of the 4-and-5 frame pattern (40.96 frames at 48 kHz); on take c,
+  no hold. Know what a reading looks like on a signal you made before trusting it on one
+  you did not.
+- **The voices' `tune` was already the mechanism.** Built for a host's rate change (§11), it
+  slows a sounding voice to a quarter with no change inside any of the sixteen: tune for
+  46 875 Hz, ask on a grid a quarter of that.
+- **Take c cannot test the release:** every sound has ended by the bar the key goes up. A
+  take with a long sound across the release would.
+
