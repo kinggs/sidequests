@@ -372,23 +372,29 @@ fn ruling_2_the_guess_is_the_last_beat_measured_not_the_stored_tempo() {
 }
 
 #[test]
-fn ruling_2_with_no_guess_the_beat_after_a_pause_is_the_stored_tempo_s() {
-    // Stored tempo 120, one edge at 0 (its beat at the stored tempo's, 24 000: nothing
-    // measured, so the guess stays 0), then the next at 60 000: since 60 000 > 2 × 24 000. The
-    // guess is 0, so the period is the stored tempo's beat, 24 000: steps 5, 6, 7 at 66 000,
-    // 72 000, 78 000. `guess` is left at 0 and `measured` cleared. (As built: period 60 000,
-    // step 5 at 75 000.)
-    let c = edges_from_a_reset(120_000, BEATS, &[0, 60_000]);
+fn d103_one_edge_then_a_long_wait_is_measured_as_a_beat_and_the_next_beat_bunches_once() {
+    // Session 35 wrote this case as "with no guess the beat after a pause is the stored tempo's"
+    // (D101 item 2: one edge at 0, the next at 60 000, since 60 000 > 2 × the guessed 24 000, so
+    // a pause: period 24 000, steps 5, 6, 7 at 66 000, 72 000, 78 000). D103 corrects that: an
+    // edge is a pause only against a measured period, and after one edge nothing is measured.
+    // Worked again by hand in Session 38, before the code, from §4's ruling and its ⚠ Left: the
+    // edge at 60 000 measures 60 000 (`period`, `guess` 60 000, `measured`), so step 5 (tick 480)
+    // wants since × 384 / 60 000 ≥ 96, since 15 000: frame 75 000. The clock comes back at 120
+    // bpm: frame 83 999 has since 23 999, want 23 999 × 384 / 60 000 = 153.6, tick 537; the
+    // edge at 84 000 flushes ticks 538 to 767 and emits 768, steps 6, 7 and 8 at once
+    // ("the next beat's steps bunch, once"), and measures 24 000: step 9 at 90 000. `ext` after
+    // the edge at 60 000: (600 × 48 000 + 30 000) / 60 000 = 480.5, 480; after 84 000, 1 200.
+    let c = edges_from_a_reset(120_000, BEATS, &[0, 60_000, 84_000]);
     let mut h = Host::new(SR, 1);
-    let ev = h.run(78_001, 128, &c);
+    let ev = h.run(75_001, 128, &c);
     assert_eq!(
         steps(&ev),
-        [
-            (0, 0, 0), (6_000, 96, 1), (12_000, 192, 2), (18_000, 288, 3),
-            (60_000, 384, 4), (66_000, 480, 5), (72_000, 576, 6), (78_000, 672, 7),
-        ]
+        [(0, 0, 0), (6_000, 96, 1), (12_000, 192, 2), (18_000, 288, 3), (60_000, 384, 4), (75_000, 480, 5)]
     );
-    assert_eq!(ext(&h), 0);
+    assert_eq!(ext(&h), 480, "the wait was measured as a beat");
+    let ev = h.run(90_001 - 75_001, 128, &c);
+    assert_eq!(steps(&ev), [(84_000, 576, 6), (84_000, 672, 7), (84_000, 768, 8), (90_000, 864, 9)]);
+    assert_eq!(ext(&h), 1_200);
 }
 
 #[test]
@@ -590,17 +596,159 @@ fn ruling_2_a_pause_leaves_the_guess_for_a_reset_after_it() {
 }
 
 #[test]
-fn ruling_2_with_no_guess_a_pause_takes_the_stored_tempo_as_it_is_then() {
-    // A plant that kept the old period over a pause got through: with a guess the period is the
-    // guess already. With none, the stored tempo can change between. Stored 120, one edge at 0
-    // (its beat 24 000, the guess 0), the tempo 60 at frame 30 000, the next edge at 60 000 (since
-    // 60 000 > 48 000): the period is the stored tempo's beat now, 48 000, so steps 5 and 6 at
-    // 72 000 and 84 000. (The old period would put step 5 at 66 000; as Session 34 built it,
-    // 60 000 measured, 75 000.)
+fn d103_with_no_beat_measured_the_second_edge_measures_whatever_the_stored_tempo_says() {
+    // Session 35 wrote this case as "with no guess a pause takes the stored tempo as it is then"
+    // (a plant that kept the old period over a pause got through: stored 120, one edge at 0, the
+    // tempo 60 at 30 000, the edge at 60 000 a pause at the stored tempo's beat then, 48 000:
+    // steps 5 and 6 at 72 000 and 84 000). Under D103 that pause cannot happen: after one edge
+    // nothing is measured, so the edge at 60 000 measures. And no pause can reach the stored
+    // tempo any more: on beats `measured` is only set where `guess` is set to a `since` over 0,
+    // a reset keeps `guess`, a switch clears both, and a rescale holds it to at least 1.
+    // Worked again by hand in Session 38, before the code, with the same inputs: period 60 000,
+    // so steps 5 and 6 at 60 000 + 15 000 and + 30 000, the tempo change read nowhere.
     let mut c = edges_from_a_reset(120_000, BEATS, &[0, 60_000]);
     c.push((30_000, cmd(CMD_TEMPO, 0, 0, 60_000)));
     c.sort_by_key(|x| x.0);
     let mut h = Host::new(SR, 1);
-    let ev = h.run(84_001, 128, &c);
-    assert_eq!(steps_from(&ev, 60_000), [(60_000, 384, 4), (72_000, 480, 5), (84_000, 576, 6)]);
+    let ev = h.run(90_001, 128, &c);
+    assert_eq!(steps_from(&ev, 60_000), [(60_000, 384, 4), (75_000, 480, 5), (90_000, 576, 6)]);
+}
+
+// ---- §4, "Ruled 2026-11-25 after Session 35's review" (D103): written by hand from the
+// ruling's words and cases before the code (Session 38). The two worked cases fail on Session
+// 35's code; the six after them are the cases the review found no test for. ----
+
+#[test]
+fn d103_a_clock_that_falls_under_half_the_measured_tempo_is_measured_on_its_second_slow_edge() {
+    // §4's first case, 48 kHz: stored 120, edges at 0 and 24 000 measure a beat of 24 000 (the
+    // guess 24 000), then an edge every 52 364 frames (55 bpm): 76 364, 128 728, 181 092.
+    // The edge at 76 364 has since 52 364 > 2 × 24 000 with `measured` set: a pause, `period` the
+    // guess 24 000, `measured` cleared, `ext` 0. It is tick 768 (step 8); steps 9 to 11 at
+    // since 6 000, 12 000, 18 000: 82 364, 88 364, 94 364. The edge at 128 728 (tick 1 152, step
+    // 12) has `measured` clear, so it measures 52 364: `ext` (28 800 000 + 26 182) / 52 364 =
+    // 550.5, 550; steps 13 to 15 at since 96 × 52 364 / 384 = 13 091 apart: 141 819, 154 910,
+    // 168 001; the edge at 181 092 measures 52 364 again (since 52 364, not over 104 728).
+    // (As built in Session 35: every slow edge a pause, steps 6 000 apart after each, `ext` 0.)
+    let c = edges_from_a_reset(120_000, BEATS, &[0, 24_000, 76_364, 128_728, 181_092]);
+    for block in [1u32, 128, 512] {
+        let mut h = Host::new(SR, 1);
+        let ev = h.run(76_365, block, &c);
+        assert_eq!(steps_from(&ev, 76_364), [(76_364, 768, 8)], "block {block}");
+        assert_eq!(ext(&h), 0, "block {block}: the first slow edge is a pause");
+        let ev = h.run(128_729 - 76_365, block, &c);
+        assert_eq!(
+            steps(&ev),
+            [(82_364, 864, 9), (88_364, 960, 10), (94_364, 1_056, 11), (128_728, 1_152, 12)],
+            "block {block}"
+        );
+        assert_eq!(ext(&h), 550, "block {block}: the second slow edge measures");
+        let ev = h.run(181_093 - 128_729, block, &c);
+        assert_eq!(
+            steps(&ev),
+            [(141_819, 1_248, 13), (154_910, 1_344, 14), (168_001, 1_440, 15), (181_092, 1_536, 0)],
+            "block {block}"
+        );
+        assert_eq!(ext(&h), 550, "block {block}: and the third");
+    }
+}
+
+#[test]
+fn d103_from_pi_init_on_beats_at_300_an_edge_every_24_000_is_measured_on_the_second_edge() {
+    // §4's second case: `pi_init`, then at frame 0 the stored tempo 300 (a beat of 48 000 ×
+    // 60 000 / 300 000 = 9 600 frames), `SOURCE` 2 and play; no reset (`pi_init` is one). Edges
+    // at 0, 24 000, 48 000. The first beat runs at the guess, 9 600: steps 1 to 3 at since 2 400,
+    // 4 800, 7 200, then held at tick 383. The edge at 24 000 has since 24 000 > 2 × 9 600, but
+    // nothing is measured: it measures 24 000 (`ext` 1 200), steps 5 to 7 at 30 000, 36 000,
+    // 42 000; the edge at 48 000 measures 24 000 again. (As built in Session 35: a pause at each
+    // edge, period the stored tempo's 9 600, steps 2 400 apart, never measured.)
+    let mut c = vec![(0, cmd(CMD_TEMPO, 0, 0, 300_000)), (0, cmd(CMD_SOURCE, 0, 0, BEATS)), (0, cmd(CMD_PLAY, 0, 0, 1))];
+    c.extend([0u64, 24_000, 48_000].iter().map(|f| (*f, clock())));
+    c.sort_by_key(|x| x.0);
+    let mut h = Host::new(SR, 1);
+    let ev = h.run(24_001, 128, &c);
+    assert_eq!(steps(&ev), [(0, 0, 0), (2_400, 96, 1), (4_800, 192, 2), (7_200, 288, 3), (24_000, 384, 4)]);
+    assert_eq!(ext(&h), 1_200, "the second edge measures 24 000");
+    let ev = h.run(48_001 - 24_001, 128, &c);
+    assert_eq!(steps(&ev), [(30_000, 480, 5), (36_000, 576, 6), (42_000, 672, 7), (48_000, 768, 8)]);
+    assert_eq!(ext(&h), 1_200);
+}
+
+/// Stored 120, `SOURCE` 2 and a reset at frame 0, edges a beat on each frame of `at`, not
+/// playing; then `extra`. `PLAY 1` at 30 001 waits for tick 768, the edge at 48 000
+/// (`ruling_1_on_beats_play_waits_for_the_beat`).
+fn waiting_for_the_beat(at: &[u64], extra: &[(u64, Cmd)]) -> Vec<(u64, Cmd)> {
+    let mut c = edges_from_a_reset(120_000, BEATS, at);
+    c.retain(|(_, x)| x.kind != CMD_PLAY);
+    c.push((30_001, cmd(CMD_PLAY, 0, 0, 1)));
+    c.extend_from_slice(extra);
+    c.sort_by_key(|x| x.0);
+    c
+}
+
+#[test]
+fn d103_review_a_reset_while_play_waits_for_the_beat_starts_on_tick_0() {
+    // Play at 30 001 waits for 768. A reset at 40 000 sets E to 0 and clears `have_edge` and
+    // `period` (the guess 24 000 kept); nothing ticks to the next edge. The edge at 48 000 is a
+    // first edge: tick 0, a multiple of 384, step 1 of the pattern (step 0 here); its beat at the
+    // guess, step 1 at 54 000.
+    let c = waiting_for_the_beat(&[0, 24_000, 48_000], &[(40_000, cmd(CMD_RESET, 0, 0, 0))]);
+    let mut h = Host::new(SR, 1);
+    let ev = h.run(54_001, 128, &c);
+    assert_eq!(steps(&ev), [(48_000, 0, 0), (54_000, 96, 1)]);
+}
+
+#[test]
+fn d103_review_stop_then_play_while_waiting_still_waits_for_the_beat() {
+    // Play at 30 001, stop at 31 000, play again at 37 000 (after tick 576's frame, 36 000):
+    // still waiting, step 0 on tick 768 at 48 000, step 1 at 54 000.
+    let c = waiting_for_the_beat(
+        &[0, 24_000, 48_000],
+        &[(31_000, cmd(CMD_PLAY, 0, 0, 0)), (37_000, cmd(CMD_PLAY, 0, 0, 1))],
+    );
+    let mut h = Host::new(SR, 1);
+    let ev = h.run(54_001, 128, &c);
+    assert_eq!(steps(&ev), [(48_000, 768, 0), (54_000, 864, 1)]);
+}
+
+#[test]
+fn d103_review_source_2_to_1_while_waiting_starts_on_the_next_step() {
+    // Play at 30 001 waits for 768. `SOURCE` 1 at 31 000: frame 30 999 had since 6 999, want
+    // 6 999 × 384 / 24 000 = 111.98, so tick 495 was the last; the switch clears the period, so
+    // nothing ticks. The edge at 48 000 is one edge a step with no `have_edge`: it finishes the
+    // step, ticks 496 to 575, and emits 576, a multiple of 96: step 0 there (on beats it would
+    // wait for 768). No period yet, so tick 577 on waits for the edge at 72 000, which emits 577
+    // to 672: step 1.
+    let c = waiting_for_the_beat(&[0, 24_000, 48_000, 72_000], &[(31_000, cmd(CMD_SOURCE, 0, 0, EDGES))]);
+    let mut h = Host::new(SR, 1);
+    let ev = h.run(72_001, 128, &c);
+    assert_eq!(steps(&ev), [(48_000, 576, 0), (72_000, 672, 1)]);
+}
+
+#[test]
+fn d103_review_a_repeated_or_an_invalid_source_while_waiting_still_waits() {
+    // `SOURCE` 2 again, or 3 (no source), at 31 000 changes nothing: step 0 on tick 768.
+    for v in [BEATS, 3] {
+        let c = waiting_for_the_beat(&[0, 24_000, 48_000], &[(31_000, cmd(CMD_SOURCE, 0, 0, v))]);
+        let mut h = Host::new(SR, 1);
+        let ev = h.run(54_001, 128, &c);
+        assert_eq!(steps(&ev), [(48_000, 768, 0), (54_000, 864, 1)], "SOURCE {v}");
+    }
+}
+
+#[test]
+fn d103_review_a_rate_change_on_beats_before_any_edge_leaves_the_period_0() {
+    // 48 kHz, stored 120, `SOURCE` 2 and play at frame 0, no edge. After 1 000 frames the rate
+    // goes to 96 kHz: `period` is 0 and stays 0 (a value that was 0 is not held to 1), so
+    // nothing ticks before the first edge. The edge at 11 000 is tick 0; its beat at the stored
+    // tempo's at 96 kHz, 96 000 × 60 000 / 120 000 = 48 000: step 1 at 11 000 + 12 000.
+    let c = vec![(0, cmd(CMD_SOURCE, 0, 0, BEATS)), (0, cmd(CMD_PLAY, 0, 0, 1)), (11_000, clock())];
+    let mut h = Host::new(SR, 1);
+    let ev = h.run(1_000, 128, &c);
+    assert!(steps(&ev).is_empty());
+    unsafe { pi_set_sample_rate(h.e, 96_000) };
+    let ev = h.run(10_000, 128, &c);
+    assert!(steps(&ev).is_empty(), "nothing before the first edge");
+    assert_eq!(u32::from_le_bytes(h.view()[0..4].try_into().unwrap()), 0, "no tick emitted");
+    let ev = h.run(23_001 - 11_000, 128, &c);
+    assert_eq!(steps(&ev), [(11_000, 0, 0), (23_000, 96, 1)]);
 }
