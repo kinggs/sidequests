@@ -526,7 +526,8 @@ ThreadSanitizer, `harness/race.cpp`). `rack/src/handoff.hpp` is this in C++:
   **Built in Rack (Session 13):** `rack/src/Rhythm.cpp` keeps the Probe's scheme: a
   snapshot out through `pi::Latest` when the generation moves, a load in through another,
   taken between frames. Its edits are not a queue: every key and slider is a Rack
-  parameter, read by the audio thread each frame, so there is no queue to put a load in
+  parameter, read by the audio thread each frame (since Session 33, D99: every 16th frame,
+  every frame in a fixture self-test), so there is no queue to put a load in
   order with; the menu's edits do go through a `pi::Queue`. One addition: each saved
   snapshot carries the count of loads the audio thread had taken, and a save made before a
   load was taken writes the loaded bytes instead, so a patch saved straight after it was

@@ -3,7 +3,7 @@
 //
 // The module keeps no copy of the workflow. Every key and both sliders are Rack parameters;
 // process() turns a parameter's change into KEY_DOWN, KEY_UP or PARAM on that frame (ENGINE.md
-// §13), and everything on the face is drawn from the core's view (§14), handed to the drawing
+// §13; since Session 33, D99: on the frame it reads it, every 16th frame), and everything on the face is drawn from the core's view (§14), handed to the drawing
 // thread through pi::Latest. The page (web/rhythm.html) does the same with messages.
 //
 //   CLOCK     patched: the core follows its edges, one edge a step. Unpatched: the table clock.
@@ -222,6 +222,7 @@ struct Rhythm : Module {
     float rateSeen = 0.f;
     uint32_t msFrames = 48;      // 1 ms at the rate: a trigger's length, and RESET's mask on CLOCK
     uint32_t viewFrames = 800;   // a sixtieth of a second at the rate: the view's longest gap while playing
+    uint32_t scanFrame = 0;      // D99: the module's own frame count, stepped every frame (pi::scans)
     uint32_t frames = 0, droppedSeen = 0, notFiniteSeen = 0, returnFramesSeen = 0;
     bool viewNow = true;         // something may have moved the view: read it this frame
     bool firstFrame = true, mustPublish = true;
@@ -794,7 +795,12 @@ struct Rhythm : Module {
             while (n < 40 && menu.pop(c)) cmds[n++] = c;
         }
 
-        // A parameter's change is what a finger did (ENGINE.md §13), in key order.
+        // A parameter's change is what a finger did (ENGINE.md §13), in key order. Read on every
+        // 16th frame and the first (D99; jacks.hpp, pi::scans), and on every frame of a fixture
+        // self-test; a change is sent on the frame it is read. The loop self-tests scan as a
+        // player's module does. Until Session 33 this read every frame: the 23 keys' compare was
+        // 28% of this function's samples, stopped (Session 29; LEARNINGS.md, Session 33).
+        bool scan = pi::scans(scanFrame++, fixture >= 0);
         if (firstFrame) { // what a patch saved is where the parameters start, not a press
             firstFrame = false;
             for (int k = 0; k < 23; k++) keyDown[k] = params[KEY_PARAMS + k].getValue() > 0.5f;
@@ -805,7 +811,8 @@ struct Rhythm : Module {
             }
         }
         uint32_t changed = 0;
-        for (int k = 0; k < 23; k++) changed |= uint32_t((params[KEY_PARAMS + k].getValue() > 0.5f) != keyDown[k]) << k;
+        if (scan)
+            for (int k = 0; k < 23; k++) changed |= uint32_t((params[KEY_PARAMS + k].getValue() > 0.5f) != keyDown[k]) << k;
         if (changed) {
             // In key order, but for this: on one frame a function key goes down before any grid
             // key and comes up after them, as a hand holds one (and as D78's latch needs: fx down,
@@ -819,7 +826,7 @@ struct Rhythm : Module {
                     changed &= ~(1u << k); // sent: the last pass must not send it back up
                 }
         }
-        for (int s = 0; s < 2; s++) {
+        for (int s = 0; s < 2 && scan; s++) {
             float pv = params[SLIDER_A + s].getValue();
             if (pv == sliderSeen[s]) continue;
             sliderSeen[s] = pv;
