@@ -39,7 +39,7 @@ fn same(rate: u32, channels: usize, frames: u64, cmds: &[(u64, Cmd)]) -> u64 {
             *x = if channels >= LOOP && on { ((f * 31 + i as u64 * 17) % 1000) as f32 / 1000.0 - 0.5 } else { 0.0 };
         }
         let (mut a, mut b) = (ins.clone(), ins.clone());
-        unsafe { (*long.e).voices.quiet = false };
+        unsafe { (*long.e).voices.ask_every_voice() };
         quiet += unsafe { (*short.e).voices.quiet } as u64;
         let (mut ea, mut eb) = ([Event::default(); CAP], [Event::default(); CAP]);
         let (na, nb) = unsafe {
@@ -212,4 +212,307 @@ fn quiet_waits_for_a_slowed_line_that_crosses_zero() {
     assert!(!unsafe { (*h.e).voices.quiet }, "not quiet: the tone's line is not +0 at its ends");
     frame(&[], &mut out); // frame 3: still on the line
     assert_eq!(out[14].to_bits(), line(a, mu3).to_bits(), "frame 3 is on the line, {} against {}", out[14], line(a, mu3));
+}
+
+// ---- Session 36 (D102): the sounds that may be sounding ----
+//
+// Codex's patch asks only the sounds whose bit is set in a mask of those that may be sounding:
+// a hit sets a sound's bit, and the frame it gives +0 and says silent clears it. These tests
+// were written before the patch, against the old core, which asks every voice on every frame
+// that is not quiet, so they passed there: their job is to fail on a planted fault after. Each
+// takes a way a sound starts, stops or changes off the normal path of a hit and its decay, and
+// holds an engine taking the short ways round, frame by frame and bit for bit, to one made to
+// ask every voice before every frame (`Voices::ask_every_voice`): the events, all seventeen or
+// eighteen channels, the view, and the snapshot at the end.
+
+/// A decaying buzz of `frames` frames, pitched by `k`, for a track's sample (D50). Leaked: it
+/// must outlive the engines that play it (§12), and every engine in a test reads the same one.
+fn buzz(frames: i32, k: i32) -> &'static [i16] {
+    let v: Vec<i16> = (0..frames).map(|i| ((i * k % 200 - 100) * (frames - i) / (frames / 250).max(1)) as i16).collect();
+    Box::leak(v.into_boxed_slice())
+}
+
+fn set_sample(h: &Host, track: u32, data: Option<&[i16]>) {
+    let (p, n) = data.map_or((core::ptr::null(), 0), |d| (d.as_ptr(), d.len() as u32));
+    unsafe { pi_set_sample(h.e, track, p, n) };
+}
+
+fn fire(track: u8) -> Cmd {
+    cmd(CMD_FIRE, track, 0, 0)
+}
+
+/// Two engines, the same commands, inputs and calls between frames (`between`, given each host
+/// before the frame `f`), a frame at a time in a layout of `channels`; `long` asks every voice
+/// before every frame. Returns how many frames `short` began quiet.
+fn held(rate: u32, channels: usize, frames: u64, cmds: &[(u64, Cmd)], mut between: impl FnMut(u64, &mut Host)) -> u64 {
+    let (mut short, mut long) = (Host::new(rate, 7), Host::new(rate, 7));
+    let (mut next, mut quiet) = (0usize, 0u64);
+    let mut ins = vec![0f32; channels];
+    for f in 0..frames {
+        between(f, &mut short);
+        between(f, &mut long);
+        let mut these = Vec::new();
+        while next < cmds.len() && cmds[next].0 == f {
+            these.push(cmds[next].1);
+            next += 1;
+        }
+        for (i, x) in ins.iter_mut().enumerate() {
+            let on = (f / 5000 + i as u64) % 3 == 1;
+            *x = if channels >= LOOP && on { ((f * 29 + i as u64 * 13) % 1000) as f32 / 1000.0 - 0.5 } else { 0.0 };
+        }
+        let (mut a, mut b) = (ins.clone(), ins.clone());
+        unsafe { (*long.e).voices.ask_every_voice() };
+        quiet += unsafe { (*short.e).voices.quiet } as u64;
+        let (mut ea, mut eb) = ([Event::default(); CAP], [Event::default(); CAP]);
+        let (na, nb) = unsafe {
+            (
+                pi_process(short.e, 1, these.as_ptr(), these.len() as u32, ea.as_mut_ptr(), CAP as u32, a.as_mut_ptr(), channels as u32),
+                pi_process(long.e, 1, these.as_ptr(), these.len() as u32, eb.as_mut_ptr(), CAP as u32, b.as_mut_ptr(), channels as u32),
+            )
+        };
+        let ev = |e: &[Event]| e.iter().map(|x| format!("{} {}", x.frame, line(x))).collect::<String>();
+        assert_eq!(ev(&ea[..na as usize]), ev(&eb[..nb as usize]), "{channels} channels, frame {f}: the events");
+        for (c, (x, y)) in a.iter().zip(&b).enumerate() {
+            assert_eq!(x.to_bits(), y.to_bits(), "{channels} channels, frame {f}: channel {c}, {x} against asking every voice's {y}");
+        }
+        assert_eq!(short.view(), long.view(), "{channels} channels, frame {f}: the view");
+    }
+    assert_eq!(short.save(), long.save(), "{channels} channels: the snapshot");
+    quiet
+}
+
+/// `pi_set_sample` stops a sounding sample at once (§12): a sample set again while it sounds,
+/// a sample cleared while it sounds, the new one hit after, and one set on the very frame its
+/// track is hit. The kick keeps something else sounding through some of it, not all.
+#[test]
+fn a_sample_set_again_or_cleared_while_it_sounds_is_the_same_bits_as_asking_every_voice() {
+    let (a, b) = (buzz(20_000, 37), buzz(9_000, 53));
+    let mut c = vec![
+        (0, cmd(CMD_VOICE, 4, 0, 1)),
+        (0, cmd(CMD_VOICE, 9, 0, 1)),
+        (0, cmd(CMD_SOUND, 4, 1, 65_535)),
+        (0, cmd(CMD_SOUND, 9, 1, 65_535)),
+    ];
+    for (f, t) in [(100, 4), (100, 9), (100, 0), (6_000, 4), (6_000, 9), (8_000, 4), (14_000, 9), (14_500, 4), (30_000, 4)] {
+        c.push((f, fire(t)));
+    }
+    for (rate, channels) in [(48_000, 17), (44_100, LOOP)] {
+        let quiet = held(rate, channels, 40_000, &c, |f, h| match f {
+            0 => {
+                set_sample(h, 4, Some(a));
+                set_sample(h, 9, Some(a));
+            }
+            3_000 => {
+                set_sample(h, 4, Some(b)); // sounding: stopped, the next hit plays b
+                set_sample(h, 9, None); // sounding: stopped, the next hit plays its code voice
+            }
+            8_000 => set_sample(h, 4, Some(a)), // b sounding, and hit on this frame: a plays
+            14_200 => set_sample(h, 9, Some(b)), // its code voice rings on; the sample is silent
+            14_600 => set_sample(h, 4, Some(b)), // a sounding alone
+            _ => {}
+        });
+        assert!(quiet > 1_000, "{channels} channels: quiet on only {quiet} frames");
+    }
+}
+
+/// `VOICE` read at the hit (§12): after a switch the old sound's tail plays out under the new
+/// one, so a track's code voice and its sample ring together. Switched with both ringing,
+/// switched and hit on one frame, switched with nothing ringing, and switched to a sample a
+/// track does not have (it plays its code voice).
+#[test]
+fn voice_switched_while_the_code_voice_and_the_sample_both_ring_is_the_same_bits_as_asking_every_voice() {
+    let a = buzz(30_000, 41);
+    let mut c = vec![(0, cmd(CMD_SOUND, 14, 1, 65_535)), (0, cmd(CMD_SOUND, 6, 1, 65_535)), (0, cmd(CMD_SOUND, 6, 0, 50_000))];
+    for t in [14u8, 6] {
+        c.extend([
+            (100, fire(t)),                    // the code voice
+            (500, cmd(CMD_VOICE, t, 0, 1)),    // switched, nothing hit
+            (900, fire(t)),                    // the sample under the code voice's tail
+            (1_300, cmd(CMD_VOICE, t, 0, 0)),  // switched back with both ringing
+            (1_700, fire(t)),                  // the code voice again, the sample ringing
+            (2_100, cmd(CMD_VOICE, t, 0, 1)),  // switched and hit on one frame
+            (2_100, fire(t)),
+            (2_400, cmd(CMD_VOICE, t, 0, 0)),
+        ]);
+    }
+    c.extend([(30_000, cmd(CMD_VOICE, 11, 0, 1)), (31_000, cmd(CMD_VOICE, 3, 0, 1)), (31_500, fire(3)), (31_500, fire(11))]);
+    c.sort_by_key(|x| x.0);
+    for (rate, channels) in [(48_000, 17), (96_000, LOOP)] {
+        let quiet = held(rate, channels, 150_000, &c, |f, h| {
+            if f == 0 {
+                set_sample(h, 14, Some(a));
+                set_sample(h, 6, Some(a));
+                set_sample(h, 11, Some(a));
+            }
+        });
+        assert!(quiet > 1_000, "{channels} channels: quiet on only {quiet} frames");
+    }
+}
+
+/// A rate change (§11, §12): a sounding voice keeps its pitch and length in seconds, and one
+/// that is silent must stay so. Up and down while sounds ring, code and sample; while quiet;
+/// and on the frame a track is hit.
+#[test]
+fn a_rate_change_while_some_sound_and_others_are_silent_is_the_same_bits_as_asking_every_voice() {
+    let a = buzz(20_000, 29);
+    let mut c = vec![(0, cmd(CMD_VOICE, 5, 0, 1)), (0, cmd(CMD_SOUND, 14, 1, 65_535))];
+    for (f, t) in [(100, 0), (100, 5), (300, 14), (900, 12), (2_400, 2), (26_000, 9), (26_000, 5), (40_000, 1), (40_000, 15)] {
+        c.push((f, fire(t)));
+    }
+    c.sort_by_key(|x| x.0);
+    for channels in [17, LOOP] {
+        let quiet = held(48_000, channels, 60_000, &c, |f, h| {
+            let to = match f {
+                0 => {
+                    set_sample(h, 5, Some(a));
+                    0
+                }
+                2_000 => 96_000,  // the kick, the sample, the tone and the cowbell ringing
+                2_500 => 44_100,
+                20_000 => 48_000, // quiet by now
+                26_000 => 96_000, // on the frame two tracks are hit
+                40_100 => 44_100,
+                _ => 0,
+            };
+            if to != 0 {
+                unsafe { pi_set_sample_rate(h.e, to) };
+            }
+        });
+        assert!(quiet > 1_000, "{channels} channels: quiet on only {quiet} frames");
+    }
+}
+
+/// Effect 1 (§18, designed 2026-11-25): a slowed sound is asked only on a fresh frame of the
+/// grid, and comes on and goes off with sounds ringing. Some sounds out of the effects (so
+/// some slowed and some not), the effects' sounds changed while 1 is heard, then all sixteen
+/// slowed, a sample among them, and a rate change while slowed.
+#[test]
+fn effect_1_on_and_off_with_some_sounds_slowed_is_the_same_bits_as_asking_every_voice() {
+    let a = buzz(20_000, 31);
+    let step = 6_000u64; // 120 bpm at 48 kHz
+    let mut edits = vec![cmd(CMD_VOICE, 5, 0, 1), cmd(CMD_SOUND, 14, 1, 65_535), cmd(CMD_FXSOUND, 1, 0, 0), cmd(CMD_FXSOUND, 2, 0, 0)];
+    for s in [0u8, 4, 8, 12] {
+        edits.push(cmd(CMD_STEP, 0, s, 1));
+    }
+    for s in [2u8, 6, 10, 14] {
+        edits.extend([cmd(CMD_STEP, 2, s, 1), cmd(CMD_STEP, 1, s, 1)]);
+    }
+    for s in [1u8, 3, 9, 11] {
+        edits.extend([cmd(CMD_STEP, 14, s, 1), cmd(CMD_STEP, 5, s, 1)]);
+    }
+    for s in [2u8, 3, 4, 9, 10, 13] {
+        edits.push(cmd(CMD_FX, s, 0, 1));
+    }
+    let mut c: Vec<(u64, Cmd)> = edits.into_iter().map(|x| (0, x)).collect();
+    c.push((0, cmd(CMD_PLAY, 0, 0, 1)));
+    c.extend([
+        (3 * step + 700, cmd(CMD_FXSOUND, 1, 0, 1)),  // the snare slowed while 1 is heard
+        (9 * step + 300, cmd(CMD_FXSOUND, 14, 0, 0)), // the tone, ringing, out while heard
+        (16 * step, cmd(CMD_FXSOUND, 2, 0, 1)),       // the second bar: all sixteen slowed
+        (16 * step, cmd(CMD_FXSOUND, 14, 0, 1)),
+        (16 * step + 10, fire(7)),
+        (18 * step + 111, fire(15)),
+        (32 * step, cmd(CMD_PLAY, 0, 0, 0)),
+    ]);
+    c.sort_by_key(|x| x.0);
+    for (rate_scale, channels) in [(1u64, 17), (1, LOOP), (2, 17)] {
+        let c: Vec<(u64, Cmd)> = c.iter().map(|&(f, x)| (f * rate_scale, x)).collect();
+        let (mut some, mut all) = (0u64, 0u64);
+        let quiet = held(48_000 * rate_scale as u32, channels, (40 * step) * rate_scale, &c, |f, h| {
+            let slowed = unsafe { (*h.e).bus.slowed };
+            some += (slowed != 0 && slowed != 0xFFFF) as u64;
+            all += (slowed == 0xFFFF) as u64;
+            if f == 0 {
+                set_sample(h, 5, Some(a));
+            }
+            if f == (19 * step + 4_000) * rate_scale {
+                unsafe { pi_set_sample_rate(h.e, 44_100) }; // inside step 19's effect 1, all slowed
+            }
+        });
+        assert!(quiet > 1_000, "{channels} channels: quiet on only {quiet} frames");
+        // Both of `sound_slow`'s ways: some sounds slowed, and all sixteen.
+        assert!(some > 3 * step && all > 3 * step, "{channels} channels: some slowed on {some} frames, all on {all}");
+    }
+}
+
+/// A load (§15, §20) while playing and while sounds ring: the steps, the sliders and `VOICE`
+/// change under them, and no voice is touched. Loaded twice while playing, once more stopped.
+#[test]
+fn a_load_while_playing_is_the_same_bits_as_asking_every_voice() {
+    let a = buzz(20_000, 43);
+    // Another beat to load: other steps, other sliders, tracks 3 and 5 on their samples.
+    let other = {
+        let mut h = Host::new(48_000, 3);
+        let mut c = vec![cmd(CMD_VOICE, 3, 0, 1), cmd(CMD_VOICE, 5, 0, 1), cmd(CMD_SOUND, 9, 0, 60_000), cmd(CMD_SOUND, 3, 1, 65_535)];
+        for s in 0..16u8 {
+            c.push(cmd(CMD_STEP, (s * 3 % 16) as u8, s, 1));
+        }
+        c.push(cmd(CMD_PLAY, 0, 0, 1));
+        h.block(1, &c);
+        h.block(1_000, &[]);
+        h.save()
+    };
+    let mut c = vec![(0, cmd(CMD_VOICE, 5, 0, 1)), (0, cmd(CMD_SOUND, 14, 1, 65_535))];
+    for s in [0u8, 4, 8, 12] {
+        c.push((0, cmd(CMD_STEP, 0, s, 1)));
+        c.push((0, cmd(CMD_STEP, 5, s + 2, 1)));
+        c.push((0, cmd(CMD_STEP, 14, s + 1, 1)));
+    }
+    c.extend([(0, cmd(CMD_PLAY, 0, 0, 1)), (60_000, cmd(CMD_PLAY, 0, 0, 0))]);
+    for channels in [17, LOOP] {
+        let snap = other;
+        held(48_000, channels, 90_000, &c, |f, h| {
+            if f == 0 {
+                set_sample(h, 3, Some(a));
+                set_sample(h, 5, Some(a));
+            }
+            if f == 13_000 || f == 40_007 || f == 61_000 {
+                assert_eq!(h.load(&snap), 0, "frame {f}: the load");
+            }
+        });
+    }
+}
+
+/// The frame a sound ends is the frame its bit is cleared (+0, and it says silent). Hit again
+/// the frame before, on that frame, and the frame after; alone (the engine quiet between) and
+/// with another sound ringing; code voices and a sample.
+#[test]
+fn a_sound_hit_again_on_the_frame_it_ends_is_the_same_bits_as_asking_every_voice() {
+    let a = buzz(3_000, 47);
+    for (t, sampled) in [(0u8, false), (9, false), (13, false), (14, false), (5, true)] {
+        // The frame it ends: the first after which every voice says silent, hit alone.
+        let end = {
+            let h = Host::new(48_000, 7);
+            if sampled {
+                set_sample(&h, t as u32, Some(a));
+            }
+            let mut out = [0f32; 1];
+            let mut ev = [Event::default(); CAP];
+            let hit = [cmd(CMD_VOICE, t, 0, sampled as u32), fire(t)];
+            unsafe { pi_process(h.e, 1, hit.as_ptr(), 2, ev.as_mut_ptr(), CAP as u32, out.as_mut_ptr(), 1) };
+            let mut f = 1u64;
+            while !unsafe { (*h.e).voices.silent() } {
+                unsafe { pi_process(h.e, 1, core::ptr::null(), 0, ev.as_mut_ptr(), CAP as u32, out.as_mut_ptr(), 1) };
+                f += 1;
+                assert!(f < 200_000, "sound {t} never ends");
+            }
+            assert!(f > 100, "sound {t} ends on frame {f}: too soon to be a sound");
+            f - 1
+        };
+        for again in [end - 1, end, end + 1] {
+            for other in [false, true] {
+                let mut c = vec![(0, cmd(CMD_VOICE, t, 0, sampled as u32)), (0, fire(t)), (again, fire(t))];
+                if other {
+                    c.push((end - 50, cmd(CMD_SOUND, 15, 1, 65_535)));
+                    c.push((end - 50, fire(15)));
+                }
+                c.sort_by_key(|x| x.0);
+                held(48_000, 17, again + 4_000, &c, |f, h| {
+                    if f == 0 && sampled {
+                        set_sample(h, t as u32, Some(a));
+                    }
+                });
+            }
+        }
+    }
 }

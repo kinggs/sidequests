@@ -1525,6 +1525,12 @@ impl Voices {
     pub fn code_trigger(&mut self, t: usize, ab: [u16; 2], rate: u32) {
         on_voice!(self, t, trigger(ab, rate))
     }
+
+    /// For the rule tests' model of the short ways round (`tests/quiet.rs`): on its next frame
+    /// this engine asks every voice, as it did before Session 29.
+    pub fn ask_every_voice(&mut self) {
+        self.quiet = false;
+    }
 }
 
 #[cfg(test)]
