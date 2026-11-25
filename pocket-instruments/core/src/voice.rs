@@ -246,6 +246,9 @@ pub struct Kick {
     phase: u32,
     /// The base pitch's phase step, as a float: the sweep multiplies it.
     base: f32,
+    /// `base as u32`, made with it in `tune`: the step once the sweep is 0, where `base ×
+    /// (1 + 2 × 0)` is `base` (Session 41, D105 item 5, Antigravity's).
+    base_inc: u32,
     env: f32,
     k: f32,
     /// The sweep: 1 at the trigger, falling to 0. The pitch is base * (1 + 2 sweep).
@@ -270,6 +273,7 @@ impl Kick {
             ab: [PARAM_DEFAULT; 2],
             phase: 0,
             base: 0.0,
+            base_inc: 0,
             env: 0.0,
             k: 0.0,
             sweep: 0.0,
@@ -284,6 +288,7 @@ impl Kick {
     fn tune(&mut self, rate: u32) {
         let [a, b] = self.ab;
         self.base = inc(span(40_000, 90_000, a), rate) as f32;
+        self.base_inc = self.base as u32;
         self.k = fall_60db(span(100_000, 600_000, b), rate);
         self.k_sweep = fall(frames(Self::SWEEP_US, rate) as f32);
         self.k_click = fall_60db(Self::CLICK_US, rate);
@@ -315,8 +320,14 @@ impl Kick {
             s += self.noise.next() * step_env(&mut self.click, self.k_click);
         }
         // Float to integer is exact truncation on both hosts; the step is well inside a u32.
-        let step = self.base * (1.0 + 2.0 * step_env(&mut self.sweep, self.k_sweep));
-        self.phase = self.phase.wrapping_add(step as u32);
+        // The frame that takes the sweep to 0 still steps by its old value; from the next the
+        // step is `base_inc`, what `base × (1 + 2 × 0)` cast gives.
+        let step = if self.sweep != 0.0 {
+            (self.base * (1.0 + 2.0 * step_env(&mut self.sweep, self.k_sweep))) as u32
+        } else {
+            self.base_inc
+        };
+        self.phase = self.phase.wrapping_add(step);
         if self.env == 0.0 {
             self.click = 0.0;
             self.sweep = 0.0;
@@ -541,6 +552,8 @@ pub struct SynthSnare {
     ab: [u16; 2],
     phase: u32,
     base: f32,
+    /// `base as u32`, the step once the sweep is 0 (Session 41, as the kick's).
+    base_inc: u32,
     sweep: f32,
     k_sweep: f32,
     env: f32,
@@ -562,7 +575,7 @@ impl SynthSnare {
     const NOISE: f32 = 0.5;
 
     pub const fn new() -> Self {
-        SynthSnare { ab: [PARAM_DEFAULT; 2], phase: 0, base: 0.0, sweep: 0.0, k_sweep: 0.0, env: 0.0, k: 0.0, hiss: 0.0, k_hiss: 0.0, noise: Noise(Noise::SEED), filter: Svf::new() }
+        SynthSnare { ab: [PARAM_DEFAULT; 2], phase: 0, base: 0.0, base_inc: 0, sweep: 0.0, k_sweep: 0.0, env: 0.0, k: 0.0, hiss: 0.0, k_hiss: 0.0, noise: Noise(Noise::SEED), filter: Svf::new() }
     }
 
     /// Slider A is the pitch, 200 to 460 Hz (330 at the middle). Slider B is the length, 20 to
@@ -571,6 +584,7 @@ impl SynthSnare {
         let [a, b] = self.ab;
         let length = span(20_000, 150_000, b);
         self.base = inc(span(200_000, 460_000, a), rate) as f32;
+        self.base_inc = self.base as u32;
         self.k = fall_60db(length, rate);
         self.k_hiss = fall_60db(length / 3, rate);
         self.k_sweep = fall(frames(Self::SWEEP_US, rate) as f32);
@@ -606,8 +620,13 @@ impl SynthSnare {
                 self.filter.clear();
             }
         }
-        let step = self.base * (1.0 + step_env(&mut self.sweep, self.k_sweep));
-        self.phase = self.phase.wrapping_add(step as u32);
+        // As the kick's: the sweep's last frame at its old value, `base_inc` from the next.
+        let step = if self.sweep != 0.0 {
+            (self.base * (1.0 + step_env(&mut self.sweep, self.k_sweep))) as u32
+        } else {
+            self.base_inc
+        };
+        self.phase = self.phase.wrapping_add(step);
         if self.env == 0.0 {
             self.sweep = 0.0;
             self.hiss = 0.0;
@@ -835,6 +854,8 @@ pub struct Tom {
     ab: [u16; 2],
     phase: u32,
     base: f32,
+    /// `base as u32`, the step once the sweep is 0 (Session 41, as the kick's).
+    base_inc: u32,
     env: f32,
     k: f32,
     sweep: f32,
@@ -851,7 +872,7 @@ impl Tom {
     const LEVEL: f32 = 0.9;
 
     const fn new(high: bool) -> Self {
-        Tom { ab: [PARAM_DEFAULT; 2], phase: 0, base: 0.0, env: 0.0, k: 0.0, sweep: 0.0, k_sweep: 0.0, high }
+        Tom { ab: [PARAM_DEFAULT; 2], phase: 0, base: 0.0, base_inc: 0, env: 0.0, k: 0.0, sweep: 0.0, k_sweep: 0.0, high }
     }
 
     /// Key 11: 60 to 120 Hz, 150 to 600 ms.
@@ -874,6 +895,7 @@ impl Tom {
             ((60_000, 120_000), (150_000, 600_000))
         };
         self.base = inc(span(pitch.0, pitch.1, a), rate) as f32;
+        self.base_inc = self.base as u32;
         self.k = fall_60db(span(length_us.0, length_us.1, b), rate);
         self.k_sweep = fall(frames(Self::SWEEP_US, rate) as f32);
     }
@@ -898,8 +920,13 @@ impl Tom {
             return 0.0;
         }
         let s = sine(self.phase) * step_env(&mut self.env, self.k);
-        let step = self.base * (1.0 + Self::DEPTH * step_env(&mut self.sweep, self.k_sweep));
-        self.phase = self.phase.wrapping_add(step as u32);
+        // As the kick's: the sweep's last frame at its old value, `base_inc` from the next.
+        let step = if self.sweep != 0.0 {
+            (self.base * (1.0 + Self::DEPTH * step_env(&mut self.sweep, self.k_sweep))) as u32
+        } else {
+            self.base_inc
+        };
+        self.phase = self.phase.wrapping_add(step);
         if self.env == 0.0 {
             self.sweep = 0.0;
         }
