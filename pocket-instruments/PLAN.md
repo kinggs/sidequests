@@ -148,6 +148,15 @@ lights, caps, display, weave ◄─ host draws ◄─ view                Rack: 
   and a lower clock (core 2 is on it), the other is faster (core 10). A run lands on either,
   so every bench case is bimodal by about 2 ns. `make bench` and `make pairs` pin to
   `BENCH_CPU` (2); pin perf's Rack too: `perf record ... taskset -c 2 ./Rack -h -u <folder>`.
+- Found on 2026-11-25: **Codex and Antigravity are installed and logged in** (mise; `codex`
+  0.172, model `gpt-6.2-sol`; `agy` 1.5, `agy models` lists them). Each ran one brief alone
+  in a scratch `git worktree` (`mise trust` in its `pocket-instruments/` first):
+  `codex exec --sandbox workspace-write -c model_reasoning_effort='"high"' -` with the brief
+  on stdin, and `agy -p "<brief>" --sandbox --model gemini-4-neon-xhigh`. ⚠ `agy` was run
+  with `--dangerously-skip-permissions`; what its `--sandbox` blocks was not checked. The
+  owner (2026-11-25): fine while its work only reaches `main` as a commit we read. Judge
+  such attempts together, afterwards, on a quiet machine (`harness/pairs.sh` takes several
+  benches) and with `make fuzz`.
 - Found in Session 10: `cargo` only works with this folder as the working directory. From
   anywhere else the mise shim fails with "No version is set". To build a scratch copy, stay
   here and pass `--manifest-path` and `CARGO_TARGET_DIR`. `jq` (1.8) is present; the Rack
@@ -281,22 +290,21 @@ Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
 
 ## Next, in order
 
-1. **The owner's ear on Sessions 26 and 28** (restart Rack first):
-   Session 26's and Session 28's steps are in their Handovers in `PLAN-HISTORY.md`. D92's
-   and D93's rulings are cheap to change if they sound wrong; so is 14's gain (⚠ below).
-2. **Your ear on Sessions 30 and 32** (restart Rack first: `make install` ran): their
-   Handovers' steps, the rest of O25, O26. Sessions 33 to 36 and 38 built 2026-11-25: their
-   short checks are in their Handovers (33's, 34's and 36's now in `PLAN-HISTORY.md`; O27 for
-   34, 35 and 38). **Two short takes, when the PO-12 is out** ("The owner's hands"): 14 at
-   120 bpm, and 13's map. Read them with "Read `pocket-instruments/PLAN.md` and read
-   Session 22's two last takes".
-3. **The owner's looks and rulings** on what 2026-11-23 built: "The owner's hands", first
-   part.
-4. **Session 14's fourth box,** the weave accepted or redrawn: below.
-5. **The host's idle cost, when wanted** ("Later: efficiency"): the owner's answer to reading
-   the parameters less often decides the next step (Session 29's Handover).
-6. **Session 37** (design, Fable): Antigravity's parts designed in.
-7. Then from "Not planned yet", as the owner chooses.
+1. **Your ears and rulings on the run of 2026-11-25** (restart Rack first): the last
+   Handover note below has the three checks (effect 1, the clock, the scan and the cost:
+   thirteen minutes) and the seven rulings, each with a recommended answer (O26, O27, the
+   `.wasm`'s bar, Session 37, Rack's next idle cost, two trades).
+2. **Your ear on Sessions 26, 28 and 30** (still unheard): their Handovers' steps in
+   `PLAN-HISTORY.md`; O23, O25. D92's and D93's rulings are cheap to change; so is 14's gain.
+3. **Takes, when the PO-12 is out** ("The owner's hands"): 16's (sound 15 a bar long, dry,
+   then fx + 16, then fx + 1; it serves 15 too), 14 at 120 bpm, and 13's map. Read them
+   with "Read `pocket-instruments/PLAN.md` and read the takes asked for".
+4. **Your looks and rulings** on what 2026-11-23 built: "The owner's hands", first part.
+   **Session 14's fourth box,** the weave accepted or redrawn: below.
+5. **Efficiency, when wanted, each after its ruling:** Session 37 (design, Fable:
+   Antigravity's parts); Rack's next idle cost (a build: the module works out all sixteen
+   VOICES and TRIGGERS channels every frame, patched or not, 54% of its idle cost).
+6. Then from "Not planned yet", as you choose.
 
 ## Session 37 — the core's cost a frame, the rest: Antigravity's parts designed in (design, Fable; D102 item 2)
 
@@ -307,6 +315,12 @@ the steady path in `Bus::advance`, `process_silent`), and for the rest (a voice'
 copy, the paths for tracks 0 to 3, the loop's chunk skip) either one general form or a
 test that holds each fast path to the general one on tracks 4 to 15 and samples. Then a
 build list. The bar: `make fuzz`, and no rule written in two places.
+
+Two findings from Session 36's review to design for: `quiet.rs`'s "engine that asks every
+voice" shares the engine's own code and holds only the mask, so a fast path needs a model
+written apart from it (as `Voicing` in `tests/bus.rs` is); and the mask's guard is a
+`debug_assert!` that the fuzz never meets, because the fuzz builds in release: a debug
+build of the fuzz would close that.
 
 ## Session 14 — the weave (build, with the owner's eye; a first attempt after Session 20, D79)
 
