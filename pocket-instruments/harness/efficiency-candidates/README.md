@@ -29,7 +29,7 @@ All three passed `make test` untouched, and `harness/fuzz.cpp` found no differin
 
 | Patch | Model | Ruled (Fable, D102) |
 |---|---|---|
-| `codex.patch` | `gpt-6.2-sol`, high effort | **Adopted whole: Session 36.** Two files; one idea (a mask of the sounds that may be sounding, so a silent voice is not asked) and three small ones; both hosts gain; a reviewer found no input that moves a bit |
+| `codex.patch` (deleted: built) | `gpt-6.2-sol`, high effort | **Adopted whole, built in Session 36** (applied as written; its comments rewritten with Session 36's own `make pairs`, a guard and six rule tests added; `PLAN-HISTORY.md`, Session 36). Two files; one idea (a mask of the sounds that may be sounding, so a silent voice is not asked) and three small ones; both hosts gain; a reviewer found no input that moves a bit |
 | `antigravity.patch` | Gemini 4 Neon, XHigh | **Not adopted whole; a design pass first (Session 37).** The fastest, and no byte differs, but §18's mix is written five times, each hot voice has a second copy that is only right while a mask is, the fast paths are for tracks 0 to 3 (the bench's), and the paths production takes have no direct test. Its review names the parts to take as they are |
 | `opus.patch` | Claude Opus 5.5 | **Not adopted.** Native builds only (`cfg(not(wasm32))`), so the phone gains nothing and the two hosts run different code. It found the cause of Session 32's 4 ns: `Voices::ask` is a second caller of every voice's `next`, so LLVM stopped inlining `Snare::next` and `SynthSnare::next` into the frame loop. Its integer count of the hat's six squares and its per-track `sound` are ideas for Session 37 |
 
