@@ -271,10 +271,8 @@ pub struct Bus {
 /// 2²⁴, 1` is 1 in order and 0 by groups). Checked by brute force before it was written down
 /// (D105 item 3) and held to the plain loops by `tests/sum.rs`.
 #[derive(Clone, Copy)]
-#[cfg_attr(not(test), allow(dead_code))] // until Session 42's next step uses it
 pub struct Sum(f32);
 
-#[cfg_attr(not(test), allow(dead_code))]
 impl Sum {
     /// Fact (a)'s start: −0 if `mask` is all sixteen, else +0.
     #[inline(always)]
@@ -288,14 +286,28 @@ impl Sum {
         self.0 += y;
     }
 
-    /// `start(mask)` and every track `mask` names added, lowest first.
+    /// `start(mask)` and every track `mask` names added, lowest first: the frame's sum over the
+    /// sixteen values it emits. Added a four at a time, every four with a bit set whole: the
+    /// others in it are +0, and a mask too large is always safe (a sum from +0 is never −0, so
+    /// a +0 added changes nothing; from −0 the mask is all sixteen and nothing is left out).
+    /// One order of addition, track 0 to 15, never a subtotal. Placed by the bench (Session
+    /// 42, `make pairs`, CPU 2, against the build before, beat 13.4 and all 35.2 ns a frame
+    /// there): this, 12.0 and 35.3; each set bit walked, 11.4 and 36.1, but fx 1 20.2 (17.5),
+    /// loop 21.3 (18.1); that with a straight path for all sixteen, 12.2 and 36.8; every track
+    /// added whatever the mask, 13.7 and 35.5, idle 5.5 (3.9); a four added only when its bits
+    /// are set, but no early way out of an empty mask, idle 4.7.
     #[inline(always)]
     pub fn over(v: &[f32; TRACKS], mask: u16) -> Sum {
         let mut sum = Sum::start(mask);
-        let mut left = mask;
-        while left != 0 {
-            sum.add(v[left.trailing_zeros() as usize]);
-            left &= left - 1;
+        if mask == 0 {
+            return sum; // quiet: +0, with no addition and no test of a four
+        }
+        for (g, four) in v.chunks_exact(4).enumerate() {
+            if mask >> (4 * g) & 0xF != 0 {
+                for &y in four {
+                    sum.add(y);
+                }
+            }
         }
         sum
     }
@@ -676,26 +688,21 @@ impl Bus {
         x + fb
     }
 
+    /// The frame's `rest` and `bus` (§18), from its `Sum` over `v` and the tracks `mask` names
+    /// (every other +0): with every sound in the effects (the default) `rest` is +0 and `bus`
+    /// fact (c), with no further addition; otherwise `split`. Session 36 (Codex's), `make
+    /// pairs`, CPU 2: the first way fx 2 to 8 and 14 1.4 to 2.4 ns a frame less, fx 1 2.1.
+    #[inline(always)]
+    fn sums(v: &[f32; TRACKS], sum: Sum, mask: u16, fx_sounds: u16) -> (f32, f32) {
+        if fx_sounds == u16::MAX { (0.0, sum.bus_all()) } else { Sum::split(v, mask, fx_sounds) }
+    }
+
     /// §18's mix while an effect runs: `(rest + bus + w (wet - bus)) × gain`, each sum in
-    /// track order. Out of line, as `frame` is.
+    /// track order. `sum` is the frame's over `v`, `mask` the tracks it may not be +0 in. Out
+    /// of line, as `frame` is.
     #[inline(never)]
-    pub fn mix(&mut self, v: &[f32; TRACKS], fx_sounds: u16, gain: f32) -> f32 {
-        let (rest, bus) = if fx_sounds == u16::MAX {
-            // Every sound in the effects (the default): `rest` is +0 and `bus` the same
-            // additions in track order from +0, with no test of a bit. Session 36 (Codex's),
-            // `make pairs`, CPU 2: fx 2 to 8 and 14 1.4 to 2.4 ns a frame less, fx 1 2.1.
-            (0.0, v.iter().fold(0.0, |sum, &s| sum + s))
-        } else {
-            let (mut rest, mut bus) = (0.0f32, 0.0f32);
-            for (t, s) in v.iter().enumerate() {
-                if fx_sounds >> t & 1 == 1 {
-                    bus += *s;
-                } else {
-                    rest += *s;
-                }
-            }
-            (rest, bus)
-        };
+    pub fn mix(&mut self, v: &[f32; TRACKS], sum: Sum, mask: u16, fx_sounds: u16, gain: f32) -> f32 {
+        let (rest, bus) = Bus::sums(v, sum, mask, fx_sounds);
         // No loop in this layout, so an insert still ramping out (its host's cables pulled)
         // ducks nothing: the bus as it is (§19, designed 2026-11-24).
         let wet = if self.on == FEEDBACK { self.feedback(bus) } else { self.wet(bus, bus) };
@@ -713,7 +720,7 @@ impl Bus {
     /// number is silence: one NaN would otherwise stay in a filter. And in the layout that has
     /// them, the thirty-two slider outputs after those.
     #[inline(never)]
-    pub fn looped(&mut self, frame: &mut [f32], v: &[f32; TRACKS], fx_sounds: u16, gain: f32) {
+    pub fn looped(&mut self, frame: &mut [f32], v: &[f32; TRACKS], mask: u16, fx_sounds: u16, gain: f32) {
         let returned = self.route[0];
         let Some((io, sliders)) = frame.split_first_chunk_mut::<{ TRACKS + 2 }>() else {
             return;
@@ -739,20 +746,13 @@ impl Bus {
             }
             m
         };
-        let (mut rest, mut bus) = (0.0f32, 0.0f32);
-        for (t, s) in m.iter().enumerate() {
-            if fx_sounds >> t & 1 == 1 {
-                bus += *s;
-            } else {
-                rest += *s;
-            }
-        }
+        // The sums are over what the frame emits (D105 item 3): the returned sounds in their
+        // places, and in the mask with the frame's own.
+        let mask = mask | returned;
+        let sum = Sum::over(&m, mask);
+        let (rest, bus) = Bus::sums(&m, sum, mask, fx_sounds);
         let dry = if self.on == 0 {
-            let mut sum = m[0];
-            for s in &m[1..] {
-                sum += *s;
-            }
-            sum
+            sum.plain()
         } else {
             // An insert's sound is silence: §18's ramp takes the bus out, and back in after.
             let wet = if self.on == FEEDBACK { self.feedback(bus) } else { self.wet(bus, 0.0) };

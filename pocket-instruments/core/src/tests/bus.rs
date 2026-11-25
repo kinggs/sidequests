@@ -5,7 +5,7 @@
 
 use super::sound::render;
 use super::*;
-use crate::bus::Bus;
+use crate::bus::{Bus, Sum};
 use crate::voice::{LEVEL, Voices};
 
 const SR: u32 = 48_000; // at 120 bpm a step is 6000 frames, a tick 62.5
@@ -1278,6 +1278,12 @@ fn a_line_lent_again_mid_run_is_never_heard_before_it_is_written() {
 // bit; these hold each rule alone.
 
 /// Effect 14's loop at `rate`, as §18's table gives it.
+/// A made bus's mix with every sound in the effects at volume 16, as the engine calls it: the
+/// frame's `Sum` over all sixteen (a mask too large is always safe).
+fn made_mix(b: &mut Bus, v: &[f32; 16]) -> f32 {
+    b.mix(v, Sum::over(v, u16::MAX), u16::MAX, u16::MAX, 1.0)
+}
+
 fn comb(rate: u32) -> usize {
     crate::bus::comb_frames(rate) as usize
 }
@@ -1404,7 +1410,7 @@ fn it_builds_a_click_comes_round_comb_frames_apart_and_grows_until_the_clip() {
             let f = round * n + i;
             v[0] = if f == 0 { 0.5 } else { 0.000_001 };
             b.advance(14, 0, SR);
-            let got = b.mix(&v, 0xffff, 1.0);
+            let got = made_mix(&mut b, &v);
             let want = m.frame(14, 0, SR, &v, 0xffff, 16);
             assert_eq!(got.to_bits(), want.to_bits(), "frame {f}");
             let d = got - v[0];
@@ -1484,25 +1490,25 @@ fn a_zero_for_less_than_a_millisecond_does_not_stop_it() {
     for x in &xs {
         v[0] = *x;
         b.advance(14, 0, SR);
-        b.mix(&v, 0xffff, 1.0);
+        made_mix(&mut b, &v);
     }
     v[0] = 0.0;
     let mut heard = 0;
     for i in 0..47 {
         let before = b.echo_state().0;
         b.advance(14, 0, SR);
-        heard += (b.mix(&v, 0xffff, 1.0) != 0.0) as usize;
+        heard += (made_mix(&mut b, &v) != 0.0) as usize;
         assert_eq!(b.echo_state().0, (before + 1) % n as u32, "zero {}: the loop runs", i + 1);
     }
     assert!(heard > 40, "what came round is heard through the gap: {heard} of 47");
     v[0] = 0.25;
     b.advance(14, 0, SR);
-    b.mix(&v, 0xffff, 1.0);
+    made_mix(&mut b, &v);
     v[0] = 0.0;
     for i in 0..48 {
         let before = b.echo_state().0;
         b.advance(14, 0, SR);
-        let got = b.mix(&v, 0xffff, 1.0);
+        let got = made_mix(&mut b, &v);
         if i < 47 {
             assert_eq!(b.echo_state().0, (before + 1) % n as u32, "zero {}", i + 1);
         } else {
@@ -1516,7 +1522,7 @@ fn a_zero_for_less_than_a_millisecond_does_not_stop_it() {
     for i in 0..100 {
         let before = b.echo_state().0;
         b.advance(14, 0, SR);
-        b.mix(&v, 0xffff, 1.0);
+        made_mix(&mut b, &v);
         assert_eq!(b.echo_state().0, (before + 1) % n as u32, "1e-30, frame {}", i + 1);
     }
 }
@@ -1535,17 +1541,17 @@ fn fourteen_heard_again_while_it_stands_still_keeps_standing_still() {
     for x in moving(3 * n) {
         v[0] = x;
         b.advance(14, 0, SR);
-        b.mix(&v, 0xffff, 1.0);
+        made_mix(&mut b, &v);
     }
     v[0] = 0.0;
     for _ in 0..60 {
         b.advance(14, 0, SR);
-        b.mix(&v, 0xffff, 1.0);
+        made_mix(&mut b, &v);
     }
     let head = b.echo_state();
     for f in 0..70 {
         b.advance(if (0..10).contains(&f) { 0 } else { 14 }, 0, SR);
-        assert_eq!(b.mix(&v, 0xffff, 1.0), 0.0, "frame {f}");
+        assert_eq!(made_mix(&mut b, &v), 0.0, "frame {f}");
         assert_eq!(b.echo_state(), head, "frame {f}: the head moved");
     }
     assert_eq!(b.probe().0, 14);

@@ -13,7 +13,7 @@
 //! Every voice keeps the slider values it was triggered with, so a rate change retunes it to
 //! the same pitch and length in hertz and seconds, whatever the sliders say since (§11).
 
-use crate::bus::{Bus, SLOW_RATE};
+use crate::bus::{Bus, SLOW_RATE, Sum};
 use crate::seq::TRACKS;
 
 /// §19: the loop layouts' channel counts: the sixteen sounds, the mix and the bus; and the
@@ -1661,30 +1661,31 @@ impl Voices {
             self.active_tracks
         );
         let mut v = [0.0f32; TRACKS];
-        let quiet = self.quiet;
-        if !quiet {
+        // The tracks this frame emits that may not be +0 (Session 42; D105 item 3): what `Sum`
+        // skips the rest by. In `sound` the tracks asked (`active_tracks` before the frame: a
+        // track let go on it gave +0, so its set bit is safe); under effect 1 every slowed
+        // sound, whose line still sounds on a frame that asks no voice and after its bit has
+        // cleared, with the plain ones asked; quiet, none.
+        let mask = if self.quiet {
+            0
+        } else if bus.slowed != 0 {
             // §18, designed 2026-11-25: one test of `slowed` on a frame that asks the voices.
-            if bus.slowed != 0 {
-                self.sound_slow(&mut v, bus);
-            } else {
-                self.sound(&mut v);
-            }
-        }
+            let mask = self.active_tracks | bus.slowed;
+            self.sound_slow(&mut v, bus);
+            mask
+        } else {
+            let mask = self.active_tracks;
+            self.sound(&mut v);
+            mask
+        };
         let mut mix = |v: &[f32; TRACKS]| {
+            let sum = Sum::over(v, mask);
             if !bus.idle() {
-                return bus.mix(v, fx_sounds, gain);
+                return bus.mix(v, sum, mask, fx_sounds, gain);
             }
-            if quiet {
-                // Quiet, the sixteen are +0, and their plain sum from track 0 is +0: the same
-                // bits as `0.0 * gain`, without the fifteen additions. Idle 5.0 ns a frame
-                // with the sum, 3.7 without (Session 36, `make pairs`, CPU 2).
-                return 0.0 * gain;
-            }
-            let mut sum = v[0];
-            for s in &v[1..] {
-                sum += *s;
-            }
-            sum * gain
+            // Idle, §13's plain sum. Quiet it is +0, the mask empty: `0.0 * gain`, with no
+            // addition (Session 36: idle 5.0 ns a frame with the fifteen, 3.7 without).
+            sum.plain() * gain
         };
         match frame {
             [out] => *out = mix(&v),
@@ -1693,7 +1694,7 @@ impl Voices {
                 *out = mix(&v);
             }
             tracks if tracks.len() == TRACKS => tracks.copy_from_slice(&v),
-            looped => bus.looped(looped, &v, fx_sounds, gain),
+            looped => bus.looped(looped, &v, mask, fx_sounds, gain),
         }
     }
 
