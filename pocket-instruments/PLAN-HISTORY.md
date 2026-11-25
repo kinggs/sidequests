@@ -3218,3 +3218,98 @@ in the Handover note, "Later: efficiency" and `LEARNINGS.md`, Session 36.
   fifth under what it read before. Then play: tap keys, hold bpm and move a slider, Ctrl+click
   fx and punch a key. Everything should feel the same; nothing should be missed.
 - **Next:** your ear on Sessions 26, 28, 30 and 32; then Session 34.
+
+## Session 35 — the beat clock's three gaps (build, Opus; D101; done 2026-11-25)
+
+Read `ENGINE.md` §4, "designed 2026-11-25: one edge a beat" and "Ruled 2026-11-25 after
+Session 34's review"; D100, D101; Session 34's Handover. The rules for every build session
+hold. No ABI change: no call, command, view or snapshot byte moves.
+
+- [x] **Before any change:** the report, a `sha256sum` of every render file, the old
+      library and a bench built on it. *(In the session's scratch folder; the old `.wasm` too.)*
+- [x] **By hand first:** the three rulings' worked cases as rule tests in
+      `core/src/tests/clock.rs`, committed failing before the code. Session 34's test
+      `on_beats_the_play_key_sends_play_alone_as_on_edges` holds the behaviour ruling 1
+      replaces (step 0 on tick 576): it is worked again by hand for tick 768 first, by
+      this decision, and `fixtures/README.md` or the test's comment says so. *(94f287b:
+      eight rule tests, three guards, the play-key test reworked (its comment says so); nine
+      failed on the old core, the guards passed. Every number in §4's rulings checked first:
+      all hold.)*
+- [x] **The core:** how play learns the span is the builder's to place (`Seq::tick` is
+      given it, or `Clock` says whether a tick starts an edge's span): the smallest change
+      that leaves the table and `SOURCE` 1 the same bytes. Rulings 2 and 3 in
+      `core/src/clock.rs`. *(Neither of the two: `Seq` is told once a `SOURCE`. Given it
+      every frame cost every playing case 0.3 ns, the clock saying it with each tick idle
+      0.2. `Seq::period` a u16 so `pi_size` stays 3 872. Same report, same 432 renders.)*
+- [x] **One more, from the same review:** `rack/res/stmlib-plaits-MIT.txt` and
+      `core/stmlib-plaits-MIT.txt` still say the plugin carries the soft clip and Plaits'
+      reducer. The notice's text is the licence and stays; the sentence about what is
+      carried names the filter alone. The file's name stays (`check-dist.sh` holds it).
+      *(5273db0; `rack/res/` is made from `core/`.)*
+- [x] ⚠ The `.wasm` is 311 bytes under P1's bar. Do not move the bar. If this passes it,
+      stop on that: say by how much, keep the core change, leave `web/pi_core.wasm` as it
+      is ⚠. *(47 861 → 48 141, 1 859 under: committed.)*
+- [x] `make pairs` against your own old build, alone on the machine: every case inside
+      the old spread. Faults planted and caught by name. *(Every case inside, two runs. 26
+      plants, 24 caught by name, 2 no test can catch.)*
+- [x] **The end:** `make verify`, `make selftest` in `rack/`, `make play`, `make listen`,
+      `make install` in `rack/`; §4's ruling marked built; `LEARNINGS.md`; the Handover;
+      this list to `PLAN-HISTORY.md`.
+
+## Handover note moved here by Session 35 (2026-11-25)
+
+### After Session 34: the clock in Rack, one edge a beat and the measured tempo (2026-11-25)
+
+- **Built as designed (D100), not yet played.** Right-click the module: "CLOCK: one edge a
+  beat". With it on, a clock module's ×1 output into CLOCK plays the beat at its tempo (four
+  steps an edge); the first beat after a reset or the switch runs at a guess, the last beat
+  measured or else the stored tempo. Saved in the patch as `clockBeat`; Initialize turns it
+  off. On any external clock the display reads `ext` where `bpm` was and the tempo the edges
+  play (Clocked at 123 shows 123, whatever is stored), `--` before the second edge and once
+  the clock stops; a firing's white lasts half a step at that tempo. `make install` ran:
+  **restart Rack.** ABI 15. The page did not change (it has no clock in).
+- **Session 32's two rulings, built:** effect 1's grid wraps to a new rate (`acc mod 4 ×
+  rate`), so `mu` never passes 1 (a test by hand at 96 → 48 kHz; Session 32's own test never
+  reached the overshoot); the credits on the page and in `plugin.json` name stmlib's filter
+  alone, and `bus.rs`'s header says so. Session 32's review's three tests: `mu` under 1
+  across every change between the three rates (its model written from the ruling first); a
+  rate change with only some sounds slowed retunes the rest (failed on the old code too, at
+  the fall); a sample sounding when 1 comes on and goes off, held to the models.
+- **What you must decide or know (⚠):**
+  1. **The play key on a beat clock sends play alone, as on one edge a step** (§13 says "on
+     edges"; the design does not name `SOURCE` 2; its view flag says edges, so I read it as
+     edges). Step 1 is at the next beat's edge. A test holds it; one line to change.
+  2. **The `.wasm` is 311 bytes under P1's 50 KB** (49 198 → 49 689). Kept, as the list said
+     it may be. The next change of any size crosses it: the bar or how the code is shared is
+     a design question.
+  3. **The plugin's notice file** (`rack/res/stmlib-plaits-MIT.txt`, from
+     `core/stmlib-plaits-MIT.txt`) still says the plugin carries stmlib's soft clip and
+     Plaits' sample-rate reducer, though neither is in the code. The ruling named the page,
+     `plugin.json` and `bus.rs`; I did not touch the notice (or its name, which
+     `check-dist.sh` checks). Reword its first lines?
+  4. **No self-test in Rack runs a beat clock** (D100 item 7). A planted fault that always
+     sent `SOURCE` 2 with CLOCK patched passed `make selftest`; only `jacks.hpp`'s
+     `pi::source` is tested. Your Clocked at ×1 is the check.
+- **Cost:** `make pairs` against this session's own old build, pinned to CPU 2, two runs,
+  medians (the old build's range): every case inside the old spread or just under it (beat
+  36.4 and 36.5 against 36.6 to 37.0). `pi_size` 3 872, unchanged (the clock's two fields fit
+  its padding). Only one edge a beat's own path is new work, and it runs only on a beat clock.
+- **Proven:** 304 Rust tests (22 new: 18 written from the sections and the rulings first and
+  committed with the old core failing 16 of them, the other two guards that pass on both: one
+  edge a step keeps its rule, a sample under 1; one for the play-key reading; three more the
+  plants asked for); `SOURCE` 1:
+  the report's 360 runs and all 432 render files the same bytes; the two format 1 fixtures
+  with every command at frame 0 on a beat clock at three rates and three block sizes, the
+  table's trace; `rack/test/jacks.cpp`'s `clock` cases. 35 faults planted, the unplanted copy
+  first: 31 caught by name (26 at the first run, 2 after a plant that did not build was made
+  to, 3 after a test was added); 1 aborted the test run with no name (a beat held at 384:
+  the clock never stops ticking), not counted; 3 no test can catch (two lines that change
+  nothing, and the player's source in `Rhythm.cpp`). `make test`, `make play` (both
+  browsers), `make listen`, `make selftest` at three rates, `make verify`, `make install`.
+- **To check, three minutes in Rack** (restart Rack first): Clocked (or any clock) at ×1
+  into CLOCK, the menu's "CLOCK: one edge a beat" on, play: the beat at Clocked's tempo, the
+  display `ext` and Clocked's number; change Clocked's tempo and the number follows; stop
+  Clocked and the number goes to `--` after a beat or two. Turn the menu off: a quarter
+  speed, as before (one edge a step). Then judge O27: the first beat at a guess, `--` when
+  stopped, `ext` in place of `bpm`.
+- **Next:** your ear on Sessions 26, 28, 30 and 32; your checks of Sessions 33 and 34.

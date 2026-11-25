@@ -159,7 +159,7 @@ lights, caps, display, weave ◄─ host draws ◄─ view                Rack: 
 
 ---
 
-## Where it stands (2026-11-25, after Session 36)
+## Where it stands (2026-11-25, after Session 35)
 
 The instrument plays on a phone (`web/rhythm.html`) and in Rack (the Rhythm module, 24 HP,
 thirteen jacks). In the core: sixteen sounds, each a code voice or a sample; the workflow
@@ -170,7 +170,9 @@ written with; a display that weaves; in Rack, each effect its own channel on FX 
 FX RETURN; since Session 28 effects 13 (a note plays as the sound twelve keys on) and 14 (the
 bus fed back); since Session 32 effect 1 plays the sounds in the effects at a quarter of the
 rate; since Session 34 CLOCK in can count one edge a beat, and the display shows the tempo
-the edges play. ABI 15, snapshot version 4, 312 Rust tests, CI on four platforms in about a minute.
+the edges play; since Session 35 play on a beat clock waits for the next edge, an edge after a
+pause runs at the last beat measured, and a rate change carries the beat. ABI 15, snapshot
+version 4, 326 Rust tests, CI on four platforms in about a minute.
 
 **Built on 2026-11-23 and not yet seen or heard by the owner** except the effects on a
 phone: everything from Session 21 onwards. Every look in it is a stand-in until the owner
@@ -219,6 +221,11 @@ that may be sounding, Codex's patch adopted. The beat 36.4 → 14.4 ns a frame, 
 the same bytes out; the `.wasm` 47 861 bytes, 2 139 under P1's bar. Antigravity's faster parts
 wait for Session 37's design pass.
 
+**Built on 2026-11-25 and not yet played by the owner** (Session 35; D101): on "CLOCK: one edge
+a beat" play starts the pattern on the next edge; an edge more than two beats late runs its beat
+at the last beat measured (no three steps at once after a pause); a rate change keeps the beat.
+The table and one edge a step the same bytes; nothing else costs more; the `.wasm` 48 141.
+
 ## Done so far
 
 Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
@@ -263,6 +270,7 @@ Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
 | 33, Rack reads the keys and sliders every 16 frames (Opus; D99) | `pi::scans` in `jacks.hpp` with its cases; a fixture self-test scans every frame, the loop self-tests on the 16-frame scan; the latch test moves a slider (a plant asked for it); the module stopped −19% by perf, `Rhythm::process` −32%, the scan 28% → a sixteenth of it; 10 faults caught by name, 1 no test can catch. ⚠ `pi_process` reads +43% in every after build, not found | 2026-11-25 |
 | 34, the clock in Rack: one edge a beat, the measured tempo (Opus; D64, D65 item 2, D100) | ABI 15: `SOURCE` 2 (`guess`, `measured`, the edge given the rate), `ext` in the view's bytes 30 and 31; Rack's "CLOCK: one edge a beat" (`clockBeat`), `ext` in place of `bpm`, the white at `ext`; `design/rack-face-ext-200.png`; the bus's grid wrapped at a rate change and the credits reworded (Session 32's two rulings); 22 tests, 18 of them first (16 failing on the old core), Session 32's review's three among them; `SOURCE` 1 the same bytes, `make pairs` inside the old spread; 31 faults caught by name, 3 no test can catch. ⚠ the play key on a beat clock read as edges | 2026-11-25 |
 | 36, the core's cost a frame: Codex's patch adopted (Opus; D102) | only the sounds that may be sounding are asked (`active_tracks`), three all-sounds paths; beat 36.4 → 14.4 ns a frame, idle 6.0 → 3.7, every case under the build before Session 32; the same bytes (report, renders, 10 000 fuzz seeds); the `.wasm` 47 861; a guard on the mask's rule; `make fuzz`; 8 tests; 9 faults caught by name, 2 no test can catch. ⚠ sliders 2 ns dearer than without the all-returned path | 2026-11-25 |
+| 35, the beat clock's three gaps (Opus; D101) | play on a beat clock waits for the next edge (`Seq` told the span once a `SOURCE`; given it every frame cost 0.3 ns), a pause is a first edge, a rate change rescales the beat; the notice names the filter alone; 14 new tests (11 first; with Session 34's play-key test reworked, 9 failing on the old core); the same bytes, 6 184 of 10 000 fuzz seeds differ, all sending `SOURCE` 2; `make pairs` inside the old spread; `pi_size` 3 872; the `.wasm` 48 141; 24 faults caught by name, 2 no test can catch | 2026-11-25 |
 
 ## Next, in order
 
@@ -270,8 +278,9 @@ Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
    Session 26's and Session 28's steps are in their Handovers in `PLAN-HISTORY.md`. D92's
    and D93's rulings are cheap to change if they sound wrong; so is 14's gain (⚠ below).
 2. **Your ear on Sessions 30 and 32** (restart Rack first: `make install` ran): their
-   Handovers' steps, the rest of O25, O26. Sessions 33, 34 and 36 built 2026-11-25: their
-   short checks are in their Handovers (33's now in `PLAN-HISTORY.md`; O27 for 34). **Two short takes, when the PO-12 is out** ("The owner's hands"): 14 at
+   Handovers' steps, the rest of O25, O26. Sessions 33 to 36 built 2026-11-25: their
+   short checks are in their Handovers (33's and 34's now in `PLAN-HISTORY.md`; O27 for 34
+   and 35). **Two short takes, when the PO-12 is out** ("The owner's hands"): 14 at
    120 bpm, and 13's map. Read them with "Read `pocket-instruments/PLAN.md` and read
    Session 22's two last takes".
 3. **The owner's looks and rulings** on what 2026-11-23 built: "The owner's hands", first
@@ -279,37 +288,8 @@ Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
 4. **Session 14's fourth box,** the weave accepted or redrawn: below.
 5. **The host's idle cost, when wanted** ("Later: efficiency"): the owner's answer to reading
    the parameters less often decides the next step (Session 29's Handover).
-6. Then from "Not planned yet", as the owner chooses.
-
-## Session 35 — the beat clock's three gaps (build, Opus; D101)
-
-Read `ENGINE.md` §4, "designed 2026-11-25: one edge a beat" and "Ruled 2026-11-25 after
-Session 34's review"; D100, D101; Session 34's Handover. The rules for every build session
-hold. No ABI change: no call, command, view or snapshot byte moves.
-
-- [ ] **Before any change:** the report, a `sha256sum` of every render file, the old
-      library and a bench built on it.
-- [ ] **By hand first:** the three rulings' worked cases as rule tests in
-      `core/src/tests/clock.rs`, committed failing before the code. Session 34's test
-      `on_beats_the_play_key_sends_play_alone_as_on_edges` holds the behaviour ruling 1
-      replaces (step 0 on tick 576): it is worked again by hand for tick 768 first, by
-      this decision, and `fixtures/README.md` or the test's comment says so.
-- [ ] **The core:** how play learns the span is the builder's to place (`Seq::tick` is
-      given it, or `Clock` says whether a tick starts an edge's span): the smallest change
-      that leaves the table and `SOURCE` 1 the same bytes. Rulings 2 and 3 in
-      `core/src/clock.rs`.
-- [ ] **One more, from the same review:** `rack/res/stmlib-plaits-MIT.txt` and
-      `core/stmlib-plaits-MIT.txt` still say the plugin carries the soft clip and Plaits'
-      reducer. The notice's text is the licence and stays; the sentence about what is
-      carried names the filter alone. The file's name stays (`check-dist.sh` holds it).
-- [ ] ⚠ The `.wasm` is 311 bytes under P1's bar. Do not move the bar. If this passes it,
-      stop on that: say by how much, keep the core change, leave `web/pi_core.wasm` as it
-      is ⚠.
-- [ ] `make pairs` against your own old build, alone on the machine: every case inside
-      the old spread. Faults planted and caught by name.
-- [ ] **The end:** `make verify`, `make selftest` in `rack/`, `make play`, `make listen`,
-      `make install` in `rack/`; §4's ruling marked built; `LEARNINGS.md`; the Handover;
-      this list to `PLAN-HISTORY.md`.
+6. **Session 37** (design, Fable): Antigravity's parts designed in.
+7. Then from "Not planned yet", as the owner chooses.
 
 ## Session 37 — the core's cost a frame, the rest: Antigravity's parts designed in (design, Fable; D102 item 2)
 
@@ -468,7 +448,8 @@ originals are in `PLAN-HISTORY.md`); nothing was dropped, each thing is here onc
 - [ ] **Session 26, by ear and to rule on:** its Handover (now in `PLAN-HISTORY.md`) has the steps (about ten
       minutes) and its five readings (⚠).
 - [ ] **Session 33, two minutes in Rack** (restart Rack first): its Handover (now in `PLAN-HISTORY.md`).
-- [ ] **Session 34, three minutes in Rack** (restart Rack first; O27): its Handover below.
+- [ ] **Session 34, three minutes in Rack** (restart Rack first; O27): its Handover (now in `PLAN-HISTORY.md`).
+- [ ] **Session 35, two minutes in Rack** (restart Rack first; O27): its Handover below.
 - [ ] **Session 36, one minute in Rack** (restart Rack first): its Handover below; above all
       ⚠ 1, the sliders case's 2 ns.
 - [ ] **Session 32, by ear and to rule on** (O26): its Handover (now in `PLAN-HISTORY.md`) has
@@ -535,62 +516,6 @@ originals are in `PLAN-HISTORY.md`); nothing was dropped, each thing is here onc
 
 The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
 
-### After Session 34: the clock in Rack, one edge a beat and the measured tempo (2026-11-25)
-
-- **Built as designed (D100), not yet played.** Right-click the module: "CLOCK: one edge a
-  beat". With it on, a clock module's ×1 output into CLOCK plays the beat at its tempo (four
-  steps an edge); the first beat after a reset or the switch runs at a guess, the last beat
-  measured or else the stored tempo. Saved in the patch as `clockBeat`; Initialize turns it
-  off. On any external clock the display reads `ext` where `bpm` was and the tempo the edges
-  play (Clocked at 123 shows 123, whatever is stored), `--` before the second edge and once
-  the clock stops; a firing's white lasts half a step at that tempo. `make install` ran:
-  **restart Rack.** ABI 15. The page did not change (it has no clock in).
-- **Session 32's two rulings, built:** effect 1's grid wraps to a new rate (`acc mod 4 ×
-  rate`), so `mu` never passes 1 (a test by hand at 96 → 48 kHz; Session 32's own test never
-  reached the overshoot); the credits on the page and in `plugin.json` name stmlib's filter
-  alone, and `bus.rs`'s header says so. Session 32's review's three tests: `mu` under 1
-  across every change between the three rates (its model written from the ruling first); a
-  rate change with only some sounds slowed retunes the rest (failed on the old code too, at
-  the fall); a sample sounding when 1 comes on and goes off, held to the models.
-- **What you must decide or know (⚠):**
-  1. **The play key on a beat clock sends play alone, as on one edge a step** (§13 says "on
-     edges"; the design does not name `SOURCE` 2; its view flag says edges, so I read it as
-     edges). Step 1 is at the next beat's edge. A test holds it; one line to change.
-  2. **The `.wasm` is 311 bytes under P1's 50 KB** (49 198 → 49 689). Kept, as the list said
-     it may be. The next change of any size crosses it: the bar or how the code is shared is
-     a design question.
-  3. **The plugin's notice file** (`rack/res/stmlib-plaits-MIT.txt`, from
-     `core/stmlib-plaits-MIT.txt`) still says the plugin carries stmlib's soft clip and
-     Plaits' sample-rate reducer, though neither is in the code. The ruling named the page,
-     `plugin.json` and `bus.rs`; I did not touch the notice (or its name, which
-     `check-dist.sh` checks). Reword its first lines?
-  4. **No self-test in Rack runs a beat clock** (D100 item 7). A planted fault that always
-     sent `SOURCE` 2 with CLOCK patched passed `make selftest`; only `jacks.hpp`'s
-     `pi::source` is tested. Your Clocked at ×1 is the check.
-- **Cost:** `make pairs` against this session's own old build, pinned to CPU 2, two runs,
-  medians (the old build's range): every case inside the old spread or just under it (beat
-  36.4 and 36.5 against 36.6 to 37.0). `pi_size` 3 872, unchanged (the clock's two fields fit
-  its padding). Only one edge a beat's own path is new work, and it runs only on a beat clock.
-- **Proven:** 304 Rust tests (22 new: 18 written from the sections and the rulings first and
-  committed with the old core failing 16 of them, the other two guards that pass on both: one
-  edge a step keeps its rule, a sample under 1; one for the play-key reading; three more the
-  plants asked for); `SOURCE` 1:
-  the report's 360 runs and all 432 render files the same bytes; the two format 1 fixtures
-  with every command at frame 0 on a beat clock at three rates and three block sizes, the
-  table's trace; `rack/test/jacks.cpp`'s `clock` cases. 35 faults planted, the unplanted copy
-  first: 31 caught by name (26 at the first run, 2 after a plant that did not build was made
-  to, 3 after a test was added); 1 aborted the test run with no name (a beat held at 384:
-  the clock never stops ticking), not counted; 3 no test can catch (two lines that change
-  nothing, and the player's source in `Rhythm.cpp`). `make test`, `make play` (both
-  browsers), `make listen`, `make selftest` at three rates, `make verify`, `make install`.
-- **To check, three minutes in Rack** (restart Rack first): Clocked (or any clock) at ×1
-  into CLOCK, the menu's "CLOCK: one edge a beat" on, play: the beat at Clocked's tempo, the
-  display `ext` and Clocked's number; change Clocked's tempo and the number follows; stop
-  Clocked and the number goes to `--` after a beat or two. Turn the menu off: a quarter
-  speed, as before (one edge a step). Then judge O27: the first beat at a guess, `--` when
-  stopped, `ext` in place of `bpm`.
-- **Next:** your ear on Sessions 26, 28, 30 and 32; your checks of Sessions 33 and 34.
-
 ### After Session 36: the core's cost a frame, Codex's patch adopted (2026-11-25)
 
 - **Built as D102 item 1 rules: Codex's patch, applied as written** (its own commit, with
@@ -637,3 +562,58 @@ The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
 - **To check, one minute:** restart Rack, play the beat with an effect held: it should sound
   exactly as before. The CPU meter may read lower while playing.
 - **Next:** Session 35 (the beat clock's three gaps), then Session 37 (design).
+
+### After Session 35: the beat clock's three gaps (2026-11-25)
+
+- **Built as D101 rules, not yet played.** On "CLOCK: one edge a beat": play starts the pattern
+  on the next edge (a multiple of 384 ticks), not on the next interpolated step; an edge more than
+  two beats late (the bar `ext` already calls stopped) does not measure, and its beat runs at the
+  last beat measured (or the stored tempo's, if none), so a clock that pauses and comes back plays
+  its four steps evenly, not three at once on the next edge; a rate change rescales the guess, the
+  period and the frames since, so the beat carries. The table and one edge a step move not a bit.
+  With it, the plugin's notice names stmlib's filter alone (its licence text and its name kept).
+  `make install` ran: **restart Rack.** ABI 15, `pi_size` 3 872. The page did not change.
+- **Where play learns the span is neither of the places the list named.** Built first as
+  `Seq::tick` given the span every frame: every playing case 0.2 to 0.4 ns a frame over the old
+  build by `make pairs`, most outside its range. The clock saying it with each tick: idle 3.7 →
+  3.9. `Seq` told it once, when `SOURCE` is applied (`Seq::set_span(Clock::span())`): inside the
+  old spread in every run. Kept; `Seq`'s repeat period went to a u16 so the flag fits the
+  padding and `pi_size` did not move (`LEARNINGS.md`, Session 35, has the scratch builds).
+- **What you must decide or know (⚠):**
+  1. **Play follows the source at the tick, not at the press.** `PLAY 1` on the table or one
+     edge a step, then a switch to beats before the first step: that step waits for a beat. The
+     ruling says "on `SOURCE` 2 a pattern started by `PLAY 1`"; I read the source at the step.
+     No test holds either way.
+  2. **A rescaled `since`, `period` or `guess` past a u32 is held at its largest** (`since`
+     saturates, §4; D101 does not say). Unreachable by a test (about twelve hours of frames).
+  3. **Session 34's ⚠ 1 (the play key on a beat clock sends `PLAY 1` alone) is settled by
+     ruling 1:** kept, and step 1 now waits for the next edge.
+  4. **Still no Rack self-test on a beat clock** (D100 item 7): the rulings are held in the core's
+     tests only. Your Clocked at ×1 is the check.
+- **Cost:** `make pairs` against this session's own old build, CPU 2, two runs, medians, ns a
+  frame (old → new): idle 3.7 → 3.7; beat 14.4 → 14.4; all 47.2/47.1 → 47.2; both 14.9 →
+  14.8; repeat 22.8/22.7 → 22.7/22.6; fx 1 19.8/19.7 → 19.7/19.6; fx 1/0 17.4 → 17.3; fx 2 to
+  8 and 14 within 0.1 either way; loop 18.6, loop fx 18.5, loop in 19.9, the same; sliders
+  21.2/21.3 → 21.2/21.1. Every case inside the old spread in both runs. Not measured in Rack by
+  perf (nothing on the stopped or playing table path does new work). The `.wasm` 47 861 → 48 141,
+  1 859 under P1's bar.
+- **Proven:** 326 Rust tests (14 new: 8 rule tests and 3 guards written by hand from the rulings
+  first, and Session 34's play-key test worked again for tick 768, committed with the old core
+  failing 9; 3 more the plants asked for). Every hand-worked number in §4's rulings checked
+  against the rules first: all hold. `SOURCE` 1 and the table: the report's 360 runs and all 432
+  render files the same bytes. `make fuzz` against the old library, 10 000 seeds: 6 184 differ,
+  and a scratch copy of the harness that flags `SOURCE` 2 in what reaches `pi_process` shows
+  every one of them sent it (2 809 more sent it and did not differ; none without it differs); the
+  first-difference tool on seeds 2, 3 and 5: the last `SOURCE` before each first difference is a
+  `SOURCE 2`. 26 faults planted, the unplanted copy first, each built: 24 caught by name (21 at
+  the first run, 3 after the tests they asked for: waiting two beats, a pause setting the guess
+  after the period, a pause keeping the old period); 2 no test can catch (a punch on a skipped
+  tick 0 recorded one tick later, which ends the same; a value past a u32 wrapping). `make test`,
+  `make fuzz`, `make web`, `make selftest` at three rates, `make play` (both browsers), `make
+  listen`, `make verify`, `make install`.
+- **To check, two minutes in Rack** (restart Rack first): Clocked at ×1 into CLOCK, "CLOCK: one
+  edge a beat" on. Stop the beat and press play mid-beat: the pattern starts on Clocked's next
+  beat, not between. Stop Clocked for a few seconds and start it again: the beat after plays its
+  four steps evenly, the display `--` until the second edge. Change Rack's sample rate while it
+  plays: the beat keeps Clocked's tempo.
+- **Next:** Session 37 (design); your ear on Sessions 26, 28, 30 and 32; your checks of 33 to 36.

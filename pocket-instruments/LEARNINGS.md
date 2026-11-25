@@ -1582,3 +1582,33 @@ above; these are what only the chain showed.
   32 s. It found every byte-moving plant tried on it at seed 1. `fmod` is in the static library
   as a weak symbol (compiler_builtins), so a harness that calls it would link each library's own:
   `make fuzz` refuses a binary that defines it.
+
+## Session 35: the beat clock's three gaps (2026-11-25)
+
+- **A value read every frame for a rare branch cost every playing case about 0.3 ns.** The
+  first build gave `Seq::tick` the clock's span (`clock.span()` before each frame's
+  `clock.frame`), used only on a step boundary of a pattern not started. `make pairs` against
+  the old build, run twice: every playing case 0.2 to 0.4 ns over, most outside the old range.
+  Scratch builds read side by side (CPU 2, ten rounds each): the span passed but not used, free
+  (the compiler drops the read); the check guarded with `span != 96` first, as dear as without;
+  the clock handing the span with each tick as a constant of its path, playing cases free but
+  idle 3.7 → 3.9 and loop +0.3, in two runs; `Seq` told the span once, when `SOURCE` is
+  applied, inside the old spread in all eight runs it was read in. The last was kept. The cost was the read and
+  its carrying into the inlined closure, not the check: before a per-frame read, ask whether a
+  command can tell it once.
+- **A one-byte field moved `pi_size`.** `Seq` was exactly 24 bytes (ten bytes of flags, a u16,
+  three u32s); a `bool` made it 28 and the engine 3 880. The repeat's period (at most 128 ticks)
+  went from u32 to u16 and the engine is 3 872 again, read in `make pairs` with the u32 build.
+  Check `pi_size` after any field is added (`pi_size()` from a five-line C program on the
+  library).
+- **A fuzz log is not what went in.** `harness/fuzz.cpp` logs a block's noise commands as the
+  last k after sorting, which need not be the noise ones, and a command sent past the block as
+  `PAST:<frame>/<type>`, without its value. A grep of the logs for `SOURCE 2` found four
+  differing seeds without one. A scratch copy that flags `SOURCE 2` in what reaches
+  `pi_process` showed every one of the 6 184 differing seeds sent it (2 809 more sent it and did
+  not differ). Count from the calls, not from the log.
+- **The hand-worked cases all started play on tick 768,** a multiple of two beats, so a plant
+  waiting for two beats passed them. The guess and the period are equal whenever there is a
+  guess, so a plant keeping the old period over a pause passed every test until the stored tempo
+  changed in between. A case worked by hand tests what its numbers distinguish; ask which wrong
+  rule gives the same numbers.

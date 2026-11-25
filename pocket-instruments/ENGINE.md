@@ -314,7 +314,7 @@ event; `SOURCE` 1's fixtures, the report and every render file the same bytes; e
 under `SOURCE` 2, the table's trace; a reset mid-beat (the guess kept); a switch off a beat
 (the flush); planted faults caught by name.
 
-**Ruled 2026-11-25 after Session 34's review (D101; not built: Session 35).** Three gaps in
+**Ruled 2026-11-25 after Session 34's review (D101; built in Session 35, below).** Three gaps in
 the design above, each only with one edge a beat; `SOURCE` 1 and the table do not move.
 
 1. **Play waits for the beat.** On `SOURCE` 2 a pattern started by `PLAY 1` begins on the
@@ -370,6 +370,39 @@ What turned out different, or is a reading:
   `have_edge` and `since` 0, the guess is the period already, or nothing was measured and the
   stored tempo's beat is the period already). Built as written.
 - **The `.wasm` 49 198 → 49 689 bytes:** ⚠ 311 under P1's 50 000 (with the bus's wrap, below).
+
+**Built (Session 35; D101; no ABI change).** The three rulings as written; every hand-worked
+number above was checked against §4's rules first and holds. Ruling 1 in `core/src/seq.rs`: a
+pattern not yet started treats a step's tick 0 that is not a multiple of 384 as any other tick
+when the clock follows one edge a beat (`Seq::beats`, told by the engine whenever `SOURCE` is
+applied, `Seq::set_span(Clock::span())`). Rulings 2 and 3 in `core/src/clock.rs` (`edge`'s pause
+branch, `guessed`, `rescale`). Proven by `core/src/tests/clock.rs`: eleven tests written by hand
+from this section, eight of them rule tests and three guards that one edge a step and the table
+do not move, and Session 34's play-key test worked again by hand for tick 768, committed before
+the code with the old core failing nine (the eight and the play key; the guards pass on both);
+three more the planted faults asked for (play inside the
+first beat; a reset after a pause reading the guess left; a pause with no guess after a tempo
+change). `SOURCE` 1 and the table: the report's 360 runs and all 432 render files the same bytes;
+`make fuzz` against the build before, 10 000 seeds: 6 184 differ, every one of them sending
+`SOURCE` 2 (none without it differs).
+
+What turned out different, or is a reading:
+
+- **Where play learns the span is neither of the two places the list named.** `Seq::tick` given
+  the span (built first) cost every playing case about 0.3 ns a frame; the clock saying it with
+  each tick cost idle 0.2. `Seq` is told once a `SOURCE`, and reads inside the old spread
+  (`LEARNINGS.md`, Session 35). It follows the source at the tick, not at the `PLAY`: a switch to
+  beats between `PLAY 1` and the first step makes that step wait for a beat.
+- **`Seq`'s repeat period is a u16** (it is at most 128), so the new flag fits the struct's
+  padding and `pi_size` stays 3 872.
+- ⚠ **A rescaled value past a u32 is held at its largest** (`since` saturates, §4; the ruling
+  does not say). No test reaches it: it needs about twelve hours of frames.
+- **A line no test can see:** a pattern not started records a punch on a skipped tick 0 as on
+  any tick inside a step; recording it one tick later instead ends the same (planted, no test
+  moved). Built as the rule reads.
+- **Session 34's ⚠ on the play key** (`PLAY 1` alone on a beat clock) is answered by ruling 1:
+  kept, and step 1 now waits for the next edge.
+- **The `.wasm` 47 861 → 48 141 bytes**, 1 859 under P1's 50 000.
 
 ## 5. The sequencer
 
