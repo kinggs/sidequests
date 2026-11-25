@@ -1509,3 +1509,39 @@ above; these are what only the chain showed.
 - **`git checkout <file>` to undo a plant also undoes the work not yet committed in that
   file.** It cost me the latch test's first draft, written again from the same text. Commit
   before planting, as Session 32's plants did in scratch copies.
+
+## Session 34: the clock in Rack, one edge a beat and the measured tempo (2026-11-25)
+
+- **A property test the old code passes proves nothing about the new.** "Every format 1
+  fixture on `SOURCE` 2 gives the table's trace, each beat's first step on its edge" passed on
+  the old core: it ignored `SOURCE` 2 and ran the table, whose trace is the same and whose
+  beats fall on those very frames. It was given a check the old code fails (the view says
+  edges) before it was committed. Run a new test against the old code and read why it passes.
+- **Two of my hand workings were wrong, not the core** (Session 30's lesson, again). A run of
+  N frames ends on frame N − 1, so "tick 383 from frame 11 969" needed 11 970 frames, not
+  11 969; and a press on step 5's own frame lands before that frame's ticks, so the pattern
+  starts there, not a step later. Both found by reading the failure against §3's order.
+- **Session 32's rate-change test never crossed the overshoot it approved.** `acc` was
+  120 000 at its fall to 48 kHz, under the 192 000 where `mu` passes 1. The new test with only
+  some sounds slowed happened to fall at 234 375 and failed on the old code at frame 19 001;
+  the by-hand test picks the phase on purpose (five frames at 96 kHz) and a sweep over sixty
+  phases holds `mu` under 1. A boundary needs a case chosen to sit on it.
+- **Room in the padding.** The clock's two new fields (a u32 and a bool) filled the 5 bytes
+  of padding its struct had, so `pi_size` stayed 3 872 and nothing in the engine moved. `make
+  pairs` against the old build: every case inside the old spread or just under it (beat 36.4
+  and 36.5 against 36.7 to 37.0, twice). Placement did not bite this time.
+- **The `.wasm` grew 491 bytes** (49 198 → 49 689), for a few lines of clock and view: 311
+  are left under P1's 50 000. The next change of any size will need the bar or the code
+  rearranged; that is a design question, not a builder's.
+- **Planted faults:** 35 (28 in the core, 6 in `jacks.hpp`, 1 in `Rhythm.cpp`), the unplanted
+  copy passing first; 31 caught by name in the end. 26 caught by name at the first run. Two did not build (`-Werror`: a plant that leaves a parameter or a variable unused);
+  planted again with `&& false` and `× 1 000`, both caught. Three got through and each named
+  a hole: the guess given 48 kHz's rate (every row was at 48 kHz), a guess kept over a switch
+  (the switch test measured on one edge a step, which sets no guess), a source of 3 taken (the
+  view test sent it while on beats, where flag 2 is set either way); three tests added, each
+  caught on the second planting. One (the beat's hold at 384 in place of 383) made the clock
+  loop forever on a late beat and aborted the test binary with no name: not counted. Two can
+  never be caught: they change lines that do nothing (`ext`'s test of the table; the guess's
+  `not have_edge`). One in `Rhythm.cpp` (always `SOURCE` 2 when CLOCK is patched) passed
+  `make selftest`: D100 item 7 builds no self-test on a beat clock, and the player's path
+  never runs in one.

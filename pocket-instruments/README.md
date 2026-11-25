@@ -8,8 +8,9 @@ owner's PO-12 by measurement; sliders that are the hand's, with steps that keep 
 they were written with; a display that weaves. In Rack, thirteen jacks: every sound's
 trigger, audio and slider voltages go out and come back, and each of the sixteen effects
 has its own channel on FX SEND and FX RETURN, Ours or a Rack module's, beside the dry or in
-place of it. The engine is at ABI 14 with snapshot version 4 (since Session 32, effect 1 plays
-the sounds at a quarter of the rate, as the PO-12 does: not yet heard by the owner); CI builds the plugin for all four
+place of it. The engine is at ABI 15 with snapshot version 4 (since Session 32, effect 1 plays
+the sounds at a quarter of the rate, as the PO-12 does: not yet heard by the owner; since
+Session 34, CLOCK in can count one edge a beat, and the display shows the tempo the edges play); CI builds the plugin for all four
 Rack platforms. Proofs P1, P2, P3 and P7 passed; P4, P5 and P6 are part-run and wait for an
 iPhone and other machines (`PROOFS.md`).
 

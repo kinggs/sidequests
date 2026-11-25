@@ -3032,3 +3032,96 @@ note and `LEARNINGS.md`, Session 33.
   the first beat run at a guess; the measured tempo in the view's bytes 30 and 31, shown
   with `ext` in place of `bpm`, `--` on a stopped clock. Session 34.
 - **Next:** Sessions 32, 33 and 34, in order, each on Opus with its list as the brief.
+## Session 34 — the clock in Rack: one edge a beat, and the measured tempo (build, Opus; D64, D65 item 2, D100; done 2026-11-25)
+
+Read `ENGINE.md` §4 whole and "designed 2026-11-25: one edge a beat", §14 and "designed
+2026-11-25: the tempo measured from the edges"; D64, D65 item 2, D100. The rules for every
+build session hold. ABI 15.
+
+- [x] **Before any change:** the report, a `sha256sum` of every render file, the old
+      library and a bench built on it.
+- [x] **By hand first:** §4's three rows and §14's numbers as rule tests, committed
+      failing before the code.
+- [x] **The core:** `core/src/clock.rs` (`span`, `measured`, `guess`; `edge` given the
+      rate), `SOURCE` 2 in `engine.rs`, `ext` in `Engine::view` (`core/src/keys.rs`), the
+      header (`PI_SOURCE_BEATS`, `PI_VIEW_EXT`, `PI_ABI_VERSION` 15). The two places that
+      hold bytes 30 and 31 to zero. `SOURCE` 1: the report and every render file the same
+      bytes. `make pairs`: every case inside the old spread (the table clock's frame must
+      not change).
+- [x] **Rack:** the menu's "CLOCK: one edge a beat", saved as `"clockBeat"`, cleared by
+      Initialize; which source is sent, as a pure function in `jacks.hpp` with cases in
+      `rack/test/jacks.cpp`; the display's label and number by §14's rule; the white's hold
+      at `ext`. `design/rack-face-ext-200.png`. The page: the header and `.wasm` only.
+- [x] **Two rulings on Session 32's questions (Fable, 2026-11-25), in the core:** when
+      the rate changes, `Bus::frame` wraps `acc` to the new rate (`acc mod 4 × rate`), so
+      `mu` never passes 1; a rule test at 96 → 48 kHz while slowed, by hand first. And the
+      credits on `web/rhythm.html` and in `rack/plugin.json` name what is in the code: the
+      stmlib filter stays (its notice too); Plaits' sample-rate reducer and stmlib's soft
+      clip go. `bus.rs`'s header says the same.
+- [x] **Three tests Session 32's review asked for** (checked against the code, Fable):
+      `mu` never passes 1 across a rate change (today's rate-change test uses the code's
+      own formula in its model, so it approves the overshoot: its model is written from
+      the ruling above first); a rate change while some sounds are slowed still retunes
+      the ones that are not (today's test slows all sixteen); a sample sounding when 1
+      comes on and when it goes off (no tour loads one). A fault planted for each.
+- [x] ⚠ **The `.wasm` is 802 bytes under P1's 50 KB bar.** Do not move the bar. If this
+      session's code passes it, stop on that: say by how much in the Handover, keep the
+      core change, and leave `web/pi_core.wasm` as the old one ⚠.
+- [x] `make pairs` is read against this session's own old build (Session 32 left every
+      playing case 3 to 5 ns over Session 30's; that is the efficiency session's, not
+      yours).
+- [x] Faults planted and caught by name.
+- [x] **The end:** `make verify`, `make selftest` in `rack/`, `make play`, `make listen`,
+      `make install` in `rack/`; both sections marked built; "Not planned yet"'s clock row
+      removed; `LEARNINGS.md`; the Handover; this list to `PLAN-HISTORY.md`.
+
+(Annotated by Session 34, on moving this list.) Every box was done. Where it went otherwise:
+the `.wasm` stayed under the bar (49 689, 311 bytes left), so the new one is committed; the
+play key on a beat clock was read as on edges (`PLAY 1` alone) ⚠, with a test; three tests
+were added after planted faults got through (the guess at 44.1 and 96 kHz, a switch away
+from beats and back, a source of 3 on the table); the display's label and number and the
+white's hold were made pure functions in `jacks.hpp` beside the source, so they have cases
+too. The numbers are in the Handover note and `LEARNINGS.md`, Session 34.
+
+## Handover note moved here by Session 34 (2026-11-25)
+
+### After Session 32: effect 1 built, the sounds at a quarter of the rate (2026-11-25)
+
+- **Built as designed (D98), not yet heard.** Hold fx + 1 and every sound in the effects
+  plays at a quarter of its speed: two octaves down, four times as long, no louder, on the
+  track channels and VOICES too. A note already sounding drops on the frame you press and
+  comes back up on the frame 1 ends. `make install` ran: **restart Rack.**
+- **What you must decide or know (⚠):**
+  1. **The cost is over the bar the list set.** Every playing case without effect 1 reads 3
+     to 5 ns a frame slower than the old build (beat 31.6 → 36.8, all 50.9 → 54.8, loop 41.8
+     → 45.0); effect 1 itself is 5 ns faster than the old hold (39.2 → 34.1); idle unchanged.
+     Nothing on the dry path is that much work: scratch builds taking away any one of the
+     three small things the design adds read near the old numbers, so it is where code lands
+     (Sessions 26, 28, 29). Left as designed, as the list said. Recommended: an efficiency
+     session that pins the frame loop's layout, measured in Rack with perf, before more is
+     added to the frame.
+  2. **The `.wasm` is 802 bytes under P1's 50 KB** (49 198). As first built it was 57 920;
+     arranging `ask` and `retune` out of line brought it back. The next effect that copies
+     voice code will cross it: the bar, or how voice code is shared, is a design question.
+  3. **A rate lowered while 1 slows sounds:** for one frame the line runs on past its last
+     value (`mu` up to 2 at 96 → 48 kHz), as written ("the grid follows the new rate from the
+     next frame"). Wrap `acc` at a rate change, or leave it?
+  4. The credits (`web/rhythm.html`, `rack/plugin.json`) still name Plaits' sample-rate
+     reducer and stmlib's soft clip; neither is in the code now. Keep as history or reword?
+- **Ours beside the PO-12 on take c's pattern** (`ENGINE.md` §18, "Built (Session 32)"): the
+  tone 220.0 → 55.0 Hz, 3.85 times as long (PO-12 3.92), +0.1 dB at its onset (PO-12 +0.2).
+  Above 10 kHz ours is −46.0 dB against the whole sound (PO-12 −47.9), but against dry ours
+  loses 19 dB where the PO-12 loses 30: brighter, as D98 item 10 said. No constant to move.
+- **To hear, five minutes, in Rack or on the phone:** the tone (key 15) with slider B up, on
+  step 1; punch fx + 1 while it rings: it drops two octaves at once and rings on slow; let go:
+  it jumps back up. A beat with fx + 1 held: everything slow and dark, nothing louder. A
+  sound switched out of the effects stays as it is. Then judge O26: item 3 (the change on the
+  frame), item 10 (how bright).
+- **Proven:** 282 Rust tests (the models and ten rule tests committed failing first, then
+  passing bit for bit at the first run); the report's 360 runs the same bytes; of 432 render
+  files only `render-fx-1`'s twelve moved, by decision; 24 faults planted, 22 caught by name
+  (one after a test was added: a line put exactly on +0 for quiet), 2 that no test can catch
+  (the grid reset twice on the frame 1 starts, and run through the ramp out where nothing is
+  slowed: either line could go); `make test`, `make play` (both browsers), `make listen`,
+  `make selftest` in `rack/`, `make verify`; `make install`. `pi_size` 3 728 → 3 872.
+- **Next:** your ear on Sessions 26, 28, 30 and 32; then Sessions 33 and 34.

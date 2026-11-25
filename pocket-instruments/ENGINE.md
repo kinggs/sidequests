@@ -259,7 +259,7 @@ edges for 1 ms after a reset, as Rack's guide asks.
 sequencer to start again (§5). On the table clock, tick 0 fires in the same frame. On edges,
 tick 0 is the next edge. Reset does not touch the pattern, the tempo or the random generator.
 
-### §4, designed 2026-11-25: one edge a beat (ABI 15; D64 item 2, D100; designed after Session 31, not built: Session 34)
+### §4, designed 2026-11-25: one edge a beat (ABI 15; D64 item 2, D100; designed after Session 31, built in Session 34)
 
 A clock module's ×1 output is one pulse a beat (D64). The setting is in the core, so no host
 spreads steps itself.
@@ -313,6 +313,39 @@ event; `SOURCE` 1's fixtures, the report and every render file the same bytes; e
 1 fixture whose commands are all at frame 0, run with an edge every fourth step's frame
 under `SOURCE` 2, the table's trace; a reset mid-beat (the guess kept); a switch off a beat
 (the flush); planted faults caught by name.
+
+**Built (Session 34; ABI 15).** `core/src/clock.rs`: `SOURCE_BEATS`, `TICKS_PER_BEAT`, the
+clock's `guess` and `measured` (both fit the struct's padding: `pi_size` stays 3 872), `edge`
+given the engine's rate. The view's flag 2 is any source but the table (`core/src/keys.rs`);
+the header has `PI_SOURCE_BEATS`. Proven by `core/src/tests/clock.rs`, written from this
+section and committed failing on the old core first: the three rows, each by the frame of
+every `STEP` at blocks of 1, 128 and 512; the hold at tick 383 from frame 11 969; a reset
+mid-beat keeping the guess; a switch off a beat flushing three steps; a switch from edges to
+beats clearing what it clears; then, after the planted faults asked, the guess at 44.1 and
+96 kHz, a switch away from beats and back forgetting the measured beat, a source past 2
+ignored on the table. In `core/src/tests/fixtures.rs` both format 1 fixtures whose commands
+are all at frame 0 (straight-sixteenths, probability-seed-1) under `SOURCE` 2 with an edge on
+every fourth step's frame, at three rates and three block sizes: the table's trace, each
+beat's first step on its edge. `SOURCE` 1: the report's 360 runs and all 432 render files the
+same bytes.
+
+What turned out different, or is a reading:
+
+- **Two loops in the code for the one rule.** `Clock::frame` keeps one edge a step's own
+  path, with 96 a constant, and one edge a beat has the same lines with 384. One rule as
+  written; `SOURCE` 1 cannot move by a bit or by a division. `edge` takes `span` as written.
+- **A switch to the table now also clears `have_edge` and `period`** ("any two that differ").
+  Until ABI 15 a switch to the table left them; nothing on the table reads them, and a switch
+  back to edges cleared them, so nothing heard or shown differs.
+- ⚠ **The play key on one edge a beat sends `PLAY 1` alone,** as on one edge a step (§13's
+  "on edges": `keys.rs` now asks "not the table"). The design does not name `SOURCE` 2 there;
+  the view calls it edges, so it was read as edges. A test holds it
+  (`on_beats_the_play_key_sends_play_alone_as_on_edges`). The owner's to overrule.
+- **Two lines no test can see:** `ext`'s test of the table (measured is only ever set on
+  edges and any switch clears it) and the `not have_edge` of the guess's branch (with
+  `have_edge` and `since` 0, the guess is the period already, or nothing was measured and the
+  stored tempo's beat is the period already). Built as written.
+- **The `.wasm` 49 198 → 49 689 bytes:** ⚠ 311 under P1's 50 000 (with the bus's wrap, below).
 
 ## 5. The sequencer
 
@@ -846,7 +879,7 @@ the host rule above, and sees it happen on a lit key with write off.
 in `core/src/tests/keys.rs`. `harness/race.cpp` hands a view from the audio thread to the
 other through `pi::Latest` after every block, as a module's drawing thread will get it.
 
-### §14, designed 2026-11-25: the tempo measured from the edges (ABI 15; D64 item 3, D65 item 2, D100; not built: Session 34)
+### §14, designed 2026-11-25: the tempo measured from the edges (ABI 15; D64 item 3, D65 item 2, D100; built in Session 34)
 
 - **Bytes 30 and 31, `ext`, a u16 (`PI_VIEW_EXT`):** the tempo the edges are playing, in
   tenths of a bpm, or 0 for none. Bytes 4 to 7 stay the stored tempo: it is what bpm and
@@ -873,6 +906,21 @@ other through `pi::Latest` after every block, as a module's drawing thread will 
 **Proven when built by:** rule tests for the four numbers above, for 0 on the table, before
 the second edge and after a late edge; the lit Rack screenshot with `ext` and a number
 (`design/rack-face-ext-200.png`, the view filled by hand as Session 13 did).
+
+**Built (Session 34; ABI 15).** `Clock::ext` in `core/src/clock.rs`, written into bytes 30
+and 31 by `Engine::view`; `PI_VIEW_EXT` in the header. `core/src/tests/clock.rs` holds the four
+numbers, 0 on the table and before the second edge on both edge sources, shown at `since` = 2
+× period and 0 one frame later on both, measured again when the clock comes back (4 800 for a
+beat of 6 000 frames), held to 65 535 at a period of 1, and the text and the stored tempo
+unmoved. `harness/race.cpp` holds the bytes to zero unless flag 2 is set (it runs the table
+only); `tests/keys.rs`'s check stays zero (edges, no edge yet). In Rack: `pi::tempoShown` and
+`pi::whiteMbpm` in `rack/src/jacks.hpp`, with their cases in `rack/test/jacks.cpp` (the
+label, the number, `--`, rounding down, 65 535, the white at `ext × 100`), drawn by
+`RhythmDisplay::draw` and used by `Face::take`; `design/rack-face-ext-200.png` (123, `ext`).
+The page: only the `.wasm`. Nothing turned out different. ⚠ No self-test in Rack runs an
+external clock through the player's path or a beat clock (D100 item 7): a planted fault that
+always sent `SOURCE` 2 when CLOCK is patched passed `make selftest`. The owner's check is
+Clocked at ×1.
 
 ## 15. Snapshot version 2 (ABI 5; designed in Session 9; D55; built in Session 11)
 
@@ -2209,7 +2257,11 @@ catch (below). 282 Rust tests.
   new one it can be past 4 × the new rate and `mu` over 1 (up to 2 for 96 → 48 kHz): one frame
   of the line run on past `to`. "The grid and `inv` follow the new rate from the next frame"
   is built as written, and the rate-change test holds it (48 → 96 → 48 kHz). Whether `acc`
-  should be wrapped at the change is the design's to say.
+  should be wrapped at the change is the design's to say. **Ruled 2026-11-25 (Fable): wrapped,
+  `acc mod 4 × rate`, so `mu` never passes 1; built in Session 34** (`Bus::frame`, where the
+  rate is taken; the models in `tests/bus.rs` written from the ruling first, a test by hand
+  at 96 → 48 kHz, `mu` held under 1 across every change between the three rates). Session
+  32's rate-change test never crossed it (`acc` was 120 000 at its fall, under 192 000).
 - ⚠ **The cost is over the bar.** `make pairs` against the old build, pinned to CPU 2, ten
   rounds, medians (the old build's range): idle 5.9 (6.1, 6.0 to 6.1); beat 36.8 (31.6, 31.4
   to 33.1); all 54.8 (50.9); both 37.0 (33.7); repeat 40.3 (37.0); loop 45.0 (41.8); loop fx
@@ -2224,7 +2276,8 @@ catch (below). 282 Rust tests.
   list says (`LEARNINGS.md`, Session 32, has every reading).
 - **Credits** on `web/rhythm.html` and in `rack/plugin.json` still name Plaits' sample-rate
   reducer (and stmlib's soft clip, gone since ABI 12) ⚠ the owner's: keep as history or
-  reword. `bus.rs`'s header says what was read and what is used now.
+  reword. `bus.rs`'s header says what was read and what is used now. **Ruled 2026-11-25
+  (Fable), built in Session 34:** they name stmlib's filter alone; `bus.rs`'s header says so.
 
 **Ours beside the PO-12** (take c's pattern through `harness/ours-take.cpp`, read by
 `hardware-fx.py --pass c --effects 1`; the energy above 10 and 12 kHz, the tone's pitch by
