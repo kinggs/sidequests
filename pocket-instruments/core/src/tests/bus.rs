@@ -6,6 +6,7 @@
 use super::sound::render;
 use super::*;
 use crate::bus::Bus;
+use crate::voice::{LEVEL, Voices};
 
 const SR: u32 = 48_000; // at 120 bpm a step is 6000 frames, a tick 62.5
 const STEP: u64 = 6000;
@@ -83,8 +84,13 @@ pub(super) struct Model {
     pub(super) on: u8,
     heard: u8,
     w: f32,
-    acc: u32,
-    held: f32,
+    /// §18, designed 2026-11-25 (ABI 14; D98): effect 1's grid, its phase in 64 bits, and
+    /// what it said this frame: `fresh` (a slowed sound is asked) and `mu` (how far past the
+    /// grid's last point). `Voicing` reads both, and sets `acc` to 0 when a sound becomes
+    /// slowed. (Until ABI 14, `acc` and a held sample were the hold at 1 kHz.)
+    pub(super) acc: u64,
+    pub(super) fresh: bool,
+    pub(super) mu: f32,
     s1: f32,
     s2: f32,
     cutoff: f32,
@@ -100,7 +106,7 @@ pub(super) struct Model {
 
 impl Model {
     pub(super) fn new() -> Self {
-        Model { on: 0, heard: 0, w: 0.0, acc: 0, held: 0.0, s1: 0.0, s2: 0.0, cutoff: 0.0, swept: 0, line: Vec::new(), head: 0, full: false, still: 0 }
+        Model { on: 0, heard: 0, w: 0.0, acc: 0, fresh: false, mu: 0.0, s1: 0.0, s2: 0.0, cutoff: 0.0, swept: 0, line: Vec::new(), head: 0, full: false, still: 0 }
     }
 
     /// With a line of `delay` frames lent, as `pi_delay_frames` gives.
@@ -123,7 +129,13 @@ impl Model {
     /// crossing over; D87 and D88 replaced that rule, and this model with it.)
     #[allow(clippy::too_many_arguments)]
     pub(super) fn frame_looped(&mut self, effect: u8, ticks: u32, rate: u32, v: &[f32], sounds: u16, volume: u8, back: f32) -> f32 {
-        let gain = (volume as u32 * volume as u32) as f32 / 256.0;
+        self.advance(effect, ticks, rate);
+        self.mixed(rate, v, sounds, volume, back)
+    }
+
+    /// The frame's state: what runs, the sweep, the ramp, and (ABI 14) effect 1's grid. A
+    /// driver that models the voices too (`Voicing`) calls this, asks the voices, then `mixed`.
+    pub(super) fn advance(&mut self, effect: u8, ticks: u32, rate: u32) {
         let filter = |e: u8| (5..=8).contains(&e);
         if effect != 0 || self.on != 0 {
             if effect != 0 && effect != self.heard {
@@ -131,9 +143,9 @@ impl Model {
                 // (the ⚠ reading) the hold cleared whenever effect 1 starts from another.
                 let same = self.on != 0 && (self.on == effect || (filter(self.on) && filter(effect)));
                 if !same {
+                    // §18, designed 2026-11-25: the grid starts at 0 from idle or another kind.
                     if effect == 1 {
                         self.acc = 0;
-                        self.held = 0.0;
                     }
                     if filter(effect) {
                         self.s1 = 0.0;
@@ -187,7 +199,22 @@ impl Model {
                     self.on = 0;
                 }
             }
+            // §18, designed 2026-11-25: once a frame while the bus runs effect 1, through its
+            // ramp out too. `fresh = acc < 46 875`; `mu = acc × inv`, `inv = 1 / (4 × rate)`
+            // as an f32; `acc = (acc + 46 875) mod (4 × rate)`, in 64 bits.
+            if self.on == 1 {
+                let inv = 1.0f32 / (4 * rate as u64) as f32;
+                self.fresh = self.acc < 46_875;
+                self.mu = self.acc as f32 * inv;
+                self.acc = (self.acc + 46_875) % (4 * rate as u64);
+            }
         }
+    }
+
+    /// The mix of a frame `advance` has moved: the sixteen voices, which go through the
+    /// effects, the volume, and what came back on channel 17.
+    pub(super) fn mixed(&mut self, rate: u32, v: &[f32], sounds: u16, volume: u8, back: f32) -> f32 {
+        let gain = (volume as u32 * volume as u32) as f32 / 256.0;
         let with_back = |dry: f32| if back == 0.0 { dry * gain } else { (dry + back) * gain };
         if self.on == 0 {
             let mut sum = v[0];
@@ -206,14 +233,8 @@ impl Model {
         }
         let wet = match self.on {
             e if e & 0x80 != 0 => 0.0,
-            1 => {
-                self.acc += 1000;
-                if self.acc >= rate {
-                    self.acc -= rate;
-                    self.held = b;
-                }
-                self.held
-            }
+            // §18, designed 2026-11-25: effect 1 is in the voices; its wet is the bus itself.
+            1 => b,
             // Three times the bus, held to ±0.88 (±1 as designed; Session 26's comparison).
             2 => {
                 let x = 3.0 * b;
@@ -308,6 +329,123 @@ impl Model {
     }
 }
 
+/// §18, designed 2026-11-25 (ABI 14; D98): effect 1 is the voices slowed, so the model holds
+/// voices of its own: a copy of the engine's taken before its first frame, hit as the engine's
+/// are, asked and retuned one track at a time by the section's words. Beside `Model`, whose
+/// grid (`fresh`, `mu`, `acc`) it reads. Kept apart from `voice.rs`'s own paths (`slow`,
+/// `sound_slow`, the mask in `trigger`), so a slip in either shows as a difference.
+pub(super) struct Voicing {
+    v: Voices,
+    /// While the effect the core sounds is 1, `fx_sounds`; otherwise 0.
+    pub(super) slowed: u16,
+    from: [f32; 16],
+    to: [f32; 16],
+}
+
+/// The slow rate: 46 875 Hz (R69), whatever the host's.
+pub(super) const SLOW: u32 = 46_875;
+
+impl Voicing {
+    /// From `h`'s engine as it is: call before its first frame.
+    pub(super) fn of(h: &Host) -> Self {
+        Voicing { v: unsafe { (*h.e).voices }, slowed: 0, from: [0.0; 16], to: [0.0; 16] }
+    }
+
+    /// One sound's next value: its code voice's, and its sample's if that is sounding, times
+    /// the level (§11, as `sound` sums them).
+    fn ask(&mut self, t: usize) -> f32 {
+        let code = self.v.code_next(t);
+        let s = &mut self.v.samples[t];
+        (if s.sounding() { code + s.next() } else { code }) * LEVEL
+    }
+
+    /// A sound's code voice retuned, and its sample if it is sounding.
+    fn tune(&mut self, t: usize, rate: u32) {
+        self.v.code_tune(t, rate);
+        if self.v.samples[t].sounding() {
+            self.v.samples[t].retune(rate);
+        }
+    }
+
+    /// What is slowed, read after the frame's commands and ticks and before its hits: each
+    /// sound whose bit changed retuned (46 875 Hz if now slowed, the host's rate if not); each
+    /// that became slowed asked once, `from = to =` that value; and if any became slowed, the
+    /// grid starts again, so this frame is fresh with `mu` 0.
+    pub(super) fn reconcile(&mut self, effect: u8, sounds: u16, rate: u32, m: &mut Model) {
+        let now = if effect == 1 { sounds } else { 0 };
+        for t in 0..16 {
+            if (now ^ self.slowed) >> t & 1 == 1 {
+                self.tune(t, if now >> t & 1 == 1 { SLOW } else { rate });
+            }
+        }
+        let became = now & !self.slowed;
+        for t in 0..16 {
+            if became >> t & 1 == 1 {
+                let x = self.ask(t);
+                self.from[t] = x;
+                self.to[t] = x;
+            }
+        }
+        if became != 0 {
+            m.acc = 0;
+        }
+        self.slowed = now;
+    }
+
+    /// The frame's hits, each with the A and B it was hit with: a slowed sound tuned for
+    /// 46 875 Hz, any other for the host's rate. Its sample if switched to one that is given.
+    pub(super) fn hits(&mut self, fired: u16, hit: &[[u16; 2]; 16], sampled: u16, rate: u32) {
+        self.v.sampled = sampled;
+        for t in 0..16 {
+            if fired >> t & 1 == 1 {
+                let r = if self.slowed >> t & 1 == 1 { SLOW } else { rate };
+                if sampled >> t & 1 == 1 && self.v.samples[t].loaded() {
+                    self.v.samples[t].trigger(hit[t], r);
+                } else {
+                    self.v.code_trigger(t, hit[t], r);
+                }
+            }
+        }
+    }
+
+    /// `pi_set_sample_rate`: only the sounds not slowed are retuned.
+    pub(super) fn rate(&mut self, rate: u32) {
+        for t in 0..16 {
+            if self.slowed >> t & 1 == 0 {
+                self.tune(t, rate);
+            }
+        }
+    }
+
+    /// The sixteen: a slowed sound on the grid's line (on a fresh frame `from = to`, `to =`
+    /// its next value; on every frame `from + (to − from) × mu`), any other asked.
+    pub(super) fn sound(&mut self, m: &Model) -> [f32; 16] {
+        let mut out = [0f32; 16];
+        for (t, o) in out.iter_mut().enumerate() {
+            *o = if self.slowed >> t & 1 == 1 {
+                if m.fresh {
+                    self.from[t] = self.to[t];
+                    self.to[t] = self.ask(t);
+                }
+                self.from[t] + (self.to[t] - self.from[t]) * m.mu
+            } else {
+                self.ask(t)
+            };
+        }
+        out
+    }
+}
+
+/// The tracks that fired in a frame's events.
+pub(super) fn fired_in(ev: &[Event]) -> u16 {
+    ev.iter().filter(|e| e.kind == EV_TRIG).fold(0, |m, e| m | 1 << (e.track & 15))
+}
+
+/// What the engine hit each track with, and which tracks play their samples.
+pub(super) fn hit_of(h: &Host) -> ([[u16; 2]; 16], u16) {
+    unsafe { ((*h.e).hit, (*h.e).voices.sampled) }
+}
+
 /// A line for effect 4 at `rate`, full of junk (never to be heard), lent to `h`'s engine. The
 /// caller keeps it alive for as long as the engine runs.
 pub(super) fn lend(h: &Host, rate: u32) -> Vec<f32> {
@@ -321,9 +459,15 @@ pub(super) fn lend(h: &Host, rate: u32) -> Vec<f32> {
 /// line for effect 4 when the engine is lent one. Returns how many frames had an effect
 /// running.
 fn hold_to_model(rate: u32, cmds: &[(u64, Cmd)], frames: u64, line: bool) -> usize {
+    hold_to_model_keeping(rate, cmds, frames, line, &mut Vec::new())
+}
+
+/// The same, keeping every frame's seventeen channels in `kept`.
+fn hold_to_model_keeping(rate: u32, cmds: &[(u64, Cmd)], frames: u64, line: bool, kept: &mut Vec<[f32; 17]>) -> usize {
     let h = Host::new(rate, 1);
     let _keep = if line { lend(&h, rate) } else { Vec::new() };
     let mut m = if line { Model::lent(pi_delay_frames(rate)) } else { Model::new() };
+    let mut vm = Voicing::of(&h);
     let mut next = 0;
     let mut e_before = 0u32;
     let mut running = 0;
@@ -335,7 +479,7 @@ fn hold_to_model(rate: u32, cmds: &[(u64, Cmd)], frames: u64, line: bool) -> usi
         }
         let mut out = [0f32; 17];
         let mut ev = [Event::default(); CAP];
-        unsafe { pi_process(h.e, 1, these.as_ptr(), these.len() as u32, ev.as_mut_ptr(), CAP as u32, out.as_mut_ptr(), 17) };
+        let n = unsafe { pi_process(h.e, 1, these.as_ptr(), these.len() as u32, ev.as_mut_ptr(), CAP as u32, out.as_mut_ptr(), 17) };
         let v = h.view();
         // The view's tick is the last one emitted: the ticks this frame are its difference.
         let tick = u32::from_le_bytes([v[0], v[1], v[2], v[3]]);
@@ -344,10 +488,21 @@ fn hold_to_model(rate: u32, cmds: &[(u64, Cmd)], frames: u64, line: bool) -> usi
         let heard = v[55];
         let effect = if SEVEN.contains(&(heard as u32)) || ((heard == 4 || heard == 14) && line) { heard } else { 0 };
         let sounds = u16::from_le_bytes([v[58], v[59]]);
-        let want = m.frame(effect, ticks, rate, &out[..16], sounds, v[27]);
+        // ABI 14: the voices too, the model's own, slowed by §18's words (D98 item 7: the
+        // sixteen track channels carry a slowed voice slowed).
+        let (hit, sampled) = hit_of(&h);
+        vm.reconcile(effect, sounds, rate, &mut m);
+        vm.hits(fired_in(&ev[..n as usize]), &hit, sampled, rate);
+        m.advance(effect, ticks, rate);
+        let voices = vm.sound(&m);
+        for t in 0..16 {
+            assert_eq!(out[t].to_bits(), voices[t].to_bits(), "rate {rate}, frame {f}: track {t} {} against the model's {} (slowed {:#06x})", out[t], voices[t], vm.slowed);
+        }
+        let want = m.mixed(rate, &voices, sounds, v[27], 0.0);
         assert_eq!(out[16].to_bits(), want.to_bits(), "rate {rate}, frame {f}: the mix {} against the model's {}", out[16], want);
         running += (m.on != 0) as usize;
         assert_eq!(bus(&h).probe().0, m.on, "rate {rate}, frame {f}: the effect running");
+        kept.push(out);
     }
     running
 }
@@ -356,6 +511,12 @@ fn hold_to_model(rate: u32, cmds: &[(u64, Cmd)], frames: u64, line: bool) -> usi
 /// one effect straight to another (a filter to a filter, a filter from another kind, the hold
 /// from another kind), a sweep held over two steps and restarted, a punch over the lane, a
 /// sound switched out and the volume down.
+///
+/// ABI 14 (§18, designed 2026-11-25: effect 1, the voices slowed): on step 28 effect 1 is
+/// punched while 5 ramps out (from another kind), let go and heard again inside its ramp out;
+/// the tone is hit under it and hit again while it sounds; the bass drum, sounding, is switched
+/// out of the effects (it speeds up) and back in (slowed again, the grid started again); the
+/// closed hat is hit again while it sounds; and on step 29 1 goes off with the tone sounding.
 pub(super) fn tour(step: u64) -> Vec<(u64, Cmd)> {
     let mut edits = beat();
     edits.extend([on(9, 3), on(9, 11), fxsound(1, 0)]);
@@ -371,6 +532,22 @@ pub(super) fn tour(step: u64) -> Vec<(u64, Cmd)> {
         for k in cmds {
             c.push((s * step + 1, k));
         }
+    }
+    let fire = |t: u8| cmd(CMD_FIRE, t, 0, 0);
+    for (at, k) in [
+        (1, down(FX)),
+        (1, down(0)),
+        (41, up(0)),
+        (81, down(0)),
+        (100, fire(14)),
+        (500, fxsound(0, 0)),
+        (2000, fxsound(0, 1)),
+        (3000, fire(2)),
+        (4000, fire(14)),
+        (step + 1, up(0)),
+        (step + 1, up(FX)),
+    ] {
+        c.push((28 * step + at, k));
     }
     c
 }
@@ -450,7 +627,26 @@ fn idle_is_the_plain_mix_and_after_an_effect_ramps_out_it_is_again() {
         let (a, b) = (mix(&with, SR, 4 * STEP as usize), mix(&beat(), SR, 4 * STEP as usize));
         assert!(same_bits(&a[..STEP as usize], &b[..STEP as usize]), "effect {effect}: before it");
         let back = 2 * STEP as usize + 96;
-        assert!(same_bits(&a[back..], &b[back..]), "effect {effect}: from 2 ms after it");
+        if effect == 1 {
+            // ABI 14 (§18, designed 2026-11-25; D98 item 3): effect 1 slows the voices, and a
+            // sound sounding when it goes off carries on from where it is (and a noise voice
+            // asked fewer times is elsewhere in its noise), so the beat after it is not the
+            // beat that never had it. What holds is the rule itself: from 2 ms after, the bus
+            // is idle and the mix is the plain sum of the sixteen track channels.
+            let mut h = Host::new(SR, 1);
+            let both = render(&mut h, 4 * STEP as usize, 128, 17, &at_zero(&with)).0;
+            for f in back..4 * STEP as usize {
+                let fr = &both[f * 17..f * 17 + 17];
+                let mut sum = fr[0];
+                for x in &fr[1..16] {
+                    sum += *x;
+                }
+                assert_eq!(fr[16].to_bits(), sum.to_bits(), "effect 1: frame {f}, from 2 ms after it, the plain sum");
+            }
+            assert_eq!(bus(&h).probe().0, 0, "effect 1: idle after");
+        } else {
+            assert!(same_bits(&a[back..], &b[back..]), "effect {effect}: from 2 ms after it");
+        }
         assert!(!same_bits(&a[STEP as usize..2 * STEP as usize], &b[STEP as usize..2 * STEP as usize]), "effect {effect}: heard");
     }
 }
@@ -577,25 +773,9 @@ fn full_wet(effect: u32, rate: u32) -> Vec<f32> {
     out[rate as usize / 100..].to_vec()
 }
 
-#[test]
-fn effect_1_holds_at_1_khz_at_every_rate() {
-    for rate in [44_100u32, 48_000, 96_000] {
-        let out = full_wet(1, rate);
-        let second = &out[..rate as usize];
-        assert_holds_at_1_khz(second, rate);
-    }
-}
-
-/// A second of effect 1 at full ramp: new samples come no closer than the hold's period and
-/// no more than 1000 of them (fewer where the beat is silent and a new sample is the old).
-/// `bus + w (wet - bus)` at w = 1 is the held sample to within a rounding, so a new sample
-/// is a step larger than one. (Until ABI 12, 6 000: §18, designed 2026-11-24.)
-fn assert_holds_at_1_khz(second: &[f32], rate: u32) {
-    let at: Vec<usize> = (1..second.len()).filter(|&f| (second[f] - second[f - 1]).abs() > 1e-6).collect();
-    let gap = at.windows(2).map(|w| w[1] - w[0]).min().unwrap();
-    assert!((833..=1_000).contains(&at.len()), "rate {rate}: {} new samples in a second", at.len());
-    assert_eq!(gap, rate as usize / 1000, "rate {rate}: new samples {gap} frames apart at the closest");
-}
+// `effect_1_holds_at_1_khz_at_every_rate` went with the hold (ABI 14; §18, designed
+// 2026-11-25): effect 1 is the voices slowed. The rules that replaced it are in that section's
+// tests below, from `effect_1_s_grid_...` on.
 
 #[test]
 fn effect_2_is_three_times_the_bus_under_the_ceiling_and_never_past_it() {
@@ -822,16 +1002,8 @@ fn sound_changes_no_event_no_snapshot_and_no_generation() {
     }
 }
 
-#[test]
-fn a_rate_change_mid_effect_keeps_the_hold_at_1_khz() {
-    let mut h = Host::new(SR, 1);
-    let mut edits = beat();
-    edits.extend((0..16).map(|s| fx(s, 1)));
-    render(&mut h, STEP as usize, 128, 1, &at_zero(&edits));
-    unsafe { pi_set_sample_rate(h.e, 96_000) };
-    let out = render(&mut h, 96_000, 128, 1, &[]).0;
-    assert_holds_at_1_khz(&out, 96_000);
-}
+// `a_rate_change_mid_effect_keeps_the_hold_at_1_khz` went with the hold (ABI 14): replaced by
+// `a_rate_change_while_slowed_leaves_the_slowed_voices_tuning`, below.
 
 // ---- §18, designed 2026-11-24: effect 4, the delay in a lent line (ABI 12; D91 items 4, 5) ----
 
@@ -1366,4 +1538,232 @@ fn under_200_hz_the_mix_with_14_is_the_dry_mix_to_within_a_decibel() {
     let db = 10.0 * (low(&wet) / low(&dry)).log10();
     assert!(db.abs() < 1.0, "{db} dB");
     assert!(!same_bits(&wet, &dry), "and 14 was heard");
+}
+
+// ---- §18, designed 2026-11-25: effect 1, the sounds at a quarter of the rate (ABI 14; D98) ----
+//
+// Written from the section's words before the code (Session 32), as its "Proven when built by"
+// table asks. The models above (`Model`'s grid, `Voicing`) hold the mix and the sixteen track
+// channels through every kind of change in the tours; these hold each rule alone.
+
+const TONE: u8 = 14;
+
+/// §18's line from the section's words alone: effect 1 from frame 0 (`acc` 0), the host at
+/// `rate(f)` on frame `f`, a sound hit on each frame of `hits` (silent before the first), whose
+/// values at 46 875 Hz from a hit are `bs`. On a fresh frame `from = to`, `to =` the next value;
+/// every frame `from + (to − from) × mu`. Returns the frames' values, the fresh frames and `mu`.
+fn on_the_line(bs: &[f32], rate: impl Fn(usize) -> u32, frames: usize, hits: &[usize]) -> (Vec<f32>, Vec<usize>, Vec<f32>) {
+    let (mut acc, mut k, mut hit) = (0u64, 0usize, false);
+    let (mut from, mut to) = (0f32, 0f32);
+    let (mut out, mut fresh, mut mus) = (Vec::new(), Vec::new(), Vec::new());
+    for f in 0..frames {
+        let four = 4 * rate(f) as u64;
+        let is_fresh = acc < 46_875;
+        let mu = acc as f32 * (1.0f32 / four as f32);
+        acc = (acc + 46_875) % four;
+        if hits.contains(&f) {
+            (hit, k) = (true, 0); // one voice a sound: it starts again
+        }
+        if is_fresh {
+            from = to;
+            to = if hit { bs[k] } else { 0.0 };
+            k += hit as usize;
+            fresh.push(f);
+        }
+        out.push(from + (to - from) * mu);
+        mus.push(mu);
+    }
+    (out, fresh, mus)
+}
+
+/// The data for a sample: a falling buzz, any data, so long as both engines have it. Leaked:
+/// it must outlive the engines (§12).
+fn buzz() -> &'static [i16] {
+    let data: Vec<i16> = (0..30_000i32).map(|i| ((i * 37 % 200 - 100) * (30_000 - i) / 120) as i16).collect();
+    Box::leak(data.into_boxed_slice())
+}
+
+/// Track `t` alone, hit on each frame of `hits`, in an engine at 46 875 Hz played dry: its
+/// track channel, `n` frames. With `sample`, the track plays a sample.
+fn dry_at_46_875(t: u8, sample: Option<&'static [i16]>, n: usize) -> Vec<f32> {
+    let mut b = Host::new(SLOW, 1);
+    let mut c = vec![(0, cmd(CMD_SOUND, t, 1, 65_535)), (0, cmd(CMD_FIRE, t, 0, 0))];
+    if let Some(d) = sample {
+        assert_eq!(unsafe { pi_set_sample(b.e, t as u32, d.as_ptr(), d.len() as u32) }, 1);
+        c.insert(0, (0, cmd(CMD_VOICE, t, 0, 1)));
+    }
+    let out = render(&mut b, n, 128, 16, &c).0;
+    out.chunks(16).map(|fr| fr[t as usize]).collect()
+}
+
+/// Effect 1 on every step of the lane from frame 0, track `t` (slider B at its longest) hit on
+/// each frame of `hits`, at `rate`: the sixteen track channels for `frames`, then the engine.
+fn slowed_run(rate: u32, t: u8, sample: Option<&'static [i16]>, hits: &[usize], frames: usize) -> (Vec<f32>, Host) {
+    let mut a = Host::new(rate, 1);
+    let mut c: Vec<(u64, Cmd)> = (0..16).map(|s| (0, fx(s, 1))).collect();
+    c.push((0, cmd(CMD_SOUND, t, 1, 65_535)));
+    if let Some(d) = sample {
+        assert_eq!(unsafe { pi_set_sample(a.e, t as u32, d.as_ptr(), d.len() as u32) }, 1);
+        c.push((0, cmd(CMD_VOICE, t, 0, 1)));
+    }
+    c.push((0, play()));
+    for &f in hits {
+        c.push((f as u64, cmd(CMD_FIRE, t, 0, 0)));
+    }
+    c.sort_by_key(|x| x.0);
+    let out = render(&mut a, frames, 128, 16, &c).0;
+    (out, a)
+}
+
+fn track(out: &[f32], t: u8) -> Vec<f32> {
+    out.chunks(16).map(|fr| fr[t as usize]).collect()
+}
+
+/// Holds track `t`'s channel, slowed, to the line through a dry engine's values at 46 875 Hz.
+fn assert_on_the_line(rate: u32, t: u8, sample: Option<&'static [i16]>, hits: &[usize], frames: usize) {
+    let bs = dry_at_46_875(t, sample, frames * 46_875 / (4 * rate as usize) + 64);
+    let (out, _) = slowed_run(rate, t, sample, hits, frames);
+    let (want, ..) = on_the_line(&bs, |_| rate, frames, hits);
+    let got = track(&out, t);
+    for f in 0..frames {
+        assert_eq!(got[f].to_bits(), want[f].to_bits(), "rate {rate}, track {t}, sample {}: frame {f}, {} against the line's {}", sample.is_some(), got[f], want[f]);
+    }
+    assert!(got.iter().any(|x| *x != 0.0), "rate {rate}, track {t}: it sounded");
+    for u in (0..16u8).filter(|u| *u != t) {
+        assert!(track(&out, u).iter().all(|x| x.to_bits() == 0), "rate {rate}: track {u} silent");
+    }
+}
+
+#[test]
+fn effect_1_s_grid_is_fresh_on_the_frames_section_18_lists_by_hand_with_mu_as_it_lists() {
+    // §18's lists, worked by hand: frame 0, then ceil(k × 4 × rate / 46 875).
+    let lists: [(u32, &[usize]); 3] = [
+        (48_000, &[0, 5, 9, 13, 17, 21, 25, 29, 33, 37, 41, 46, 50]),
+        (44_100, &[0, 4, 8, 12, 16, 19, 23]),
+        (96_000, &[0, 9, 17, 25, 33, 41, 50]),
+    ];
+    for (rate, want) in lists {
+        let (_, fresh, mu) = on_the_line(&[0.0; 4], |_| rate, 2000, &[]);
+        assert_eq!(&fresh[..want.len()], want, "rate {rate}");
+        for (k, f) in fresh.iter().enumerate() {
+            assert_eq!(*f as u64, (k as u64 * 4 * rate as u64).div_ceil(46_875), "rate {rate}, fresh frame {k}");
+        }
+        if rate == 48_000 {
+            for (f, m) in [0.0f32, 0.2441, 0.4883, 0.7324, 0.9766, 0.2207].iter().enumerate() {
+                assert!((mu[f] - m).abs() < 5e-5, "48 kHz: mu on frame {f} is {}, the section's {m}", mu[f]);
+            }
+        }
+        // And the engine is on that grid: the tone hit as effect 1 starts, bit for bit.
+        assert_on_the_line(rate, TONE, None, &[0], rate as usize / 5);
+    }
+}
+
+#[test]
+fn a_slowed_voice_s_grid_values_are_an_engine_s_at_46_875_hz_played_dry_with_the_line_between() {
+    // In order, none skipped or given twice, at three host rates, a code voice and a sample,
+    // on the track channel, bit for bit against the line through the dry engine's values.
+    let data = buzz();
+    for rate in [44_100u32, 48_000, 96_000] {
+        assert_on_the_line(rate, TONE, None, &[0], rate as usize / 2);
+        assert_on_the_line(rate, 0, None, &[0], rate as usize / 2); // the bass drum, its pitch falling
+        assert_on_the_line(rate, 6, Some(data), &[0], rate as usize / 2);
+    }
+}
+
+#[test]
+fn a_slowed_sound_hit_again_starts_again_as_dry_and_a_hit_waits_for_the_grid() {
+    // One voice a sound: hit again under 1 it starts again from its first value, asked on the
+    // grid's next fresh frame (frames 9 001 and 12 345 are not fresh at 48 kHz, nor 10 001 at
+    // 44.1 kHz; the line runs from what the sound last gave).
+    let data = buzz();
+    for (rate, hits) in [(48_000u32, [0usize, 9_001, 12_345]), (44_100, [0, 10_001, 10_002])] {
+        assert_on_the_line(rate, TONE, None, &hits, 20_000);
+        assert_on_the_line(rate, 6, Some(data), &hits, 20_000);
+    }
+}
+
+#[test]
+fn a_rate_change_while_slowed_leaves_the_slowed_voices_tuning() {
+    // The tone hit under 1 at 48 kHz, then the host's rate doubled mid-sound, then halved
+    // again: the grid and `inv` follow each new rate from the next frame, the tone stays tuned
+    // for 46 875 Hz, so its grid values go on as the dry engine's, none skipped.
+    let bs = dry_at_46_875(TONE, None, 20_000);
+    let (n1, n2, end) = (10_007usize, 40_000usize, 60_000usize);
+    let rate = |f: usize| if (n1..n2).contains(&f) { 96_000 } else { 48_000 };
+    let (want, ..) = on_the_line(&bs, rate, end, &[0]);
+    let mut a = Host::new(48_000, 1);
+    let mut c: Vec<(u64, Cmd)> = (0..16).map(|s| (0, fx(s, 1))).collect();
+    c.extend([(0, cmd(CMD_SOUND, TONE, 1, 65_535)), (0, play()), (0, cmd(CMD_FIRE, TONE, 0, 0))]);
+    let mut got = track(&render(&mut a, n1, 128, 16, &c).0, TONE);
+    unsafe { pi_set_sample_rate(a.e, 96_000) };
+    got.extend(track(&render(&mut a, n2 - n1, 128, 16, &[]).0, TONE));
+    unsafe { pi_set_sample_rate(a.e, 48_000) };
+    got.extend(track(&render(&mut a, end - n2, 128, 16, &[]).0, TONE));
+    for f in 0..end {
+        assert_eq!(got[f].to_bits(), want[f].to_bits(), "frame {f} ({} Hz)", rate(f));
+    }
+}
+
+#[test]
+fn a_sound_outside_fx_sounds_is_the_same_bytes_with_and_without_effect_1() {
+    // D66 item 4: no effect reaches a sound switched out, so it is never slowed. The tone out
+    // of the effects, alone and over the beat in the bus: its track channel the same bytes,
+    // and alone the mix too.
+    for with_beat in [false, true] {
+        let mut edits = vec![fxsound(TONE, 0), on(TONE, 0), on(TONE, 9)];
+        if with_beat {
+            edits.extend(beat());
+        }
+        let mut lane = edits.clone();
+        lane.extend((0..16).map(|s| fx(s, 1)));
+        let (mut a, mut b) = (Host::new(SR, 1), Host::new(SR, 1));
+        let x = render(&mut a, 3 * STEP as usize, 128, 17, &at_zero(&lane)).0;
+        let y = render(&mut b, 3 * STEP as usize, 128, 17, &at_zero(&edits)).0;
+        for f in 0..3 * STEP as usize {
+            assert_eq!(x[f * 17 + TONE as usize].to_bits(), y[f * 17 + TONE as usize].to_bits(), "beat {with_beat}, frame {f}: the tone");
+            if !with_beat {
+                assert_eq!(x[f * 17 + 16].to_bits(), y[f * 17 + 16].to_bits(), "frame {f}: the mix");
+            }
+        }
+        if with_beat {
+            assert!(!same_bits(&x, &y), "and the beat was slowed");
+        }
+    }
+}
+
+/// Zero crossings a second of `x` over `range`.
+fn crossings(x: &[f32], range: core::ops::Range<usize>, rate: u32) -> f32 {
+    let n = range.len();
+    let c = x[range].windows(2).filter(|w| (w[0] < 0.0) != (w[1] < 0.0)).count();
+    c as f32 * rate as f32 / n as f32
+}
+
+#[test]
+fn a_sound_sounding_when_1_comes_on_falls_two_octaves_and_when_1_goes_off_comes_back_up() {
+    // The tone (slider B at its longest, 500 ms) hit dry; 1 punched mid-note, then let go
+    // mid-note: on the frame each time, nothing cut. Held to the models frame by frame through
+    // both changes, at three rates, and its pitch read: 220 Hz, a quarter, then 220 again.
+    for rate in [44_100u32, 48_000, 96_000] {
+        let ms = |m: u64| m * rate as u64 / 1000;
+        let (on1, off1) = (ms(100) + 3, ms(500) + 7);
+        let mut c = vec![(0, cmd(CMD_SOUND, TONE, 1, 65_535)), (0, play()), (0, cmd(CMD_FIRE, TONE, 0, 0))];
+        c.extend([(on1, down(FX)), (on1, down(0)), (off1, up(0)), (off1, up(FX))]);
+        let mut kept = Vec::new();
+        hold_to_model_keeping(rate, &c, ms(700), false, &mut kept);
+        let tone: Vec<f32> = kept.iter().map(|fr| fr[TONE as usize]).collect();
+        let (on1, off1) = (on1 as usize, off1 as usize);
+        let dry = crossings(&tone, ms(5) as usize..on1, rate);
+        let slow = crossings(&tone, on1 + ms(5) as usize..off1, rate);
+        let back = crossings(&tone, off1 + ms(5) as usize..ms(150) as usize + off1, rate);
+        assert!((dry / 440.0 - 1.0).abs() < 0.05, "rate {rate}: dry {dry} crossings a second");
+        assert!((slow * 4.0 / dry - 1.0).abs() < 0.05, "rate {rate}: under 1 {slow}, a quarter of {dry}");
+        assert!((back / dry - 1.0).abs() < 0.05, "rate {rate}: after 1 {back}, as dry {dry}");
+        // Nothing cut: the tone sounds on every stretch, and no jump at either change is more
+        // than two of the voice's own steps (§18: "a step of at most two of the voice's own").
+        let step = |f: usize| (tone[f] - tone[f - 1]).abs();
+        let biggest = (1..tone.len()).filter(|f| *f != on1 && *f != off1).map(step).fold(0.0, f32::max);
+        for f in [on1, off1] {
+            assert!(step(f) <= 2.0 * biggest + 1e-6, "rate {rate}: a jump of {} at frame {f}", step(f));
+        }
+    }
 }

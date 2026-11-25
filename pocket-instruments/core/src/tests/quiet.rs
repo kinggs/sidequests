@@ -87,7 +87,9 @@ fn run() -> Vec<(u64, Cmd)> {
     for s in [2u8, 6, 10, 14] {
         c.push((90_000, cmd(CMD_STEP, 2, s, 1)));
     }
-    for (s, fx) in [(0u8, 2u32), (1, 2), (4, 11), (5, 11), (8, 6), (12, 14)] {
+    // ABI 14: effect 1 on steps 2, 3 and 9 to 11, the voices slowed (§18, designed
+    // 2026-11-25): quiet then waits for every slowed sound's line to be +0 too.
+    for (s, fx) in [(0u8, 2u32), (1, 2), (2, 1), (3, 1), (4, 11), (5, 11), (8, 6), (9, 1), (10, 1), (11, 1), (12, 14)] {
         c.push((90_000, cmd(CMD_FX, s, 0, fx)));
     }
     c.push((90_000, cmd(CMD_PLAY, 0, 0, 1)));

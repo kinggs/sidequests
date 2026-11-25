@@ -1238,6 +1238,7 @@ impl Sample {
 
 // ---- all of them ----
 
+#[cfg_attr(test, derive(Clone, Copy))]
 pub struct Voices {
     kick: Kick,
     snare: Snare,
@@ -1418,5 +1419,30 @@ impl Voices {
         if bits == 0 {
             self.quiet = self.silent();
         }
+    }
+}
+
+/// For the rule tests' model of §18's effect 1 (`tests/bus.rs`, `Voicing`): one track's code
+/// voice asked, retuned or hit alone, and a sample retuned, the way the model reads them. Not
+/// the engine's own paths, so a slip in those shows as a difference.
+#[cfg(test)]
+impl Voices {
+    pub fn code_next(&mut self, t: usize) -> f32 {
+        on_voice!(self, t, next())
+    }
+
+    pub fn code_tune(&mut self, t: usize, rate: u32) {
+        on_voice!(self, t, tune(rate))
+    }
+
+    pub fn code_trigger(&mut self, t: usize, ab: [u16; 2], rate: u32) {
+        on_voice!(self, t, trigger(ab, rate))
+    }
+}
+
+#[cfg(test)]
+impl Sample {
+    pub fn retune(&mut self, rate: u32) {
+        self.tune(rate)
     }
 }

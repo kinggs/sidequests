@@ -19,7 +19,7 @@
 //! `an_effect_route_1_names_is_the_host_s_...`. The model and its tour were written again
 //! from the new text.
 
-use super::bus::{Model, at_zero, beat, down, fx, fxsound, lend, on, play, tour, up};
+use super::bus::{Model, Voicing, at_zero, beat, down, fired_in, fx, fxsound, hit_of, lend, on, play, tour, up};
 use super::*;
 use crate::engine::slider_in;
 
@@ -358,6 +358,39 @@ fn an_effect_route_1_names_is_the_host_s_beside_the_dry_the_bus_stays_idle_in_pl
 }
 
 #[test]
+fn a_returned_sound_is_the_same_under_1_as_dry_and_channel_17_out_is_the_bus() {
+    // §18, designed 2026-11-25 (ABI 14; D98 item 6): a sound returned on RETURN is in the bus
+    // as it came, not slowed, not held; its own voice still slows on its track channel. The
+    // bass drum, returned as a moving input, the only sound: with effect 1 on every step the
+    // mix is the same bytes as with none, channel 17 out is the input (the bus), and the drum's
+    // own voice on track 0 is slowed.
+    let kick: Vec<Cmd> = [0u8, 4, 8, 12].iter().map(|&s| on(0, s)).collect();
+    let mut lane = kick.clone();
+    lane.extend((0..16).map(|s| fx(s, 1)));
+    let (x, y) = (Host::new(SR, 1), Host::new(SR, 1));
+    let (cx, cy) = (at_zero(&lane), at_zero(&kick));
+    let mut differs = 0;
+    for f in 0..2 * STEP {
+        let input = ((f * 7919) % 2001) as f32 / 1000.0 - 1.0;
+        let (mut a, mut b) = ([0f32; LOOP], [0f32; LOOP]);
+        a[0] = input;
+        b[0] = input;
+        let mut ca = at(&cx, f);
+        let mut cb = at(&cy, f);
+        if f == 0 {
+            ca.insert(0, route(0, 1));
+            cb.insert(0, route(0, 1));
+        }
+        frame(&x, &ca, &mut a);
+        frame(&y, &cb, &mut b);
+        assert_eq!(a[MIX].to_bits(), b[MIX].to_bits(), "frame {f}: the mix");
+        assert_eq!(a[SEND].to_bits(), input.to_bits(), "frame {f}: channel 17 out is the bus");
+        differs += (a[0] != b[0]) as u32;
+    }
+    assert!(differs > STEP as u32, "the drum's own voice was slowed on {differs} frames");
+}
+
+#[test]
 fn the_send_is_the_bus_before_any_effect_and_before_the_volume() {
     // The minimum beat with the snare switched out, at volume 5, the lowpass on every step:
     // channel 17 is the plain sum, in track order, of the sounds switched in.
@@ -494,6 +527,7 @@ fn hold_loop_to_model(rate: u32, cmds: &[(u64, Cmd)], frames: u64) -> (usize, us
     let h = Host::new(rate, 1);
     let _line = lend(&h, rate);
     let mut m = Model::lent(pi_delay_frames(rate));
+    let mut vm = Voicing::of(&h);
     let mut routes = [0u32; 5];
     let mut before = [0f32; LOOP];
     let mut e_before = 0u32;
@@ -505,7 +539,7 @@ fn hold_loop_to_model(rate: u32, cmds: &[(u64, Cmd)], frames: u64) -> (usize, us
         }
         let input = come_back(f, &before);
         let mut io = input;
-        frame(&h, &these, &mut io);
+        let ev = frame(&h, &these, &mut io);
         let v = h.view();
         let tick = u32::from_le_bytes([v[0], v[1], v[2], v[3]]);
         let ticks = if f == 0 { 0 } else { tick.wrapping_sub(e_before) };
@@ -529,7 +563,20 @@ fn hold_loop_to_model(rate: u32, cmds: &[(u64, Cmd)], frames: u64) -> (usize, us
             0
         };
         let back = if input[SEND].is_finite() { input[SEND] } else { 0.0 };
-        let want = m.frame_looped(effect, ticks, rate, &mixed, sounds, v[27], back);
+        // ABI 14: the voices are the model's own, slowed by §18's words; a returned sound
+        // takes its voice's place as it came, never slowed (D98 item 6).
+        let (hit, sampled) = hit_of(&h);
+        vm.reconcile(effect, sounds, rate, &mut m);
+        vm.hits(fired_in(&ev), &hit, sampled, rate);
+        m.advance(effect, ticks, rate);
+        let voices = vm.sound(&m);
+        for t in 0..16 {
+            assert_eq!(io[t].to_bits(), voices[t].to_bits(), "rate {rate}, frame {f}: track {t} {} against the model's {}", io[t], voices[t]);
+            if routes[0] >> t & 1 == 0 {
+                mixed[t] = voices[t];
+            }
+        }
+        let want = m.mixed(rate, &mixed, sounds, v[27], back);
         assert_eq!(io[MIX].to_bits(), want.to_bits(), "rate {rate}, frame {f}: the mix {} against the model's {}", io[MIX], want);
         let mut send = 0.0f32;
         for t in (0..16).filter(|t| sounds >> t & 1 == 1) {
@@ -573,6 +620,12 @@ fn loop_tour(step: u64) -> Vec<(u64, Cmd)> {
     c.push((15 * step + 3000, route(INSERT, 1 << 3)));            // and back
     c.push((20 * step, route(0, 0xffff & !(1 << 3))));
     c.push((26 * step, route(0, 0)));
+    // ABI 14 (§18, designed 2026-11-25): while `tour` holds effect 1 on step 28, it is made
+    // the host's beside the dry (nothing slows), then in place of it, then the core's again
+    // (slowed again, the grid started again).
+    c.push((28 * step + 1500, route(1, 1 << 3 | 1 << 12 | 1)));
+    c.push((28 * step + 1800, route(INSERT, 1 << 3 | 1)));
+    c.push((28 * step + 2500, route(1, 1 << 3 | 1 << 12)));
     c.sort_by_key(|x| x.0);
     c
 }
