@@ -6,7 +6,10 @@
 // §13; since Session 33, D99: on the frame it reads it, every 16th frame), and everything on the face is drawn from the core's view (§14), handed to the drawing
 // thread through pi::Latest. The page (web/rhythm.html) does the same with messages.
 //
-//   CLOCK     patched: the core follows its edges, one edge a step. Unpatched: the table clock.
+//   CLOCK     patched: the core follows its edges, one edge a step, or one edge a beat with the
+//             menu's "CLOCK: one edge a beat" (ABI 15, D100: SOURCE 2, saved as "clockBeat").
+//             Unpatched: the table clock. On edges the display shows the tempo the edges play,
+//             "ext" where "bpm" was (ENGINE.md §14, designed 2026-11-25).
 //   RESET     starts from step 1. CLOCK is ignored for 1 ms after it (RACK-RULES.md).
 //   TRIGGERS  sixteen channels, 10 V for 1 ms a firing. VOICES: sixteen channels, 5 V to 1.0.
 //   RETURN    sixteen channels; channel n takes sound n's place in the mix, and in the effects'
@@ -162,6 +165,10 @@ struct Rhythm : Module {
     // §16 (D84): the menu's "Reduced motion" for the display's weave: the shuttle jumps and
     // nothing flashes. Rack has no setting of its own to follow, as a browser has. In the patch.
     std::atomic<bool> stillWeave{false};
+    // ABI 15 (D64 item 2, D100 item 6): the menu's "CLOCK: one edge a beat": a patched CLOCK is
+    // SOURCE 2, as a clock module's x1 output pulses. In the patch as "clockBeat"; Initialize
+    // clears it.
+    std::atomic<bool> clockBeat{false};
     std::atomic<int32_t> aChosen{-1}, bChosen{-1}; // the same for A IN and B IN (D76 item 4)
     // D88 item 1: each effect's setting, as pi::FxSettings's two masks (the effects that are
     // Rack's; of those, the ones in place of the dry). All Ours at first. In the patch.
@@ -187,7 +194,7 @@ struct Rhythm : Module {
     uint32_t loadsAsked = 0;
 
     // ---- The audio thread's own. ----
-    alignas(16) uint8_t mem[4096]; // the engine is 3 728 bytes (ENGINE.md §8; 2 352 until §20)
+    alignas(16) uint8_t mem[4096]; // the engine is 3 872 bytes (ENGINE.md §8; 2 352 until §20)
     std::vector<int16_t> pack[PI_TRACKS]; // read once, before any audio; never changed (pi_set_sample)
     int packLoaded = 0;
     pi_engine *e = nullptr;
@@ -213,7 +220,7 @@ struct Rhythm : Module {
     float shadowSend[PI_TRACKS] = {};
     dsp::SchmittTrigger clockTrig, resetTrig;
     uint32_t rate = 0, sinceReset = 0xffffffffu, generation = 0, sincePublish = 0;
-    int sourceSent = -1;         // the clock source last sent; -1 sends it on the next frame
+    int sourceSent = -1;         // the clock source last sent (pi::source); -1 sends it on the next frame
     bool keyDown[23] = {};       // what the core was last told of each key
     uint32_t sliderSent[2] = {32768, 32768}; // the value each slider parameter last had
     float sliderSeen[2] = {32768.f, 32768.f}; // the same, as the float last read: rounded only on a change
@@ -791,9 +798,11 @@ struct Rhythm : Module {
                 testedFixture = -1;
                 fresh(SEED);
             }
-            if (int(edges) != sourceSent) {
-                cmds[n++] = pi_cmd{0, PI_CMD_SOURCE, 0, 0, 0, edges ? PI_SOURCE_EDGES : PI_SOURCE_TABLE};
-                sourceSent = edges;
+            // Which source, a pure function (jacks.hpp): ABI 15 adds one edge a beat (D100).
+            int source = int(pi::source(edges, clockBeat.load(std::memory_order_relaxed)));
+            if (source != sourceSent) {
+                cmds[n++] = pi_cmd{0, PI_CMD_SOURCE, 0, 0, 0, uint32_t(source)};
+                sourceSent = source;
             }
             if (resetIn) cmds[n++] = pi_cmd{0, PI_CMD_RESET, 0, 0, 0, 0};
             if (edges && clockIn) cmds[n++] = pi_cmd{0, PI_CMD_CLOCK, 0, 0, 0, 0};
@@ -1023,6 +1032,7 @@ struct Rhythm : Module {
         bChosen = -1;
         fxRack = 0;
         fxInPlace = 0;
+        clockBeat = false; // D100 item 6
         freshWanted = true;
     }
 
@@ -1043,6 +1053,7 @@ struct Rhythm : Module {
         json_object_set_new(root, "fxRack", json_integer(fxRack.load()));
         json_object_set_new(root, "fxInPlace", json_integer(fxInPlace.load()));
         if (stillWeave.load()) json_object_set_new(root, "reducedMotion", json_true());
+        json_object_set_new(root, "clockBeat", json_boolean(clockBeat.load())); // ABI 15, D100 item 6
         int lp = loopWanted.load();
         if (lp > LOOP_NONE && lp <= LOOP_LATCH) json_object_set_new(root, "loop", json_string(LOOP_NAMES[lp]));
         int fx = fixtureWanted.load();
@@ -1052,6 +1063,7 @@ struct Rhythm : Module {
 
     void dataFromJson(json_t *root) override {
         stillWeave = json_is_true(json_object_get(root, "reducedMotion"));
+        clockBeat = json_is_true(json_object_get(root, "clockBeat")); // a patch from before ABI 15: one edge a step
         if (json_t *j = json_object_get(root, "return")) returnChosen = int32_t(clamp(int(json_integer_value(j)), -1, 0xffff));
         if (json_t *j = json_object_get(root, "a")) aChosen = int32_t(clamp(int(json_integer_value(j)), -1, 0xffff));
         if (json_t *j = json_object_get(root, "b")) bChosen = int32_t(clamp(int(json_integer_value(j)), -1, 0xffff));
@@ -1142,8 +1154,9 @@ struct Face {
         const View *nv = m ? m->viewOut.take() : nullptr;
         if (!nv) return;
         double now = system::getTime();
-        uint32_t mbpm = std::max<uint32_t>(1, u32(nv->b, PI_VIEW_TEMPO));
-        // A firing holds the white for half a step at the view's tempo, 40 to 120 ms.
+        // A firing holds the white for half a step at the view's tempo, 40 to 120 ms; since ABI
+        // 15 at the tempo the edges play while the view has one (ext, §14; jacks.hpp).
+        uint32_t mbpm = std::max<uint32_t>(1, pi::whiteMbpm(nv->b));
         double hold = std::min(0.120, std::max(0.040, 7500.0 / mbpm));
         bool sounds = nv->b[PI_VIEW_FLAGS] & PI_VIEW_FLAG_SOUNDS;
         for (uint32_t t = 0; t < PI_TRACKS; t++) {
@@ -1387,11 +1400,16 @@ struct RhythmDisplay : widget::Widget {
         for (int n = 0; n < 16; n++)
             if (lane >> n & 1) fillRect(vg, px + n * (mw + markGap), tickY, mw, tickH, MADDER);
         // The right column: tempo and bpm on top; the write mark and the step number below.
+        // Since ABI 15 (ENGINE.md §14, designed 2026-11-25; jacks.hpp, pi::tempoShown): on edges
+        // "ext" in bpm's place, size and colour, and the edges' tempo, or "--" with none (D100
+        // item 5: a stand-in for the owner's eye).
         char s[32];
-        std::snprintf(s, sizeof s, "%u", have ? u32(v, PI_VIEW_TEMPO) / 1000 : 120u);
+        const char *label = "bpm";
+        if (have) label = pi::tempoShown(v, s, sizeof s);
+        else std::snprintf(s, sizeof s, "120");
         float top = py + mm2px(7.6f);
         text(vg, rx - right, top, 10.f, ECRU, NVG_ALIGN_LEFT | NVG_ALIGN_BASELINE, s);
-        text(vg, rx, top, 2.5f, LILAC, NVG_ALIGN_RIGHT | NVG_ALIGN_BASELINE, "bpm");
+        text(vg, rx, top, 2.5f, LILAC, NVG_ALIGN_RIGHT | NVG_ALIGN_BASELINE, label);
         if (stepped) std::snprintf(s, sizeof s, "step %02u", unsigned(v[PI_VIEW_STEP]) + 1);
         else std::snprintf(s, sizeof s, "step --");
         float low = H - py - mm2px(0.9f);
@@ -1549,6 +1567,10 @@ struct RhythmWidget : ModuleWidget {
                                                       }));
             }));
         }));
+        // ABI 15 (D64 item 2, D100 item 6): CLOCK in counts one edge a beat, for a clock module's
+        // x1 output; off, one edge a step, as SEQ-3 counts.
+        menu->addChild(createCheckMenuItem("CLOCK: one edge a beat", "", [=]() { return m->clockBeat.load(); },
+                                           [=]() { m->clockBeat = !m->clockBeat.load(); }));
         // §16 (D84): the display's weave with reduced motion: the shuttle jumps, nothing flashes.
         menu->addChild(createCheckMenuItem("Display: reduced motion", "", [=]() { return m->stillWeave.load(); },
                                            [=]() { m->stillWeave = !m->stillWeave.load(); }));

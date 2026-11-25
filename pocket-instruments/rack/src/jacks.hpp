@@ -31,6 +31,7 @@
 
 #include <cmath>
 #include <cstdint>
+#include <cstdio>
 
 #include "pi_engine.h"
 
@@ -198,5 +199,39 @@ inline uint32_t layout(bool sliders, bool loop) { return sliders ? PI_AUDIO_LOOP
 // between two scans and is not seen (RACK-RULES.md); no hand can make one.
 constexpr uint32_t SCAN_FRAMES = 16;
 inline bool scans(uint32_t frame, bool fixtureTest) { return fixtureTest || frame % SCAN_FRAMES == 0; }
+
+// Which clock source the module sends (D64, D100; ENGINE.md §4, designed 2026-11-25): CLOCK
+// unpatched, the table; patched, one edge a step, as SEQ-3 counts; patched with the menu's
+// "CLOCK: one edge a beat", SOURCE 2, as a clock module's x1 output pulses.
+inline uint32_t source(bool clockPatched, bool beat) {
+    return !clockPatched ? PI_SOURCE_TABLE : beat ? PI_SOURCE_BEATS : PI_SOURCE_EDGES;
+}
+
+// The display's tempo, by ENGINE.md §14 (designed 2026-11-25): while the view says the source
+// is edges (flag 2, a step or a beat), the label is "ext" where "bpm" was and the number is ext
+// / 10 rounded down, or "--" while ext is 0 (before the second edge, a stopped clock);
+// otherwise "bpm" and the stored tempo in whole bpm, rounded down. Writes the number into
+// `num` and returns the label. (ext in place of bpm is D100 item 5's stand-in for the owner's eye.)
+inline uint32_t viewU32(const uint8_t *v, uint32_t at) {
+    return uint32_t(v[at]) | uint32_t(v[at + 1]) << 8 | uint32_t(v[at + 2]) << 16 | uint32_t(v[at + 3]) << 24;
+}
+inline uint32_t viewExt(const uint8_t *v) { return uint32_t(v[PI_VIEW_EXT]) | uint32_t(v[PI_VIEW_EXT + 1]) << 8; }
+inline const char *tempoShown(const uint8_t *v, char *num, size_t cap) {
+    if (v[PI_VIEW_FLAGS] & PI_VIEW_FLAG_EDGES) {
+        uint32_t ext = viewExt(v);
+        if (ext) std::snprintf(num, cap, "%u", unsigned(ext / 10));
+        else std::snprintf(num, cap, "--");
+        return "ext";
+    }
+    std::snprintf(num, cap, "%u", unsigned(viewU32(v, PI_VIEW_TEMPO) / 1000));
+    return "bpm";
+}
+
+// The tempo a firing's white is held at for half a step (§14): ext x 100 thousandths of a bpm
+// while ext is not 0, else the stored tempo.
+inline uint32_t whiteMbpm(const uint8_t *v) {
+    uint32_t ext = viewExt(v);
+    return ext ? ext * 100 : viewU32(v, PI_VIEW_TEMPO);
+}
 
 } // namespace pi

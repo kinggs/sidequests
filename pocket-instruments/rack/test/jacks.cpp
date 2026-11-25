@@ -38,6 +38,11 @@
 //   scan           (D99, Session 33) the keys and sliders are read on the first frame and every
 //                  16th after, on every frame in a fixture self-test, across the count's wrap;
 //                  a press of 16 frames is always seen, one of 15 can fall between reads.
+//   clock          (ABI 15, D100, Session 34) which source the module sends: the table
+//                  unpatched, one edge a step patched, one edge a beat patched with the menu's
+//                  "CLOCK: one edge a beat"; the display's label and number by ENGINE.md §14's
+//                  rule (ext and ext / 10, or --, while the source is edges; bpm otherwise);
+//                  the white's hold at ext's tempo while ext is not 0.
 //   not-finite     a NaN returned is silence; nothing non-finite goes out.
 //
 // Each check names itself when it fails. Exit 0 only if all pass.
@@ -514,6 +519,43 @@ static void scan() {
     check(missed15, "scan", "a press of 15 frames is always seen: the reads are closer than 16 frames apart");
 }
 
+// A view with only the fields the tempo reads: the flags, the stored tempo, ext.
+static void tempoView(uint8_t *v, bool edges, uint32_t mbpm, uint16_t ext) {
+    std::memset(v, 0, PI_VIEW_SIZE);
+    v[PI_VIEW_FLAGS] = edges ? PI_VIEW_FLAG_EDGES : 0;
+    for (int i = 0; i < 4; i++) v[PI_VIEW_TEMPO + i] = uint8_t(mbpm >> (8 * i));
+    v[PI_VIEW_EXT] = uint8_t(ext);
+    v[PI_VIEW_EXT + 1] = uint8_t(ext >> 8);
+}
+
+static void clock() {
+    check(pi::source(false, false) == PI_SOURCE_TABLE && pi::source(false, true) == PI_SOURCE_TABLE, "clock",
+          "CLOCK unpatched is not the table, with the menu's beat on or off");
+    check(pi::source(true, false) == PI_SOURCE_EDGES, "clock", "CLOCK patched is not one edge a step");
+    check(pi::source(true, true) == PI_SOURCE_BEATS, "clock", "CLOCK patched with \"one edge a beat\" is not SOURCE 2");
+    struct Case { bool edges; uint32_t mbpm; uint16_t ext; const char *label, *number; uint32_t white; };
+    const Case cases[] = {
+        {false, 120000, 0, "bpm", "120", 120000},   // the table
+        {false, 97500, 0, "bpm", "97", 97500},      // whole bpm, rounded down (§14)
+        {true, 116000, 1230, "ext", "123", 123000}, // the owner's Clocked at 123 with 116 stored (D64 item 3)
+        {true, 120000, 1239, "ext", "123", 123900}, // ext / 10 rounded down
+        {true, 120000, 0, "ext", "--", 120000},     // before the second edge, or a stopped clock
+        {true, 120000, 65535, "ext", "6553", 6553500},
+        {false, 120000, 1230, "bpm", "120", 123000}, // flag 2 clear: the label is bpm; the white follows ext
+    };
+    for (const Case &c : cases) {
+        uint8_t v[PI_VIEW_SIZE];
+        tempoView(v, c.edges, c.mbpm, c.ext);
+        char num[16];
+        const char *label = pi::tempoShown(v, num, sizeof num);
+        std::string why = std::string("edges ") + (c.edges ? "1" : "0") + ", tempo " + std::to_string(c.mbpm) + ", ext " +
+                          std::to_string(c.ext) + ": shows " + num + " " + label + ", white at " + std::to_string(pi::whiteMbpm(v)) +
+                          "; wants " + c.number + " " + c.label + ", " + std::to_string(c.white);
+        check(std::string(label) == c.label && std::string(num) == c.number, "clock", why);
+        check(pi::whiteMbpm(v) == c.white, "clock", why);
+    }
+}
+
 static void notFinite() {
     // A NaN on channel 1 and an infinity on channel 2: those two sounds are silent, the rest
     // play on. Held to the same frame with silence returned on both, bit for bit.
@@ -568,6 +610,7 @@ int main() {
     sliders();
     masks();
     scan();
+    clock();
     notFinite();
     if (failures) {
         std::printf("rack/test/jacks: %d checks FAILED\n", failures);
@@ -577,7 +620,8 @@ int main() {
                 "returned: within %.1e of it (largest %.1e). Silence on channel 1: the mix without the bass drum, bit for bit, VOICES and "
                 "TRIGGERS as they were. Every sound returned and effect 2 punched: the core's own punched render within %.1e (largest "
                 "%.1e), and heard. FX SEND's sixteen ramps at three rates; the three settings through FX SEND and FX RETURN; A OUT into "
-                "A IN; masks; the keys and sliders read every 16th frame (every frame in a fixture self-test); not-finite.\n",
+                "A IN; masks; the keys and sliders read every 16th frame (every frame in a fixture self-test); the clock's source, the display's "
+                "tempo and the white's hold (ABI 15); not-finite.\n",
                 double(OWN_RETURN_BOUND), double(worstOwnReturn), double(PUNCH_BOUND), double(worstPunch));
     return 0;
 }
