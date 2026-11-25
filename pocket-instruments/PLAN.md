@@ -155,7 +155,7 @@ lights, caps, display, weave ◄─ host draws ◄─ view                Rack: 
 
 ---
 
-## Where it stands (2026-11-25)
+## Where it stands (2026-11-25, after Session 32)
 
 The instrument plays on a phone (`web/rhythm.html`) and in Rack (the Rhythm module, 24 HP,
 thirteen jacks). In the core: sixteen sounds, each a code voice or a sample; the workflow
@@ -164,8 +164,8 @@ repeats that hold the nearest note behind them and eight sound effects, tuned to
 PO-12's measurements; sliders that are the hand's, with steps that keep what they were
 written with; a display that weaves; in Rack, each effect its own channel on FX SEND and
 FX RETURN; since Session 28 effects 13 (a note plays as the sound twelve keys on) and 14 (the
-bus fed back). ABI 13, snapshot version 4, 276 Rust tests, CI on four platforms in about a
-minute.
+bus fed back); since Session 32 effect 1 plays the sounds in the effects at a quarter of the
+rate. ABI 14, snapshot version 4, 282 Rust tests, CI on four platforms in about a minute.
 
 **Built on 2026-11-23 and not yet seen or heard by the owner** except the effects on a
 phone: everything from Session 21 onwards. Every look in it is a stand-in until the owner
@@ -191,7 +191,13 @@ ours go back to that (Session 30); its 9 and 10 are mutes; 13's map is not settl
 
 **Built on 2026-11-25 and not yet heard by the owner** (Session 30; D95, D96): the repeat holds
 the step the key came down on and is silent on an empty one; the sweeps go round in six steps
-with new ends and Q 4.5; 5 at 210 Hz and Q 3. Effect 1 as the slowed sounds is designed (Session 31, D98) and is Session 32's to build.
+with new ends and Q 4.5; 5 at 210 Hz and Q 3.
+
+**Built on 2026-11-25 and not yet heard by the owner** (Session 32; D98): effect 1, the sounds
+in the effects retuned for 46 875 Hz and asked on a grid a quarter of it, a straight line
+between, on the track channels too. ⚠ Every playing case without effect 1 costs 3 to 5 ns a
+frame more than before (placement, not work, as far as measured); the `.wasm` is 802 bytes
+under P1's 50 KB.
 
 ## Done so far
 
@@ -233,14 +239,16 @@ Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
 | 29, efficiency (Opus) | every native library's functions on a 64-byte line; `make bench` pinned to one CPU, `make pairs`; a quiet engine does not ask its voices: idle 29.5 → 6.1 ns a frame, no case slower, the same bytes; in Rack the module's idle −26% | 2026-11-24 |
 | 30, the repeat to the hardware's rule; the sweeps and 5 retuned (Opus; D95, D96) | a run repeats the step the key came down on, silent on an empty one (`held_step` gone); `fx-repeat-holds` and `fx-repeat-punch` worked again by hand; the sweeps six steps round, new ends, Q 4.5; 5 at 210 Hz, Q 3; ours read on take c's pattern, nothing moved; `ours-take.cpp`'s keys a third of a step early since Session 26, fixed; 17 faults caught by name | 2026-11-25 |
 | 31, effect 1 designed (Fable; D95 item 3, D98) | `ENGINE.md` §18, "designed 2026-11-25: effect 1": the voices retuned to 46 875 Hz and asked on a grid a quarter of it, straight lines between; D98 and O26; R77, a model off the engine read beside take c (it changed the design: no hold); 16 waits for a take; Session 32's list. With it, while Session 32 built: D99 (the owner: keys and sliders every 16 frames) and Session 33's list; the clock in Rack designed (§4, §14, D100, O27) and Session 34's list. Nothing built | 2026-11-25 |
+| 32, effect 1 built (Opus; D98) | ABI 14: the voices in the effects slowed to a quarter (`slow`, `sound_slow`, the grid in `Bus::frame`); the models and ten rule tests first, bit for bit at the first run; the report the same, only `render-fx-1` moved; ours beside the PO-12 on take c (220 → 55 Hz, ×3.85, +0.1 dB), nothing to move; 22 faults caught by name, 2 no test can catch; bench case fx 1/0. ⚠ every playing case 3 to 5 ns a frame over the old build, left as designed | 2026-11-25 |
 
 ## Next, in order
 
 1. **The owner's ear on Sessions 26 and 28** (restart Rack first):
    Session 26's and Session 28's steps are in their Handovers in `PLAN-HISTORY.md`. D92's
    and D93's rulings are cheap to change if they sound wrong; so is 14's gain (⚠ below).
-2. **Your ear on Session 30** (restart Rack first: `make install` ran): its Handover's steps,
-   the rest of O25. Then **Sessions 32, 33 and 34** (build, Opus), below, in that order. **Two short takes, when the PO-12 is out** ("The owner's hands"): 14 at
+2. **Your ear on Sessions 30 and 32** (restart Rack first: `make install` ran): their
+   Handovers' steps, the rest of O25, O26. Then **Sessions 33 and 34** (build, Opus), below,
+   in that order. **Two short takes, when the PO-12 is out** ("The owner's hands"): 14 at
    120 bpm, and 13's map. Read them with "Read `pocket-instruments/PLAN.md` and read
    Session 22's two last takes".
 3. **The owner's looks and rulings** on what 2026-11-23 built: "The owner's hands", first
@@ -249,47 +257,6 @@ Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
 5. **The host's idle cost, when wanted** ("Later: efficiency"): the owner's answer to reading
    the parameters less often decides the next step (Session 29's Handover).
 6. Then from "Not planned yet", as the owner chooses.
-
-## Session 32 — effect 1 as the sounds at a quarter of the rate (build, Opus; D95 item 3, D98)
-
-Read `ENGINE.md` §18, "designed 2026-11-25: effect 1" (the brief), §11, §18's first part
-and "Built (Session 17)"; D98; R72; `LEARNINGS.md` for Sessions 26 (the retune's method,
-the bench) and 29 (`quiet`, `make pairs`). The rules for every build session hold.
-
-- [ ] **Before any change:** the report, a `sha256sum` of every render file, the old
-      library and a bench built on it (`target/old/bench`), as Session 29 did.
-- [ ] **The models first.** §18's model in `core/src/tests/bus.rs` and the loop's in
-      `route.rs` written again from the section's words (the grid and `mu`, `slowed`, the retune,
-      the line between grid values), and the rule tests of its "Proven when built by" table, among
-      them the grid's fresh frames as the section lists them by hand and a slowed voice's grid
-      values held to an engine at 46 875 Hz played dry. Committed failing on the old code, before the
-      code.
-- [ ] **The core.** In `core/src/bus.rs`: `REDUCE_HZ` goes; `SLOW_RATE` 46 875 and the
-      quarter; `fresh`, `mu`, `inv`, `slowed`, `from` and `to` (`[f32; TRACKS]` each) as the
-      bus's last fields; the grid in `Bus::frame` while `on == 1`; effect 1's `wet` the
-      bus itself. In
-      `core/src/voice.rs`: a retune of the sounds whose bit changed; `trigger` given the
-      mask; `set_sample_rate` leaving the slowed; `sound_slow`, out of line, chosen in
-      `render` by one test of `slowed` inside `!quiet`; `sound` itself untouched. In
-      `core/src/engine.rs`: `effect` and `slowed` read before the frame's hits sound.
-      `PI_ABI_VERSION` 14 in the header and `abi.rs`; `pi_size` reported.
-- [ ] **What must not move:** the report; every render file but `render-fx-1`'s (and
-      `render-loop`'s only if its lane holds 1: say which). Name each file that moved.
-- [ ] **The bench:** a new case "fx 1/0" (the beat, effect 1 on every other step) in
-      `harness/bench.cpp`. `make pairs` against the old build, alone on the machine: idle,
-      beat, all, repeat, both, the loops and every other effect inside the old spread;
-      "fx 1" and "fx 1/0" written down. If a listed case is slower, stop on that: write
-      the numbers into the Handover and leave the layout as designed ⚠.
-- [ ] **Ours beside the PO-12:** take c's pattern through `harness/ours-take.cpp`, read
-      with `hardware-fx.py --pass c --effects 1` beside R72 (the tone at a quarter of its
-      dry pitch, four times as long, no louder; above 10 kHz beside the model's table in §18). Nothing here has a
-      constant to move; a reading that disagrees is written into §18 and the Handover.
-- [ ] Faults planted and caught by name (`LEARNINGS.md` says how); the hosts: `make web`
-      (the `.wasm`), the listen page's effect 1, the Rack plugin rebuilt.
-- [ ] **The end:** `make verify`, `make selftest` in `rack/`, `make play`, `make listen`,
-      `make install` in `rack/`; §18's section marked built, with what turned out
-      different; `WORKFLOW.md`'s effect 1 row; `bus.rs`'s tuning comment; `LEARNINGS.md`;
-      the Handover; this list to `PLAN-HISTORY.md`.
 
 ## Session 33 — Rack reads the keys and sliders every 16 frames (build, Opus; D99)
 
@@ -381,7 +348,7 @@ In the order they are likely wanted. Each needs a design pass (Fable) before a b
 
 | What | Waits on | Where it is written |
 |---|---|---|
-| **The effects tuned, the rest:** effect 1 as the sounds at a quarter rate (R72: a design pass, it reaches into the voices); the sweeps' cycle (9 → 6 steps), their ends and peaks, 5's cutoff (R73: constants) | Sessions 30 and 31 (D95); then the owner's ear | `ENGINE.md` §18, "proposed 2026-11-25"; `core/src/bus.rs`, "TUNING THE EFFECTS" |
+| **The effects tuned, the rest:** effect 1 as the sounds at a quarter rate (built, Session 32; a low-pass after the line if the ear asks, D98 item 10); the sweeps' cycle (9 → 6 steps), their ends and peaks, 5's cutoff (R73: constants; built, Session 30) | the owner's ear | `ENGINE.md` §18, "proposed 2026-11-25"; `core/src/bus.rs`, "TUNING THE EFFECTS" |
 | **The delay, if the ear asks:** a tail after the key is let go; the second echo; the line standing still in silence, as the PO-12's does (R75; ruled no, D95 item 5) | the owner, after Session 26 | D91 item 5; `ENGINE.md` §18, "proposed 2026-11-25" |
 | **Effects 15 and 16** (13 and 14 are Sessions 27 and 28, built) | 16: effect 1 designed first (it reads as 1 with the rate wobbling, R76). 15: a take that explains it (sound 15 a bar long under fx + 15) | D67 item 4; R48; R67; R76 |
 | **Effect 14, the rest:** the PO-12's loop inside its 8 192 line, the echo in it, whether it follows the tempo; ours read on take c's pattern beside R75 | the 120 bpm take again (the first held 13); then the owner's ear | R70; R75; `ENGINE.md` §18, "effect 14", "Not modelled" |
@@ -426,7 +393,10 @@ None blocks anything; each is done when wanted, profiled before and after (Machi
       **Done in Session 29:** functions pinned to 64 bytes, and the bench pinned to one CPU
       (`make pairs`); three such builds now read within 0.5 ns.
 - [ ] Next for efficiency, when wanted: the core itself (`pi_process` is about half the
-      module now). That one speeds up the phone too. Profile first (Machine state).
+      module now). That one speeds up the phone too. Profile first (Machine state). **Session 32:** every
+      playing case without effect 1 now reads 3 to 5 ns a frame over Session 30's build, from
+      where code lands, not from work (`LEARNINGS.md`, Session 32, has the scratch builds):
+      pinning the frame loop's layout is the first thing to try.
 
 ## The owner's hands
 
@@ -473,6 +443,8 @@ originals are in `PLAN-HISTORY.md`); nothing was dropped, each thing is here onc
       minutes) and its readings (⚠), above all 14's gain.
 - [ ] **Session 26, by ear and to rule on:** its Handover (now in `PLAN-HISTORY.md`) has the steps (about ten
       minutes) and its five readings (⚠).
+- [ ] **Session 32, by ear and to rule on** (O26): its Handover below has the steps (five
+      minutes) and four readings (⚠), above all the cost on every playing case.
 - [x] **Session 22's proposals** (`ENGINE.md` §17 and §18, "Proposed after Session 22"):
       a repeat holds the last step that sounded; the targets for effects 1 to 8; the delay
       as one tap. Ruled yes on all three, 2026-11-24 (D90).
@@ -535,50 +507,6 @@ originals are in `PLAN-HISTORY.md`); nothing was dropped, each thing is here onc
 
 The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
 
-### After Session 30: the repeat back to the hardware's rule; the sweeps and 5 retuned (2026-11-25)
-
-- **Built, and nothing you haven't ruled.** A repeat (11, 12, and 9 and 10 as ours) now holds
-  the step the key came down on, and an empty step repeats as silence, as the PO-12 does. The
-  sweeps (6, 8) go round in 6 steps, not 9, with 6 from 2 700 to 165 Hz, 8 from 220 to
-  3 300 Hz, both at Q 4.5; 5 sits at 210 Hz, Q 3. `make install` ran: **restart Rack.**
-- **Your ruling mid-session (D96 item 1)** settled the open point the plan carried: our runs
-  start one step after the press, so "the step the run begins on" would have repeated the
-  step after the kick. Ours now repeats the step the key came down on. The grid still starts
-  at the next step ⚠.
-- **What I read for you (O25, each cheap to change):**
-  1. **A replayed lane repeats its own first step,** not the step you pressed on. Punch 11 on
-     the kick's step and you hear the kick repeat; on the next pass the lane (which starts a
-     step later) repeats the step after it, usually silence. ⚠ What the PO-12 replays is
-     unmeasured. Recommended: accept until a take says otherwise.
-  2. **A second repeat inside a run takes its own key's step,** nothing carried over.
-  3. `r` exactly 1/3 and 1/4.5 (the plan had 0.33 and 0.22).
-- **Ours beside the PO-12 on take c's pattern** (`ENGINE.md` §18, "Built (Session 30)", has
-  the table): 5 reads 206 Hz against its 209; the sweeps' points sit on a 6-step triangle;
-  11 and 12 at 8.00 and 6.00 a beat. No constant moved. ⚠ **14 rings near 1 kHz on this
-  pattern, the PO-12 at 1.31 kHz**: written beside R75, nothing moved (D95 item 6).
-- **Found and fixed:** `harness/ours-take.cpp` had played every key a third of a step early
-  since Session 26. Held effects were barely touched; Sessions 26 and 28's readings stand ⚠.
-- **To check, five minutes, in Rack or on the phone:** a beat with a kick on step 1 only.
-  Punch fx + 11 while step 1 plays: the kick repeats 8 a beat. Punch it while step 2 plays:
-  silence until you let go. Hold 6 and 8 for two bars: one sweep round every 6 steps. 5
-  sounds darker than before.
-- **Proven:** 275 Rust tests; 17 faults planted, all caught by name (one after a test was
-  added); the report's 300 other runs the same bytes, the two re-worked fixtures moved by
-  decision; 72 render files moved by decision (fx 5, 6, 8 and the loop), the other 360 the
-  same; `make pairs` every case inside the old build's spread; `make test`, `make play` (both
-  browsers), `make listen`, `make selftest` in `rack/` (both fixtures on both clocks), `make
-  verify`; `make install`.
-- **Next:** your ears on Sessions 26, 28 and 30; O25; then Session 31 (effect 1, Fable).
-- **Added the same day, after you played it (D97):** punched on step 1 the kick repeated, but
-  the replay did not. Now a repeat punched mid-step is also recorded on the step being played,
-  so the replay repeats the kick too (its run starts a step earlier: one more step of repeats
-  at the front). Sound effects unchanged. O25 item 1 is answered. 276 tests; four faults
-  caught by name; only `fx-repeat-punch` moved (worked again by hand first), no render file;
-  `make test`, `make play`, `make selftest`, `make pairs` (inside the old spread), `make
-  verify`; `make install` ran: **restart Rack.** **Heard by the owner the same day: consistent**
-  (a press that repeats live repeats on every playback; a mistimed press mutes, as the
-  PO-12's rule does).
-
 ### After Session 31: effect 1 designed; the Rack clock designed; three build lists (2026-11-25)
 
 - **Designed, nothing built.** Effect 1 as the PO-12 does it: each sound in the effects is
@@ -598,3 +526,43 @@ The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
   with `ext` in place of `bpm`, `--` on a stopped clock. Session 34.
 - **Next:** Sessions 32, 33 and 34, in order, each on Opus with its list as the brief.
 
+### After Session 32: effect 1 built, the sounds at a quarter of the rate (2026-11-25)
+
+- **Built as designed (D98), not yet heard.** Hold fx + 1 and every sound in the effects
+  plays at a quarter of its speed: two octaves down, four times as long, no louder, on the
+  track channels and VOICES too. A note already sounding drops on the frame you press and
+  comes back up on the frame 1 ends. `make install` ran: **restart Rack.**
+- **What you must decide or know (⚠):**
+  1. **The cost is over the bar the list set.** Every playing case without effect 1 reads 3
+     to 5 ns a frame slower than the old build (beat 31.6 → 36.8, all 50.9 → 54.8, loop 41.8
+     → 45.0); effect 1 itself is 5 ns faster than the old hold (39.2 → 34.1); idle unchanged.
+     Nothing on the dry path is that much work: scratch builds taking away any one of the
+     three small things the design adds read near the old numbers, so it is where code lands
+     (Sessions 26, 28, 29). Left as designed, as the list said. Recommended: an efficiency
+     session that pins the frame loop's layout, measured in Rack with perf, before more is
+     added to the frame.
+  2. **The `.wasm` is 802 bytes under P1's 50 KB** (49 198). As first built it was 57 920;
+     arranging `ask` and `retune` out of line brought it back. The next effect that copies
+     voice code will cross it: the bar, or how voice code is shared, is a design question.
+  3. **A rate lowered while 1 slows sounds:** for one frame the line runs on past its last
+     value (`mu` up to 2 at 96 → 48 kHz), as written ("the grid follows the new rate from the
+     next frame"). Wrap `acc` at a rate change, or leave it?
+  4. The credits (`web/rhythm.html`, `rack/plugin.json`) still name Plaits' sample-rate
+     reducer and stmlib's soft clip; neither is in the code now. Keep as history or reword?
+- **Ours beside the PO-12 on take c's pattern** (`ENGINE.md` §18, "Built (Session 32)"): the
+  tone 220.0 → 55.0 Hz, 3.85 times as long (PO-12 3.92), +0.1 dB at its onset (PO-12 +0.2).
+  Above 10 kHz ours is −46.0 dB against the whole sound (PO-12 −47.9), but against dry ours
+  loses 19 dB where the PO-12 loses 30: brighter, as D98 item 10 said. No constant to move.
+- **To hear, five minutes, in Rack or on the phone:** the tone (key 15) with slider B up, on
+  step 1; punch fx + 1 while it rings: it drops two octaves at once and rings on slow; let go:
+  it jumps back up. A beat with fx + 1 held: everything slow and dark, nothing louder. A
+  sound switched out of the effects stays as it is. Then judge O26: item 3 (the change on the
+  frame), item 10 (how bright).
+- **Proven:** 282 Rust tests (the models and ten rule tests committed failing first, then
+  passing bit for bit at the first run); the report's 360 runs the same bytes; of 432 render
+  files only `render-fx-1`'s twelve moved, by decision; 24 faults planted, 22 caught by name
+  (one after a test was added: a line put exactly on +0 for quiet), 2 that no test can catch
+  (the grid reset twice on the frame 1 starts, and run through the ramp out where nothing is
+  slowed: either line could go); `make test`, `make play` (both browsers), `make listen`,
+  `make selftest` in `rack/`, `make verify`; `make install`. `pi_size` 3 728 → 3 872.
+- **Next:** your ear on Sessions 26, 28, 30 and 32; then Sessions 33 and 34.

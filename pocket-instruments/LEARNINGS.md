@@ -1414,3 +1414,64 @@ above; these are what only the chain showed.
 - **Take c cannot test the release:** every sound has ended by the bar the key goes up. A
   take with a long sound across the release would.
 
+
+## Session 32: effect 1 built, the voices slowed (2026-11-25)
+
+- **The model-first order held a fifth time, at a larger size.** The bus's model given the
+  grid, and a model of the voices themselves (`Voicing`: a copy of the engine's voices taken
+  before the first frame, hit, asked and retuned one track at a time by the section's words),
+  were committed failing on the old core (ten tests) and matched the new one bit for bit at
+  the first run, on every track channel and the mix, through both tours. The only failures the
+  build met were two tests the decision changed (the ABI number; "the track channels are never
+  touched", which effect 1 now does, D98 item 7) and one of my own tests.
+- **My test was wrong, not the core: a punch is recorded.** The edge test let go of fx + 1 a
+  few frames after the step at 500 ms arrived, so step 4 had been written with 1 and the tone
+  stayed slow to 625 ms; the pitch "after" read 165 crossings a second, between the two. The
+  models agreed with the core frame by frame, which is how it was found to be the test. Let go
+  before a step arrives when a test means "1 goes off here".
+- **The `.wasm` has a size bar, and voice code is most of it.** P1 holds the `.wasm` under
+  50 000 bytes. As first built it was 57 920: a sound's next value (`ask`, a match over the
+  sixteen voices' `next`) inlined at three places, and the reconcile's loops unrolled sixteen
+  times with a sixteen-way `tune` in each. `ask` and `retune` out of line: 50 217; the loops
+  walking set bits (`trailing_zeros`): 49 198. `nm -S --size-sort` on the static library
+  names the culprits in one look. 802 bytes are left.
+- **The bench read placement again, and this time it would not come back.** Ten pairs, core
+  2, against the old build: every playing case without effect 1 read 3 to 5 ns a frame slower
+  (beat 31.6 → 36.8), fx 1 5 ns faster (39.2 → 34.1), idle and fx 1/0 the same. Scratch builds
+  (medians, ns a frame; old, new, then each variant):
+
+  | Build | beat | all | both | repeat | loop | fx 2 | fx 1 | fx 1/0 |
+  |---|---|---|---|---|---|---|---|---|
+  | old | 31.6 | 50.9 | 33.8 | 37.0 | 42.0 | 39.2 | 39.4 | 36.7 |
+  | new, as built | 36.7 | 54.8 | 36.9 | 41.6 | 44.9 | 42.7 | 34.0 | 36.5 |
+  | `render` without the `slowed` test | 32.4 | 51.5 | 34.4 | 37.8 | 42.1 | 39.9 | 39.0 | 36.9 |
+  | `trigger` without the mask | 33.6 | 52.2 | 33.3 | 37.9 | 42.0 | 39.1 | 34.1 | 34.4 |
+  | no `slow` call (the read still before the hits) | 34.3 | 52.5 | 34.5 | 39.2 | 42.8 | 39.8 | 39.7 | 36.8 |
+  | slowed hits out of line (`.wasm` 51 970) | 33.5 | 52.2 | 33.5 | 38.3 | 41.7 | 39.5 | 34.0 | 34.5 |
+  | every hit at the host's rate, slowed ones retuned after | 38.3 | 56.3 | 38.6 | 42.1 | 46.3 | 44.3 | 33.8 | 38.0 |
+
+  The last two rows are from their own runs (old and new read in each, within 0.4 ns of the
+  rows above). Each of the three small things the design adds to the dry frame, taken away alone, gives
+  back most of the cost; adding a different small thing loses more. That is placement, not
+  work (none of them is 3 ns of instructions). The list said to stop on it and leave the
+  layout as designed; done. `ask` and `retune` inlined (the 57 920-byte build) left
+  `pi_process` the same size, so the size fixes are not the cause.
+- **Two planted faults no test can catch, and why.** The design resets the grid twice on the
+  frame 1 starts (`clear`, and the reconcile when a sound becomes slowed), and keeps it running
+  through the ramp out, where nothing is slowed. Removing either changed no output of any
+  engine. A plant that survives every test is a hole in the tests or a line that does
+  nothing: here, the second. A third (quiet ignoring a line's ends) did name a hole: a line
+  landing exactly on +0 never happens in a tour, so a test puts one there by hand.
+- **One plant of mine did nothing** (the trigger's mask zeroed while `stale`): `stale` is
+  already false by then, because the read moved before the hits. Run each plant's diff past
+  the code's order before counting it.
+- **Our sounds are not the PO-12's, so read per sound.** Take c's pattern through ours: the
+  tone falls exactly two octaves (220.0 → 55.0 Hz) and lasts 3.85 times as long, no louder.
+  The level over the run (+6.0 against +7.2 dB) and the "peak" (+0.1 against +3.5) are our
+  noise against the PO-12's swelling sound 8. Above 10 kHz against the whole sound ours reads
+  −46.0 dB beside the PO-12's −47.9, which looked like a match until the dry bars were read:
+  ours has 9 dB less up there to begin with. Against dry, ours loses 19 dB above 10 kHz and the
+  PO-12 30. A figure against the whole sound compares the sounds as much as the effect.
+- **The script's pitch tracker reads a triangle at 55 Hz as its third harmonic** (164.8 Hz in
+  the harmonics line). The spectrum's peak between 25 and 150 Hz gave 55.0. Know a reading's
+  range before believing it on a low note.

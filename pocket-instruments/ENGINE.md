@@ -2014,7 +2014,7 @@ plays; R73 read the PO-12 every quarter step, so the ends are not like for like.
   on a boundary. For held effects this moved nothing worth a third of a step; Sessions 26
   and 28's readings stand ⚠ (not re-read).
 
-### §18, designed 2026-11-25: effect 1, the sounds at a quarter of the rate (ABI 14; D95 item 3, D98; designed in Session 31, not built: Session 32)
+### §18, designed 2026-11-25: effect 1, the sounds at a quarter of the rate (ABI 14; D95 item 3, D98; designed in Session 31, built in Session 32)
 
 The PO-12's "low sample rate", as measured (R72, R77): every sound plays at a quarter of
 its speed, two octaves down and four times as long, no louder, with almost nothing above
@@ -2161,6 +2161,94 @@ smooths more than a line does. For the ear; a low-pass after is a constant's wor
 | Native and `.wasm`, the same bytes | `harness/render-fx-1.json` rendered again (it must move: name it); every other render file and the report the same bytes |
 | What it costs | `make pairs` against the old build, as above |
 | Ours beside the hardware | take c's pattern through `harness/ours-take.cpp`, read by `hardware-fx.py --pass c --effects 1` beside R72 and the model's table: the tone at a quarter of its dry pitch and four times its length, no louder; and above 10 kHz against the whole sound (the script's response table) |
+
+### §18, Built (Session 32): effect 1, the voices slowed (ABI 14; D98)
+
+Built as the section above says: `SLOW_RATE` and `QUARTER` in `core/src/bus.rs` (`REDUCE_HZ`
+gone); `fresh`, `mu`, `inv`, `slowed`, `from` and `to` as the bus's last fields; the grid in
+`Bus::frame` while `on == 1`; effect 1's `wet` the bus. In `core/src/voice.rs`: `slow` (the
+retune of the sounds whose bit changed, each that became slowed asked once, the grid started
+again), `trigger` given the mask, `set_sample_rate` leaving the slowed, `sound_slow` out of
+line, chosen in `render` by one test of `slowed` inside `!quiet`; `sound` untouched. In
+`core/src/engine.rs` what is heard and what is slowed are read before the frame's hits.
+`PI_ABI_VERSION` 14. `pi_size` 3 728 → 3 872. The `.wasm` 43 445 → 49 198 bytes.
+
+**Proven:** the models (`Model`'s grid and `Voicing`, the voices' own model, in
+`core/src/tests/bus.rs`, driven by `bus.rs`'s and `route.rs`'s tours, which gained effect 1
+from another kind, heard again inside its ramp out, a hit and a hit again under it, a sound
+switched out and back in while slowed, 1 made the host's beside the dry and in place of it)
+written from this section and committed failing on the old core (ten tests), then passing at
+the first run, bit for bit, the sixteen track channels and the mix on every frame. Six rule
+tests: the grid's fresh frames and `mu` against the hand lists at 44.1, 48 and 96 kHz; a
+slowed voice's values against an engine at 46 875 Hz played dry, a code voice (the tone, the
+bass drum) and a sample, at three rates; hit again, and a hit off the grid; a rate change up
+and back while slowed; a sound outside `fx_sounds` the same bytes; a sounding tone through 1
+on and off (220 Hz, a quarter, 220 again; no jump over two of its steps). In `route.rs` a
+returned sound the same under 1 as dry with channel 17 out the bus; in `quiet.rs` the tour
+given effect 1, and a line put exactly on +0 by hand. The report the same bytes; of the 432
+render files only `render-fx-1`'s twelve moved (cpp and node, both clocks, three rates;
+`render-loop`'s lane holds no 1). 24 faults planted: 22 caught by name, 2 that no test can
+catch (below). 282 Rust tests.
+
+**What turned out different, or is a reading:**
+
+- **The `.wasm` met P1's bar.** As first built it was 57 920 bytes, over the 50 000 P1 holds
+  it to: `ask` (a sound's next value) inlined at three places and the reconcile's loops
+  unrolled sixteen times copied the voices' code. `ask` and `retune` are out of line and the
+  reconcile walks the set bits: 49 198 bytes. ⚠ **802 bytes are left under the bar**; the
+  next effect that copies voice code will cross it.
+- **`held` is kept, unused,** so the fields after it in the bus stay where they were.
+- **Two resets coincide.** `clear` sets `acc` to 0 when 1 starts from idle or another kind;
+  the reconcile sets it to 0 whenever a sound becomes slowed, which is that same frame unless
+  `fx_sounds` is empty (and then nothing is slowed and the grid is never heard). Likewise the
+  grid running on through the ramp out is never heard: nothing is slowed then, and heard again
+  the reconcile starts it at 0. Two planted faults (no clear; the grid only while 1 is heard)
+  changed nothing any test or host can see. Built as written; either line could go.
+- ⚠ **A rate lowered while slowed:** `acc` is from the old rate, so on the first frame at the
+  new one it can be past 4 × the new rate and `mu` over 1 (up to 2 for 96 → 48 kHz): one frame
+  of the line run on past `to`. "The grid and `inv` follow the new rate from the next frame"
+  is built as written, and the rate-change test holds it (48 → 96 → 48 kHz). Whether `acc`
+  should be wrapped at the change is the design's to say.
+- ⚠ **The cost is over the bar.** `make pairs` against the old build, pinned to CPU 2, ten
+  rounds, medians (the old build's range): idle 5.9 (6.1, 6.0 to 6.1); beat 36.8 (31.6, 31.4
+  to 33.1); all 54.8 (50.9); both 37.0 (33.7); repeat 40.3 (37.0); loop 45.0 (41.8); loop fx
+  45.2 (41.7); loop in 47.0 (43.5); sliders 40.0 (36.9); fx 2 to 8 and 14 each 2.4 to 3.5
+  over; **fx 1 34.1 (39.2), fx 1/0 36.5 (36.6).** Every playing case without effect 1 is 3
+  to 5 ns a frame slower, which nothing on the dry path explains (one more test in `render`,
+  one in `trigger` a fired sound, the read moved before the hits). Scratch builds each
+  taking one of those three away read nearly the old build's numbers in every case, and a
+  build doing the slowed hits out of line read inside the old spread but put the `.wasm` at
+  51 970 bytes; another arrangement (a hit made at the host's rate, then retuned) read worse.
+  The pattern is Sessions 26, 28 and 29's: where code lands. Left as designed, as the build
+  list says (`LEARNINGS.md`, Session 32, has every reading).
+- **Credits** on `web/rhythm.html` and in `rack/plugin.json` still name Plaits' sample-rate
+  reducer (and stmlib's soft clip, gone since ABI 12) ⚠ the owner's: keep as history or
+  reword. `bus.rs`'s header says what was read and what is used now.
+
+**Ours beside the PO-12** (take c's pattern through `harness/ours-take.cpp`, read by
+`hardware-fx.py --pass c --effects 1`; the energy above 10 and 12 kHz, the tone's pitch by
+its spectrum's peak and its length to −30 dB by a throwaway script, which reads the PO-12's
+take c at R77's −47.8 and −62.3 dB again):
+
+| Reading | Ours (Session 32) | The model (Session 31) | The PO-12 (R72, R77) |
+|---|---|---|---|
+| The tone, dry → under 1 | 220.0 → 55.0 Hz (3.998; ours is A3) | 440.2 → 110.0 Hz | 440.6 → 110.4 Hz (3.990) |
+| Its length to −30 dB, in steps | 0.75 → 2.88 (×3.85) | 0.52 → 2.01 | 0.49 → 1.93 (×3.92) |
+| Its onset's peak against dry | +0.1 dB | +0.0 dB | +0.2 to +0.3 dB |
+| The level over the run; the peak | +6.0; +0.1 dB | +7.3; +3.4 dB | +7.2; +3.5 dB |
+| Above 10 kHz against the whole, wet (dry) | −46.0 (−26.7) dB | −36.1 dB | −47.9 (−17.8) dB |
+| Above 12 kHz, wet (dry) | −48.7 (−31.4) dB | | −62.3 (−19.0) dB |
+| The response against dry at 10.2, 12.9, 16.3 kHz | −12, −12, −17 dB | | −24, under −44, under −44 dB |
+| The script's hold | none (40.3 Hz) | | none (55 Hz) |
+
+The pitch, the length and "no louder" agree. The level and peak over the run do not: our
+sound 8 (the noise) is not the PO-12's, which swells and runs on under the tone; a reading of
+the sounds, not of the effect. ⚠ **Above 10 kHz ours reads within 2 dB of the PO-12 against
+the whole sound, but only because our dry sounds have 9 dB less up there:** against dry ours
+loses 19 dB above 10 kHz where the PO-12 loses 30, and 12 to 17 dB at 12.9 and 16.3 kHz where
+the PO-12 loses over 44. Brighter, as D98 item 10 said of the lines. Nothing here has a
+constant to move; a low-pass after the line is the next step if the ear asks. (The old build,
+read the same way: the tone 0.75 → 0.75 steps, above 10 kHz −21.3 dB.)
 
 ## 19. Sound in: the returns and the effects loop (ABI 9; designed in Session 15; D68; built in Session 18)
 

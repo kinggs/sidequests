@@ -2876,3 +2876,102 @@ not touched. A returned sound is left as it came, not held. 16 waits for a take 
   effect 1) have their lists above. The steady voltage was not ours: the nozori_68_crush
   module in the return chain.
 
+## Session 32 — effect 1 as the sounds at a quarter of the rate (build, Opus; D95 item 3, D98; done 2026-11-25)
+
+Read `ENGINE.md` §18, "designed 2026-11-25: effect 1" (the brief), §11, §18's first part
+and "Built (Session 17)"; D98; R72; `LEARNINGS.md` for Sessions 26 (the retune's method,
+the bench) and 29 (`quiet`, `make pairs`). The rules for every build session hold.
+
+- [x] **Before any change:** the report, a `sha256sum` of every render file, the old
+      library and a bench built on it (`target/old/bench`), as Session 29 did.
+- [x] **The models first.** §18's model in `core/src/tests/bus.rs` and the loop's in
+      `route.rs` written again from the section's words (the grid and `mu`, `slowed`, the retune,
+      the line between grid values), and the rule tests of its "Proven when built by" table, among
+      them the grid's fresh frames as the section lists them by hand and a slowed voice's grid
+      values held to an engine at 46 875 Hz played dry. Committed failing on the old code, before the
+      code.
+- [x] **The core.** In `core/src/bus.rs`: `REDUCE_HZ` goes; `SLOW_RATE` 46 875 and the
+      quarter; `fresh`, `mu`, `inv`, `slowed`, `from` and `to` (`[f32; TRACKS]` each) as the
+      bus's last fields; the grid in `Bus::frame` while `on == 1`; effect 1's `wet` the
+      bus itself. In
+      `core/src/voice.rs`: a retune of the sounds whose bit changed; `trigger` given the
+      mask; `set_sample_rate` leaving the slowed; `sound_slow`, out of line, chosen in
+      `render` by one test of `slowed` inside `!quiet`; `sound` itself untouched. In
+      `core/src/engine.rs`: `effect` and `slowed` read before the frame's hits sound.
+      `PI_ABI_VERSION` 14 in the header and `abi.rs`; `pi_size` reported.
+- [x] **What must not move:** the report; every render file but `render-fx-1`'s (and
+      `render-loop`'s only if its lane holds 1: say which). Name each file that moved.
+- [x] **The bench:** a new case "fx 1/0" (the beat, effect 1 on every other step) in
+      `harness/bench.cpp`. `make pairs` against the old build, alone on the machine: idle,
+      beat, all, repeat, both, the loops and every other effect inside the old spread;
+      "fx 1" and "fx 1/0" written down. If a listed case is slower, stop on that: write
+      the numbers into the Handover and leave the layout as designed ⚠.
+- [x] **Ours beside the PO-12:** take c's pattern through `harness/ours-take.cpp`, read
+      with `hardware-fx.py --pass c --effects 1` beside R72 (the tone at a quarter of its
+      dry pitch, four times as long, no louder; above 10 kHz beside the model's table in §18). Nothing here has a
+      constant to move; a reading that disagrees is written into §18 and the Handover.
+- [x] Faults planted and caught by name (`LEARNINGS.md` says how); the hosts: `make web`
+      (the `.wasm`), the listen page's effect 1, the Rack plugin rebuilt.
+- [x] **The end:** `make verify`, `make selftest` in `rack/`, `make play`, `make listen`,
+      `make install` in `rack/`; §18's section marked built, with what turned out
+      different; `WORKFLOW.md`'s effect 1 row; `bus.rs`'s tuning comment; `LEARNINGS.md`;
+      the Handover; this list to `PLAN-HISTORY.md`.
+
+(Annotated by Session 32, on moving this list.) Every box was done. Where it went otherwise:
+the models and ten rule tests were committed failing on the old core (`ea26e7e`) and passed
+at the first run on the new one (`075c75c`); one of the rule tests was my own mistake (a
+punch is recorded on the steps it passes, so 1 went off a step later than the test assumed),
+fixed in the code commit. **The bench box stopped, as it says:** every playing case without
+effect 1 reads 3 to 5 ns a frame over the old build; the numbers are in the Handover and
+`LEARNINGS.md`, and the layout is as designed ⚠. The `.wasm` crossed P1's 50 KB as first
+built and was brought back under by arrangement (`ask` and `retune` out of line, the
+reconcile's loops by bit). 24 faults planted: 22 caught by name (one after a test was added),
+2 that no test can catch (two resets of the grid that coincide). The ears-on-the-hardware box
+moved nothing. `make install` ran in `rack/`.
+
+
+## Handover note moved here by Session 32 (2026-11-25)
+
+### After Session 30: the repeat back to the hardware's rule; the sweeps and 5 retuned (2026-11-25)
+
+- **Built, and nothing you haven't ruled.** A repeat (11, 12, and 9 and 10 as ours) now holds
+  the step the key came down on, and an empty step repeats as silence, as the PO-12 does. The
+  sweeps (6, 8) go round in 6 steps, not 9, with 6 from 2 700 to 165 Hz, 8 from 220 to
+  3 300 Hz, both at Q 4.5; 5 sits at 210 Hz, Q 3. `make install` ran: **restart Rack.**
+- **Your ruling mid-session (D96 item 1)** settled the open point the plan carried: our runs
+  start one step after the press, so "the step the run begins on" would have repeated the
+  step after the kick. Ours now repeats the step the key came down on. The grid still starts
+  at the next step ⚠.
+- **What I read for you (O25, each cheap to change):**
+  1. **A replayed lane repeats its own first step,** not the step you pressed on. Punch 11 on
+     the kick's step and you hear the kick repeat; on the next pass the lane (which starts a
+     step later) repeats the step after it, usually silence. ⚠ What the PO-12 replays is
+     unmeasured. Recommended: accept until a take says otherwise.
+  2. **A second repeat inside a run takes its own key's step,** nothing carried over.
+  3. `r` exactly 1/3 and 1/4.5 (the plan had 0.33 and 0.22).
+- **Ours beside the PO-12 on take c's pattern** (`ENGINE.md` §18, "Built (Session 30)", has
+  the table): 5 reads 206 Hz against its 209; the sweeps' points sit on a 6-step triangle;
+  11 and 12 at 8.00 and 6.00 a beat. No constant moved. ⚠ **14 rings near 1 kHz on this
+  pattern, the PO-12 at 1.31 kHz**: written beside R75, nothing moved (D95 item 6).
+- **Found and fixed:** `harness/ours-take.cpp` had played every key a third of a step early
+  since Session 26. Held effects were barely touched; Sessions 26 and 28's readings stand ⚠.
+- **To check, five minutes, in Rack or on the phone:** a beat with a kick on step 1 only.
+  Punch fx + 11 while step 1 plays: the kick repeats 8 a beat. Punch it while step 2 plays:
+  silence until you let go. Hold 6 and 8 for two bars: one sweep round every 6 steps. 5
+  sounds darker than before.
+- **Proven:** 275 Rust tests; 17 faults planted, all caught by name (one after a test was
+  added); the report's 300 other runs the same bytes, the two re-worked fixtures moved by
+  decision; 72 render files moved by decision (fx 5, 6, 8 and the loop), the other 360 the
+  same; `make pairs` every case inside the old build's spread; `make test`, `make play` (both
+  browsers), `make listen`, `make selftest` in `rack/` (both fixtures on both clocks), `make
+  verify`; `make install`.
+- **Next:** your ears on Sessions 26, 28 and 30; O25; then Session 31 (effect 1, Fable).
+- **Added the same day, after you played it (D97):** punched on step 1 the kick repeated, but
+  the replay did not. Now a repeat punched mid-step is also recorded on the step being played,
+  so the replay repeats the kick too (its run starts a step earlier: one more step of repeats
+  at the front). Sound effects unchanged. O25 item 1 is answered. 276 tests; four faults
+  caught by name; only `fx-repeat-punch` moved (worked again by hand first), no render file;
+  `make test`, `make play`, `make selftest`, `make pairs` (inside the old spread), `make
+  verify`; `make install` ran: **restart Rack.** **Heard by the owner the same day: consistent**
+  (a press that repeats live repeats on every playback; a mistimed press mutes, as the
+  PO-12's rule does).
