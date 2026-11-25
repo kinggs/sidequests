@@ -524,7 +524,8 @@ struct Rhythm : Module {
     //
     // "latch": D78's gestures, by the same functions a mouse calls (no widget exists in a
     // headless Rack, so the audio thread calls them here and nothing else does), each checked
-    // against the core's view at a step's boundary.
+    // against the core's view at a step's boundary; and (Session 33) slider A moved on the
+    // module's parameter, which a player's module reads on its 16-frame scan.
     static bool loopHasShadow(int kind) { return kind == LOOP_RETURN || kind == LOOP_FX || kind == LOOP_SLIDERS; }
     // "fx" punches the lowest effect the patch makes Rack's, or effect 4 with every effect Ours,
     // and says which of the three settings it played (selftest.sh gives three such modules).
@@ -609,6 +610,7 @@ struct Rhythm : Module {
                 case 28: toggleLatch(PI_KEY_FX); break;       // Ctrl+click fx again: off
                 case 29: hold(1, MOUSE, true); break;         // now key 2 is a tap
                 case 30: hold(1, MOUSE, false); break;
+                case 12: params[SLIDER_A].setValue(40000.f); break; // a hand on slider A (Session 33)
             }
             if (boundary) switch (loopStep) {
                 case 3: loopExpect(fxLatched && !(held & fxBit), "fx latched sent fx down with no grid key down"); break;
@@ -619,6 +621,10 @@ struct Rhythm : Module {
                 case 27: loopExpect(held == (fxBit | 1u << 2) && v[PI_VIEW_HEARD] == 3, "the second click did not punch: the latch let go after the first"); break;
                 case 28: loopExpect(fxLatched && held == 0 && u16(v, PI_VIEW_FX_STEPS) == 0x0860, "the second click did not write step 12 alone"); break;
                 case 29: fires1 = v[PI_VIEW_FIRES + 1]; break;
+                // Session 33 (D99): the module reads the sliders on its 16-frame scan; until now no
+                // self-test moved one outside a fixture, which scans every frame. Found by planting
+                // a fault that read them only in a fixture: nothing failed.
+                case 13: loopExpect(u16(v, PI_VIEW_A) == 40000, "slider A moved on a player's module did not reach the core by the next step"); break;
                 case 30: loopExpect(!fxLatched && held == 1u << 1 && v[PI_VIEW_HEARD] == 0 && v[PI_VIEW_FIRES + 1] == uint8_t(fires1 + 1), "with the latch off key 2 was not a plain tap"); break;
             }
         } else if (loop != LOOP_SLIDERS && after && (loopStep == 4 || loopStep == 8)) {
