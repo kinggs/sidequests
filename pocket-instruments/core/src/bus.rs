@@ -312,6 +312,22 @@ impl Sum {
         sum
     }
 
+    /// The fours of `v` (tracks 0 to 3, 4 to 7, 8 to 11, 12 to 15) that hold a value not exactly
+    /// +0 (`to_bits() != 0`: a −0 counts), as a mask of whole fours. A mask with the other fours
+    /// left out still has every track it leaves out at exactly +0 (Session 42; D105 item 8's
+    /// options: a group whose bits are all 0 left out of the mask, nothing else changed). The
+    /// same code for each four.
+    #[inline(always)]
+    pub fn fours(v: &[f32; TRACKS]) -> u16 {
+        let mut mask = 0u16;
+        for (g, four) in v.chunks_exact(4).enumerate() {
+            if four.iter().fold(0u32, |bits, y| bits | y.to_bits()) != 0 {
+                mask |= 0xF << (4 * g);
+            }
+        }
+        mask
+    }
+
     /// Fact (a): the plain sum of the sixteen.
     #[inline(always)]
     pub fn plain(self) -> f32 {

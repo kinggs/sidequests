@@ -88,6 +88,9 @@ enum Style {
     NotNumbers,
     /// Each channel its own of the four, changing every frame.
     Mixed,
+    /// Moving on one sound's channel (and on channel 17 and the sliders), exact zeros on the
+    /// other sounds' (Session 42: each four alone).
+    Only(u8),
 }
 
 /// Something the host does before a frame: a command into that frame, or a call between frames.
@@ -385,6 +388,7 @@ fn input(style: Style, f: u64, ch: usize, r: &mut Prng) -> f32 {
             let s = [Style::Zeros, Style::MinusZeros, Style::Moving, Style::NotNumbers][r.below(4) as usize];
             input(s, f, ch, r)
         }
+        Style::Only(t) => if ch < 16 && ch != t as usize { 0.0 } else { moving(f, ch) },
     }
 }
 
@@ -650,4 +654,30 @@ fn effects_1_and_14_at_8_khz_and_100_hz_are_the_model_s_bit_for_bit() {
         drive(seed, &t, &mut counts);
     }
     not_0("low rates", &counts, &[("every sound slowed", counts.slowed_all), ("some slowed", counts.slowed_some)]);
+}
+
+/// Session 42 (D105 item 8's two options, a four left out of the mask when its values are all
+/// exact +0): each four met alone. One sound in tracks 4 to 7, then 8 to 11, then 12 to 15, each
+/// track of each in turn, every hit and step of a tour moved to it, and in a loop layout the
+/// inputs exact zeros on every other sound's channel: the other fours stay +0 while it rings
+/// under effect 1 and while it is returned. Over layouts 1, 17, 18 and 50 and the three rates.
+#[test]
+fn each_four_alone_through_the_tour_is_the_model_s_bit_for_bit() {
+    let mut counts = Counts::default();
+    for t in 4..16u8 {
+        let seed = 7000 + t as u64;
+        let rate = RATES[(t % 3) as usize];
+        let layout = [1usize, 17, LOOP, SLIDERS][(t % 4) as usize];
+        let mut tour = tour(seed, rate, layout, &RATES, Parts::All, 2.0);
+        for (_, item) in tour.items.iter_mut() {
+            match item {
+                Item::Cmd(k) if k.kind == CMD_FIRE || k.kind == CMD_STEP => k.a = t,
+                Item::Input(_) => *item = Item::Input(Style::Only(t)),
+                _ => {}
+            }
+        }
+        tour.samples &= 1 << t;
+        drive(seed, &tour, &mut counts);
+    }
+    not_0("each four alone", &counts, &[("every sound slowed", counts.slowed_all), ("every sound returned", counts.returned_all), ("quiet", counts.quiet)]);
 }

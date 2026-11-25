@@ -1672,7 +1672,9 @@ impl Voices {
             // §18, designed 2026-11-25: one test of `slowed` on a frame that asks the voices.
             let mask = self.active_tracks | bus.slowed;
             self.sound_slow(&mut v, bus);
-            mask
+            // Effect 1's lines by fours (D105 item 8): a four whose emitted values are all +0
+            // is left out of the mask, and nothing else changes.
+            mask & Sum::fours(&v)
         } else {
             let mask = self.active_tracks;
             self.sound(&mut v);
