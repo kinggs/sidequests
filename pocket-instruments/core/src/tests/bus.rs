@@ -623,6 +623,28 @@ fn the_mix_is_the_model_s_on_edges_too() {
     hold_to_model(SR, &c, 32 * STEP, true);
 }
 
+/// Session 36 (D102): with effect 1 slowing all but one sound, the one left out is asked as a
+/// plain sound beside fifteen lines (`sound_slow`'s second way). Each of the sixteen in turn,
+/// every sound hit now and then, held to the model's own voices. Added after a planted fault
+/// (track 3 never asked on that path) passed every test: the tour leaves out only the snare and
+/// the bass drum, and `tests/quiet.rs` holds the engine to itself, planted code and all.
+#[test]
+fn effect_1_with_any_one_sound_out_of_the_effects_is_the_model_s_bit_for_bit() {
+    for out in 0..16u8 {
+        let mut c: Vec<(u64, Cmd)> = (0..16u8).map(|s| (0, fx(s, 1))).collect();
+        c.extend([(0, fxsound(out, 0)), (0, play())]);
+        for i in 0..24u64 {
+            c.push((50 + i * 700, cmd(CMD_FIRE, ((i * 5 + out as u64) % 16) as u8, 0, 0)));
+            if i % 3 == 0 {
+                c.push((50 + i * 700, cmd(CMD_FIRE, out, 0, 0)));
+            }
+        }
+        c.sort_by_key(|x| x.0);
+        let running = hold_to_model(SR, &c, 20_000, false);
+        assert!(running > 15_000, "sound {out} out: effect 1 ran on {running} frames");
+    }
+}
+
 // ---- The rules, each alone ----
 
 #[test]

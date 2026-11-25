@@ -435,6 +435,31 @@ fn effect_1_on_and_off_with_some_sounds_slowed_is_the_same_bits_as_asking_every_
     }
 }
 
+/// Effect 1 with one sound left out of the effects, each of the sixteen in turn, every sound
+/// hit now and then: the one left out is asked as a plain sound beside fifteen slowed lines,
+/// and its bit is held to asking every voice whichever track it is. Written after a planted
+/// fault (track 3 never asked on that path) passed every test (Session 36). This one cannot
+/// catch that fault: both engines run the same planted code, so these tests hold the mask and
+/// nothing else. The path itself is held to `tests/bus.rs`'s own model of the voices, which
+/// gained the same sixteen cases for it (`effect_1_with_any_one_sound_out_...`).
+#[test]
+fn effect_1_with_any_one_sound_out_of_the_effects_is_the_same_bits_as_asking_every_voice() {
+    for out in 0..16u8 {
+        let mut c: Vec<(u64, Cmd)> = (0..16u8).map(|s| (0, cmd(CMD_FX, s, 0, 1))).collect();
+        c.extend([(0, cmd(CMD_FXSOUND, out, 0, 0)), (0, cmd(CMD_PLAY, 0, 0, 1))]);
+        for i in 0..24u64 {
+            c.push((50 + i * 700, fire(((i * 5 + out as u64) % 16) as u8)));
+            if i % 3 == 0 {
+                c.push((50 + i * 700, fire(out)));
+            }
+        }
+        c.sort_by_key(|x| x.0);
+        let mut partial = 0u64;
+        held(48_000, 17, 20_000, &c, |_, h| partial += (unsafe { (*h.e).bus.slowed } == !(1u16 << out)) as u64);
+        assert!(partial > 30_000, "sound {out} out: fifteen slowed on {partial} frames of both engines' 40 000");
+    }
+}
+
 /// A load (§15, §20) while playing and while sounds ring: the steps, the sliders and `VOICE`
 /// change under them, and no voice is touched. Loaded twice while playing, once more stopped.
 #[test]
