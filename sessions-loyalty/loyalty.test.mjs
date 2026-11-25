@@ -88,17 +88,111 @@ test("rands read as the bar writes them", () => {
   assert.equal(L.signed(-250), "-250");
 });
 
-test("the starting list is the club's old one: 8 rewards, 8 ways to earn, free ones first", () => {
+test("the starting list is the team's 2026-11 one: 13 rewards, 9 ways to earn, free ones first", () => {
   const { rewards, earns } = L.seedItems();
-  assert.equal(rewards.length, 8);
-  assert.equal(earns.length, 8);
-  assert.equal(rewards.filter(r => r.cost === 0).length, 4);
+  // The team's list, 2026-11-25: five free, eight bought; nine ways to earn.
+  assert.equal(rewards.length, 13);
+  assert.equal(earns.length, 9);
+  assert.equal(rewards.filter(r => r.cost === 0).length, 5);
+  assert.deepEqual(rewards.filter(r => r.cost > 0).map(r => r.cost), [700, 1000, 1500, 1625, 1800, 3000, 4000, 10000]);
+  assert.deepEqual(rewards.filter(r => r.limit === "once").map(r => r.id), ["cue", "sticker", "cap"]);
   assert.equal(earns[0].points, 1250);
+  assert.equal(earns.find(e => e.id === "survey").points, 200);
   assert.ok(rewards.every(r => r.active && r.title && r.emoji));
+  const ids = [...rewards, ...earns].map(x => x.id);
+  assert.equal(new Set(ids).size, ids.length);
 });
 
 test("an entry logged beside a Rack It match names it, and one that isn't has no match at all", () => {
   const base = { kind: "earn", uid: "ann", name: "Ann", by: "bar", byName: "Bar", at: 5, points: 50, xp: 50, item: "rack-it", title: "A rated match" };
   assert.equal(L.makeEntry({ ...base, match: "m123" }).match, "m123");
   assert.equal("match" in L.makeEntry(base), false);
+});
+
+// ---- limits and the birthday week (0.5.0) ----
+const at = (y, m, d, h = 12) => new Date(y, m - 1, d, h).getTime();   // local time, months 1-12
+const redeemOf = (item, when, extra = {}) => ({ kind: "redeem", item, at: when, points: -1, ...extra });
+
+test("a birthday is MM-DD, a real day of the year, 29 February included", () => {
+  assert.equal(L.validBirthday("02-29"), true);
+  assert.equal(L.validBirthday("12-31"), true);
+  assert.equal(L.validBirthday("02-30"), false);
+  assert.equal(L.validBirthday("13-01"), false);
+  assert.equal(L.validBirthday("00-10"), false);
+  assert.equal(L.validBirthday("1-5"), false);
+  assert.equal(L.validBirthday(""), false);
+});
+
+test("the birthday week is Monday to Sunday around the birthday", () => {
+  // 25 Nov 2026 is a Wednesday: the week is Mon 23 Nov to Sun 29 Nov.
+  const w = L.birthdayWeek("11-25", at(2026, 11, 25));
+  assert.deepEqual(w, { start: new Date(2026, 10, 23).getTime(), end: new Date(2026, 10, 30).getTime() });
+  assert.ok(L.birthdayWeek("11-25", at(2026, 11, 23, 0)));
+  assert.ok(L.birthdayWeek("11-25", at(2026, 11, 29, 23)));
+  assert.equal(L.birthdayWeek("11-25", at(2026, 11, 22, 23)), null);
+  assert.equal(L.birthdayWeek("11-25", at(2026, 11, 30, 0)), null);
+  assert.equal(L.birthdayWeek("", at(2026, 11, 25)), null);
+});
+
+test("a birthday week crosses New Year, and 29 February falls on the 28th in other years", () => {
+  // 1 Jan 2027 is a Friday: the week is Mon 28 Dec 2026 to Sun 3 Jan 2027.
+  assert.equal(L.birthdayWeek("01-01", at(2026, 12, 29)).start, new Date(2026, 11, 28).getTime());
+  assert.ok(L.birthdayWeek("01-01", at(2027, 1, 3)));
+  // 2027 isn't a leap year: 28 Feb 2027 is a Sunday, so the week is Mon 22 to Sun 28 Feb.
+  assert.ok(L.birthdayWeek("02-29", at(2027, 2, 22)));
+  assert.ok(L.birthdayWeek("02-29", at(2027, 2, 28)));
+  assert.equal(L.birthdayWeek("02-29", at(2027, 3, 1)), null);
+});
+
+test("a once reward is taken after one redeem; a voided redeem gives it back", () => {
+  const cue = { id: "cue", limit: "once", cost: 0 };
+  assert.equal(L.taken(cue, []), false);
+  assert.equal(L.taken(cue, [redeemOf("cue", at(2025, 1, 1))], at(2026, 11, 25)), true);
+  assert.equal(L.taken(cue, [redeemOf("cue", at(2025, 1, 1), { voided: true })], at(2026, 11, 25)), false);
+  assert.equal(L.taken(cue, [redeemOf("cap", at(2025, 1, 1))], at(2026, 11, 25)), false);
+  assert.equal(L.taken({ id: "lager", cost: 0 }, [redeemOf("lager", 1), redeemOf("lager", 2)]), false);
+});
+
+test("a yearly reward comes back each calendar year; a birthday one each birthday week", () => {
+  const yearly = { id: "y", limit: "year" };
+  assert.equal(L.taken(yearly, [redeemOf("y", at(2025, 12, 31))], at(2026, 1, 1)), false);
+  assert.equal(L.taken(yearly, [redeemOf("y", at(2026, 1, 1))], at(2026, 11, 25)), true);
+  const bday = { id: "birthday", limit: "year", window: "birthday" };
+  // Taken last year: free again this week.
+  assert.equal(L.taken(bday, [redeemOf("birthday", at(2025, 11, 25))], at(2026, 11, 25), "11-25"), false);
+  // Taken on Tuesday this week: taken on Wednesday.
+  assert.equal(L.taken(bday, [redeemOf("birthday", at(2026, 11, 24))], at(2026, 11, 25), "11-25"), true);
+  // Across New Year: taken Tue 29 Dec 2026, still the same week on Sat 2 Jan 2027.
+  assert.equal(L.taken(bday, [redeemOf("birthday", at(2026, 12, 29))], at(2027, 1, 2), "01-01"), true);
+});
+
+test("redeemable says why not: the birthday first, then the limit, then the points", () => {
+  const { rewards } = L.seedItems();
+  const r = id => rewards.find(x => x.id === id);
+  const now = at(2026, 11, 25);
+  assert.deepEqual(L.redeemable(r("birthday"), { at: now }), { ok: false, why: "nobirthday" });
+  assert.deepEqual(L.redeemable(r("birthday"), { birthday: "06-01", at: now }), { ok: false, why: "birthday" });
+  assert.deepEqual(L.redeemable(r("birthday"), { birthday: "11-27", at: now }), { ok: true, why: "" });
+  assert.deepEqual(L.redeemable(r("cap"), { points: 5000, entries: [redeemOf("cap", 1)], at: now }), { ok: false, why: "taken" });
+  assert.deepEqual(L.redeemable(r("cap"), { points: 2999, at: now }), { ok: false, why: "points" });
+  assert.deepEqual(L.redeemable(r("cap"), { points: 3000, at: now }), { ok: true, why: "" });
+  assert.deepEqual(L.redeemable(r("lager"), { at: now }), { ok: true, why: "" });
+});
+
+test("moving a club to the new list adds what's missing and hides only the old app's items", () => {
+  const old = [
+    { id: "a1", title: "Free cue rental", active: true },
+    { id: "a2", title: "50% off a glove", active: true },
+    { id: "a3", title: "Upgrade to a high-end cue", active: false },   // already hidden
+    { id: "a4", title: "Darts night", active: true }                    // staff made it
+  ];
+  const m = L.listMove(old, [{ id: "e1", title: "Refer a friend", points: 1250 }]);
+  assert.equal(m.rewards.add.length, 13);
+  assert.deepEqual(m.rewards.hide, ["a1", "a2"]);
+  assert.equal(m.earns.add.length, 9);
+  assert.deepEqual(m.earns.hide, ["e1"]);   // the old app's "Refer a friend", replaced by the fixed-id one
+  // Once moved, nothing more to do, even with a new item edited by staff.
+  const { rewards, earns } = L.seedItems();
+  const again = L.listMove([...old.map(x => ({ ...x, active: x.id === "a4" })), ...rewards.map(x => ({ ...x, cost: x.cost + 1 }))], earns);
+  assert.deepEqual(again, { rewards: { add: [], hide: [] }, earns: { add: [], hide: [] } });
 });

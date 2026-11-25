@@ -108,27 +108,125 @@ export function cardAfter(card, entries){
 export const rand = n => { const v = Number(n) || 0; return "R" + (Number.isInteger(v) ? String(v) : v.toFixed(2)); };
 export const signed = n => (n > 0 ? "+" : "") + String(Math.trunc(Number(n) || 0));
 
-// The club's list as it stands in the old app (2026-10-02), to start from. Staff edit it.
+// ---- limits and the birthday week (0.5.0) ----
+// A reward may be limited: "once" (once per member, ever: the free cue rental, the cap) or
+// "year" (once a year). A reward with window "birthday" is offered only in the member's
+// birthday week, and its "year" limit means once per birthday week.
+export const LIMITS = [["", "Any number of times"], ["once", "Once per member"], ["year", "Once a year"]];
+
+// A birthday is "MM-DD", no year: the club needs the week, not the age.
+export function validBirthday(s){
+  const m = /^(\d{2})-(\d{2})$/.exec(String(s || ""));
+  if (!m) return false;
+  const mo = Number(m[1]), d = Number(m[2]);
+  return mo >= 1 && mo <= 12 && d >= 1 && d <= [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][mo - 1];
+}
+export const birthdayText = s => validBirthday(s)
+  ? new Date(2000, Number(s.slice(0, 2)) - 1, Number(s.slice(3))).toLocaleDateString("en-GB", { day: "numeric", month: "long" }) : "";
+
+// The birthday week: Monday to Sunday, the week the birthday falls in, by the phone's clock.
+// 29 February is kept on the 28th in other years. Returns { start, end } (end exclusive) for the
+// birthday week that contains `at`, or null when `at` is in nobody's birthday week.
+export function birthdayWeek(birthday, at){
+  if (!validBirthday(birthday)) return null;
+  const t = Number(at) || 0, y = new Date(t).getFullYear();
+  const mo = Number(birthday.slice(0, 2)) - 1, d = Number(birthday.slice(3));
+  for (const yr of [y - 1, y, y + 1]){
+    const leap = (yr % 4 === 0 && yr % 100 !== 0) || yr % 400 === 0;
+    const day = new Date(yr, mo, mo === 1 && d === 29 && !leap ? 28 : d);
+    const start = new Date(yr, mo, day.getDate() - ((day.getDay() + 6) % 7));   // back to Monday
+    const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 7);
+    if (t >= start.getTime() && t < end.getTime()) return { start: start.getTime(), end: end.getTime() };
+  }
+  return null;
+}
+
+// Has this member already used up a limited reward? Voided redeems don't count. A birthday
+// reward's "year" is the birthday week that contains `at`.
+export function taken(reward, entries, at = Date.now(), birthday = ""){
+  const limit = reward && reward.limit;
+  if (!limit) return false;
+  const mine = (entries || []).filter(e => e && !e.voided && e.kind === "redeem" && e.item === reward.id).map(e => Number(e.at) || 0);
+  if (limit === "once") return mine.length > 0;
+  const t = Number(at) || 0;
+  if (reward.window === "birthday"){
+    const w = birthdayWeek(birthday, t);
+    return !!w && mine.some(x => x >= w.start && x < w.end);
+  }
+  const y = new Date(t).getFullYear();
+  return mine.some(x => new Date(x).getFullYear() === y);
+}
+
+// Can this member take this reward now? why: "" | "birthday" (not their birthday week) |
+// "nobirthday" (no birthday on the card) | "taken" (limit used) | "points" (can't afford it).
+export function redeemable(reward, { points = 0, birthday = "", entries = [], at = Date.now() } = {}){
+  if (!reward) return { ok: false, why: "points" };
+  if (reward.window === "birthday"){
+    if (!validBirthday(birthday)) return { ok: false, why: "nobirthday" };
+    if (!birthdayWeek(birthday, at)) return { ok: false, why: "birthday" };
+  }
+  if (taken(reward, entries, at, birthday)) return { ok: false, why: "taken" };
+  if (!canAfford(points, reward)) return { ok: false, why: "points" };
+  return { ok: true, why: "" };
+}
+
+// ---- the club's list ----
+// LIST is the version of the list below. The staff side brings a club up to it once (settings
+// itemsList): it adds the items it lacks, at these fixed ids, and hides the old app's items
+// (OLD_TITLES) so history keeps them. Items staff added themselves are left alone.
+export const LIST = "2026-11";
+
+// The club's list as the team described it on 2026-11-25. Staff edit it.
 export function seedItems(){
   const rewards = [
-    ["🍺", "Free Sessions Lager", "A free Sessions Lager with a 2-hour booking", 0, "With a 2-hour booking"],
-    ["☕", "Free coffee or tea", "A free cup of coffee or tea with a 2-hour booking", 0, "With a 2-hour booking"],
-    ["🪪", "Free Sessions ice-breaker", "Feel part of the community with the Sessions ice-breaker", 0, ""],
-    ["🎱", "Free cue rental", "A free cue rental for your next game", 0, ""],
-    ["🏹", "Upgrade to a high-end cue", "Pay for a regular cue and upgrade to one of the high-end cues", 250, ""],
-    ["🧢", "50% off a Sessions cap", "Half price when you take up this reward on a Sessions cap", 1550, ""],
-    ["📺", "TV table at standard price", "Hire the TV table at the normal table rate", 1625, ""],
-    ["🧤", "50% off a glove", "Cue smoother, with more confidence, with 50% off a glove", 2185, ""]
-  ].map(([emoji, title, blurb, cost, condition], i) => ({ emoji, title, blurb, cost, condition, active: true, order: i }));
+    // Free from the day you join (the old app's "auto on download").
+    ["cue", "🎱", "Free cue rental", "A free cue rental, on the house", 0, "", "once", ""],
+    ["sticker", "🏷️", "Free Sessions Icon sticker", "The Sessions Icon sticker, yours to keep", 0, "", "once", ""],
+    ["lager", "🍺", "Free Sessions Lager", "A free Sessions Lager with a 2-hour table booking", 0, "With a 2-hour booking", "", ""],
+    ["coffee", "☕", "Free coffee or tea", "A free coffee or tea with a 2-hour table booking, in office hours or on a Sunday", 0, "2-hour booking · office hours or Sundays", "", ""],
+    ["birthday", "🎂", "Happy birthday", "Two hours of free table time and a free drink, in your birthday week", 0, "In your birthday week", "year", "birthday"],
+    // Bought with points.
+    ["drink", "🥤", "Free drink", "Any drink from the bar", 700, "", "", ""],
+    ["hour", "⏱️", "1 hour of table time", "An hour on a table, free", 1000, "", "", ""],
+    ["meal", "🍔", "A meal", "A meal from the kitchen", 1500, "", "", ""],
+    ["tv", "📺", "TV table at standard rate", "Hire the TV table at the normal table rate", 1625, "", "", ""],
+    ["ct", "🏆", "Competition table at standard rate", "Hire the competition table at the normal table rate", 1800, "", "", ""],
+    ["cap", "🧢", "Sessions branded cap", "A Sessions cap", 3000, "", "once", ""],
+    ["glove", "🧤", "PNS glove", "A PNS pool glove", 4000, "", "", ""],
+    ["shirt", "👕", "Custom club shirt", "Your own Sessions club shirt", 10000, "", "", ""]
+  ].map(([id, emoji, title, blurb, cost, condition, limit, window], i) => ({ id, emoji, title, blurb, cost, condition, limit, window, active: true, order: i }));
   const earns = [
-    ["📣", "Refer a friend", 1250],
-    ["⭐", "Leave a review on Google", 1000],
-    ["👍", "Follow us on Facebook", 200],
-    ["📸", "Tag us in a post on Instagram", 200],
-    ["📸", "Follow us on Instagram", 200],
-    ["🎵", "Follow us on TikTok", 200],
-    ["💬", "Comment on a post on Instagram", 200],
-    ["❤️", "Like our post on Instagram", 5]
-  ].map(([emoji, title, points], i) => ({ emoji, title, blurb: "", points, active: true, order: i }));
+    ["refer", "📣", "Refer a friend", 1250],
+    ["google", "⭐", "Leave a review on Google", 1000],
+    ["survey", "📝", "Fill in our survey", 200],
+    ["fb-follow", "👍", "Follow us on Facebook", 200],
+    ["ig-tag", "📸", "Tag us in a post on Instagram", 200],
+    ["ig-follow", "📸", "Follow us on Instagram", 200],
+    ["tiktok-follow", "🎵", "Follow us on TikTok", 200],
+    ["ig-comment", "💬", "Comment on a post on Instagram", 200],
+    ["ig-like", "❤️", "Like our post on Instagram", 5]
+  ].map(([id, emoji, title, points], i) => ({ id, emoji, title, blurb: "", points, active: true, order: i }));
   return { rewards, earns };
+}
+
+// The old app's items (the list as it was on 2026-10-02), hidden when a club moves to LIST.
+export const OLD_TITLES = {
+  rewards: ["Free Sessions Lager", "Free coffee or tea", "Free Sessions ice-breaker", "Free cue rental",
+    "Upgrade to a high-end cue", "50% off a Sessions cap", "TV table at standard price", "50% off a glove"],
+  earns: ["Refer a friend", "Leave a review on Google", "Follow us on Facebook", "Tag us in a post on Instagram",
+    "Follow us on Instagram", "Follow us on TikTok", "Comment on a post on Instagram", "Like our post on Instagram"]
+};
+
+// What moving a club to LIST takes: the items to add (missing fixed ids) and the ids to hide
+// (old items by title, not already hidden, not one of the new ids).
+export function listMove(rewards, earns){
+  const { rewards: nr, earns: ne } = seedItems();
+  const plan = (have, fresh, oldTitles) => {
+    const ids = new Set((have || []).map(x => x.id)), newIds = new Set(fresh.map(x => x.id));
+    return {
+      add: fresh.filter(x => !ids.has(x.id)),
+      hide: (have || []).filter(x => !newIds.has(x.id) && x.active !== false && oldTitles.includes(x.title)).map(x => x.id)
+    };
+  };
+  return { rewards: plan(rewards, nr, OLD_TITLES.rewards), earns: plan(earns, ne, OLD_TITLES.earns) };
 }

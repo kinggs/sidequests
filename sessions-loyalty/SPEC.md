@@ -6,7 +6,7 @@ notes. It replaces the paid, stand-alone loyalty app the club runs today (screen
 2026-10-02) with one that costs nothing and shares its QR with Rack It. The first sidequest built
 on the v3 look (`shared/DESIGN.md`) from the start.
 
-This spec is the app as it is (0.4.0). The points arithmetic is in `loyalty.js`, proved by
+This spec is the app as it is (0.5.0). The points arithmetic is in `loyalty.js`, proved by
 `loyalty.test.mjs` (`node --test` from the repo root).
 
 **Files.** `index.html` (the app), `loyalty.js` (points, tiers, totals, the starting list),
@@ -26,7 +26,8 @@ This spec is the app as it is (0.4.0). The points arithmetic is in `loyalty.js`,
 | **XP** | Never spent. 1 a rand by default (`xpPerRand`), plus what tasks award. It sets the tier. |
 | **Tier** | Bronze, Silver, Gold by XP, thresholds in Settings. Bronze always starts at 0. |
 | **Entry** | One line of a member's history: a **spend** (rands at the bar), an **earn** (a task done), a **redeem** (a reward taken, points negative) or an **adjust** (a staff correction). Voided entries count for nothing. |
-| **Reward** | Something points buy, or something free with a condition ("Free lager · with a 2-hour booking"). |
+| **Reward** | Something points buy, or something free with a condition ("Free lager · with a 2-hour booking"). It may have a **limit** (once per member, or once a year) and a **window** (only in the member's birthday week) (0.5.0). |
+| **Birthday** | Day and month on the card, no year. The **birthday week** is Monday to Sunday around it, by the phone's clock; 29 February counts as the 28th in other years. |
 | **Earn** | A task that awards points: refer a friend, a Google review, a follow. |
 
 Words: **member**, never customer; **points** and **XP**; **log a spend**, **award**, **redeem**,
@@ -82,11 +83,15 @@ card appearing while the QR is up. Anyone arriving in this app through a QR link
 - **Show my QR**, the one button you came for (76px).
 - **Your Rack It rating and matches** (0.3.0): a link to your page in Rack It (`../rack-it/?p=<uid>`).
   This app never reads Rack It's ratings (owner, 2026-10-04).
+- **Birthday** (0.5.0): on the card once set; until then **Add your birthday for a birthday
+  treat** (day and month). A member sets it once; after that only staff change it.
 - **Next reward**: "Your next reward is 250 points away", with a bar. Free rewards are never
   "away"; with everything affordable the line says so.
 - **Rewards**: each with its picture (an emoji, or a photo staff added), title, blurb or
   condition, and its cost (or "Free"). A reward you can afford shows its cost in the accent;
-  one you can't is dimmed. Tap one for the full text and **Show my QR**: staff redeem it.
+  one you can't is dimmed. A limited reward says so ("Once per member", "Once a birthday") and,
+  once used, shows **Taken**; the birthday reward is dimmed outside the birthday week. Tap one for
+  the full text, why you can't take it yet, and **Show my QR**: staff redeem it.
 - **Earn**: each task with its points. Tap one for how: do it, show your QR, staff add the
   points.
 - **Recent**: your entries, newest first: "R90 at the bar", "Refer a friend", "Free cue rental
@@ -110,8 +115,10 @@ large, "1,240 XP · Silver in 3,760". Then the four things staff do:
 
 - **Log a spend** (76px): rands, an optional note, and the live line "= 90 points · 90 XP".
 - **Award**: pick a way to earn; its points land.
-- **Redeem**: pick a reward the member can afford; its cost comes off. Rewards they can't afford
-  aren't offered, and a line says how many need more points.
+- **Redeem**: pick a reward the member can take now; its cost comes off. Rewards they can't
+  afford, have used up, or that wait for their birthday week aren't offered, and a line says how
+  many of each ("2 need more points · 1 already taken · not their birthday week"). The limits
+  count the member's redeems that aren't voided, so voiding one gives it back.
 - **Adjust**: signed points and a reason (required).
 
 Each writes **one batch**: the entry, and the card's cached `points`, `xp` and `lastAt`.
@@ -133,7 +140,7 @@ match a player said was Not right, earns nothing. Rack It is read one match at a
 **Their Rack It page** links to the member's page in Rack It.
 
 Then
-**Details**: member number, status (Casual · Member · Lapsed), and the **staff note**, which the
+**Details**: member number, status (Casual · Member · Lapsed), birthday (0.5.0), and the **staff note**, which the
 member never reads. **This month**: visits, rands, points. **History**: every entry, with a `⋯`
 that offers **Hold to void** (a voided entry stays, struck through, and the card is recomputed)
 and, for the owner, **Hold to delete**. The owner's `⋯` at the top offers **Make staff** or
@@ -142,10 +149,14 @@ and, for the owner, **Hold to delete**. The owner's `⋯` at the top offers **Ma
 **Items.** Rewards | Earn. Each row has its picture, title, blurb, cost or points, and a `⋯`:
 **Edit**, **Hide** / **Show** (hidden items stay in history), **Hold to delete**. **Add a
 reward** / **Add a way to earn** opens the same sheet as Edit: title, blurb, cost (0 is free) and
-condition for a reward, points for an earn, an emoji, and for a reward a photo (shrunk to a
-320px JPEG kept in the document, under 100,000 characters). An empty list offers **Start from
-the Sessions list**: the club's eight rewards and eight ways to earn as they were on 2026-10-02
-(`loyalty.js` `seedItems`).
+condition for a reward, how often (Any · Once · Once a year) and when (Any time · Birthday
+week), points for an earn, an emoji, and for a reward a photo (shrunk to a
+320px JPEG kept in the document, under 100,000 characters). **The club's list** (`loyalty.js` `seedItems`, version `LIST`) is the team's of 2026-11-25:
+thirteen rewards and nine ways to earn, each at a fixed id (`rewards/cue`, `earns/survey`). The
+first staff phone to open a club that isn't on `LIST` brings it up to it, once, by itself: it
+adds the items the club lacks, hides the old app's sixteen (by title, `OLD_TITLES`; history
+keeps them) and sets `settings/main.itemsList`. Items staff made are left alone, and an item
+staff edited keeps their edit. An empty list also offers **Start from the Sessions list**.
 
 **More.** Settings (club name, points a rand, XP a rand, the three tier names and the Silver
 and Gold thresholds), Staff (the owner only: the list, **Add staff** from a list of the newest members or by
@@ -157,11 +168,12 @@ recomputed from its entries), **View as a member**, and the version.
 Under `/sidequests/sessions-loyalty/`. Times are milliseconds.
 
 ```
-settings/main   { name, pointsPerRand, xpPerRand, tiers: [{ name, xp }], updatedBy }
+settings/main   { name, pointsPerRand, xpPerRand, tiers: [{ name, xp }], updatedBy, itemsList }
 staff/<uid>     { name, addedAt, addedBy }
-rewards/<id>    { title, blurb, cost, condition, emoji, photo, active, order, createdAt }
+rewards/<id>    { title, blurb, cost, condition, limit, window, emoji, photo, active, order, createdAt }
+                                // limit: "" | "once" | "year"; window: "" | "birthday" (0.5.0)
 earns/<id>      { title, blurb, points, emoji, active, order, createdAt }
-cards/<uid>     { uid, name, since, memberNo, status, points, xp, lastAt, by }
+cards/<uid>     { uid, name, since, memberNo, status, points, xp, lastAt, by, birthday? }   // "MM-DD"
 notes/<uid>     { text, updatedAt, by }
 entries/<id>    { kind, uid, name, by, byName, at, rands, points, xp, item, title, note,
                   match?, voided?, voidedBy?, voidedAt? }   // match: a Rack It match id (0.3.0)
@@ -173,7 +185,7 @@ entries/<id>    { kind, uid, name, by, byName, at, rands, points, xp, item, titl
 |---|---|---|---|
 | settings, rewards, earns | read | read, write | the same |
 | staff/ | get their own | get, list | write |
-| cards/ | get their own; create their own, empty, once (joining) | get, list, write | the same |
+| cards/ | get their own; create their own, empty, once (joining); add `birthday` to their own, once | get, list, write | the same |
 | notes/ | — | read, write | the same |
 | entries/ | their own: get, and list with `where uid == me` | all; create with `by` = me; void (only `voided*`) | also create in anyone's name (Import) and delete |
 
@@ -193,6 +205,13 @@ Ann becomes staff when the owner adds her under More → Staff with her QR link.
 - **A member joins by themselves** (0.4.0, owner 2026-11-18: one scan of the staff QR must be
   enough at the bar). The rules let an account create only its own card, only with 0 points and
   XP, casual, no member number; every later write is staff's.
+- **The team's list, 2026-11-25** (0.5.0). The old app's "auto on download" rewards are free
+  rewards with a limit (the cue rental and the sticker once each), not vouchers issued on join.
+  Conditions like "with a 2-hour booking, in office hours or on Sundays" stay words staff judge:
+  there's no booking system to check them against. The TV table and the competition table
+  ("1625 TV / 1800 CT") are two rewards. The survey awards 200, as a follow does. (Owner.)
+- **A member sets their birthday once** (0.5.0, owner 2026-11-25), so nobody moves it to take
+  the birthday reward twice; staff correct it.
 - **Staff redeem after a scan.** No member-side claim or pending state. (Owner, 2026-10-02.)
 - **Points and XP with tiers**, as the old app. (Owner, 2026-10-02.)
 - **A scan makes a real friendship**, tagged by the pair's `app`. (Owner, 2026-10-02: "staff
@@ -204,6 +223,13 @@ Ann becomes staff when the owner adds her under More → Staff with her QR link.
 - No photos of members: their avatar is their profile's, as everywhere.
 
 ## 8. Out of scope (for now)
+
+**Challenges stay manual** (owner, 2026-11-25): staff check a follow, a tag, a review, a referral
+or a survey and **Award** it. Worth considering later, in the Sessions app rather than here
+(`SESSIONS-MIGRATION.md` §6): a link or QR per challenge, so the member opens the right page;
+checking Instagram, Facebook and TikTok through their APIs; a Google review link with the review
+noticed; referral codes that award both sides when the friend joins; a survey inside the app;
+booking-linked free drinks, landing by themselves on a 2-hour booking; a birthday reminder.
 
 Monthly stat pages, referrals tracked by code, push notifications, booking integration, a
 member-side claim queue, printing a QR for the till (needs a code that outlives 24 hours:

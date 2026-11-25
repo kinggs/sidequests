@@ -91,6 +91,16 @@ rediscovery.
 
 Anything said about the migration that doesn't have a home yet. Sort it later.
 
+- The club team's description of the old loyalty app (2026-11-25), now matched in Sessions
+  Loyalty 0.5.0 (`sessions-loyalty/SPEC.md` §5, §7): free on joining (cue rental and Sessions
+  Icon sticker once each; a lager, or a coffee or tea in office hours or on Sundays, with a
+  2-hour booking; a birthday-week 2 hours of table time and a drink); bought (drink 700, an hour
+  of table time 1000, meal 1500, TV table 1625, competition table 1800, cap 3000 once, PNS glove
+  4000, club shirt 10000); challenges (socials, Google review 1000, refer a friend 1250, survey).
+  Staff check the challenges by hand today. For the new app, consider: challenges that verify
+  themselves (social APIs, a review link, referral codes, an in-app survey), and booking-linked
+  rewards that land on a booking.
+
 - "Combine loyalty, table booking, and scorekeeping, and potentially tournaments into one app …
   an integrated set of apps." (Owner, 2026-11-18)
 - Shortcuts are fine for demos in the sidequests in the meantime. (Owner, 2026-11-18)

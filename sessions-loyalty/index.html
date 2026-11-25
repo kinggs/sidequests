@@ -77,7 +77,7 @@
   import * as L from "./loyalty.js";
 
   // Bump on every change. The deploy skill checks this against the live site.
-  const APP_VERSION = "0.4.0";
+  const APP_VERSION = "0.5.0";
   const APP_ID = "sessions-loyalty";
   const APP_NAME = "Sessions Loyalty";
   document.getElementById("version").textContent = "v" + APP_VERSION;
@@ -142,6 +142,17 @@
   const lbl = text => h("div", { class: "lbl sect", text });
   const empty = text => h("li", { class: "empty", text });
   const btn = (text, cls, fn, extra = {}) => h("button", { type: "button", class: cls, text, tap: fn, ...extra });
+  // A birthday as day and month (no year): two selects. value() is "MM-DD", or "" until both are set.
+  const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  function birthdayPicker(value = ""){
+    const day = h("select", { "aria-label": "Day" }, h("option", { value: "", text: "Day" }),
+      ...Array.from({ length: 31 }, (_, i) => h("option", { value: String(i + 1).padStart(2, "0"), text: String(i + 1) })));
+    const month = h("select", { "aria-label": "Month" }, h("option", { value: "", text: "Month" }),
+      ...MONTHS.map((m, i) => h("option", { value: String(i + 1).padStart(2, "0"), text: m })));
+    if (L.validBirthday(value)){ month.value = value.slice(0, 2); day.value = value.slice(3); }
+    const out = () => day.value && month.value && L.validBirthday(`${month.value}-${day.value}`) ? `${month.value}-${day.value}` : "";
+    return { node: h("div", { class: "row", style: "margin-top:0" }, day, month), value: out, day, month };
+  }
 
   // A sheet with inputs (the theme's .sheet, built here): resolves with the values, or null.
   function form({ title, text = "", fields = [], submit = "Save", onChange = null, extra = [] }){
@@ -339,6 +350,7 @@
       return;
     }
     if (staff && !viewAsMember) renderStaff(); else renderMember();
+    if (staff && settings.itemsList !== L.LIST) moveList();
   }
   // The side's first data: enough to draw the whole screen once, with no "Nothing yet" lies.
   function firstDataIn(){
@@ -365,8 +377,10 @@
       lc.append(
         h("div", { class: "fig-xl pts" }, fmt(points), h("small", { text: `points · ${fmt(card.xp)} XP${t.next ? ` · ${t.next.name} at ${fmt(t.next.xp)}` : ""}` })),
         h("div", { class: "meta" }, h("span", { text: "Member since " + dateOf(card.since) }), h("span", { text: card.memberNo ? "#" + card.memberNo : (card.status === "member" ? "Member" : card.status === "lapsed" ? "Lapsed" : "") })));
+      if (card.birthday) lc.append(h("div", { class: "meta" }, h("span", { text: "Birthday " + L.birthdayText(card.birthday) })));
       page.push(lc);
       page.push(btn("Show my QR", "primary big wide", () => { phone.fullscreen(); connect.showQR({ app: APP_ID }); }, { style: "margin-top:12px" }));
+      if (!card.birthday) page.push(btn("Add your birthday for a birthday treat", "quiet wide", addBirthday, { style: "margin-top:12px" }));
       page.push(h("a", { class: "linkbtn", href: rackLink(user.uid), text: "Your Rack It rating and matches" }));
       if (away){
         const pct = Math.min(100, Math.round(points / (Number(away.reward.cost) || 1) * 100));
@@ -389,12 +403,17 @@
     const shownR = liveR;
     if (!rewards) rl.append(empty("Loading…"));
     else if (!shownR.length) rl.append(empty("No rewards yet."));
+    const now = Date.now();
     for (const r of shownR){
-      const cost = Number(r.cost) || 0, can = L.canAfford(points, r);
-      rl.append(h("li", { tap: () => ui.sheet({ title: r.title, text: [r.blurb, r.condition].filter(Boolean).join(" · ") || (cost ? `${fmt(cost)} points` : "Free"),
-          items: [{ label: "Show my QR", value: "qr", primary: true }] }).then(v => { if (v === "qr") connect.showQR({ app: APP_ID }); }) },
-        pic(r), h("div", { class: "who" }, h("div", { class: "l1", text: r.title }), h("div", { class: "l2", text: r.condition || r.blurb || "" })),
-        h("span", { class: "fig" + (can ? "" : " off"), text: cost ? fmt(cost) : "Free" })));
+      const cost = Number(r.cost) || 0;
+      const rd = L.redeemable(r, { points, birthday: card && card.birthday, entries: myEntries || [], at: now });
+      const why = whyNot(rd.why, r);
+      const sub = [r.condition || r.blurb || "", limitText(r)].filter(Boolean).join(" · ");
+      rl.append(h("li", { tap: () => ui.sheet({ title: r.title, text: [[r.blurb, r.condition, limitText(r)].filter(Boolean).join(" · ") || (cost ? `${fmt(cost)} points` : "Free"), why].filter(Boolean).join(" "),
+          items: rd.why === "nobirthday" && card ? [{ label: "Add your birthday", value: "bday", primary: true }] : [{ label: "Show my QR", value: "qr", primary: true }] })
+          .then(v => { if (v === "qr") connect.showQR({ app: APP_ID }); if (v === "bday") addBirthday(); }) },
+        pic(r), h("div", { class: "who" }, h("div", { class: "l1", text: r.title }), h("div", { class: "l2", text: sub })),
+        h("span", { class: "fig" + (rd.ok ? "" : " off"), text: rd.why === "taken" ? "Taken" : cost ? fmt(cost) : "Free" })));
     }
     page.push(rl);
 
@@ -416,6 +435,21 @@
     main.replaceChildren(...page);
   }
   const pic = item => h("div", { class: "pic" }, item.photo ? h("img", { src: item.photo, alt: "" }) : (item.emoji || "⭐"));
+  const limitText = r => r.limit === "once" ? "Once per member" : r.limit === "year" ? (r.window === "birthday" ? "Once a birthday" : "Once a year") : "";
+  const whyNot = (why, r) => why === "taken" ? (r.limit === "once" ? "Already taken." : r.window === "birthday" ? "Already taken this birthday." : "Already taken this year.")
+    : why === "birthday" ? "Only in your birthday week, Monday to Sunday."
+    : why === "nobirthday" ? "Add your birthday to your card first." : "";
+  // A member adds their birthday once; after that only staff change it (the rules say so too).
+  async function addBirthday(){
+    const pick = birthdayPicker();
+    const v = await form({ title: "Your birthday", text: "Day and month only. You can set it once; after that, ask staff at the bar to change it.",
+      submit: "Save", fields: [{ type: "custom", node: pick.node }] });
+    if (!v) return;
+    const b = pick.value();
+    if (!b) return ui.toast("Pick a day and a month.");
+    try { await cloud.patch("cards/" + user.uid, { birthday: b }); ui.toast("Birthday saved"); }
+    catch (e){ report("Couldn't save your birthday", e); }
+  }
   const entryTitle = e => e.kind === "spend" ? `${L.rand(e.rands)} at the bar` : e.kind === "redeem" ? `${e.title || "Reward"} (redeemed)` : e.kind === "adjust" ? (e.note || "Adjustment") : (e.title || "Points");
 
   // Entries as rows. who: show the member's name (the staff side); menu: the ⋯ (the member page).
@@ -664,12 +698,14 @@
     let status = c.status || "casual";
     const seg = h("div", { class: "seg" }, ...[["casual", "Casual"], ["member", "Member"], ["lapsed", "Lapsed"]].map(([v, label]) =>
       btn(label, "", function(){ status = v; seg.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", String(x.textContent === label))); }, { "aria-pressed": String(v === status) })));
+    const bday = birthdayPicker(c.birthday || "");
     let noteLoaded = false;
     cloud.load("notes/" + uid).then(n => { if (n && n.text && !noteBox.value) noteBox.value = n.text; noteLoaded = true; }).catch(e => report("Couldn't read the note", e));
     const save = btn("Save details", "wide", async () => {
       save.disabled = true;
       try {
-        await cloud.patch("cards/" + uid, { memberNo: numIn.value.trim().slice(0, 24), status });
+        const b = bday.value();
+        await cloud.patch("cards/" + uid, { memberNo: numIn.value.trim().slice(0, 24), status, ...(b ? { birthday: b } : {}) });
         if (noteLoaded || noteBox.value) await cloud.save("notes/" + uid, { text: noteBox.value.trim().slice(0, 500), updatedAt: Date.now(), by: user.uid });
         ui.toast("Saved");
       } catch (e){ report("Couldn't save", e); }
@@ -679,6 +715,7 @@
     page.push(h("div", { class: "card" },
       h("label", { for: "memberNo", text: "Member number" }), numIn,
       h("label", { text: "Status" }), seg,
+      h("label", { text: "Birthday" }), bday.node,
       h("label", { for: "note", text: "Staff note" }), noteBox,
       h("div", { style: "height:12px" }), save,
       h("p", { class: "note", style: "margin-top:10px", text: "Member since " + dateOf(c.since) + ". The note is staff-only; the member sees the rest." })));
@@ -735,9 +772,15 @@
   }
   async function redeem(c){
     const live = (rewards || []).filter(r => r.active !== false);
-    const can = live.filter(r => L.canAfford(c.points, r)), cant = live.length - can.length;
-    if (!can.length) return ui.toast(live.length ? `${c.name} can't afford any reward yet.` : "No rewards yet. Add them under Items.");
-    const v = await ui.sheet({ title: "Redeem", text: `${c.name} · ${fmt(c.points)} points` + (cant ? ` · ${cant} more need more points` : ""),
+    if (!memberEntries) return ui.toast("Still reading their history. Try again in a moment.");
+    const uid = c.uid || c.id, now = Date.now();
+    const checks = live.map(r => [r, L.redeemable(r, { points: c.points, birthday: c.birthday, entries: memberEntries.filter(e => e.uid === uid), at: now })]);
+    const can = checks.filter(([, rd]) => rd.ok).map(([r]) => r);
+    const n = why => checks.filter(([, rd]) => rd.why === why).length;
+    const notes = [n("points") && `${n("points")} need more points`, n("taken") && `${n("taken")} already taken`,
+      (n("birthday") || n("nobirthday")) && (c.birthday ? "not their birthday week" : "no birthday on the card")].filter(Boolean);
+    if (!can.length) return ui.toast(live.length ? `Nothing ${c.name} can take now: ${notes.join(", ")}.` : "No rewards yet. Add them under Items.");
+    const v = await ui.sheet({ title: "Redeem", text: `${c.name} · ${fmt(c.points)} points` + (notes.length ? ` · ${notes.join(" · ")}` : ""),
       items: can.map(r => ({ label: `${Number(r.cost) ? fmt(r.cost) : "Free"} · ${r.title}`, value: r.id })) });
     if (!v) return;
     const r = can.find(x => x.id === v);
@@ -805,20 +848,34 @@
         { label: "Delete", value: "del", hold: true, run: () => cloud.delete(`${col}/${it.id}`).then(() => ui.toast("Deleted"), e => report("Couldn't delete", e)) }
       ] });
       ul.append(h("li", { class: it.active === false ? "void" : "" }, pic(it),
-        h("div", { class: "who" }, h("div", { class: "l1", text: it.title }), h("div", { class: "l2", text: it.active === false ? "Hidden" : (it.condition || it.blurb || "") })),
+        h("div", { class: "who" }, h("div", { class: "l1", text: it.title }), h("div", { class: "l2", text: it.active === false ? "Hidden" : [it.condition || it.blurb || "", isR ? limitText(it) : ""].filter(Boolean).join(" · ") })),
         h("span", { class: "fig" + (it.active === false ? " off" : ""), text: isR ? (Number(it.cost) ? String(Math.trunc(it.cost)) : "Free") : String(Math.trunc(it.points)) }), m));
     }
     const page = [seg, ul, btn(isR ? "Add a reward" : "Add a way to earn", "wide", () => editItem(col, null))];
-    if (rewards && earns && !rewards.length && !earns.length) page.push(btn("Start from the Sessions list", "quiet wide", seedList, { style: "margin-top:12px" }),
-      h("p", { class: "note", style: "margin-top:10px", text: "The club's eight rewards and eight ways to earn as they were in the old app. Edit them after." }));
+    if (rewards && earns && !rewards.length && !earns.length) page.push(btn("Start from the Sessions list", "quiet wide", () => moveList(true), { style: "margin-top:12px" }),
+      h("p", { class: "note", style: "margin-top:10px", text: "The club's thirteen rewards and nine ways to earn, as the team listed them. Edit them after." }));
     main.replaceChildren(...page);
   }
-  async function seedList(){
-    const { rewards: rs, earns: es } = L.seedItems();
-    const now = Date.now();
-    const ops = [...rs.map(r => ({ save: "rewards/" + cloud.newId(), data: { ...r, photo: "", createdAt: now } })),
-                 ...es.map(e => ({ save: "earns/" + cloud.newId(), data: { ...e, createdAt: now } }))];
-    try { await cloud.batch(ops); ui.toast("16 items added"); } catch (e){ report("Couldn't add them", e); }
+  // Bring the club up to the list in loyalty.js (L.LIST), once: add what it lacks at fixed ids,
+  // hide the old app's items (history keeps them), and mark settings so it never runs again.
+  // A staff phone does it by itself on opening; Start from the Sessions list does it on demand.
+  let moving = false;
+  async function moveList(force = false){
+    if (moving || !staff || !settingsIn || !rewards || !earns) return;
+    if (!force && settings.itemsList === L.LIST) return;
+    moving = true;
+    const m = L.listMove(rewards, earns), now = Date.now();
+    const add = (col, x) => { const { id, ...d } = x; return { save: `${col}/${id}`, data: { ...d, ...(col === "rewards" ? { photo: "" } : {}), createdAt: now } }; };
+    const ops = [...m.rewards.add.map(x => add("rewards", x)), ...m.earns.add.map(x => add("earns", x)),
+                 ...m.rewards.hide.map(id => ({ patch: "rewards/" + id, data: { active: false } })),
+                 ...m.earns.hide.map(id => ({ patch: "earns/" + id, data: { active: false } })),
+                 { save: "settings/main", data: { itemsList: L.LIST } }];
+    try {
+      await cloud.batch(ops);
+      const added = m.rewards.add.length + m.earns.add.length, hidden = m.rewards.hide.length + m.earns.hide.length;
+      if (added || hidden) ui.toast(`The club's list is up to date: ${added} added${hidden ? `, ${hidden} old ${hidden === 1 ? "one" : "ones"} hidden` : ""}`);
+    } catch (e){ report("Couldn't update the club's list", e); }
+    finally { moving = false; }
   }
   const PHOTO_MAX = 100000;
   async function shrink(file){
@@ -850,13 +907,16 @@
         { key: "title", label: "Title", value: it ? it.title : "", required: true, focus: !it, max: 60 },
         { key: "blurb", label: "What it is", value: it ? it.blurb : "", type: "textarea", rows: 2, max: 200 },
         ...(isR ? [{ key: "cost", label: "Cost in points (0 is free)", type: "number", inputmode: "numeric", value: it ? it.cost : 0 },
-                   { key: "condition", label: "Condition, if free with something", value: it ? it.condition : "", placeholder: "With a 2-hour booking", max: 80 }]
+                   { key: "condition", label: "Condition, if free with something", value: it ? it.condition : "", placeholder: "With a 2-hour booking", max: 80 },
+                   { key: "limit", label: "How often a member can take it", type: "seg", value: (it && it.limit) || "", options: L.LIMITS.map(([v, l]) => [v, v ? l.replace(" per member", "") : "Any"]) },
+                   { key: "window", label: "When", type: "seg", value: (it && it.window) || "", options: [["", "Any time"], ["birthday", "Birthday week"]] }]
                 : [{ key: "points", label: "Points it awards", type: "number", inputmode: "numeric", value: it ? it.points : 200, required: true }]),
         { key: "active", label: "Shown to members", type: "seg", value: it ? (it.active === false ? "no" : "yes") : "yes", options: [["yes", "Shown"], ["no", "Hidden"]] }
       ] });
     if (!v) return;
     const base = { emoji: String(v.emoji || "").trim().slice(0, 8), title: String(v.title || "").trim().slice(0, 60), blurb: String(v.blurb || "").trim().slice(0, 200), active: v.active !== "no" };
-    const data = isR ? { ...base, cost: Math.max(0, Math.trunc(Number(v.cost) || 0)), condition: String(v.condition || "").trim().slice(0, 80), photo }
+    const data = isR ? { ...base, cost: Math.max(0, Math.trunc(Number(v.cost) || 0)), condition: String(v.condition || "").trim().slice(0, 80), photo,
+                       limit: ["once", "year"].includes(v.limit) ? v.limit : "", window: v.window === "birthday" ? "birthday" : "" }
                      : { ...base, points: Math.max(0, Math.trunc(Number(v.points) || 0)) };
     if (!data.title) return;
     try {
