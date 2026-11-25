@@ -44,6 +44,15 @@
 //                  rule (ext and ext / 10, or --, while the source is edges; bpm otherwise);
 //                  the white's hold at ext's tempo while ext is not 0.
 //   not-finite     a NaN returned is silence; nothing non-finite goes out.
+//   triggers       (Session 39) TRIGGERS through the module's own outputs, patched and not: 10 V
+//                  for 1 ms at 44.1, 48 and 96 kHz, then 0 V; a hit inside a pulse starts the
+//                  millisecond again; a cable patched mid-pulse carries the rest of it, and one
+//                  patched after a pulse ended unseen reads 0 V; the self-test's count of pulses.
+//   voices         (Session 39) VOICES is 5 V times each track, a non-finite sample 0 V; an
+//                  unpatched VOICES keeps what it last carried.
+//
+// Since Session 39 every check reads the outputs through Module, which drives jacks.hpp as
+// Rhythm.cpp does: each output's own voltages, kept from frame to frame as Rack keeps them.
 //
 // Each check names itself when it fails. Exit 0 only if all pass.
 // SPDX-License-Identifier: MIT
@@ -86,6 +95,30 @@ struct Engine {
         uint8_t v[PI_VIEW_SIZE];
         pi_view(e, v, sizeof v);
         return at == PI_VIEW_HIT_A ? uint32_t(v[at] | v[at + 1] << 8) : v[at];
+    }
+};
+
+// The module's side of VOICES, TRIGGERS and AUDIO, as Rhythm.cpp drives jacks.hpp on each frame:
+// each output's own voltages, which start at 0 and keep what was last written whether a cable is
+// in or not (as a Rack output's do), whether VOICES and TRIGGERS are patched (a fixture self-test
+// counts as TRIGGERS patched: it writes it anyway), and the self-test's count of pulses that left
+// on TRIGGERS. `mix` and `audio` are AUDIO's, before and after the 5 V and the tanh.
+struct Module : pi::Jacks {
+    float trig[PI_TRACKS] = {}, voices[PI_TRACKS] = {}, mix = 0.f, audio = 0.f;
+    uint32_t pulses = 0;
+    void out(const float *f, const pi_event *ev, uint32_t n, uint32_t trigFrames, bool trigPatched = true, bool voicesPatched = true) {
+        uint32_t before = 0;
+        for (uint32_t t = 0; t < PI_TRACKS; t++) before |= (trigLeft[t] ? 1u : 0u) << t;
+        pi::JackFrame o;
+        frame(f, ev, n, trigFrames, o);
+        if (trigPatched)
+            for (uint32_t t = 0; t < PI_TRACKS; t++) {
+                trig[t] = o.triggers[t];
+                if (trig[t] != 0.f && !(before >> t & 1)) pulses++;
+            }
+        if (voicesPatched) std::memcpy(voices, o.voices, sizeof voices);
+        mix = o.mix;
+        audio = o.audio;
     }
 };
 
@@ -134,7 +167,7 @@ static void sameMix(uint32_t volume) {
     std::vector<pi_cmd> setup = beat(true, volume), setupOne = setup, setupAll = setup;
     setupOne.insert(setupOne.begin(), cmd(PI_CMD_ROUTE, PI_ROUTE_SOUNDS, 0, pi::returnMask(-1, 1)));
     setupAll.insert(setupAll.begin(), cmd(PI_CMD_ROUTE, PI_ROUTE_SOUNDS, 0, pi::returnMask(-1, 16)));
-    pi::Jacks plain, jl, js, j1, jAll;
+    Module plain, jl, js, j1, jAll;
     uint32_t sounding = 0, firstBad[5] = {}, shapeAt = 0;
     bool shapeBad = false;
     bool bad[5] = {};
@@ -150,21 +183,20 @@ static void sameMix(uint32_t volume) {
         s[PI_LOOP_FX] = 0.f; // but FX RETURN, read on every frame since ABI 11: unpatched it carries 0 V
         loop.run(setup.data(), n, l, PI_AUDIO_LOOP, ev2);
         sliders.run(setup.data(), n, s, PI_AUDIO_LOOP_SLIDERS, ev2);
-        pi::JackFrame o0, ol, os, o1, o2;
-        plain.frame(a, ev, ne, 48, o0);
-        jl.frame(l, ev, ne, 48, ol);
-        js.frame(s, ev, ne, 48, os);
+        plain.out(a, ev, ne, 48);
+        jl.out(l, ev, ne, 48);
+        js.out(s, ev, ne, 48);
         // VOICES, as a cable carries it back, into RETURN: sound 1 alone, then all sixteen.
         std::memset(x1, 0, sizeof x1);
         std::memset(xa, 0, sizeof xa);
-        pi::returnIn(x1, o0.voices, pi::returnMask(-1, 1));
-        pi::returnIn(xa, o0.voices, pi::returnMask(-1, 16));
+        pi::returnIn(x1, plain.voices, pi::returnMask(-1, 1));
+        pi::returnIn(xa, plain.voices, pi::returnMask(-1, 16));
         one.run(setupOne.data(), f ? 0 : uint32_t(setupOne.size()), x1, PI_AUDIO_LOOP, ev2);
         all.run(setupAll.data(), f ? 0 : uint32_t(setupAll.size()), xa, PI_AUDIO_LOOP, ev2);
-        j1.frame(x1, ev, ne, 48, o1);
-        jAll.frame(xa, ev, ne, 48, o2);
+        j1.out(x1, ev, ne, 48);
+        jAll.out(xa, ev, ne, 48);
         if (m != 0.f) sounding++;
-        const float got[5] = {o0.mix, ol.mix, os.mix, o1.mix, o2.mix};
+        const float got[5] = {plain.mix, jl.mix, js.mix, j1.mix, jAll.mix};
         for (int i = 0; i < 5; i++) {
             float d = std::fabs(got[i] - m);
             if (i >= 3) worstOwnReturn = std::max(worstOwnReturn, d);
@@ -173,7 +205,7 @@ static void sameMix(uint32_t volume) {
                 firstBad[i] = f;
             }
         }
-        if (!shapeBad && bits(o0.audio) != bits(10.f * std::tanh(5.f * o0.mix / 10.f))) {
+        if (!shapeBad && bits(plain.audio) != bits(10.f * std::tanh(5.f * plain.mix / 10.f))) {
             shapeBad = true; // the 5 V and tanh, applied to the mix it was given
             shapeAt = f;
         }
@@ -200,7 +232,7 @@ static void silence() {
     for (Engine *e : {&plainE, &with, &without}) pi_set_sample(e->e, 6, smp.data(), uint32_t(smp.size()));
     std::vector<pi_cmd> a = beat(true, 13), b = beat(false, 13), ar = a;
     ar.insert(ar.begin(), cmd(PI_CMD_ROUTE, PI_ROUTE_SOUNDS, 0, pi::returnMask(-1, 1)));
-    pi::Jacks plain, silenced, other;
+    Module plain, silenced, other;
     uint32_t drum = 0, trigs = 0;
     bool audioBad = false, voicesBad = false, triggersBad = false, removedNothing = true;
     for (uint32_t f = 0; f < FRAMES; f++) {
@@ -212,16 +244,15 @@ static void silence() {
         pi::returnIn(xs, zeroVolts, pi::returnMask(-1, 1));
         uint32_t nes = with.run(ar.data(), f ? 0 : uint32_t(ar.size()), xs, PI_AUDIO_LOOP, evs);
         uint32_t ne2 = without.run(b.data(), f ? 0 : uint32_t(b.size()), y, PI_AUDIO_BOTH, ev2);
-        pi::JackFrame p, s, o;
-        plain.frame(x, ev, ne, 48, p);
-        silenced.frame(xs, evs, nes, 48, s);
-        other.frame(y, ev2, ne2, 48, o);
+        plain.out(x, ev, ne, 48);
+        silenced.out(xs, evs, nes, 48);
+        other.out(y, ev2, ne2, 48);
         if (x[0] != 0.f) drum++;
-        if (p.triggers[0] != 0.f) trigs++;
-        if (bits(s.mix) != bits(o.mix) || bits(s.audio) != bits(o.audio)) audioBad = true;
-        if (bits(s.mix) != bits(p.mix)) removedNothing = false;
-        if (std::memcmp(s.voices, p.voices, sizeof p.voices)) voicesBad = true;
-        if (std::memcmp(s.triggers, p.triggers, sizeof p.triggers)) triggersBad = true;
+        if (plain.trig[0] != 0.f) trigs++;
+        if (bits(silenced.mix) != bits(other.mix) || bits(silenced.audio) != bits(other.audio)) audioBad = true;
+        if (bits(silenced.mix) != bits(plain.mix)) removedNothing = false;
+        if (std::memcmp(silenced.voices, plain.voices, sizeof plain.voices)) voicesBad = true;
+        if (std::memcmp(silenced.trig, plain.trig, sizeof plain.trig)) triggersBad = true;
     }
     check(drum > 0 && trigs > 0, "setup", "the bass drum never sounded or never triggered");
     check(!removedNothing, "silence", "AUDIO did not change when the bass drum was returned silent");
@@ -239,7 +270,7 @@ static void punch() {
     std::vector<pi_cmd> setup = beat(true, 16), setupLoop = setup;
     setupLoop.insert(setupLoop.begin(), cmd(PI_CMD_ROUTE, PI_ROUTE_SOUNDS, 0, pi::returnMask(-1, 16)));
     const uint32_t from = RATE / 2, to = RATE * 3 / 2; // fx and key 2 down for a second
-    pi::Jacks jv, jl;
+    Module jv, jl;
     bool bad = false;
     uint32_t firstBad = 0, heardFrames = 0;
     float most = 0.f;
@@ -256,12 +287,11 @@ static void punch() {
         want.run(c.data(), uint32_t(c.size()), &m, PI_AUDIO_MIX, ev2);
         dry.run(cd.data(), uint32_t(cd.size()), &d, PI_AUDIO_MIX, ev2);
         uint32_t ne = voices.run(c.data(), uint32_t(c.size()), v, PI_AUDIO_BOTH, ev);
-        pi::JackFrame ov, ol;
-        jv.frame(v, ev, ne, 48, ov);
-        pi::returnIn(io, ov.voices, pi::returnMask(-1, 16));
+        jv.out(v, ev, ne, 48);
+        pi::returnIn(io, jv.voices, pi::returnMask(-1, 16));
         uint32_t nl = looped.run(cl.data(), uint32_t(cl.size()), io, PI_AUDIO_LOOP, ev2);
-        jl.frame(io, ev2, nl, 48, ol);
-        float off = std::fabs(ol.mix - m);
+        jl.out(io, ev2, nl, 48);
+        float off = std::fabs(jl.mix - m);
         worstPunch = std::max(worstPunch, off);
         if (!bad && !(off <= PUNCH_BOUND)) {
             bad = true;
@@ -269,7 +299,7 @@ static void punch() {
         }
         if (looped.view(PI_VIEW_HEARD) == 2) {
             heardFrames++;
-            most = std::max(most, std::fabs(ol.mix - d));
+            most = std::max(most, std::fabs(jl.mix - d));
         }
     }
     char why[200];
@@ -378,9 +408,8 @@ static void fxLoop() {
         pi::FxSettings fx;
         fx.set(k.effect, k.setting);
         Engine e(RATE);
-        pi::Jacks j;
+        Module j;
         float volts[PI_TRACKS] = {};
-        pi::JackFrame o{};
         for (uint32_t f = 0; f < 400; f++) {
             std::vector<pi_cmd> c;
             if (!f) c = {cmd(PI_CMD_ROUTE, PI_ROUTE_SOUNDS, 0, 1), cmd(PI_CMD_ROUTE, PI_ROUTE_FX, 0, fx.route(k.patched)),
@@ -393,12 +422,12 @@ static void fxLoop() {
             pi::fxReturnIn(io, back, k.patched ? 2 : 0);
             pi_event ev[PI_EVENTS_MIN];
             uint32_t ne = e.run(c.data(), uint32_t(c.size()), io, PI_AUDIO_LOOP, ev);
-            j.frame(io, ev, ne, 48, o);
+            j.out(io, ev, ne, 48);
             j.fxSend(io, e.view(PI_VIEW_HEARD), pi::rampStep(RATE), volts);
         }
         char why[220];
-        std::snprintf(why, sizeof why, "%s: AUDIO's mix is %.7g, not %.7g", k.what, double(o.mix), double(k.mix));
-        check(bits(o.mix) == bits(k.mix), "fx-loop", why);
+        std::snprintf(why, sizeof why, "%s: AUDIO's mix is %.7g, not %.7g", k.what, double(j.mix), double(k.mix));
+        check(bits(j.mix) == bits(k.mix), "fx-loop", why);
         std::snprintf(why, sizeof why, "%s: FX SEND channel %d is %g V, not the bus (1.25 V)", k.what, k.effect, double(volts[k.effect - 1]));
         check(volts[k.effect - 1] == 1.25f, "fx-loop", why);
     }
@@ -562,7 +591,7 @@ static void notFinite() {
     Engine e(RATE), ze(RATE);
     std::vector<pi_cmd> setup = beat(true, 16);
     setup.insert(setup.begin(), cmd(PI_CMD_ROUTE, PI_ROUTE_SOUNDS, 0, 0x3u));
-    pi::Jacks j, z;
+    Module j, z;
     float ret[PI_TRACKS] = {}, zero[PI_TRACKS] = {};
     ret[0] = std::numeric_limits<float>::quiet_NaN();
     ret[1] = std::numeric_limits<float>::infinity();
@@ -576,16 +605,15 @@ static void notFinite() {
         pi::fxReturnIn(a, ret, 1);
         uint32_t ne = e.run(setup.data(), f ? 0 : uint32_t(setup.size()), a, PI_AUDIO_LOOP, ev);
         uint32_t nz = ze.run(setup.data(), f ? 0 : uint32_t(setup.size()), b, PI_AUDIO_LOOP, ev2);
-        pi::JackFrame o, oz;
-        j.frame(a, ev, ne, 48, o);
-        z.frame(b, ev2, nz, 48, oz);
-        if (!std::isfinite(o.audio) || bits(o.mix) != bits(oz.mix) || bits(o.audio) != bits(oz.audio)) bad = true;
+        j.out(a, ev, ne, 48);
+        z.out(b, ev2, nz, 48);
+        if (!std::isfinite(j.audio) || bits(j.mix) != bits(z.mix) || bits(j.audio) != bits(z.audio)) bad = true;
         for (uint32_t t = 0; t < PI_TRACKS; t++)
-            if (!std::isfinite(o.voices[t]) || !std::isfinite(o.triggers[t])) bad = true;
+            if (!std::isfinite(j.voices[t]) || !std::isfinite(j.trig[t])) bad = true;
         float send[PI_TRACKS] = {};
         j.fxSend(a, 1, pi::rampStep(RATE), send);
         if (!std::isfinite(send[0])) bad = true;
-        if (o.audio != 0.f) sounding++;
+        if (j.audio != 0.f) sounding++;
     }
     check(sounding > 0, "setup", "nothing but the two returned sounds was playing");
     check(!bad, "not-finite", "a NaN or infinity returned was not silence for its own sound alone");
@@ -594,6 +622,120 @@ static void notFinite() {
     nan[PI_LOOP_FX] = std::numeric_limits<float>::infinity();
     j.fxSend(nan, 1, pi::rampStep(RATE), send);
     check(send[0] == 0.f && j.notFinite == 1, "not-finite", "a send that is not finite is not 0 V, counted");
+}
+
+// TRIGGERS (RACK-RULES.md): 10 V for 1 ms from each firing, then 0 V, worked by hand for each case
+// below, at three rates, through Module (jacks.hpp as Rhythm.cpp drives it). Each case says, frame
+// by frame, which channels are high: [from, to) for at most two tracks, every other channel 0 V.
+// The volts are read only on frames TRIGGERS is patched, which is all a cable can see. (Session 39,
+// written to the volts before the change that works the channels out only when read.)
+static pi_event anEvent(uint8_t type, uint8_t track) {
+    pi_event e = {};
+    e.type = type;
+    e.track = track;
+    return e;
+}
+static void triggers() {
+    for (uint32_t rate : {44100u, 48000u, 96000u}) {
+        const uint32_t ms = rate / 1000, h = 10, end = h + 4 * ms, never = 0xffffffffu; // 1 ms: 44, 48, 96 frames
+        struct Hit { uint32_t at; uint8_t type, track; };
+        struct High { uint8_t track; uint32_t from, to; };
+        struct Case {
+            const char *what;
+            std::vector<Hit> hits;
+            uint32_t on, off, back; // patched on [on, off) and again from `back`
+            std::vector<High> high;
+            uint32_t pulses; // what the self-test counts: pulses that left while patched
+        };
+        const Case cases[] = {
+            {"one hit: 10 V for 1 ms, then 0 V", {{h, PI_EV_TRIG, 5}}, 0, never, never, {{5, h, h + ms}}, 1},
+            {"a hit again inside the pulse starts the millisecond again", {{h, PI_EV_TRIG, 5}, {h + ms / 2, PI_EV_TRIG, 5}}, 0, never, never,
+             {{5, h, h + ms / 2 + ms}}, 1},
+            {"a hit on the frame a pulse ends: high on, a second pulse", {{h, PI_EV_TRIG, 5}, {h + ms, PI_EV_TRIG, 5}}, 0, never, never,
+             {{5, h, h + 2 * ms}}, 2},
+            {"TRIGGERS patched in the middle of a pulse carries the rest of it", {{h, PI_EV_TRIG, 5}}, h + ms / 3, never, never,
+             {{5, h, h + ms}}, 0},
+            {"unpatched in a pulse, patched again after it: every channel 0 V", {{h, PI_EV_TRIG, 5}}, 0, h + ms / 3, h + 2 * ms,
+             {{5, h, h + ms}}, 1},
+            {"two tracks overlapping; a step event and a track past 15 move nothing",
+             {{h, PI_EV_TRIG, 0}, {h + 2, PI_EV_STEP, 3}, {h + 3, PI_EV_TRIG, 16}, {h + ms / 2, PI_EV_TRIG, 15}}, 0, never, never,
+             {{0, h, h + ms}, {15, h + ms / 2, h + ms / 2 + ms}}, 2},
+        };
+        for (const Case &k : cases) {
+            Module m;
+            const float silent[PI_AUDIO_BOTH] = {};
+            bool bad = false;
+            char why[240] = "";
+            for (uint32_t f = 0; f < end; f++) {
+                pi_event e[4];
+                uint32_t n = 0;
+                for (const Hit &x : k.hits)
+                    if (x.at == f) e[n++] = anEvent(x.type, x.track);
+                bool patched = (f >= k.on && f < k.off) || f >= k.back;
+                m.out(silent, e, n, ms, patched);
+                if (!patched) continue;
+                for (uint32_t t = 0; t < PI_TRACKS; t++) {
+                    float want = 0.f;
+                    for (const High &x : k.high)
+                        if (x.track == t && f >= x.from && f < x.to) want = 10.f;
+                    if (bits(m.trig[t]) != bits(want) && !bad) {
+                        bad = true;
+                        std::snprintf(why, sizeof why, "rate %u, %s: frame %u, channel %u is %g V, not %g V", rate, k.what, f, t + 1,
+                                      double(m.trig[t]), double(want));
+                    }
+                }
+            }
+            check(!bad, "triggers", why);
+            std::snprintf(why, sizeof why, "rate %u, %s: %u pulses counted, not %u", rate, k.what, m.pulses, k.pulses);
+            check(m.pulses == k.pulses, "triggers", why);
+        }
+    }
+}
+
+// VOICES: each track times 5, a non-finite sample 0 V and counted; unpatched, the output keeps
+// what it last carried; and over a real beat, every channel on every frame. (Session 39.)
+static void voices() {
+    const float nan = std::numeric_limits<float>::quiet_NaN(), inf = std::numeric_limits<float>::infinity();
+    const float in[PI_TRACKS] = {0.f, -0.f, 0.25f, -1.f, 2.f, 1e-30f, -3.5f, 1.f / 3.f, nan, inf, -inf, 0.125f, -0.75f, 1.9999f, 0.6f, -2.f};
+    float f[PI_AUDIO_BOTH] = {}, g[PI_AUDIO_BOTH] = {};
+    std::memcpy(f, in, sizeof in);
+    for (uint32_t t = 0; t < PI_TRACKS; t++) g[t] = 1.f;
+    Module m;
+    m.out(f, nullptr, 0, 48, false, true);
+    bool ok = m.notFinite == 3;
+    for (uint32_t t = 0; t < PI_TRACKS; t++) ok = ok && bits(m.voices[t]) == bits(std::isfinite(in[t]) ? 5.f * in[t] : 0.f);
+    check(ok, "voices", "VOICES is not 5 V times each track, with a non-finite sample 0 V and counted");
+    m.out(g, nullptr, 0, 48, false, false);
+    ok = true;
+    for (uint32_t t = 0; t < PI_TRACKS; t++) ok = ok && bits(m.voices[t]) == bits(std::isfinite(in[t]) ? 5.f * in[t] : 0.f);
+    check(ok, "voices", "VOICES unpatched did not keep what it last carried");
+    m.out(g, nullptr, 0, 48, false, true);
+    ok = true;
+    for (uint32_t t = 0; t < PI_TRACKS; t++) ok = ok && m.voices[t] == 5.f;
+    check(ok, "voices", "VOICES patched again does not carry the frame");
+    std::vector<int16_t> smp = sample();
+    Engine e(RATE);
+    pi_set_sample(e.e, 6, smp.data(), uint32_t(smp.size()));
+    std::vector<pi_cmd> setup = beat(true, 16);
+    Module b;
+    uint32_t badAt = 0, sounding = 0;
+    bool bad = false;
+    for (uint32_t i = 0; i < RATE; i++) {
+        float a[PI_AUDIO_BOTH];
+        pi_event evs[PI_EVENTS_MIN];
+        uint32_t ne = e.run(setup.data(), i ? 0 : uint32_t(setup.size()), a, PI_AUDIO_BOTH, evs);
+        b.out(a, evs, ne, 48);
+        for (uint32_t t = 0; t < PI_TRACKS; t++) {
+            if (a[t] != 0.f) sounding++;
+            if (bits(b.voices[t]) != bits(5.f * a[t]) && !bad) {
+                bad = true;
+                badAt = i;
+            }
+        }
+    }
+    char why[160];
+    std::snprintf(why, sizeof why, "over a beat VOICES is not 5 V times the track from frame %u", badAt);
+    check(sounding > 0 && !bad, "voices", why);
 }
 
 int main() {
@@ -612,6 +754,8 @@ int main() {
     scan();
     clock();
     notFinite();
+    triggers();
+    voices();
     if (failures) {
         std::printf("rack/test/jacks: %d checks FAILED\n", failures);
         return 1;
@@ -621,7 +765,7 @@ int main() {
                 "TRIGGERS as they were. Every sound returned and effect 2 punched: the core's own punched render within %.1e (largest "
                 "%.1e), and heard. FX SEND's sixteen ramps at three rates; the three settings through FX SEND and FX RETURN; A OUT into "
                 "A IN; masks; the keys and sliders read every 16th frame (every frame in a fixture self-test); the clock's source, the display's "
-                "tempo and the white's hold (ABI 15); not-finite.\n",
+                "tempo and the white's hold (ABI 15); not-finite; TRIGGERS' 1 ms pulses at three rates, patched and not, and VOICES.\n",
                 double(OWN_RETURN_BOUND), double(worstOwnReturn), double(PUNCH_BOUND), double(worstPunch));
     return 0;
 }
