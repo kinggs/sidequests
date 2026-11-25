@@ -123,9 +123,13 @@ pub const STILL_PER_SECOND: u32 = 1000;
 
 /// Effect 14's loop in frames at `rate`, the nearest to 18.30 ms, in 64 bits: 807 at 44.1 kHz,
 /// 879 at 48 kHz, 1 757 at 96 kHz. A tenth of `delay_frames` at every rate, so it fits the line.
+/// Never under 1 (D106, Session 41): under 28 Hz it rounded to 0, `feedback`'s head never met
+/// it and wrote past the line; at 1 `head < comb <= delay` holds at every rate a line is lent at
+/// (`delay_frames` is 1 from 3 Hz, and no line is lent below).
 #[inline]
 pub const fn comb_frames(rate: u32) -> u32 {
-    ((rate as u64 * FEEDBACK_FRAMES_NUM + ECHO_FRAMES_DEN / 2) / ECHO_FRAMES_DEN) as u32
+    let comb = ((rate as u64 * FEEDBACK_FRAMES_NUM + ECHO_FRAMES_DEN / 2) / ECHO_FRAMES_DEN) as u32;
+    if comb < 1 { 1 } else { comb }
 }
 
 /// `pi_delay_frames`: the nearest frame to 174.76 ms at `rate`, in 64 bits. 7 707 at 44.1 kHz,

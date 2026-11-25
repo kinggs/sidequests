@@ -1309,6 +1309,37 @@ fn all_14() -> Vec<(u64, Cmd)> {
     (0..16).map(|s| (0, fx(s, 14))).chain([(0, play())]).collect()
 }
 
+/// D106 (Session 41): under 28 Hz the loop was 0 frames, so `feedback`'s head went to 1, never
+/// met the comb and wrote on past the line. At 3 Hz `pi_delay_frames` is 1, a line of one
+/// float is taken, and 14 held with a returned sound moving must write that float only.
+#[test]
+fn under_28_hz_14_loops_in_one_frame_and_writes_nothing_past_a_line_of_one() {
+    assert_eq!(comb(3), 1, "never under one frame");
+    assert_eq!(comb(27), 1);
+    assert_eq!(comb(28), 1, "28 Hz rounds to one already");
+    assert_eq!([comb(44_100), comb(48_000), comb(96_000)], [807, 879, 1757], "nothing moves above");
+    let rate = 3u32;
+    let d = pi_delay_frames(rate) as usize;
+    assert_eq!(d, 1);
+    const GUARD: f32 = 7.25;
+    let mut room = vec![GUARD; 8 + d + 8];
+    let h = Host::new(rate, 1);
+    assert_eq!(unsafe { pi_set_delay(h.e, room[8..].as_mut_ptr(), d as u32) }, 1);
+    // Eight frames: the old build's head walks no further than the guards after the line.
+    let xs = moving(8);
+    for (f, x) in xs.iter().enumerate() {
+        let mut io = [0f32; 18];
+        io[0] = *x;
+        let c: Vec<Cmd> = if f == 0 { vec![cmd(CMD_ROUTE, 0, 0, 1), down(FX), down(13), play()] } else { vec![] };
+        let mut ev = [Event::default(); CAP];
+        unsafe { pi_process(h.e, 1, c.as_ptr(), c.len() as u32, ev.as_mut_ptr(), CAP as u32, io.as_mut_ptr(), 18) };
+        assert!(io[16].is_finite(), "frame {f}");
+    }
+    assert_eq!(bus(&h).probe().0, 14, "14 is what runs");
+    assert!(room[..8].iter().chain(&room[8 + d..]).all(|g| g.to_bits() == GUARD.to_bits()), "the guards round the line: {room:?}");
+    assert_ne!(room[8].to_bits(), GUARD.to_bits(), "the line's one float was written");
+}
+
 #[test]
 fn the_first_comb_frames_of_14_are_the_bus_and_comb_is_807_879_and_1757() {
     assert_eq!([comb(44_100), comb(48_000), comb(96_000)], [807, 879, 1757]);
