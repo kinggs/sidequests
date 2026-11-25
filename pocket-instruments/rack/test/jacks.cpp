@@ -35,6 +35,9 @@
 //                  the two masks the sixteen settings give, and none with neither FX jack
 //                  patched; an old patch's "fx"; FX RETURN as the sum of its cable's channels;
 //                  which layout a frame needs.
+//   scan           (D99, Session 33) the keys and sliders are read on the first frame and every
+//                  16th after, on every frame in a fixture self-test, across the count's wrap;
+//                  a press of 16 frames is always seen, one of 15 can fall between reads.
 //   not-finite     a NaN returned is silence; nothing non-finite goes out.
 //
 // Each check names itself when it fails. Exit 0 only if all pass.
@@ -476,6 +479,41 @@ static void masks() {
           "mask", "the layout is not the smallest that carries what is patched");
 }
 
+// Which frames read the keys and sliders (D99, Session 33), against the rule written plainly
+// here: frame 0 and every 16th after it, every frame in a fixture self-test.
+static void scan() {
+    check(pi::scans(0, false), "scan", "the first frame does not read the keys and sliders");
+    uint32_t count = 0, gap = 0, longest = 0;
+    bool plain = true;
+    for (uint32_t f = 0; f < 4800; f++) {
+        bool s = pi::scans(f, false);
+        plain = plain && s == (f % 16 == 0);
+        count += s;
+        gap = s ? 0 : gap + 1;
+        longest = std::max(longest, gap);
+    }
+    check(plain && count == 300, "scan", "not every 16th frame, and only those, reads the keys and sliders");
+    check(longest == 15, "scan", "more than 15 frames pass between two reads, or fewer");
+    bool every = true;
+    for (uint32_t f = 0; f < 4800; f++) every = every && pi::scans(f, true);
+    every = every && pi::scans(0xffffffffu, true);
+    check(every, "scan", "a fixture self-test does not read the keys and sliders on every frame");
+    // The count wraps after 2^32 frames (a day at 48 kHz): the gap stays 16 across it.
+    check(pi::scans(0xfffffff0u, false) && !pi::scans(0xffffffffu, false) && pi::scans(uint32_t(0xffffffffu + 1u), false), "scan",
+          "the frame count wrapping moves the reads off every 16th frame");
+    // A press held for 16 frames is seen wherever it starts; one of 15 can fall between reads.
+    bool held16 = true, missed15 = false;
+    for (uint32_t start = 0; start < 32; start++) {
+        bool seen16 = false, seen15 = false;
+        for (uint32_t f = start; f < start + 16; f++) seen16 = seen16 || pi::scans(f, false);
+        for (uint32_t f = start; f < start + 15; f++) seen15 = seen15 || pi::scans(f, false);
+        held16 = held16 && seen16;
+        missed15 = missed15 || !seen15;
+    }
+    check(held16, "scan", "a press held for 16 frames can go unseen");
+    check(missed15, "scan", "a press of 15 frames is always seen: the reads are closer than 16 frames apart");
+}
+
 static void notFinite() {
     // A NaN on channel 1 and an infinity on channel 2: those two sounds are silent, the rest
     // play on. Held to the same frame with silence returned on both, bit for bit.
@@ -529,6 +567,7 @@ int main() {
     fxLoop();
     sliders();
     masks();
+    scan();
     notFinite();
     if (failures) {
         std::printf("rack/test/jacks: %d checks FAILED\n", failures);
@@ -538,7 +577,7 @@ int main() {
                 "returned: within %.1e of it (largest %.1e). Silence on channel 1: the mix without the bass drum, bit for bit, VOICES and "
                 "TRIGGERS as they were. Every sound returned and effect 2 punched: the core's own punched render within %.1e (largest "
                 "%.1e), and heard. FX SEND's sixteen ramps at three rates; the three settings through FX SEND and FX RETURN; A OUT into "
-                "A IN; masks; not-finite.\n",
+                "A IN; masks; the keys and sliders read every 16th frame (every frame in a fixture self-test); not-finite.\n",
                 double(OWN_RETURN_BOUND), double(worstOwnReturn), double(PUNCH_BOUND), double(worstPunch));
     return 0;
 }

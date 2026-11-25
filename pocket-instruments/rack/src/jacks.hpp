@@ -189,4 +189,14 @@ inline float gate(uint32_t heard, uint32_t channel) { return heard == channel + 
 // RETURN is patched, and otherwise PI_AUDIO_BOTH, exactly as before the loops existed.
 inline uint32_t layout(bool sliders, bool loop) { return sliders ? PI_AUDIO_LOOP_SLIDERS : loop ? PI_AUDIO_LOOP : PI_AUDIO_BOTH; }
 
+// Whether this frame reads the keys and sliders (D99, Session 33): every 16th frame, as VCV's
+// own modules read their parameters, under 0.4 ms late at 44.1 kHz; and every frame in a
+// fixture self-test, whose views are held to the frame. `frame` is the module's own count,
+// stepped every frame and 0 on the first, so the first frame scans; 2^32 is a multiple of 16,
+// so the count wrapping keeps the gap. CLOCK, RESET, the menu's queue, the routes and the
+// jacks are read on every frame, never through this. A press shorter than 16 frames can fall
+// between two scans and is not seen (RACK-RULES.md); no hand can make one.
+constexpr uint32_t SCAN_FRAMES = 16;
+inline bool scans(uint32_t frame, bool fixtureTest) { return fixtureTest || frame % SCAN_FRAMES == 0; }
+
 } // namespace pi
