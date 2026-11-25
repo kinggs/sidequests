@@ -754,6 +754,25 @@ the `TRIG` events they already make.
   repeat 42.1 → 22.7; fx 1 34.2 → 19.6; fx 1/0 37.7 → 17.6; fx 2 to 8 and 14 42.6 to 45.7 →
   18.8 to 22.9; loop 45.4 → 18.7; loop fx 45.4 → 18.6; loop in 47.5 → 19.9; sliders 40.3 →
   21.2. `pi_size` 3 872 (the mask fits the padding); the `.wasm` 49 689 → 47 861 bytes.
+  **Since Session 41 (D105 items 5 to 8, Antigravity's parts as written; D106):** three parts
+  kept, six left out by D105 item 8's bar. Kept: the hats' ranges in a table and the toms' in a
+  flag, the tone and the bass two types (`pi_size` 3 872 → 3 656); `base_inc`, the kick's, the
+  synth snare's and the toms' step once the sweep is 0, made in every `tune` (3 672); the
+  squares counted in integers, one helper for the hats' six and the cow bell's two. Left out,
+  each measured alone and reverted: `clear` as loops with the cold handlers out of line (the
+  `.wasm` −3 903 bytes, but idle and five other cases 0.2 to 0.3 ns slower); `Clock::advance`
+  (no gain); the volume read only on a frame with a command (blocks of 128 0.2 to 1.0 ns faster,
+  but `rack` 0.4 slower); the grid's wrap by subtraction (0.1 to 0.2 ns); the bus's steady path
+  with its guard (every fx case 1.0 to 1.7 ns faster, but `loop`, `beat`, `sliders` 0.2 to 0.3
+  slower in two readings of three); the no-audio split (every case 1 to 3 ns slower). D106:
+  effect 14's loop is never under one frame, so under 28 Hz it no longer writes past the line.
+  Nothing in this contract changed: the report, the weave and all 432 render files the same
+  bytes; `make fuzz` against Session 40's library, 10 000 seeds, none different, the guarded
+  run every line. `make pairs` against Session 40's build, CPU 2, ten rounds, ns a frame (old →
+  new): idle 3.7 → 3.7; beat 14.4 → 13.9; all 47.2 → 41.6; both 14.8 → 14.4; fx 1 19.6 → 18.9;
+  fx 2 18.7 → 18.2; fx 14 21.5 → 20.8; loop 18.6 → 18.2; sliders 21.2 → 21.1; rack 22.4 → 21.7;
+  rack lp 24.2 → 23.9; repeat 22.6 → 22.9 ⚠ (inside the old spread by one slow round). The
+  `.wasm` 48 150 → 47 961. No host names `pi_size`'s value.
 - **The sliders.** `SOUND` sets slider A or B of a track, 0 to 65535 (the reserved `PARAM`
   command will become this, for the selected sound, when the keys are built: D26). A value
   is read when the voice is next triggered. A sounding voice keeps its pitch and length, in

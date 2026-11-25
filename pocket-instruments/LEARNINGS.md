@@ -1720,3 +1720,30 @@ above; these are what only the chain showed.
 - **A frame a call is a third of what Rack pays the core.** `rack` (17 channels, one frame a
   call) reads 22.4 ns a frame against `both`'s 14.8 in blocks of 128; `rack lp` 24.1 against
   `loop`'s 18.5. Session 33's unexplained +43% for `pi_process` under perf may be this.
+
+## Session 41: Antigravity's parts taken as written (2026-11-25)
+
+- **Measured alone, most of the patch's parts buy nothing.** Of nine parts, the one that
+  carried the gain was the squares counted in integers (all 47 → 41.6 ns a frame); the rest
+  moved cases by tenths. Antigravity's 9.5 for the beat was the parts together and the parts
+  D105 did not take, not a sum of these.
+- **Placement decides any part worth under 0.3 ns.** An edit to `Engine::process` or
+  `Bus::advance` moved cases it cannot reach (idle, loop, rack lp) by 0.2 to 0.3, consistently
+  across readings, while a ten-round spread is often 0.1 wide. Under D105 item 8's bar that is
+  enough to leave a part out: six were, two of them with real gains elsewhere (the steady bus
+  −1.0 to −1.7 on every effect case; the cold handlers −3.9 KB of `.wasm`).
+- **One slow round hides a slower case.** `repeat` read +0.3 to +0.5 after `base_inc` in both
+  readings, inside the old spread only because the old build had one round at 25 ns. A median
+  outside the old median's neighbours is worth saying even when the bar passes it.
+- **Inlining the frame's first half into two loops made every case 1 to 3 ns slower.** The
+  no-audio split was written as the list asked (`#[inline(always)]`, `chunks_exact_mut`); the
+  old single loop with its `Option` tests was faster everywhere, `rack` most (+3.2). Not
+  investigated why.
+- **The tour cannot see a voice's arithmetic.** It shares the voices' `next`, so every voice
+  plant passed it; two passed every Rust test too (a kick's `base_inc` not remade on a retune;
+  the squares counted one frame late). Only the fuzz against an older library and the renders'
+  hashes would have caught them. Each got a named test. Plant in the voices before trusting the
+  tour with a voice change.
+- **A guard can be proved for a part that is left out.** Part 8's three plants each fired its
+  guard in `cargo test` and failed the tour in release, so if it is ruled back in its proof is
+  already done (`~/.cache/pocket-instruments/session41/part8-left-out.diff`).

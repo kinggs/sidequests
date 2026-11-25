@@ -171,7 +171,7 @@ lights, caps, display, weave ◄─ host draws ◄─ view                Rack: 
 
 ---
 
-## Where it stands (2026-11-25, after Session 40)
+## Where it stands (2026-11-25, after Session 41)
 
 The instrument plays on a phone (`web/rhythm.html`) and in Rack (the Rhythm module, 24 HP,
 thirteen jacks). In the core: sixteen sounds, each a code voice or a sample; the workflow
@@ -184,7 +184,7 @@ bus fed back); since Session 32 effect 1 plays the sounds in the effects at a qu
 rate; since Session 34 CLOCK in can count one edge a beat, and the display shows the tempo
 the edges play; since Session 35 play on a beat clock waits for the next edge, an edge after a
 pause runs at the last beat measured, and a rate change carries the beat; since Session 38 a pause
-is only a pause against a measured beat. ABI 15, snapshot version 4, 339 Rust tests, CI on four
+is only a pause against a measured beat. ABI 15, snapshot version 4, 342 Rust tests, CI on four
 platforms in about a minute.
 
 **Built on 2026-11-23 and not yet seen or heard by the owner** except the effects on a
@@ -258,6 +258,14 @@ guard grown first. The model reads every layout and a seeded tour holds every ch
 frame to it; `make fuzz` runs a third library with the guard on; the bench has `rack` and `rack
 lp`, a frame a call. Not a line of the core outside its tests; the same bytes.
 
+**Built on 2026-11-25, nothing to hear** (Session 41; D105 items 5 to 8, D106): Antigravity's parts
+taken as written, each alone. Kept: the hats' table and the toms' flag, the tone and bass apart,
+`base_inc`, the squares in integers (all 47.2 → 41.6 ns a frame, beat 14.4 → 13.9, rack 22.4 →
+21.7; `pi_size` 3 672, the `.wasm` 47 961). Left out by D105 item 8's bar: the cold handlers,
+`Clock::advance`, the cached volume, the grid's subtraction, the steady bus, the no-audio split
+(each slower somewhere, or no gain). Effect 14 under 28 Hz no longer writes past its line (D106).
+The same bytes.
+
 ## Done so far
 
 Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
@@ -306,17 +314,18 @@ Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
 | 38, the beat clock: a pause only against a measured period (Opus; D103) | one condition in `Clock::edge`; 8 new tests by hand first (the two worked cases and the review's six) and Session 35's two no-guess pause tests worked again by the ruling, 4 failing on the old core; the same bytes, 3 036 of 10 000 fuzz seeds differ, all sending `SOURCE` 2; `make pairs` inside the old spread; the `.wasm` 48 150; 12 faults caught by name, 1 no test can catch | 2026-11-25 |
 | 39, Rack's jacks worked out only when something reads them (Opus; D104 item 5) | `rack/` only: VOICES only while patched, TRIGGERS a mask of live channels counted every frame, the self-test's pulse count in `Jacks::frame`; tests first through a test-side `Module` (`triggers`, `voices`), passing on the old code; every self-test line the same bytes at three rates; the module stopped −32% by perf, playing −24%; 13 faults caught by name, 1 no test can catch | 2026-11-25 |
 | 37, Antigravity's parts designed in (Fable; D102 item 2, D104 item 4, D105) | D105: four rules a part must meet (one invariant, one place that asks a voice, the zeros' arithmetic in one type, the mix once), what is taken as written, what is not and why, how each part is judged; the three zero facts checked by brute force (4 000 000 cases); Codex read the design before it was built on (twelve findings, six taken in; D106 and O28 from it); Sessions 40 to 42's lists. Nothing built | 2026-11-25 |
+| 41, Antigravity's parts taken as written (Opus; D105 items 5 to 8, D106) | D106 first (comb never under 1 frame; its test failed on the old core); kept by D105 item 8: the hats' table, the toms' flag, `Tone` and `Bass` (`pi_size` 3 656), `base_inc` (3 672), the squares in integers; left out, numbers in the Handover: the cold handlers (`.wasm` −3 903 but idle +0.2), `Clock::advance`, the cached volume (rack +0.4), the grid's subtraction, the steady bus (fx −1.0 to −1.7, loop +0.3), the no-audio split (+1 to 3 everywhere); all 47.2 → 41.6, beat 14.4 → 13.9, rack 22.4 → 21.7; the same bytes, 10 000 fuzz seeds; 2 tests from plants that passed everything; 7 faults caught by name (3 of them by part 8's guard and the tour, though 8 is out); `OLD` kept in `~/.cache/pocket-instruments/session41/` | 2026-11-25 |
 | 40, the model to every layout, the guard in the fuzz, the bench as Rack calls (Opus; D105 items 10, 11, 13) | tests and harness only, the same bytes: `tests/tour.rs`, the model given layouts 1, 16, 17, 18 and 50 and a seeded tour (65 seeds at three rates, 8 at 8 kHz and 100 Hz), every short way counted and none at 0; 5 faults caught by name by the tour (`quiet.rs` caught 1); the cargo profile `guarded` and `make fuzz`'s third library (a planted guard stops seed 1, gdb names it); `--stats`' five short ways, each over a thousand frames; bench `rack` 22.4 and `rack lp` 24.1 ns a frame beside `both` 14.8 and `loop` 18.5; `OLD` kept in `~/.cache/pocket-instruments/session40/` | 2026-11-25 |
 
 ## Next, in order
 
 The owner ruled the run of 2026-11-25's seven as recommended (D104), before hearing it.
 
-1. **Sessions 41 and 42** (build, Opus), below: the rest of Session 37's design (D105),
-   Antigravity's parts as written, then the one list, the one sum and the one mix, against
-   the library Session 40 kept (`~/.cache/pocket-instruments/session40/`). Nothing waits on
-   the owner. D105 item 15 recommends they are the last on the core's cost. Session 40, the
-   model and the guard, is done.
+1. **Session 42** (build, Opus), below: the one list, the one sum and the one mix, against
+   the library Session 41 kept (`~/.cache/pocket-instruments/session41/`). Nothing waits on
+   the owner. D105 item 15 recommends it is the last on the core's cost. Sessions 40 and 41
+   are done; Session 41's Handover has five questions for the design session first (above all
+   part 8, the steady bus, left out by a few tenths of a nanosecond).
 2. **Your ears** (restart Rack first): the run of 2026-11-25's three checks, thirteen
    minutes, in its Handover (now in `PLAN-HISTORY.md`: effect 1, the clock, the scan and the
    cost), and Session 39's minute; then Sessions 26, 28 and 30, still unheard (`PLAN-HISTORY.md`; O23, O25).
@@ -326,60 +335,6 @@ The owner ruled the run of 2026-11-25's seven as recommended (D104), before hear
 4. **Your looks and rulings** on what 2026-11-23 built: "The owner's hands", first part.
    **Session 14's fourth box,** the weave accepted or redrawn: below.
 5. Then from "Not planned yet", as you choose.
-
-## Session 41 — the core's cost a frame: Antigravity's parts taken as written (build, Opus; D105 items 5 to 8)
-
-Not started. Needs Session 40. `harness/efficiency-candidates/antigravity.patch` is against
-`877b010`, before Codex's mask: port each part by hand onto today's core, do not apply it.
-**No byte moves.** D105 item 8 is how each part is judged; item 12 is the bar.
-
-- [ ] **Before anything:** as Session 40's first box (the report, the renders' hashes; `OLD`
-      is the library Session 40 kept; a `target/old/bench` of this session's first build).
-- [ ] **D106 first, alone, tests first:** `comb_frames` never under 1. It moves bytes only
-      under 28 Hz; the report, the renders and the fuzz the same bytes.
-- [ ] **One part, one commit, one reading.** For each part below: port it, `make web` (`make
-      test` holds the built `.wasm` to `web/pi_core.wasm`), `make test`, the tour, `make fuzz OLD=…` (400 seeds; 10 000 at the end), then `make pairs` against the
-      commit before. Keep or leave out by D105 item 8, and write the numbers in the commit
-      message either way. In this order:
-  1. `clear` as loops, and the cold handlers out of line (`key_down`, `key_up`, `param`,
-     `own_out`, `Clock::edge`, each voice's `tune`, `Svf::tune`, `Sample::tune`).
-  2. `Clock::advance`: the first tick and a count; the frame loop ticks the sequencer. Check
-     first that nothing `Seq::tick` or `Out::trig` reads depends on the clock's counter
-     mid-frame (today the closure cannot reach the clock: it should not).
-  3. The hats' ranges in a table and the toms' in a flag; `Tone` and `Bass` as two types.
-     `pi_size` falls: find anything that names 3 872 and say what changed.
-  4. `base_inc` in `Kick`, `SynthSnare` and `Tom`: the stored f32 `base` cast, made in every
-     `tune` (a retune mid-sound too); the frame that takes the sweep to 0 still uses the
-     sweep's old value, the cache from the next.
-  5. The squares counted in integers: one helper, const-generic over the count, for `Hat`
-     (six) and `Cowbell` (two): count the old phases' top bits, then advance each phase once.
-  6. The volume read on a frame with a command (`stale`), not every frame.
-  7. The grid's wrap by subtraction with the `%` behind it, in one function (`Bus::grid`)
-     that item 8 will call too; a test holds it to the plain `%` for every rate from 3 Hz
-     to 200 kHz in steps, a thousand frames each.
-  8. The steady path in `Bus::advance` (`steady_effect`, the cached `r`), **with D105 item 6's
-     guard:** under `debug_assertions`, the skip and a full `frame` each run on a copy of
-     the same state and every field must be the same bits after, the grid's included. Plant
-     "steady set while a sweep still moves", "the skip forgets the grid's step" and "steady
-     reused after one frame of ramp out, then the effect again": each caught by the guard,
-     and by the tour in release.
-  9. The no-audio call split out, the frame's first half (commands, clock, ticks) one
-     `#[inline(always)]` function both loops call; the audio loop over `chunks_exact_mut`,
-     with a `debug_assert!` that the buffer is `frames × channels`. The loop without a
-     buffer still calls `hits` (a tap moves the slider outputs and the view with no sound),
-     keeps the early return on no frames, the commands' clamping and the block's counters.
-- [ ] **Not in this session** (D105 items 1 to 4): `step()`, `code_active`, `sample_active`,
-      anything in `Voices::render`, `sound`, `sound_slow`, `Bus::mix` or `Bus::looped`. If a
-      part above cannot be ported without one, stop on that part and say why.
-- [ ] **Faults:** for each part kept, one planted fault that the tour or a named test catches;
-      the unplanted copy first, each built.
-- [ ] **The end:** every case of `make pairs` against the session's first build, in "Later:
-      efficiency"; the `.wasm`'s size and `pi_size`; the report and renders the same bytes;
-      `make fuzz` 10 000 with the guarded run; `make web`, `make verify`, `make selftest` at
-      three rates, `make play`, `make install` in `rack/`. `ENGINE.md` §11's paragraph gains
-      "Since Session 41". `LEARNINGS.md`; the Handover (which parts were left out, with
-      numbers); this list to `PLAN-HISTORY.md`. Delete nothing in
-      `harness/efficiency-candidates/` yet.
 
 ## Session 42 — the core's cost a frame: one place asks a voice, the sums in one type, the mix once (build, Opus; D105 items 1 to 4, 8, 9)
 
@@ -547,6 +502,20 @@ None blocks anything; each is done when wanted, profiled before and after (Machi
       part over 9% (the view compared for publishing 9%, the routes 7%, the two sliders 6%, the
       key scan 5%). Nothing large is left in the host; the core (`pi_process`) is now the larger
       half of the module playing.
+- [x] **Antigravity's parts as written (D105 items 5 to 8; Session 41).** Each part alone against
+      the commit before, then the session against Session 40's build: `make pairs`, CPU 2, ten
+      rounds, medians (ranges), ns a frame, old → new: idle 3.7 (3.7–3.8) → 3.7 (3.7–3.7); beat
+      14.4 (14.3–14.4) → 13.9 (13.9–14.0); all 47.2 (46.9–51.5) → 41.6 (41.0–42.2); both 14.8 →
+      14.4; fx 1 19.6 → 18.9; fx 1/0 17.4 → 16.9; fx 2 18.7 → 18.2; fx 3 22.9 → 22.6; fx 4 19.7 →
+      19.2; fx 5 21.1 → 20.7; fx 6 21.2 → 20.8; fx 7 20.1 → 19.7; fx 8 20.3 → 19.8; fx 14 21.5 →
+      20.8; loop 18.6 → 18.2; loop fx 18.5 → 18.2; loop in 20.0 → 19.6; rack 22.4 (22.3–22.5) →
+      21.7 (21.7–21.8); rack lp 24.2 (24.2–24.5) → 23.9 (23.8–24.0); repeat 22.6 (22.5–25.2) →
+      22.9 (22.7–23.0) ⚠; sliders 21.2 → 21.1. `pi_size` 3 872 → 3 672; the `.wasm` 48 150 →
+      47 961. Kept: the hats' table, the toms' flag and `Tone`/`Bass`; `base_inc`; the squares
+      in integers (most of the gain: all −5.0). Left out, each slower somewhere outside the
+      spread or with nothing to gain: the cold handlers, `Clock::advance`, the cached volume,
+      the grid's subtraction, the steady bus, the no-audio split (the Handover has each
+      reading). Not measured in Rack.
 
 ## The owner's hands
 
@@ -664,6 +633,84 @@ originals are in `PLAN-HISTORY.md`); nothing was dropped, each thing is here onc
 
 The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
 
+### After Session 41: Antigravity's parts taken as written, three kept, six left out (2026-11-25)
+
+- **Built as the list asks, nothing to hear.** D106 first (its test failed on the old core:
+  the head walked into the guard floats), then each part alone, one reading each against the
+  commit before (`make pairs`, CPU 2, ten rounds; a second reading taken of every part, a third
+  of part 8 where the two disagreed: every verdict is the first reading's). The report and the
+  432 renders the same bytes after every part; `make fuzz` 10 000 seeds against Session 40's
+  library the same, the guarded run every line (and 10 000 for parts 2 and 9, as asked).
+  `make selftest` at three rates, `make play` (both browsers), `make install`: **restart Rack.**
+- **What was kept, and left out** (old → new, ns a frame, medians; the `.wasm` in bytes):
+  - D106: every case inside the old spread; `.wasm` 48 150 → 48 159. A fix: kept.
+  - 1, `clear` as loops and the cold handlers out of line: **left out.** `.wasm` 48 159 →
+    44 256, but idle 3.7 → 3.9, fx 2 18.6 → 18.8, fx 7 20.1 → 20.3, fx 8 20.3 → 20.4, fx 14
+    21.4 → 21.8, loop in 20.0 → 20.2 (rack lp 24.2 → 24.5), each outside the old spread, both
+    readings.
+  - 2, `Clock::advance`: **left out.** No gain (rack 22.4 → 22.3, all 47.2 → 47.2), loop 18.5
+    → 18.8 outside the spread in the first reading; `.wasm` −17.
+  - 3, the hats' table, the toms' flag, `Tone` and `Bass`: **kept.** Every case inside the
+    spread (all 47.1 → 46.9, fx 1 19.7 → 19.5); `.wasm` 48 159 → 47 512; `pi_size` 3 872 →
+    3 656. Nothing in code, tests or hosts names 3 872.
+  - 4, `base_inc`: **kept.** rack 22.4 → 22.1 and rack lp 24.3 → 24.1 outside the spread, beat
+    14.4 → 14.2, all 46.8 → 46.5; `.wasm` 47 512 → 48 035; `pi_size` 3 672. ⚠ repeat 22.7 →
+    23.2 (second reading 22.6 → 22.9), inside the old spread only by one slow old round.
+  - 5, the squares in integers: **kept.** all 46.6 → 41.6, fx 1 19.7 → 18.9, beat 14.2 → 13.9,
+    both 14.8 → 14.4, rack 22.0 → 21.8; `.wasm` 48 035 → 47 961.
+  - 6, the volume read on a frame with a command: **left out.** Blocks of 128 faster (idle 3.7
+    → 3.5, beat 13.9 → 13.6, fx 3 22.6 → 21.6), but rack 21.7 → 22.2 (spread 21.6–21.9), both
+    readings: what the Rack module pays.
+  - 7, the grid's wrap by subtraction: **left out.** fx 1 18.9 → 18.7, nothing at 0.3; all
+    41.2 → 42.7 in the second reading; `.wasm` +32.
+  - 8, the bus's steady path with its guard: **left out.** Every fx case 1.0 to 1.7 ns faster
+    (fx 1 18.9 → 18.1, fx 3 22.6 → 20.9, fx 14 20.7 → 19.3, loop in 19.6 → 18.7; `.wasm` −163),
+    but loop 18.2 → 18.5 (spread 18.2–18.4) in the first reading, inside in the second, and in
+    the third loop, beat 13.9 → 14.1, sliders 20.9 → 21.2 and rack lp 23.9 → 24.1 all outside.
+    Its guard was proved anyway: the three plants the list names ("steady while a sweep still
+    moves", "the skip forgets the grid's step", "steady kept through a frame of ramp out")
+    each fired the guard in `cargo test` and failed the tour in release (4, 6 and 6 of its six
+    tests).
+  - 9, the no-audio split: **left out.** Every case 1 to 3 ns slower (beat 13.9 → 15.9, idle 3.7
+    → 4.6, rack 21.8 → 25.0, rack lp 23.9 → 27.4); `.wasm` +808.
+  The left-out ports are in `~/.cache/pocket-instruments/session41/part*-left-out.diff`, so a
+  ruling can take one without porting again.
+- **The session, against Session 40's bench:** idle 3.7 → 3.7; beat 14.4 → 13.9; all 47.2 →
+  41.6; both 14.8 → 14.4; fx 1 19.6 → 18.9; fx 2 18.7 → 18.2; loop 18.6 → 18.2; sliders 21.2 →
+  21.1; rack 22.4 → 21.7; rack lp 24.2 → 23.9; repeat 22.6 → 22.9 ⚠. `pi_size` 3 872 → 3 672;
+  the `.wasm` 48 150 → 47 961. **`OLD` for Session 42:**
+  `~/.cache/pocket-instruments/session41/libpi_core.a` (sha256 `48f7ba20…`, `f16977c`'s core)
+  and `bench` beside it.
+- **Faults planted,** the unplanted copy first, each built: part 3, the open hat reading the
+  closed hat's row (`each_voice_is_loud…`, `slider_b_sets_each_voice_s_length`) and the toms'
+  flag read the wrong way (those and `slider_a_sets_the_pitch_of_the_sines`); part 4, the
+  kick's `base_inc` made on a hit only, not on a retune: **passed all 340**, so a test was
+  written (`a_voice_sounding_across_a_rate_change_keeps_its_pitch_after_its_sweep`, passing on
+  the voices before part 4) and catches it; part 5, the squares counted after the phases were
+  advanced: **passed all 341**, now caught by
+  `the_squares_counted_in_integers_are_the_float_sum_they_replaced`. The tour caught none of the
+  voice plants: it shares the voices' `next` (D105 item 12 says so). 342 Rust tests.
+- **Where the build reads the list (⚠):**
+  1. ⚠ **Part 8 needed part 7's `Bus::grid`.** With part 7 left out, its port moved today's `%`
+     step into `Bus::grid` so the skip and `frame` call one function (D105 item 6). Built round
+     it; moot while 8 is out.
+  2. ⚠ **More than one reading.** The list says one; I took two of each and a third of part 8
+     when the two disagreed. No verdict differs from the first reading's.
+  3. Not taken, as the list does not name them: the patch's `Engine::new` from zeroed arrays
+     (its comment claims 3.5 KB of `.wasm`), the ramp's `if w < 1` and its `is_effect_1`.
+- **Questions for the design session (⚠):**
+  1. **Part 8:** 1.0 to 1.7 ns off every effect case, 0.2 to 0.3 on loop, beat, sliders and rack
+     lp, by the bar out. Rule it in, or try it again after Session 42 moves the code round it?
+  2. **Part 1:** 3.9 KB of `.wasm` (the bar is 200 bytes) for 0.2 to 0.3 ns on six cases: the
+     same question.
+  3. **Part 6:** faster in every block of 128, slower only where Rack calls a frame at a time.
+     Worth a design of its own with the call's cost (Session 40's question)?
+  4. Every left-out part lost by a few tenths on cases it does not touch: where code lands
+     decides parts worth under 0.3 ns. Should the bar read cases a part cannot reach as placement?
+  5. Voice arithmetic is held only by the fuzz and named tests; two plants needed new tests.
+     Should `make fuzz` (10 000 seeds against the last library) be in `make verify`?
+- **Next:** Session 42, against `~/.cache/pocket-instruments/session41/`.
+
 ### After Session 40: the model to every layout, the guard in the fuzz, the bench as Rack calls (2026-11-25)
 
 - **Built as D105 items 10, 11 and 13 ask, tests and harness only, nothing to hear.** Not a line
@@ -743,39 +790,3 @@ The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
   `sound`; and whether the call's cost (`rack` against `both`) is worth a design pass of its
   own, since D105 item 15 calls Session 42 the last on the core's cost.
 - **Next:** Session 41, against `~/.cache/pocket-instruments/session40/`.
-
-### After Session 37: Antigravity's parts designed in (2026-11-25)
-
-- **Designed, nothing built: D105, and the lists of Sessions 40, 41 and 42.** Antigravity's
-  patch is not taken whole and not left: each part is held to four rules (one invariant, one
-  place that asks a voice, the arithmetic of zeros in one type, §18's mix written once), and
-  the model and the guard grow before any of it is ported.
-- **What you must decide or know (⚠):**
-  1. **It is worth little in speed, and D105 says so first.** The beat is 14.4 ns a frame,
-     0.07% of a core at 48 kHz; the whole of Antigravity's gain is 0.02% of a core a module.
-     What the three sessions leave beyond that: less code to keep in step than today (the
-     mix once, not twice; one place that asks a voice, not two), a smaller `.wasm` and
-     engine, and a model and a guard that hold every short way from now on. **Recommended:
-     build them, and let Session 42 be the last on the core's cost** (D105 item 15).
-  2. **Not taken, and why** (D105 items 1 and 4): `step()`, a voice's body without its first
-     test, which gives −0 on a silent kick; `code_active` and `sample_active`, two more masks
-     that must each be exactly right; five writings of the mix. The patch's speed leaned on
-     three masks being right at once. So ours will read slower than its 9.5: between that
-     and 14.4, not measured ⚠.
-  3. **D106, a bug older than this, found by Codex reading the design:** under 28 Hz effect
-     14's loop is 0 frames long and it writes past the line the host lent. No host asks for
-     such a rate. Ruled: the loop is never under one frame; Session 41 builds it first.
-  4. **O28, yours:** a sum that overflows (two sounds returned at 3e38 with an effect held)
-     gives a not-a-number whose bits Rust and WebAssembly both leave open. **Recommended:
-     accept, and say so in §11.** Nothing in D105 moves it.
-  5. **D104 item 7 is measured again** in Session 42 (D105 item 9): the path that cost the
-     50-channel layout 2 ns may buy nothing once the sums are masked, and goes if so.
-- **How the design was checked:** the three facts about +0 and −0 by brute force (six tracks
-  of ten values, four masks each, 4 000 000 cases, none different); then Codex read D105 and
-  the lists against the code, read only. Twelve findings; six changed the design. The one
-  that mattered most: the sum must be taken over what a frame emits, not what it asks, or a
-  slowed sound's line drops out of the mix while its channel still carries it.
-- **Not done:** no scratch build, so no number for any part; each is measured alone when it
-  is ported, and kept or left by D105 item 8. Antigravity was not asked again: its patch was
-  the subject, and a second reader from another house was worth more than a second attempt.
-- **Next:** Session 40 (the model, the guard, the bench as Rack calls), then 41, then 42.
