@@ -19,6 +19,10 @@
 //           crossed over to channel 17)
 //   loop in the same with effect 4 Rack's in place of the dry (ABI 11: an insert)
 //   sliders "beat" in PI_AUDIO_LOOP_SLIDERS, 50 channels, every sound's A and B from the input
+//   rack    "both", one frame a call: what the Rack module pays, which calls pi_process once a
+//           frame (Session 40, D105 item 13; every other case is blocks of 128, so a cost a call
+//           is in none of them)
+//   rack lp "loop", one frame a call: the module with RETURN patched
 //   fx 4    "beat" with effect 4 on every step and a line lent (ABI 12: section 18, designed
 //           2026-11-24: one echo 174.76 ms behind)
 //   fx 14   "beat" with effect 14 on every step and a line lent (ABI 13: section 18, designed
@@ -41,8 +45,8 @@
 
 static pi_cmd cmd(uint8_t type, uint8_t a = 0, uint8_t b = 0, uint32_t value = 0) { return pi_cmd{0, type, a, b, 0, value}; }
 
-static double run(const std::vector<pi_cmd> &setup, uint32_t channels = PI_AUDIO_MIX, bool lend = false) {
-    const uint32_t rate = 48000, block = 128, blocks = rate * 10 / block;
+static double run(const std::vector<pi_cmd> &setup, uint32_t channels = PI_AUDIO_MIX, bool lend = false, uint32_t block = 128) {
+    const uint32_t rate = 48000, blocks = rate * 10 / block;
     std::vector<uint64_t> mem((pi_size() + 7) / 8);
     pi_engine *e = pi_init(mem.data(), uint32_t(mem.size() * 8), rate, 1);
     if (!e) {
@@ -59,7 +63,7 @@ static double run(const std::vector<pi_cmd> &setup, uint32_t channels = PI_AUDIO
     (void)lend;
 #endif
     pi_event ev[256];
-    static float audio[block * 50]; // a loop layout is read too: silence comes back
+    static float audio[128 * 50]; // a loop layout is read too: silence comes back
     std::memset(audio, 0, sizeof audio);
     pi_process(e, 1, setup.data(), uint32_t(setup.size()), ev, 256, audio, channels);
     float sink = 0;
@@ -73,11 +77,12 @@ static double run(const std::vector<pi_cmd> &setup, uint32_t channels = PI_AUDIO
     return std::chrono::duration<double, std::nano>(t1 - t0).count() / (double(blocks) * block);
 }
 
-static void report(const char *name, const std::vector<pi_cmd> &setup, uint32_t channels = PI_AUDIO_MIX, bool lend = false) {
+static void report(const char *name, const std::vector<pi_cmd> &setup, uint32_t channels = PI_AUDIO_MIX, bool lend = false, uint32_t block = 128) {
     double best = 1e30;
-    for (int i = 0; i < 5; i++) best = std::min(best, run(setup, channels, lend));
-    char what[32] = "the mix";
+    for (int i = 0; i < 5; i++) best = std::min(best, run(setup, channels, lend, block));
+    char what[48] = "the mix";
     if (channels != PI_AUDIO_MIX) std::snprintf(what, sizeof what, "%u channels", channels);
+    if (block == 1) std::snprintf(what + std::strlen(what), sizeof what - std::strlen(what), ", a frame a call");
     std::printf("bench %-7s %7.1f ns a frame (best of five, 10 s at 48 kHz, %s)\n", name, best, what);
 }
 
@@ -147,6 +152,8 @@ int main() {
     sliders.insert(sliders.begin(), cmd(PI_CMD_ROUTE, PI_ROUTE_A, 0, 0xffff));
     sliders.insert(sliders.begin(), cmd(PI_CMD_ROUTE, PI_ROUTE_B, 0, 0xffff));
     report("sliders", sliders, PI_AUDIO_LOOP_SLIDERS);
+    report("rack", beat, PI_AUDIO_BOTH, false, 1);
+    report("rack lp", loop, PI_AUDIO_LOOP, false, 1);
 #endif
 #if PI_ABI_VERSION >= 12
     std::vector<pi_cmd> echo = beat;
