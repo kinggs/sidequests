@@ -1690,3 +1690,33 @@ above; these are what only the chain showed.
   calls `pi_process` one frame at a time. Session 33's unexplained +43% in `pi_process` by
   perf may live in the call, not the frame. Session 40 adds the case.
 
+
+## Session 40: the model to every layout, the guard in the fuzz, the bench as Rack calls (2026-11-25)
+
+- **A model that passes at once proves nothing until a plant fails it.** The tour held the
+  engine bit for bit in all five layouts on its first run. What showed it was worth having
+  was the planting: of five faults in today's short ways, `tests/quiet.rs` caught one and the
+  tour all five, by name. Plant before trusting a green model.
+- **Read which seeds meet a plant, not only whether one does.** `Bus::looped`'s all-returned
+  plant was caught by layout 50's seeds alone: layout 18's never had all sixteen returned while
+  not-numbers came in. The counts said "all returned: 73 597 frames", which hid that the input
+  style that mattered was never there at the same time. A count of a gate is not a count of
+  what passes through it.
+- **A guard that aborts cannot be named by default.** The core's panic handler reads nothing,
+  so the compiler drops the message (`strings` finds no trace of it), and LLVM merges every
+  panic in `pi_process` into one call: the backtrace pointed at the ABI's bounds check
+  (`abi.rs:221`), which never fired. `-C llvm-args=-enable-tail-merge=false` on the guarded
+  build gives each its own call, and gdb names `render () at voice.rs:1462`. The lines out
+  were the same with and without it (10 000 seeds).
+- **`awk 'NR == FNR'` over an empty first file reads the second as the first.** The first
+  "which seed did the guarded run not finish" printed nothing, because every chunk aborted on
+  its first seed and left an empty file. `grep -vxF -f` is safe on an empty pattern file.
+- **Cargo reads profiles from the workspace manifest only;** one in a member's `Cargo.toml` is
+  ignored with a warning. The list said `core/Cargo.toml`.
+- **The low rates found the model's gap, not the engine's.** At 100 Hz effect 14's cutoff is
+  10.9 × the rate; the engine holds it to 0.3 as §18 says for every filter, and the model had
+  never met a rate where that mattered. A model is a second reading of the text, and a new
+  corner tests both.
+- **A frame a call is a third of what Rack pays the core.** `rack` (17 channels, one frame a
+  call) reads 22.4 ns a frame against `both`'s 14.8 in blocks of 128; `rack lp` 24.1 against
+  `loop`'s 18.5. Session 33's unexplained +43% for `pi_process` under perf may be this.

@@ -171,7 +171,7 @@ lights, caps, display, weave ◄─ host draws ◄─ view                Rack: 
 
 ---
 
-## Where it stands (2026-11-25, after Session 39)
+## Where it stands (2026-11-25, after Session 40)
 
 The instrument plays on a phone (`web/rhythm.html`) and in Rack (the Rhythm module, 24 HP,
 thirteen jacks). In the core: sixteen sounds, each a code voice or a sample; the workflow
@@ -184,7 +184,7 @@ bus fed back); since Session 32 effect 1 plays the sounds in the effects at a qu
 rate; since Session 34 CLOCK in can count one edge a beat, and the display shows the tempo
 the edges play; since Session 35 play on a beat clock waits for the next edge, an edge after a
 pause runs at the last beat measured, and a rate change carries the beat; since Session 38 a pause
-is only a pause against a measured beat. ABI 15, snapshot version 4, 333 Rust tests, CI on four
+is only a pause against a measured beat. ABI 15, snapshot version 4, 339 Rust tests, CI on four
 platforms in about a minute.
 
 **Built on 2026-11-23 and not yet seen or heard by the owner** except the effects on a
@@ -253,6 +253,11 @@ Antigravity's patch is not taken whole: its speed leaned on three masks being ex
 on §18's mix written five times. What is taken is held to four rules, and the model and the
 guard grow first (Sessions 40 to 42).
 
+**Built on 2026-11-25, nothing to hear** (Session 40; D105 items 10, 11, 13): the model and the
+guard grown first. The model reads every layout and a seeded tour holds every channel of every
+frame to it; `make fuzz` runs a third library with the guard on; the bench has `rack` and `rack
+lp`, a frame a call. Not a line of the core outside its tests; the same bytes.
+
 ## Done so far
 
 Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
@@ -301,15 +306,17 @@ Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
 | 38, the beat clock: a pause only against a measured period (Opus; D103) | one condition in `Clock::edge`; 8 new tests by hand first (the two worked cases and the review's six) and Session 35's two no-guess pause tests worked again by the ruling, 4 failing on the old core; the same bytes, 3 036 of 10 000 fuzz seeds differ, all sending `SOURCE` 2; `make pairs` inside the old spread; the `.wasm` 48 150; 12 faults caught by name, 1 no test can catch | 2026-11-25 |
 | 39, Rack's jacks worked out only when something reads them (Opus; D104 item 5) | `rack/` only: VOICES only while patched, TRIGGERS a mask of live channels counted every frame, the self-test's pulse count in `Jacks::frame`; tests first through a test-side `Module` (`triggers`, `voices`), passing on the old code; every self-test line the same bytes at three rates; the module stopped −32% by perf, playing −24%; 13 faults caught by name, 1 no test can catch | 2026-11-25 |
 | 37, Antigravity's parts designed in (Fable; D102 item 2, D104 item 4, D105) | D105: four rules a part must meet (one invariant, one place that asks a voice, the zeros' arithmetic in one type, the mix once), what is taken as written, what is not and why, how each part is judged; the three zero facts checked by brute force (4 000 000 cases); Codex read the design before it was built on (twelve findings, six taken in; D106 and O28 from it); Sessions 40 to 42's lists. Nothing built | 2026-11-25 |
+| 40, the model to every layout, the guard in the fuzz, the bench as Rack calls (Opus; D105 items 10, 11, 13) | tests and harness only, the same bytes: `tests/tour.rs`, the model given layouts 1, 16, 17, 18 and 50 and a seeded tour (65 seeds at three rates, 8 at 8 kHz and 100 Hz), every short way counted and none at 0; 5 faults caught by name by the tour (`quiet.rs` caught 1); the cargo profile `guarded` and `make fuzz`'s third library (a planted guard stops seed 1, gdb names it); `--stats`' five short ways, each over a thousand frames; bench `rack` 22.4 and `rack lp` 24.1 ns a frame beside `both` 14.8 and `loop` 18.5; `OLD` kept in `~/.cache/pocket-instruments/session40/` | 2026-11-25 |
 
 ## Next, in order
 
 The owner ruled the run of 2026-11-25's seven as recommended (D104), before hearing it.
 
-1. **Sessions 40, 41 and 42** (build, Opus), below: Session 37's design (D105) built in
-   three steps: the model and the guard first, then Antigravity's parts as written, then
-   the one list, the one sum and the one mix. Nothing waits on the owner. D105 item 15
-   recommends they are the last on the core's cost.
+1. **Sessions 41 and 42** (build, Opus), below: the rest of Session 37's design (D105),
+   Antigravity's parts as written, then the one list, the one sum and the one mix, against
+   the library Session 40 kept (`~/.cache/pocket-instruments/session40/`). Nothing waits on
+   the owner. D105 item 15 recommends they are the last on the core's cost. Session 40, the
+   model and the guard, is done.
 2. **Your ears** (restart Rack first): the run of 2026-11-25's three checks, thirteen
    minutes, in its Handover (now in `PLAN-HISTORY.md`: effect 1, the clock, the scan and the
    cost), and Session 39's minute; then Sessions 26, 28 and 30, still unheard (`PLAN-HISTORY.md`; O23, O25).
@@ -319,71 +326,6 @@ The owner ruled the run of 2026-11-25's seven as recommended (D104), before hear
 4. **Your looks and rulings** on what 2026-11-23 built: "The owner's hands", first part.
    **Session 14's fourth box,** the weave accepted or redrawn: below.
 5. Then from "Not planned yet", as you choose.
-
-## Session 40 — the model to every layout, the guard in the fuzz, the bench as Rack calls (build, Opus; D105 items 10, 11, 13)
-
-Not started. Tests and harness only: **no line of `core/src/` outside `tests/` changes, and
-no byte moves.** `DECISIONS.md` D105; `core/src/tests/bus.rs` (`Model`, `Voicing`,
-`hold_to_model_with`), `tests/quiet.rs`, `harness/fuzz.cpp`, `harness/bench.cpp`;
-`LEARNINGS.md`, Session 36 ("a model that is the engine itself").
-
-- [ ] **Before anything:** `make test`; keep `target/report-rust.txt`, a `sha256sum` of
-      `target/render-*.f32`, this build's `libpi_core.a` (as `OLD` for Sessions 41 and 42:
-      copy it somewhere `make clean` does not reach, and say where in the Handover) and its
-      `target/bench`.
-- [ ] **The model reads every layout.** `Model` and `Voicing` are the model written apart
-      from the engine; today they hold layout 17's mix. Give the model the frame each layout
-      writes, from §15 and §19's words, not from `Voices::render` or `Bus::looped`: 1, 16, 17,
-      18 and 50 channels; in a loop layout the sounds `ROUTE` 0 names taken from the input
-      (not a number: silence), FX RETURN added before the volume, an insert's silence, the
-      bus on channel 17, the thirty-two slider outputs. Plain loops over sixteen: no mask, no
-      quiet, no short way. Start from the layout 18 driver `tests/route.rs` already has. Where
-      §15, §18 or §19 is silent on a bit, today's build is the baseline (no byte may move):
-      find the bit by running it, write it into `ENGINE.md` under the section as "as built,
-      Session 40" with ⚠, and model that. Known such places (Codex's review of D105, finding
-      12): a returned infinity is silence, as a NaN is; a line forgotten while 4 or 14 ramps
-      out leaves the bus as it is; 14's count of silence is held at a millisecond's and kept
-      across a rate change (the model's own count is not capped today).
-- [ ] **A seeded tour drives it:** from a seed, a run of hits on all sixteen tracks (taps and
-      a pattern), samples given to some and switched to and from, sounds switched in and out
-      of the effects, every effect 1 to 16 held and let go, `ROUTE` 0 to 4 (none, some, all),
-      loop inputs of zeros, −0, moving values and not-numbers, a line lent and not, a rate
-      change with sounds ringing, silences long enough to go quiet. At least 64 seeds over the
-      five layouts and three rates in `cargo test`; every frame's every channel the model's,
-      bit for bit. It must spend frames in each of today's short ways: count them (every
-      sound in the effects and not; every sound returned, some, none; every sound slowed and
-      some; quiet) and assert each count is not 0. Count from the engine's own fields read
-      before the frame (counting may read them; what a frame should be may not), with a
-      buffer given: a route sent to a call with no buffer took no path.
-- [ ] **Low rates, by the model:** the tour's effect 1 and effect 14 parts at 8 000 Hz and at
-      100 Hz (the grid wraps more than once a frame under 11 719 Hz; nothing here runs
-      under 44.1 kHz today). Today's `%` passes; Session 41's subtraction must.
-- [ ] **It catches what `quiet.rs` cannot.** Plant, each alone, the unplanted copy first, each
-      built: a fault in `sound_active` (a track asked into the wrong channel); in `Bus::mix`'s
-      all-sounds path (one track short); in `Bus::looped`'s all-returned path (an input not
-      cleaned); in `sound_slow`'s all-slowed path; and Session 36's own escape (a plain sound
-      never asked beside fifteen slowed lines). Each caught by name by the tour. A plant the
-      tour misses is a hole: close it before going on.
-- [ ] **`quiet.rs` says what it is.** Leave its tests; its head says they hold the mask and
-      the quiet frame only, and names the tour as what holds the paths.
-- [ ] **The fuzz meets the guard.** A cargo profile `guarded` (inherits `release`,
-      `debug-assertions = true`); `make fuzz` builds the native library with it into its own
-      target folder, builds `target/fuzz-guarded` on it, runs the same seeds, and fails unless
-      every seed finishes and its lines are `fuzz-new`'s. Show it bites: plant "the bit not
-      set on a hit" and see the guarded run abort naming the guard.
-- [ ] **The fuzz says which short ways it took.** `--stats` gains, from what the harness
-      itself sent (never from the engine's fields): frames with every sound in the effects,
-      every sound returned, effect 1 heard over all sixteen, an effect held steady for more
-      than 2 ms, no sound for a second. Over seeds 1 to 400 each must be over a thousand
-      frames; give the PRNG a choice for any that is not (that moves every seed's line, on
-      both libraries alike: say so).
-- [ ] **The bench as Rack calls:** a case `rack`, the beat in 17 channels, one frame a call;
-      and `rack lp`, the same in 18 channels with every sound returned. Their numbers on
-      today's build go in the Handover beside `both` and `loop`.
-- [ ] **The end:** the report and the renders the same bytes; `make verify`; `make fuzz`
-      (10 000) against the library kept above reads "its own library" and is refused, which
-      is right: say so, and run it against Session 38's library if one is still in `target/`.
-      `LEARNINGS.md`; the Handover; this list to `PLAN-HISTORY.md`.
 
 ## Session 41 — the core's cost a frame: Antigravity's parts taken as written (build, Opus; D105 items 5 to 8)
 
@@ -657,7 +599,7 @@ originals are in `PLAN-HISTORY.md`); nothing was dropped, each thing is here onc
 - [ ] **Session 36, one minute in Rack** (restart Rack first): its Handover (now in `PLAN-HISTORY.md`); above all
       ⚠ 1, the sliders case's 2 ns.
 - [ ] **Session 38, one minute in Rack** (restart Rack first; O27): its Handover (now in `PLAN-HISTORY.md`).
-- [ ] **Session 39, one minute in Rack** (restart Rack first): its Handover below.
+- [ ] **Session 39, one minute in Rack** (restart Rack first): its Handover (now in `PLAN-HISTORY.md`).
 - [ ] **Session 32, by ear and to rule on** (O26): its Handover (now in `PLAN-HISTORY.md`) has
       the steps (five minutes) and four readings (⚠), above all the cost on every playing case.
 - [x] **Session 22's proposals** (`ENGINE.md` §17 and §18, "Proposed after Session 22"):
@@ -722,6 +664,86 @@ originals are in `PLAN-HISTORY.md`); nothing was dropped, each thing is here onc
 
 The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
 
+### After Session 40: the model to every layout, the guard in the fuzz, the bench as Rack calls (2026-11-25)
+
+- **Built as D105 items 10, 11 and 13 ask, tests and harness only, nothing to hear.** Not a line
+  of `core/src/` outside `core/src/tests/` changed. `target/report-rust.txt` and the 432 render
+  files the same bytes as before the first change; `make fuzz` 10 000 seeds the same bytes as
+  Session 38's core (Rack's nehalem build of it, `target/x86_64-unknown-linux-gnu/release/`,
+  the only library of that core left in `target/`), the guarded run finishing every seed with
+  the same lines. `make fuzz` against the library this session kept reads "this build's own
+  library" and is refused, which is right: nothing in the core moved.
+- **`OLD` for Sessions 41 and 42:** `~/.cache/pocket-instruments/session40/libpi_core.a`
+  (sha256 `35b99974…`, the release library of `5c7c2e4`'s core) and `bench` beside it, built
+  from this session's `harness/bench.cpp` on that library, so it has `rack` and `rack lp`.
+- **What was built:**
+  1. `core/src/tests/tour.rs`: the model (`Model` and `Voicing`, `tests/bus.rs`) given the
+     frame each of layouts 1, 16, 17, 18 and 50 writes, from §15 and §19's words, in plain
+     loops over sixteen; and a seeded tour: hits on all sixteen (taps and a pattern), samples
+     given and switched, sounds in and out of the effects, every effect 1 to 16 held, `ROUTE`
+     0 to 4 none, some and all, loop inputs of zeros, −0, moving values and not-numbers
+     (∞ too), a line lent and taken away, rate changes with sounds ringing, silences, the
+     volume, and the layout changed mid-run. 13 seeds a layout over three rates (65), and 8
+     seeds of effects 1 and 14 at 8 kHz and 100 Hz; every channel of every frame bit for bit,
+     about 11 million frames, `cargo test` 6.5 → 10 s. Each short way counted from the
+     engine's fields before the frame and asserted not 0 (counts below).
+  2. The cargo profile `guarded`; `make fuzz` builds a third library with it in
+     `target/guarded`, runs the same seeds, and fails unless every seed finishes with
+     `fuzz-new`'s line, naming the seed and the gdb command that names the guard.
+  3. `fuzz --stats`' five short ways, from what the harness sent; bench `rack` and `rack lp`.
+  4. `ENGINE.md`: "§18, as built, Session 40" and "§19, as built, Session 40".
+- **Where the build differs from the list, or reads it (⚠):**
+  1. ⚠ **The profile is in the workspace's `Cargo.toml`,** not `core/Cargo.toml`: cargo reads
+     profiles only from the workspace manifest. It also has `strip = false`, line tables, and
+     the Makefile builds it with tail merging off: without that every panic in `pi_process`
+     shares one call (the handler reads nothing, so even the message is dropped) and gdb named
+     the ABI's bounds check at `abi.rs:221`, not the guard. With it: `render () at
+     core/src/voice.rs:1462`. Neither changes a line out (10 000 seeds, the same lines).
+  2. ⚠ **What the model is given:** the commands it sent, the inputs it filled, the rate and
+     the line; and from the engine the view's tick (ticks are its difference), what is heard,
+     which sounds are in the effects, the volume and the events that fired, as `Voicing`
+     already took them. The hits it works out itself, so the tour writes no step that keeps
+     sliders (`KEEP`), moves no slider of the hand (`PARAM`), and sends no `RESET` or
+     `SOURCE` (the tick difference would wrap). Edges stay with `tests/bus.rs` and
+     `tests/route.rs`' tours.
+  3. ⚠ **The three bits the list named, as built:** an infinity in is silence; a line forgotten
+     while 4 or 14 ramps out leaves the bus as it is (and 14 counts no silence then); 14's count
+     stops at a millisecond's and is kept across a rate change. And one more: back in a loop
+     layout an insert ducks the bus again from that frame. In `ENGINE.md`, for the owner.
+  4. **One fix to the model, from §18's words:** 14's filter holds `f` to 0.3 like the others;
+     at 100 Hz it is 10.9 and the model disagreed. The engine was right.
+  5. "Every sound in the effects and not" is counted in layouts 1 and 17 with an effect running
+     before the frame (where `Bus::mix` runs); "returned" in 18 and 50.
+- **Counts the tour spends in each short way** (frames; layout 1 / 17 / 18 / 50 / 16 / low
+  rates): every sound in the effects 332 855 / 277 776 / – / 2 546 / 5 581 / 6 740; some
+  385 041 / 632 132 / – / 6 437 / 0 / 22 219; every sound returned – / – / 73 597 / 1 121 144;
+  some 1 381 862 / 359 951; none 719 445 / 604 921; every sound slowed 216 675 / 192 052 /
+  165 408 / 253 473 / 290 892 / 14 931; some slowed 318 986 / 428 076 / 246 606 / 260 769 /
+  337 008 / 28 101; quiet 566 126 / 673 845 / 307 745 / 464 624 / 489 598 / 62 625. (Layout 16's
+  and others' small counts in other columns are its mid-run layout changes.)
+- **Faults planted,** in a scratch copy, the unplanted copy first (339 tests passed), each
+  built, each caught by name by the tour: `sound_active` writing track 6 into channel 7 (all
+  six tour tests; `quiet.rs` too); `Bus::mix`'s all-sounds path one track short (layouts 1, 16,
+  17 and the low rates); `Bus::looped`'s all-returned path leaving track 4 uncleaned (layout 50
+  only: layout 18's seeds never had all sixteen returned while not-numbers came in); the
+  all-slowed path's line for track 10 starting from 0 (all six); Session 36's escape, track 3
+  never asked beside fifteen lines (all six). `quiet.rs` caught only the first. And the guard:
+  the bit not set on a hit (track 2) in a guarded scratch build, the unplanted copy first (400
+  seeds through): `make fuzz` stops at seed 1 and gdb names `render` at `voice.rs:1462`.
+- **The fuzz's new `--stats`,** seeds 1 to 400, frames: every sound in the effects while an
+  effect is held 1 441 833; every sound returned 1 268 860; effect 1 over all sixteen 282 504; an
+  effect held steady over 2 ms 3 731 670; a second with nothing sent that sounds 11 248 544. Each
+  over a thousand, so the PRNG gained no choice and no seed's line moved.
+- **The bench as Rack calls** (`make pairs`, CPU 2, ten rounds, medians, ns a frame): `rack`
+  22.4 (22.3–22.5) beside `both` 14.8; `rack lp` 24.1 (24.1–25.7) beside `loop` 18.5. A frame a
+  call costs 6 to 8 ns more than a frame in a block of 128: about a third of what the module pays
+  the core is the call. Every other case inside the kept bench's spread.
+- **Questions for the design session (⚠):** the four as-built bits above, to rule or leave as
+  built; whether the tour should take `KEEP`, `PARAM` and edges in before Session 42 changes
+  `sound`; and whether the call's cost (`rack` against `both`) is worth a design pass of its
+  own, since D105 item 15 calls Session 42 the last on the core's cost.
+- **Next:** Session 41, against `~/.cache/pocket-instruments/session40/`.
+
 ### After Session 37: Antigravity's parts designed in (2026-11-25)
 
 - **Designed, nothing built: D105, and the lists of Sessions 40, 41 and 42.** Antigravity's
@@ -757,53 +779,3 @@ The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
   is ported, and kept or left by D105 item 8. Antigravity was not asked again: its patch was
   the subject, and a second reader from another house was worth more than a second attempt.
 - **Next:** Session 40 (the model, the guard, the bench as Rack calls), then 41, then 42.
-
-### After Session 39: Rack's jacks worked out only when something reads them (2026-11-25)
-
-- **Built as D104 item 5 rules, `rack/` only, nothing to hear.** VOICES' sixteen channels are
-  worked out only while VOICES is patched. TRIGGERS keeps a mask of the channels with a live
-  pulse: a firing sets the timer and the bit, each frame only those channels count down and are
-  written, patched or not, and a pulse's end writes 0 V once and clears the bit. No volt on a
-  patched jack moved: every self-test module's report line is the same bytes, old code and new,
-  at 44.1, 48 and 96 kHz (each fixture's trigger pulses, every loop test). `make install` ran:
-  **restart Rack.**
-- **Where the build differs from the list:**
-  1. **The pulse count moved into `Jacks::frame`,** which returns the pulses that started while
-     TRIGGERS is patched (or in a fixture self-test). `process` has no loop over the sixteen
-     left, where the list kept one for `before` over the mask.
-  2. **The bit stays set one frame past the timer,** the frame the 0 V is written; the list
-     defined it as `trigLeft[t] != 0`, which would never visit that frame.
-  3. **TRIGGERS' voltages are written whether patched or not** (only the live channels, as FX
-     SEND's are). A cable patched after a pulse ended unseen then reads 0 V, which the list
-     asks for; writing only while patched could leave a stale 10 V.
-  4. **AUDIO's tanh moved into `Jacks::audioOut`,** the same lines; `pi::JackFrame` is gone.
-- **What you must know (⚠):**
-  1. **An unpatched VOICES no longer counts non-finite samples** into the report's "samples
-     not finite" (nothing is worked out to count). A diagnostic only; AUDIO, FX SEND and A and
-     B OUT still count theirs.
-  2. ⚠ The playing runs attribute no samples at all to the new `Jacks::frame` lines, against
-     17 to 31 stopped. Not looked into; the symbol totals, which do not depend on line
-     attribution, carry the result.
-- **Cost, by perf** (one module unpatched, 20 s at 48 kHz, CPU 2, six runs before and three
-  after, interleaved; samples, means): stopped, the module 1 636 → 1 113 (−32%), `Rhythm::process`
-  1 183 → 640 (−46%); playing the minimum beat, the module 2 292 → 1 741 (−24%), `Rhythm::process`
-  1 061 → 564 (−47%). `pi_process` inside its old spread. `Rhythm::process` is now flat, no part
-  over 9%; playing, the core is the larger half of the module. Details: "Later: efficiency".
-- **Proven:** `rack/test/jacks.cpp`, written first and passing on the old code (c4c1c52):
-  `triggers`, six cases worked by hand at three rates (1 ms then 0 V; a hit inside a pulse; a hit
-  on the frame a pulse ends; patched mid-pulse carries the rest; patched after an unseen end
-  reads 0 V; two tracks and two events that move nothing), each with its pulse count; `voices`
-  (5 V times each track, non-finite 0 V and counted, unpatched keeps what it carried, a real
-  beat frame for frame). Every older check now reads the outputs through the same `Module`. One
-  guard written after the change: a channel no firing reached is never written. 14 faults
-  planted, the unplanted copy first, each built: 13 caught by name (10 in `jacks.hpp` by
-  `triggers` and `voices`, among them the list's three: the timers not counted while unpatched,
-  6 checks; the 0 V not written, 19; a second hit not restarting the timer, 3; and 3 in
-  `Rhythm.cpp` by the self-test); 1 no test can catch: the bit set only on a fresh start, which
-  changes nothing, because a hit inside a pulse finds it already set. `make verify`, `make
-  selftest` at three rates, `make install`.
-- **To check, one minute in Rack** (restart Rack first): stopped, Engine → CPU meter: about a
-  third under what it read. Then play with TRIGGERS into a drum module and VOICES into a mixer:
-  everything as before; pull and replug either mid-beat: no stuck channel.
-- **Next:** Session 37 (design); your ears on the run of 2026-11-25 and on Sessions 26, 28 and 30.
-
