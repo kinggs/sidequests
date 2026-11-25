@@ -2220,6 +2220,36 @@ cases the part's code never runs in.
 7. **Session 40's four as-built readings** (`ENGINE.md`, ⚠ "as built, Session 40") stand as
    built until the owner rules: they are what every build since Session 24 has done.
 
+### D108 — After the reviews of Sessions 41 and 42: a zero's sign in Rack is accepted; the Sum step is ruled in
+**2026-11-25 · Fable · from Codex's read of the built code (by reading, not run) and a second reviewer's runs · the owner's to overrule · nothing to build unless overruled**
+
+1. **D105 item 3's three facts hold where underflow is gradual, and not where it is flushed.**
+   The brute force of Session 37 ran in standard arithmetic, as the `.wasm`, the harnesses
+   and the fuzz do. Rack runs its audio thread with flush-to-zero on: there a sum of two
+   numbers that underflows is −0, not a denormal. The old loops went on to add a silent
+   track's +0, which made it +0; the masked sums skip that addition and leave −0. So in
+   Rack, on a frame where the sounds summed cancel to within 1e-38 (two returned signals
+   dying away, for a frame), the mix or the bus can read −0 V where Session 40's build read
+   +0 V. Found by Codex reading `Sum` against Rack's float mode; not run. **Accepted.** Why:
+   nothing sounds different and nothing downstream tells the two zeros apart; §11's "the
+   same bits on every host" never held under flush-to-zero, where every underflow already
+   differs from the phone's; and the exact fix (one `+ 0.0` for each gap of silent tracks
+   in the walk) spends part of what the sums gained to keep a sign nobody reads. If
+   overruled, that fix is the build, with a test that sets the float mode.
+2. **The `Sum` step is ruled in** (Session 42's question 1): alone it read fx 1 0.5 ns
+   slower, and the step after it, which needs it, left fx 1 under where it began. D107 item
+   1's bar is read on the last of a run of steps when each needs the one before. Why: the
+   bar is there to keep out what costs, not to forbid an order of work.
+3. **Three small things the reviews found, none built:** `rest = +0` is spelled in
+   `Bus::sums` and belongs in `Sum` (fact (c)'s other half); `make fuzz` should take its
+   rates from a variable (a reviewer ran 46 000 seeds at eleven other rate sets from 28 Hz
+   to 192 kHz, and 12 800 on the two `.wasm` files, all the same bytes, with a scratch copy
+   that did); `Bus::mix`'s masked path has no test of its own but the tour. For whichever
+   session next opens `bus.rs`.
+4. **What the second reviewer's "sound" missed, kept as a lesson:** it wrote "a sum that is
+   not −0 never becomes −0 again", which is the very assumption item 1 breaks. Two readers
+   and a brute force shared one unstated premise; the reader from another house did not.
+
 ## Open
 
 | ID | Question | Needs |

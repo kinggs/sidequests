@@ -1773,3 +1773,23 @@ above; these are what only the chain showed.
 - **D105 item 9's path earns its place now.** With the sums masked, the loop without its
   every-sound-returned path was 3.4 ns slower and `sliders` 1.5 slower too: the 2 ns `sliders`
   paid in Session 36 was where code landed, and the masked sums gave it back (21.1 → 15.6).
+
+## The run of 2026-11-25, evening, from the chair that ran it (Sessions 37, 40 to 42)
+
+- **A brute force proves what its arithmetic is, not what the host's is.** Four million cases
+  said the masked sums were exact. They ran in standard floats. Rack flushes underflow to
+  zero, and a flushed sum keeps its sign: −0, which the old loop's next `+ 0.0` hid and the
+  masked one does not. Before calling float code "the same bits", ask what float mode each
+  host runs it in (D108).
+- **Two readers of one house shared the premise.** My design, the builder and a Claude
+  reviewer each wrote some form of "a sum that is not −0 never becomes −0". Codex, reading
+  the same code, did not assume it. A second model is worth most where the first is sure.
+- **Most of a fast patch is noise on another base.** Six of Antigravity's nine small parts
+  measured nothing or a loss once ported onto Codex's mask. Its table was true of its own
+  tree. Port a part, then measure it; never carry a number across a rebase.
+- **A bar of 0.3 ns measures the linker.** The first bar threw out a 3.9 KB saving for 0.2 ns
+  on a case that never runs the code. Say which cases a part's code can run in before
+  reading the others (D107).
+- **A review brief that asks for "undefined behaviour" and probes of overflow can trip
+  another provider's filter** and return nothing after twenty minutes. Ask for a read and
+  reasons, and say not to run programs; it came back with the best finding of the day.

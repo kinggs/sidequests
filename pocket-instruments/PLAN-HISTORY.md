@@ -4004,3 +4004,83 @@ shape; D105 items 1 to 4 are the brief, and its item 8 judges each step. **No by
   `sound`; and whether the call's cost (`rack` against `both`) is worth a design pass of its
   own, since D105 item 15 calls Session 42 the last on the core's cost.
 - **Next:** Session 41, against `~/.cache/pocket-instruments/session40/`.
+
+## Handover note moved here by the run of 2026-11-25, evening (Sessions 37, 40 to 42)
+
+### After Session 41: Antigravity's parts taken as written, three kept, six left out (2026-11-25)
+
+- **Built as the list asks, nothing to hear.** D106 first (its test failed on the old core:
+  the head walked into the guard floats), then each part alone, one reading each against the
+  commit before (`make pairs`, CPU 2, ten rounds; a second reading taken of every part, a third
+  of part 8 where the two disagreed: every verdict is the first reading's). The report and the
+  432 renders the same bytes after every part; `make fuzz` 10 000 seeds against Session 40's
+  library the same, the guarded run every line (and 10 000 for parts 2 and 9, as asked).
+  `make selftest` at three rates, `make play` (both browsers), `make install`: **restart Rack.**
+- **What was kept, and left out** (old → new, ns a frame, medians; the `.wasm` in bytes):
+  - D106: every case inside the old spread; `.wasm` 48 150 → 48 159. A fix: kept.
+  - 1, `clear` as loops and the cold handlers out of line: **left out.** `.wasm` 48 159 →
+    44 256, but idle 3.7 → 3.9, fx 2 18.6 → 18.8, fx 7 20.1 → 20.3, fx 8 20.3 → 20.4, fx 14
+    21.4 → 21.8, loop in 20.0 → 20.2 (rack lp 24.2 → 24.5), each outside the old spread, both
+    readings.
+  - 2, `Clock::advance`: **left out.** No gain (rack 22.4 → 22.3, all 47.2 → 47.2), loop 18.5
+    → 18.8 outside the spread in the first reading; `.wasm` −17.
+  - 3, the hats' table, the toms' flag, `Tone` and `Bass`: **kept.** Every case inside the
+    spread (all 47.1 → 46.9, fx 1 19.7 → 19.5); `.wasm` 48 159 → 47 512; `pi_size` 3 872 →
+    3 656. Nothing in code, tests or hosts names 3 872.
+  - 4, `base_inc`: **kept.** rack 22.4 → 22.1 and rack lp 24.3 → 24.1 outside the spread, beat
+    14.4 → 14.2, all 46.8 → 46.5; `.wasm` 47 512 → 48 035; `pi_size` 3 672. ⚠ repeat 22.7 →
+    23.2 (second reading 22.6 → 22.9), inside the old spread only by one slow old round.
+  - 5, the squares in integers: **kept.** all 46.6 → 41.6, fx 1 19.7 → 18.9, beat 14.2 → 13.9,
+    both 14.8 → 14.4, rack 22.0 → 21.8; `.wasm` 48 035 → 47 961.
+  - 6, the volume read on a frame with a command: **left out.** Blocks of 128 faster (idle 3.7
+    → 3.5, beat 13.9 → 13.6, fx 3 22.6 → 21.6), but rack 21.7 → 22.2 (spread 21.6–21.9), both
+    readings: what the Rack module pays.
+  - 7, the grid's wrap by subtraction: **left out.** fx 1 18.9 → 18.7, nothing at 0.3; all
+    41.2 → 42.7 in the second reading; `.wasm` +32.
+  - 8, the bus's steady path with its guard: **left out.** Every fx case 1.0 to 1.7 ns faster
+    (fx 1 18.9 → 18.1, fx 3 22.6 → 20.9, fx 14 20.7 → 19.3, loop in 19.6 → 18.7; `.wasm` −163),
+    but loop 18.2 → 18.5 (spread 18.2–18.4) in the first reading, inside in the second, and in
+    the third loop, beat 13.9 → 14.1, sliders 20.9 → 21.2 and rack lp 23.9 → 24.1 all outside.
+    Its guard was proved anyway: the three plants the list names ("steady while a sweep still
+    moves", "the skip forgets the grid's step", "steady kept through a frame of ramp out")
+    each fired the guard in `cargo test` and failed the tour in release (4, 6 and 6 of its six
+    tests).
+  - 9, the no-audio split: **left out.** Every case 1 to 3 ns slower (beat 13.9 → 15.9, idle 3.7
+    → 4.6, rack 21.8 → 25.0, rack lp 23.9 → 27.4); `.wasm` +808.
+  The left-out ports are in `~/.cache/pocket-instruments/session41/part*-left-out.diff`, so a
+  ruling can take one without porting again.
+- **The session, against Session 40's bench:** idle 3.7 → 3.7; beat 14.4 → 13.9; all 47.2 →
+  41.6; both 14.8 → 14.4; fx 1 19.6 → 18.9; fx 2 18.7 → 18.2; loop 18.6 → 18.2; sliders 21.2 →
+  21.1; rack 22.4 → 21.7; rack lp 24.2 → 23.9; repeat 22.6 → 22.9 ⚠. `pi_size` 3 872 → 3 672;
+  the `.wasm` 48 150 → 47 961. **`OLD` for Session 42:**
+  `~/.cache/pocket-instruments/session41/libpi_core.a` (sha256 `48f7ba20…`, `f16977c`'s core)
+  and `bench` beside it.
+- **Faults planted,** the unplanted copy first, each built: part 3, the open hat reading the
+  closed hat's row (`each_voice_is_loud…`, `slider_b_sets_each_voice_s_length`) and the toms'
+  flag read the wrong way (those and `slider_a_sets_the_pitch_of_the_sines`); part 4, the
+  kick's `base_inc` made on a hit only, not on a retune: **passed all 340**, so a test was
+  written (`a_voice_sounding_across_a_rate_change_keeps_its_pitch_after_its_sweep`, passing on
+  the voices before part 4) and catches it; part 5, the squares counted after the phases were
+  advanced: **passed all 341**, now caught by
+  `the_squares_counted_in_integers_are_the_float_sum_they_replaced`. The tour caught none of the
+  voice plants: it shares the voices' `next` (D105 item 12 says so). 342 Rust tests.
+- **Where the build reads the list (⚠):**
+  1. ⚠ **Part 8 needed part 7's `Bus::grid`.** With part 7 left out, its port moved today's `%`
+     step into `Bus::grid` so the skip and `frame` call one function (D105 item 6). Built round
+     it; moot while 8 is out.
+  2. ⚠ **More than one reading.** The list says one; I took two of each and a third of part 8
+     when the two disagreed. No verdict differs from the first reading's.
+  3. Not taken, as the list does not name them: the patch's `Engine::new` from zeroed arrays
+     (its comment claims 3.5 KB of `.wasm`), the ramp's `if w < 1` and its `is_effect_1`.
+- **Questions for the design session (⚠):**
+  1. **Part 8:** 1.0 to 1.7 ns off every effect case, 0.2 to 0.3 on loop, beat, sliders and rack
+     lp, by the bar out. Rule it in, or try it again after Session 42 moves the code round it?
+  2. **Part 1:** 3.9 KB of `.wasm` (the bar is 200 bytes) for 0.2 to 0.3 ns on six cases: the
+     same question.
+  3. **Part 6:** faster in every block of 128, slower only where Rack calls a frame at a time.
+     Worth a design of its own with the call's cost (Session 40's question)?
+  4. Every left-out part lost by a few tenths on cases it does not touch: where code lands
+     decides parts worth under 0.3 ns. Should the bar read cases a part cannot reach as placement?
+  5. Voice arithmetic is held only by the fuzz and named tests; two plants needed new tests.
+     Should `make fuzz` (10 000 seeds against the last library) be in `make verify`?
+- **Next:** Session 42, against `~/.cache/pocket-instruments/session41/`.
