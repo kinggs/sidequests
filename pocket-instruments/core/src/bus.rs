@@ -49,7 +49,9 @@ use crate::seq::TRACKS;
 // levels a unit, towards zero; 600 Hz and 2 kHz at `r` 0.5; sweeps of 1 536 ticks, one way.
 // Then Session 26 read ours with harness/hardware-fx.py as the PO-12 was read, and moved three
 // (ENGINE.md §18's table says was, now and both readings): the ceiling 1 → 0.88, the crush
-// 4 → 4.6 levels a unit, effect 6's top 2 500 → 3 240 Hz.
+// 4 → 4.6 levels a unit, effect 6's top 2 500 → 3 240 Hz. Session 30 (D95 item 4, R73, take
+// c): the sweeps six steps round, not nine; 6 from 2 700 (3 240) to 165 Hz (190); 8 up to
+// 3 300 Hz (2 900); both sweeps at Q 4.5; 5 at 210 Hz (300) and Q 3 (2).
 
 /// Effect 1: the hold's rate in hertz, whatever the engine's rate.
 pub const REDUCE_HZ: u32 = 1000;
@@ -61,24 +63,25 @@ pub const CEILING: f32 = 0.88;
 /// the kick's peak / 1.9 and about a quarter of the ceiling, resting half a step off zero.
 pub const CRUSH_LEVELS: f32 = 4.6;
 /// Effects 5 and 7: the fixed cutoffs, in hertz.
-pub const LOWPASS_HZ: f32 = 300.0;
+pub const LOWPASS_HZ: f32 = 210.0;
 pub const HIPASS_HZ: f32 = 1800.0;
-/// The filter's `r` (stmlib's 1 / Q, as `voice.rs` uses "damping"), by the output: the low
-/// output's (5 and 6) and the high output's (7 and 8, Q 6).
-pub const LOW_R: f32 = 0.5;
-pub const HIGH_R: f32 = 1.0 / 6.0;
+/// The filter's `r` (stmlib's 1 / Q, as `voice.rs` uses "damping"), by the effect: 5 at Q 3,
+/// 7 at Q 6, the two sweeps at Q 4.5 (Session 30; was 0.5 for 5 and 6, 1/6 for 7 and 8).
+pub const LOWPASS_R: f32 = 1.0 / 3.0;
+pub const HIPASS_R: f32 = 1.0 / 6.0;
+pub const SWEEP_R: f32 = 1.0 / 4.5;
 /// Effects 6 and 8: a sweep's two ends, out from `*_FROM_HZ` to `*_TO_HZ` over `SWEEP_HALF`
 /// ticks and back over as many, then again. Each constant is (end / start) to the power
-/// 1 / 432, worked out once off the engine (Session 25, numpy) and rounded to an f32, so no
+/// 1 / 288, worked out once off the engine (Session 30, Python) and rounded to an f32, so no
 /// exponential is computed here; both ends are set exactly, so no rounding builds up.
-pub const LOW_SWEEP_FROM_HZ: f32 = 3240.0;
-pub const LOW_SWEEP_TO_HZ: f32 = 190.0;
-pub const LOW_SWEEP_OUT: f32 = 0.993_456;
-pub const LOW_SWEEP_BACK: f32 = 1.006_587_1;
+pub const LOW_SWEEP_FROM_HZ: f32 = 2700.0;
+pub const LOW_SWEEP_TO_HZ: f32 = 165.0;
+pub const LOW_SWEEP_OUT: f32 = 0.990_341_84;
+pub const LOW_SWEEP_BACK: f32 = 1.009_752_3;
 pub const HIGH_SWEEP_FROM_HZ: f32 = 220.0;
-pub const HIGH_SWEEP_TO_HZ: f32 = 2900.0;
-pub const HIGH_SWEEP_OUT: f32 = 1.005_987_4;
-pub const HIGH_SWEEP_BACK: f32 = 0.994_048_24;
+pub const HIGH_SWEEP_TO_HZ: f32 = 3300.0;
+pub const HIGH_SWEEP_OUT: f32 = 1.009_447_3;
+pub const HIGH_SWEEP_BACK: f32 = 0.990_641_1;
 /// Effect 4: one echo of the bus, `ECHO_FRAMES_NUM / ECHO_FRAMES_DEN` seconds ago (8 192
 /// samples at 46 875 Hz, 174.76 ms: a buffer's length, not a note's, D91 item 5), at this
 /// level, no feedback. The line is the host's (`pi_set_delay`).
@@ -118,10 +121,10 @@ pub const fn delay_frames(rate: u32) -> u32 {
     ((rate as u64 * ECHO_FRAMES_NUM + ECHO_FRAMES_DEN / 2) / ECHO_FRAMES_DEN) as u32
 }
 
-/// Four and a half steps of ticks out, as many back: a cycle of nine steps (R65).
-pub const SWEEP_HALF: u16 = (9 * TICKS_PER_STEP / 2) as u16;
+/// Three steps of ticks out, as many back: a cycle of six steps (R73; nine before Session 30).
+pub const SWEEP_HALF: u16 = (6 * TICKS_PER_STEP / 2) as u16;
 // `Bus::swept` is a u16 (Session 24): a sweep's cycle must fit in it.
-const _: () = assert!(2 * SWEEP_HALF as u32 == 9 * TICKS_PER_STEP);
+const _: () = assert!(2 * SWEEP_HALF as u32 == 6 * TICKS_PER_STEP);
 /// The filter's `f = cutoff / rate` is held to this at most.
 pub const F_MAX: f32 = 0.3;
 /// The ramp: 0 to 1 in 2 ms, so `RAMP_PER_SECOND / rate` a frame.
@@ -265,16 +268,15 @@ impl Bus {
         (self.g, self.h)
     }
 
-    /// The filter's `r`, by the output the effect running takes (§18, designed 2026-11-24):
-    /// and 14's band output (ABI 13).
+    /// The filter's `r`, by the effect running (Session 30, D95 item 4): and 14's band output
+    /// (ABI 13). Asked for only when the filter is made again, never a frame.
     #[inline]
     fn r(&self) -> f32 {
-        if self.on <= 6 {
-            LOW_R
-        } else if self.on == FEEDBACK {
-            FEEDBACK_R
-        } else {
-            HIGH_R
+        match self.on {
+            5 => LOWPASS_R,
+            7 => HIPASS_R,
+            FEEDBACK => FEEDBACK_R,
+            _ => SWEEP_R, // 6 and 8
         }
     }
 
