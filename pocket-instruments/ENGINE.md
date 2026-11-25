@@ -314,6 +314,30 @@ event; `SOURCE` 1's fixtures, the report and every render file the same bytes; e
 under `SOURCE` 2, the table's trace; a reset mid-beat (the guess kept); a switch off a beat
 (the flush); planted faults caught by name.
 
+**Ruled 2026-11-25 after Session 34's review (D101; not built: Session 35).** Three gaps in
+the design above, each only with one edge a beat; `SOURCE` 1 and the table do not move.
+
+1. **Play waits for the beat.** On `SOURCE` 2 a pattern started by `PLAY 1` begins on the
+   next tick that is a multiple of 384, not of 96: step 1 at the next edge, as §13 says of
+   an edge clock. (As built, play began on the next step, and the steps inside a beat are
+   interpolated, so step 1 could land on the beat's second, third or fourth sixteenth and
+   stay there.) A `RESET` sets tick 0, a multiple of both, so nothing else changes. By hand,
+   48 kHz, an edge every 24 000 frames, the stored tempo 120, `PLAY 1` at frame 30 001:
+   `STEP` 0 is tick 768, on frame 48 000 (as built: tick 576, frame 36 000).
+2. **An edge after a pause is a first edge.** On `SOURCE` 2, an edge that arrives with
+   `since > 2 × period` (the bar `ext` already calls stopped) does not measure: `period`
+   becomes `guess` (or the stored tempo's beat if `guess` is 0), `measured` is cleared, and
+   `guess` is left. By hand, the same clock, then no edge for 120 000 frames: the edge that
+   ends the pause sets `period` 24 000, and the three steps after it fall 6 000, 12 000 and
+   18 000 frames on (as built: `period` 120 000, and they fire together on the next edge).
+3. **A rate change carries the beat.** On `SOURCE` 2, `pi_set_sample_rate` rescales
+   `guess`, `period` and `since` as it does the table's `acc`: `× new / old`, rounded down,
+   in 64 bits, a `period` or `guess` that was not 0 held to at least 1.
+
+**Proven when built by:** a rule test for each, by hand first as above (3: a reset after
+48 → 96 kHz, the first beat's steps 12 000 frames apart); the report, every render file and
+every `SOURCE` 1 test the same; faults planted and caught by name.
+
 **Built (Session 34; ABI 15).** `core/src/clock.rs`: `SOURCE_BEATS`, `TICKS_PER_BEAT`, the
 clock's `guess` and `measured` (both fit the struct's padding: `pi_size` stays 3 872), `edge`
 given the engine's rate. The view's flag 2 is any source but the table (`core/src/keys.rs`);

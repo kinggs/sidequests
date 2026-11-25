@@ -1989,6 +1989,21 @@ Session 33's list (`PLAN.md`).
    edge; the core's tests hold the beat rule, and the module's part is choosing the source
    (a pure function, tested) and one label. The owner's check is Clocked at ×1.
 
+### D101 — The beat clock, three gaps closed after review: play waits for the beat, a pause is a first edge, a rate change carries the beat
+**2026-11-25 · Fable, after the review of Session 34 (each finding checked against the code) · the owner's to overrule with O27 · not built: Session 35 · `ENGINE.md` §4, "Ruled 2026-11-25 after Session 34's review"**
+
+D100 did not say what play does on a beat clock, what an edge after a pause measures, or
+what a rate change does to the kept guess. Session 34 built the nearest reading of each
+(marked ⚠), and a reviewer showed all three play wrongly:
+
+1. **Play starts the pattern on the next edge,** not on the next interpolated step.
+2. **An edge more than two periods late does not measure;** the beat after it runs at the
+   guess. Not chosen: leaving it, which fires three steps at once after any pause.
+3. **The guess, the period and the frames since the edge are rescaled with the rate.**
+4. **Left:** one edge a step keeps every one of its rules, pauses included (it only holds
+   back swung ticks there). The tick counter's wrap is misaligned for one beat every 26 days
+   at 300 bpm, as D42 has it for steps.
+
 ## Open
 
 | ID | Question | Needs |

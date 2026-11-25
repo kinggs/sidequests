@@ -275,6 +275,36 @@ Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
    the parameters less often decides the next step (Session 29's Handover).
 6. Then from "Not planned yet", as the owner chooses.
 
+## Session 35 — the beat clock's three gaps (build, Opus; D101)
+
+Read `ENGINE.md` §4, "designed 2026-11-25: one edge a beat" and "Ruled 2026-11-25 after
+Session 34's review"; D100, D101; Session 34's Handover. The rules for every build session
+hold. No ABI change: no call, command, view or snapshot byte moves.
+
+- [ ] **Before any change:** the report, a `sha256sum` of every render file, the old
+      library and a bench built on it.
+- [ ] **By hand first:** the three rulings' worked cases as rule tests in
+      `core/src/tests/clock.rs`, committed failing before the code. Session 34's test
+      `on_beats_the_play_key_sends_play_alone_as_on_edges` holds the behaviour ruling 1
+      replaces (step 0 on tick 576): it is worked again by hand for tick 768 first, by
+      this decision, and `fixtures/README.md` or the test's comment says so.
+- [ ] **The core:** how play learns the span is the builder's to place (`Seq::tick` is
+      given it, or `Clock` says whether a tick starts an edge's span): the smallest change
+      that leaves the table and `SOURCE` 1 the same bytes. Rulings 2 and 3 in
+      `core/src/clock.rs`.
+- [ ] **One more, from the same review:** `rack/res/stmlib-plaits-MIT.txt` and
+      `core/stmlib-plaits-MIT.txt` still say the plugin carries the soft clip and Plaits'
+      reducer. The notice's text is the licence and stays; the sentence about what is
+      carried names the filter alone. The file's name stays (`check-dist.sh` holds it).
+- [ ] ⚠ The `.wasm` is 311 bytes under P1's bar. Do not move the bar. If this passes it,
+      stop on that: say by how much, keep the core change, leave `web/pi_core.wasm` as it
+      is ⚠.
+- [ ] `make pairs` against your own old build, alone on the machine: every case inside
+      the old spread. Faults planted and caught by name.
+- [ ] **The end:** `make verify`, `make selftest` in `rack/`, `make play`, `make listen`,
+      `make install` in `rack/`; §4's ruling marked built; `LEARNINGS.md`; the Handover;
+      this list to `PLAN-HISTORY.md`.
+
 ## Session 14 — the weave (build, with the owner's eye; a first attempt after Session 20, D79)
 
 Recommended on Fable: which cells each of the seven rules lights is not designed, only its
