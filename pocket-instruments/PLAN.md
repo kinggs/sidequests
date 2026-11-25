@@ -168,7 +168,7 @@ lights, caps, display, weave ◄─ host draws ◄─ view                Rack: 
 
 ---
 
-## Where it stands (2026-11-25, after Session 38)
+## Where it stands (2026-11-25, after Session 39)
 
 The instrument plays on a phone (`web/rhythm.html`) and in Rack (the Rhythm module, 24 HP,
 thirteen jacks). In the core: sixteen sounds, each a code voice or a sample; the workflow
@@ -241,6 +241,10 @@ beat" an edge is a pause only against a measured beat, so a clock that slows to 
 tempo is measured again on its second slow edge (it never was). The table and one edge a step the
 same bytes; nothing costs more; the `.wasm` 48 150.
 
+**Built on 2026-11-25, nothing to hear** (Session 39; D104 item 5): in Rack, VOICES is worked out only
+while patched and TRIGGERS visits only the channels with a live pulse. The module a third cheaper
+stopped by perf (`Rhythm::process` −46%), a quarter playing; every self-test line the same bytes.
+
 ## Done so far
 
 Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
@@ -287,60 +291,23 @@ Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
 | 36, the core's cost a frame: Codex's patch adopted (Opus; D102) | only the sounds that may be sounding are asked (`active_tracks`), three all-sounds paths; beat 36.4 → 14.4 ns a frame, idle 6.0 → 3.7, every case under the build before Session 32; the same bytes (report, renders, 10 000 fuzz seeds); the `.wasm` 47 861; a guard on the mask's rule; `make fuzz`; 8 tests; 9 faults caught by name, 2 no test can catch. ⚠ sliders 2 ns dearer than without the all-returned path | 2026-11-25 |
 | 35, the beat clock's three gaps (Opus; D101) | play on a beat clock waits for the next edge (`Seq` told the span once a `SOURCE`; given it every frame cost 0.3 ns), a pause is a first edge, a rate change rescales the beat; the notice names the filter alone; 14 new tests (11 first; with Session 34's play-key test reworked, 9 failing on the old core); the same bytes, 6 184 of 10 000 fuzz seeds differ, all sending `SOURCE` 2; `make pairs` inside the old spread; `pi_size` 3 872; the `.wasm` 48 141; 24 faults caught by name, 2 no test can catch | 2026-11-25 |
 | 38, the beat clock: a pause only against a measured period (Opus; D103) | one condition in `Clock::edge`; 8 new tests by hand first (the two worked cases and the review's six) and Session 35's two no-guess pause tests worked again by the ruling, 4 failing on the old core; the same bytes, 3 036 of 10 000 fuzz seeds differ, all sending `SOURCE` 2; `make pairs` inside the old spread; the `.wasm` 48 150; 12 faults caught by name, 1 no test can catch | 2026-11-25 |
+| 39, Rack's jacks worked out only when something reads them (Opus; D104 item 5) | `rack/` only: VOICES only while patched, TRIGGERS a mask of live channels counted every frame, the self-test's pulse count in `Jacks::frame`; tests first through a test-side `Module` (`triggers`, `voices`), passing on the old code; every self-test line the same bytes at three rates; the module stopped −32% by perf, playing −24%; 13 faults caught by name, 1 no test can catch | 2026-11-25 |
 
 ## Next, in order
 
 The owner ruled the run of 2026-11-25's seven as recommended (D104), before hearing it.
 
-1. **Session 39** (build, Opus), below: Rack's jacks worked out only when something reads
-   them. Nothing waits on the owner.
-2. **Session 37** (design, Fable), below: Antigravity's parts designed in. Nothing waits on
+1. **Session 37** (design, Fable), below: Antigravity's parts designed in. Nothing waits on
    the owner; it ends in a build list.
-3. **Your ears** (restart Rack first): the run of 2026-11-25's three checks, thirteen
-   minutes, in its Handover below (effect 1, the clock, the scan and the cost); then
-   Sessions 26, 28 and 30, still unheard (`PLAN-HISTORY.md`; O23, O25).
-4. **Takes, when the PO-12 is out** ("The owner's hands"): 16's (sound 15 a bar long, dry,
+2. **Your ears** (restart Rack first): the run of 2026-11-25's three checks, thirteen
+   minutes, in its Handover below (effect 1, the clock, the scan and the cost), and Session
+   39's minute; then Sessions 26, 28 and 30, still unheard (`PLAN-HISTORY.md`; O23, O25).
+3. **Takes, when the PO-12 is out** ("The owner's hands"): 16's (sound 15 a bar long, dry,
    then fx + 16, then fx + 1; it serves 15 too), 14 at 120 bpm, and 13's map. Read them
    with "Read `pocket-instruments/PLAN.md` and read the takes asked for".
-5. **Your looks and rulings** on what 2026-11-23 built: "The owner's hands", first part.
+4. **Your looks and rulings** on what 2026-11-23 built: "The owner's hands", first part.
    **Session 14's fourth box,** the weave accepted or redrawn: below.
-6. Then from "Not planned yet", as you choose.
-
-## Session 39 — Rack's jacks worked out only when something reads them (build, Opus; D104 item 5)
-
-`rack/` only: nothing in `core/` changes. Read Session 33's Handover (`PLAN-HISTORY.md`:
-`jacks.frame` is 54% of `Rhythm::process` stopped); `rack/src/jacks.hpp` (`Jacks::frame`,
-and `fxSend`, whose mask of live gains is the pattern); `rack/src/Rhythm.cpp`, `process`
-from "The jacks, out"; Machine state (perf, pinned to CPU 2; Rack's stdin). The rules for
-every build session hold. **No volt on any patched jack may change.**
-
-- [ ] **Before any change:** perf on the installed build, stopped and unpatched, and again
-      playing the minimum beat, pinned, by Machine state's recipe: the module's samples,
-      `Rhythm::process`'s and `jacks.frame`'s, written down.
-- [ ] **Tests first,** in `rack/test/jacks.cpp`, written to today's volts and passing on
-      today's code where today's code can run them: a trigger is 10 V for 1 ms at 44.1, 48
-      and 96 kHz and 0 V after; a hit again inside a pulse starts the millisecond again;
-      **TRIGGERS patched in the middle of a pulse carries the rest of it** (the timers
-      count whether or not anything reads them); a channel is written 0 V on the frame its
-      pulse ends; VOICES is `safe(5 V × the track)` on every channel.
-- [ ] **VOICES:** the sixteen `safe(5 × track)` are worked out only on a frame VOICES is
-      patched.
-- [ ] **TRIGGERS:** a mask of the tracks whose pulse is live (`trigLeft[t] != 0`), as
-      `fxLive` is for the send. An event sets the timer and the bit; each frame only the
-      live tracks count down, patched or not; patched (or in a fixture self-test, which
-      writes TRIGGERS anyway) each live track is 10 V, and a track whose pulse ends is
-      written 0 V once and its bit cleared, so the output's voltages must start at 0 and
-      a cable patched in later reads 0 on every channel not live. `process`'s own loop
-      over the sixteen for `before` (the self-test's count of pulses) uses the mask.
-- [ ] AUDIO, FX GATES and FX SEND do not change.
-- [ ] Faults planted and caught by name (the timers not counted while unpatched; the 0 V
-      not written at a pulse's end; the bit not set by a second hit). `make selftest` in
-      `rack/`: every fixture's TRIGGERS count and the loop tests as before.
-- [ ] **Measured:** perf again, the same patches and seconds: stopped, and playing, before
-      and after, and what is now `Rhythm::process`'s largest part.
-- [ ] **The end:** `make verify`, `make selftest` in `rack/`, `make install` in `rack/`;
-      "Later: efficiency" gains the numbers; `LEARNINGS.md`; the Handover; this list to
-      `PLAN-HISTORY.md`.
+5. Then from "Not planned yet", as you choose.
 
 ## Session 37 — the core's cost a frame, the rest: Antigravity's parts designed in (design, Fable; D102 item 2)
 
@@ -458,6 +425,17 @@ None blocks anything; each is done when wanted, profiled before and after (Machi
       fx 14 45.7 → 21.4; loop 45.4 → 18.7; loop fx 45.4 → 18.6; loop in 47.5 → 19.9; sliders
       40.3 → 21.2. Every case under the build before Session 32. The `.wasm` 49 689 → 47 861.
       The rest (Antigravity's, beat 9.5) is Session 37's design pass; not measured in Rack.
+- [x] **Rack's jacks worked out only when something reads them** (Session 33 found them 54% of
+      `Rhythm::process` stopped; ruled D104 item 5). **Done in Session 39:** VOICES only while
+      patched, TRIGGERS only its live channels. perf, one module unpatched, 20 s at 48 kHz,
+      pinned to core 2, unstripped builds, six runs before and three after, interleaved (samples,
+      means, old → new): stopped, the module 1 636 → 1 113 (−32%; about 0.31% → 0.21% of a core ⚠
+      at an assumed 5.25 GHz), `Rhythm::process` 1 183 → 640 (−46%), the jacks' lines 264 to 387 →
+      17 to 31; playing the minimum beat, the module 2 292 → 1 741 (−24%), `Rhythm::process` 1 061
+      → 564 (−47%). `pi_process` inside its old spread both ways. `Rhythm::process` is now flat: no
+      part over 9% (the view compared for publishing 9%, the routes 7%, the two sliders 6%, the
+      key scan 5%). Nothing large is left in the host; the core (`pi_process`) is now the larger
+      half of the module playing.
 
 ## The owner's hands
 
@@ -509,7 +487,8 @@ originals are in `PLAN-HISTORY.md`); nothing was dropped, each thing is here onc
 - [ ] **Session 35, two minutes in Rack** (restart Rack first; O27): its Handover (now in `PLAN-HISTORY.md`).
 - [ ] **Session 36, one minute in Rack** (restart Rack first): its Handover (now in `PLAN-HISTORY.md`); above all
       ⚠ 1, the sliders case's 2 ns.
-- [ ] **Session 38, one minute in Rack** (restart Rack first; O27): its Handover below.
+- [ ] **Session 38, one minute in Rack** (restart Rack first; O27): its Handover (now in `PLAN-HISTORY.md`).
+- [ ] **Session 39, one minute in Rack** (restart Rack first): its Handover below.
 - [ ] **Session 32, by ear and to rule on** (O26): its Handover (now in `PLAN-HISTORY.md`) has
       the steps (five minutes) and four readings (⚠), above all the cost on every playing case.
 - [x] **Session 22's proposals** (`ENGINE.md` §17 and §18, "Proposed after Session 22"):
@@ -574,57 +553,54 @@ originals are in `PLAN-HISTORY.md`); nothing was dropped, each thing is here onc
 
 The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
 
-### After Session 38: the beat clock, a pause only against a measured period (2026-11-25)
+### After Session 39: Rack's jacks worked out only when something reads them (2026-11-25)
 
-- **Built as D103 rules, not yet played.** On "CLOCK: one edge a beat" an edge is a pause only
-  when the period was measured (`measured` set and `since > 2 × period`); any other edge after
-  the first measures. A clock that slows to under half its tempo (120 to 55 bpm) is a pause on
-  its first slow edge and measured on its second (`ext` 550, steps 13 091 frames apart); from
-  `pi_init` at 300 with an edge every half second, the second edge measures. One condition in
-  `Clock::edge`. ABI 15, `pi_size` 3 872. `make install` ran: **restart Rack.** The page did not
-  change but for its `.wasm`.
-- **Where the build differs from the list:** two of Session 35's tests asserted what D103
-  overturns (`ruling_2_with_no_guess_the_beat_after_a_pause_is_the_stored_tempo_s` and
-  `..._a_pause_takes_the_stored_tempo_as_it_is_then`). They were worked again by hand by the
-  ruling, before the code and in the tests' commit, and renamed for what they now hold (one edge
-  then a long wait measured as a beat, the next beat bunching once: the ruling's own ⚠ Left; the
-  second edge measuring whatever the stored tempo says); each comment keeps Session 35's reasoning
-  and says why it changed. No pass bar was edited after the code.
-- **What you must decide or know (⚠):**
-  1. **The pause's fall-back to the stored tempo's beat can no longer run.** On beats `measured`
-     is set only where `guess` is set to a non-zero `since`; a reset keeps `guess`, a switch
-     clears both, a rescale holds it to at least 1. So a pause always finds a guess. Built as the
-     ruling reads (it keeps D101's "or the stored tempo's beat"); planted out, no test moved. One
-     line to simplify if you want it gone; nothing heard differs.
-  2. **D103's own ⚠ stands:** one edge, a long stop, then the clock again: the wait is measured as
-     a beat and the next beat's steps bunch once. A test now holds it.
-- **Cost:** `make pairs` against this session's own old build, CPU 2, two runs, medians, ns a
-  frame (old → new): idle 3.7 → 3.7; beat 14.4 → 14.4; all 47.2 → 47.2; both 14.9 → 14.9;
-  repeat 22.7/22.6 → 22.8/22.7; fx 1 19.8 → 19.8; fx 1/0 17.4/17.3 → 17.3; fx 2 to 8 and 14
-  within 0.1 either way; loop 18.6, loop fx 18.6/18.5, loop in 19.9/19.8, the same; sliders
-  21.3/21.4 → 21.3. Every case inside the old spread in both runs. Not measured in Rack by perf:
-  the change is on the edge path, which runs once a beat. The `.wasm` 48 141 → 48 150, 1 850
-  under P1's bar.
-- **Proven:** 333 Rust tests (8 new: the two worked cases and the review's six, written by hand
-  first; with Session 35's two worked again, committed with the old core failing 4: the two worked
-  cases and the two reworked; the six pass on both). `SOURCE` 1 and the table: the report's 360
-  runs and all 432 render files the same bytes. `make fuzz` against the old library, 10 000 seeds:
-  3 036 differ; a scratch copy of the fuzz that flags `SOURCE` 2 at the `pi_process` call (its
-  hashes the real fuzz's) shows every one sent it inside a block, and none without it differs.
-  13 faults planted, the unplanted copy first, each built: 12 caught by name (the old rule, 4
-  tests; a pause only when not measured, 8; a pause against any guess, 1; a pause leaving
-  `measured` set, 2; one edge a step pausing, 1; the bar inclusive, 1; a measured beat not setting
-  the guess, 5; a rescale holding a period of 0 to 1, 1, the review's rate-change case; the span
-  taken from `SOURCE`'s value, 1, the invalid source case; the span told only on a switch to
-  beats, 1, the 2-to-1 case; a reset keeping `have_edge`, 5, the reset-while-waiting case among
-  them; stop forgetting the wait, 1, the stop-then-play case); 1 no test can catch (⚠ 1). `make
-  test`, `make fuzz`, `make web`, `make selftest` at three rates, `make play` (both browsers),
-  `make listen`, `make verify`, `make install`.
-- **To check, one minute in Rack** (restart Rack first): Clocked at ×1 into CLOCK, "CLOCK: one
-  edge a beat" on, at 120 bpm. Turn Clocked down to 55: the display reads `ext --` for about a
-  beat, then `55` (before this session it stayed `--`), and the four steps of each beat fall
-  evenly.
-- **Next:** Session 37 (design); your ear on Sessions 26, 28, 30 and 32; your checks of 33 to 38.
+- **Built as D104 item 5 rules, `rack/` only, nothing to hear.** VOICES' sixteen channels are
+  worked out only while VOICES is patched. TRIGGERS keeps a mask of the channels with a live
+  pulse: a firing sets the timer and the bit, each frame only those channels count down and are
+  written, patched or not, and a pulse's end writes 0 V once and clears the bit. No volt on a
+  patched jack moved: every self-test module's report line is the same bytes, old code and new,
+  at 44.1, 48 and 96 kHz (each fixture's trigger pulses, every loop test). `make install` ran:
+  **restart Rack.**
+- **Where the build differs from the list:**
+  1. **The pulse count moved into `Jacks::frame`,** which returns the pulses that started while
+     TRIGGERS is patched (or in a fixture self-test). `process` has no loop over the sixteen
+     left, where the list kept one for `before` over the mask.
+  2. **The bit stays set one frame past the timer,** the frame the 0 V is written; the list
+     defined it as `trigLeft[t] != 0`, which would never visit that frame.
+  3. **TRIGGERS' voltages are written whether patched or not** (only the live channels, as FX
+     SEND's are). A cable patched after a pulse ended unseen then reads 0 V, which the list
+     asks for; writing only while patched could leave a stale 10 V.
+  4. **AUDIO's tanh moved into `Jacks::audioOut`,** the same lines; `pi::JackFrame` is gone.
+- **What you must know (⚠):**
+  1. **An unpatched VOICES no longer counts non-finite samples** into the report's "samples
+     not finite" (nothing is worked out to count). A diagnostic only; AUDIO, FX SEND and A and
+     B OUT still count theirs.
+  2. ⚠ The playing runs attribute no samples at all to the new `Jacks::frame` lines, against
+     17 to 31 stopped. Not looked into; the symbol totals, which do not depend on line
+     attribution, carry the result.
+- **Cost, by perf** (one module unpatched, 20 s at 48 kHz, CPU 2, six runs before and three
+  after, interleaved; samples, means): stopped, the module 1 636 → 1 113 (−32%), `Rhythm::process`
+  1 183 → 640 (−46%); playing the minimum beat, the module 2 292 → 1 741 (−24%), `Rhythm::process`
+  1 061 → 564 (−47%). `pi_process` inside its old spread. `Rhythm::process` is now flat, no part
+  over 9%; playing, the core is the larger half of the module. Details: "Later: efficiency".
+- **Proven:** `rack/test/jacks.cpp`, written first and passing on the old code (c4c1c52):
+  `triggers`, six cases worked by hand at three rates (1 ms then 0 V; a hit inside a pulse; a hit
+  on the frame a pulse ends; patched mid-pulse carries the rest; patched after an unseen end
+  reads 0 V; two tracks and two events that move nothing), each with its pulse count; `voices`
+  (5 V times each track, non-finite 0 V and counted, unpatched keeps what it carried, a real
+  beat frame for frame). Every older check now reads the outputs through the same `Module`. One
+  guard written after the change: a channel no firing reached is never written. 14 faults
+  planted, the unplanted copy first, each built: 13 caught by name (10 in `jacks.hpp` by
+  `triggers` and `voices`, among them the list's three: the timers not counted while unpatched,
+  6 checks; the 0 V not written, 19; a second hit not restarting the timer, 3; and 3 in
+  `Rhythm.cpp` by the self-test); 1 no test can catch: the bit set only on a fresh start, which
+  changes nothing, because a hit inside a pulse finds it already set. `make verify`, `make
+  selftest` at three rates, `make install`.
+- **To check, one minute in Rack** (restart Rack first): stopped, Engine → CPU meter: about a
+  third under what it read. Then play with TRIGGERS into a drum module and VOICES into a mixer:
+  everything as before; pull and replug either mid-beat: no stuck channel.
+- **Next:** Session 37 (design); your ears on the run of 2026-11-25 and on Sessions 26, 28 and 30.
 
 ### After the run of 2026-11-25: Sessions 31 to 38, one note for all of it
 

@@ -1635,3 +1635,32 @@ above; these are what only the chain showed.
   seed send it" in a minute; 26 seeds sent `SOURCE` 2 only past the end of a block, and none of
   those differ. If this question comes back a third time it is worth a `--flag` in the fuzz
   itself (a design question, not taken here).
+
+## Session 39: Rack's jacks worked out only when something reads them (2026-11-25)
+
+- **`perf annotate` reads the binary at the recorded path, not the one perf recorded.** `perf
+  report`'s symbols come from the build-id cache (`~/.debug`) and were right; `perf annotate
+  -l` disassembled whatever file sat at the user folder's `plugin.so`, which my script had
+  overwritten with the next build. Line shares came out plausible and wrong (a comment line
+  holding 3% of the samples gave it away). Annotate each run with its own build copied back to
+  the recorded path, or give each build its own user folder. Symbol totals were unaffected.
+- **`-funsafe-math-optimizations` links `crtfastmath.o`: subnormals flush to 0 at run time.**
+  The plugin and `rack/test/jacks.cpp` are built with it, so `5 × 1e-38f` is 0 when the
+  program computes it and `5e-38` when the compiler folds it. My first `voices` test failed on
+  the old code for that alone. A test value under the plugin's flags stays above 1.2e-38.
+- **A Rack output keeps its voltages when its cable is pulled** (the engine sets its channel
+  count to 0, not its voltages). So a mask that skips channels must write the output's own
+  voltages whether patched or not, as FX SEND already did, or a channel left at 10 V mid-pulse
+  is still 10 V when a cable comes back. Writing only the live channels costs nothing a frame.
+- **The bit for "this channel still needs writing" outlives the timer by a frame.** Defined as
+  `trigLeft != 0` (the list's words) it is clear on the frame the 0 V is due, which is then
+  never written. `fxSend` had the same shape: the gain reaches 0 and is written once.
+- **A test-side `Module` that drives `jacks.hpp` the way `Rhythm.cpp` does made "tests first"
+  possible.** Today's code computed everything and copied it while patched; the new code
+  writes in place. Tests written against the output's own persistent voltages, patched or
+  not, held both, and only the wrapper's body changed between the two commits. Putting the
+  pulse count inside `Jacks::frame` gave the "timers not counted while unpatched" plant
+  somewhere to live that a test can reach.
+- **The idle saving was larger than the jacks' share of the lines said.** The jacks' lines were
+  264 to 387 samples of `Rhythm::process`, yet it fell by about 540. Line attribution of inlined
+  code is approximate (Session 33 counted 54%, this session 22 to 32%); trust the symbol totals.
