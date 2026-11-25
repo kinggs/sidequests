@@ -17,6 +17,11 @@ Started 2026-11-18. Nothing here is built yet.
   learnings and inputs: Sessions Loyalty, Rack It, and the shared kit (accounts, QR, friends).
 - **Testing now:** two people at the club are trying Sessions Loyalty from 2026-11-18. What they
   find goes in §5.
+- **Push notifications belong to the Sessions app, not the sidequests.** (Owner, 2026-11-25.)
+  Sending one needs a server holding a secret key, so it needs Blaze (Cloud Functions with
+  Firebase Cloud Messaging) or the club's own backend. Expect to move to Blaze, or its
+  equivalent, when the proper app is built. Phones are ready: Android Chrome, and iPhones on
+  iOS 16.4 or later once the app is on the home screen.
 - **Pre-work in the sidequests:** tournaments in Rack It (`rack-it/TOURNAMENT.md`), planned so
   its bracket logic and data shape can be lifted out.
 
