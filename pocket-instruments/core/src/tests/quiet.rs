@@ -3,6 +3,13 @@
 //! taking that path is held, frame by frame and bit for bit, to one made to ask every voice on
 //! every frame: the same events, view and audio, in every layout, over a long run stopped with
 //! taps, then a beat played with effects and stopped again, the clock counting throughout (§4).
+//!
+//! What these tests hold, and what they do not (Session 40, D105 item 10): the mask
+//! (`active_tracks`) and the quiet frame, and nothing more. Both engines here run the engine's
+//! own paths, `sound_slow`, `Bus::mix` and `Bus::looped`, short ways and all, so a fault in one of
+//! those passes them (Session 36's escape, and four of Session 40's five planted faults). What
+//! holds the paths is the tour, `tests/tour.rs`: every channel of every frame, in every layout,
+//! held to the model written apart from the engine (`Model` and `Voicing`, `tests/bus.rs`).
 
 use super::*;
 use crate::voice::{LOOP, LOOP_SLIDERS};

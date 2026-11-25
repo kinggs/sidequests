@@ -2426,6 +2426,27 @@ the PO-12 loses over 44. Brighter, as D98 item 10 said of the lines. Nothing her
 constant to move; a low-pass after the line is the next step if the ear asks. (The old build,
 read the same way: the tone 0.75 → 0.75 steps, above 10 kHz −21.3 dB.)
 
+### §18, as built, Session 40: two bits the section is silent on, found by running
+
+Session 40 gave the model of this section (`core/src/tests/bus.rs`, `Model`) every layout and a
+seeded tour (`core/src/tests/tour.rs`), and held the engine to it bit for bit. Where §18 says
+nothing, the build is the baseline (no byte moved in Session 40) and the model does what the
+build does. Neither was ruled; each is the owner's to overrule:
+
+- ⚠ **A line forgotten while 4 or 14 ramps out** (a rate change, or `pi_set_delay` refused):
+  the bus as it is, `wet = bus`, for the rest of the ramp; nothing read or written, and 14
+  counts no silence while it has no line. A line lent again inside the ramp starts the echo
+  from its first frame (`head` 0, not gone round), with 14's filter and count of silence kept.
+- ⚠ **14's count of silence stops at a millisecond's** and is kept across a rate change. So
+  a rate change upwards finds it short of the new millisecond, and 14 runs again until it has
+  counted that far. (The model's count had no ceiling until Session 40, which reads the same
+  at one rate.)
+- Not readings, from §18's words, which the model had not met until Session 40's low rates:
+  14's filter holds `f = cutoff / rate` to 0.3 at most like the other four (at 100 Hz, 1 093 /
+  100 would be 10.9); and under 11 719 Hz effect 1's grid wraps more than once a frame (4 ×
+  rate is under 46 875), which the `%` the model and the build share gives right at 8 000 and
+  100 Hz.
+
 ## 19. Sound in: the returns and the effects loop (ABI 9; designed in Session 15; D68; built in Session 18)
 
 For Rack. Until now a host only took sound from the core, and the Rhythm module rebuilt
@@ -2795,3 +2816,19 @@ Handover):
   lowest effect the patch makes Rack's, and its report line names the case. A repeat named
   in both masks is an insert at full ramp while held; its trace is the same in all three
   settings.
+
+### §19, as built, Session 40: what the model reads where the section is silent
+
+Session 40's model of every layout (`core/src/tests/tour.rs`) is written from §15 and §19's
+words; where they are silent the build is the baseline (no byte moved in Session 40). Each is
+the owner's to overrule:
+
+- ⚠ **An infinity coming in is silence, as a NaN is:** on a returned sound's channel and on FX
+  RETURN. D80 item 4 says "not a number"; the build cleans anything not finite (`is_finite`),
+  so +∞ and −∞ are 0 too. The model of Session 24 already read it so.
+- ⚠ **A host that leaves the loop layouts while an insert ramps out hears the bus** (`wet` is
+  the bus, nothing ducks it), and back in a loop layout the bus is ducked again from that
+  frame, the ramp as it is. §19 says the first in words; the model reads the second from it.
+- Not readings: a slider input is read only in the 50-channel layout, at a hit; the slider
+  outputs move on every hit in any layout and are written only in the 50. The tour switches
+  layouts mid-run, and the build agrees with the model on all three.

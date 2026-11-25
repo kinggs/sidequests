@@ -106,11 +106,38 @@ pub(super) struct Model {
     /// Session 32's question 3 (Fable): when the rate changes, `acc` wraps to the new rate,
     /// `acc mod 4 × rate`, so `mu` never passes 1.
     rate: u32,
+    /// Session 40 (`tests/tour.rs`): whether this frame is in a loop layout. An effect of the
+    /// host's (0x80) is silence there, an insert; in a layout with no loop nothing ducks the
+    /// bus, so it is the bus itself (§19, designed 2026-11-24: "a host that leaves the loop
+    /// layouts while an insert is held hears the bus come back at once"). True unless a driver
+    /// says otherwise: until Session 40 only loop drivers ever gave the model an insert.
+    pub(super) looped: bool,
 }
 
 impl Model {
     pub(super) fn new() -> Self {
-        Model { on: 0, heard: 0, w: 0.0, acc: 0, fresh: false, mu: 0.0, s1: 0.0, s2: 0.0, cutoff: 0.0, swept: 0, line: Vec::new(), head: 0, full: false, still: 0, rate: 0 }
+        Model { on: 0, heard: 0, w: 0.0, acc: 0, fresh: false, mu: 0.0, s1: 0.0, s2: 0.0, cutoff: 0.0, swept: 0, line: Vec::new(), head: 0, full: false, still: 0, rate: 0, looped: true }
+    }
+
+    /// Session 40: a line of `delay` frames lent mid-run, as `pi_set_delay` does: where the
+    /// echo is starts again (`head` 0, not gone round), so nothing in it is heard before it is
+    /// written. The filter and `still` are not the line's and stay.
+    pub(super) fn lend(&mut self, delay: u32) {
+        self.line = vec![0.0; delay as usize];
+        self.head = 0;
+        self.full = false;
+    }
+
+    /// Session 40: the line forgotten, as a rate change does (§18, designed 2026-11-24).
+    pub(super) fn forget(&mut self) {
+        self.line = Vec::new();
+        self.head = 0;
+        self.full = false;
+    }
+
+    /// Whether a line is lent, so 4 and 14 are effects the core sounds.
+    pub(super) fn has_line(&self) -> bool {
+        !self.line.is_empty()
     }
 
     /// With a line of `delay` frames lent, as `pi_delay_frames` gives.
@@ -242,7 +269,13 @@ impl Model {
             }
         }
         let wet = match self.on {
-            e if e & 0x80 != 0 => 0.0,
+            e if e & 0x80 != 0 => {
+                if self.looped {
+                    0.0
+                } else {
+                    b
+                }
+            }
             // §18, designed 2026-11-25: effect 1 is in the voices; its wet is the bus itself.
             1 => b,
             // Three times the bus, held to ±0.88 (±1 as designed; Session 26's comparison).
@@ -256,6 +289,9 @@ impl Model {
                     x
                 }
             }
+            // ⚠ As built, Session 40 (§18 is silent): a line forgotten while 4 or 14 ramps out
+            // leaves the bus as it is, and 14 counts no silence while it has no line.
+            4 | 14 if self.line.is_empty() => b,
             // §18's frame of effect 4, as its pseudo-code.
             4 => {
                 let echo = if self.full { self.line[self.head] } else { 0.0 };
@@ -271,14 +307,23 @@ impl Model {
             // first `comb` floats of the line, 858 / 46 875 s; the bus's filter, band output,
             // at 1 093 Hz and `r` 2; 2.05 round (2.24 as designed; Session 28's comparison), held to ±0.25; still after 1 ms of exact zero.
             14 => {
-                self.still = if b == 0.0 { self.still + 1 } else { 0 };
+                // ⚠ As built, Session 40 (§18 says "still after 1 ms of exact zero" and no
+                // more): the count stops at a millisecond's, so a rate change upwards finds it
+                // short of the new millisecond and counts on. Until Session 40 the model's
+                // count had no ceiling, which reads the same at one rate.
+                self.still = if b == 0.0 { if self.still * 1000 < rate as u64 { self.still + 1 } else { self.still } } else { 0 };
                 if self.still * 1000 >= rate as u64 {
                     b
                 } else {
                     let comb = ((rate as u64 * 858 + 23_437) / 46_875) as usize;
                     let back = if self.full { self.line[self.head] } else { 0.0 };
                     let pi = core::f64::consts::PI;
-                    let f = 1093.0f32 / rate as f32;
+                    // §18's filter: `f = cutoff / rate`, held to 0.3 at most. No rate here
+                    // reached it until Session 40's tour at 100 Hz (1 093 / 100).
+                    let mut f = 1093.0f32 / rate as f32;
+                    if f > 0.3 {
+                        f = 0.3;
+                    }
                     let a = (0.326_f32 as f64 * pi * pi * pi) as f32;
                     let c = (0.1823_f32 as f64 * pi * pi * pi * pi * pi) as f32;
                     let g = f * (pi as f32 + f * f * (a + c * (f * f)));
@@ -367,6 +412,16 @@ impl Voicing {
         let code = self.v.code_next(t);
         let s = &mut self.v.samples[t];
         (if s.sounding() { code + s.next() } else { code }) * LEVEL
+    }
+
+    /// Session 40: the host's rate changed (`pi_set_sample_rate`): every sound not slowed is
+    /// retuned for it, a slowed one stays at 46 875 Hz (§18, designed 2026-11-25).
+    pub(super) fn rerate(&mut self, rate: u32) {
+        for t in 0..16 {
+            if self.slowed >> t & 1 == 0 {
+                self.tune(t, rate);
+            }
+        }
     }
 
     /// A sound's code voice retuned, and its sample if it is sounding.

@@ -14,6 +14,7 @@ mod samples;
 mod quiet;
 mod snapshot;
 mod sound;
+mod tour;
 mod weave;
 
 use crate::abi::*;
