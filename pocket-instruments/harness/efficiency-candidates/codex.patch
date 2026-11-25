@@ -1,0 +1,250 @@
+diff --git i/pocket-instruments/core/src/bus.rs w/pocket-instruments/core/src/bus.rs
+index e131acf..2c82bec 100644
+--- i/pocket-instruments/core/src/bus.rs
++++ w/pocket-instruments/core/src/bus.rs
+@@ -600,14 +600,21 @@ impl Bus {
+     /// track order. Out of line, as `frame` is.
+     #[inline(never)]
+     pub fn mix(&mut self, v: &[f32; TRACKS], fx_sounds: u16, gain: f32) -> f32 {
+-        let (mut rest, mut bus) = (0.0f32, 0.0f32);
+-        for (t, s) in v.iter().enumerate() {
+-            if fx_sounds >> t & 1 == 1 {
+-                bus += *s;
+-            } else {
+-                rest += *s;
++        let (rest, bus) = if fx_sounds == u16::MAX {
++            // With every track sent, the same +0 and ordered additions need no per-track
++            // mask test (fx 2, 20.5 to 18.9 ns a frame, CPU 4, ten interleaved runs).
++            (0.0, v.iter().fold(0.0, |sum, &s| sum + s))
++        } else {
++            let (mut rest, mut bus) = (0.0f32, 0.0f32);
++            for (t, s) in v.iter().enumerate() {
++                if fx_sounds >> t & 1 == 1 {
++                    bus += *s;
++                } else {
++                    rest += *s;
++                }
+             }
+-        }
++            (rest, bus)
++        };
+         // No loop in this layout, so an insert still ramping out (its host's cables pulled)
+         // ducks nothing: the bus as it is (§19, designed 2026-11-24).
+         let wet = if self.on == FEEDBACK { self.feedback(bus) } else { self.wet(bus, bus) };
+@@ -634,14 +641,22 @@ impl Bus {
+             sliders.copy_from_slice(&self.outs);
+         }
+         let clean = |x: f32| if x.is_finite() { x } else { 0.0 };
+-        let mut m = *v;
+-        if returned != 0 {
+-            for (t, s) in m.iter_mut().enumerate() {
+-                if returned >> t & 1 == 1 {
+-                    *s = clean(io[t]);
++        let m = if returned == u16::MAX {
++            // A full return can read straight from the inputs. In ten interleaved runs
++            // on CPU 4, loop went from 20.9 to 18.6 ns a frame and loop in from 22.2 to
++            // 19.8. The sliders case (no returns) went from 18.9 to 21.1.
++            core::array::from_fn(|t| clean(io[t]))
++        } else {
++            let mut m = *v;
++            if returned != 0 {
++                for (t, s) in m.iter_mut().enumerate() {
++                    if returned >> t & 1 == 1 {
++                        *s = clean(io[t]);
++                    }
+                 }
+             }
+-        }
++            m
++        };
+         let (mut rest, mut bus) = (0.0f32, 0.0f32);
+         for (t, s) in m.iter().enumerate() {
+             if fx_sounds >> t & 1 == 1 {
+diff --git i/pocket-instruments/core/src/voice.rs w/pocket-instruments/core/src/voice.rs
+index 00a2741..385c895 100644
+--- i/pocket-instruments/core/src/voice.rs
++++ w/pocket-instruments/core/src/voice.rs
+@@ -1266,9 +1266,14 @@ pub struct Voices {
+     pub sampled: u16,
+     /// Every voice and every sample silent, so each `next` would return +0 and change nothing:
+     /// `render` skips them (Session 29, the idle cost). Only ever true when that holds: a
+-    /// trigger clears it, and `render` sets it again only after asking every voice. False when
+-    /// they are silent costs the long way round and nothing else. Not saved: the moment's.
++    /// trigger clears it, and `render` sets it again only once all tracks are known silent.
++    /// False when they are silent costs the long way round and nothing else.
++    /// Not saved: the moment's.
+     pub quiet: bool,
++    /// Tracks whose code voice or sample may still sound. A hit marks the track, and the
++    /// renderer clears it after +0 and a silence check. Retuning preserves silence and
++    /// replacing a sample stops its old tail, so only a hit can make a cleared track sound.
++    active_tracks: u16,
+ }
+ 
+ /// Calls `$f` on track `$t`'s voice with the remaining arguments. One line a track, in
+@@ -1324,21 +1329,30 @@ impl Voices {
+             ],
+             sampled: 0,
+             quiet: true,
++            active_tracks: 0,
+         }
+     }
+ 
+     /// Every code voice and every sample silent: `quiet` may be set.
+     pub(crate) fn silent(&self) -> bool {
+-        (0..TRACKS).all(|t| on_voice!(self, t, silent()) && !self.samples[t].sounding())
++        (0..TRACKS).all(|t| self.track_silent(t))
++    }
++
++    #[inline(never)]
++    fn track_silent(&self, t: usize) -> bool {
++        on_voice!(self, t, silent()) && !self.samples[t].sounding()
+     }
+ 
+     /// The tracks that fired on this frame start their voices on this frame, each with the
+     /// A and B it was hit with (§20: `hit`, the engine's reckoning of step or tap). A sound in
+     /// `slowed` is tuned for `SLOW_RATE` (§18, designed 2026-11-25: effect 1), any other for
+     /// the host's `rate`.
+-    #[inline]
++    // Outlining hit dispatch shortened the frame loop (idle, 4.1 to 3.7 ns a frame
++    // and fx 1, 21.4 to 20.9, CPU 4, ten interleaved runs).
++    #[inline(never)]
+     pub fn trigger(&mut self, fired: u16, hit: &[[u16; 2]; TRACKS], rate: u32, slowed: u16) {
+         if fired != 0 {
++            self.active_tracks |= fired;
+             self.quiet = false;
+         }
+         for t in 0..TRACKS {
+@@ -1379,6 +1393,8 @@ impl Voices {
+     #[inline(never)]
+     fn ask(&mut self, t: usize) -> f32 {
+         let code = on_voice!(self, t, next());
++        // Both can sound at once after a switch: the old one's tail plays out. Only
++        // added when a sample is sounding, so the code voices alone keep their bits.
+         let s = &mut self.samples[t];
+         (if s.sounding() { code + s.next() } else { code }) * LEVEL
+     }
+@@ -1431,7 +1447,8 @@ impl Voices {
+     #[inline]
+     pub fn render(&mut self, frame: &mut [f32], gain: f32, bus: &mut Bus, fx_sounds: u16) {
+         let mut v = [0.0f32; TRACKS];
+-        if !self.quiet {
++        let quiet = self.quiet;
++        if !quiet {
+             // §18, designed 2026-11-25: one test of `slowed` on a frame that asks the voices.
+             if bus.slowed != 0 {
+                 self.sound_slow(&mut v, bus);
+@@ -1443,6 +1460,11 @@ impl Voices {
+             if !bus.idle() {
+                 return bus.mix(v, fx_sounds, gain);
+             }
++            if quiet {
++                // The plain sum of sixteen +0s is +0. Skipping it took idle from
++                // 5.4 to 3.9 ns a frame (CPU 4, ten interleaved runs).
++                return 0.0 * gain;
++            }
+             let mut sum = v[0];
+             for s in &v[1..] {
+                 sum += *s;
+@@ -1460,23 +1482,34 @@ impl Voices {
+         }
+     }
+ 
+-    /// The sixteen, each voice asked, as before Session 29. A frame of sixteen +0s (each
+-    /// bit 0; a −0 does not count) is the only one that can follow silence, so only then is
+-    /// every voice asked whether it is silent: next to nothing while a sound plays.
++    /// The sixteen, in track order as before Session 29. A track is only checked for
++    /// silence after it gives +0 (each bit 0; a −0 does not count).
+     #[inline]
+     fn sound(&mut self, v: &mut [f32; TRACKS]) {
+-        let mut bits = 0u32;
+-        for (t, out) in v.iter_mut().enumerate() {
+-            let code = on_voice!(self, t, next());
+-            // Both can sound at once after a switch: the old one's tail plays out. Only
+-            // added when a sample is sounding, so the code voices alone keep their bits.
+-            let s = &mut self.samples[t];
+-            *out = (if s.sounding() { code + s.next() } else { code }) * LEVEL;
+-            bits |= out.to_bits();
++        self.sound_active(v);
++        self.quiet = self.active_tracks == 0;
++    }
++
++    /// Fill the active tracks in an already zeroed frame, in track order. Skipping the
++    /// other dispatches took beat from 36.3 to 14.4 and all from 54.5 to 46.6 ns a frame
++    /// (CPU 4, ten interleaved runs).
++    #[inline]
++    fn sound_active(&mut self, v: &mut [f32; TRACKS]) {
++        let mut remaining = self.active_tracks;
++        while remaining != 0 {
++            let t = remaining.trailing_zeros() as usize;
++            remaining &= remaining - 1;
++            v[t] = self.sound_track(t, 1 << t);
+         }
+-        if bits == 0 {
+-            self.quiet = self.silent();
++    }
++
++    #[inline]
++    fn sound_track(&mut self, t: usize, bit: u16) -> f32 {
++        let out = self.ask(t);
++        if out.to_bits() == 0 && self.track_silent(t) {
++            self.active_tracks &= !bit;
+         }
++        out
+     }
+ 
+     /// The sixteen while effect 1 slows some (§18, designed 2026-11-25): a slowed sound is
+@@ -1484,23 +1517,43 @@ impl Voices {
+     /// straight line `from + (to − from) × mu` on every frame, so it runs one grid step behind
+     /// its voice; any other is asked as in `sound`. Quiet may be set only on a frame where
+     /// every channel is +0 and every slowed sound's `from` and `to` are +0: a line can cross
+-    /// zero between two values that are not. Out of line, so `sound` is as it was.
++    /// zero between two values that are not. Out of line, so the plain path stays small.
++    /// Using the activity mask in the general loop took fx 1 from 31.1 to 26.9 ns a frame
++    /// before specializing the all-slowed case (CPU 4, ten interleaved runs).
+     #[inline(never)]
+     fn sound_slow(&mut self, v: &mut [f32; TRACKS], bus: &mut Bus) {
+         let (slowed, fresh, mu) = (bus.slowed, bus.fresh, bus.mu);
+         let mut bits = 0u32;
+-        for (t, out) in v.iter_mut().enumerate() {
+-            if slowed >> t & 1 == 1 {
+-                if fresh {
+-                    bus.from[t] = bus.to[t];
+-                    bus.to[t] = self.ask(t);
+-                }
+-                let (a, b) = (bus.from[t], bus.to[t]);
++        if slowed == u16::MAX {
++            // With every track slowed, advance the active voices together on fresh
++            // frames, then interpolate without a per-track mask test (fx 1, 26.8 to
++            // 21.4 ns a frame, CPU 4, ten interleaved runs).
++            if fresh {
++                bus.from = bus.to;
++                bus.to = [0.0; TRACKS];
++                self.sound_active(&mut bus.to);
++            }
++            for ((out, &a), &b) in v.iter_mut().zip(&bus.from).zip(&bus.to) {
+                 *out = a + (b - a) * mu;
+                 bits |= out.to_bits() | a.to_bits() | b.to_bits();
+-            } else {
+-                *out = self.ask(t);
+-                bits |= out.to_bits();
++            }
++        } else {
++            // Skip asking tracks known silent but keep their interpolation tails.
++            for (t, out) in v.iter_mut().enumerate() {
++                let bit = 1 << t;
++                let active = self.active_tracks & bit != 0;
++                if slowed & bit != 0 {
++                    if fresh {
++                        bus.from[t] = bus.to[t];
++                        bus.to[t] = if active { self.sound_track(t, bit) } else { 0.0 };
++                    }
++                    let (a, b) = (bus.from[t], bus.to[t]);
++                    *out = a + (b - a) * mu;
++                    bits |= out.to_bits() | a.to_bits() | b.to_bits();
++                } else if active {
++                    *out = self.sound_track(t, bit);
++                    bits |= out.to_bits();
++                }
+             }
+         }
+         if bits == 0 {

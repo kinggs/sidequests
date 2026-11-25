@@ -1,0 +1,340 @@
+diff --git c/pocket-instruments/core/src/bus.rs w/pocket-instruments/core/src/bus.rs
+index e131acf..a58289b 100644
+--- c/pocket-instruments/core/src/bus.rs
++++ w/pocket-instruments/core/src/bus.rs
+@@ -598,9 +598,61 @@ impl Bus {
+ 
+     /// §18's mix while an effect runs: `(rest + bus + w (wet - bus)) × gain`, each sum in
+     /// track order. Out of line, as `frame` is.
++    // Natively only the rule tests call it; the engine calls `mix_live`.
++    #[cfg_attr(not(any(test, target_arch = "wasm32")), allow(dead_code))]
+     #[inline(never)]
+     pub fn mix(&mut self, v: &[f32; TRACKS], fx_sounds: u16, gain: f32) -> f32 {
++        self.mixed(v, fx_sounds, gain, #[cfg(not(target_arch = "wasm32"))] 0xFFFF)
++    }
++
++    /// Natively, `mix` told which sounds may be other than +0 (`live`, a superset of them):
++    /// the engine's (`Voices::render`: `Voices::live` and the slowed sounds, whose lines are
++    /// not their voices). The others are +0, and a sum from +0 skips a +0 for the same bits
++    /// (see `mixed`), so the bus adds only the live ones: its chain of sixteen adds, which the
++    /// effect waits on, becomes the beat's four. fx 3 22.4 -> 17.6 ns a frame, fx 5 20.3 ->
++    /// 16.9, fx 2 18.2 -> 16.3, fx 4 19.1 -> 17.4, fx 14 20.4 -> 18.8; all 35.5 -> 36.2 and
++    /// fx 1 20.7 -> 21.1, the rest the same (Session 35, five rounds interleaved, medians; the
++    /// whole bench 4.43 -> 4.15 billion cycles, `perf stat`, three runs). `mix` keeps its
++    /// signature for the rule tests.
++    #[cfg(not(target_arch = "wasm32"))]
++    #[inline(never)]
++    pub fn mix_live(&mut self, v: &[f32; TRACKS], fx_sounds: u16, gain: f32, live: u16) -> f32 {
++        self.mixed(v, fx_sounds, gain, live)
++    }
++
++    #[inline(always)]
++    fn mixed(&mut self, v: &[f32; TRACKS], fx_sounds: u16, gain: f32, #[cfg(not(target_arch = "wasm32"))] live: u16) -> f32 {
+         let (mut rest, mut bus) = (0.0f32, 0.0f32);
++        // Natively, every sound in the effects (`pi_init`'s and the bench's): the bus is the
++        // plain sum from +0 and `rest` stays +0, the same adds in the same order without the
++        // test of each bit, which LLVM had unrolled into two ladders with twelve values held
++        // across `feedback`'s call (fx 2, 468 -> 376 instructions a frame, `perf stat`). fx 2
++        // 19.8 -> 18.3 ns a frame, fx 14 22.9 -> 20.4, fx 1 22.9 -> 20.8, fx 7 21.5 -> 19.7,
++        // the rest the same (Session 35, three rounds interleaved, medians). In `looped` the
++        // same made the loop layouts 1.2 ns slower, so it is not there.
++        #[cfg(not(target_arch = "wasm32"))]
++        if fx_sounds == 0xFFFF && live == 0xFFFF {
++            for s in v {
++                bus += *s;
++            }
++        } else if fx_sounds == 0xFFFF {
++            // The live ones in track order. A sum from +0 is never −0 and x + +0 is x for
++            // every other x, so leaving out a +0 changes no bit.
++            let mut left = live;
++            while left != 0 {
++                bus += v[left.trailing_zeros() as usize];
++                left &= left - 1;
++            }
++        } else {
++            for (t, s) in v.iter().enumerate() {
++                if fx_sounds >> t & 1 == 1 {
++                    bus += *s;
++                } else {
++                    rest += *s;
++                }
++            }
++        }
++        #[cfg(target_arch = "wasm32")]
+         for (t, s) in v.iter().enumerate() {
+             if fx_sounds >> t & 1 == 1 {
+                 bus += *s;
+@@ -624,7 +676,12 @@ impl Bus {
+     /// mix, and the bus before any effect and before the volume. An input that is not a
+     /// number is silence: one NaN would otherwise stay in a filter. And in the layout that has
+     /// them, the thirty-two slider outputs after those.
+-    #[inline(never)]
++    ///
++    /// Out of line in the .wasm; inlined natively since Session 35, once `Voices::sound` was
++    /// written out: loop 21.5 -> 20.2 ns a frame, loop fx 21.4 -> 20.1, loop in 23.2 -> 22.1,
++    /// sliders 19.0 -> 18.5, the rest the same (three rounds interleaved, medians).
++    #[cfg_attr(target_arch = "wasm32", inline(never))]
++    #[cfg_attr(not(target_arch = "wasm32"), inline)]
+     pub fn looped(&mut self, frame: &mut [f32], v: &[f32; TRACKS], fx_sounds: u16, gain: f32) {
+         let returned = self.route[0];
+         let Some((io, sliders)) = frame.split_first_chunk_mut::<{ TRACKS + 2 }>() else {
+diff --git c/pocket-instruments/core/src/voice.rs w/pocket-instruments/core/src/voice.rs
+index 00a2741..a06391e 100644
+--- c/pocket-instruments/core/src/voice.rs
++++ w/pocket-instruments/core/src/voice.rs
+@@ -393,7 +393,14 @@ impl Snare {
+         self.body == 0.0 && self.wires == 0.0
+     }
+ 
+-    #[inline]
++    // Always inlined natively (a scratch build, Session 35): since ABI 14 `Voices::ask` is a
++    // second caller of every `next`, so LLVM lost its bonus for a function's last call and
++    // left this one, and the synth snare's, out of line in the frame loop (`perf`: 2.6% and
++    // 1.8% of the bench as calls). Inlined again, beat 36.8 -> 31.1 ns a frame, all 56.1 ->
++    // 51.2, fx 2 43.4 -> 37.2, loop 45.7 -> 39.4 (three rounds interleaved, medians); fx 1 and
++    // idle the same. Not the .wasm, whose inliner kept its own choice: 49 689 bytes either way.
++    #[cfg_attr(not(target_arch = "wasm32"), inline(always))]
++    #[cfg_attr(target_arch = "wasm32", inline)]
+     fn next(&mut self) -> f32 {
+         if self.body == 0.0 && self.wires == 0.0 {
+             return 0.0;
+@@ -494,16 +501,36 @@ impl Hat {
+         self.env == 0.0
+     }
+ 
+-    #[inline]
++    // Always inlined natively (Session 35): three hats call it, so LLVM kept it out of line.
++    // Inlined in all three, once `Voices::sound` is written out: fx 3 32.1 -> 30.9 ns a frame,
++    // fx 5 29.8 -> 28.6, both 20.4 -> 19.6, beat 19.5 -> 19.3, idle and fx 1 the same (twice
++    // three rounds interleaved, medians). The .wasm is untouched: 49 689.
++    #[cfg_attr(not(target_arch = "wasm32"), inline(always))]
++    #[cfg_attr(target_arch = "wasm32", inline)]
+     fn next(&mut self) -> f32 {
+         if self.env == 0.0 {
+             return 0.0;
+         }
++        #[cfg(target_arch = "wasm32")]
+         let mut sum = 0.0;
++        #[cfg(target_arch = "wasm32")]
+         for i in 0..6 {
+             sum += if self.phase[i] < 1 << 31 { 1.0 } else { -1.0 };
+             self.phase[i] = self.phase[i].wrapping_add(self.inc[i]);
+         }
++        // Natively, the same sum counted in integers: six ±1s added from +0 are exact whole
++        // numbers, 6 − 2 × (how many are −1), and a zero among them is +0, as the cast gives.
++        // all 40.1 -> 36.3 ns a frame, the rest 0.2 to 0.7 less (Session 35, twice three rounds
++        // interleaved, medians). Native only, so the .wasm stays 49 689.
++        #[cfg(not(target_arch = "wasm32"))]
++        let sum = {
++            let mut low = 0i32;
++            for i in 0..6 {
++                low += (self.phase[i] >> 31) as i32;
++                self.phase[i] = self.phase[i].wrapping_add(self.inc[i]);
++            }
++            (6 - 2 * low) as f32
++        };
+         let s = self.filter.next(sum, Pass::High) * step_env(&mut self.env, self.k);
+         if self.env == 0.0 {
+             self.filter.clear();
+@@ -574,7 +601,9 @@ impl SynthSnare {
+         self.env == 0.0
+     }
+ 
+-    #[inline]
++    // Always inlined natively, as `Snare::next` is and for the same reason (Session 35).
++    #[cfg_attr(not(target_arch = "wasm32"), inline(always))]
++    #[cfg_attr(target_arch = "wasm32", inline)]
+     fn next(&mut self) -> f32 {
+         if self.env == 0.0 {
+             return 0.0;
+@@ -1269,6 +1298,14 @@ pub struct Voices {
+     /// trigger clears it, and `render` sets it again only after asking every voice. False when
+     /// they are silent costs the long way round and nothing else. Not saved: the moment's.
+     pub quiet: bool,
++    /// Natively (Session 35), bit t clear: track t's code voice is silent and its sample is
++    /// not sounding, so asking it would give +0 and change nothing, and the written-out
++    /// `sound` and `sound_slow` give +0 without asking. Set by a trigger; cleared only by
++    /// those two, on a frame where the track gave +0 and both say they are silent. Set when
++    /// they are silent costs the long way round and nothing else. Not saved: the moment's.
++    /// Not in the .wasm, whose bytes stay as they were.
++    #[cfg(not(target_arch = "wasm32"))]
++    pub live: u16,
+ }
+ 
+ /// Calls `$f` on track `$t`'s voice with the remaining arguments. One line a track, in
+@@ -1296,6 +1333,30 @@ macro_rules! on_voice {
+     };
+ }
+ 
++/// Natively, `$m!(track, voice)` for each track in turn, in track order: the sixteen written
++/// out, where a loop over `on_voice!` compiles to a jump table (Session 35: `Voices::sound`).
++#[cfg(not(target_arch = "wasm32"))]
++macro_rules! every_voice {
++    ($m:ident) => {
++        one!(KICK_TRACK, kick);
++        one!(SNARE_TRACK, snare);
++        one!(CLOSED_HAT_TRACK, closed_hat);
++        one!(OPEN_HAT_TRACK, open_hat);
++        one!(SYNTH_SNARE_TRACK, synth_snare);
++        one!(STICKS_TRACK, sticks);
++        one!(CYMBAL_TRACK, cymbal);
++        one!(NOISE_TRACK, wash);
++        one!(CLAP_TRACK, clap);
++        one!(CLICK_TRACK, click);
++        one!(LOW_TOM_TRACK, low_tom);
++        one!(HIGH_TOM_TRACK, high_tom);
++        one!(COWBELL_TRACK, cowbell);
++        one!(BLIP_TRACK, blip);
++        one!(TONE_TRACK, tone);
++        one!(BASS_TRACK, bass);
++    };
++}
++
+ impl Voices {
+     pub const fn new() -> Self {
+         Voices {
+@@ -1324,6 +1385,8 @@ impl Voices {
+             ],
+             sampled: 0,
+             quiet: true,
++            #[cfg(not(target_arch = "wasm32"))]
++            live: 0,
+         }
+     }
+ 
+@@ -1341,6 +1404,10 @@ impl Voices {
+         if fired != 0 {
+             self.quiet = false;
+         }
++        #[cfg(not(target_arch = "wasm32"))]
++        {
++            self.live |= fired;
++        }
+         for t in 0..TRACKS {
+             if fired >> t & 1 == 1 {
+                 let p = hit[t];
+@@ -1431,7 +1498,8 @@ impl Voices {
+     #[inline]
+     pub fn render(&mut self, frame: &mut [f32], gain: f32, bus: &mut Bus, fx_sounds: u16) {
+         let mut v = [0.0f32; TRACKS];
+-        if !self.quiet {
++        let quiet = self.quiet;
++        if !quiet {
+             // §18, designed 2026-11-25: one test of `slowed` on a frame that asks the voices.
+             if bus.slowed != 0 {
+                 self.sound_slow(&mut v, bus);
+@@ -1441,7 +1509,18 @@ impl Voices {
+         }
+         let mut mix = |v: &[f32; TRACKS]| {
+             if !bus.idle() {
++                #[cfg(target_arch = "wasm32")]
+                 return bus.mix(v, fx_sounds, gain);
++                #[cfg(not(target_arch = "wasm32"))]
++                return bus.mix_live(v, fx_sounds, gain, self.live | bus.slowed);
++            }
++            // Quiet, the sixteen are +0, which sum to +0: the same bits as the sum below,
++            // without its chain of fifteen adds. idle 5.7 -> 3.6 ns a frame, the rest the same
++            // (Session 35, three rounds interleaved, medians). Native only: in the .wasm it
++            // cost 42 bytes (49 689 -> 49 731) of P1's last 311.
++            #[cfg(not(target_arch = "wasm32"))]
++            if quiet {
++                return 0.0 * gain;
+             }
+             let mut sum = v[0];
+             for s in &v[1..] {
+@@ -1466,6 +1545,39 @@ impl Voices {
+     #[inline]
+     fn sound(&mut self, v: &mut [f32; TRACKS]) {
+         let mut bits = 0u32;
++        // Natively, the sixteen written out one after another, in track order: the same calls
++        // in the same order as the loop below, so the same bits (`make test` compares the two
++        // builds byte for byte, so the copies cannot drift apart unseen). The loop compiled to a
++        // jump table, one indirect jump a track a frame; written out, beat 32.1 -> 20.1 ns a
++        // frame, all 51.9 -> 41.9, fx 2 39.5 -> 26.7, loop 41.3 -> 28.3, idle 6.0 -> 5.7, fx 1
++        // 35.3 -> 34.6 (Session 35, three rounds interleaved, medians). Not the .wasm: written
++        // out there it would cost bytes P1 does not have, and it stays 49 689.
++        #[cfg(not(target_arch = "wasm32"))]
++        {
++            // A track not `live` is +0 for one bit test, where asking costs a float test and
++            // a sample's, a multiply and the bits: about seven instructions a silent track (the
++            // beat's twelve, 400 -> 293 a frame, `perf stat`). beat 18.6 -> 14.2 ns a frame, fx 2
++            // 25.7 -> 20.3, fx 1 29.8 -> 26.9, all 41.8 -> 40.1, loop 27.6 -> 21.9, idle the same
++            // (Session 35, three rounds interleaved, medians). Native only, as the writing out is.
++            macro_rules! one {
++                ($t:expr, $f:ident) => {{
++                    if self.live >> $t & 1 == 1 {
++                        let code = self.$f.next();
++                        let s = &mut self.samples[$t];
++                        v[$t] = (if s.sounding() { code + s.next() } else { code }) * LEVEL;
++                        let b = v[$t].to_bits();
++                        bits |= b;
++                        if b == 0 && self.$f.silent() && !self.samples[$t].sounding() {
++                            self.live &= !(1 << $t);
++                        }
++                    } else {
++                        v[$t] = 0.0;
++                    }
++                }};
++            }
++            every_voice!(one);
++        }
++        #[cfg(target_arch = "wasm32")]
+         for (t, out) in v.iter_mut().enumerate() {
+             let code = on_voice!(self, t, next());
+             // Both can sound at once after a switch: the old one's tail plays out. Only
+@@ -1489,6 +1601,55 @@ impl Voices {
+     fn sound_slow(&mut self, v: &mut [f32; TRACKS], bus: &mut Bus) {
+         let (slowed, fresh, mu) = (bus.slowed, bus.fresh, bus.mu);
+         let mut bits = 0u32;
++        // Natively written out, as `sound` is (Session 35): each voice asked in place, not by
++        // a call to `ask` and its jump table. The same calls in the same order as the loop.
++        // fx 1 34.6 -> 29.7 ns a frame, fx 1/0 27.2 -> 25.3, the rest the same (twice three
++        // rounds interleaved, medians). The .wasm keeps the loop: 49 689.
++        #[cfg(not(target_arch = "wasm32"))]
++        {
++            // One sound's next value, as `ask` gives it, or +0 unasked while it is not `live`.
++            // A block, not a closure: as closures LLVM left them out of line.
++            macro_rules! asked {
++                ($t:expr, $f:ident) => {
++                    'ask: {
++                        if self.live >> $t & 1 == 0 {
++                            break 'ask 0.0;
++                        }
++                        let code = self.$f.next();
++                        let s = &mut self.samples[$t];
++                        let x = (if s.sounding() { code + s.next() } else { code }) * LEVEL;
++                        if x.to_bits() == 0 && self.$f.silent() && !self.samples[$t].sounding() {
++                            self.live &= !(1 << $t);
++                        }
++                        x
++                    }
++                };
++            }
++            macro_rules! one {
++                ($t:expr, $f:ident) => {{
++                    let line = |bus: &Bus| bus.from[$t].to_bits() | bus.to[$t].to_bits();
++                    if slowed >> $t & 1 == 1 && self.live >> $t & 1 == 0 && line(bus) == 0 {
++                        // Silent, on a line from +0 to +0: +0 on every frame, fresh or not, and
++                        // the line stays +0 to +0. fx 1 26.3 -> 23.0 ns a frame, fx 1/0 21.0 ->
++                        // 19.1, the rest the same (Session 35, three rounds interleaved, medians).
++                        v[$t] = 0.0;
++                    } else if slowed >> $t & 1 == 1 {
++                        if fresh {
++                            bus.from[$t] = bus.to[$t];
++                            bus.to[$t] = asked!($t, $f);
++                        }
++                        let (a, b) = (bus.from[$t], bus.to[$t]);
++                        v[$t] = a + (b - a) * mu;
++                        bits |= v[$t].to_bits() | a.to_bits() | b.to_bits();
++                    } else {
++                        v[$t] = asked!($t, $f);
++                        bits |= v[$t].to_bits();
++                    }
++                }};
++            }
++            every_voice!(one);
++        }
++        #[cfg(target_arch = "wasm32")]
+         for (t, out) in v.iter_mut().enumerate() {
+             if slowed >> t & 1 == 1 {
+                 if fresh {

@@ -275,6 +275,46 @@ Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
    the parameters less often decides the next step (Session 29's Handover).
 6. Then from "Not planned yet", as the owner chooses.
 
+## Session 36 — the core's cost a frame: Codex's patch adopted (build, Opus; D102)
+
+Run before Session 35 (D102 item 5). Read D102; `harness/efficiency-candidates/README.md`
+and `codex.patch` whole; `ENGINE.md` §11 (quiet, Session 29) and §18's "Built (Session
+32)"; `LEARNINGS.md` for Sessions 29 and 32. The rules for every build session hold.
+**Nothing a host hears or sees may change:** no ABI, call, view or snapshot byte.
+
+- [ ] **Before any change:** the report, a `sha256sum` of every render file, the old
+      library (kept: the fuzz compares with it) and a bench built on it.
+- [ ] **The patch,** applied to `core/src/voice.rs` and `core/src/bus.rs` as written
+      (`git apply`), read whole, and owned: each idea's comment in this folder's voice with
+      what it bought by your own `make pairs`. No existing comment that records a why is
+      lost.
+- [ ] **Its one unstated rule gets a guard** (the review's finding): a track not in
+      `active_tracks` is silent. A `debug_assert!` on the frame path that every track left
+      out is silent (code voice and sample), so every test run checks it on every frame;
+      and a line on `Voices::samples` saying a sample is only ever started by
+      `Voices::trigger`.
+- [ ] **Rule tests, written first:** the mask through every way a sound starts, stops or
+      changes off the normal path, each held bit for bit to an engine that asks every
+      voice (`core/src/tests/quiet.rs` has the model): `pi_set_sample` on a sample that is
+      sounding; `VOICE` switched while both the code voice and the sample ring; a rate
+      change; effect 1 on and off with some sounds slowed; a load while playing; a sound
+      hit again on the frame it ends. Faults planted and caught by name (the bit not set
+      on a hit; the bit cleared while a sample still rings; the bus's all-sounds path taken
+      for a mask one bit short; the loop's all-returned path the same).
+- [ ] **The fuzz kept** (D102 item 4): `harness/fuzz.cpp` and `harness/fuzz-firstdiff.py`
+      are in the tree as the fuzz agent left them. A `make fuzz OLD=<library>` that builds
+      it on both libraries and compares seeds 1 to 400 (`SEEDS=` for more); the header
+      comment says what it covers and does not; `README.md`'s harness row. Run 10 000
+      seeds against the old library once and write the result down. ⚠ It must not call
+      `fmod` (the link takes it from the `.a`).
+- [ ] **Measured:** `make pairs` against the old build, alone on the machine: every case
+      written into "Later: efficiency" and §11. The `.wasm`'s size. `make web`.
+- [ ] `harness/efficiency-candidates/codex.patch` deleted; the README's row says built.
+- [ ] **The end:** `make verify`, `make selftest` in `rack/`, `make play`, `make listen`,
+      `make install` in `rack/`; §11 gains "Since Session 36"; "Later: efficiency"'s last
+      box ticked; `LEARNINGS.md` (with the cause of Session 32's 4 ns from the README);
+      the Handover; this list to `PLAN-HISTORY.md`.
+
 ## Session 35 — the beat clock's three gaps (build, Opus; D101)
 
 Read `ENGINE.md` §4, "designed 2026-11-25: one edge a beat" and "Ruled 2026-11-25 after
@@ -304,6 +344,16 @@ hold. No ABI change: no call, command, view or snapshot byte moves.
 - [ ] **The end:** `make verify`, `make selftest` in `rack/`, `make play`, `make listen`,
       `make install` in `rack/`; §4's ruling marked built; `LEARNINGS.md`; the Handover;
       this list to `PLAN-HISTORY.md`.
+
+## Session 37 — the core's cost a frame, the rest: Antigravity's parts designed in (design, Fable; D102 item 2)
+
+Not started. `harness/efficiency-candidates/README.md`, `antigravity.patch`, `opus.patch`.
+Design only: which parts are taken as written (its review names them: `Clock::advance`,
+`clear`, the cold handlers out of line, the Hat and Tom tables, the Tone and bass split,
+the steady path in `Bus::advance`, `process_silent`), and for the rest (a voice's second
+copy, the paths for tracks 0 to 3, the loop's chunk skip) either one general form or a
+test that holds each fast path to the general one on tracks 4 to 15 and samples. Then a
+build list. The bar: `make fuzz`, and no rule written in two places.
 
 ## Session 14 — the weave (build, with the owner's eye; a first attempt after Session 20, D79)
 

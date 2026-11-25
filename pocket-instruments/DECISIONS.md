@@ -2004,6 +2004,25 @@ what a rate change does to the kept guess. Session 34 built the nearest reading 
    back swung ticks there). The tick counter's wrap is misaligned for one beat every 26 days
    at 300 bpm, as D42 has it for steps.
 
+### D102 — The core's cost a frame: three attempts compared, Codex's adopted, Antigravity's to be designed in
+**2026-11-25 · Fable · asked for by the owner ("feel free to use codex and / or the google one ... for an attempt at optimisations as well, and then compare") · the owner's to overrule · Session 36 builds item 1 · `harness/efficiency-candidates/README.md` has the table**
+
+1. **Codex's patch is adopted whole.** Beat 36.4 → 14.3 ns a frame, idle 6.0 → 3.7, every
+   case under the build before Session 32, the `.wasm` 1.8 KB smaller. It is small enough to
+   own (two files), both hosts gain, and three kinds of evidence agree no byte moves:
+   `make test`, 10 000 fuzz seeds, and a reviewer's argument path by path.
+2. **Antigravity's is the fastest (beat 9.5) and is not adopted whole.** No byte moves there
+   either, but it buys its speed with code a maintainer must keep in step by hand. Session
+   37 is a design pass: which of its parts are taken as they are, and what tests hold a fast
+   path to the general one before any is.
+3. **Opus's is not adopted:** native only. Its diagnosis of Session 32's regression is kept
+   (`LEARNINGS.md`).
+4. **The fuzz stays:** `harness/fuzz.cpp`, `make fuzz OLD=<library>`. Why: it is the only
+   check here that an efficiency change moves no byte on inputs nobody thought to write a
+   test for. Not in `make verify`: it needs an older build to compare with.
+5. **Order:** Session 36 before Session 35, because 36 gives back 1.8 KB of the `.wasm`'s
+   50 KB and 35 would otherwise pass the bar.
+
 ## Open
 
 | ID | Question | Needs |
