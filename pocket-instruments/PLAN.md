@@ -307,6 +307,18 @@ build session hold. ABI 15.
       Initialize; which source is sent, as a pure function in `jacks.hpp` with cases in
       `rack/test/jacks.cpp`; the display's label and number by §14's rule; the white's hold
       at `ext`. `design/rack-face-ext-200.png`. The page: the header and `.wasm` only.
+- [ ] **Two rulings on Session 32's questions (Fable, 2026-11-25), in the core:** when
+      the rate changes, `Bus::frame` wraps `acc` to the new rate (`acc mod 4 × rate`), so
+      `mu` never passes 1; a rule test at 96 → 48 kHz while slowed, by hand first. And the
+      credits on `web/rhythm.html` and in `rack/plugin.json` name what is in the code: the
+      stmlib filter stays (its notice too); Plaits' sample-rate reducer and stmlib's soft
+      clip go. `bus.rs`'s header says the same.
+- [ ] ⚠ **The `.wasm` is 802 bytes under P1's 50 KB bar.** Do not move the bar. If this
+      session's code passes it, stop on that: say by how much in the Handover, keep the
+      core change, and leave `web/pi_core.wasm` as the old one ⚠.
+- [ ] `make pairs` is read against this session's own old build (Session 32 left every
+      playing case 3 to 5 ns over Session 30's; that is the efficiency session's, not
+      yours).
 - [ ] Faults planted and caught by name.
 - [ ] **The end:** `make verify`, `make selftest` in `rack/`, `make play`, `make listen`,
       `make install` in `rack/`; both sections marked built; "Not planned yet"'s clock row
