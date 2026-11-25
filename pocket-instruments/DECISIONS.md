@@ -1837,6 +1837,28 @@ build session widened the list in `harness/targets.sh` without asking, which PLA
 "do not change a pass bar" puts to the owner. Put to the owner as a ruling on 2026-11-25:
 "Happy to accept bzero." It is the same routine, in libSystem on every macOS Rack runs on.
 
+### D95 — Session 22's last proposals ruled: the repeat goes back to the hardware's rule; the rest as recommended
+**2026-11-25 · decided by the owner, after Session 22's last takes · nothing built yet**
+
+Put to the owner as O24, with R71 to R76. The owner: "Lets keep to hardware. for the rest, go
+with your recommendations."
+
+1. **A repeat holds the step the key came down on; an empty step repeats as silence.**
+   This supersedes D90 item 1 and D91 items 1 and 2 (the nearest note behind). Why: D90 was
+   ruled on R66's reading that the PO-12 looks back, and R74 shows it does not; the owner
+   chooses the hardware's behaviour over the mend that was recommended. Session 30 builds it.
+2. **9 and 10 stay our repeats** at 4 and 3 a beat, though the PO-12's are mutes (R74). As
+   recommended; with item 1 this is now the one place the repeats knowingly differ.
+3. **Effect 1 is designed as the sounds at a quarter of the rate** (R72): Session 31, on
+   Fable, design only.
+4. **The sweeps and 5 are retuned** in one build session (Session 30): the cycle 9 → 6
+   steps, 6's ends 2 700 and 165 Hz, 8's top 3 300 Hz, both peaks at Q 4.5, 5 at 210 Hz
+   and Q 3 (R73; `ENGINE.md` §18, "proposed 2026-11-25").
+5. **The delay does not stand still in silence** (R75). Ours keeps its echo 175 ms after
+   the hit whatever follows.
+6. **13's table and 14's gain wait** for the two takes asked for and a reading of ours on
+   take c's pattern.
+
 ## Open
 
 | ID | Question | Needs |
@@ -1864,4 +1886,4 @@ build session widened the list in `harness/targets.sh` without asking, which PLA
 | O21 | ~~Session 23's rulings (D88 items 4 to 12): as designed? Above all item 6 (the return before the volume), item 9 (the settings count only while FX SEND or FX RETURN is patched) and item 10 (nothing guards the comb) | The owner, in Rack, once Session 24 has built it. Recommended: accept; judge item 10 with a delay at half wet in each setting. **Built 2026-11-24 (Session 24):** ready to play; its Handover in `PLAN.md` has the steps and the builder's readings (⚠)~~ **Answered 2026-11-24: D89** |
 | O22 | ~~Session 25's rulings (D91 items 1, 2 and 4 to 8): as designed? Above all item 2 (a second repeat looks back for itself, or keeps the step), item 5 (no tail on our delay) and item 7 (effect 3 rests off zero, so it thumps on silence) | The owner, by ear, once Session 26 has built it. Recommended: accept; judge item 7 on the phone and in Rack, where AUDIO carries the offset~~ **Answered 2026-11-24: D92** (accepted before the build; the ear may still overrule) |
 | O23 | Session 27's rulings (D93): as designed? Above all item 1 (twelve keys on: is that what the PO-12's 13 does on other sounds?), item 4 (a shuffled note takes the sounding sound's sliders) and item 7 (the feedback stands still while nothing sounds, or rings on, or fades) | The owner. Recommended: accept, build (Session 28), then judge 7 by ear on a sparse beat and a busy one; take c settles item 1 (sound 8 should play as 4, and 15 as 11). **Built 2026-11-24 (Session 28)** as written, but item 5's gain, 2.24 → 2.05 by the comparison item 9 asked for (`ENGINE.md` §18): ready to hear; its Handover in `PLAN.md` has the steps **Take c read 2026-11-25 (R76): item 1 is not confirmed.** Sound 8 did not play as the map's sound 4, nor 15 as its 11; a take with every sound on its own step is asked for |
-| O24 | Session 22's proposals of 2026-11-25 (`ENGINE.md` §17 and §18, "proposed 2026-11-25"; R71 to R76): keep D90's rule for a repeat now that the PO-12's is known to be the mute (an empty step repeats as silence)? Leave 9 and 10 as our repeats, though the PO-12's are mutes? Design effect 1 as the sounds at a quarter of the rate? The sweeps at 6 steps round with new ends and peaks, and 5 at 210 Hz? The delay's line standing still in silence, as the PO-12's does? | The owner. Recommended: keep D90; leave 9 and 10; yes to a design session for 1; yes to the sweeps and 5 in one build session; no to the delay standing still. Nothing is built until ruled |
+| O24 | ~~Session 22's proposals of 2026-11-25 (`ENGINE.md` §17 and §18, "proposed 2026-11-25"; R71 to R76): keep D90's rule for a repeat now that the PO-12's is known to be the mute (an empty step repeats as silence)? Leave 9 and 10 as our repeats, though the PO-12's are mutes? Design effect 1 as the sounds at a quarter of the rate? The sweeps at 6 steps round with new ends and peaks, and 5 at 210 Hz? The delay's line standing still in silence, as the PO-12's does?~~ | **Answered 2026-11-25: D95** (the repeat back to the hardware's rule; the rest as recommended). Was: The owner. Recommended: keep D90; leave 9 and 10; yes to a design session for 1; yes to the sweeps and 5 in one build session; no to the delay standing still. Nothing is built until ruled |

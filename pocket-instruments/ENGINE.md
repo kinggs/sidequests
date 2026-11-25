@@ -1306,6 +1306,11 @@ draws passing, one `TRIG`; a lane edit between a boundary and its swung firing).
 
 ### §17, proposed 2026-11-25 after Session 22's last takes (R74, R76), for the owner. Nothing here is built
 
+**Ruled 2026-11-25 (D95).** Item 1: **the hardware's rule, not the recommendation** (a repeat
+holds the step the key came down on; an empty step is silent), so "§17, designed 2026-11-24:
+a repeat holds the nearest note behind it" below is superseded once Session 30 builds it.
+Items 2 to 4 as recommended.
+
 Take c (sound 8 and sound 15, four notes a bar) showed three things about the hardware
 that this section had wrong or had guessed. Each is the owner's to rule; no constant moves
 until a build session.
@@ -1808,6 +1813,9 @@ scratch copies (each read by the same script):
   matters.
 
 ### §18, proposed 2026-11-25 after Session 22's last takes (R72, R73, R75, R76), for the owner. Nothing here is built
+
+**Ruled 2026-11-25 (D95): as recommended.** Effect 1 is designed in Session 31; the sweeps
+and 5 are retuned in Session 30; the delay does not stand still; 13 and 14 wait.
 
 Against what Sessions 26 and 28 built. The constants are in `core/src/bus.rs`; none moves
 until a build session, and each number below is from one take.

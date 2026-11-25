@@ -184,10 +184,10 @@ each host lends.
 plays as the sound twelve keys on, and effect 14, the bus fed back in the line effect 4 is
 lent, its gain moved to 2.05 after ours was read beside the PO-12.
 
-**Measured on 2026-11-25 and not yet ruled on** (Session 22's last takes; R71 to R76, O24):
+**Measured on 2026-11-25, ruled the same day (D95), not built** (Session 22's last takes; R71 to R76):
 the PO-12's effect 1 is its sounds at a quarter of the rate, where ours holds the bus; its
-sweeps go round in 6 steps, where ours take 9; its repeats fall silent on an empty step, so
-our rule (D90) is ours and not a copy; its 9 and 10 are mutes; 13's map is not settled.
+sweeps go round in 6 steps, where ours take 9; its repeats fall silent on an empty step, and
+ours go back to that (Session 30); its 9 and 10 are mutes; 13's map is not settled.
 Nothing was built: `ENGINE.md` §17 and §18, "proposed 2026-11-25".
 
 ## Done so far
@@ -234,18 +234,74 @@ Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
 1. **The owner's ear on Sessions 26 and 28** (restart Rack first: `make install` ran):
    Session 26's and Session 28's steps are in their Handovers in `PLAN-HISTORY.md`. D92's
    and D93's rulings are cheap to change if they sound wrong; so is 14's gain (⚠ below).
-2. **Session 22's proposals of 2026-11-25, to rule on** (O24; `ENGINE.md` §17 and §18,
-   "proposed 2026-11-25"; the Handover below has them in six lines). Then a design session
-   for effect 1 if ruled yes (Fable), and a build session for the constants (Opus).
-   **Two short takes, when the PO-12 is out** ("The owner's hands"): 14 at 120 bpm, and
-   13's map. Read them with "Read `pocket-instruments/PLAN.md` and read Session 22's two
-   last takes".
+2. **Session 30** (build, Opus) and **Session 31** (design, Fable), below: D95's rulings.
+   Either first. **Two short takes, when the PO-12 is out** ("The owner's hands"): 14 at
+   120 bpm, and 13's map. Read them with "Read `pocket-instruments/PLAN.md` and read
+   Session 22's two last takes".
 3. **The owner's looks and rulings** on what 2026-11-23 built: "The owner's hands", first
    part.
 4. **Session 14's fourth box,** the weave accepted or redrawn: below.
 5. **The host's idle cost, when wanted** ("Later: efficiency"): the owner's answer to reading
    the parameters less often decides the next step (Session 29's Handover).
 6. Then from "Not planned yet", as the owner chooses.
+
+## Session 30 — the repeat back to the hardware's rule; the sweeps and 5 retuned (build, Opus; D95 items 1 and 4)
+
+Read `ENGINE.md` §17 ("The four repeats", "designed 2026-11-24: a repeat holds the nearest
+note behind it", "proposed 2026-11-25") and §18 ("designed 2026-11-24: the retune",
+"proposed 2026-11-25"); R73, R74; `LEARNINGS.md` for Session 26 (the retune's method, the
+bench). The rules for every build session hold.
+
+- [ ] **Before any change:** the report, a `sha256sum` of every render file, the old
+      library and a bench built on it, as Session 29 did.
+- [ ] **The repeat (D95 item 1):** a run repeats the step the key came down on; if no
+      switched-in sound has a note there, the run is silent. `held_step` in
+      `core/src/seq.rs` goes, or returns `cur`. A second repeat begun inside a run: as §17
+      had it before D91 item 2 (say which in §17, "Built"). ⚠ Not measured on the PO-12:
+      rule it as built and flag it.
+- [ ] **Its fixtures, by hand first:** `fixtures/fx-repeat-holds.json` was worked for the
+      rule that is going. Work its trace again by hand for the new rule before the code
+      changes, keep the old trace in `PLAN-HISTORY.md` or the commit message's reach, and
+      say in `fixtures/README.md` that the decision changed it (D95), not a build.
+      `fx-repeat-punch` and `fx-repeat-swing` must come out the same bytes if their runs
+      begin on notes; if not, stop and say why.
+- [ ] **The sweeps and 5 (D95 item 4), in `core/src/bus.rs`:** `SWEEP_HALF` 432 → 288 ticks
+      (the assert beside it too); `LOW_SWEEP_FROM_HZ` 3 240 → 2 700, `LOW_SWEEP_TO_HZ` 190 →
+      165; `HIGH_SWEEP_TO_HZ` 2 900 → 3 300; the four `*_OUT` and `*_BACK` constants worked
+      again off the engine as (end / start) to the power 1 / 288; `LOWPASS_HZ` 300 → 210;
+      the low output's `r` in two values, 0.33 for 5 and 0.22 for 6; 8's Q 6 → 4.5 with 7
+      left at 6 (so the high output needs two values as well).
+- [ ] **Ours read beside the PO-12, as Session 26 did:** take c's pattern through
+      `harness/ours-take.cpp` (sound 8 on 1 and 9, sound 15 on 5 and 13), read with
+      `hardware-fx.py --pass c`, against R73's numbers: 5's cutoff and Q, each sweep's
+      cycle, ends and peak. One round of moves at most; write was, now and both readings
+      into §18's table. Read 14 on it too and write the reading down beside R75; move
+      nothing of 14 (D95 item 6).
+- [ ] Tests for both changes, faults planted and caught by name; the report's other runs
+      and render files the same bytes except the ones these changes must move (name them).
+- [ ] **The end:** `make bench` against the old build; `make verify`, `make selftest`,
+      `make play`, `make listen`; `make install` in `rack/`; `WORKFLOW.md`'s repeat row;
+      `LEARNINGS.md`; the Handover; this list to `PLAN-HISTORY.md`.
+
+## Session 31 — effect 1 as the sounds at a quarter of the rate (design, Fable; D95 item 3)
+
+Design only: it ends in sections of `ENGINE.md`, a decision, a fixture or a model worked off
+the engine, and a build list here. R72; `ENGINE.md` §8 (the voices), §18, §19.
+
+- [ ] **What slows.** While 1 is heard, each voice steps a quarter of a frame a frame (code
+      voices and samples both), and the bus holds each value for rate / 11 719 frames. Say
+      how a voice is told its rate without a branch a frame when 1 is off (Session 29's idle
+      path and the bench are the bar: no listed case slower).
+- [ ] **The edges.** A sound already sounding when 1 comes on, and one still sounding when
+      it goes off (the PO-12: it runs on under the next note until its own next hit, R72);
+      a note written under 1 lasting four times as long, past its step and its run; the
+      2 ms ramp §18 gives every effect.
+- [ ] **What cannot slow.** A sound returned on RETURN or FX RETURN can only be held: say
+      what 1 does to it (the hold alone is the candidate), and what FX SEND carries.
+- [ ] **16 after it** (R76): the same rate moved by a slow wave. Decide whether 16 is
+      designed here or waits for a take that reads its wave.
+- [ ] A model off the engine read with `hardware-fx.py` beside take c's effect 1 (the tone
+      at 109.9 Hz, two steps long; nothing above 12 kHz); the decision; Session 32's list.
 
 ## Session 14 — the weave (build, with the owner's eye; a first attempt after Session 20, D79)
 
@@ -283,8 +339,8 @@ In the order they are likely wanted. Each needs a design pass (Fable) before a b
 
 | What | Waits on | Where it is written |
 |---|---|---|
-| **The effects tuned, the rest:** effect 1 as the sounds at a quarter rate (R72: a design pass, it reaches into the voices); the sweeps' cycle (9 → 6 steps), their ends and peaks, 5's cutoff (R73: constants) | the owner's ruling (O24); then the owner's ear | `ENGINE.md` §18, "proposed 2026-11-25"; `core/src/bus.rs`, "TUNING THE EFFECTS" |
-| **The delay, if the ear asks:** a tail after the key is let go; the second echo; the line standing still in silence, as the PO-12's does (R75; recommended no) | the owner, after Session 26 | D91 item 5; `ENGINE.md` §18, "proposed 2026-11-25" |
+| **The effects tuned, the rest:** effect 1 as the sounds at a quarter rate (R72: a design pass, it reaches into the voices); the sweeps' cycle (9 → 6 steps), their ends and peaks, 5's cutoff (R73: constants) | Sessions 30 and 31 (D95); then the owner's ear | `ENGINE.md` §18, "proposed 2026-11-25"; `core/src/bus.rs`, "TUNING THE EFFECTS" |
+| **The delay, if the ear asks:** a tail after the key is let go; the second echo; the line standing still in silence, as the PO-12's does (R75; ruled no, D95 item 5) | the owner, after Session 26 | D91 item 5; `ENGINE.md` §18, "proposed 2026-11-25" |
 | **Effects 15 and 16** (13 and 14 are Sessions 27 and 28, built) | 16: effect 1 designed first (it reads as 1 with the rate wobbling, R76). 15: a take that explains it (sound 15 a bar long under fx + 15) | D67 item 4; R48; R67; R76 |
 | **Effect 14, the rest:** the PO-12's loop inside its 8 192 line, the echo in it, whether it follows the tempo; ours read on take c's pattern beside R75 | the 120 bpm take again (the first held 13); then the owner's ear | R70; R75; `ENGINE.md` §18, "effect 14", "Not modelled" |
 | **Each effect to its own Rack module, the rest:** the breakouts, a trigger in for each sound (the sixteen channels are Sessions 23 and 24) | the owner's ruling on D86 items 3 to 5 (O20) | D86; D87; R63 |
@@ -379,11 +435,13 @@ originals are in `PLAN-HISTORY.md`); nothing was dropped, each thing is here onc
       a repeat holds the last step that sounded; the targets for effects 1 to 8; the delay
       as one tap. Ruled yes on all three, 2026-11-24 (D90).
 
-- [ ] **Session 22's proposals of 2026-11-25** (O24; `ENGINE.md` §17 and §18, "proposed
+- [x] **Session 22's proposals of 2026-11-25** (O24; `ENGINE.md` §17 and §18, "proposed
       2026-11-25"): keep our repeat's rule though the PO-12's is the mute; 9 and 10 stay
       ours; effect 1 designed as the sounds at a quarter rate; the sweeps at 6 steps round
       with new ends and peaks, 5 at 210 Hz; the delay not standing still.
-- [ ] **In Rack, a steady voltage on AUDIO while stopped** (the owner, 2026-11-25: 1.650 V
+      **Ruled 2026-11-25 (D95):** the repeat back to the hardware's rule; the rest as
+      recommended.
+- [x] **In Rack, a steady voltage on AUDIO while stopped** (the owner, 2026-11-25: 1.650 V
       on MixMaster's input, a level on its meter, nothing heard). It is DC, not sound. ⚠ Not
       found: the core's only resting level is effect 3's half step, 0.54 V at full volume
       (D91 item 7), so 1.65 V is more than the core makes alone; FX RETURN is summed before
@@ -391,6 +449,8 @@ originals are in `PLAN-HISTORY.md`); nothing was dropped, each thing is here onc
       stopped, pull FX RETURN's cable, then RETURN's, and watch the voltage; then fx alone
       to clear the lane. If it stays with both out and no effect on, it is ours: a bug for
       a build session, with the patch saved beside it.
+      **Not ours (the owner, 2026-11-25):** "Looks like it's the nozori_68_crush module",
+      in the return chain.
 
 **With the PO-12 in hand:**
 
@@ -521,3 +581,8 @@ The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
   changed, so no build, bench or install.
 - **Next:** your rulings above; the two takes; your ears on Sessions 26 and 28 (still
   first in the list).
+- **Added the same day, your rulings (D95):** "Lets keep to hardware" for the repeat, so
+  D90's rule goes and an empty step repeats as silence again; everything else as
+  recommended. Sessions 30 (build, Opus: the repeat, the sweeps, 5) and 31 (design, Fable:
+  effect 1) have their lists above. The steady voltage was not ours: the nozori_68_crush
+  module in the return chain.
