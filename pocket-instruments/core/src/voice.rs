@@ -111,6 +111,23 @@ fn step_env(env: &mut f32, k: f32) -> f32 {
     now
 }
 
+/// `N` squares summed, each +1 while its phase's top bit is 0 and -1 once it is 1, at the
+/// phases as they are; then each phase advanced once. Counted in integers (Session 41, D105
+/// item 5, Antigravity's): the sum is `N - 2 × (top bits set)`, one of `-N ..= N` in twos,
+/// exact in an f32, and never -0, as the float sum from +0 it replaces never was (x + -x is +0).
+/// The hats' six and the cow bell's two.
+#[inline]
+fn squares<const N: usize>(phase: &mut [u32; N], inc: &[u32; N]) -> f32 {
+    let mut high = 0u32;
+    for p in phase.iter() {
+        high += *p >> 31;
+    }
+    for (p, i) in phase.iter_mut().zip(inc) {
+        *p = p.wrapping_add(*i);
+    }
+    (N as i32 - 2 * high as i32) as f32
+}
+
 /// White noise: xorshift32, as floats of -1 ..< 1. Restarted on every trigger, so a hit
 /// depends only on its sliders and the sample rate. Its own generator, never the
 /// sequencer's: a sound takes no draw (§11, "sound changes no event").
@@ -530,11 +547,7 @@ impl Hat {
         if self.env == 0.0 {
             return 0.0;
         }
-        let mut sum = 0.0;
-        for i in 0..6 {
-            sum += if self.phase[i] < 1 << 31 { 1.0 } else { -1.0 };
-            self.phase[i] = self.phase[i].wrapping_add(self.inc[i]);
-        }
+        let sum = squares(&mut self.phase, &self.inc);
         let s = self.filter.next(sum, Pass::High) * step_env(&mut self.env, self.k);
         if self.env == 0.0 {
             self.filter.clear();
@@ -989,11 +1002,7 @@ impl Cowbell {
         if self.env == 0.0 {
             return 0.0;
         }
-        let mut sum = 0.0;
-        for i in 0..2 {
-            sum += if self.phase[i] < 1 << 31 { 1.0 } else { -1.0 };
-            self.phase[i] = self.phase[i].wrapping_add(self.inc[i]);
-        }
+        let sum = squares(&mut self.phase, &self.inc);
         let s = self.filter.next(sum, Pass::Band) * step_env(&mut self.env, self.k);
         if self.env == 0.0 {
             self.filter.clear();
