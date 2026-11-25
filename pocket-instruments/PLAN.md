@@ -164,7 +164,7 @@ repeats that hold the nearest note behind them and eight sound effects, tuned to
 PO-12's measurements; sliders that are the hand's, with steps that keep what they were
 written with; a display that weaves; in Rack, each effect its own channel on FX SEND and
 FX RETURN; since Session 28 effects 13 (a note plays as the sound twelve keys on) and 14 (the
-bus fed back). ABI 13, snapshot version 4, 275 Rust tests, CI on four platforms in about a
+bus fed back). ABI 13, snapshot version 4, 276 Rust tests, CI on four platforms in about a
 minute.
 
 **Built on 2026-11-23 and not yet seen or heard by the owner** except the effects on a
@@ -239,7 +239,7 @@ Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
    Session 26's and Session 28's steps are in their Handovers in `PLAN-HISTORY.md`. D92's
    and D93's rulings are cheap to change if they sound wrong; so is 14's gain (⚠ below).
 2. **Your ear on Session 30** (restart Rack first: `make install` ran): its Handover's steps,
-   and O25. Then **Session 31** (design, Fable), below. **Two short takes, when the PO-12 is out** ("The owner's hands"): 14 at
+   the rest of O25. Then **Session 31** (design, Fable), below. **Two short takes, when the PO-12 is out** ("The owner's hands"): 14 at
    120 bpm, and 13's map. Read them with "Read `pocket-instruments/PLAN.md` and read
    Session 22's two last takes".
 3. **The owner's looks and rulings** on what 2026-11-23 built: "The owner's hands", first
@@ -545,3 +545,10 @@ The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
   browsers), `make listen`, `make selftest` in `rack/` (both fixtures on both clocks), `make
   verify`; `make install`.
 - **Next:** your ears on Sessions 26, 28 and 30; O25; then Session 31 (effect 1, Fable).
+- **Added the same day, after you played it (D97):** punched on step 1 the kick repeated, but
+  the replay did not. Now a repeat punched mid-step is also recorded on the step being played,
+  so the replay repeats the kick too (its run starts a step earlier: one more step of repeats
+  at the front). Sound effects unchanged. O25 item 1 is answered. 276 tests; four faults
+  caught by name; only `fx-repeat-punch` moved (worked again by hand first), no render file;
+  `make test`, `make play`, `make selftest`, `make pairs` (inside the old spread), `make
+  verify`; `make install` ran: **restart Rack.**

@@ -1882,6 +1882,26 @@ with your recommendations."
 4. **`r` exactly 1/3 for 5 and 1/4.5 for both sweeps**, D95 item 4's Q 3 and Q 4.5; the build
    list wrote them rounded (0.33, 0.22). Under 1% apart.
 
+(Item 2 superseded the same day by D97.)
+
+### D97 — The replay matches the push: a repeat punched mid-step records the step it came down on
+**2026-11-25 · decided by the owner, after playing Session 30's build · built the same day · `ENGINE.md` §17, "Built (Session 30)"**
+
+The owner: punched on step 1 it repeated the kick, "but when it plays through and back, it
+doesn't". D96 item 2 by ear. Offered three ways (this, a PO-12 take first, live with it); the
+owner chose this, as recommended.
+
+1. **A repeat (9 to 12) punched while a step is being played is recorded on that step too,**
+   on the first tick after the press, moving the generation. So the replay's run begins on
+   the step the key came down on and repeats what the hand heard. It begins a step earlier
+   than the performance's run did: one more step of repeats at its front.
+2. **Sound effects keep D66 item 3:** the step being played is not recorded (the owner's
+   PO-12 test of 2026-11-23, WORKFLOW's snare row). fx alone empties only the steps that
+   arrive, as before.
+3. ⚠ **The PO-12 may not do this.** It does not record the step being played for a sound
+   effect, so its replay of a repeat may be silent as ours was. Undo if a take shows it.
+4. Nothing is recorded for a punch seen before any step has arrived since play or reset.
+
 ## Open
 
 | ID | Question | Needs |
@@ -1910,4 +1930,4 @@ with your recommendations."
 | O22 | ~~Session 25's rulings (D91 items 1, 2 and 4 to 8): as designed? Above all item 2 (a second repeat looks back for itself, or keeps the step), item 5 (no tail on our delay) and item 7 (effect 3 rests off zero, so it thumps on silence) | The owner, by ear, once Session 26 has built it. Recommended: accept; judge item 7 on the phone and in Rack, where AUDIO carries the offset~~ **Answered 2026-11-24: D92** (accepted before the build; the ear may still overrule) |
 | O23 | Session 27's rulings (D93): as designed? Above all item 1 (twelve keys on: is that what the PO-12's 13 does on other sounds?), item 4 (a shuffled note takes the sounding sound's sliders) and item 7 (the feedback stands still while nothing sounds, or rings on, or fades) | The owner. Recommended: accept, build (Session 28), then judge 7 by ear on a sparse beat and a busy one; take c settles item 1 (sound 8 should play as 4, and 15 as 11). **Built 2026-11-24 (Session 28)** as written, but item 5's gain, 2.24 → 2.05 by the comparison item 9 asked for (`ENGINE.md` §18): ready to hear; its Handover in `PLAN.md` has the steps **Take c read 2026-11-25 (R76): item 1 is not confirmed.** Sound 8 did not play as the map's sound 4, nor 15 as its 11; a take with every sound on its own step is asked for |
 | O24 | ~~Session 22's proposals of 2026-11-25 (`ENGINE.md` §17 and §18, "proposed 2026-11-25"; R71 to R76): keep D90's rule for a repeat now that the PO-12's is known to be the mute (an empty step repeats as silence)? Leave 9 and 10 as our repeats, though the PO-12's are mutes? Design effect 1 as the sounds at a quarter of the rate? The sweeps at 6 steps round with new ends and peaks, and 5 at 210 Hz? The delay's line standing still in silence, as the PO-12's does?~~ | **Answered 2026-11-25: D95** (the repeat back to the hardware's rule; the rest as recommended). Was: The owner. Recommended: keep D90; leave 9 and 10; yes to a design session for 1; yes to the sweeps and 5 in one build session; no to the delay standing still. Nothing is built until ruled |
-| O25 | Session 30's readings (D96 items 2 to 4): a replayed lane repeats its own first step, not the step the key came down on in the performance; a second repeat inside a run holds its own key's step; `r` exact | The owner, by ear, on the phone or in Rack: punch 11 on a kick's step, let go, and hear the next pass. Recommended: accept until a take of a replayed repeat on the PO-12 says otherwise |
+| O25 | Session 30's readings (D96 items 2 to 4; **item 2 answered the same day: D97**): ~~a replayed lane repeats its own first step, not the step the key came down on in the performance;~~ a second repeat inside a run holds its own key's step; `r` exact | The owner, by ear, on the phone or in Rack: punch 11 on a kick's step, let go, and hear the next pass. Recommended: accept until a take of a replayed repeat on the PO-12 says otherwise |

@@ -1365,8 +1365,15 @@ play, reset:          wrote = none;  down = none
   an empty step it is silent for as long as it lasts, and takes no draw. A punch on a
   boundary's frame came down on the step arriving. A punch made while stopped, or before the
   first step after play, repeats that first step.
-- **From the lane, no punch held: the run's own first step** (D96 item 2 ⚠). A replay of a
-  punch made mid-step therefore repeats the step after the one the hand heard.
+- **From the lane, no punch held: the run's own first step** (D96 item 2). ~~A replay of a
+  punch made mid-step therefore repeats the step after the one the hand heard.~~ **Since D97
+  (the owner, the same day) a repeat punched mid-step is also recorded on the step being
+  played, on the first tick after the press**, so the replay's run begins there, a step
+  earlier than the performance's, and repeats what the hand heard. Sound effects still do
+  not record the step being played (D66 item 3). Nothing is recorded for a punch seen before
+  any step has arrived. Proven by `fx-repeat-punch` worked again by hand (its replays now
+  repeat sound 1), two tests (the lane and generation at the press; the replay) and a third
+  split from "each step arriving" for sound effects; four faults caught by name.
 - **A second repeat is a new run** (D96 item 3 ⚠): its own key's step, or its own first step
   from the lane. Nothing carries over from the run before.
 - Everything else in "The four repeats" stands: the periods, the run's grid from its first
