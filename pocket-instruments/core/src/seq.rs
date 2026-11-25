@@ -215,19 +215,25 @@ impl Seq {
     }
 
     /// One tick. `write` is what an arriving step takes into the lane (`NO_WRITE` while fx
-    /// is up). Returns whether the lane changed, which moves the generation.
+    /// is up). `span` is the ticks an edge stands for (`Clock::span`): 96, or 384 on one edge a
+    /// beat. Returns whether the lane changed, which moves the generation.
     #[inline]
-    pub fn tick(&mut self, k: u32, pat: &mut Pattern, rng: &mut Rng, out: &mut Out, write: u8) -> bool {
+    pub fn tick(&mut self, k: u32, pat: &mut Pattern, rng: &mut Rng, out: &mut Out, write: u8, span: u32) -> bool {
         if !self.playing {
             return false;
         }
         let mut lane_changed = false;
         let g = k / TICKS_PER_STEP;
         let t = (k % TICKS_PER_STEP) as u8;
+        // §4, ruled 2026-11-25 (D101 item 1): a pattern not yet started begins on a tick that is
+        // a multiple of `span`, so on one edge a beat play waits for the next edge. Until then a
+        // step's tick 0 is any other tick of a pattern not started. With `span` 96 this is
+        // `t == 0`, as it always was; a reset sets tick 0, a multiple of both.
+        let boundary = t == 0 && !(self.fresh && k % span != 0);
 
         // §17, Session 30: where a punch came down. Before a step has arrived since play or
         // reset no step is being played, and a run there begins on its own step.
-        if t != 0 && write != self.wrote {
+        if !boundary && write != self.wrote {
             self.wrote = write;
             self.down = if self.fresh { NO_DOWN } else { self.cur };
             // D97 (the owner: the replay must match the push): a repeat punched mid-step is
@@ -241,7 +247,7 @@ impl Seq {
             }
         }
 
-        if t == 0 {
+        if boundary {
             if self.fresh {
                 self.cur = 0;
                 self.fresh = false;

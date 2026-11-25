@@ -110,9 +110,10 @@ impl Engine {
             }
             let Engine { clock, seq, pat, rng, generation, keys, .. } = self;
             let write = keys.lane_write;
+            let span = clock.span();
             clock.frame(thr, &mut |k| {
                 out.ticks += 1;
-                if seq.tick(k, pat, rng, &mut out, write) {
+                if seq.tick(k, pat, rng, &mut out, write, span) {
                     *generation = generation.wrapping_add(1); // §17: the lane is in the snapshot ⚠
                 }
             });
@@ -219,9 +220,10 @@ impl Engine {
             CMD_CLOCK => {
                 let Engine { clock, seq, pat, rng, generation, keys, sample_rate, .. } = self;
                 let write = keys.lane_write;
+                let span = clock.span();
                 clock.edge(*sample_rate, &mut |k| {
                     out.ticks += 1;
-                    if seq.tick(k, pat, rng, out, write) {
+                    if seq.tick(k, pat, rng, out, write, span) {
                         *generation = generation.wrapping_add(1);
                     }
                 });

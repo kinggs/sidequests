@@ -114,6 +114,24 @@ impl Clock {
         self.source
     }
 
+    /// `span`, the ticks an edge stands for: 384 on one edge a beat, else 96. The sequencer
+    /// starts a pattern on a multiple of it (§4, ruled 2026-11-25, D101 item 1).
+    #[inline]
+    pub fn span(&self) -> u32 {
+        if self.source == SOURCE_BEATS { TICKS_PER_BEAT } else { TICKS_PER_STEP }
+    }
+
+    /// The period a beat runs at when no edge has measured it: the guess, or if the guess is
+    /// 0 the stored tempo's beat, in 64 bits (at most twice the rate: 30 bpm).
+    fn guessed(&self, rate: u32) -> u32 {
+        if self.guess != 0 {
+            self.guess
+        } else {
+            let beat = rate as u64 * 60_000 / self.mbpm as u64;
+            if beat < 1 { 1 } else { beat as u32 }
+        }
+    }
+
     /// `CLOCK`: one edge, one step (`SOURCE` 1) or one beat (`SOURCE` 2, ABI 15). Finishes
     /// the old step or beat, then emits tick 0 of the new one. `rate` is the engine's, for the
     /// first beat's guess when nothing has been measured (§4, designed 2026-11-25).
@@ -123,19 +141,21 @@ impl Clock {
         }
         let beats = self.source == SOURCE_BEATS;
         if self.have_edge && self.since > 0 {
-            self.period = self.since;
-            self.measured = true;
-            if beats {
-                self.guess = self.since;
+            if beats && self.since as u64 > 2 * self.period as u64 {
+                // §4, ruled 2026-11-25 (D101 item 2): on one edge a beat, an edge after a pause
+                // (the bar `ext` calls stopped) is a first edge: it does not measure, its beat
+                // runs at the guess, and the guess is left. One edge a step measures it, as ever.
+                self.period = self.guessed(rate);
+                self.measured = false;
+            } else {
+                self.period = self.since;
+                self.measured = true;
+                if beats {
+                    self.guess = self.since;
+                }
             }
         } else if !self.have_edge && beats {
-            self.period = if self.guess != 0 {
-                self.guess
-            } else {
-                // The stored tempo's beat, in 64 bits: at most twice the rate (30 bpm).
-                let beat = rate as u64 * 60_000 / self.mbpm as u64;
-                if beat < 1 { 1 } else { beat as u32 }
-            };
+            self.period = self.guessed(rate);
         }
         self.have_edge = true;
         self.since = 0;
@@ -194,11 +214,29 @@ impl Clock {
     /// Keeps the table clock's phase: `acc = acc * new / old`, rounded down. `acc` is below
     /// `625 * old`, so splitting it into `q * old + r` keeps every product inside 64 bits and
     /// the result exact.
+    ///
+    /// §4, ruled 2026-11-25 (D101 item 3): on one edge a beat the beat is carried too: `guess`,
+    /// `period` and `since` are `× new / old`, rounded down, in 64 bits, a `period` or `guess`
+    /// that was not 0 held to at least 1. ⚠ A result past a u32 is held there (`since`
+    /// saturates, §4; the ruling does not say). One edge a step and the table rescale nothing
+    /// else, as before.
     pub fn rescale(&mut self, old_rate: u32, new_rate: u32) {
         if old_rate == 0 {
             return;
         }
         let (old, new) = (old_rate as u64, new_rate as u64);
         self.acc = (self.acc / old) * new + (self.acc % old) * new / old;
+        if self.source == SOURCE_BEATS {
+            let scale = |x: u32, least: u64| -> u32 {
+                if x == 0 {
+                    return 0;
+                }
+                let y = x as u64 * new / old;
+                if y < least { least as u32 } else if y > u32::MAX as u64 { u32::MAX } else { y as u32 }
+            };
+            self.guess = scale(self.guess, 1);
+            self.period = scale(self.period, 1);
+            self.since = scale(self.since, 0);
+        }
     }
 }
