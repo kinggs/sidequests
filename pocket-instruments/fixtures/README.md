@@ -290,6 +290,27 @@ snapshot" run holds it to snapshot version 3 as well.
 
 ## `fx-repeat-holds`, worked by hand (Session 25: the repeat's new rule, D90 item 1, D91; in `designed/` until Session 26)
 
+**Worked again by hand in Session 30, by decision (D95 item 1), not by a build.** The owner
+chose the hardware's rule: a run repeats the step it begins on, and an empty step repeats as
+silence. Commands unchanged; the `expect` lines and the three views' `fires=` were worked
+from `ENGINE.md` §17 ("The four repeats", `run_step = cur`) and §5 before the code changed,
+and committed on their own; the core of the day failed them. What changed:
+
+- **Both runs begin on empty steps (0 and 4), so neither fires in any pass,** and neither
+  draws. Gone: the 16 repeated lines (`trig 0 6` at 0, 96, 768, 864, 912; `trig 2 2` at 384,
+  448, 512, 1152, 1216, 1280, 1536 to 1680). The plain hits are left: `trig 2 2` and `trig 1
+  3` each pass, `trig 0 6` at 576 only.
+- **The draws shift.** Track 0's step 6 now takes the generator's first draw at 576 (69,
+  fires) and its second at 1344 (89, does not). The third pass has no note on it.
+- **Counts:** 24 `step` lines; track 0 1, track 1 3, track 2 3: 31 lines. Views:
+  `fires=0,0,0` at 1, `fires=0,1,1` at 5, `fires=1,3,3` at 23; every other field as before.
+- What it now proves is narrow: notes behind and ahead of an empty step are not repeated, and
+  a silent run takes no draw. A run that fires from its own step, drawing, is
+  `fx-repeat-punch`'s and `fx-repeat-swing`'s (both begin on notes, so neither moved).
+- The old trace is in git: this file's state before Session 30's fixture commit.
+
+What follows is Session 25's working, for the rule that went.
+
 Was in `designed/`: no harness read it until Session 26 built the rule and moved it up,
 unchanged (a rename with no change). It passed at the first run: Rust, C++ and Node, both
 sources, three rates, three block sizes, and from a snapshot; the 300 older runs of the
