@@ -273,12 +273,13 @@ fn heard_is_nothing_until_a_step_then_the_punch_then_the_lane() {
 }
 
 #[test]
-fn a_repeat_punched_in_the_middle_of_a_step_begins_with_the_next_step() {
+fn a_repeat_punched_in_the_middle_of_a_step_begins_with_the_next_step_and_repeats_the_one_it_came_down_on() {
     let mut h = playing(&[on(0, 1), on(0, 2)]);
     let ev = h.run(4 * STEP - 2, 128, &[(after(1) + 2000, down(FX)), (after(1) + 2000, down(10))]);
-    // Step 1 fires once, plainly, at 96; the run begins at step 2's boundary, 192, from
-    // step 2's column, every 48 ticks.
-    assert_eq!(trigs(&ev), [(96, 0, 1), (192, 0, 2), (240, 0, 2), (288, 0, 2), (336, 0, 2)]);
+    // Step 1 fires once, plainly, at 96; the run begins at step 2's boundary, 192, every 48
+    // ticks. Since Session 30 (D95 item 1) it repeats step 1, where the key came down; step
+    // 2's own note is silent under it. (Session 16 to 29: step 2's column.)
+    assert_eq!(trigs(&ev), [(96, 0, 1), (192, 0, 1), (240, 0, 1), (288, 0, 1), (336, 0, 1)]);
 }
 
 // ---- The four repeats ----
@@ -386,9 +387,11 @@ fn a_new_run_begins_when_the_repeat_changes_or_comes_back_and_after_play_or_rese
     assert_eq!(trigs(&ev).iter().map(|t| t.0).collect::<Vec<_>>(), [0, 128]);
 }
 
-// ---- §17, designed 2026-11-24: a repeat holds the nearest note behind it (ABI 12; D91) ----
-// One test a bullet. Each expectation was worked by hand from the section before it ran.
-// From play at frame 0 a step is 96 ticks; draws % 100 from seed 1: 69, 89, 61, 95, 33.
+// ---- §17, Session 30: a repeat holds the step its run begins on (D95 item 1) ----
+// The hardware's rule (R74), back in place of D91's look behind. Session 26's nine tests of
+// that walk went with it; these hold the rule that replaced it, one a bullet of §17's
+// "Built (Session 30)". Each expectation was worked by hand before it ran. From play at
+// frame 0 a step is 96 ticks; draws % 100 from seed 1: 69, 89, 61, 95, 33.
 
 /// A fresh engine sent `edits` and play at frame 0, then `later` at their frames.
 fn with_later(edits: &[Cmd], later: &[(u64, Cmd)], frames: u64) -> Vec<(u32, u8, u8)> {
@@ -400,84 +403,134 @@ fn with_later(edits: &[Cmd], later: &[(u64, Cmd)], frames: u64) -> Vec<(u32, u8,
 }
 
 #[test]
-fn a_run_holds_a_step_by_the_pattern_even_at_probability_0() {
+fn an_empty_step_repeats_as_silence_with_notes_behind_and_ahead() {
+    // Track 0 on steps 2 and 6; track 1, out of the effects, on step 4. Effect 11 on steps 4
+    // and 5: the run holds step 4, where no sound in the effects is on, and is silent for
+    // both steps. Track 1 plays its own step. D91 would have repeated step 2 at 384 to 528.
+    let got = with_later(&[on(0, 2), on(0, 6), on(1, 4), fxsound(1, 0), fx(4, 11), fx(5, 11)], &[], 7 * STEP - 2);
+    assert_eq!(got, [(192, 0, 2), (384, 1, 4), (576, 0, 6)]);
+}
+
+#[test]
+fn a_silent_run_takes_no_draw() {
     // Track 0 on step 2 at 0; track 1, out of the effects, on step 7 at 90; effect 11 on
-    // step 5 alone. Step 2 plays at 192 and draws 69 (no). The run from step 5 looks back to
-    // step 2 and holds it: its hits at 480 and 528 draw 89 and 61, and never fire. Track 1
-    // at 672 then draws 95: no. Had the run held its own empty step 5 (no note, no draw),
-    // track 1 would have drawn 89 and fired.
+    // step 5 alone. Step 2 draws 69 (no). The run from step 5 has no note and draws nothing,
+    // so track 1 at 672 draws 89: under 90, it fires. (D91 held step 2 here and its two hits
+    // drew 89 and 61, leaving 95 for track 1.)
     let got = with_later(&[on(0, 2), cmd(CMD_PROB, 0, 2, 0), on(1, 7), cmd(CMD_PROB, 1, 7, 90), fxsound(1, 0), fx(5, 11)], &[], 8 * STEP - 2);
-    assert_eq!(got, []);
+    assert_eq!(got, [(672, 1, 7)]);
 }
 
 #[test]
-fn a_tap_is_not_a_step_and_never_counts() {
-    // Track 2 on step 1; effect 11 on step 5. Sound 0 tapped on step 3, write off: it
-    // fires, and a rule by what was heard would hold it. By the pattern the run holds step 1.
-    let got = with_later(&[on(2, 1), fx(5, 11)], &[(after(3), down(0)), (after(3) + 10, up(0))], 6 * STEP - 2);
-    let run: Vec<_> = got.iter().filter(|t| t.0 >= 480).copied().collect();
-    assert_eq!(run, [(480, 2, 1), (528, 2, 1)]);
-    assert!(got.iter().any(|t| t.1 == 0), "the tap itself sounded");
+fn a_tap_gives_an_empty_step_nothing_to_repeat() {
+    // Track 2 on step 1; effect 11 on step 5. Sound 0 tapped on step 5 just before the run's
+    // second hit, write off: it fires once, as a tap, and is not repeated at 528.
+    let got = with_later(&[on(2, 1), fx(5, 11)], &[(after(5) + 10, down(0)), (after(5) + 20, up(0))], 6 * STEP - 2);
+    assert_eq!(got.iter().filter(|t| t.1 == 2).copied().collect::<Vec<_>>(), [(96, 2, 1)]);
+    assert_eq!(got.iter().filter(|t| t.1 == 0).count(), 1, "the tap sounded once");
 }
 
 #[test]
-fn a_step_not_yet_played_is_held() {
-    // Track 0 on step 6; effect 11 on steps 1 and 2. In the first pass, from step 1, the
-    // look goes 1, 0, then 15 down to 6: step 6 is held before it has ever played.
-    let got = with_later(&[on(0, 6), fx(1, 11), fx(2, 11)], &[], 7 * STEP - 2);
-    assert_eq!(got, [(96, 0, 6), (144, 0, 6), (192, 0, 6), (240, 0, 6), (576, 0, 6)]);
-}
-
-#[test]
-fn the_look_back_wraps_inside_the_length_only() {
-    // Length 8. Track 0 on step 12 (past the length), track 1 on step 6. Effect 11 on step
-    // 1: the look goes 1, 0, 7, 6 and holds 6. A walk from 15 would have found 12 first.
-    let got = with_later(&[cmd(CMD_LENGTH, 0, 0, 8), on(0, 12), on(1, 6), fx(1, 11)], &[], 2 * STEP - 2);
-    assert_eq!(got, [(96, 1, 6), (144, 1, 6)]);
-}
-
-#[test]
-fn a_run_looks_once_and_an_edit_elsewhere_moves_nothing() {
-    // Track 0 on step 2; effect 11 on steps 4, 5 and 6: the run holds step 2 from 384. In
-    // step 5 track 1 is put on step 3, nearer, and track 5 is switched out of the effects:
-    // the run keeps step 2, and track 1's step 3 never plays (it is behind the playhead).
+fn the_run_keeps_its_step_and_an_edit_elsewhere_moves_nothing() {
+    // Track 0 on step 4; effect 11 on steps 4, 5 and 6: hits every 48 ticks from 384, all
+    // column 4. In step 5 track 1 is put on step 3 and track 5 is switched out of the effects:
+    // nothing moves (track 1's step 3 is behind the playhead).
     let later = [(after(5) + 100, on(1, 3)), (after(5) + 100, fxsound(5, 0))];
-    let got = with_later(&[on(0, 2), fx(4, 11), fx(5, 11), fx(6, 11)], &later, 8 * STEP - 2);
-    assert_eq!(got, [(192, 0, 2), (384, 0, 2), (432, 0, 2), (480, 0, 2), (528, 0, 2), (576, 0, 2), (624, 0, 2)]);
+    let got = with_later(&[on(0, 4), fx(4, 11), fx(5, 11), fx(6, 11)], &later, 8 * STEP - 2);
+    assert_eq!(got, [(384, 0, 4), (432, 0, 4), (480, 0, 4), (528, 0, 4), (576, 0, 4), (624, 0, 4)]);
 }
 
 #[test]
-fn what_the_held_step_holds_is_read_at_each_hit() {
-    // As above, but in step 5 (after its hit at 480) track 0's note on step 2 is taken off:
-    // the run falls silent. In step 6 (after 576) track 3 is put on step 2: it sounds at 624.
-    let later = [(after(5), cmd(CMD_STEP, 0, 2, 0)), (after(6), on(3, 2))];
-    let got = with_later(&[on(0, 2), fx(4, 11), fx(5, 11), fx(6, 11)], &later, 8 * STEP - 2);
-    assert_eq!(got, [(192, 0, 2), (384, 0, 2), (432, 0, 2), (480, 0, 2), (624, 3, 2)]);
+fn what_the_run_s_step_holds_is_read_at_each_hit() {
+    // As above, but in step 5 (after its hit at 480) track 0's note on step 4 is taken off:
+    // the run falls silent. In step 6 (after 576) track 3 is put on step 4: it sounds at 624.
+    let later = [(after(5), cmd(CMD_STEP, 0, 4, 0)), (after(6), on(3, 4))];
+    let got = with_later(&[on(0, 4), fx(4, 11), fx(5, 11), fx(6, 11)], &later, 8 * STEP - 2);
+    assert_eq!(got, [(384, 0, 4), (432, 0, 4), (480, 0, 4), (624, 3, 4)]);
 }
 
 #[test]
-fn a_run_that_begins_on_a_note_holds_its_own_step() {
-    // Track 0 on step 2, track 1 on step 4; effect 11 on step 4: step 4 is looked at first.
-    let got = with_later(&[on(0, 2), on(1, 4), fx(4, 11)], &[], 5 * STEP - 2);
-    assert_eq!(got, [(192, 0, 2), (384, 1, 4), (432, 1, 4)]);
-}
-
-#[test]
-fn a_second_repeat_straight_after_the_first_looks_back_for_itself() {
-    // Track 0 on step 1, track 1 on step 3. Effect 11 on steps 2 and 3 holds step 1 (track
-    // 1's own step 3 is muted under it); effect 12 straight after, on 4 and 5, is a new run:
-    // it looks back from 4 and holds 3. Keeping the step would have repeated track 0.
-    let got = with_later(&[on(0, 1), on(1, 3), fx(2, 11), fx(3, 11), fx(4, 12), fx(5, 12)], &[], 6 * STEP - 2);
-    assert_eq!(got, [(96, 0, 1), (192, 0, 1), (240, 0, 1), (288, 0, 1), (336, 0, 1), (384, 1, 3), (448, 1, 3), (512, 1, 3)]);
-}
-
-#[test]
-fn with_no_note_in_the_effects_anywhere_a_run_holds_its_own_step() {
-    // Track 1, out of the effects, on step 2: it does not count, and plays on. Effect 11 on
-    // steps 4 and 5 finds nothing and holds step 4, silent, until track 0 is put on step 4
-    // just after its first hit: it sounds at 432, 480 and 528.
+fn a_run_begun_on_an_empty_step_sounds_once_a_note_is_put_there() {
+    // Track 1, out of the effects, on step 2. Effect 11 on steps 4 and 5 holds step 4,
+    // silent, until track 0 is put on step 4 just after its first hit: 432, 480 and 528.
     let got = with_later(&[on(1, 2), fxsound(1, 0), fx(4, 11), fx(5, 11)], &[(after(4), on(0, 4))], 6 * STEP - 2);
     assert_eq!(got, [(192, 1, 2), (432, 0, 4), (480, 0, 4), (528, 0, 4)]);
+}
+
+#[test]
+fn a_second_repeat_straight_after_the_first_holds_its_own_step() {
+    // ⚠ Session 30's reading of D95 item 1 ("the step the key came down on"), not measured
+    // on the PO-12: a new repeat is a new run, from its own first step, as before D91.
+    // Track 0 on step 2, track 1 on step 4. 11 on steps 2 and 3 repeats step 2; 12 straight
+    // after, on 4 and 5, repeats step 4. Keeping the first run's step would repeat track 0.
+    let got = with_later(&[on(0, 2), on(1, 4), fx(2, 11), fx(3, 11), fx(4, 12), fx(5, 12)], &[], 6 * STEP - 2);
+    assert_eq!(got, [(192, 0, 2), (240, 0, 2), (288, 0, 2), (336, 0, 2), (384, 1, 4), (448, 1, 4), (512, 1, 4)]);
+    // And when the second begins on an empty step it is silent: nothing is carried over.
+    let got = with_later(&[on(0, 2), fx(2, 11), fx(3, 11), fx(4, 12), fx(5, 12)], &[], 6 * STEP - 2);
+    assert_eq!(got, [(192, 0, 2), (240, 0, 2), (288, 0, 2), (336, 0, 2)]);
+}
+
+#[test]
+fn a_punch_on_a_boundary_s_frame_came_down_on_the_step_arriving() {
+    // Track 0 on step 1, track 1 on step 2. fx goes down in step 1 (a change of what steps
+    // take, seen there); key 10 (effect 11) on the frame of tick 192 and before it (an edit
+    // lands before the clock moves): step 2 takes the punch and the run repeats step 2, not
+    // step 1.
+    let mut h = playing(&[on(0, 1), on(1, 2)]);
+    let ev = h.run(3 * STEP - 2, 128, &[(after(1) + 2000, down(FX)), (2 * STEP, down(10))]);
+    assert_eq!(trigs(&ev), [(96, 0, 1), (192, 1, 2), (240, 1, 2)]);
+}
+
+#[test]
+fn a_new_repeat_key_inside_a_run_repeats_the_step_it_came_down_on() {
+    // Track 0 on step 1, track 1 on step 3. fx and key 10 (11) in step 1: from 192 the run
+    // repeats step 1. Key 11 (12) goes down in step 3 and is the last down, so it is the
+    // punch: from 384 a new run every 64 ticks repeats step 3, where its key came down.
+    let mut h = playing(&[on(0, 1), on(1, 3)]);
+    let ev = h.run(6 * STEP - 2, 128, &[(after(1) + 2000, down(FX)), (after(1) + 2000, down(10)), (after(3) + 2000, down(11))]);
+    assert_eq!(
+        trigs(&ev),
+        [(96, 0, 1), (192, 0, 1), (240, 0, 1), (288, 0, 1), (336, 0, 1), (384, 1, 3), (448, 1, 3), (512, 1, 3)]
+    );
+}
+
+#[test]
+fn the_lane_replayed_with_no_key_down_repeats_its_own_first_step() {
+    // ⚠ Not measured on the PO-12. Length 4; track 0 on step 1, track 1 on step 2. Punched
+    // in step 1 and let go in step 3: live, steps 2 and 3 repeat step 1. The next pass plays
+    // the lane alone: its run begins on step 2 and repeats step 2.
+    let mut h = playing(&[cmd(CMD_LENGTH, 0, 0, 4), on(0, 1), on(1, 2)]);
+    let keys = [(after(1) + 2000, down(FX)), (after(1) + 2000, down(10)), (after(3) + 2000, up(10)), (after(3) + 2000, up(FX))];
+    let ev = h.run(8 * STEP - 2, 128, &keys);
+    assert_eq!(
+        trigs(&ev),
+        [(96, 0, 1), (192, 0, 1), (240, 0, 1), (288, 0, 1), (336, 0, 1), (480, 0, 1), (576, 1, 2), (624, 1, 2), (672, 1, 2), (720, 1, 2)]
+    );
+}
+
+#[test]
+fn a_punch_held_through_play_repeats_the_first_step() {
+    // Punched while stopped, played by the edit mid-step on the table clock: the punch's
+    // change is seen before any step has arrived, so no step is "where it came down". The
+    // run from the first step after play (tick 96, step 0) repeats that step, track 2.
+    let mut h = Host::new(SR, 1);
+    let ev = h.run(2 * STEP - 2, 128, &[(0, on(2, 0)), (0, on(0, 3)), (1, down(FX)), (1, down(10)), (100, play())]);
+    assert_eq!(trigs(&ev), [(96, 2, 0), (144, 2, 0)]);
+    // Again with the playhead left on step 3 (track 0's) when stopped: still step 0, from the
+    // first boundary after play (tick 384 on the table clock), through two steps.
+    let mut h = playing(&[on(2, 0), on(0, 3)]);
+    h.run(3 * STEP + 100, 128, &[]);
+    let n = h.now;
+    let ev = h.run(2 * STEP, 128, &[(n, cmd(CMD_PLAY, 0, 0, 0)), (n + 1, down(FX)), (n + 1, down(10)), (n + 100, play())]);
+    assert_eq!(trigs(&ev), [(384, 2, 0), (432, 2, 0), (480, 2, 0)]);
+    // And a punch held across the stop, put down in step 3 while playing: the step it came
+    // down on is forgotten at the stop, and the run after play repeats step 0.
+    let mut h = playing(&[on(2, 0), on(0, 3)]);
+    let ev = h.run(3 * STEP + 200, 128, &[(after(3) + 100, down(FX)), (after(3) + 100, down(10))]);
+    assert_eq!(trigs(&ev).last(), Some(&(288, 0, 3)), "step 3 plays plainly, as the key comes down after it");
+    let n = h.now;
+    let ev = h.run(2 * STEP, 128, &[(n, cmd(CMD_PLAY, 0, 0, 0)), (n + 100, play())]);
+    assert_eq!(trigs(&ev), [(384, 2, 0), (432, 2, 0), (480, 2, 0)]);
 }
 
 #[test]

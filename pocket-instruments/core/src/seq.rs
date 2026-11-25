@@ -13,6 +13,8 @@ pub const FX_MAX: u8 = 16;
 /// §17: what the sequencer is told about the fx key each tick: fx is not held, so nothing is
 /// written. Otherwise the value is what an arriving step takes: the punch, or 0.
 pub const NO_WRITE: u8 = 0xFF;
+/// `Seq::down` while no step is being played (Session 30).
+const NO_DOWN: u8 = 0xFF;
 
 /// §17's table: effects 9 to 12 re-fire a step every this many ticks. 0: not a repeat.
 #[inline]
@@ -24,30 +26,6 @@ pub const fn repeat_period(effect: u8) -> u32 {
         12 => 64,
         _ => 0,
     }
-}
-
-/// §17, designed 2026-11-24 (ABI 12; D90 item 1, D91): the step a run repeats. From `cur`
-/// back to step 1, then from the pattern's last step down to `cur + 1`, the first step on
-/// which any sound in the effects is on, by the pattern (whatever its probability, whether or
-/// not it has played). None anywhere in the length: `cur`, as before. Looked for once, when a
-/// run begins; never inlined into the tick, which pays only at a run's start.
-#[inline(never)]
-fn held_step(cur: u8, pat: &Pattern) -> u8 {
-    let mut any = 0u16;
-    for (track, on) in pat.on.iter().enumerate() {
-        if pat.fx_sounds >> track & 1 == 1 {
-            any |= *on;
-        }
-    }
-    let length = pat.length.clamp(1, STEPS as u8);
-    let mut s = cur;
-    for _ in 0..length {
-        if any >> (s & 15) & 1 == 1 {
-            return s;
-        }
-        s = if s == 0 { length - 1 } else { s - 1 };
-    }
-    cur
 }
 
 /// §17, designed 2026-11-24 (ABI 13; D93): effect 13, "note shuffle".
@@ -159,6 +137,12 @@ pub struct Seq {
     /// the step it began on and the tick.
     period: u32,
     run_step: u8,
+    /// §17, Session 30 (D95 item 1, the owner: "as close as possible to the PO"): the last
+    /// `write` seen, and the step that was playing when it changed, `NO_DOWN` until a step has
+    /// arrived since play or reset. A run begun by a punch still held repeats `down`: the
+    /// step the key came down on, not the step after it, which the lane takes.
+    wrote: u8,
+    down: u8,
     run_tick: u32,
     /// §16: steps woven since play began, or since a reset while playing (D84). Held when
     /// stopped. The view's bytes 48 to 51. Not saved: the moment's.
@@ -169,7 +153,7 @@ pub struct Seq {
 
 impl Seq {
     pub const fn new() -> Self {
-        Seq { playing: false, fresh: false, pending: false, cur: 0, offset: 0, eff: 0, last: 0, period: 0, run_step: 0, run_tick: 0, woven: 0, wove: 0 }
+        Seq { playing: false, fresh: false, pending: false, cur: 0, offset: 0, eff: 0, last: 0, period: 0, run_step: 0, run_tick: 0, wrote: NO_WRITE, down: NO_DOWN, woven: 0, wove: 0 }
     }
 
     /// §16: how many steps the cloth holds, and which of the last sixteen had a sound set.
@@ -184,6 +168,8 @@ impl Seq {
         self.last = 0;
         self.eff = 0;
         self.period = 0;
+        self.wrote = NO_WRITE;
+        self.down = NO_DOWN;
     }
 
     pub fn play(&mut self, on: bool) {
@@ -239,6 +225,13 @@ impl Seq {
         let g = k / TICKS_PER_STEP;
         let t = (k % TICKS_PER_STEP) as u8;
 
+        // §17, Session 30: where a punch came down. Before a step has arrived since play or
+        // reset no step is being played, and a run there begins on its own step.
+        if t != 0 && write != self.wrote {
+            self.wrote = write;
+            self.down = if self.fresh { NO_DOWN } else { self.cur };
+        }
+
         if t == 0 {
             if self.fresh {
                 self.cur = 0;
@@ -259,6 +252,12 @@ impl Seq {
             self.woven = self.woven.wrapping_add(1);
             self.wove = self.wove << 1 | (set >> (self.cur & 15) & 1);
 
+            // A punch landing on this boundary's frame came down on the step arriving.
+            if write != self.wrote {
+                self.wrote = write;
+                self.down = self.cur;
+            }
+
             // §17: the lane is written by the steps that arrive, then read.
             let cur = (self.cur & 15) as usize;
             if write != NO_WRITE && pat.fx[cur] != write {
@@ -269,7 +268,11 @@ impl Seq {
             if self.eff != self.last {
                 self.period = repeat_period(self.eff);
                 if self.period != 0 {
-                    self.run_step = held_step(self.cur, pat);
+                    // §17, Session 30 (D95 item 1, the hardware's rule): a run repeats the step
+                    // the key came down on, so an empty step repeats as silence. Begun from the
+                    // lane, with no punch held, it repeats its own first step, as built in
+                    // Session 16. A new repeat is a new run, from its own key's step.
+                    self.run_step = if write == self.eff && self.down != NO_DOWN { self.down } else { self.cur };
                     self.run_tick = k;
                 }
                 self.last = self.eff;
