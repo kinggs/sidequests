@@ -688,6 +688,17 @@ impl Bus {
         x + fb
     }
 
+    /// §18's mix while an effect runs, before the volume: `rest + bus + w × (wet − bus)`, the
+    /// one place it is written (Session 42; D105 item 4), for `mix` and `looped` alike. The
+    /// wet is effect 14's loop or `wet`'s (effect 4's echo is there); `outside` is what an
+    /// effect of the host's gives (`wet`): the bus itself where nothing ducks it, silence for
+    /// an insert in a loop layout.
+    #[inline(always)]
+    fn dry(&mut self, rest: f32, bus: f32, outside: f32) -> f32 {
+        let wet = if self.on == FEEDBACK { self.feedback(bus) } else { self.wet(bus, outside) };
+        rest + bus + self.w * (wet - bus)
+    }
+
     /// The frame's `rest` and `bus` (§18), from its `Sum` over `v` and the tracks `mask` names
     /// (every other +0): with every sound in the effects (the default) `rest` is +0 and `bus`
     /// fact (c), with no further addition; otherwise `split`. Session 36 (Codex's), `make
@@ -697,16 +708,15 @@ impl Bus {
         if fx_sounds == u16::MAX { (0.0, sum.bus_all()) } else { Sum::split(v, mask, fx_sounds) }
     }
 
-    /// §18's mix while an effect runs: `(rest + bus + w (wet - bus)) × gain`, each sum in
-    /// track order. `sum` is the frame's over `v`, `mask` the tracks it may not be +0 in. Out
-    /// of line, as `frame` is.
+    /// §18's mix while an effect runs, times the volume: `dry × gain`, each sum in track
+    /// order. `sum` is the frame's over `v`, `mask` the tracks it may not be +0 in. Out of
+    /// line, as `frame` is.
     #[inline(never)]
     pub fn mix(&mut self, v: &[f32; TRACKS], sum: Sum, mask: u16, fx_sounds: u16, gain: f32) -> f32 {
         let (rest, bus) = Bus::sums(v, sum, mask, fx_sounds);
         // No loop in this layout, so an insert still ramping out (its host's cables pulled)
         // ducks nothing: the bus as it is (§19, designed 2026-11-24).
-        let wet = if self.on == FEEDBACK { self.feedback(bus) } else { self.wet(bus, bus) };
-        (rest + bus + self.w * (wet - bus)) * gain
+        self.dry(rest, bus, bus) * gain
     }
 
     /// §19: one frame of a loop layout, read and written in place. In: channels 0 to 15, of
@@ -755,8 +765,7 @@ impl Bus {
             sum.plain()
         } else {
             // An insert's sound is silence: §18's ramp takes the bus out, and back in after.
-            let wet = if self.on == FEEDBACK { self.feedback(bus) } else { self.wet(bus, 0.0) };
-            rest + bus + self.w * (wet - bus)
+            self.dry(rest, bus, 0.0)
         };
         let back = clean(io[TRACKS + 1]);
         let mix = if back == 0.0 { dry * gain } else { (dry + back) * gain };
