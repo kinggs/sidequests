@@ -293,6 +293,12 @@ build session hold. ABI 15.
       credits on `web/rhythm.html` and in `rack/plugin.json` name what is in the code: the
       stmlib filter stays (its notice too); Plaits' sample-rate reducer and stmlib's soft
       clip go. `bus.rs`'s header says the same.
+- [ ] **Three tests Session 32's review asked for** (checked against the code, Fable):
+      `mu` never passes 1 across a rate change (today's rate-change test uses the code's
+      own formula in its model, so it approves the overshoot: its model is written from
+      the ruling above first); a rate change while some sounds are slowed still retunes
+      the ones that are not (today's test slows all sixteen); a sample sounding when 1
+      comes on and when it goes off (no tour loads one). A fault planted for each.
 - [ ] ⚠ **The `.wasm` is 802 bytes under P1's 50 KB bar.** Do not move the bar. If this
       session's code passes it, stop on that: say by how much in the Handover, keep the
       core change, and leave `web/pi_core.wasm` as the old one ⚠.
