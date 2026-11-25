@@ -252,6 +252,82 @@ pub struct Bus {
     pub to: [f32; TRACKS],
 }
 
+/// The frame's sums over the sixteen values it emits, skipping the tracks a mask leaves out
+/// (Session 42; D105 item 3). The one place the arithmetic of zeros is written. Skipping an
+/// addition is right only because of three facts about +0 and −0 ("zero" is `to_bits() == 0`:
+/// a voice does give −0, the clap the frame after its hit), when every track out of `mask` is
+/// exactly +0:
+///
+/// - (a) the plain sum `v[0] + v[1] + … + v[15]` (§13's mix) is the masked additions in track
+///   order from −0 if `mask` is all sixteen, else from +0 (`start`, `add`, `plain`). From −0,
+///   since −0 + x is x for every x, −0 too; from +0 otherwise, since a +0 left out would have
+///   turned a sum of −0s into +0.
+/// - (b) a sum from +0 (§18's `bus` and `rest`) is the masked additions from +0, whatever the
+///   mask (`split`).
+/// - (c) with every sound in the effects, `bus` is (a) `+ 0.0` and `rest` is +0 (`bus_all`).
+///
+/// A mask too large is always safe: it adds a +0 the plain loop adds too. A group left out is
+/// left out of the mask, never subtotalled: one order of addition, track 0 to 15 (`−2²⁴, …,
+/// 2²⁴, 1` is 1 in order and 0 by groups). Checked by brute force before it was written down
+/// (D105 item 3) and held to the plain loops by `tests/sum.rs`.
+#[derive(Clone, Copy)]
+#[cfg_attr(not(test), allow(dead_code))] // until Session 42's next step uses it
+pub struct Sum(f32);
+
+#[cfg_attr(not(test), allow(dead_code))]
+impl Sum {
+    /// Fact (a)'s start: −0 if `mask` is all sixteen, else +0.
+    #[inline(always)]
+    pub fn start(mask: u16) -> Sum {
+        Sum(if mask == u16::MAX { -0.0 } else { 0.0 })
+    }
+
+    /// The next masked track's value, in track order.
+    #[inline(always)]
+    pub fn add(&mut self, y: f32) {
+        self.0 += y;
+    }
+
+    /// `start(mask)` and every track `mask` names added, lowest first.
+    #[inline(always)]
+    pub fn over(v: &[f32; TRACKS], mask: u16) -> Sum {
+        let mut sum = Sum::start(mask);
+        let mut left = mask;
+        while left != 0 {
+            sum.add(v[left.trailing_zeros() as usize]);
+            left &= left - 1;
+        }
+        sum
+    }
+
+    /// Fact (a): the plain sum of the sixteen.
+    #[inline(always)]
+    pub fn plain(self) -> f32 {
+        self.0
+    }
+
+    /// Fact (c): `bus` with every sound in the effects, the sixteen summed from +0.
+    #[inline(always)]
+    pub fn bus_all(self) -> f32 {
+        self.0 + 0.0
+    }
+
+    /// Fact (b): `(rest, bus)`, the sounds out of the effects and in them, each summed from +0
+    /// in track order, by two walks of `mask`'s set bits.
+    #[inline(always)]
+    pub fn split(v: &[f32; TRACKS], mask: u16, fx_sounds: u16) -> (f32, f32) {
+        let walk = |mut left: u16| {
+            let mut sum = 0.0f32;
+            while left != 0 {
+                sum += v[left.trailing_zeros() as usize];
+                left &= left - 1;
+            }
+            sum
+        };
+        (walk(mask & !fx_sounds), walk(mask & fx_sounds))
+    }
+}
+
 /// A slider in the middle, where `pi_init` puts every one: 32768 of 65535.
 const MIDDLE: f32 = 32_768.0 / 65_535.0;
 

@@ -14,6 +14,7 @@ mod samples;
 mod quiet;
 mod snapshot;
 mod sound;
+mod sum;
 mod tour;
 mod weave;
 
