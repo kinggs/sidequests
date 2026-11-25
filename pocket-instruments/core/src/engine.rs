@@ -341,6 +341,7 @@ impl Engine {
 impl Engine {
     /// §19's addition: a sound not yet hit shows its own A and B on the slider outputs, so
     /// they follow whatever sets them: `SOUND` (and so a slider), and a load.
+    #[inline(never)]
     pub(crate) fn own_out(&mut self, t: usize) {
         if self.hit_any >> t & 1 == 0 {
             self.bus.outs[t] = slider_out(self.voices.params[t][0]);

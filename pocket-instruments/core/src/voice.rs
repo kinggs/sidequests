@@ -174,6 +174,7 @@ impl Svf {
 
     /// `millihertz` is held below 0.45 of the rate, where the tangent stays finite. `k` is
     /// the damping, 1 / Q.
+    #[inline(never)]
     fn tune(&mut self, millihertz: u64, k: f32, rate: u32) {
         let top = rate.max(1) as u64 * 450;
         // Half the phase step is a turn's fraction for pi fc / rate. A quarter turn on is
@@ -224,6 +225,7 @@ impl Click {
 
     /// Slider A is pitch, 500 Hz to 2 kHz. Slider B is length, 5 to 40 ms, the time the
     /// click takes to fall 60 dB.
+    #[inline(never)]
     fn tune(&mut self, rate: u32) {
         let [a, b] = self.ab;
         self.inc = inc(span(500_000, 2_000_000, a), rate);
@@ -302,6 +304,7 @@ impl Kick {
     }
 
     /// Slider A is the base pitch, 40 to 90 Hz. Slider B is length, 100 to 600 ms to fall 60 dB.
+    #[inline(never)]
     fn tune(&mut self, rate: u32) {
         let [a, b] = self.ab;
         self.base = inc(span(40_000, 90_000, a), rate) as f32;
@@ -396,6 +399,7 @@ impl Snare {
 
     /// Slider A is the body's pitch, its lower sine from 130 to 230 Hz (180 at the middle).
     /// Slider B is the noise's length, 50 to 250 ms to fall 60 dB.
+    #[inline(never)]
     fn tune(&mut self, rate: u32) {
         let [a, b] = self.ab;
         let low = span(130_000, 230_000, a);
@@ -518,6 +522,7 @@ impl Hat {
     }
 
     /// Slider A is the filter's corner. Slider B is the length, to fall 60 dB.
+    #[inline(never)]
     fn tune(&mut self, rate: u32) {
         let [a, b] = self.ab;
         let spec = self.spec();
@@ -593,6 +598,7 @@ impl SynthSnare {
 
     /// Slider A is the pitch, 200 to 460 Hz (330 at the middle). Slider B is the length, 20 to
     /// 150 ms for the body to fall 60 dB; the noise takes a third of that.
+    #[inline(never)]
     fn tune(&mut self, rate: u32) {
         let [a, b] = self.ab;
         let length = span(20_000, 150_000, b);
@@ -676,6 +682,7 @@ impl Sticks {
 
     /// Slider A is the pitch, 500 Hz to 1 kHz (750 at the middle). Slider B is the length, 10
     /// to 40 ms to fall 60 dB.
+    #[inline(never)]
     fn tune(&mut self, rate: u32) {
         let [a, b] = self.ab;
         self.inc = inc(span(500_000, 1_000_000, a), rate);
@@ -738,6 +745,7 @@ impl Wash {
 
     /// Slider A is the low-pass's corner, 500 Hz to 8.5 kHz (4.5 kHz at the middle). Slider B
     /// is the length, 50 to 600 ms to fall 60 dB.
+    #[inline(never)]
     fn tune(&mut self, rate: u32) {
         let [a, b] = self.ab;
         self.k = fall_60db(span(50_000, 600_000, b), rate);
@@ -808,6 +816,7 @@ impl Clap {
     /// Slider A is the band, 1 to 3 kHz (2 kHz at the middle). Slider B is the tail, 50 to
     /// 300 ms to fall 60 dB. The time since the trigger keeps its length in seconds across a
     /// rate change, so the bursts stay 10 ms apart.
+    #[inline(never)]
     fn tune(&mut self, rate: u32) {
         let [a, b] = self.ab;
         if self.t != u32::MAX {
@@ -900,6 +909,7 @@ impl Tom {
 
     /// Slider A is the base pitch. Slider B is the length, to fall 60 dB. The ranges, in
     /// thousandths of a hertz and in microseconds, are `low`'s and `high`'s.
+    #[inline(never)]
     fn tune(&mut self, rate: u32) {
         let [a, b] = self.ab;
         let (pitch, length_us) = if self.high {
@@ -974,6 +984,7 @@ impl Cowbell {
 
     /// Slider A is the pitch of both, the lower 400 to 680 Hz (540 at the middle). Slider B is
     /// the length, 30 to 300 ms to fall 60 dB.
+    #[inline(never)]
     fn tune(&mut self, rate: u32) {
         let [a, b] = self.ab;
         let low = span(400_000, 680_000, a);
@@ -1037,6 +1048,7 @@ impl Blip {
 
     /// Slider A is the starting pitch, 1 to 3 kHz (2 kHz at the middle). Slider B is the
     /// length, 20 to 100 ms to fall 60 dB.
+    #[inline(never)]
     fn tune(&mut self, rate: u32) {
         let [a, b] = self.ab;
         self.base = inc(span(1_000_000, 3_000_000, a), rate) as f32;
@@ -1107,6 +1119,7 @@ impl Tone {
     }
 
     /// Slider A is the note. Slider B is the length, 50 to 500 ms to fall 60 dB.
+    #[inline(never)]
     fn tune(&mut self, rate: u32) {
         let [a, b] = self.ab;
         self.inc = inc(note(a, 0), rate);
@@ -1162,6 +1175,7 @@ impl Bass {
     }
 
     /// Slider A is the note. Slider B is the length, 50 to 500 ms to fall 60 dB.
+    #[inline(never)]
     fn tune(&mut self, rate: u32) {
         let [a, b] = self.ab;
         let pitch = note(a, 2);
@@ -1274,6 +1288,7 @@ impl Sample {
         self.active
     }
 
+    #[inline(never)]
     fn tune(&mut self, rate: u32) {
         let rate = rate.max(1);
         let [a, b] = self.ab;

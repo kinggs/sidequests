@@ -103,6 +103,10 @@ impl Engine {
         self.apply(&Cmd { frame: 0, kind, a: a as u8, b: b as u8, slot: 0, value }, out);
     }
 
+    /// Out of line, as are `key_up`, `param`, `own_out`, `Clock::edge` and every `tune`
+    /// (Session 42; D105 item 5, D107 item 2): each is cold, and inlined into `apply` they
+    /// made the `.wasm` 3.9 KB larger (Session 41's reading).
+    #[inline(never)]
     pub(crate) fn key_down(&mut self, key: usize, out: &mut Out) {
         if key >= KEYS || self.keys.down(key) {
             return; // not a key, or a keyboard repeating one already down
@@ -177,20 +181,29 @@ impl Engine {
     /// Function + pattern. Every step off, every probability back to 100 ⚠, the lane
     /// emptied (§17), and every step's kept values forgotten (§20). Length, swing, tempo,
     /// sliders, volume and the sounds' fx switches stay.
+    /// Session 42 (D105 item 5, D107 item 2; Antigravity's): written as loops, so the compiler
+    /// does not unroll sixteen sixteen-wide comparisons; out of line, as a key's press is cold.
+    #[inline(never)]
     fn clear(&mut self) {
-        let mut changed = self.pat.keep != [0; TRACKS];
-        self.pat.keep = [0; TRACKS];
-        self.pat.kept = [[[0; 2]; STEPS]; TRACKS];
+        let mut changed = false;
         for t in 0..TRACKS {
-            changed |= self.pat.on[t] != 0 || self.pat.prob[t] != [100; STEPS];
+            changed |= self.pat.keep[t] != 0 || self.pat.on[t] != 0;
+            self.pat.keep[t] = 0;
             self.pat.on[t] = 0;
-            self.pat.prob[t] = [100; STEPS];
+            for s in 0..STEPS {
+                changed |= self.pat.prob[t][s] != 100;
+                self.pat.prob[t][s] = 100;
+                self.pat.kept[t][s] = [0; 2];
+            }
         }
-        changed |= self.pat.fx != [0; STEPS];
-        self.pat.fx = [0; STEPS];
+        for s in 0..STEPS {
+            changed |= self.pat.fx[s] != 0;
+            self.pat.fx[s] = 0;
+        }
         self.saved_if(changed);
     }
 
+    #[inline(never)]
     pub(crate) fn key_up(&mut self, key: usize, out: &mut Out) {
         if key >= KEYS || !self.keys.down(key) {
             return;
@@ -218,6 +231,7 @@ impl Engine {
         }
     }
 
+    #[inline(never)]
     pub(crate) fn param(&mut self, slider: usize, value: u32, out: &mut Out) {
         if slider > 1 {
             return;

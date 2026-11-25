@@ -135,6 +135,7 @@ impl Clock {
     /// `CLOCK`: one edge, one step (`SOURCE` 1) or one beat (`SOURCE` 2, ABI 15). Finishes
     /// the old step or beat, then emits tick 0 of the new one. `rate` is the engine's, for the
     /// first beat's guess when nothing has been measured (§4, designed 2026-11-25).
+    #[inline(never)]
     pub fn edge(&mut self, rate: u32, sink: &mut impl FnMut(u32)) {
         if self.source == SOURCE_TABLE {
             return;
