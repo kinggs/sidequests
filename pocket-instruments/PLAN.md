@@ -551,4 +551,6 @@ The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
   at the front). Sound effects unchanged. O25 item 1 is answered. 276 tests; four faults
   caught by name; only `fx-repeat-punch` moved (worked again by hand first), no render file;
   `make test`, `make play`, `make selftest`, `make pairs` (inside the old spread), `make
-  verify`; `make install` ran: **restart Rack.**
+  verify`; `make install` ran: **restart Rack.** **Heard by the owner the same day: consistent**
+  (a press that repeats live repeats on every playback; a mistimed press mutes, as the
+  PO-12's rule does).

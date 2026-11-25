@@ -1902,6 +1902,10 @@ owner chose this, as recommended.
    effect, so its replay of a repeat may be silent as ours was. Undo if a take shows it.
 4. Nothing is recorded for a punch seen before any step has arrived since play or reset.
 
+**Heard by the owner, 2026-11-25:** consistent; when the first press repeats, every playback
+repeats too. "Finicky to test, since miss-timing just mutes things": the hardware's rule
+(D95 item 1), kept; the owner lives with it for now.
+
 ## Open
 
 | ID | Question | Needs |
