@@ -232,6 +232,24 @@ From a snapshot, the lane and the sounds' switches set at step 0 come from the s
 
 ### `fx-repeat-punch`, worked by hand
 
+**Worked again by hand in Session 30, by decision (D95 item 1; the owner, in the session: "track
+as close as possible to the PO"), not by a build.** A run begun by a punch still held now
+repeats the step the key came down on, not the step after it, which the lane takes. Before
+the code changed, the first pass was worked again and committed on its own:
+
+- **The run** from 480 repeats pattern step 4 (the trace's 4, sound 1), where the key came
+  down: `trig 0 4` at 480, 528, 576, 624, 672 and 720 in place of the six `trig 2 5`. Sound
+  3's own step 5 is silent under the run (it is in the effects). At 576 sound 1 comes before
+  sound 2: rising track order.
+- **The replay is no longer the performance** ⚠. The second and third passes play the lane
+  with no key down, so their runs repeat the lane's first step, 5 (sound 3), as Session 15
+  worked them: unchanged lines. Live, the hand hears sound 1; replayed, sound 3. Which the
+  PO-12 does on a replay is not measured.
+- **Counts:** sound 1 2 + 6 a first pass, then 2 a pass: 12. Sound 2: 3. Sound 3: 0, 2, 2: 4.
+  43 lines, as before. Views: `fires=2,0,0`, `8,1,0`, `10,2,2`, `12,3,4`; nothing else.
+
+What follows is Session 15's working; its first pass's run is the line above's "was".
+
 Written from `ENGINE.md` §17 with no engine and no model: every tick, mask and count was
 typed in. Length 8, so a pass is 768 ticks. A key lands a frame after its step's tick 0.
 

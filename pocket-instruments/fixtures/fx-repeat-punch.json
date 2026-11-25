@@ -1,7 +1,7 @@
 {
   "format": 3,
   "name": "fx-repeat-punch",
-  "about": "Designed in Session 15 and worked by hand before any code (ENGINE.md section 17). A pattern of eight steps at 120 bpm: sound 1 on steps 1 and 5, sound 3 on step 6, sound 2 on step 7, and sound 2 taken out of the effects. In the first pass fx and key 11 (the repeat at eight a beat, every 48 ticks) go down a frame after step 5 begins: nothing is written to that step and the sequencer has already read it, so step 5 plays as written. Steps 6, 7 and 8 arrive with the punch held: each takes effect 11, and the run begins on step 6, so sound 3's hit on step 6 is fired every 48 ticks for three steps, carrying step 6's number (the trace's step 5). Sound 2 is outside the effects and plays its own step 7 in the middle of the run, before sound 3 in the same tick. Both keys go up a frame after step 8 begins: that step already holds the effect and finishes its two hits. The second pass replays the lane exactly, until fx alone goes down during step 6: steps 7 and 8 arrive with fx held and nothing punched and are emptied, so the run is one step long and sound 2 plays alone. The third pass has the effect on step 6 only.",
+  "about": "Designed in Session 15 and worked by hand before any code (ENGINE.md section 17). A pattern of eight steps at 120 bpm: sound 1 on steps 1 and 5, sound 3 on step 6, sound 2 on step 7, and sound 2 taken out of the effects. In the first pass fx and key 11 (the repeat at eight a beat, every 48 ticks) go down a frame after step 5 begins: nothing is written to that step and the sequencer has already read it, so step 5 plays as written. Steps 6, 7 and 8 arrive with the punch held: each takes effect 11, and the run begins on step 6. Since Session 30 (D95 item 1, worked again by hand) it repeats the step the key came down on, step 5: sound 1's hit is fired every 48 ticks for three steps, carrying step 5's number (the trace's step 4), and sound 3's own step 6 is silent under the run. Sound 2 is outside the effects and plays its own step 7 in the middle of the run, after sound 1 in the same tick. Both keys go up a frame after step 8 begins: that step already holds the effect and finishes its two hits. The second pass replays the lane with no key down, so its run repeats the lane's own first step, step 6 (sound 3), as Session 15 worked it, until fx alone goes down during step 6: steps 7 and 8 arrive with fx held and nothing punched and are emptied, so the run is one step long and sound 2 plays alone. The third pass has the effect on step 6 only.",
   "ticks_per_step": 96,
   "seed": 1,
   "mbpm": 120000,
@@ -30,15 +30,15 @@
     "384 step 4",
     "384 trig 0 4",
     "480 step 5",
-    "480 trig 2 5",
-    "528 trig 2 5",
+    "480 trig 0 4",
+    "528 trig 0 4",
     "576 step 6",
+    "576 trig 0 4",
     "576 trig 1 6",
-    "576 trig 2 5",
-    "624 trig 2 5",
+    "624 trig 0 4",
     "672 step 7",
-    "672 trig 2 5",
-    "720 trig 2 5",
+    "672 trig 0 4",
+    "720 trig 0 4",
     "768 step 0",
     "768 trig 0 0",
     "864 step 1",
@@ -68,8 +68,8 @@
   ],
   "views": [
     {"at": 4, "view": "view play=1 write=0 edges=0 sounds=1 step=4 sel=0 vol=16 tempo=120000 len=8 swing=0 held=100400 field=0011 stitch=0000 bar=0000 sampled=0000 a=32768 b=32768 fires=2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 fx=11 fxsteps=0000 fxsounds=fffd"},
-    {"at": 7, "view": "view play=1 write=0 edges=0 sounds=1 step=7 sel=0 vol=16 tempo=120000 len=8 swing=0 held=000000 field=0011 stitch=0000 bar=0000 sampled=0000 a=32768 b=32768 fires=2,1,6,0,0,0,0,0,0,0,0,0,0,0,0,0 fx=11 fxsteps=00e0 fxsounds=fffd"},
-    {"at": 14, "view": "view play=1 write=0 edges=0 sounds=1 step=6 sel=0 vol=16 tempo=120000 len=8 swing=0 held=100000 field=0011 stitch=0000 bar=0000 sampled=0000 a=32768 b=32768 fires=4,2,8,0,0,0,0,0,0,0,0,0,0,0,0,0 fx=0 fxsteps=00a0 fxsounds=fffd"},
-    {"at": 23, "view": "view play=1 write=0 edges=0 sounds=1 step=7 sel=0 vol=16 tempo=120000 len=8 swing=0 held=000000 field=0011 stitch=0000 bar=0000 sampled=0000 a=32768 b=32768 fires=6,3,10,0,0,0,0,0,0,0,0,0,0,0,0,0 fx=0 fxsteps=0020 fxsounds=fffd"}
+    {"at": 7, "view": "view play=1 write=0 edges=0 sounds=1 step=7 sel=0 vol=16 tempo=120000 len=8 swing=0 held=000000 field=0011 stitch=0000 bar=0000 sampled=0000 a=32768 b=32768 fires=8,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0 fx=11 fxsteps=00e0 fxsounds=fffd"},
+    {"at": 14, "view": "view play=1 write=0 edges=0 sounds=1 step=6 sel=0 vol=16 tempo=120000 len=8 swing=0 held=100000 field=0011 stitch=0000 bar=0000 sampled=0000 a=32768 b=32768 fires=10,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0 fx=0 fxsteps=00a0 fxsounds=fffd"},
+    {"at": 23, "view": "view play=1 write=0 edges=0 sounds=1 step=7 sel=0 vol=16 tempo=120000 len=8 swing=0 held=000000 field=0011 stitch=0000 bar=0000 sampled=0000 a=32768 b=32768 fires=12,3,4,0,0,0,0,0,0,0,0,0,0,0,0,0 fx=0 fxsteps=0020 fxsounds=fffd"}
   ]
 }
