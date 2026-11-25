@@ -267,3 +267,21 @@ fn ext_is_left_out_of_the_text_and_the_tempo_stays_the_stored_one() {
     z[31] = 0;
     assert_eq!(view_text(&v), view_text(&z), "the text leaves bytes 30 and 31 out");
 }
+
+#[test]
+fn on_beats_the_play_key_sends_play_alone_as_on_edges() {
+    // ⚠ Session 34's reading (§13: "on edges, `PLAY 1` alone (step 1 at the next edge)"; the
+    // design does not name `SOURCE` 2). Edges a beat at 0 and 24 000, stopped; play pressed at
+    // 31 000 (mid-step, mid-beat): no reset, so the clock keeps its count and its period, and the
+    // pattern starts at the next step boundary the edges bring: tick 576 at 36 000. (First
+    // written with the press at 30 000, which is step 5's own frame: a command lands before
+    // the frame's ticks, so the pattern started there. The test was wrong, not the core.)
+    let mut c = edges_from_a_reset(120_000, BEATS, &[0, 24_000]);
+    c.retain(|(_, x)| x.kind != CMD_PLAY);
+    c.push((31_000, cmd(CMD_KEY_DOWN, 21, 0, 0)));
+    c.push((31_001, cmd(CMD_KEY_UP, 21, 0, 0)));
+    c.sort_by_key(|x| x.0);
+    let mut h = Host::new(SR, 1);
+    let ev = h.run(36_001, 128, &c);
+    assert_eq!(steps(&ev), [(36_000, 576, 0)]);
+}

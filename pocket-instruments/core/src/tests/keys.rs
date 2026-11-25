@@ -884,6 +884,8 @@ fn the_view_follows_edits_as_well_as_keys() {
     let v = V::of(&h);
     assert_eq!((v.tempo(), v.length(), v.swing(), v.sampled(), v.a(), v.b()), (97_500, 12, 33, 1 << 3 | 1 << 15, 77, 88));
     assert!(v.edges());
+    // Since ABI 15, 30 and 31 are `ext` (§14, designed 2026-11-25; tests/clock.rs): 0 here, on
+    // edges with no edge yet, so nothing measured. (Until Session 34 held to zero always.)
     assert_eq!(v.0[30..32], [0, 0]);
     // Session 16: 55 to 59 are §17's (held in tests/fx.rs). Since Session 21, 60 to 63 are
     // §20's: no hit yet, so the chosen sound's own, set by edit. Since Session 14, 48 to 54

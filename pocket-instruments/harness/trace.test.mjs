@@ -206,7 +206,7 @@ const hex = (bytes) => Array.from(bytes, (b) => b.toString(16).padStart(2, "0"))
 test("the module imports nothing and its memory grows by a page for the host", { skip }, () => {
   const m = load();
   assert.deepEqual(m.imports, [], "no imports: no glue to write");
-  assert.equal(m.pi.pi_abi_version(), 14); // ABI 14: effect 1 the voices slowed (D98)
+  assert.equal(m.pi.pi_abi_version(), 15); // ABI 15: one edge a beat and the view's ext (D100)
   assert.equal(m.pi.memory.buffer.byteLength, m.base + PAGE);
   // Memory the module was not given is refused, not written.
   assert.equal(m.pi.pi_init(0, m.pi.pi_size(), 48000, 1), 0, "null");

@@ -217,9 +217,9 @@ impl Engine {
         let (a, b, v) = (c.a as usize, c.b as usize, c.value);
         let changed = match c.kind {
             CMD_CLOCK => {
-                let Engine { clock, seq, pat, rng, generation, keys, .. } = self;
+                let Engine { clock, seq, pat, rng, generation, keys, sample_rate, .. } = self;
                 let write = keys.lane_write;
-                clock.edge(&mut |k| {
+                clock.edge(*sample_rate, &mut |k| {
                     out.ticks += 1;
                     if seq.tick(k, pat, rng, out, write) {
                         *generation = generation.wrapping_add(1);

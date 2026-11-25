@@ -247,6 +247,8 @@ struct Other {
     // heard, 0 to 16 (§17). Since ABI 10, 48 to 54 are the weave's (§16): a cloth of fewer
     // than sixteen steps has no step older than its first, at most sixteen tracks have fired
     // on a step, and none unless a step has arrived since play.
+    // Since ABI 15, 30 and 31 are `ext` (§14, designed 2026-11-25): zero on the table, the
+    // only source this harness runs. (Until Session 34 they were held to zero always.)
     // (Until Session 16 all of 48 to 63 were zero; until Session 21, 60 to 63, which are now
     // §20's second mark, any two u16s; until Session 14, 48 to 54.)
     void look() {
@@ -257,7 +259,8 @@ struct Other {
         uint32_t held = uint32_t(b[PI_VIEW_HELD]) | uint32_t(b[PI_VIEW_HELD + 1]) << 8 | uint32_t(b[PI_VIEW_HELD + 2]) << 16 | uint32_t(b[PI_VIEW_HELD + 3]) << 24;
         unsigned field = b[PI_VIEW_FIELD] | b[PI_VIEW_FIELD + 1] << 8, bar = b[PI_VIEW_BAR] | b[PI_VIEW_BAR + 1] << 8;
         unsigned volume = b[PI_VIEW_VOLUME];
-        bool ok = volume >= 1 && volume <= PI_VOLUME_MAX && b[PI_VIEW_SEL] < PI_TRACKS && held >> 23 == 0 && b[30] == 0 && b[31] == 0
+        bool ok = volume >= 1 && volume <= PI_VOLUME_MAX && b[PI_VIEW_SEL] < PI_TRACKS && held >> 23 == 0
+               && ((b[PI_VIEW_FLAGS] & PI_VIEW_FLAG_EDGES) || (b[PI_VIEW_EXT] == 0 && b[PI_VIEW_EXT + 1] == 0))
                && (bar & (bar - 1)) == 0 && b[PI_VIEW_LENGTH] >= 1 && b[PI_VIEW_LENGTH] <= PI_STEPS && b[PI_VIEW_SWING] <= PI_SWING_MAX;
         uint32_t woven = uint32_t(b[PI_VIEW_WOVEN]) | uint32_t(b[PI_VIEW_WOVEN + 1]) << 8 | uint32_t(b[PI_VIEW_WOVEN + 2]) << 16 | uint32_t(b[PI_VIEW_WOVEN + 3]) << 24;
         unsigned wove = b[PI_VIEW_WOVE] | b[PI_VIEW_WOVE + 1] << 8;

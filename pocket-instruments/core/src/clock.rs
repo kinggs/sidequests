@@ -7,6 +7,10 @@ pub const MBPM_DEFAULT: u32 = 120_000;
 
 pub const SOURCE_TABLE: u8 = 0;
 pub const SOURCE_EDGES: u8 = 1;
+/// §4, designed 2026-11-25 (ABI 15; D100): one edge a beat, four steps.
+pub const SOURCE_BEATS: u8 = 2;
+/// The ticks an edge stands for, `span`, by the source: a step, or a beat.
+pub const TICKS_PER_BEAT: u32 = 4 * TICKS_PER_STEP;
 
 pub struct Clock {
     /// `acc`: what is left of a tick on the table clock, in units of `1 / thr` of a tick.
@@ -18,9 +22,14 @@ pub struct Clock {
     period: u32,
     /// Frames since the last edge. Saturates.
     since: u32,
+    /// §4, designed 2026-11-25 (ABI 15): the last period measured since this source was
+    /// chosen, with one edge a beat; 0 for none. The first beat after a reset runs at it.
+    guess: u32,
     source: u8,
     primed: bool,
     have_edge: bool,
+    /// §14, designed 2026-11-25: `period` was measured between two edges, not guessed.
+    measured: bool,
 }
 
 impl Clock {
@@ -31,9 +40,11 @@ impl Clock {
             mbpm: MBPM_DEFAULT,
             period: 0,
             since: 0,
+            guess: 0,
             source: SOURCE_TABLE,
             primed: false,
             have_edge: false,
+            measured: false,
         }
     }
 
@@ -44,13 +55,13 @@ impl Clock {
         sink(k);
     }
 
-    /// One frame, after that frame's commands. `thr` is `625 * sample_rate`.
-    #[inline]
     /// The tick most lately emitted; 0 before any.
+    #[inline]
     pub fn now(&self) -> u32 {
         self.e.saturating_sub(1)
     }
 
+    /// One frame, after that frame's commands. `thr` is `625 * sample_rate`.
     pub fn frame(&mut self, thr: u64, sink: &mut impl FnMut(u32)) {
         if self.source == SOURCE_TABLE {
             if !self.primed {
@@ -65,38 +76,80 @@ impl Clock {
             }
         } else {
             if self.period != 0 {
-                let reached = self.since as u64 * TICKS_PER_STEP as u64 / self.period as u64;
-                let want = if reached > 95 { 95 } else { reached as u32 };
-                while self.e.wrapping_sub(1) % TICKS_PER_STEP < want {
-                    self.tick(sink);
+                // §4, designed 2026-11-25: one rule for both edge sources, `span` the ticks an
+                // edge stands for. One edge a step keeps its own path, the old one, so it does
+                // not move by a bit nor by a division.
+                if self.source == SOURCE_EDGES {
+                    let reached = self.since as u64 * TICKS_PER_STEP as u64 / self.period as u64;
+                    let want = if reached > 95 { 95 } else { reached as u32 };
+                    while self.e.wrapping_sub(1) % TICKS_PER_STEP < want {
+                        self.tick(sink);
+                    }
+                } else {
+                    let reached = self.since as u64 * TICKS_PER_BEAT as u64 / self.period as u64;
+                    let want = if reached > 383 { 383 } else { reached as u32 };
+                    while self.e.wrapping_sub(1) % TICKS_PER_BEAT < want {
+                        self.tick(sink);
+                    }
                 }
             }
             self.since = self.since.saturating_add(1);
         }
     }
 
+    /// §14, designed 2026-11-25 (ABI 15): `ext`, the tempo the edges are playing in tenths of
+    /// a bpm, 0 for none: on the table, before a period is measured, and once an edge is a
+    /// whole period late. `K × rate` is 150 (a step) or 600 (a beat) times the rate, in 64 bits.
+    pub fn ext(&self, rate: u32) -> u16 {
+        if self.source == SOURCE_TABLE || !self.measured || self.since as u64 > 2 * self.period as u64 {
+            return 0;
+        }
+        let k: u64 = if self.source == SOURCE_BEATS { 600 } else { 150 };
+        let p = self.period as u64;
+        let x = (k * rate as u64 + p / 2) / p;
+        if x > 65_535 { 65_535 } else { x as u16 }
+    }
+
     pub fn source(&self) -> u8 {
         self.source
     }
 
-    /// `CLOCK`: one edge, one step. Finishes the old step, then emits tick 0 of the new one.
-    pub fn edge(&mut self, sink: &mut impl FnMut(u32)) {
-        if self.source != SOURCE_EDGES {
+    /// `CLOCK`: one edge, one step (`SOURCE` 1) or one beat (`SOURCE` 2, ABI 15). Finishes
+    /// the old step or beat, then emits tick 0 of the new one. `rate` is the engine's, for the
+    /// first beat's guess when nothing has been measured (§4, designed 2026-11-25).
+    pub fn edge(&mut self, rate: u32, sink: &mut impl FnMut(u32)) {
+        if self.source == SOURCE_TABLE {
             return;
         }
+        let beats = self.source == SOURCE_BEATS;
         if self.have_edge && self.since > 0 {
             self.period = self.since;
+            self.measured = true;
+            if beats {
+                self.guess = self.since;
+            }
+        } else if !self.have_edge && beats {
+            self.period = if self.guess != 0 {
+                self.guess
+            } else {
+                // The stored tempo's beat, in 64 bits: at most twice the rate (30 bpm).
+                let beat = rate as u64 * 60_000 / self.mbpm as u64;
+                if beat < 1 { 1 } else { beat as u32 }
+            };
         }
         self.have_edge = true;
         self.since = 0;
+        let span = if beats { TICKS_PER_BEAT } else { TICKS_PER_STEP };
         loop {
             self.tick(sink);
-            if self.e % TICKS_PER_STEP == 1 {
+            if self.e % span == 1 {
                 break;
             }
         }
     }
 
+    /// `RESET`. Since ABI 15 it clears `measured` too, and keeps `guess` (§4, designed
+    /// 2026-11-25): the first beat after a reset runs at the last beat measured.
     pub fn reset(&mut self) {
         self.e = 0;
         self.have_edge = false;
@@ -104,21 +157,27 @@ impl Clock {
         self.since = 0;
         self.acc = 0;
         self.primed = false;
+        self.measured = false;
     }
 
     /// `SOURCE`. Naming the source already in use changes nothing: only a switch clears
     /// state. (ENGINE.md says "switching"; the fixtures' harness sends SOURCE at frame 0 on
     /// every run, and a table clock that lost its first tick there would start a tick late.)
-    /// A value that is neither source is ignored.
+    /// A value that is none of the three sources is ignored. A switch (any two that differ,
+    /// ABI 15) keeps E and clears `have_edge`, `period`, `measured` and `guess`; to the table
+    /// it also clears `acc` and sets `primed`. (Until ABI 15 a switch to the table left
+    /// `have_edge` and `period` as they were: nothing on the table reads them, and a switch back
+    /// to edges cleared them, so nothing heard or shown differs.)
     pub fn set_source(&mut self, value: u32) {
-        if value > SOURCE_EDGES as u32 || value == self.source as u32 {
+        if value > SOURCE_BEATS as u32 || value == self.source as u32 {
             return;
         }
         self.source = value as u8;
-        if self.source == SOURCE_EDGES {
-            self.have_edge = false;
-            self.period = 0;
-        } else {
+        self.have_edge = false;
+        self.period = 0;
+        self.measured = false;
+        self.guess = 0;
+        if self.source == SOURCE_TABLE {
             self.acc = 0;
             self.primed = true;
         }

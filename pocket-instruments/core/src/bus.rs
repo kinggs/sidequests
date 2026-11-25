@@ -385,6 +385,11 @@ impl Bus {
             self.step = RAMP_PER_SECOND / rate.max(1) as f32;
             self.inv = 1.0 / (QUARTER * rate.max(1) as u64) as f32;
             self.tuned = false;
+            // Effect 1's grid wrapped to the new rate, so `mu` never passes 1 (a ruling of
+            // 2026-11-25 on Session 32's question 3, Fable). While 14 runs `acc` holds `comb`,
+            // a fiftieth of the rate, which this leaves as it is, and which is made again for
+            // the new rate below (`tuned` is false).
+            self.acc = (self.acc as u64 % (QUARTER * rate.max(1) as u64)) as u32;
         }
         if effect != 0 && effect != self.heard {
             // Heard became this effect: a sweep's place starts again (§18), on this frame,

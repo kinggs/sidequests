@@ -8,7 +8,7 @@
 //! it is cheap to change.
 
 use crate::abi::*;
-use crate::clock::SOURCE_EDGES;
+use crate::clock::SOURCE_TABLE;
 use crate::engine::Engine;
 use crate::seq::{NO_WRITE, STEPS, TRACKS};
 
@@ -114,8 +114,11 @@ impl Engine {
                     self.edit(CMD_PLAY, 0, 0, 0, out);
                 } else {
                     // On its own clock the beat starts on this frame, from step 1 ⚠. An
-                    // external clock cannot be reset from here: step 1 is its next edge.
-                    if self.clock.source() != SOURCE_EDGES {
+                    // external clock cannot be reset from here: step 1 is its next edge. Since
+                    // ABI 15 that is either edge source, a step or a beat (⚠ Session 34's
+                    // reading: §13's "on edges" taken to cover `SOURCE` 2, whose view flag says
+                    // "edges" too; the design does not name it).
+                    if self.clock.source() == SOURCE_TABLE {
                         self.edit(CMD_RESET, 0, 0, 0, out);
                     }
                     self.edit(CMD_PLAY, 0, 0, 1, out);
@@ -287,7 +290,7 @@ impl Engine {
         for (on, bit) in [
             (self.seq.playing(), FLAG_PLAYING),
             (k.write, FLAG_WRITE),
-            (self.clock.source() == SOURCE_EDGES, FLAG_EDGES),
+            (self.clock.source() != SOURCE_TABLE, FLAG_EDGES), // edges a step or a beat (ABI 15)
             (self.seq.started(), FLAG_STEP),
             (sounds, FLAG_SOUNDS),
         ] {
@@ -311,6 +314,9 @@ impl Engine {
         b[27] = k.volume;
         b[28] = self.pat.length;
         b[29] = self.pat.swing;
+        // §14, designed 2026-11-25 (ABI 15): `ext`, the tempo the edges are playing, in tenths
+        // of a bpm, 0 for none. Bytes 4 to 7 stay the stored tempo.
+        b[30..32].copy_from_slice(&self.clock.ext(self.sample_rate).to_le_bytes());
         b[32..48].copy_from_slice(&self.fires);
         // §16, the weave's: steps woven since play, which of the last sixteen had a sound
         // set, and how many tracks have fired on the playhead's step so far, taps included.

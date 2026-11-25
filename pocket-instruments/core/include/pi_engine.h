@@ -1,4 +1,4 @@
-/* Pocket Instruments: the engine's C ABI, version 14 (1 plus sound: D44; 3 adds samples: D50;
+/* Pocket Instruments: the engine's C ABI, version 15 (1 plus sound: D44; 3 adds samples: D50;
  * 4 adds keys and the view: D51; 5 adds snapshot version 2 and PI_AUDIO_BOTH: D55, D57;
  * 6 adds the lane, the fx key, the four repeats and snapshot version 3: D66, D67;
  * 7 adds the bus and seven sound effects on the mix, with no new call or command: D67;
@@ -15,7 +15,9 @@
  * sound twelve keys on, and the bus fed back in the first tenth of effect 4's line: D93;
  * 14 makes effect 1 the sounds in the effects at a quarter of the rate, the voices tuned for
  * 46 875 Hz and asked on a grid a quarter of it, a line between, on the track channels too,
- * with no new call or command: D98).
+ * with no new call or command: D98;
+ * 15 adds one edge a beat, PI_SOURCE_BEATS, and the tempo the edges play in the view's bytes 30
+ * and 31, PI_VIEW_EXT: D64, D65, D100).
  *
  * The contract both hosts link. ENGINE.md beside the crate is the specification; this file is
  * the same thing in C. Where they disagree, ENGINE.md is right.
@@ -39,7 +41,7 @@
 extern "C" {
 #endif
 
-#define PI_ABI_VERSION 14u
+#define PI_ABI_VERSION 15u
 
 #define PI_TICKS_PER_STEP 96u /* a step is a sixteenth note */
 #define PI_TRACKS 16u         /* one per grid key: key n plays track n (D30) */
@@ -97,6 +99,8 @@ extern "C" {
 /* Clock sources (PI_CMD_SOURCE). */
 #define PI_SOURCE_TABLE 0u /* the engine counts frames at its tempo */
 #define PI_SOURCE_EDGES 1u /* the engine follows PI_CMD_CLOCK; one edge is one step */
+#define PI_SOURCE_BEATS 2u /* ABI 15: the engine follows PI_CMD_CLOCK; one edge is one beat, four
+                              steps; the first beat runs at a guess (ENGINE.md section 4) */
 
 /* Command types. Unknown types are ignored. */
 #define PI_CMD_CLOCK 1u     /* an edge */
@@ -171,6 +175,8 @@ extern "C" {
 #define PI_VIEW_VOLUME 27u  /* u8: 1..PI_VOLUME_MAX */
 #define PI_VIEW_LENGTH 28u  /* u8 */
 #define PI_VIEW_SWING 29u   /* u8 */
+#define PI_VIEW_EXT 30u     /* u16, ABI 15: the tempo the edges are playing, tenths of a bpm; 0 for
+                               none (on the table, before two edges, an edge a period late) */
 #define PI_VIEW_FIRES 32u   /* PI_TRACKS u8s: how often each track has fired, wrapping at 256 */
 /* 48 to 54: the weave's (ABI 10, section 16). */
 #define PI_VIEW_WOVEN 48u     /* u32: steps woven since play began, or since a reset while playing;
@@ -187,7 +193,7 @@ extern "C" {
 
 #define PI_VIEW_FLAG_PLAYING 1u
 #define PI_VIEW_FLAG_WRITE 2u
-#define PI_VIEW_FLAG_EDGES 4u   /* the clock source is PI_SOURCE_EDGES */
+#define PI_VIEW_FLAG_EDGES 4u   /* the clock source is PI_SOURCE_EDGES or (ABI 15) PI_SOURCE_BEATS */
 #define PI_VIEW_FLAG_STEP 8u    /* a step has arrived since play or reset; clear when stopped */
 #define PI_VIEW_FLAG_SOUNDS 16u /* the grid is sixteen sounds, not sixteen steps */
 
