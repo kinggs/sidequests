@@ -3125,3 +3125,96 @@ too. The numbers are in the Handover note and `LEARNINGS.md`, Session 34.
   slowed: either line could go); `make test`, `make play` (both browsers), `make listen`,
   `make selftest` in `rack/`, `make verify`; `make install`. `pi_size` 3 728 → 3 872.
 - **Next:** your ear on Sessions 26, 28, 30 and 32; then Sessions 33 and 34.
+
+## Session 36 — the core's cost a frame: Codex's patch adopted (build, Opus; D102; done 2026-11-25)
+
+Run before Session 35 (D102 item 5). Read D102; `harness/efficiency-candidates/README.md`
+and `codex.patch` whole; `ENGINE.md` §11 (quiet, Session 29) and §18's "Built (Session
+32)"; `LEARNINGS.md` for Sessions 29 and 32. The rules for every build session hold.
+**Nothing a host hears or sees may change:** no ABI, call, view or snapshot byte.
+
+- [x] **Before any change:** the report, a `sha256sum` of every render file, the old
+      library (kept: the fuzz compares with it) and a bench built on it.
+- [x] **The patch,** applied to `core/src/voice.rs` and `core/src/bus.rs` as written
+      (`git apply`), read whole, and owned: each idea's comment in this folder's voice with
+      what it bought by your own `make pairs`. No existing comment that records a why is
+      lost.
+- [x] **Its one unstated rule gets a guard** (the review's finding): a track not in
+      `active_tracks` is silent. A `debug_assert!` on the frame path that every track left
+      out is silent (code voice and sample), so every test run checks it on every frame;
+      and a line on `Voices::samples` saying a sample is only ever started by
+      `Voices::trigger`.
+- [x] **Rule tests, written first:** the mask through every way a sound starts, stops or
+      changes off the normal path, each held bit for bit to an engine that asks every
+      voice (`core/src/tests/quiet.rs` has the model): `pi_set_sample` on a sample that is
+      sounding; `VOICE` switched while both the code voice and the sample ring; a rate
+      change; effect 1 on and off with some sounds slowed; a load while playing; a sound
+      hit again on the frame it ends. Faults planted and caught by name (the bit not set
+      on a hit; the bit cleared while a sample still rings; the bus's all-sounds path taken
+      for a mask one bit short; the loop's all-returned path the same).
+- [x] **The fuzz kept** (D102 item 4): `harness/fuzz.cpp` and `harness/fuzz-firstdiff.py`
+      are in the tree as the fuzz agent left them. A `make fuzz OLD=<library>` that builds
+      it on both libraries and compares seeds 1 to 400 (`SEEDS=` for more); the header
+      comment says what it covers and does not; `README.md`'s harness row. Run 10 000
+      seeds against the old library once and write the result down. ⚠ It must not call
+      `fmod` (the link takes it from the `.a`).
+- [x] **Measured:** `make pairs` against the old build, alone on the machine: every case
+      written into "Later: efficiency" and §11. The `.wasm`'s size. `make web`.
+- [x] `harness/efficiency-candidates/codex.patch` deleted; the README's row says built.
+- [x] **The end:** `make verify`, `make selftest` in `rack/`, `make play`, `make listen`,
+      `make install` in `rack/`; §11 gains "Since Session 36"; "Later: efficiency"'s last
+      box ticked; `LEARNINGS.md` (with the cause of Session 32's 4 ns from the README);
+      the Handover; this list to `PLAN-HISTORY.md`.
+
+(Annotated by Session 36, on moving this list.) Every box was done. Where it went otherwise:
+the rule tests needed a hook to keep their model honest after the patch (`Voices::ask_every_voice`,
+test-only: before the patch it clears `quiet`, after it also sets every bit of the mask), and
+`quiet.rs`'s Session 29 test was moved onto it in the same tests-first commit, behaviour
+unchanged on the old core; the patch went in alone, its comments rewritten in the next commits
+with numbers from seven scratch builds each without one idea; a planted fault (a plain sound
+never asked beside fifteen slowed lines) passed every test, so `tests/bus.rs` gained effect 1 with
+each sound out in turn, held to its own model, and `quiet.rs` the same held to the mask; two
+plants can never be caught (lines that do nothing); perf in Rack was not run ⚠. The numbers are
+in the Handover note, "Later: efficiency" and `LEARNINGS.md`, Session 36.
+
+## Handover note moved here by Session 36 (2026-11-25)
+
+### After Session 33: Rack reads the keys and sliders every 16 frames (2026-11-25)
+
+- **Built as ruled (D99), nothing in the core.** The module reads its 23 keys and two sliders
+  on every 16th frame (0.36 ms at 44.1 kHz) and sends a change on the frame it reads it; the
+  clock, reset, the menu, the routes and the jacks stay on every frame. A fixture self-test
+  reads every frame. `make install` ran: **restart Rack.**
+- **The cost, by perf** (one module stopped and unpatched, 20 s at 48 kHz, pinned to core 2,
+  six runs each way, interleaved): the module 2 237 → 1 801 samples (−19%; about 0.43% →
+  0.34% of a core ⚠ at an assumed 5.25 GHz); `Rhythm::process` 1 807 → 1 227 (−32%); the scan
+  28 to 29% of it → a sixteenth. Its largest part now is `jacks.frame`: VOICES' and TRIGGERS'
+  sixteen channels worked out every frame whether patched or not (54%). That is the next step
+  if you want the idle cost lower; not built.
+- **What you must know or decide (⚠):**
+  1. **`pi_process` reads 319 → 456 samples in every after build** though it is the same
+     library given the same inputs. Two scratch builds that move it 64 and 128 bytes further
+     read the same, so it is not where it landed. Not found; the module's total still falls
+     by 436. Likely the scan's work used to hide `pi_process`'s stalls; perf here cannot show
+     call graphs to tell.
+  2. **A press shorter than 16 frames is not seen** (RACK-RULES.md, as the list said). No
+     hand makes one; a module sending a trigger into a key by MIDI-Map could, in principle.
+  3. **One thing beyond the list:** a planted fault (the sliders read only in a fixture
+     self-test) passed every self-test, so the latch loop test now moves slider A on a
+     player's module and holds the view a step later. A test, not a rule; yours to drop.
+- **No loop test depended on the frame a key lands:** all five loop modules (return, three fx,
+  sliders) and the latch pass at 44.1, 48 and 96 kHz on the 16-frame scan, each frame still
+  the shadow engine's own; every fixture held view for view, scanning every frame.
+- **Proven:** `rack/test/jacks.cpp`'s `scan` cases (every 16th and only those, the first
+  frame, every frame in a fixture self-test, the count's wrap, a press of 16 frames always
+  seen and one of 15 sometimes not). Faults planted, the unplanted copy first: 7 in
+  `pi::scans`, each caught by a named `scan` check (one first written so it did not build;
+  it was planted again so it did); 3 in `Rhythm.cpp`, caught by the self-test (the fixtures
+  on the 16-frame scan: their views; never scanning outside a fixture: the loop tests; the
+  sliders read only in a fixture: the new latch check, after it was written); 1 no test can
+  catch (the frame count never stepped: every frame scans, the old module, only slower;
+  perf is its test). `make verify`, `make selftest`, `make install`.
+- **To check, two minutes:** Rack restarted, the module stopped, Engine → CPU meter: about a
+  fifth under what it read before. Then play: tap keys, hold bpm and move a slider, Ctrl+click
+  fx and punch a key. Everything should feel the same; nothing should be missed.
+- **Next:** your ear on Sessions 26, 28, 30 and 32; then Session 34.

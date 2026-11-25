@@ -656,6 +656,21 @@ the `TRIG` events they already make.
   the bus and a loop layout's inputs run as before, so §4's clock still counts while
   stopped. Nothing in this contract changed: the same bits, held frame by frame to an engine
   that asks every voice (`core/src/tests/quiet.rs`). Idle went from 29.5 to 6.1 ns a frame.
+  **Since Session 36 (D102, Codex's patch):** the same, a sound at a time. The core keeps
+  the sounds that may be sounding (`Voices::active_tracks`, a bit a track): a hit sets its
+  track's bit, and the frame the track gives +0 and its code voice and sample both say silent
+  clears it. Only those are asked; the rest are given the +0 they would give, under effect 1
+  too (a slowed sound's line runs out to +0). Its one rule: nothing but a hit starts a sound
+  (a retune keeps a silent voice silent; `pi_set_sample` only stops one), checked on every
+  frame of every test run by a `debug_assert!`. With it, three small paths of the same bits:
+  every sound in the effects (`Bus::mix`), every sound returned (`Bus::looped`), every sound
+  slowed (`sound_slow`). Nothing in this contract changed: no ABI, call, view or snapshot
+  byte; the report, the weave and all 432 render files the same bytes; `make fuzz` against
+  Session 34's library, 10 000 seeds, none different. `make pairs`, CPU 2, ten rounds, ns a
+  frame (old → new): idle 6.0 → 3.7; beat 36.4 → 14.4; all 55.7 → 47.1; both 38.0 → 15.0;
+  repeat 42.1 → 22.7; fx 1 34.2 → 19.6; fx 1/0 37.7 → 17.6; fx 2 to 8 and 14 42.6 to 45.7 →
+  18.8 to 22.9; loop 45.4 → 18.7; loop fx 45.4 → 18.6; loop in 47.5 → 19.9; sliders 40.3 →
+  21.2. `pi_size` 3 872 (the mask fits the padding); the `.wasm` 49 689 → 47 861 bytes.
 - **The sliders.** `SOUND` sets slider A or B of a track, 0 to 65535 (the reserved `PARAM`
   command will become this, for the selected sound, when the keys are built: D26). A value
   is read when the voice is next triggered. A sounding voice keeps its pitch and length, in

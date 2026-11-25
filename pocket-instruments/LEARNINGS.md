@@ -1545,3 +1545,40 @@ above; these are what only the chain showed.
   `not have_edge`). One in `Rhythm.cpp` (always `SOURCE` 2 when CLOCK is patched) passed
   `make selftest`: D100 item 7 builds no self-test on a beat clock, and the player's path
   never runs in one.
+
+## Session 36: the core's cost a frame, Codex's patch adopted (2026-11-25)
+
+- **The cause of Session 32's 4 ns, found by the Opus attempt (D102; `harness/efficiency-
+  candidates/README.md`):** `Voices::ask` (a sound's next value, out of line for the `.wasm`'s
+  size) became a second caller of every voice's `next`, so LLVM stopped inlining `Snare::next`
+  and `SynthSnare::next` into the frame loop. Not placement after all, though it read like it:
+  each scratch build that took away one of Session 32's three small additions changed what was
+  inlined. Codex's patch makes the point moot: every sound is now asked through `ask`, and only
+  the few sounding are asked at all.
+- **What paid was not asking, and only that.** Seven scratch builds, each without one of the
+  patch's ideas, read in one ten-round `make pairs` beside the whole patch (CPU 2): the mask is
+  the whole of the beat's gain (36.4 → 14.4). Kept with every bit set, the same walk read 74.2,
+  twice the old loop: a set-bit walk through an out-of-line `ask` is dearer per sound than the
+  old unrolled match, and pays because four drums on a beat leave most bits clear. The other
+  ideas are a nanosecond or two each in their own cases (the bus's all-sounds path 1.4 to 2.4 on
+  fx 2 to 8 and 14; the all-slowed path 6.7 on fx 1; the quiet frame's sum 1.3 idle; `trigger`
+  out of line 0.4 idle), and one costs: the all-returned path takes loop 20.9 → 18.6 but sliders
+  19.0 → 21.2, where nothing is returned. Taken as the patch had it, as D102 says.
+- **A model that is the engine itself only checks the shortcut, not the path.** Session 29's
+  model (`quiet.rs`) is the same engine made to ask every voice. A planted fault on a path both
+  take (a plain sound never asked beside fifteen slowed lines) passed it and every other test:
+  both engines ran the planted code. It took `tests/bus.rs`'s independent model of the voices,
+  given each of the sixteen sounds out of the effects in turn, to catch it. Before trusting a
+  held-to-itself test, ask which faults it is blind to by construction.
+- **A `debug_assert!` inside `pi_process` aborts the test run** (the C ABI does not unwind), but
+  the panic names the test thread and the line: `tests::bus::a_rate_falling_...` at the guard.
+  The two planted faults it caught (the bit not set on a hit; cleared while a sample rings) were
+  also caught by name in `cargo test --release`, where the guard is compiled out: 70 and 6 tests.
+- **Two lines that do nothing.** Zeroing `bus.to` on an all-slowed fresh frame, and giving a
+  silent slowed sound `to = 0.0` rather than keeping its last: a cleared track's `to` is already
+  +0 (it was cleared on a frame it gave +0, or `slow` set it from a silent voice). Planted out,
+  no test and 2 000 fuzz seeds moved. Left as written.
+- **The fuzz is cheap.** About 0.04 s a seed: 400 seeds each way in 5 s on 32 threads, 10 000 in
+  32 s. It found every byte-moving plant tried on it at seed 1. `fmod` is in the static library
+  as a weak symbol (compiler_builtins), so a harness that calls it would link each library's own:
+  `make fuzz` refuses a binary that defines it.
