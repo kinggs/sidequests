@@ -209,7 +209,7 @@ Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
 | 19, the page's effects (Opus; D69, D78, D81) | fx and a key on the page by touch, mouse and keys; the display's effect block and lane ticks on the page and in Rack (D81's stand-in); the sheet's "through fx"; D78's latch on the page; `make play`'s three new phases, format 3 and 4 fixtures played on the page; the lit Rack screenshots again | 2026-11-23 |
 | 20, the grid's lights (Opus; D71, D72, D82) | with write off the grid lights the chosen sound's steps, as the hardware does: one line of the core, twelve fixture views worked again by hand; `make play` holds every key's white; `design/rack-face-writeoff-*.png` | 2026-11-23 |
 | 14, the weave: a **first attempt** (Fable; D53, D84), not finished | ABI 10: the view's bytes 48 to 54, `pi_weave` (78 by 15 cells) and its rule tests, the page and the Rack display painting the same cells, `make play` holding every painting to `pi_weave`; `fixtures/weave-views.txt`; `design/rack-weave-*.png`. The owner has not watched it: its list stays below | 2026-11-23 |
-| 22, the hardware's effects measured (Fable, with the owner): **two of three takes**, not finished | `harness/hardware-take.sh` and `harness/hardware-fx.py`; R64 to R68; `WORKFLOW.md`'s four effects rows answered; proposals in `ENGINE.md` §17 and §18; D87 (the owner's ruling on D86 item 1). Take c and a timing take are left: its list stays below | 2026-11-24 |
+| 22, the hardware's effects measured (Fable, with the owner): **two of three takes**, not finished | `harness/hardware-take.sh` and `harness/hardware-fx.py`; R64 to R68; `WORKFLOW.md`'s four effects rows answered; proposals in `ENGINE.md` §17 and §18; D87 (the owner's ruling on D86 item 1). Take c, b120 and the timing take recorded 2026-11-25, not yet read: its list stays below | 2026-11-24 |
 
 | 23, FX SEND and FX RETURN designed (Fable, with the owner; D87, D88) | D88: three settings an effect (ours, beside the dry, in place of the dry), the send's ramp in the module, the return summed in the core before the volume; `ENGINE.md`, "§19, designed 2026-11-24"; the fork measured in a scratch copy (`LEARNINGS.md`); Session 24's list. Nothing built | 2026-11-24 |
 | 24, FX SEND and FX RETURN built (Opus; D87, D88) | ABI 11: FX RETURN summed before the volume, `ROUTE` 1 the host's effects, `ROUTE` 4 an insert; FX SEND's sixteen ramps, FX RETURN summed, the three settings in the menu and the patch; the self-test's three FX modules; the two jacks with stitches; `render-loop`'s loop files rendered again; 30 faults caught by name | 2026-11-24 |
@@ -235,7 +235,7 @@ Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
    the parameters less often decides the next step (Session 29's Handover).
 6. Then from "Not planned yet", as the owner chooses.
 
-## Session 22 — the hardware's effects, measured from a recording (with the owner, Fable; takes a and b 2026-11-24, c and b120 2026-11-25, t11 left)
+## Session 22 — the hardware's effects, measured from a recording (with the owner, Fable; takes a and b 2026-11-24, c, b120 and t11 2026-11-25; not yet read)
 
 No open-source project got close to the PO-12's effects and nobody has measured them (R55,
 R57); ours are first guesses from the names, and mild beside the hardware ("Some of theirs
@@ -275,9 +275,14 @@ tuned by ear and before the delay is designed. It needs no build to have happene
             **Recorded 2026-11-25, not yet read:** `po12-b120-20261125-085642.wav`, 19.4 s,
             nine kicks exactly 2.00 s apart (120 bpm), peak −8.3 dBFS. Read with `--pass b
             --bpm 120`.
-      - [ ] **The timing take** (R68): fx + 11 held for two passes, fx alone for two,
+      - [x] **The timing take** (R68): fx + 11 held for two passes, fx alone for two,
             three times. `harness/hardware-take.sh t11`. Then read both with
             `uv run harness/hardware-fx.py`, and correct R64 to R68 and the proposals.
+            **Recorded 2026-11-25, Rack closed, not yet read:** `po12-t11-20261125-091624.wav`,
+            46.0 s, peak −9.2 dBFS: one dry pass, then wet, wet, dry, dry three times, as asked
+            (by the level a pass). Two earlier files that morning are false starts: `-091452`
+            (9 s) and `-091501` (21.4 s, one round only); the second may still be read.
+      - [ ] **Read the four new takes** (c, map, b120, t11), a session with Fable.
 - [x] **The file stays out of the repo** (README rule 6), in a folder of the owner's. We
       take numbers and character from it, never audio. Measuring a device's sound is not
       reading its firmware.
@@ -432,9 +437,9 @@ originals are in `PLAN-HISTORY.md`); nothing was dropped, each thing is here onc
 
 **With the PO-12 in hand:**
 
-- [ ] Session 22's takes left, with the Scarlett and Rack closed: ~~take c, effect 4 at
-      120 bpm and~~ the timing take (its list above has the pattern and the command).
-      About three minutes. (Take c, the map and b120 recorded 2026-11-25.)
+- [x] Session 22's takes left, with the Scarlett and Rack closed: take c, effect 4 at
+      120 bpm and the timing take. All recorded 2026-11-25 (with a dry map of sounds 4,
+      11, 13 to 16); reading them is Fable's.
 - [ ] The four effects checks left (`WORKFLOW.md`, "The effects: what to check on the
       PO-12"; nine were done on 2026-11-23): what 9 to 12 do, whether every sound repeats,
       the sweeps, effects 4 and 13 to 16. Session 22 answers most of them.
@@ -552,7 +557,7 @@ The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
   failing on Apple Silicon from before this session: its object calls plain `bzero`, and the
   check allowed only x86 macOS's `__bzero`. I added `bzero` to the list in
   `harness/targets.sh`, and filed it here as a fix. That widened a pass bar, which line 26
-  says not to do and which is yours to decide. **Accept or undo.** Recommended: accept. It is
+  says not to do and which is yours to decide. **Accepted by the owner, 2026-11-25 (D94).** It is
   the same routine, in libSystem on every macOS Rack runs on; undoing it leaves the check
   failing for no real reason. `make targets` is not in `make verify`, so nothing showed the
   failure.
@@ -563,5 +568,5 @@ The latest two notes. Every earlier one is in `PLAN-HISTORY.md`.
   `make play` on both browsers, `make verify`.
 - **Next:** your ears on Sessions 26 and 28 (still first); then the CPU meter check above.
 - **Added 2026-11-25, with the PO-12:** take c, the dry map and b120 are recorded and
-  checked for length, level and hits only (Session 22's list has the files). The timing take
-  (t11) is left, about three minutes. Reading the takes is a session with Fable.
+  checked for length, level and hits only (Session 22's list has the files), then the timing
+  take (t11), three rounds at the second try. Reading the four is a session with Fable.

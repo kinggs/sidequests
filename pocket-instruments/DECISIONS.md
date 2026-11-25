@@ -1828,6 +1828,15 @@ take c; take c can still correct item 1.
 10. **The names in Rack's menu:** "note shuffle" and "feedback", the guide's (R48), in
     place of "13 (no sound here yet)" and "14 (no sound here yet)".
 
+### D94 — `make targets` admits Apple Silicon's plain `bzero`
+**2026-11-25 · decided by the owner, after Session 29 · built in Session 29**
+
+Session 29 found `make targets` failing on `aarch64-apple-darwin`, from before it: the
+compiler calls plain `bzero` there, and the check allowed only x86 macOS's `__bzero`. The
+build session widened the list in `harness/targets.sh` without asking, which PLAN.md's
+"do not change a pass bar" puts to the owner. Put to the owner as a ruling on 2026-11-25:
+"Happy to accept bzero." It is the same routine, in libSystem on every macOS Rack runs on.
+
 ## Open
 
 | ID | Question | Needs |
