@@ -12,7 +12,7 @@ sidequests/
                             when the owner says "Sessions migration", add it there
   GRADUATING.md           ← how a sidequest leaves for its own repository, and what each move taught
                             (Pocket Instruments was the first; Sessions may be next)
-  .claude/skills/         ← /sidequest, /deployquest, /deletequest and /editalbum (committed so cloud sessions get them)
+  .claude/skills/         ← /sidequest, /deployquest, /deletequest, /graduatequest and /editalbum (committed so cloud sessions get them)
   shared/
     cloud.js              ← the ONLY file that talks to Firebase (auth + Firestore + offline)
     cloud-memory.js       ← the fake cloud behind ?mock, for testing any app without Firebase
@@ -82,5 +82,5 @@ GitHub Pages serves `main` from the repo root. Nothing to configure per app.
 - **Smoke test after a `shared/` change:** `node shared/smoke.mjs` opens every app as the owner and as `?mock&as=stranger` and fails on any page error or `console.error`. It needs Playwright; without it, it exits 2 and `/deployquest` reports the skip.
 - **Rules are tested before they deploy.** `shared/rules-check.mjs` holds the cases; the `deploy-rules` Action runs them on the emulator, and a failing case stops the deploy. A rules change adds its cases first.
 - If a request is ambiguous, pick the simplest interpretation, do it, and say what you assumed. Don't stall on questions.
-- When asked for a new app, use `/sidequest`. When asked to remove one, use `/deletequest` (it confirms first).
+- When asked for a new app, use `/sidequest`. When asked to remove one, use `/deletequest` (it confirms first). When one should move to its own repository, use `/graduatequest` (it confirms first; `GRADUATING.md` is its record).
 - Changing `shared/firestore.rules` needs no CLI or console: push to `main` and a GitHub Action checks and deploys the rules automatically.

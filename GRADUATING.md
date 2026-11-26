@@ -5,8 +5,10 @@ Started 2026-11-26, when the owner ruled that Pocket Instruments goes first
 (D110, now `docs/DECISIONS.md` in its repository). Sessions may be next (`SESSIONS-MIGRATION.md`).
 
 **State: one graduate.** Pocket Instruments left on 2026-11-26. The steps below held, with
-one change made after it (step 1's last line, and "Did the steps hold?" at the end). It
-becomes a skill (`/graduatequest`) when the owner says so.
+one change made after it (step 1's last line, and "Did the steps hold?" at the end). Since
+the same day the procedure is a skill, `/graduatequest` (`.claude/skills/graduatequest/`):
+that is how to do it; this file is what each move taught. A move that finds a step wrong
+changes the skill in the same commit.
 
 ## When a sidequest graduates
 
