@@ -334,6 +334,27 @@ Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
 Ruled by the owner on 2026-11-26 (D110). The first two need nothing from the owner but a
 read of Session 44's drafts and a yes before the repository is created.
 
+**Fast-tracked the same day, at the owner's word** ("I just want to fast-track being on the
+new repo now ... full permission to create and push the repo"): Sessions 44 and 45 were run
+as one, without the read of drafts between them. Where it stands:
+
+- **Done, in `~/source/kenny/pocket-instruments`** (this folder's 275 commits carried): the
+  open-source kit, two CI workflows, a landing page, the path fixes; reviewed by two
+  readers, 34 of 35 findings resolved; the gate passed in a rehearsed copy.
+- **Being finished from a session opened in that folder** (a hook lets a session change only
+  the repository it was opened in): the documents moved to `docs/`, the push, CI, the site,
+  82 issues. Its steps are `~/.cache/pocket-instruments/graduation/HANDOFF.md`; the issues
+  are `issues.json` beside it.
+- **Ruled after D110, to be written there as D111:** the instruments are named by role,
+  **Rhythm** and **Sampler**, no numbers; the second instrument is a sampler (O30
+  answered); a terminal host is a stretch part of the showpiece.
+- **Left for a `sidequests` session, only once the new repository builds, passes CI and
+  serves the page:** Session 45's fourth and fifth boxes below. Start it with "Read
+  `GRADUATING.md` and finish Pocket Instruments' graduation".
+
+The two lists below are kept as they were written; 44's `graduation/` folder was never
+made (the drafts went straight into the new repository).
+
 1. **Session 44 (Fable, design): the repository designed.** Below.
 2. **Session 45 (Opus, build): the repository made, the code moved, the issues opened.**
    Below.

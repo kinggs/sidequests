@@ -52,8 +52,23 @@ The values go with it. They are the owner's, not this repository's.
 
 | Sidequest | Left for | When |
 |---|---|---|
-| Pocket Instruments | `kinggs/pocket-instruments` | planned: its Sessions 44 and 45 |
+| Pocket Instruments | `kinggs/pocket-instruments` | under way since 2026-11-26; not yet pushed when this was written |
 
 ## Learned
 
-Nothing yet. Pocket Instruments' Session 44 writes the first lines.
+From Pocket Instruments, 2026-11-26, while the move was still under way:
+
+- **A session can change only the repository it was opened in** (the `cwd-guard` hook). The
+  move was prepared from `sidequests` and had to be finished from a session opened in the
+  new folder. Plan for two sessions: one here that carries the history and writes a
+  handoff, one there that commits, pushes and opens the issues.
+- **`git subtree split -P <folder> -b <branch>`** carries a folder's commits with nothing
+  to install; a new repository then pulls that branch. `git filter-repo` was not on the
+  machine.
+- **Keep the handoff and the issue list outside both repositories** until the new one is
+  pushed (`~/.cache/<name>/graduation/`): the scratchpad does not survive a reboot.
+- **Agents drafting in parallel need a stable copy to read from.** One agent moved files
+  while others read; the readers were pointed at the old folder, which did not move.
+- **Still to do here for Pocket Instruments** (step 4 above): the folder to a pointer, its
+  workflow and its part of `make verify` removed, `CLAUDE.md`'s map, "Graduates" on the
+  landing page. Only once the new repository builds, passes CI and serves the page.
