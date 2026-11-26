@@ -1,10 +1,11 @@
 // Playwright, Chromium and a static server for the repo: what shared/smoke.mjs and the browser
 // tests in this folder share. Nothing here runs under a bare `node --test`.
 //
-// Playwright is found as an installed package, or at PLAYWRIGHT=<path to playwright or
-// playwright-core's index.mjs> for a copy installed elsewhere. Chromium is found the way
+// Playwright is found as an installed package, at PLAYWRIGHT=<path to playwright or
+// playwright-core's index.mjs> for a copy installed elsewhere, or as mise's copy (below). Chromium is found the way
 // .claude/skills/sidequest/make-icons.mjs finds it.
 
+import { execSync } from "node:child_process";
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
@@ -12,10 +13,24 @@ import { fileURLToPath } from "node:url";
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
+// A copy installed by mise (Omarchy declares `playwright` there, lazily: `mise install playwright`
+// once). `mise where` gives its folder; the package sits under a versioned path inside it.
+function misePlaywright(){
+  try {
+    const where = execSync("mise where playwright", { stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
+    const store = path.join(where, "node_modules/.mise");
+    for (const name of fs.readdirSync(store).sort().reverse()){
+      const p = path.join(store, name, "node_modules/playwright/index.mjs");
+      if (/^playwright@/.test(name) && fs.existsSync(p)) return p;
+    }
+  } catch {}
+  return null;
+}
+
 export async function loadPlaywright(){
   const tries = [process.env.PLAYWRIGHT, "playwright", "playwright-core",
     "/opt/node22/lib/node_modules/playwright/index.mjs",
-    "/usr/lib/node_modules/playwright/index.mjs"].filter(Boolean);
+    "/usr/lib/node_modules/playwright/index.mjs", misePlaywright()].filter(Boolean);
   for (const t of tries){ try { return await import(t); } catch {} }
   return null;
 }

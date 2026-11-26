@@ -117,8 +117,10 @@ From the retro of the day, 2026-11-26:
 - **`make verify` ran half a gate all day.** With no Playwright package it skips the smoke
   test and every Rack It proof, and still exits 0. Chromium was installed; only the package
   was missing. Read the skip lines, not the exit code, before saying "verified".
-- **Fixed the same day:** Playwright is now installed here (`CLAUDE.md`, "Working style", has
-  the one command and its trap), and the full gate passed: all 7 apps and all 13 proofs.
+- **Fixed the same day:** Playwright is found through mise, where the machine already
+  declared it (`CLAUDE.md`, "Working style"), and the full gate passed: all 7 apps and all
+  13 proofs. A first try installed it into this repo's `node_modules` and removed the rules
+  test's packages on the way: ask what the machine already provides before installing.
 - **A pointer is not a redirect.** This site serves no README, so the old addresses were
   404s for a few minutes after the first push. Check an old address before pushing.
 

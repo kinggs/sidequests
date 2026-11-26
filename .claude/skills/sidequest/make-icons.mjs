@@ -13,6 +13,7 @@
 // The maskable icon is the same artwork on a solid square, scaled into the middle 80% so
 // Android can crop it to a circle, a squircle or anything else without clipping the design.
 
+import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -34,10 +35,24 @@ if (fs.existsSync(manifestPath)){
 const rectFill = svg.match(/<rect[^>]*fill="([^"]+)"/);
 if (rectFill) bg = rectFill[1];
 
+// A copy installed by mise (Omarchy declares `playwright` there, lazily: `mise install playwright`
+// once). `mise where` gives its folder; the package sits under a versioned path inside it.
+function misePlaywright(){
+  try {
+    const where = execSync("mise where playwright", { stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
+    const store = path.join(where, "node_modules/.mise");
+    for (const name of fs.readdirSync(store).sort().reverse()){
+      const p = path.join(store, name, "node_modules/playwright/index.mjs");
+      if (/^playwright@/.test(name) && fs.existsSync(p)) return p;
+    }
+  } catch {}
+  return null;
+}
+
 async function loadPlaywright(){
   const tries = ["playwright", "playwright-core",
     "/opt/node22/lib/node_modules/playwright/index.mjs",
-    "/usr/lib/node_modules/playwright/index.mjs"];
+    "/usr/lib/node_modules/playwright/index.mjs", misePlaywright()].filter(Boolean);
   for (const t of tries){ try { return await import(t); } catch {} }
   return null;
 }
@@ -48,8 +63,9 @@ function findChromium(){
   for (const root of roots){
     if (!fs.existsSync(root)) continue;
     for (const name of fs.readdirSync(root)){
-      if (!name.startsWith("chromium")) continue;
-      for (const rel of ["chrome-linux/chrome", "chrome-mac/Chromium.app/Contents/MacOS/Chromium"]){
+      if (!/^chromium-\d/.test(name)) continue;   // not chromium_headless_shell-*
+      // chrome-linux64 is where newer builds put it (as shared/proofs/pw.mjs already knew).
+      for (const rel of ["chrome-linux64/chrome", "chrome-linux/chrome", "chrome-mac/Chromium.app/Contents/MacOS/Chromium"]){
         const p = path.join(root, name, rel);
         if (fs.existsSync(p)) return p;
       }
