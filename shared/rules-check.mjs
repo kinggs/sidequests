@@ -2,6 +2,8 @@
 // it before every rules deploy, and a failing case stops the deploy.
 //
 //   npm i --no-save @firebase/rules-unit-testing firebase
+// (On a machine that also holds Playwright in this node_modules, name playwright-core in the same
+// command: with no package.json, npm removes what a command does not name. CLAUDE.md, Working style.)
 //   npx firebase-tools emulators:exec --only firestore --project demo-sidequests \
 //     "node --test shared/rules-check.mjs"
 //
