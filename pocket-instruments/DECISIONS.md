@@ -2250,6 +2250,21 @@ cases the part's code never runs in.
    not −0 never becomes −0 again", which is the very assumption item 1 breaks. Two readers
    and a brute force shared one unstated premise; the reader from another house did not.
 
+### D109 — The owner's rulings on the evening's run of 2026-11-25: all five as recommended
+**2026-11-26 · decided by the owner ("Happy with all your recommended answers") · on the five rulings of the run's Handover (`PLAN.md`; `PLAN-HISTORY.md` once moved) · nothing to build**
+
+1. **Efficiency work on the core stops here (D105 item 15): accepted.** Session 42 is the
+   last until a profile of a real patch or a phone says otherwise. Why: what is left in a
+   frame is single nanoseconds, and what is left against Antigravity's numbers needs the
+   invariants D105 refused.
+2. **A zero's sign in Rack under flush-to-zero (D108 item 1): accepted.** Still found by
+   reading, not run.
+3. **O28: accepted as outside the contract.** A sum that overflows gives a not-a-number
+   whose bits no rule fixes. `ENGINE.md` §11 now says so, and names item 2's zero beside it.
+4. **Session 40's as-built readings (`ENGINE.md` §18 and §19, "as built, Session 40"; D107
+   item 7): accepted.** They are the contract now, not a baseline waiting for a ruling.
+5. **The cost of a call a frame in Rack is left alone (D107 item 5): accepted.**
+
 ## Open
 
 | ID | Question | Needs |
@@ -2281,4 +2296,4 @@ cases the part's code never runs in.
 | O25 | Session 30's readings (D96 items 2 to 4; **item 2 answered the same day: D97**): ~~a replayed lane repeats its own first step, not the step the key came down on in the performance;~~ a second repeat inside a run holds its own key's step; `r` exact | The owner, by ear, on the phone or in Rack: punch 11 on a kick's step, let go, and hear the next pass. Recommended: accept until a take of a replayed repeat on the PO-12 says otherwise |
 | O26 | ~~Session 31's rulings (D98): as designed? Above all item 3 (a sounding note changes speed on the frame 1 comes on and goes off), item 6 (a returned sound is left as it came), item 7 (VOICES carries the slowed sound), item 10 (how bright it is above 10 kHz) and item 9 (16 waits for a take)~~ | **Answered 2026-11-25: D104** (accepted before hearing; the ear may still overrule). Was: The owner, by ear, once Session 32 has built it. Recommended: accept; judge item 3 on a long tom or the tone with 1 punched mid-note **Built 2026-11-25 (Session 32)** as written: ready to hear; its Handover in `PLAN.md` has the steps and three readings (⚠), above all the cost (every playing case 3 to 5 ns a frame over the old build) |
 | O27 | ~~The clock in Rack as designed (D100)? Above all item 2 (the first beat at a guess), item 4 (`--` on a stopped clock) and item 5 (`ext` in place of `bpm`)~~ | **Answered 2026-11-25: D104** (accepted before hearing; the ear may still overrule). Was: The owner, in Rack, once Session 34 has built it: Clocked at ×1 into CLOCK, the menu's "one edge a beat". Recommended: accept **Built 2026-11-25 (Session 34)** as written: ready to play; its Handover in `PLAN.md` has the steps and its readings (⚠), above all the play key on a beat clock (read as edges) **D101 built 2026-11-25 (Session 35):** play waits for the next edge, a pause is a first edge, a rate change carries the beat; its Handover in `PLAN.md` has a two-minute check **D103 built 2026-11-25 (Session 38):** a pause only against a measured period, so a clock that slows to under half its tempo is measured on its second slow edge; its Handover in `PLAN.md` has a one-minute check |
-| O28 | A sum that overflows gives a not-a-number whose bits no rule fixes: two sounds returned at 3e38 with an effect held make `∞ − ∞` in §18's mix, and Rust and WebAssembly both leave that NaN's sign open. So "the same bits on every host" (§11) does not hold for it. Found by Codex reading D105; older than it. Clamp what is returned (to ±10, say), make the mix's NaN a fixed one, or accept it as outside the contract? | The owner. Recommended: accept, and say so in §11: a returned sound of 3e38 is 3e39 V in Rack. D105's sessions keep the arithmetic's order, so they do not move it |
+| O28 | ~~A sum that overflows gives a not-a-number whose bits no rule fixes: two sounds returned at 3e38 with an effect held make `∞ − ∞` in §18's mix, and Rust and WebAssembly both leave that NaN's sign open. So "the same bits on every host" (§11) does not hold for it. Found by Codex reading D105; older than it. Clamp what is returned (to ±10, say), make the mix's NaN a fixed one, or accept it as outside the contract?~~ | **Answered 2026-11-26: D109** (accepted as outside the contract; §11 says so). Was: The owner. Recommended: accept, and say so in §11: a returned sound of 3e38 is 3e39 V in Rack. D105's sessions keep the arithmetic's order, so they do not move it |

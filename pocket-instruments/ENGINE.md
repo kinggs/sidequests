@@ -732,6 +732,12 @@ the `TRIG` events they already make.
   from a maths library: the sine is a polynomial, the decay a multiply a frame, and pitch
   and length are integers until the last step. P7 measured it: the native render and the
   `.wasm` render are the same bytes. A voice that needs a library call gives this up.
+  **Two things are outside it (D109).** A sum that overflows: sounds returned at 3e38 with
+  an effect held make `∞ − ∞` in §18's mix, and no rule fixes that not-a-number's bits
+  (O28). And a host that flushes underflow to zero, as Rack's audio thread does: there
+  every underflow already differs from the phone's, and since Session 42 a sum that
+  cancels to within 1e-38 can read −0 where it read +0 (D108 item 1; found by reading, not
+  run).
 - **A voice stops.** Below −80 dB its envelope is set to exactly 0 and it writes exact
   zeros: no denormals, and a silent voice costs one comparison.
   **Since Session 29:** while every voice and sample is silent the core asks none of them
@@ -2469,7 +2475,7 @@ read the same way: the tone 0.75 → 0.75 steps, above 10 kHz −21.3 dB.)
 Session 40 gave the model of this section (`core/src/tests/bus.rs`, `Model`) every layout and a
 seeded tour (`core/src/tests/tour.rs`), and held the engine to it bit for bit. Where §18 says
 nothing, the build is the baseline (no byte moved in Session 40) and the model does what the
-build does. Neither was ruled; each is the owner's to overrule:
+build does. Neither was ruled then; the owner accepted both on 2026-11-26 (D109 item 4):
 
 - ⚠ **A line forgotten while 4 or 14 ramps out** (a rate change, or `pi_set_delay` refused):
   the bus as it is, `wet = bus`, for the rest of the ramp; nothing read or written, and 14
@@ -2858,8 +2864,8 @@ Handover):
 ### §19, as built, Session 40: what the model reads where the section is silent
 
 Session 40's model of every layout (`core/src/tests/tour.rs`) is written from §15 and §19's
-words; where they are silent the build is the baseline (no byte moved in Session 40). Each is
-the owner's to overrule:
+words; where they are silent the build is the baseline (no byte moved in Session 40). The
+owner accepted each on 2026-11-26 (D109 item 4):
 
 - ⚠ **An infinity coming in is silence, as a NaN is:** on a returned sound's channel and on FX
   RETURN. D80 item 4 says "not a number"; the build cleans anything not finite (`is_finite`),

@@ -270,6 +270,7 @@ The same bytes.
 as D105's four rules ask. One function asks a voice (`Voices::list`), the arithmetic of zeros is
 one type (`Sum`), §18's mix is written once (`Bus::dry`). Beat 13.9 → 11.9 ns a frame, all 41.7 →
 35.6, sliders 21.1 → 15.7, rack 21.8 → 18.5, every case faster; the `.wasm` 44 597. The same bytes.
+The owner accepted the run's five rulings on 2026-11-26 (D109): efficiency work on the core stops here.
 
 ## Done so far
 
@@ -325,19 +326,19 @@ Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
 
 ## Next, in order
 
-The owner ruled the run of 2026-11-25's seven as recommended (D104), before hearing it.
+The owner ruled the run of 2026-11-25's seven as recommended (D104), before hearing it, and
+the evening run's five on 2026-11-26 (D109). Nothing is waiting to be built: every item below
+starts with the owner.
 
-1. **Your rulings on the evening's run** (its Handover, below): five, each with a
-   recommended answer. Sessions 37 and 40 to 42 are done; nothing is waiting to be built.
-2. **Your ears** (restart Rack first): the run of 2026-11-25's three checks, thirteen
+1. **Your ears** (restart Rack first): the run of 2026-11-25's three checks, thirteen
    minutes, in its Handover (now in `PLAN-HISTORY.md`: effect 1, the clock, the scan and the
    cost), and Session 39's minute; then Sessions 26, 28 and 30, still unheard (`PLAN-HISTORY.md`; O23, O25).
-3. **Takes, when the PO-12 is out** ("The owner's hands"): 16's (sound 15 a bar long, dry,
+2. **Takes, when the PO-12 is out** ("The owner's hands"): 16's (sound 15 a bar long, dry,
    then fx + 16, then fx + 1; it serves 15 too), 14 at 120 bpm, and 13's map. Read them
    with "Read `pocket-instruments/PLAN.md` and read the takes asked for".
-4. **Your looks and rulings** on what 2026-11-23 built: "The owner's hands", first part.
+3. **Your looks and rulings** on what 2026-11-23 built: "The owner's hands", first part.
    **Session 14's fourth box,** the weave accepted or redrawn: below.
-5. Then from "Not planned yet", as you choose.
+4. Then from "Not planned yet", as you choose.
 
 ## Session 14 — the weave (build, with the owner's eye; a first attempt after Session 20, D79)
 
@@ -474,7 +475,7 @@ None blocks anything; each is done when wanted, profiled before and after (Machi
       in 19.7 → 19.3; sliders 21.1 → 15.7; rack 21.8 (21.7–22.4) → 18.5 (18.5–18.7); rack lp 23.9
       (23.8–24.7) → 22.4 (22.2–22.6). The `.wasm` 47 961 → 44 597; `pi_size` 3 672. Most of it was
       the sums (beat −1.4, sliders −4.9), not the asking (beat −0.5). Not measured in Rack.
-- [ ] **D105 item 15, for the owner to accept or not:** recommended that Session 42 is the last
+- [x] **D105 item 15, accepted by the owner 2026-11-26 (D109 item 1):** Session 42 is the last
       efficiency session on the core until a profile of a real patch or a phone says otherwise.
       What is left in a frame is single nanoseconds: the beat is 11.9 ns, 0.06% of one core at 48
       kHz; Antigravity's whole patch read 9.5. The cost of a call a frame (`rack` 18.5 against
@@ -532,6 +533,8 @@ originals are in `PLAN-HISTORY.md`); nothing was dropped, each thing is here onc
       ⚠ 1, the sliders case's 2 ns.
 - [ ] **Session 38, one minute in Rack** (restart Rack first; O27): its Handover (now in `PLAN-HISTORY.md`).
 - [ ] **Session 39, one minute in Rack** (restart Rack first): its Handover (now in `PLAN-HISTORY.md`).
+- [ ] **Sessions 40 to 42, one minute in Rack** (restart Rack first; nothing to hear): the run's Handover
+      below, "To check". The menu says `Build 5a29db8` or later; the beat with an effect held, as before.
 - [ ] **Session 32, by ear and to rule on** (O26): its Handover (now in `PLAN-HISTORY.md`) has
       the steps (five minutes) and four readings (⚠), above all the cost on every playing case.
 - [x] **Session 22's proposals** (`ENGINE.md` §17 and §18, "Proposed after Session 22"):
@@ -617,7 +620,7 @@ against the new. Each session's own note is in `PLAN-HISTORY.md` (42's is below)
      tour caught all five, the test that was there before caught one.
   4. **D106, a bug older than today:** under 28 Hz effect 14 wrote past the line the host
      lent. Codex found it reading the design; its test failed on the old core; fixed.
-- **Rulings waiting for you (recommended answer first):**
+- **Rulings, all five accepted as recommended on 2026-11-26 (D109):**
   1. **Stop here on the core's cost (D105 item 15)?** **Yes.** Six of Antigravity's nine
      small parts measured as nothing or as a loss on today's core. What is left against its
      numbers needs the invariants D105 refused.
@@ -636,7 +639,7 @@ against the new. Each session's own note is in `PLAN-HISTORY.md` (42's is below)
   second, told to read and not to run, gave D108.
 - **To check, one minute:** restart Rack; the module's menu says `Build 5a29db8` or later.
   Play the beat with an effect held: as before. The CPU meter may read a little lower.
-- **Next:** your rulings above; then your ears on 2026-11-25's earlier run and Sessions 26,
+- **Next:** your ears on 2026-11-25's earlier run and Sessions 26,
   28 and 30; the takes; the weave.
 
 ### After Session 42: one place asks a voice, the sums in one type, the mix once (2026-11-25)
