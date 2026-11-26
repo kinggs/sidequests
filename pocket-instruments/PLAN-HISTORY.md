@@ -4084,3 +4084,78 @@ shape; D105 items 1 to 4 are the brief, and its item 8 judges each step. **No by
   5. Voice arithmetic is held only by the fuzz and named tests; two plants needed new tests.
      Should `make fuzz` (10 000 seeds against the last library) be in `make verify`?
 - **Next:** Session 42, against `~/.cache/pocket-instruments/session41/`.
+
+## Handover note moved here by Session 43 (2026-11-26)
+
+### After Session 42: one place asks a voice, the sums in one type, the mix once (2026-11-25)
+
+- **Built as the list asks, nothing to hear.** Seven commits, each with its `make pairs` reading
+  against the commit before (CPU 2, ten rounds; one reading each is the verdict, as in Session
+  41). The report and the 432 renders the same bytes after every step; `make fuzz` against
+  Session 41's library 400 seeds after each step and 10 000 at the end, none different, the
+  guarded run every line. `make selftest` at three rates, `make play` (both browsers), `make
+  verify`, `make install`: **restart Rack.**
+- **Each step** (old → new, ns a frame, medians):
+  1. D107 item 2, the cold handlers out of line and `clear` as loops: **kept.** `.wasm` 47 961 →
+     43 831; idle 3.7 → 3.9 (no code it moved runs there: placement), nothing else outside.
+  2. `Sum` and `tests/sum.rs` (4 000 000 cases over six tracks, 200 000 sixteen-track frames, the
+     example that a group is never subtotalled), committed passing before anything used it.
+  3. The list: **kept.** beat 13.9 → 13.4, all 41.2 → 35.2, both 14.4 → 13.9, fx 1 19.0 → 17.5,
+     fx 3 22.6 → 21.0, rack 21.7 → 20.9, repeat 22.9 → 21.9; loop in 19.8 → 20.0 inside the
+     spread (a second reading 0.1 outside it). `.wasm` +903. Placement, all four read together
+     (beat / loop in / rack lp): out of line whole 13.6 / 20.4 / 24.2; the first four lines in the
+     frame loop and twelve out 13.7 / 20.4 / 24.3 (idle 4.3); that with a test round each four
+     13.6 / 20.5 / 24.1; **out of line whole with a test round each four 13.4 / 20.0 / 23.7, taken.**
+  4. The `Sum` over what the frame emits, in the mix and the loop: **kept ⚠** (question 1). beat
+     13.4 → 12.0, sliders 20.5 → 15.6, fx 2 to 8 1.4 to 3.2 faster, loop 18.2 → 16.9, rack 20.7 →
+     18.2, rack lp 23.7 → 22.2, idle 3.9 → 3.5; **fx 1 17.6 → 18.1, outside its spread.**
+  5. The mix once, `Bus::dry`: **kept** (removes the second writing); every case inside the spread.
+  6. D105 item 9: the all-returned path **kept.** Without it loop 16.9 → 20.3, loop fx 16.9 →
+     20.3, loop in 19.4 → 22.7, rack lp 22.2 → 25.1, and sliders 15.7 → 17.2, slower too. Only
+     its comment changed.
+  7. Effect 1's lines by fours (`Sum::fours`): **kept.** fx 1 18.1 → 17.1, fx 1/0 15.6 → 15.1;
+     rack 18.2 → 18.4 outside its spread by 0.2, in a case with no effect 1 (placement). The loop's
+     returned sum by fours: **left out**, sliders 15.6 → 17.3, rack lp 22.2 → 22.6, loop 16.9 →
+     17.2 (`~/.cache/pocket-instruments/session42/option-returned-by-fours-left-out.diff`).
+- **The session, against Session 41's bench:** idle 3.7 → 3.5; beat 13.9 → 11.9; all 41.7 → 35.6;
+  both 14.4 → 12.9; repeat 22.9 → 22.2; fx 1 18.9 → 16.9; fx 2 18.2 → 16.2; loop 18.2 → 16.9;
+  loop in 19.7 → 19.3; sliders 21.1 → 15.7; rack 21.8 → 18.5; rack lp 23.9 → 22.4; every case
+  faster. The `.wasm` 47 961 → 44 597; `pi_size` 3 672 as before. **`OLD` from now:**
+  `~/.cache/pocket-instruments/session42/libpi_core.a` (sha256 `485ac217…`, `8919c62`'s core)
+  and `bench` beside it.
+- **Faults planted,** in a scratch copy, the unplanted copy first (346 passed), each built, each
+  caught by name: the `Sum` from +0 with all sixteen (`sum::sixteen_tracks_by_a_seeded_draw…`,
+  `route::the_return_exactly_0…`, the tour in layout 50); a line writing the next channel, track
+  6 into 7 (16 tests, every tour test among them); the sample not added on track 9 (the seven tour
+  tests, `quiet::once_every_voice_says_silent…`); `slow` leaving a silent sound's old ends (12:
+  `bus::the_mix_is_the_model_s…`, `quiet::effect_1_on_and_off…`, the tour); a line's sound out of
+  the `Sum` once its bit has cleared (12, the tour in layouts 1, 17, 18, 50); the idle loop's
+  channel 17 from `plain()` (8: `route::the_loop_s_mix_and_send…`, the tour); `dry` given `bus`
+  for `rest` (22); the loop's mask without the returned sounds (26); and for the option, `fours`
+  blind to tracks 12 to 15 (14, `tour::each_four_alone…` among them) and `over` skipping the third
+  four (33). The guard: `let_go` clearing a bit on a +0 without asking whether the track is
+  silent: `make fuzz` stops at seed 1, gdb names `render` at `voice.rs:1658`, the guard.
+- **Where the build reads the list (⚠):**
+  1. ⚠ `Sum::over(v, mask)` is not in the list's API: `start` and `add` for every set bit,
+     written once so the three callers do not each write the walk. It adds a four whole when any
+     of its bits is set (a mask too large is always safe: a sum from +0 is never −0). Its doc has
+     the five forms read; walking each bit cost fx 1 2.7 and loop 3.3.
+  2. ⚠ `Bus::sums`: "every sound in the effects, `bus_all()` and a rest of +0, otherwise
+     `split`" written once for `mix` and `looped`.
+  3. ⚠ `sound_slow` keeps today's every-sound-slowed loop beside the general one; the line is
+     written once (`line()`). One loop for every mask read fx 1 24.5, and 27.3 with bit masks,
+     against 17.6. The list did not name that path; Session 40's tour counts it.
+  4. ⚠ "The first four lines in the frame loop": built as an inlined four and an out-of-line
+     twelve that all three callers call, so the four are inlined three times.
+  5. ⚠ The option's four is left out when its **emitted** values are all exact +0 (the `Sum`'s
+     own condition), not its lines' ends.
+  6. ⚠ The guard's plant is "cleared on any +0, silent or not", which on the kick's first frame
+     (sine 0) is a frame early; not a plant of one frame exactly.
+- **Questions for the design session (⚠):**
+  1. **Step 4 by the amended bar:** fx 1 read 0.5 slower outside its spread, in a case that runs
+     the changed code, in every form tried (0.2 to 2.7). Kept, because the mix once, item 9 and
+     the options are built on it, and step 7 took fx 1 to 17.1 (the build before step 4: 17.6).
+     Rule it in, or say how the bar reads a step a later step makes good?
+  2. D105 item 15 for the owner: the last box of "Later: efficiency" asks it.
+- **Next:** the owner's ears (Next, in order), or Session 14's weave. No efficiency session is
+  planned (D105 item 15, if the owner accepts it).

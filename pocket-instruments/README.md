@@ -37,6 +37,8 @@ affiliated with them either.
 
 This folder is an incubator. Once the proofs in `PROOFS.md` pass, it moves out of sidequests
 into its own repository.
+(Decided 2026-11-26, D110: it moves now, before the proofs pass, to
+`kinggs/pocket-instruments`. Sessions 44 and 45 in `PLAN.md`.)
 
 ## Where things are
 

@@ -272,6 +272,10 @@ one type (`Sum`), §18's mix is written once (`Bus::dry`). Beat 13.9 → 11.9 ns
 35.6, sliders 21.1 → 15.7, rack 21.8 → 18.5, every case faster; the `.wasm` 44 597. The same bytes.
 The owner accepted the run's five rulings on 2026-11-26 (D109): efficiency work on the core stops here.
 
+**Planned on 2026-11-26, not built** (Session 43; D110): the instrument leaves for its own
+public repository, `kinggs/pocket-instruments`, before the proofs pass; the backlog becomes
+issues there; patterns are the first work after the move.
+
 ## Done so far
 
 Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
@@ -323,22 +327,68 @@ Each line's list and Handover note are in `PLAN-HISTORY.md` under the same name.
 | 41, Antigravity's parts taken as written (Opus; D105 items 5 to 8, D106) | D106 first (comb never under 1 frame; its test failed on the old core); kept by D105 item 8: the hats' table, the toms' flag, `Tone` and `Bass` (`pi_size` 3 656), `base_inc` (3 672), the squares in integers; left out, numbers in the Handover: the cold handlers (`.wasm` −3 903 but idle +0.2), `Clock::advance`, the cached volume (rack +0.4), the grid's subtraction, the steady bus (fx −1.0 to −1.7, loop +0.3), the no-audio split (+1 to 3 everywhere); all 47.2 → 41.6, beat 14.4 → 13.9, rack 22.4 → 21.7; the same bytes, 10 000 fuzz seeds; 2 tests from plants that passed everything; 7 faults caught by name (3 of them by part 8's guard and the tour, though 8 is out); `OLD` kept in `~/.cache/pocket-instruments/session41/` | 2026-11-25 |
 | 40, the model to every layout, the guard in the fuzz, the bench as Rack calls (Opus; D105 items 10, 11, 13) | tests and harness only, the same bytes: `tests/tour.rs`, the model given layouts 1, 16, 17, 18 and 50 and a seeded tour (65 seeds at three rates, 8 at 8 kHz and 100 Hz), every short way counted and none at 0; 5 faults caught by name by the tour (`quiet.rs` caught 1); the cargo profile `guarded` and `make fuzz`'s third library (a planted guard stops seed 1, gdb names it); `--stats`' five short ways, each over a thousand frames; bench `rack` 22.4 and `rack lp` 24.1 ns a frame beside `both` 14.8 and `loop` 18.5; `OLD` kept in `~/.cache/pocket-instruments/session40/` | 2026-11-25 |
 | 42, the core's cost a frame: one place asks a voice, the sums in one type, the mix once (Opus; D105 items 1 to 4, 8, 9; D107) | the cold handlers out of line (`.wasm` −4 130); `Sum` and its tests first; `Voices::list`, one place asks a voice (`ask`, `sound_active`, `sound_track` gone); the frame's `Sum` over what it emits, in the mix and the loop; `Bus::dry`, §18's mix once; the all-returned path kept (item 9); effect 1's lines by fours kept, the loop's returned sum by fours left out; beat 13.9 → 11.9, all 41.7 → 35.6, fx 1 18.9 → 16.9, sliders 21.1 → 15.7, rack 21.8 → 18.5, every case faster; the `.wasm` 44 597; the same bytes, 10 000 fuzz seeds; 10 faults and the guard caught by name; ⚠ the `Sum` step read fx 1 +0.5 alone; the two patches deleted; `OLD` in `~/.cache/pocket-instruments/session42/` | 2026-11-25 |
+| 43, the order planned with the owner (Fable; D110) | each "Not planned yet" row sized from its decisions and what it waits on; the order ruled: its own public repository first, then patterns; the backlog to become issues; six new asks written as issues to open (a lane and chain editor, Pocket Operations, VCSL, install and landscape, the design refresh, an agent playing the instrument); `../GRADUATING.md`; Sessions 44 and 45. Nothing built | 2026-11-26 |
 
 ## Next, in order
 
-The owner ruled the run of 2026-11-25's seven as recommended (D104), before hearing it, and
-the evening run's five on 2026-11-26 (D109). Nothing is waiting to be built: every item below
-starts with the owner.
+Ruled by the owner on 2026-11-26 (D110). The first two need nothing from the owner but a
+read of Session 44's drafts and a yes before the repository is created.
 
-1. **Your ears** (restart Rack first): the run of 2026-11-25's three checks, thirteen
-   minutes, in its Handover (now in `PLAN-HISTORY.md`: effect 1, the clock, the scan and the
-   cost), and Session 39's minute; then Sessions 26, 28 and 30, still unheard (`PLAN-HISTORY.md`; O23, O25).
-2. **Takes, when the PO-12 is out** ("The owner's hands"): 16's (sound 15 a bar long, dry,
-   then fx + 16, then fx + 1; it serves 15 too), 14 at 120 bpm, and 13's map. Read them
-   with "Read `pocket-instruments/PLAN.md` and read the takes asked for".
-3. **Your looks and rulings** on what 2026-11-23 built: "The owner's hands", first part.
-   **Session 14's fourth box,** the weave accepted or redrawn: below.
-4. Then from "Not planned yet", as you choose.
+1. **Session 44 (Fable, design): the repository designed.** Below.
+2. **Session 45 (Opus, build): the repository made, the code moved, the issues opened.**
+   Below.
+3. **Patterns** (sixteen, choosing, copy, chains), with the readable beat file designed in
+   the same pass: the first design issue in the new repository, on Fable. Not a session of
+   this file.
+4. **Your hands, whenever** (none blocks 1 to 3): your ears on Sessions 26, 28, 30 and 32
+   and the run of 2026-11-25; the takes when the PO-12 is out (16's, 14 at 120 bpm, 13's
+   map); your looks and the weave (Session 14's fourth box, below). Each becomes an issue
+   labelled for the owner in Session 45.
+
+## Session 44 — the repository designed (design, Fable; D110)
+
+Read D110, `README.md`, `RACK-RULES.md`, `../GRADUATING.md` and Session 43's Handover.
+Creates no repository and moves no file: it leaves drafts in `graduation/` for the owner to
+read, and a list Session 45 can follow without deciding anything.
+
+- [ ] **The layout,** as a table from every path of today to its new one: by host at the
+      top (`core/`, `rack/`, `web/`, `harness/`, `design/`), the design documents in
+      `docs/`, `PLAN.md` and `PLAN-HISTORY.md` frozen in `docs/history/`. Where a second
+      instrument's files would go, by name, with nothing made generic (README rule 5):
+      one Rack plugin with a module an instrument and its expanders, one site with a page
+      an instrument, one core crate until the second instrument says what is shared.
+- [ ] **How the history comes across:** this folder's commits only, tried in a scratch
+      clone, with the command written down. ⚠ What the tool needs is not checked.
+- [ ] **What CI and the site need there:** the workflow now in
+      `../.github/workflows/pocket-instruments-rack.yml`, the Linux image's name on the
+      registry, the site served by an Action, tagged releases carrying the four plugins.
+- [ ] **Every community file, drafted:** README (play it first; why it exists, in the
+      owner's words of 2026-11-26; the inspirations and connected open-source projects,
+      linked; Teenage Engineering's shop; why MIT, D41; not affiliated), LICENSE, CREDITS,
+      CONTRIBUTING, a code of conduct, SECURITY, `AGENTS.md` (how an agent contributes; how
+      an agent plays the instrument, pointing at the beat file once it exists), issue
+      forms, one pull request template.
+- [ ] **The issue list,** a file Session 45 opens with `gh`: every row of "Not planned
+      yet", every open box of "The owner's hands", every open row of the Open table, with
+      a title, a body, labels and what it waits on.
+- [ ] **What needs a ruling,** each with a recommendation; `../GRADUATING.md` brought up
+      to date with what designing the move taught.
+
+## Session 45 — the repository made (build, Opus; D110)
+
+Follows Session 44's drafts as accepted by the owner. Decides nothing. **Creating the
+public repository is outward-facing: the owner says yes in the session before it runs.**
+
+- [ ] The repository created, the history pushed, the files in their new places, the
+      community files in.
+- [ ] `make verify` passes there; CI green on the four Rack platforms; the site serves
+      `rhythm.html` at its new address; `make install` works from the new place and the
+      owner's Rack shows the new build.
+- [ ] The labels, then every issue of Session 44's list, opened.
+- [ ] In `sidequests`, only once the three boxes above are done: this folder replaced by
+      a pointer, the workflow removed, `make verify` and `CLAUDE.md` brought into line,
+      the landing page's "Graduates" with its first link.
+- [ ] `../GRADUATING.md`: what the move taught, written the same day.
 
 ## Session 14 — the weave (build, with the owner's eye; a first attempt after Session 20, D79)
 
@@ -372,23 +422,39 @@ it up changes the drawing in `core/src/weave.rs`, once, with the owner watching.
 
 ## Not planned yet
 
-In the order they are likely wanted. Each needs a design pass (Fable) before a build list.
+Rewritten on 2026-11-26 (Session 43; D110). Each row becomes an issue in the new
+repository (Session 45); this table is the list until then. In the order ruled as far as
+it was ruled: rows 1 and 2. The rest keep the order the session recommended ⚠, not ruled.
+Sizes are the session's estimates ⚠: D a design pass (Fable), B a build (Opus).
 
-| What | Waits on | Where it is written |
-|---|---|---|
-| **The effects tuned, the rest:** effect 1 as the sounds at a quarter rate (built, Session 32; a low-pass after the line if the ear asks, D98 item 10); the sweeps' cycle (9 → 6 steps), their ends and peaks, 5's cutoff (R73: constants; built, Session 30) | the owner's ear | `ENGINE.md` §18, "proposed 2026-11-25"; `core/src/bus.rs`, "TUNING THE EFFECTS" |
-| **The delay, if the ear asks:** a tail after the key is let go; the second echo; the line standing still in silence, as the PO-12's does (R75; ruled no, D95 item 5) | the owner, after Session 26 | D91 item 5; `ENGINE.md` §18, "proposed 2026-11-25" |
-| **Effects 15 and 16** (13 and 14 are Sessions 27 and 28, built) | 16: effect 1 designed first (it reads as 1 with the rate wobbling, R76). 15: a take that explains it (sound 15 a bar long under fx + 15) | D67 item 4; R48; R67; R76 |
-| **Effect 14, the rest:** the PO-12's loop inside its 8 192 line, the echo in it, whether it follows the tempo; ours read on take c's pattern beside R75 | the 120 bpm take again (the first held 13); then the owner's ear | R70; R75; `ENGINE.md` §18, "effect 14", "Not modelled" |
-| **Each effect to its own Rack module, the rest:** the breakouts, a trigger in for each sound (the sixteen channels are Sessions 23 and 24) | the owner's ruling on D86 items 3 to 5 (O20) | D86; D87; R63 |
-| **The sliders, the rest:** change one held step; record a slider's movement while write is held; live record of notes (write becomes a held key) | the simple rule played first | D75 item 3; `WORKFLOW.md`, "The sliders" |
-| **A OUT back to A IN is one hit late** | the owner: does it matter? | O18; `ENGINE.md` §19, "Found" |
-| **The breakout for MixMaster:** sixteen voice jacks and one "Connect" | after the effects (D72) | D70; R61 |
-| **More of the hardware's workflow:** sixteen patterns, chains, copy, the step multiplier | P8's list of differences | `WORKFLOW.md`'s "later" rows |
-| **Ours:** a gesture for probability and a short length; the hat cut; a player's own samples; the neighbour connection | each its own question | O10; D47; D34; D40 |
-| **The showpiece's last mile:** a link that carries a beat, `web/` opening on the instrument, an offline shell | the look accepted | D19 |
-| **The gate, then the approach to Teenage Engineering:** the name, the registers, a lawyer's view | the showpiece | P9; O3, O6, O7; D11, D19 |
-| **Its own repository:** licence file, name, contribution rules | the proofs passed (`PROOFS.md`) | README |
+| # | What | Waits on | Size | Where it is written |
+|---|---|---|---|---|
+| 1 | **Its own repository** (ruled first): Sessions 44 and 45 | the owner's read of Session 44's drafts | 1 D + 1 B | D110; `../GRADUATING.md` |
+| 2 | **Patterns** (ruled next): sixteen patterns, choosing, copy, chains. With it, **the readable beat file**: one text form of a beat that an agent can write, a link can carry, a host can save and load (`ENGINE.md` §8 foresaw it) | nothing to start; ten minutes with the PO-12 takes the ⚠ off when a pattern change lands | 1 D + 3 B | `WORKFLOW.md`'s "later" rows; D110 items 6 and 7 |
+| 3 | **A lane and chain editor, as an expander** in Rack and a panel on the page: every sound a row of sixteen steps, the chain as a strip, duplicate and copy to. Our own design and drawing | row 2 | 1 D + 2 B | D110 item 8 |
+| 4 | **An agent plays the instrument:** a small command that checks a beat file, renders it and makes a link or a Rack paste; a skill that says how. Live control of a running Rack or page is its own issue, parked | row 2's beat file | 1 D + 1 B | D110 item 7 |
+| 5 | **The showpiece's last mile:** a link that carries a beat, `web/` opening on the instrument, an offline shell, **install as a fullscreen app, landscape as well as portrait** | row 2 (the link carries the beat file); showing it waits on the look accepted and P8 (D22) | 1 D + 2 B | D19; D110 item 8 |
+| 6 | **The look, again** (the owner runs it from Claude Design): a key can now say more than the hardware's can (chosen, written, playing, an effect playing) | the owner | the owner's, then 1 B | `design/DESIGN.md`; D110 item 8 |
+| 7 | **Pocket Operations' patterns, loadable,** credited and linked to their author | the licence read or the author's yes (O29); row 2's beat file | 1 D + 1 B | D110 item 8 |
+| 8 | **VCSL auditioned for the starter pack** (CC0): the candidates beside ours on the listening page | the owner's ear | half a B, then the owner | D35, D50; D110 item 8 |
+| 9 | **Effects 15 and 16,** with 14's take and 13's map read in the same pass | a take: sound 15 a bar long, dry, then fx + 16, then fx + 1 (D98 item 9) | the reading, then 1 D + 1 B, or 2 + 2 if 15 does not explain itself | D67 item 4; R48; R67; R76 |
+| 10 | **Each effect to its own Rack module, the rest,** and **the breakout for MixMaster** as its sounds kind: one 8 HP breakout that mirrors a pair of jacks; a trigger in for each sound | the owner's ruling on D86 items 3 to 5 (O20) | 1 D + 2 B, +1 B for "Connect" | D70; D86; D87; R61; R63 |
+| 11 | **The sliders, the rest:** change one held step; record a slider's movement while write is held; live record of notes | the simple rule played; the sliders' checks 3 and 4 on the PO-12 | 1 D + 2 B | D75 item 3; `WORKFLOW.md`, "The sliders" |
+| 12 | **Ours:** a player's own samples; a gesture for probability and a short length; the neighbour connection (with row 10: the same helper); the hat cut | samples and the connection: nothing. The gesture: a ruling (O10). The hat cut: a look at the PO-12 | 1 D + 2 B; 1 D + 1 B; 1 B; half a B | O10; D47; D34; D40 |
+| 13 | **The step multiplier** | row 2 | 1 B | `WORKFLOW.md`'s "later" rows |
+| 14 | **The gate, then the approach to Teenage Engineering:** the name and the registers searched (wait on nothing), a lawyer's view, then the ask. Until then the repository is public and quiet (D110 item 1) | the showpiece | one research pass; the rest the owner's | P9; O3, O6, O7; D11, D19 |
+| 15 | **`libpo` read:** beats to and from a real PO-32 or PO-33 as sound (MIT, C99, no allocation) | its first question: do README rule 6 and D67 item 3 let us use it ⚠ | 1 D | D110 item 8 |
+
+**If the ear asks** (not rows; each an issue that waits for the owner's ear, and the
+session recommended parking all four ⚠ not ruled):
+
+- A low-pass after effect 1's line, if its top is too bright (D98 item 10): one small B.
+- The delay's tail after the key is let go, and its second echo (D91 item 5). In Rack FX
+  SEND's channel 4 already rings on. "Standing still in silence" is not here: ruled no
+  (D95 item 5).
+- Effect 14 closer to the PO-12's: its loop inside the 8 192 line, whether it follows the
+  tempo (R70, R75). Waits on the 120 bpm take first.
+- A OUT back to A IN is one hit late (O18; `ENGINE.md` §19, "Found"): does it matter?
 
 Watch, not work: Rack's self-test failed once in 32 runs on 2026-11-23 (96 kHz, a module on
 the LFO never saw its clock) and not since; if it fails again its log is kept in
@@ -566,6 +632,11 @@ originals are in `PLAN-HISTORY.md`); nothing was dropped, each thing is here onc
       sound *n* on step *n* for all sixteen, at 80 bpm, two passes dry, fx + 13 for two, one
       dry (`harness/hardware-take.sh map13`).
 
+- [ ] **16's take** (D98 item 9; it was in "Next, in order" and not here until
+      2026-11-26): sound 15 a bar long, dry, then fx + 16, then fx + 1. It serves 15 too.
+- [ ] **The note to Pocket Operations' author** (O29; drafted in Session 43's reply): sent
+      by the site's own contact route. And the K.O. II page's credits, read in a browser.
+
 - [x] Session 22's takes left, with the Scarlett and Rack closed: take c, effect 4 at
       120 bpm and the timing take. All recorded 2026-11-25 (with a dry map of sounds 4,
       11, 13 to 16); reading them is Fable's.
@@ -642,75 +713,39 @@ against the new. Each session's own note is in `PLAN-HISTORY.md` (42's is below)
 - **Next:** your ears on 2026-11-25's earlier run and Sessions 26,
   28 and 30; the takes; the weave.
 
-### After Session 42: one place asks a voice, the sums in one type, the mix once (2026-11-25)
+### After Session 43: the order ruled, the repository first (2026-11-26)
 
-- **Built as the list asks, nothing to hear.** Seven commits, each with its `make pairs` reading
-  against the commit before (CPU 2, ten rounds; one reading each is the verdict, as in Session
-  41). The report and the 432 renders the same bytes after every step; `make fuzz` against
-  Session 41's library 400 seeds after each step and 10 000 at the end, none different, the
-  guarded run every line. `make selftest` at three rates, `make play` (both browsers), `make
-  verify`, `make install`: **restart Rack.**
-- **Each step** (old → new, ns a frame, medians):
-  1. D107 item 2, the cold handlers out of line and `clear` as loops: **kept.** `.wasm` 47 961 →
-     43 831; idle 3.7 → 3.9 (no code it moved runs there: placement), nothing else outside.
-  2. `Sum` and `tests/sum.rs` (4 000 000 cases over six tracks, 200 000 sixteen-track frames, the
-     example that a group is never subtotalled), committed passing before anything used it.
-  3. The list: **kept.** beat 13.9 → 13.4, all 41.2 → 35.2, both 14.4 → 13.9, fx 1 19.0 → 17.5,
-     fx 3 22.6 → 21.0, rack 21.7 → 20.9, repeat 22.9 → 21.9; loop in 19.8 → 20.0 inside the
-     spread (a second reading 0.1 outside it). `.wasm` +903. Placement, all four read together
-     (beat / loop in / rack lp): out of line whole 13.6 / 20.4 / 24.2; the first four lines in the
-     frame loop and twelve out 13.7 / 20.4 / 24.3 (idle 4.3); that with a test round each four
-     13.6 / 20.5 / 24.1; **out of line whole with a test round each four 13.4 / 20.0 / 23.7, taken.**
-  4. The `Sum` over what the frame emits, in the mix and the loop: **kept ⚠** (question 1). beat
-     13.4 → 12.0, sliders 20.5 → 15.6, fx 2 to 8 1.4 to 3.2 faster, loop 18.2 → 16.9, rack 20.7 →
-     18.2, rack lp 23.7 → 22.2, idle 3.9 → 3.5; **fx 1 17.6 → 18.1, outside its spread.**
-  5. The mix once, `Bus::dry`: **kept** (removes the second writing); every case inside the spread.
-  6. D105 item 9: the all-returned path **kept.** Without it loop 16.9 → 20.3, loop fx 16.9 →
-     20.3, loop in 19.4 → 22.7, rack lp 22.2 → 25.1, and sliders 15.7 → 17.2, slower too. Only
-     its comment changed.
-  7. Effect 1's lines by fours (`Sum::fours`): **kept.** fx 1 18.1 → 17.1, fx 1/0 15.6 → 15.1;
-     rack 18.2 → 18.4 outside its spread by 0.2, in a case with no effect 1 (placement). The loop's
-     returned sum by fours: **left out**, sliders 15.6 → 17.3, rack lp 22.2 → 22.6, loop 16.9 →
-     17.2 (`~/.cache/pocket-instruments/session42/option-returned-by-fours-left-out.diff`).
-- **The session, against Session 41's bench:** idle 3.7 → 3.5; beat 13.9 → 11.9; all 41.7 → 35.6;
-  both 14.4 → 12.9; repeat 22.9 → 22.2; fx 1 18.9 → 16.9; fx 2 18.2 → 16.2; loop 18.2 → 16.9;
-  loop in 19.7 → 19.3; sliders 21.1 → 15.7; rack 21.8 → 18.5; rack lp 23.9 → 22.4; every case
-  faster. The `.wasm` 47 961 → 44 597; `pi_size` 3 672 as before. **`OLD` from now:**
-  `~/.cache/pocket-instruments/session42/libpi_core.a` (sha256 `485ac217…`, `8919c62`'s core)
-  and `bench` beside it.
-- **Faults planted,** in a scratch copy, the unplanted copy first (346 passed), each built, each
-  caught by name: the `Sum` from +0 with all sixteen (`sum::sixteen_tracks_by_a_seeded_draw…`,
-  `route::the_return_exactly_0…`, the tour in layout 50); a line writing the next channel, track
-  6 into 7 (16 tests, every tour test among them); the sample not added on track 9 (the seven tour
-  tests, `quiet::once_every_voice_says_silent…`); `slow` leaving a silent sound's old ends (12:
-  `bus::the_mix_is_the_model_s…`, `quiet::effect_1_on_and_off…`, the tour); a line's sound out of
-  the `Sum` once its bit has cleared (12, the tour in layouts 1, 17, 18, 50); the idle loop's
-  channel 17 from `plain()` (8: `route::the_loop_s_mix_and_send…`, the tour); `dry` given `bus`
-  for `rest` (22); the loop's mask without the returned sounds (26); and for the option, `fours`
-  blind to tracks 12 to 15 (14, `tour::each_four_alone…` among them) and `over` skipping the third
-  four (33). The guard: `let_go` clearing a bit on a +0 without asking whether the track is
-  silent: `make fuzz` stops at seed 1, gdb names `render` at `voice.rs:1658`, the guard.
-- **Where the build reads the list (⚠):**
-  1. ⚠ `Sum::over(v, mask)` is not in the list's API: `start` and `add` for every set bit,
-     written once so the three callers do not each write the walk. It adds a four whole when any
-     of its bits is set (a mask too large is always safe: a sum from +0 is never −0). Its doc has
-     the five forms read; walking each bit cost fx 1 2.7 and loop 3.3.
-  2. ⚠ `Bus::sums`: "every sound in the effects, `bus_all()` and a rest of +0, otherwise
-     `split`" written once for `mix` and `looped`.
-  3. ⚠ `sound_slow` keeps today's every-sound-slowed loop beside the general one; the line is
-     written once (`line()`). One loop for every mask read fx 1 24.5, and 27.3 with bit masks,
-     against 17.6. The list did not name that path; Session 40's tour counts it.
-  4. ⚠ "The first four lines in the frame loop": built as an inlined four and an out-of-line
-     twelve that all three callers call, so the four are inlined three times.
-  5. ⚠ The option's four is left out when its **emitted** values are all exact +0 (the `Sum`'s
-     own condition), not its lines' ends.
-  6. ⚠ The guard's plant is "cleared on any +0, silent or not", which on the kick's first frame
-     (sine 0) is a frame early; not a plant of one frame exactly.
-- **Questions for the design session (⚠):**
-  1. **Step 4 by the amended bar:** fx 1 read 0.5 slower outside its spread, in a case that runs
-     the changed code, in every form tried (0.2 to 2.7). Kept, because the mix once, item 9 and
-     the options are built on it, and step 7 took fx 1 to 17.1 (the build before step 4: 17.6).
-     Rule it in, or say how the bar reads a step a later step makes good?
-  2. D105 item 15 for the owner: the last box of "Later: efficiency" asks it.
-- **Next:** the owner's ears (Next, in order), or Session 14's weave. No efficiency session is
-  planned (D105 item 15, if the owner accepts it).
+A planning session with the owner, on Fable. Nothing built; no code touched.
+
+- **Ruled (D110):** the instrument moves to its own public repository now,
+  `kinggs/pocket-instruments`, quietly; then patterns (sixteen, choosing, copy, chains). The
+  backlog becomes GitHub issues and work goes through pull requests. `PLAN.md` and
+  `PLAN-HISTORY.md` go across frozen, as history.
+- **Read for it:** every "Not planned yet" row's decisions, references and `ENGINE.md`
+  sections; each row sized, with what it waits on (the first table of this session's reply
+  is now "Not planned yet", above).
+- **Found by research (2026-11-26, each one fetch or one search ⚠):**
+  1. `kinggs/pocket-instruments` is free. No product named "Pocket Instruments" turned up;
+     not a register search (O3, O6 stay open).
+  2. Pocket Operations (shittyrecording.studio) is a pattern booklet by Paul Wenzel (Lulu,
+     2019). A bookseller's listing says CC BY ⚠; the site refused the fetch (HTTP 403), so
+     its own licence line is unread. No contact address found. `darosh/pocket-patterns`
+     (MIT) holds the collection as JSON; its licence covers its code (O29).
+  3. VCSL (`sgossner/VCSL`) is CC0, as our pack is. Its README names no drum-machine
+     sounds; its folders were not opened. The K.O. II page that uses it draws itself with
+     JavaScript and its credits are unread.
+  4. `AGENTS.md` at the root is the convention agents read; `CLAUDE.md` points to it.
+  5. Teenage Engineering has a page on IP rights in its products
+     (`teenage.engineering/ip-rights-te-products`), found, not read.
+- **Not ruled, carried as issues (⚠):** the order after patterns; O20 (the breakouts and a
+  trigger in); whether the conditional rows are parked (the low-pass after effect 1, the
+  delay's tail, effect 14's modelling, A OUT to A IN). The session recommended: the link
+  after patterns, the takes read whenever they exist, the breakout after the link, then the
+  sliders, then "Ours"; park the four conditionals until the ear asks.
+- **Readings the owner may overrule (⚠):** pull requests with CI required, no required
+  approval, squash merges (the owner said "normal PR cycles", no more); "Graduates" as the
+  landing page's word; the second instrument left unchosen (O30).
+- **For your hands:** the note to the Pocket Operations author, drafted in the session's
+  reply (send it from the site's own contact route); the K.O. II page's credits read in a
+  browser; the takes, as before.
+- **Next:** Session 44 (Fable), the repository designed. Then 45 (Opus), built.

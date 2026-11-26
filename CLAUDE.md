@@ -10,6 +10,8 @@ sidequests/
   CLAUDE.md               ← you are here
   SESSIONS-MIGRATION.md   ← the notebook for the Sessions app (its own repo, its own backend, soon):
                             when the owner says "Sessions migration", add it there
+  GRADUATING.md           ← how a sidequest leaves for its own repository, and what each move taught
+                            (Pocket Instruments is the first; Sessions may be next)
   .claude/skills/         ← /sidequest, /deployquest, /deletequest and /editalbum (committed so cloud sessions get them)
   shared/
     cloud.js              ← the ONLY file that talks to Firebase (auth + Firestore + offline)
@@ -45,7 +47,7 @@ sidequests/
   pocket-instruments/     ← an incubator, not a sidequest app: calculator-format instruments for VCV Rack and the
                             browser from one shared engine (Rust, C++, web). Its README.md says which repo rules
                             apply and maps its docs (the frozen brief, REVIEW, DECISIONS, PROOFS, PLAN). Leaves for
-                            its own repository once its proofs pass
+                            its own repository next (its D110; `GRADUATING.md`)
 ```
 
 Live URL pattern: `https://<owner>.github.io/sidequests/<app-id>/`

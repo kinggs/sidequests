@@ -2265,6 +2265,78 @@ cases the part's code never runs in.
    item 7): accepted.** They are the contract now, not a baseline waiting for a ruling.
 5. **The cost of a call a frame in Rack is left alone (D107 item 5): accepted.**
 
+### D110 — The order from here: its own repository first, public and quiet; then patterns; the backlog becomes issues
+**2026-11-26 · decided by the owner, in Session 43 (a planning session; nothing built) · overrules the README's "once the proofs pass" for the move · narrows D19 and O7 · the items marked ⚠ are the session's readings, the owner's to overrule**
+
+How we got here: the session sized each row of "Not planned yet" and recommended patterns
+first. The owner: "I feel like we should do 13 first. Just a repository in my github accont
+named pocket-instruments", and "the very next piece of work will be 9 - since we really
+need multiple patterns and copy and paste".
+
+1. **The instrument moves to its own public repository now,** `kinggs/pocket-instruments`
+   (the owner: "I think it's time to go to a full repo now yes"). Before the proofs pass,
+   which the README had as the condition. **Public and quiet:** no announcement and no VCV
+   Library submission until P9; the README says it is not affiliated and uses the makers'
+   names only to describe. Why this is not the release D19 and O7 guard: `sidequests` is
+   public already, so nothing new is shown; what they guard is showing it to people and to
+   Teenage Engineering, and that still waits for the showpiece. The plugin's slug can change
+   until the Library has it (O3).
+2. **What comes across:** this folder's commits; the design documents (`ENGINE.md`,
+   `DECISIONS.md`, `REFERENCES.md`, `PROOFS.md`, `LEARNINGS.md`, `WORKFLOW.md`, `VOICES.md`,
+   `RACK-RULES.md`) under `docs/`; `PLAN.md` and `PLAN-HISTORY.md` frozen under
+   `docs/history/`, because the record of why must survive. **No live plan file:** the
+   owner: "the very next step would be to convert the entire rest of our plan / backlog into
+   issues on Github. And from there we will follow normal PR cycles (with simple PR
+   templates specified in the project)". ⚠ Read as: CI must pass, no approval is required
+   of a second person, merges are squashed.
+3. **A proper open-source project:** a README that plays first and then says why it
+   exists (the owner: a deep love of the pocket operators; a need to bring them into Rack;
+   several instruments, connected, playable on the web; a place to learn and practise;
+   links to Teenage Engineering to buy the real ones; why MIT, D41), a licence file,
+   credits linking every inspiration and connected open-source project, contributing
+   rules, a code of conduct, a security policy, issue forms, a pull request template, and
+   `AGENTS.md` with `CLAUDE.md` pointing to it.
+4. **Built for several instruments, with nothing made generic yet.** By host at the top;
+   one Rack plugin with a module an instrument and its expanders; one site with a page an
+   instrument; one core crate until a second instrument says what is shared (README rule
+   5 stands). Which instrument is second is not chosen (O30).
+5. **In `sidequests`:** the folder becomes a pointer once the new repository builds and
+   serves; the landing page gains "Graduates" ⚠ (the owner offered alumni or graduates:
+   "sidequests that grew up"; Sessions may be the next); what graduating taught is kept in
+   `sidequests`, in `GRADUATING.md`, a skill once it has been done once.
+6. **Then patterns:** sixteen, choosing, copy, chains (`WORKFLOW.md`'s "later" rows). The
+   step multiplier after.
+7. **An agent can play the instrument,** not only build it (the owner: "Please create a
+   4-pattern Amen Break on my pocket instrument"). First a readable beat file, designed
+   with patterns, a small command that checks, renders and packs one, and a skill that
+   says how. Why one file: the link that carries a beat, saving on either host, a pattern
+   library and an editor all want the same thing. Driving a running Rack or page live is
+   parked as its own issue.
+8. **Asked for by the owner in the session, each an issue from day one:**
+   - A lane and chain editor as an expander, and on the page: every sound a row of sixteen
+     steps, the chain a strip, copy and duplicate. **Our own, with no source named.** The
+     owner first pointed at PO-PatchStudio; it is closed, its licence forbids derived
+     works, and a grid of steps belongs to nobody. The owner: "We will just do our own."
+     Nothing of it is read, copied or credited.
+   - Pocket Operations' patterns (Paul Wenzel), loadable, "fully attributed, with links
+     back to the original owner". Nothing of it enters the repository until its licence
+     is read or its author says yes (O29).
+   - VCSL (Versilian Studios, CC0) auditioned for the starter pack beside ours, by ear.
+   - Install as a fullscreen app; landscape as well as portrait if it is not much.
+   - The look again, run by the owner from Claude Design: a key can say more than the
+     hardware's (chosen, written, playing, an effect playing).
+   - `libpo` (Eric Lewis, MIT) read: beats to and from a real PO-32 or PO-33 as sound.
+     ⚠ It is another's reading of the hardware's formats; whether README rule 6 and
+     D67 item 3's "ported with credit, not linked" let us use it is that issue's first
+     question. The PO-12 has no such transfer.
+9. **Not ruled, carried as issues:** the order after patterns; O20; whether the four
+   conditional fixes are parked (`PLAN.md`, "If the ear asks"). The session's
+   recommendations are in Session 43's Handover.
+
+Not chosen: patterns first and the move last (the session's recommendation: the move
+waited on the proofs and the name). The owner's order puts the project where its issues
+and its contributors can live before the largest piece of work is cut up.
+
 ## Open
 
 | ID | Question | Needs |
@@ -2297,3 +2369,5 @@ cases the part's code never runs in.
 | O26 | ~~Session 31's rulings (D98): as designed? Above all item 3 (a sounding note changes speed on the frame 1 comes on and goes off), item 6 (a returned sound is left as it came), item 7 (VOICES carries the slowed sound), item 10 (how bright it is above 10 kHz) and item 9 (16 waits for a take)~~ | **Answered 2026-11-25: D104** (accepted before hearing; the ear may still overrule). Was: The owner, by ear, once Session 32 has built it. Recommended: accept; judge item 3 on a long tom or the tone with 1 punched mid-note **Built 2026-11-25 (Session 32)** as written: ready to hear; its Handover in `PLAN.md` has the steps and three readings (⚠), above all the cost (every playing case 3 to 5 ns a frame over the old build) |
 | O27 | ~~The clock in Rack as designed (D100)? Above all item 2 (the first beat at a guess), item 4 (`--` on a stopped clock) and item 5 (`ext` in place of `bpm`)~~ | **Answered 2026-11-25: D104** (accepted before hearing; the ear may still overrule). Was: The owner, in Rack, once Session 34 has built it: Clocked at ×1 into CLOCK, the menu's "one edge a beat". Recommended: accept **Built 2026-11-25 (Session 34)** as written: ready to play; its Handover in `PLAN.md` has the steps and its readings (⚠), above all the play key on a beat clock (read as edges) **D101 built 2026-11-25 (Session 35):** play waits for the next edge, a pause is a first edge, a rate change carries the beat; its Handover in `PLAN.md` has a two-minute check **D103 built 2026-11-25 (Session 38):** a pause only against a measured period, so a clock that slows to under half its tempo is measured on its second slow edge; its Handover in `PLAN.md` has a one-minute check |
 | O28 | ~~A sum that overflows gives a not-a-number whose bits no rule fixes: two sounds returned at 3e38 with an effect held make `∞ − ∞` in §18's mix, and Rust and WebAssembly both leave that NaN's sign open. So "the same bits on every host" (§11) does not hold for it. Found by Codex reading D105; older than it. Clamp what is returned (to ±10, say), make the mix's NaN a fixed one, or accept it as outside the contract?~~ | **Answered 2026-11-26: D109** (accepted as outside the contract; §11 says so). Was: The owner. Recommended: accept, and say so in §11: a returned sound of 3e38 is 3e39 V in Rack. D105's sessions keep the arithmetic's order, so they do not move it |
+| O29 | May Pocket Operations' patterns be shipped inside the instrument? A bookseller's listing says CC BY; the author's own page refused the fetch, so its licence line is unread (2026-11-26) | The owner reads the licence on the page, or the author answers the note drafted in Session 43. Recommended: ship nothing until one of them says yes; credit and link either way |
+| O30 | Which instrument is second? The owner leans to the one on the table, a PO-133. That is the PO-33 K.O! in its Street Fighter edition, a sampler (`libpo` treats the two as one); the EP-133 K.O. II is a different, larger machine | The owner, when patterns are done. Recommended: not yet; it changes no file's place (D110 item 4) |
