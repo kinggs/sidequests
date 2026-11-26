@@ -106,6 +106,20 @@ From the session that closed it here, 2026-11-26:
 - **A graduate is not an app of this site.** On the landing page it sits outside the app
   list and its count, linking out.
 
+From the retro of the day, 2026-11-26:
+
+- **Try one changing command in the new folder before fanning out.** Thirteen agents had
+  drafted for nearly twenty minutes before the first `git mv` met the guard. One probe at
+  the start would have shaped the plan as two sessions from the beginning.
+- **The guard stops shell commands, not file writes.** Agents wrote the kit into the new
+  checkout with the Write and Edit tools unhindered, and only `git` was refused. The rule
+  is still the rule: say plainly when work crossed it.
+- **`make verify` ran half a gate all day.** With no Playwright package it skips the smoke
+  test and every Rack It proof, and still exits 0. Chromium was installed; only the package
+  was missing. Read the skip lines, not the exit code, before saying "verified".
+- **A pointer is not a redirect.** This site serves no README, so the old addresses were
+  404s for a few minutes after the first push. Check an old address before pushing.
+
 ## Did the steps hold?
 
 Yes, in order and in substance: design, make, prove the new place, only then change the

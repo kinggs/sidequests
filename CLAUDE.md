@@ -51,9 +51,30 @@ sidequests/
 Live URL pattern: `https://<owner>.github.io/sidequests/<app-id>/`
 GitHub Pages serves `main` from the repo root. Nothing to configure per app.
 
+## Graduates — sidequests that left
+
+A sidequest that outgrows this repo moves to a repository of its own (`/graduatequest`;
+`GRADUATING.md` has the signs that it is time, the steps and what each move taught). Its
+folder here is then a pointer and nothing in it is maintained.
+
+| Graduate | Repository | Checkout on the laptop | Live |
+|---|---|---|---|
+| Pocket Instruments | github.com/kinggs/pocket-instruments | `~/source/kenny/pocket-instruments` | kinggs.github.io/pocket-instruments |
+
+- **Work a graduate from a session opened in its own folder.** A session can change only the
+  repository it was opened in; from here its checkout is read-only (`git -C <path> …`), and
+  its issues are reached with `gh -R <owner>/<repo>`.
+- **Its rules are its own:** start from its `AGENTS.md`. Pull requests, CI and squash merges
+  there; none of the rules below (one file, version bumps, direct to `main`) apply to it, and
+  none of its habits come back here.
+- **Its backlog is its issues,** not a file here. Something noticed here about a graduate
+  becomes an issue there.
+- **What a move teaches goes in `GRADUATING.md` and the skill, here,** so the next graduate
+  starts from it.
+
 ## Rules — follow these exactly
 
-1. **One file per app.** All HTML, CSS and JS live in `<app-id>/index.html`, which links `../shared/theme.css` before its own `<style>` and adds only what's its own. No frameworks, no npm, no bundler, no build step. External libraries only via CDN `<script>`/`import`, and only when the app truly needs one. A library a shared part depends on is vendored as one file in `shared/vendor/` instead, because each `sw.js` only caches same-origin files and a CDN copy fails offline. The one exception: an app may keep its pure, browser-free logic in modules beside `index.html` (`rack-it/zargo.js`, `rack-it/bracket.js`), each with a `node --test` file next to it and listed in the app's `sw.js` shell, when the logic is worth proving outside a browser. Run the tests with `node --test` from the repo root. (Family Tree also keeps its recovery scripts in `family-tree/tools/`, run locally or in a session and never shipped; its `PLAN.md` says why.)
+1. **One file per app.** All HTML, CSS and JS live in `<app-id>/index.html`, which links `../shared/theme.css` before its own `<style>` and adds only what's its own. No frameworks, no npm, no bundler, no build step. External libraries only via CDN `<script>`/`import`, and only when the app truly needs one. A library a shared part depends on is vendored as one file in `shared/vendor/` instead, because each `sw.js` only caches same-origin files and a CDN copy fails offline. The one exception: an app may keep its pure, browser-free logic in modules beside `index.html` (`rack-it/zargo.js`, `rack-it/bracket.js`), each with a `node --test` file next to it and listed in the app's `sw.js` shell, when the logic is worth proving outside a browser. Run the tests with `node --test` from the repo root. When an app needs more than this (a build step, its own CI, contributors, a second language), that is a sign it should graduate, not a reason for a longer exception. (Family Tree also keeps its recovery scripts in `family-tree/tools/`, run locally or in a session and never shipped; its `PLAN.md` says why.)
 2. **Never write Firebase code in an app.** Use `import { cloud } from "../shared/cloud.js"`. If `cloud.js` lacks something, add it there so every app gets it.
 3. **Every app namespaces its data** under `sidequests/<app-id>/` — `cloud.js` enforces this. Never reach into another app's data. Every app is open to anyone signed in, on the **open rule** (one line in `openApps()` in `shared/firestore.rules`, naming its record collections) or, for Rack It, Sessions Loyalty and Family Tree (a private app, members only, from its Session 3: `family-tree/SPEC.md` §4), in its own block. A record names its players: `players` (the ids `shared/people.js` gives: a uid, a guest's `g_<id>`, or an old household person's id), `names`, `uids` (the accounts among them) and `by` (`people.names(ids)`, `people.uidsOf(ids)`); only the accounts in `uids` reach it, the owner reaches everything, and every list carries the `uids` filter. Pick players from you, your Connect friends and your guests (`people.players()`, `people.pick`), and read stored ids back through `people.resolve()`. Never give an app its own player list.
 4. **Bump the version on every change.** `APP_VERSION` in `index.html` **and** `CACHE` in `sw.js` must match and must change with every edit, or the phone keeps showing the old build. Use semver-ish: bug fix → patch, feature → minor.

@@ -17,7 +17,10 @@ one-file app). ⚠ Step 6's cloud-data part has never been run.
 **A session can change only the repository it was opened in.** So a graduation is two
 sessions: one here that prepares and hands off, one opened in the new folder that commits,
 pushes and opens the issues. Then a short third visit here to leave the pointer. Do not work
-round the guard.
+round the guard. **Probe it first:** before any drafting, try one changing command in
+the new folder (`git tag probe && git tag -d probe` will do: it leaves nothing behind). If it is refused, plan the handoff
+from the start. The guard stops shell commands, not the Write and Edit tools, so agents can
+still draft files there: say so in the report when they do.
 
 ## 1. Confirm (pause here)
 
@@ -123,7 +126,8 @@ Then, in one commit:
   where it goes, and when the rule is retired. `SESSIONS-MIGRATION.md` is the notebook for
   the first app that will face this.
 
-`make verify`, push, then confirm on the live site: the landing page shows the graduate and
+`make verify` (read its skip lines: without Playwright it runs no browser check), push,
+then confirm on the live site: the landing page shows the graduate and
 an old address forwards.
 
 ## 7. Close the loop

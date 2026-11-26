@@ -6,6 +6,10 @@ this is where it goes: add to the right section, date it, keep it short.
 
 Started 2026-11-18. Nothing here is built yet.
 
+(2026-11-26: a first sidequest has since left for its own repository. How that is done is
+`/graduatequest`, and what it taught is `GRADUATING.md`. Sessions would be the first with
+cloud data and a rule in `shared/firestore.rules` to move; that step has never been run.)
+
 ## 1. The plan as it stands
 
 - **One app for Sessions** (the billiards club) that combines **loyalty**, **scorekeeping**,
