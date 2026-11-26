@@ -1,6 +1,0 @@
-# The one Rust this folder builds with. Stable only (PLAN.md ground rules, R13).
-# mise.toml beside it names the same version; `make check-toolchain` fails if they differ.
-[toolchain]
-channel = "1.100.0"
-profile = "minimal"
-targets = ["wasm32-unknown-unknown"]

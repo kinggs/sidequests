@@ -11,7 +11,7 @@ sidequests/
   SESSIONS-MIGRATION.md   ← the notebook for the Sessions app (its own repo, its own backend, soon):
                             when the owner says "Sessions migration", add it there
   GRADUATING.md           ← how a sidequest leaves for its own repository, and what each move taught
-                            (Pocket Instruments is the first; Sessions may be next)
+                            (Pocket Instruments was the first; Sessions may be next)
   .claude/skills/         ← /sidequest, /deployquest, /deletequest and /editalbum (committed so cloud sessions get them)
   shared/
     cloud.js              ← the ONLY file that talks to Firebase (auth + Firestore + offline)
@@ -44,10 +44,8 @@ sidequests/
   pocket-editor/          ← not a web app yet: a desktop tool that edits a photo album with /editalbum (SPEC.md,
                             PLAN.md for the build sessions). engine.py and its tests are Python, run with uv; the
                             styles are JSON. No index.html, so the smoke test skips it; photos/ is gitignored
-  pocket-instruments/     ← an incubator, not a sidequest app: calculator-format instruments for VCV Rack and the
-                            browser from one shared engine (Rust, C++, web). Its README.md says which repo rules
-                            apply and maps its docs (the frozen brief, REVIEW, DECISIONS, PROOFS, PLAN). Leaves for
-                            its own repository next (its D110; `GRADUATING.md`)
+  pocket-instruments/     ← a pointer only: it graduated on 2026-11-26 to github.com/kinggs/pocket-instruments
+                            (`GRADUATING.md`). Nothing here is maintained; its work goes through that repository
 ```
 
 Live URL pattern: `https://<owner>.github.io/sidequests/<app-id>/`
@@ -80,7 +78,7 @@ GitHub Pages serves `main` from the repo root. Nothing to configure per app.
 - Small commits, one intent each, messages in plain English ("Make the swap button taller").
 - After any change, sanity-check by reading the file back for unbalanced tags and a matching version bump.
 - **Test with `?mock`.** Open any app with `?mock` in the URL (served locally, e.g. `python3 -m http.server`) and `cloud.init` swaps in `shared/cloud-memory.js`: the owner, signed in, data kept in that browser, watchers across tabs. `?mock=reset` wipes it; `&seed=<url>` starts from a JSON export. `&as=<name>` makes that tab a different account, with what anyone signed in gets in production: the records they're in (`&as=` alone goes back). Never test against real Firestore data.
-- **`make verify`** runs `node --test`, Pocket Editor's and Pocket Instruments' tests, the smoke test, then every `shared/proofs/rack-it-*.mjs` (same-match against `OLD`, by default `origin/main`, the live build): the gate before any push. While another session builds in one of those folders, run `make verify SKIP=pocket-instruments` (or `pocket-editor`; `rack-it-proofs` leaves the proofs out) so the gate doesn't write into its work.
+- **`make verify`** runs `node --test`, Pocket Editor's tests, the smoke test, then every `shared/proofs/rack-it-*.mjs` (same-match against `OLD`, by default `origin/main`, the live build): the gate before any push. While another session builds in Pocket Editor's folder, run `make verify SKIP=pocket-editor` (`rack-it-proofs` leaves the proofs out) so the gate doesn't write into its work.
 - **Smoke test after a `shared/` change:** `node shared/smoke.mjs` opens every app as the owner and as `?mock&as=stranger` and fails on any page error or `console.error`. It needs Playwright; without it, it exits 2 and `/deployquest` reports the skip.
 - **Rules are tested before they deploy.** `shared/rules-check.mjs` holds the cases; the `deploy-rules` Action runs them on the emulator, and a failing case stops the deploy. A rules change adds its cases first.
 - If a request is ambiguous, pick the simplest interpretation, do it, and say what you assumed. Don't stall on questions.

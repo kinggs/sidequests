@@ -22,6 +22,13 @@
   .apps b{display:block;font-family:var(--grot);font-size:1.1111rem;font-weight:600;letter-spacing:-.01em;line-height:1.2}
   .apps small{display:block;font-size:.8333rem;color:var(--dim);line-height:1.35;margin-top:2px}
   main.page>p{margin-top:24px}
+  /* Graduates: sidequests that grew up and left for their own repository (GRADUATING.md). Not apps
+     of this site, so they sit outside .apps and the count, as plain rows from the theme. */
+  .grads-h{margin:36px 0 12px;color:var(--faint)}
+  .grads a{color:var(--text);text-decoration:none;display:flex;align-items:center;gap:12px;flex:1;min-width:0;min-height:60px}
+  .grads a:focus-visible{outline:3px solid var(--text);outline-offset:2px}
+  .grads .l1,.grads .l2{display:block}
+  .grads .src{flex:none;padding:0 10px;color:var(--dim);font-size:.8889rem;font-weight:600}
 </style>
 </head>
 <body>
@@ -51,6 +58,14 @@
       <span><b>Zombie Dice</b><small>Pass-the-phone dice</small></span></a></li>
   </ul>
   <p class="note">To put one on your home screen, open it and tap <b>Install on this phone</b>.</p>
+  <h2 class="lbl grads-h">Graduates</h2>
+  <ul class="rows grads">
+    <li><a href="https://kinggs.github.io/pocket-instruments/">
+      <span class="who"><span class="l1">Pocket Instruments</span>
+      <span class="l2">A pocket drum machine</span></span></a>
+      <a class="src" href="https://github.com/kinggs/pocket-instruments" style="flex:none">Source</a></li>
+  </ul>
+  <p class="note">Sidequests that grew up and moved to a place of their own.</p>
 </main>
 <script>
   const n = document.querySelectorAll(".apps li").length;

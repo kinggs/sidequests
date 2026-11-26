@@ -668,6 +668,8 @@ Not in the first plan: §9's first item, asked for on 2026-11-19. Design in §3.
 §9's first item, asked for on 2026-11-20. Design in §3.11. No rules change. Don't run
 `make verify` while another session works in `pocket-instruments/`; run `node --test`,
 `node shared/smoke.mjs` and the `shared/proofs/rack-it-*.mjs` proofs instead.
+(Note, 2026-11-26: Pocket Instruments has since left for its own repository, and `make verify`
+no longer builds it. The line above is as it was written.)
 
 - [x] `bracket.js`: `targets` on each fixture from `handicap` and `zargos` (importing
       `raceChart` and `expectedShareA` from `./zargo.js`), `fits` with two targets,

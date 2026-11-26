@@ -1,92 +1,14 @@
-# Pocket Instruments
+# Pocket Instruments has moved
 
-**Status (2026-11-24):** it plays, on a phone (`web/rhythm.html`) and in VCV Rack (the
-Rhythm module). Sixteen sounds, each built in code or a public-domain sample; the hardware's
-workflow for writing a beat; effects punched in and recorded as they are played, with four
-repeats that hold the nearest note behind them and eight sound effects, tuned to the
-owner's PO-12 by measurement; sliders that are the hand's, with steps that keep what
-they were written with; a display that weaves. In Rack, thirteen jacks: every sound's
-trigger, audio and slider voltages go out and come back, and each of the sixteen effects
-has its own channel on FX SEND and FX RETURN, Ours or a Rack module's, beside the dry or in
-place of it. The engine is at ABI 15 with snapshot version 4 (since Session 32, effect 1 plays
-the sounds at a quarter of the rate, as the PO-12 does: not yet heard by the owner; since
-Session 34, CLOCK in can count one edge a beat, and the display shows the tempo the edges play); CI builds the plugin for all four
-Rack platforms. Proofs P1, P2, P3 and P7 passed; P4, P5 and P6 are part-run and wait for an
-iPhone and other machines (`PROOFS.md`).
+It graduated from `sidequests` on 2026-11-26 and lives in its own repository.
 
-Not finished: most of what was built on 2026-11-23 has not been seen or heard by the owner,
-and every look in it is a stand-in until then; two of the sixteen effects (15 and 16) are not
-designed. Built on 2026-11-24 and not yet heard: effects 13 (a note plays as the sound twelve
-keys on) and 14 (the bus fed back), read beside the PO-12 by the same script (D93; Sessions 27
-and 28). Built on 2026-11-24: FX SEND and FX RETURN as sixteen channels, a channel an
-effect, with what comes back always in the mix (D87, D88; Session 24; played by the owner);
-then, not yet heard, a repeat that holds the nearest note behind it, effects 1 to 8 retuned
-to the PO-12's measurements and read beside it by the same script, and effect 4, a delay of
-one echo (D90, D91; Sessions 25 and 26). What is next is
-`PLAN.md`, "Next, in order". How it got here, session by session, is `PLAN.md`'s "Done so
-far" and `PLAN-HISTORY.md`. Started 2026-11-18.
+- **Repository:** <https://github.com/kinggs/pocket-instruments>
+- **Play it:** <https://kinggs.github.io/pocket-instruments/>
+  (Rhythm is at <https://kinggs.github.io/pocket-instruments/web/rhythm.html>)
 
-Small calculator-format musical instruments, free and open source, playable as VCV Rack modules
-and in a browser, from one shared engine. An affectionate, credited homage to Teenage
-Engineering's Pocket Operators. Not affiliated with Teenage Engineering.
+Its history came across with it: every commit that touched this folder, 275 of them. The
+plan and the session notes as they stood on that day are frozen in the new repository's
+`docs/history/`; its backlog is that repository's issues.
 
-Also inspired by the Surge Synth Team's Surge XT modules for VCV Rack: how they show
-modulation on a control, and how their modules connect to their neighbours. No code or
-artwork of theirs is used; their MIT helper library will be, with thanks (D40, D41). Not
-affiliated with them either.
-
-This folder is an incubator. Once the proofs in `PROOFS.md` pass, it moves out of sidequests
-into its own repository.
-(Decided 2026-11-26, D110: it moves now, before the proofs pass, to
-`kinggs/pocket-instruments`. Sessions 44 and 45 in `PLAN.md`.)
-
-## Where things are
-
-| File | What it holds | How it changes |
-|---|---|---|
-| `BRIEF-v0.1.md` | The original brief, as written with ChatGPT | Frozen. Never edited |
-| `REVIEW.md` | The critical review of the brief: findings, evidence, what to change | A new review is a new section, dated |
-| `DECISIONS.md` | Every decision, its state and why | Append only. A decision is superseded, not rewritten |
-| `PROOFS.md` | What must be proven, the pass bar, the result | Pass bar written before the experiment; result after |
-| `REFERENCES.md` | Outside facts we rely on, with source and date checked | Re-check before relying on an old entry |
-| `LEARNINGS.md` | Dated notebook: what surprised us, what broke, why | Append only |
-| `ENGINE.md` | The engine interface: time, the clock, commands, events, the snapshot | Changed by a decision; the header and fixtures change with it |
-| `core/include/pi_engine.h` | The same contract in C, for both hosts | Follows `ENGINE.md` |
-| `core/` | The engine: one Rust crate, `no_std`, no allocator, no dependencies. Its tests are in `core/src/tests/` | Built from `ENGINE.md`; a disagreement is settled there first |
-| `fixtures/` | Test vectors and the traces they must produce (`fixtures/README.md`); `snapshots-v1.txt` to `snapshots-v3.txt`, the old snapshots that must still load; `designed/`, fixtures worked by hand for a core not built yet, which no harness reads; `weave-views.txt`, the set of views every harness weaves (§16) | A trace is never edited to make a build pass |
-| `harness/` | The same fixtures through the `.wasm` in Node and through C++ on the static library; `bench.cpp`, what a frame of `pi_process` costs, the loop layouts too, and since Session 40 `rack` and `rack lp`, a frame a call as the Rack module calls (`make bench`, pinned to one CPU), and `pairs.sh`, two builds read in ten interleaved rounds (`make pairs`); the ThreadSanitizer harness (`race.cpp`, P6); the render comparison (`compare.mjs`, P7); the four-target check (`targets.sh`, P5); `fuzz.cpp`, the differential fuzz that holds this build to an older library seed by seed (`make fuzz OLD=<libpi_core.a>`, seeds 1 to 400, `SEEDS=` for more; D102 item 4; since Session 40 a third library, this build with its debug assertions on, runs the same seeds and must give the same lines, and `--stats` counts the frames that met each short way), and `fuzz-firstdiff.py`, the first differing record of two `--dump`s; `efficiency-candidates/`, the three attempts at the core's cost a frame (D102) | Follows `fixtures/README.md`; the fuzz is run by a change that must move no byte |
-| `rack/` | The Rack plugin: the Rhythm module, the instrument (`src/Rhythm.cpp`; its jacks' volts in and out in `src/jacks.hpp`, tested by `test/jacks.cpp`; the mix is the core's since Session 18), and the Probe, which plays the format 1 fixtures and checks itself (P3). `handoff.hpp` is how a host moves things between its threads. `math.mk` holds the maths flags the plugin and its test share. `check-dist.sh` holds a finished `.vcvplugin` to Rack's rules (P5); `ci-linux.sh` is CI's Linux build, in the image `ci-linux.Dockerfile` and `ci-linux-setup.sh` make | `make install`; `make selftest` runs Rack headless (the Probe on format 1; the Rhythm module on formats 2, 3 and 4, through its own cables held to a second engine, and D78's latch); `make sound` is a patch to hear it. CI (`.github/workflows/pocket-instruments-rack.yml`) builds all four platforms on every push that touches the core or `rack/` |
-| `web/` | `rhythm.html`, the instrument on a phone (Loom); the bare page and worklet on the raw `.wasm` (P4); `listen.html`: all sixteen voices beside the starter samples. `pi_core.wasm` is committed so Pages can serve it | `make web` after the core changes; `make play`, `make p4` and `make listen` run both desktop browsers |
-| `Makefile` | `make build`: both targets. `make test`: the three harnesses compared, the weave's cells the same from all three, the Rack module's jacks held to the core (`rack/test/jacks.cpp`), the render comparison, the race harness. The repo's `make verify` runs it. `make targets`, `make p4`, `make listen`, `make play`: the slower checks | |
-| `rust-toolchain.toml`, `mise.toml` | The Rust this folder builds with. `mise install` once | The two must name one version; `make check-toolchain` fails if not |
-| `VOICES.md` | The sixteen sounds: role, recipe, what the sliders do, and what each was built as | Until each voice passes by ear |
-| `samples/` | The starter drum pack: sixteen CC0 files, their origins, a page to hear them, and `raw/` + `tracks.txt`, the pack as the engine reads it (D50) | A swap is a new file, a new manifest row and a line in `tracks.txt`, then `python3 samples/make-raw.py` |
-| `WORKFLOW.md` | What each press does, in our words; the owner ticks each row on the hardware | Until P8 |
-| `RACK-RULES.md` | What any module of ours for VCV Rack is held to: the panel, the voltages, the code | Re-read VCV's manual (R33 to R35) before leaning on an old line |
-| `design/DESIGN.md` | The look (Loom): tokens, key states, the panel in mm, the phone layout. `design/fonts/` holds JetBrains Mono ExtraBold and its licence (OFL), for the panel and the Rack module | Changed by a decision; `design/panel.svg` is redrawn by its script |
-| `PLAN.md` | What a session needs: the rules, the machine, the lists not yet done, the latest two Handover notes. Its top says what else to read, and how little | Each session ticks its boxes and writes its Handover |
-| `PLAN-HISTORY.md` | Every finished session's list and every older Handover note, word for word | A finishing session moves its list and the note before last here. Not read at the start of a session |
-
-## Rules of this folder
-
-1. **The brief is frozen.** Disagree with it in `REVIEW.md`; change course in `DECISIONS.md`.
-   Why: the record of what we first thought, and why it changed, must survive.
-2. **Facts, intentions and guesses stay distinct.** A fact has a source in `REFERENCES.md`.
-   ⚠ marks anything unverified.
-3. **A proof has a pass bar before it runs.** Why: a bar written afterwards always passes.
-4. **A failed proof is a result.** Write it up; do not quietly change the experiment.
-5. **Nothing generic until a second instrument needs it.** Why: the brief's own top risk is
-   building a framework before one fun instrument.
-6. **No Teenage Engineering material enters this repo.** No samples, firmware, photographs,
-   traced artwork or logos. Why: `REVIEW.md` §IP.
-
-## How it differs from the other sidequests
-
-It is not a one-file web app. The repo rules on one file per app, no build step, version bumps,
-Firebase and `shared/DESIGN.md` do not apply here. These still do: commit direct to `main`,
-small commits, no secrets, `make verify` before a push. There is no `index.html` at this level,
-so the smoke test skips the folder and the landing page does not list it.
-
-## Starting a session
-
-"Read `pocket-instruments/PLAN.md` and do Session N."
+Nothing here is maintained. This file is all that is left, so old links land somewhere.
+How the move was made, and what it taught: [`GRADUATING.md`](../GRADUATING.md).
