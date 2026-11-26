@@ -118,7 +118,7 @@ From the retro of the day, 2026-11-26:
   test and every Rack It proof, and still exits 0. Chromium was installed; only the package
   was missing. Read the skip lines, not the exit code, before saying "verified".
 - **Fixed the same day:** Playwright is now installed here (`CLAUDE.md`, "Working style", has
-  the one command and its trap), and the full gate passed: all 7 apps and all 14 proofs.
+  the one command and its trap), and the full gate passed: all 7 apps and all 13 proofs.
 - **A pointer is not a redirect.** This site serves no README, so the old addresses were
   404s for a few minutes after the first push. Check an old address before pushing.
 
