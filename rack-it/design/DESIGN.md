@@ -12,7 +12,7 @@
 >   reference render.
 > - **§7 wins over §1–§6.** Every "13px" label below is 14px, and the greys are §7's.
 >   `04`–`08` still show the earlier greys and 13px labels.
-> - **Owner decision (Session 6): tracked all-caps labels may be 14px.** Everything else stays
+> - **Kenny decision (Session 6): tracked all-caps labels may be 14px.** Everything else stays
 >   at 15px or more. CLAUDE.md rule 7 says the same.
 > - Delete on a match summary and on a player is owner-only from Session 6, behind the hold
 >   described here. Rebuild ratings (Session 5) is owner-only too.

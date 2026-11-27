@@ -1,6 +1,6 @@
 ---
 name: deployquest
-description: Ship changes to the live site. Use this whenever the owner says deploy, publish, push, ship, "make it live", "update the app", or after finishing any change to an app in this repo — even if they didn't explicitly ask to deploy, finishing an edit means deploying it. Handles version bump, commit, push and verification that GitHub Pages is serving the new build.
+description: Ship changes to the live site. Use this whenever the maintainer says deploy, publish, push, ship, "make it live", "update the app", or after finishing any change to an app in this repo — even if they didn't explicitly ask to deploy, finishing an edit means deploying it. Handles version bump, commit, push and verification that GitHub Pages is serving the new build.
 ---
 
 # Deploy
@@ -30,7 +30,7 @@ node shared/smoke.mjs
 It opens each app at `?mock`, as the owner and as `?mock&as=stranger`, and prints one line an app.
 
 - **Exit 0**: push.
-- **Exit 1**: an app throws or logs an error. Don't push. Tell the owner which app and the line it printed. Push anyway only if the owner says that failure is already known.
+- **Exit 1**: an app throws or logs an error. Don't push. Tell the maintainer which app and the line it printed. Push anyway only if the maintainer says that failure is already known.
 - **Exit 2**: no Playwright here, so it didn't run. Push, and say plainly in the report: "Smoke test skipped: no Playwright." (`PLAYWRIGHT=<path to playwright-core/index.mjs>` points it at a copy installed elsewhere.)
 
 ## 4. Commit and push
@@ -41,7 +41,7 @@ git commit -m "<app-id>: <plain English summary of what changed>"
 git push origin main
 ```
 
-If push is rejected because `main` moved, `git pull --rebase origin main` and push again. Do not open a pull request unless the owner asks for one.
+If push is rejected because `main` moved, `git pull --rebase origin main` and push again. Do not open a pull request unless the maintainer asks for one.
 
 ### When the push touched the rules
 
@@ -55,7 +55,7 @@ gh run watch "$RUN" --exit-status
 ```
 
 - **Green**: the check passed and the rules are deployed.
-- **Red on "Check the rules"**: a case failed and the rules were **not** deployed; the apps still run on the old rules. Read the failing case in `gh run view "$RUN" --log-failed` and tell the owner.
+- **Red on "Check the rules"**: a case failed and the rules were **not** deployed; the apps still run on the old rules. Read the failing case in `gh run view "$RUN" --log-failed` and tell the maintainer.
 - **Red on "Deploy rules"**: the check passed but the deploy failed. Report the error.
 
 Without `gh`, use the GitHub MCP tools (`list_workflow_runs` for `deploy-rules.yml`, matched on `head_sha`).
@@ -99,4 +99,4 @@ Say so plainly. Give the commit SHA, whether it's on `main`, and what the Pages 
 
 ## 6. Report
 
-One or two lines: the URL and the version now live. If the phone was already open on the app, remind the owner to pull-to-refresh or close and reopen the home-screen app, since the service worker fetches the new build on the next load.
+One or two lines: the URL and the version now live. If the phone was already open on the app, remind the maintainer to pull-to-refresh or close and reopen the home-screen app, since the service worker fetches the new build on the next load.

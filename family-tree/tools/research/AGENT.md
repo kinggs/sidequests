@@ -1,7 +1,7 @@
 # The research agent's brief
 
 You research one gap in one person's record in a family tree, from free public sources, and write
-what you found as a **finding**. The owner reviews every claim before the family sees it, so a
+what you found as a **finding**. The maintainer reviews every claim before the family sees it, so a
 cited "maybe" beats a guess, and "nothing found" is a useful answer.
 
 This file is public. It holds no family data; your brief does, and stays in the private data repo.
@@ -18,11 +18,11 @@ This file is public. It holds no family data; your brief does, and stays in the 
 
 - Search only for the person in your brief, and their family as it helps identify them.
 - `why.status` is `dead` or `presumed` (dead by a relative's dates): anything in public records.
-- `why.status` is `lineage` (a living person, no consent; owner, 2026-10-11): **who their
+- `why.status` is `lineage` (a living person, no consent; Kenny, 2026-10-11): **who their
   parents were, and nothing else.** Search for their birth or baptism entry and their parents'
   marriage, deaths and obituaries; claim only `parent` and `birth`. Everything about the parents
   themselves (usually the dead) is fair game in the reasoning.
-- `why.status` is `consented` (a living person who said yes, or the owner's own line): **genealogy only**: birth,
+- `why.status` is `consented` (a living person who said yes, or Kenny's own line): **genealogy only**: birth,
   marriage and death indexes, newspaper notices, school and graduation lists, public service
   records, relatives' obituaries that name them, their own published work.
 - **Never, for anyone living, even with consent:** current address, phone, email, ID or passport
@@ -35,7 +35,7 @@ This file is public. It holds no family data; your brief does, and stays in the 
 
 The verdicts were checked against each source's terms and robots rules, and by trying a search.
 **Cite only an agent source.** Anything else you learn (a hit in a web search's snippet, a
-record on a site below marked lookup) goes in `lookups`, for the owner to check by hand.
+record on a site below marked lookup) goes in `lookups`, for the maintainer to check by hand.
 
 | Source | Use | How | Checked |
 |---|---|---|---|
@@ -47,13 +47,13 @@ record on a site below marked lookup) goes in `lookups`, for the owner to check 
 | Wikidata | agent | For the notable only: `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=<name>&language=en&format=json&limit=5`, then `https://www.wikidata.org/wiki/<Q id>`. `secondary`. | 2026-10-11: CC0. |
 | eGGSA gravestones | lookup | "No person may copy, download or replicate the information." `https://graves.eggsa.org/`, by province. | 2026-10-11. |
 | Chronicling America (US newspapers) | lookup | A Cloudflare challenge to us. `https://www.loc.gov/collections/chronicling-america/?q=<words>` | 2026-10-11. |
-| FamilySearch | lookup | Sign-in; its terms bar automated tools. Write the search URL. | Owner's call, 2026-10-10. |
+| FamilySearch | lookup | Sign-in; its terms bar automated tools. Write the search URL. | Kenny's call, 2026-10-10. |
 | FreeBMD, FreeREG, FreeCEN | lookup | Their terms: access "only permitted manually via the search page". Write the search: names, years, district. | 2026-10-11: terms forbid automation; POST forms. |
 | NAAIRS (SA National Archives) | lookup | Didn't answer from here. Write the search. | 2026-10-11: connection refused. |
 | Trove (AU newspapers) | lookup | Bot wall; the API needs a key. `https://trove.nla.gov.au/search/category/newspapers?keyword=<words>&date.from=<year>-01-01&date.to=<year>-12-31` | 2026-10-11. |
 | Welsh Newspapers | lookup | 403 to us. `https://newspapers.library.wales/search?query=<words>&range[min]=<year>&range[max]=<year>` | 2026-10-11. |
 | Google Books | lookup | robots.txt bars search. `https://www.google.com/search?tbm=bks&q=%22<given>+<surname>%22` | 2026-10-11. |
-| Ancestry, Findmypast, British Newspaper Archive | lookup | Paid. Write the search URL. | Owner's call, 2026-10-10. |
+| Ancestry, Findmypast, British Newspaper Archive | lookup | Paid. Write the search URL. | Kenny's call, 2026-10-10. |
 
 `WebSearch` is fine for finding where to look (`site:` an agent source, or a name and place),
 never as a citation itself.

@@ -1,6 +1,6 @@
 ---
 name: editalbum
-description: Edit an album of phone photos the way a hired editor would - cull, crop, colour-correct - and hand it back. Use when the owner says "edit <album>", "edit my photos", drops a zip or folder of photos to be edited, or replies to an edited album with a change ("keep 7", "warmer on 3", "that one's too dark").
+description: Edit an album of phone photos the way a hired editor would - cull, crop, colour-correct - and hand it back. Use when Kenny says "edit <album>", "edit my photos", drops a zip or folder of photos to be edited, or replies to an edited album with a change ("keep 7", "warmer on 3", "that one's too dark").
 ---
 
 # Edit an album
@@ -15,7 +15,7 @@ gitignored. **No photo, sheet or thumbnail ever goes into git.**
 
 ## 1. Bring the photos in
 
-The owner gives a zip (a Google Photos download, usually in `~/Downloads`) or a folder.
+Kenny gives a zip (a Google Photos download, usually in `~/Downloads`) or a folder.
 
 ```bash
 uv run pocket-editor/engine.py inbox ~/Downloads/Photos-1-001.zip pocket-editor/photos/<album>
@@ -58,7 +58,7 @@ Only `file`, `verdict` and `reason` are needed; leave out what you are not chang
 
 - **great**: you would show it to someone. About a third of a good album.
 - **fine**: belongs in the album.
-- **drop**: left out. Always with a reason the owner can read in five words. Be firm: the owner
+- **drop**: left out. Always with a reason Kenny can read in five words. Be firm: Kenny
   asked for firm. Drop blur, a blocked or turned-away subject, an accident, and every
   near-duplicate but the best one (eyes open, sharpest, cleanest edges). Set `duplicate_of`.
 - **as-is**: not a photograph. A poster, a line-up, a ticket, a map, a screenshot. It goes into
@@ -109,7 +109,7 @@ the aim is that it reads, not that it matches the person beside it.
 
 ### Share and cover
 
-`"share": true` on the five to seven the owner would post. `"cover": true` on one.
+`"share": true` on the five to seven Kenny would post. `"cover": true` on one.
 
 ### Videos
 
@@ -119,7 +119,7 @@ Beside `"photos"`, a `"videos"` list. Read each strip in `small/` and give every
 "videos": [
   { "file": "20261113_150520.mp4", "light": "day", "reason": "The DJ, then round to the pool." },
   { "file": "20261113_204157.mp4", "light": "night", "trim_end": 1.5, "reason": "Walking in at dusk." },
-  { "file": "20261112_173933.mp4", "verdict": "drop", "reason": "Removed by the owner." }
+  { "file": "20261112_173933.mp4", "verdict": "drop", "reason": "Removed by Kenny." }
 ]
 ```
 
@@ -133,9 +133,9 @@ Beside `"photos"`, a `"videos"` list. Read each strip in `small/` and give every
   judge a clip the way you judge a photo. Drop one only if it is plainly an accident (the
   ground, a pocket, a few black frames).
 - **You cannot tell what is private.** A voice message or a personal remark is in the sound.
-  When the owner says a clip or part of one is personal, drop or trim it, do a full render,
+  When Kenny says a clip or part of one is personal, drop or trim it, do a full render,
   and check it has gone from `done/videos/` before saying so.
-- `"stabilise": false` if the owner says a daylight clip looks swimmy; `"adjust"` works as for
+- `"stabilise": false` if Kenny says a daylight clip looks swimmy; `"adjust"` works as for
   photos, though only `ev`, `temp`, `contrast` and `saturation` do much on video.
 
 ## 4. Render
@@ -148,8 +148,8 @@ This checks the recipes, then writes `done/`: `edited/` (full resolution, EXIF d
 `share-these/` with `cover.jpg` (copies of files in `edited/`, so the album is whole without
 them), `videos/` (tidied, recording time kept), `contact-sheet.jpg` and `recipes.json`.
 Photos and videos keep their dates, so Google Photos sorts them as the originals; an `as-is`
-graphic with no date in it sorts by upload time, which is worth one line to the owner. Look at the contact sheet and at three or four of the edits before you say
-anything to the owner. If one looks wrong, change its recipe and render again. Then consider
+graphic with no date in it sorts by upload time, which is worth one line to Kenny. Look at the contact sheet and at three or four of the edits before you say
+anything to Kenny. If one looks wrong, change its recipe and render again. Then consider
 the AI edit for a few photos (its own section, below) before writing the notes.
 
 ## 5. Write `notes.md`
@@ -165,12 +165,11 @@ plain, to someone who is not a photographer:
 
 ## 6. Hand it back
 
-**The owner looks at one thing: the contact sheet.** They are not a photographer and do not
-want to compare versions or approve edits photo by photo; when asked to, they said it wore
-them out. So never send comparison sheets, never ask "which do you prefer", and never list
+**Kenny looks at one thing: the contact sheet.** Kenny found comparing versions and
+approving edits photo by photo exhausting. So never send comparison sheets, never ask "which do you prefer", and never list
 what you did to each photo. Make the calls yourself and say them in `notes.md`.
 
-Tell the owner, in five lines or fewer: how many kept and dropped, where the contact sheet is,
+Tell Kenny, in five lines or fewer: how many kept and dropped, where the contact sheet is,
 anything you were unsure of, and the notes. Send it
 to their phone only when they ask or have said to always do so:
 
@@ -183,7 +182,7 @@ fetch photos from Drive; that is why photos come in as a zip.)
 
 ## Overrules
 
-The owner replies by number, as on the contact sheet. Edit that recipe and render one photo:
+Kenny replies by number, as on the contact sheet. Edit that recipe and render one photo:
 
 ```bash
 uv run pocket-editor/engine.py render pocket-editor/photos/<album> --only 20261114_115046.jpg
@@ -205,14 +204,14 @@ Do not argue with an overrule, and do not re-judge photos they did not mention.
 
 ## The AI edit, for a few photos
 
-An image model (Codex, on the owner's ChatGPT subscription) has better taste in light than the
+An image model (Codex, on Kenny's ChatGPT subscription) has better taste in light than the
 sliders do: it balanced hard dappled sun and warmed a flat evening sky better than the engine,
-and the owner preferred it on three of four daylight photos. It also redraws what it is given:
+and Kenny preferred it on three of four daylight photos. It also redraws what it is given:
 on a night selfie it replaced both faces with invented ones. So its picture is never the
 output. The engine takes its light, colour, contrast and richness and puts them on the
 original's own pixels ("tone transfer"): full resolution, the real faces.
 
-Use it on a few photos an album, chosen by you. The owner is not asked.
+Use it on a few photos an album, chosen by you. Kenny is not asked.
 
 **Which photos.** After the first render, pick from the kept daylight photos:
 
@@ -239,7 +238,7 @@ and turn it down when:
 
 - alignment is under 0.6 (the model reframed or redrew; its light would land in the wrong place);
 - it changed the time of day or the weather into something that was not there (a little warmth
-  in an evening sky is what the owner likes; noon turned to sunset is not);
+  in an evening sky is what Kenny likes; noon turned to sunset is not);
 - skin has gone orange, grey or waxy;
 - you cannot tell the two apart. Then the engine version stays: it matches the rest of the album.
 
@@ -259,15 +258,15 @@ best job on one portrait, but it takes three minutes, and it cannot return anyth
 16:9, so a wide phone photo comes back reframed (alignment will say so). Worth it for the cover
 when the photo is 4:3 or 3:4; otherwise Codex alone.
 
-`--look "..."` changes the brief sent to the model. The default is the owner's own: Leica
+`--look "..."` changes the brief sent to the model. The default is Kenny's own: Leica
 colouring, gentle HDR, skies a little richer than life.
 
 ## The style
 
 `pocket-editor/style.json` is the album style (Punch and olive): bright, a vivid sky, olive
-trees, deep darks, skin left natural. What the owner has said about looks, to judge by: likes
+trees, deep darks, skin left natural. What Kenny has said about looks, to judge by: likes
 Leica colouring, gentle HDR and skies a little richer than life; dislikes washed-out or grey
-skin, red faces, a dull sky, and anything pushed so far it looks unnatural. The owner changes it by saying
+skin, red faces, a dull sky, and anything pushed so far it looks unnatural. Kenny changes it by saying
 so ("less contrast overall"); it is data, with no look built into the engine. `--style
 style-muted-bronze.json` or `style-gentle-punch.json` renders another, and
 `engine.py compare <album> --styles A.json B.json` puts them side by side.

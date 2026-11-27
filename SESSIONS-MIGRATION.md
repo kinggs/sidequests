@@ -113,3 +113,5 @@ Anything said about the migration that doesn't have a home yet. Sort it later.
 - "Combine loyalty, table booking, and scorekeeping, and potentially tournaments into one app …
   an integrated set of apps." (Owner, 2026-11-18)
 - Shortcuts are fine for demos in the sidequests in the meantime. (Owner, 2026-11-18)
+
+2026-11-27 — In earlier entries, “the owner” means Kenny in personal attributions. The application role `owner` keeps its technical meaning.

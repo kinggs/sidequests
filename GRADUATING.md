@@ -1,7 +1,7 @@
 # Graduating a sidequest
 
 How a sidequest that grew up leaves for its own repository, and what each move taught.
-Started 2026-11-26, when the owner ruled that Pocket Instruments goes first
+Started 2026-11-26, when Kenny ruled that Pocket Instruments goes first
 (D110, now `docs/DECISIONS.md` in its repository). Sessions may be next (`SESSIONS-MIGRATION.md`).
 
 **State: one graduate.** Pocket Instruments left on 2026-11-26. The steps below held, with
@@ -12,12 +12,12 @@ changes the skill in the same commit.
 
 ## When a sidequest graduates
 
-The owner decides. Signs so far: it has outgrown one file and no build step; it wants
+The maintainer decides. Signs so far: it has outgrown one file and no build step; it wants
 contributors, issues and pull requests; it has its own CI, its own site or its own backend.
 
 ## What stays true after it leaves
 
-The values go with it. They are the owner's, not this repository's.
+The values go with it. They are Kenny's, not this repository's.
 
 - **The record of why survives.** Decisions, the plan as it stood and the history of
   sessions go across, frozen if no longer live. Annotate; never rewrite.
@@ -34,18 +34,18 @@ The values go with it. They are the owner's, not this repository's.
 
 - **Direct to `main` becomes pull requests.** `sidequests` trades review for speed on
   purpose; a project that invites others cannot.
-- **The plan file becomes issues.** One issue for each piece of work, each owner's task and
+- **The plan file becomes issues.** One issue for each piece of work, each task for the maintainer and
   each open question.
 
 ## The steps
 
 1. **Design the move before making it** (a design session): where every path goes, how
    the history comes across, what CI and the site need, every community file drafted, the
-   backlog written as a list of issues. The owner reads the drafts, or says to go
+   backlog written as a list of issues. The maintainer reads the drafts, or says to go
    straight on (reviewing agents then read them against the record).
 2. **Make it:** two sessions. One here carries the history and writes a handoff; one
    opened in the new folder commits, pushes and opens the issues. Creating a public
-   repository is outward-facing: the owner says yes first.
+   repository is outward-facing: the maintainer says yes first.
 3. **Prove the new place** before touching the old: the gate, CI, the site, an install.
 4. **Only then, here:** the folder becomes a pointer, its workflow and its part of
    `make verify` go, `CLAUDE.md`'s map is corrected, and the landing page lists it under
@@ -135,3 +135,5 @@ old, write it down. What happened differently:
   optional in step 1, and the yes before a public repository is created stays.
 - **Step 2 took two sessions,** not one, because of the first lesson above. The steps now
   say so.
+
+2026-11-27 — In earlier entries, “the owner” means Kenny in personal attributions. The application role `owner` keeps its technical meaning.

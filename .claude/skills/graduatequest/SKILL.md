@@ -1,6 +1,6 @@
 ---
 name: graduatequest
-description: Move a sidequest that has outgrown this repo into its own GitHub repository, with its history, a proper open-source kit and its backlog as issues, then leave a pointer here. Use when the owner says a sidequest should graduate, move out, get its own repo, or go open source. Outward-facing and partly destructive - confirm the name, the new repository's name and public or private before creating anything.
+description: Move a sidequest that has outgrown this repo into its own GitHub repository, with its history, a proper open-source kit and its backlog as issues, then leave a pointer here. Use when the maintainer says a sidequest should graduate, move out, get its own repo, or go open source. Outward-facing and partly destructive - confirm the name, the new repository's name and public or private before creating anything.
 ---
 
 # Graduate a sidequest
@@ -28,7 +28,7 @@ Ask once, with a recommended answer each:
 
 - Which sidequest, and the new repository's name.
 - Public or private. Creating a public repository is outward-facing: get a clear yes.
-- Does the owner want to read the drafts before the push, or go straight on? (Straight on
+- Does the maintainer want to read the drafts before the push, or go straight on? (Straight on
   is fine: everything in a repository can be changed afterwards. Reviewing agents then
   read the drafts against the record.)
 - What the backlog is: a plan file, a spec's open list, or nothing.
@@ -71,7 +71,7 @@ list of the files it alone may write.
   linked, layout, build and test), LICENSE, CREDITS, CONTRIBUTING, a code of conduct by
   reference, SECURITY using GitHub's private reporting, `AGENTS.md` with `CLAUDE.md`
   pointing to it, issue forms, one pull request template, CI on pull requests.
-- **The backlog as issues:** one for each piece of work, each task only the owner can do,
+- **The backlog as issues:** one for each piece of work, each task only the maintainer can do,
   each open question. A title, a body, labels, an order. Write them to a JSON file.
 - **Then review:** one agent checks every claim, licence, path and command against the
   record; one follows the README as a newcomer and runs what it says; one asks what work
@@ -86,7 +86,7 @@ addresses; no secrets.
 Keep the handoff outside both repositories, in `~/.cache/<name>/graduation/`: the scratchpad
 does not survive a reboot.
 
-- `HANDOFF.md`: the state of the new tree, the steps left in order, the owner's
+- `HANDOFF.md`: the state of the new tree, the steps left in order, the maintainer's
   authorisation quoted, and what is unverified (⚠).
 - `issues.json`: the issue list.
 
@@ -122,7 +122,7 @@ Then, in one commit:
   sits outside the app list and its count.
 - ⚠ **Cloud data, for an app that stores any** (never yet done): its data under
   `sidequests/<app-id>/` in Firestore does not move with the code, and its rules live in
-  `shared/firestore.rules`. Decide with the owner before the pointer goes in: export it,
+  `shared/firestore.rules`. Decide with the maintainer before the pointer goes in: export it,
   where it goes, and when the rule is retired. `SESSIONS-MIGRATION.md` is the notebook for
   the first app that will face this.
 
@@ -135,9 +135,9 @@ an old address forwards.
 - Comment on the new repository's issue with the commits and what was checked, and close it.
 - Add to `GRADUATING.md`: the row in its Graduates table, what this move taught, and
   whether these steps held. If they did not, change this skill in the same commit.
-- Ask the owner before deleting `~/.cache/<name>/graduation/`.
+- Ask the maintainer before deleting `~/.cache/<name>/graduation/`.
 
 ## Report
 
-Lead with where it lives now and that the old addresses forward. Then what the owner must
+Lead with where it lives now and that the old addresses forward. Then what the maintainer must
 decide, then what was checked and what was skipped.

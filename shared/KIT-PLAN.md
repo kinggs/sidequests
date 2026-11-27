@@ -114,7 +114,7 @@ taken with these changes.
 
 | **10** Loose ends, then the club | 1 loose ends · 2 `connect.scan()` · 3 club connections and the staff badge · 4 a table session · 5 four from Parked | Fair Nine gone; scan in-app; staff log a match at the club; a pending match expires, a late scorer, a turn chain, My QR in the app's look |
 
-Sessions 0 to 9 are done (`KIT-HISTORY.md`). Don't build ahead of the owner: ideas go in **Parked**.
+Sessions 0 to 9 are done (`KIT-HISTORY.md`). Don't build ahead of Kenny: ideas go in **Parked**.
 
 **Owner, outside any session:** you and Melanie connect with My QR once (from 6b); the real-phone
 checks in the Handover notes (Session 8: three phones on one Rack It match; Session 9: Zombie
@@ -252,24 +252,24 @@ Step 5's four are live.
 Sessions Loyalty (`sessions-loyalty/`, 2026-10-02) is the club's loyalty app: members show a
 QR, staff scan it, log spend and award points (`sessions-loyalty/SPEC.md`). It shipped on its
 own so the design could settle first; this is what joining it to Rack It would take. Nothing
-here is built. The owner picks which steps become a
+here is built. Kenny picks which steps become a
 Session 10.
 
 What is already true, with no Rack It change: the member's QR **is** My QR, so a Rack It QR
 scanned by the club app reads the same code; a scan by staff makes a real friendship with
-`app: "sessions-loyalty"` on the pair (owner, 2026-10-02: "staff being real connections on
+`app: "sessions-loyalty"` on the pair (Kenny, 2026-10-02: "staff being real connections on
 some level"); the club's staff list is `staff/<uid>`, gettable by any account.
 
 - [ ] **Club connections as their own group.** Rack It's Friends and `people.pick` group a
   friend by the pair's `app`: "Sessions" connections folded under their own heading, below the
   people you play with, so a staff member who plays isn't buried in the whole club. Decide with
-  the owner whether a club connection made in Rack It (a staff member's Rack It QR) should also
+  the maintainer whether a club connection made in Rack It (a staff member's Rack It QR) should also
   count: today it carries `app: "rack-it"`.
 - [ ] **A staff badge.** Whether a friend who is Sessions staff shows as such in Rack It. The
   loyalty app's `staff/<uid>` is gettable by any account, but reading it from Rack It crosses
   an app's namespace (CLAUDE.md rule 3). The cleaner way is a `tags` convention on the friend
   card (`staff`), stamped by the member's phone when the pair's `app` is `sessions-loyalty`.
-  Owner's call.
+  Kenny's call.
 - [ ] **`connect.scan()`.** The in-app QR scanner (`BarcodeDetector`, with the paste fallback)
   moves from `sessions-loyalty/index.html` into `connect.js`, and `people.pick`'s **Scan a new
   player** offers "or scan theirs". Unparks the scanner item below.
@@ -278,7 +278,7 @@ some level"); the club's staff list is `staff/<uid>`, gettable by any account.
   `venue: "sessions"` on the match; the spend logged in the same sitting carries
   `match: <id>`, and Rack It's summary shows "Logged at Sessions". Needs Session 8 first.
 - [ ] **Rack It on the loyalty card.** The member page shows their Zargo. `ratings/<uid>` is
-  gettable by anyone signed in, but it is Rack It's data (rule 3): either the owner blesses that
+  gettable by anyone signed in, but it is Rack It's data (rule 3): either the maintainer blesses that
   one read, or the page links to Rack It's person page instead.
 - [ ] **Points for playing.** A rated match at the club earns XP, logged by the scorer's phone
   as an `earn` entry with `item: "rack-it"`. Only once a table session exists.
@@ -323,3 +323,5 @@ some level"); the club's staff list is `staff/<uid>`, gettable by any account.
 
 Every session's note, the design merge's and Session 9's included, is in `shared/KIT-HISTORY.md`
 under Handover. Start there before a new session.
+
+2026-11-27 — In earlier entries, “the owner” means Kenny in personal attributions. The application role `owner` keeps its technical meaning.

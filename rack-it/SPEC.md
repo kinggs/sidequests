@@ -117,7 +117,7 @@ ones (VNEA, USAPL). The rules the app assumes:
 
 ### 2.5 Spot 9, a solo drill (2.27.0)
 
-The owner's ask: a drill like Around the Clock's 180 for pool, logged on the phone and graphed
+Kenny's ask: a drill like Around the Clock's 180 for pool, logged on the phone and graphed
 over time. It sits under the five games in the Game dropdown, under a **Drills · on your own**
 label, stored as `"spot9"`.
 
@@ -125,7 +125,7 @@ label, stored as `"spot9"`.
   in a row. **A miss ends the run**, and the run's score is how many went in, 0 to 9: a clean
   run is 9. Play as many runs as you like. **The drill's score is the average a run**, to one
   decimal ("3.6 a run"), so a drill from one night can be beaten the next.
-- **Logging is one tap a run** (owner's call, 2026-10-19): a grid of ten numbers, 0 to 9; tap
+- **Logging is one tap a run** (Kenny's call, 2026-10-19): a grid of ten numbers, 0 to 9; tap
   the run's score and the next run starts. Which ball the miss came on isn't recorded beyond
   the score itself, since in Spot 9 the score *is* the ball you missed.
 - **Open-ended.** There's no set number of runs: End (a hold) when you're done. A drill ended
@@ -618,7 +618,7 @@ four tabs in friend mode (§8.2, 2.11.0).
 
 **Play · Ratings · Matches · More**, 60px tall, along the bottom of every page but sign-in and
 the live screen (and the same four in friend mode, §8.2): labels in caps, the selected tab in teal with a bar above it. The app always
-opens on **Play** (owner's call, 2.0.1). While a match is live and this phone isn't scoring or
+opens on **Play** (Kenny's call, 2.0.1). While a match is live and this phone isn't scoring or
 watching it, a **live strip** above the tabs shows "Live · Kenny 14–9 Melanie" with **Resume**
 and **Watch**. A rated match waiting for confirmation has its own strip (§6.1). Someone else's
 live match you're a player in is a card at the top of Play instead (2.14.0): "Kenny's match ·
@@ -641,7 +641,7 @@ delete player**; anyone else sees one line saying those are the owner's; a frien
 page offers Edit to the owner only, for the override), Cuescore (read-only;
 Add or Change on your own page), the win record per game (finished matches, in picker order) and their matches.
 The win record counts every finished match, friendlies and declined or withdrawn ones included
-(owner's call, 2026-10-02: it's what happened at the table); pending ones aren't finished.
+(Kenny's call, 2026-10-02: it's what happened at the table); pending ones aren't finished.
 **Spot 9** (2.27.0), under Record once they've finished a drill: three tiles, **best** (their
 best drill's average a run), **last drill** and **average, last 10** (every run in their last
 ten drills pooled: total potted over total runs, so a long drill weighs more than a short one), then the chart: one dot a drill, average a run on a fixed 0 to 9 axis,
@@ -769,7 +769,7 @@ account, not to Rack It, so they show in every app with Connect.
   who is on the club's staff list shows **staff** on their row: your phone checks
   `sessions-loyalty/staff/<uid>` once a day a friend and stamps the `staff` tag on your card for
   them (taken off again, if it put it there, when they leave the list). A staff member's Rack It
-  QR makes an ordinary friend (owner, 2026-10-04).
+  QR makes an ordinary friend (Kenny, 2026-10-04).
 - **A table session** (2.20.0, KIT-PLAN Session 10 step 4). Staff at Sessions start a match from a
   member's page in the loyalty app, which opens Rack It at `?club=<a>.<b>&m=<id>`: setup with both
   players picked, "At Sessions: you score it for the club.", and the staff member as the scorer
@@ -967,7 +967,7 @@ drills/<id>                      // Spot 9 (2.27.0): one document a drill, writt
 - Matches before 2.8.0 have no `names`, `uids` or `by`, and person ids of the day; they read
   through `resolve` as before. **The backfill (2.11.0)**: once the people list has come from the
   server, the owner's phone gives every match with no `uids` the accounts of its resolved players
-  (`people.uidsOf`), `names` if it has none, and `playerA`/`playerB` as their resolved ids (owner's
+  (`people.uidsOf`), `names` if it has none, and `playerA`/`playerB` as their resolved ids (Kenny's
   call, 2026-10-02, so a player's page counts them), in batches. Nothing else in the match changes.
   It runs once per owner per phone (`localStorage` `rack-it.uids-backfill.<uid>`), and again after
   an Import. Without it a player would lose every match from before 2.8.0.
@@ -1024,7 +1024,7 @@ account, so a static app can't upload results.
 - **The 8-ball live screen** has the foul row and the win buttons and nothing else, so each win
   button may grow to 148px instead of 104 and the column centres what's left rather than leaving
   a hole above Undo. The rack-end card's eight numbers are a four-wide grid, 60px tall.
-- **House minimums.** 18px base; nothing under 15px except tracked caps labels at 14px (owner's
+- **House minimums.** 18px base; nothing under 15px except tracked caps labels at 14px (Kenny's
   call, 2.1.0); targets 56px or more (60 on every page but the live screen's balls, 76 for the
   primary controls); dark; greys at 7:1 or better for anything read while playing and 4.5:1
   elsewhere, never dimmed with opacity; `touch-action: manipulation`; `prefers-reduced-motion`
@@ -1111,3 +1111,5 @@ account, so a static app can't upload results.
 | 2.13.0 | That was them (KIT-PLAN Session 8 step 1): a guest who has since joined is claimed from their page, and the matches you started with them become theirs, through one rule shape (`seatSwap`) that Game QR seats will use too. A claimed guest's starter becomes the friend's only when the friend has no rating, so nothing earned is overwritten. |
 | 2.12.0 | Rack It on the shared v3 look (KIT-PLAN Session 7 step 3): warm greys, the teal and lilac from the ramp, the Zargo figure 30px, bottom sheets for the player form, picker, Import and Rebuild, and your avatar's account sheet for Profile, My QR, Friends, Export, Import, Install and Sign out. Every two-tap "Sure?" and `confirm()` became a hold. The live screen changes only its greys and, through the ramp, a shade lighter teal (#2FD4B3) and lilac (#C0A5FF); it keeps its 40px tap slop, and its Undo, Next rack and Break stay on `click`. |
 | 2.8.0 | Players (KIT-PLAN Session 4): setup's columns become two slots filled from a picker of household, friends and guests, with **Scan a new player** and **Add a guest** there and then. A match stores `names`, `uids` and `by`. Add player is Scan or Guest, then the starter. The Gmail is optional and nothing in Rack It invites anyone any more: adding a player was quietly putting them on `/members`, which is the household's list. |
+
+2026-11-27 — In earlier entries, “the owner” means Kenny in personal attributions. The application role `owner` keeps its technical meaning.

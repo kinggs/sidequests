@@ -70,7 +70,7 @@ Meet someone, show your QR, and you're connected in every sidequest that has Con
   you play with. One on the club's staff list gets the `staff` tag on your card, stamped by your
   phone once a day (`cloud.account.clubStaff`, the one read every app may make outside its
   namespace), and shows **staff** on their row.
-- **Two reads across apps**, both blessed by the owner for the club (Session 10), both in
+- **Two reads across apps**, both blessed by Kenny for the club (Session 10), both in
   `cloud.js`: `cloud.account.clubStaff(uid)` (is this friend on Sessions Loyalty's staff list?)
   and `cloud.clubMatch(id)` (the loyalty app reads one Rack It match it started, by id). Neither
   app writes the other's data.
@@ -148,7 +148,7 @@ One game on several phones. The design and what was built: `shared/CONNECT.md`. 
 | The household people list | The owner only. |
 | A Rack It rating | Anyone signed in who has that player's id, one at a time. Only the owner can list them. |
 | A Sessions Loyalty card and its entries | That member, and the club's staff. The staff note on a member: staff only. The club's rewards and ways to earn: anyone signed in. (`sessions-loyalty/SPEC.md` §6) |
-| The Family Tree | Its members (`members/`, each approved by a member who didn't invite them, or by the owner) and the owner. A newcomer reads only their own invite, which carries their Google email for members to recognise them; the export log (Export and Share as Markdown), the owner only. A member invites a Connect friend from the Family tab without a QR. The tree and its WikiTree copy (`wikitree/`, made on the owner's laptop) are written by the owner alone. (`family-tree/SPEC.md` §4, §5) |
+| The Family Tree | Its members (`members/`, each approved by a member who didn't invite them, or by the owner) and the owner. A newcomer reads only their own invite, which carries their Google email for members to recognise them; the export log (Export and Share as Markdown), the owner only. A member invites a Connect friend from the Family tab without a QR. The tree and its WikiTree copy (`wikitree/`, made on Kenny's laptop) are written by the owner alone. (`family-tree/SPEC.md` §4, §5) |
 | A Rack It match at the club (`venue: "sessions"`) | As any match: its players, its scorer (the staff member) and the owner. The staff member's loyalty app reads it by id, as its scorer. |
 
 Email addresses are never in a profile, a friendship or a record's `names`.

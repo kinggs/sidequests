@@ -47,7 +47,7 @@ Writing to Cuescore; Cuescore ratings (none to read); challenge matches (no list
 else's fixtures; turning a fixture into a Rack It match (the next step: **Score this match**
 prefilled from the fixture, the opponent as a guest named from Cuescore, until leagues proper).
 
-## Questions for the owner before building
+## Questions for the maintainer before building
 
 1. Which league(s)? Singles, or team leagues (a team league's `playerA` may be a team)?
 2. Is history league-only fine, given challenge matches can't be listed?

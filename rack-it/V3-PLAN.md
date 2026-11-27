@@ -19,7 +19,7 @@ ideas wait under "Parked".
    update, the handicap levers, the known challenges.
 4. The **Handover** section at the bottom of this doc, for what the previous session left.
 5. `rack-it/index.html` itself. Read the whole file before changing it (about 3,000 lines);
-   the rating engine is `rack-it/zargo.js`. The live scoring screen is a prototype the owner
+   the rating engine is `rack-it/zargo.js`. The live scoring screen is a prototype Kenny
    likes, so extend it, never rebuild it. **Session 6 retires this rule:** the redesign may
    change the live screen's interaction, within the list of behaviours that must survive.
 
@@ -36,7 +36,7 @@ ideas wait under "Parked".
   "Parked".
 - **Test in the harness:** serve the repo locally and open `rack-it/?mock` (CLAUDE.md). Never
   test against real Firestore data.
-- Ask the owner nothing that the spec, ZARGO.md or this doc already answers. If something is
+- Ask the maintainer nothing that the spec, ZARGO.md or this doc already answers. If something is
   genuinely open, pick the simplest reading, do it, and say so in Handover.
 
 ---
@@ -1058,3 +1058,5 @@ Start. Rated and who-breaks-first both live on the Start sheet now. Every box in
   stuck. With Racks and uneven targets open, the odds sit under the two form buttons and need a
   scroll at 360×640.
 - **Not run on the phone, and not against real Firestore.**
+
+2026-11-27 — In earlier entries, “the owner” means Kenny in personal attributions. The application role `owner` keeps its technical meaning.

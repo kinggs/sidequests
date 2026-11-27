@@ -9,7 +9,7 @@ Parked list (adding family photos is next in line).
 
 **Jon Inggs is the author.** Every screen that shows his work says so: the home page, every
 person page ("Compiled by Jon Inggs · familytree.inggs.com · 2006"), the footer, the GEDCOM's
-`SOUR` record and this file. (The brief wrote "John"; the owner settled on Jon on 2026-10-10,
+`SOUR` record and this file. (The brief wrote "John"; Kenny settled on Jon on 2026-10-10,
 the spelling he uses himself online, and confirmed in Session 2: the
 recovered home page is titled "Jon Inggs's home page".)
 
@@ -50,7 +50,7 @@ photo treatment, nothing else.
 · 2006"), a search field (name, any part), then every person as a `.rows` list sorted by surname
 then given name: a neutral initial ring or their first photo as the avatar, the name as `.l1`, the
 years as `.l2` ("1884–1951", "b. 1902", or nothing). A caps label groups them by surname. A
-name Jon didn't know sorts last (owner, 2026-10-11): a surname of only "?" at the end of the list
+name Jon didn't know sorts last (Kenny, 2026-10-11): a surname of only "?" at the end of the list
 under "Surname not known", a given name of only "?" last in its surname (`kin.js` `byName`). Tap
 opens the person. The list reads from one `people` listener (a few hundred documents, fine).
 
@@ -65,8 +65,8 @@ for: the tree view centred on them), then:
 - **Jon wrote about them**: each of Jon's stories that names them (tap → the story).
 - **Notes**: Jon's own text, verbatim.
 - **On WikiTree** (only for a person matched to a profile, §4 `wikitree`): the profile's birth
-  and death, who keeps it on WikiTree, "as of" the day the owner last copied it, and a link to
-  the profile. The copy is `wikitree/<WikiTree id>` (§4), made on the owner's laptop
+  and death, who keeps it on WikiTree, "as of" the day Kenny last copied it, and a link to
+  the profile. The copy is `wikitree/<WikiTree id>` (§4), made on Kenny's laptop
   (`tools/wikitree.mjs --cache`) and imported with seed part 1: WikiTree's API answers a browser
   only from wikitree.com's own pages (checked 2026-10-10), so the app never asks it. The Born
   and Died rows always show Jon's 2006 values; where WikiTree adds a day, a month or a date Jon
@@ -75,7 +75,7 @@ for: the tree view centred on them), then:
   is added. Not in the copy (private on WikiTree, merged, or not fetched yet): the row is the
   link alone. A link is made only when a second fact agrees beyond name and birth year: the full
   birth date, or a parent's or spouse's name (`tools/wikitree.mjs`); the rest wait in the data
-  repo's `wikitree-review.md` for the owner, with the copy's disagreements.
+  repo's `wikitree-review.md` for Kenny, with the copy's disagreements.
 - **WikiTree also names**: the parents, spouses and children on the WikiTree profile that Jon's
   record doesn't show here, with "Father on WikiTree" and their years: someone linked to a person
   in the tree opens their page, anyone else opens WikiTree (Jon's newer work, mostly).
@@ -104,7 +104,7 @@ the name at 17px and the years at 15px, at 390px. The layout is `kin.js` `layout
 sits over the middle of the block their parents (above) or children (below) take, so cards never
 overlap; the page is a CSS grid of half-card columns, one row a generation, and an SVG under the
 cards draws the lines from where they land (redrawn on resize). This is the one screen built to feel like something: the brief says aim high, and
-the owner wants the family to see the shape of the tree, not a table. Reduced motion: no
+Kenny wants the family to see the shape of the tree, not a table. Reduced motion: no
 animated re-centring.
 
 **Stories.** Jon's family-history pages, by title, each with how many people and photos it has.
@@ -225,7 +225,7 @@ the block spells the owner out. Nothing is readable signed out.
 ## 5. Access and invites
 
 Built on the shared Connect kit (`shared/KIT.md`, `shared/CONNECT.md`): a friendship made here is
-network-wide, and the owner is fine with that (BRIEF.md). The app adds one thing on top: a member
+network-wide, and Kenny is fine with that (BRIEF.md). The app adds one thing on top: a member
 has to say "yes, that's them".
 
 1. A member opens **Show my QR** (the Family tab, or the account sheet). The newcomer scans it,
@@ -239,7 +239,7 @@ has to say "yes, that's them".
 4. Every member sees it under **Waiting**: "Kenny invited Dad (dad@gmail.com). Is this them?"
    **Approve** writes one batch: the invite's `status: "approved"`, `decidedBy`, `decidedAt`, and
    `members/<uid>` with `invitedBy` and `approvedBy`. The rule lets a member decide an invite
-   they didn't send; **the owner may decide any invite, their own included** (owner, 2026-10-10:
+   they didn't send; **the owner may decide any invite, their own included** (Kenny, 2026-10-10:
    with one member at launch nobody else could approve the first invitee). **Decline** sets
    `status: "declined"` and nothing else.
 5. The newcomer's phone, watching its own invite, opens the app the moment it's approved.
@@ -264,26 +264,26 @@ Trusts the family to recognise each other; accepted for a few dozen people (BRIE
 - **Nothing personal in the public repo**: no names, dates, photos, GEDCOM or screenshots with
   real data. `data/` is gitignored and is a clone of the private data repo. `?mock` runs on
   invented people (`tools/mock-seed.mjs` makes them, Session 3).
-- **Members see everyone's dates and places** (owner, 2026-10-11), the living included: Jon
+- **Members see everyone's dates and places** (Kenny, 2026-10-11), the living included: Jon
   published them on his public site for years, and the app is members-only and all family. The
   living rule stays for one thing, research agents (`PLAN.md` Session 5): a person with no death
   date who was born within the last 100 years, or whose birth year is unknown, is treated as
   living, and an agent searches for them only with their recorded consent (`consent/<id>`, set by
-  the owner with a dated note). Softened (owner, 2026-10-11, "we all want to trace our lineage
+  the owner with a dated note). Softened (Kenny, 2026-10-11, "we all want to trace our lineage
   back"): without consent, an agent may still find a living person's parents (parent and birth
   claims only), and the owner's own line (the owner and their living ancestors) counts as
   consented, shared with the family, unless one of them says None (`kin.js` `researchStatus`,
-  `ownLine`). A relative's dates prove death (owner, 2026-10-11): no birth year,
+  `ownLine`). A relative's dates prove death (Kenny, 2026-10-11): no birth year,
   but a child born 100+ years ago, a parent 150+ or a spouse 110+, and they are searched as the
   dead (`kin.js` `isPresumedDead`). Never searched for anyone living, even with consent: address,
   phone, email, ID numbers, employer today, finances, health, legal records, social media,
   current photos.
 - **Opt-out honoured.** Any relative may ask for their record minimised or removed; `suggestions/`
   is the channel and the owner acts on it.
-- **The raw mirror** lives in the private data repo and the owner's backup: never in Firestore,
+- **The raw mirror** lives in the private data repo and Kenny's backup: never in Firestore,
   never here.
 - **Export is logged** (`exports/`), so the data doesn't quietly leave.
-- **The app never asks WikiTree.** The copy is made on the owner's laptop, never signed in, so
+- **The app never asks WikiTree.** The copy is made on Kenny's laptop, never signed in, so
   WikiTree's own privacy levels decide what comes back, living people included. WikiTree's terms
   (read 2026-10-11) allow copying for personal family research, not a substantial part of the
   site, and ask a copy to link back to each profile and to be refreshed, since members change
@@ -321,3 +321,5 @@ link per person with a dated copy of its facts: §2, §8); notifications.
 | 2026-10-11 (Opus, Session 4b) | **WikiTree's terms checked**: personal family research, not a substantial part of the site, link back, keep it fresh; biographies and photos belong to their authors, so the copy is facts only. Its dates are compared with Jon's as same, vaguer, more or differ: only "more" and "differ" show beside his, and only "differ" goes to the owner's review (7 of 97 on the first run; 36 more only add a day or a date). |
 | 2026-10-11 (owner, Session 5) | **Research agents**: free public sources searched by agents (WikiTree's API, FreeBMD, FreeREG, FreeCEN, eGGSA, NAAIRS, free newspaper archives); FamilySearch and paid sites by hand, from lookups the agent writes. Run from a laptop session, 10 briefs a run. The owner alone approves a finding; an approved one shows on the person page with its source and never changes Jon's record. A relative's dates prove death (316 more searchable). `PLAN.md` Sessions 5 to 8. |
 | 2026-10-10 (Fable) | Three tabs; the tree view reached from a person. A living person is one with no death and a birth within 100 years or unknown. Show details is per phone. The seed is the app's own Import, in files under 20 MB, since there is no server code and no admin key. Tools in `tools/` with tests beside them (the brief's own allowance; CLAUDE.md rule 1 names it). |
+
+2026-11-27 — In earlier entries, “the owner” means Kenny in personal attributions. The application role `owner` keeps its technical meaning.

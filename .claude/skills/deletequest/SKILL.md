@@ -1,19 +1,18 @@
 ---
 name: deletequest
-description: Permanently delete an app from this repo and the live site. Use when the owner says to delete, remove, kill, or retire an app. Destructive — always confirm by name before touching anything.
+description: Permanently delete an app from this repo and the live site. Use when the maintainer says to delete, remove, kill, or retire an app. Destructive — always confirm by name before touching anything.
 ---
 
 # Delete a sidequest
 
 Removes an app for good. This is the one skill that must **pause and confirm**: name the app
-back to the owner and ask once — *"Delete `<app-id>` for good? Code and live URL go now; I'll
-also tell you what happens to its cloud data."* Only proceed on a clear yes.
+back to the maintainer and ask once — *"Delete `<app-id>` for good? This removes the code and live URL."* Explain what happens to its cloud data before asking. Only proceed on a clear yes.
 
 ## 1. Check
 
 - The folder `<app-id>/` exists and is an app (has `index.html`). Never delete `shared/`,
   `_template/`, `.claude/` or the repo root.
-- If the owner's wording was ambiguous about which app, ask.
+- If the maintainer's wording was ambiguous about which app, ask.
 
 ## 2. Remove the code
 
@@ -40,7 +39,7 @@ The app's data lives under `sidequests/<app-id>/` in Firestore and does not vani
   still protect it, and it means the app could be restored from git history with its data
   intact. It can be wiped later from the desktop with the command above.
 
-Skip the wipe entirely if the owner hints they might want the app back.
+Skip the wipe entirely if the maintainer hints they might want the app back.
 
 ## 5. Report
 
