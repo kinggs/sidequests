@@ -9,7 +9,7 @@ something on this page, stop: it's already there.
 A sidequest is one `index.html` that links `../shared/theme.css`, imports `ui` from
 `../shared/ui.js`, sets **two accents**, and writes CSS only for the thing that is its own: the
 balls, the dice, the board. Home, setup, lists, stats, sheets, sign-in and More come from the theme
-and look the same in every app. That sameness is the point: the owner's household should never
+and look the same in every app. That sameness is the point: Kenny's household should never
 have to learn an app.
 
 ```html
@@ -110,7 +110,7 @@ photo.)
 
 ## 6. Words
 
-Plain English, as the owner talks: "Nothing logged yet", "Hold to delete", "Carry on". Sentence
+Plain English, as Kenny talks: "Nothing logged yet", "Hold to delete", "Carry on". Sentence
 case everywhere except `.lbl`. Numbers are tabular. A state is never colour alone: say
 "provisional", show the count, write "live".
 

@@ -1,6 +1,6 @@
 ---
 name: sidequest
-description: Scaffold, build and deploy a brand-new app in this repo from a plain-language description. Use this whenever the owner says they want a new app, tool, tracker, scorer, calculator, list, timer, or "something that does X" — even if they don't say the word "app". Also use it when they paste or describe a spec for something that doesn't have a folder here yet.
+description: Scaffold, build and deploy a brand-new app in this repo from a plain-language description. Use this whenever the maintainer says they want a new app, tool, tracker, scorer, calculator, list, timer, or "something that does X" — even if they don't say the word "app". Also use it when they paste or describe a spec for something that doesn't have a folder here yet.
 ---
 
 # New app
@@ -13,7 +13,7 @@ Turn a description into a live URL in one pass. Don't ask permission at each ste
 - `APP_NAME`: human name for the header and home screen (`Rack It`).
 - `NEEDS_CLOUD`: true if anything should survive a reload or be seen from another phone. Default true. If false, don't call `cloud.init`, but keep the import so it's one line to switch on later.
 
-Only ask the owner something if the description is too thin to name the app.
+Only ask the maintainer something if the description is too thin to name the app.
 
 ## 2. Scaffold
 
@@ -38,7 +38,7 @@ Chrome only builds a real installed app (fullscreen, no URL bar) when the manife
 PNG icons. With an SVG-only manifest it silently makes a bookmark shortcut that opens in a
 browser tab, and once that shortcut is on the home screen it stops offering the real
 install. If the script says Playwright isn't available, don't skip it quietly: say so in
-the report so the owner knows the app will install as a shortcut until someone runs it.
+the report so the maintainer knows the app will install as a shortcut until someone runs it.
 
 ## 2c. Open it to anyone signed in: one line in the rules
 
@@ -58,7 +58,7 @@ same push as the app. Nothing else in the app may sit outside those collections,
 
 ## 3. Write `SPEC.md`
 
-Capture the brief before building. Short is fine, but it must cover: purpose, who uses it, screens, data model (what gets stored and where under `sidequests/<APP_ID>/`), and anything explicitly out of scope. If the owner gave a detailed spec, save it verbatim and add a "Decisions" section for anything you had to assume.
+Capture the brief before building. Short is fine, but it must cover: purpose, who uses it, screens, data model (what gets stored and where under `sidequests/<APP_ID>/`), and anything explicitly out of scope. If the maintainer gave a detailed spec, save it verbatim and add a "Decisions" section for anything you had to assume.
 
 ## 4. Build
 
@@ -122,6 +122,6 @@ Reply with, in this order:
 2. One line on how to install it: open the app and tap **Install on this phone**. Mention
    that an older shortcut for the same app has to be removed first, since Chrome won't offer
    the real install while one is on the home screen.
-3. Any assumption you made that the owner might want to reverse.
+3. Any assumption you made that the maintainer might want to reverse.
 
 Nothing else. No walkthrough of the code.

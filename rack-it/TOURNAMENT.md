@@ -182,7 +182,7 @@ tournament rates nothing.
   entered, from the ratings as they stand at the finish, and the summary reads "rated as part of
   Kenny's tournament". Each of those matches gets `ratedAt` = the finish, so **Rebuild ratings
   replays them at the finish too**, never back where they were played.
-- **Only the tournament's own games wait** (the owner, 2026-11-18). A match a player plays outside
+- **Only the tournament's own games wait** (Kenny, 2026-11-18). A match a player plays outside
   the tournament while it's live moves ratings as usual, at once; the tournament's results then
   start from those ratings when it finishes. Nothing about a rating is frozen during a tournament.
 - **Who writes the ratings (settled in Session 3): the organiser's phone.** It claims the finish
@@ -213,7 +213,7 @@ fit a tree on a phone were drawn at 8 and 32 players, single and double:
 | **C. Your path, then the draw** | **Chosen.** The same size and words at 3 players or 32, single or double. Costs: you never see every match at once, and round 1 of 32 is 16 cards down. |
 
 The drawings are in `rack-it/design/bracket/` (`00-overview.png` first; `07` to `09` are the
-option boards). This section wins over the PNGs. The live canvas is the owner's, at
+option boards). This section wins over the PNGs. The live canvas is Kenny's, at
 `claude.ai/artifact/Vd6j2FbbH5FPREU8Th6FBK` (private).
 
 **Two views.** A `.seg` under the tournament's line: **Your path | Whole draw**. It opens on
@@ -355,7 +355,7 @@ groups knockout's final (`K…`) never played to `race.w`, so it gets no allowan
 ### 3.11 Handicapped races (designed 2026-11-20, Session 8)
 
 A tournament-wide switch: every match is a race in racks with Rack It's race chart (spec §4),
-from the two players' ratings. The owner settled the four questions on 2026-11-20, each as
+from the two players' ratings. Kenny settled the four questions on 2026-11-20, each as
 recommended:
 
 | Question | Answer | Why |
@@ -1035,3 +1035,5 @@ a parallel session builds in `pocket-instruments/`.
 ratings, not the frozen ones, so it can disagree slightly with the targets if a rating moved since
 Start. And the round robin tie-break on rack difference under a handicap (§3.11). Neither is
 checked on a real club night yet.
+
+2026-11-27 — In earlier entries, “the owner” means Kenny in personal attributions. The application role `owner` keeps its technical meaning.

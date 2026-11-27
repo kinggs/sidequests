@@ -1604,3 +1604,5 @@ What the plan got wrong, or didn't say:
     `/mnt/devdata/kenny/source/totemiq/zarp-portal/node_modules/playwright-core/index.mjs`, zbarimg
     is installed, and SSH pushes failed (the 1Password agent didn't sign), so pushes went over HTTPS
     with `gh`'s credential helper.
+
+2026-11-27 — In earlier entries, “the owner” means Kenny in personal attributions. The application role `owner` keeps its technical meaning.

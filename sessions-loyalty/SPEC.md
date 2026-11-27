@@ -65,7 +65,7 @@ Staff read it two ways:
   It. Signed in as staff, **Done** opens that member's card.
 
 Either way the scan **makes the Connect friendship** between that staff account and the member,
-with `app: "sessions-loyalty"` on the pair (owner, 2026-10-02: staff are real connections; the
+with `app: "sessions-loyalty"` on the pair (Kenny, 2026-10-02: staff are real connections; the
 pair's `app` is how every app's Friends and picker fold club connections under **Sessions**,
 and a member's phone tags a friend on `staff/` as **staff**: KIT-PLAN Session 10 step 3).
 A code that has expired says so; your own says so. The first scan of someone makes their card.
@@ -82,7 +82,7 @@ card appearing while the QR is up. Anyone arriving in this app through a QR link
   collect points." and **Join Sessions** (76px), which makes your empty card with no QR at all.
 - **Show my QR**, the one button you came for (76px).
 - **Your Rack It rating and matches** (0.3.0): a link to your page in Rack It (`../rack-it/?p=<uid>`).
-  This app never reads Rack It's ratings (owner, 2026-10-04).
+  This app never reads Rack It's ratings (Kenny, 2026-10-04).
 - **Birthday** (0.5.0): on the card once set; until then **Add your birthday for a birthday
   treat** (day and month). A member sets it once; after that only staff change it.
 - **Next reward**: "Your next reward is 250 points away", with a bar. Free rewards are never
@@ -224,7 +224,7 @@ Ann becomes staff when the owner adds her under More → Staff with her QR link.
 
 ## 8. Out of scope (for now)
 
-**Challenges stay manual** (owner, 2026-11-25): staff check a follow, a tag, a review, a referral
+**Challenges stay manual** (Kenny, 2026-11-25): staff check a follow, a tag, a review, a referral
 or a survey and **Award** it. Worth considering later, in the Sessions app rather than here
 (`SESSIONS-MIGRATION.md` §6): a link or QR per challenge, so the member opens the right page;
 checking Instagram, Facebook and TikTok through their APIs; a Google review link with the review

@@ -21,7 +21,7 @@ cloud session, and is done.
 - **Originals are never modified or deleted.** The engine reads from Inbox and writes elsewhere.
 - **No secrets in the repo.** rclone's token and any image-model key live on the desktop.
 - **The engine has tests**, and `make verify` runs them.
-- **Don't build ahead.** Each session ends with something the owner can look at on the phone.
+- **Don't build ahead.** Each session ends with something Kenny can look at on the phone.
 
 ## Desktop setup (once, at the start of Session 1)
 
@@ -29,13 +29,13 @@ cloud session, and is done.
 - [x] Python libraries: none to install. `uv run pocket-editor/engine.py` fetches Pillow, numpy
       and pillow-heif itself (uv is on the desktop through mise). ffmpeg and libheif were there.
 - [x] rclone v1.75.2, remote `kenny` (not `gdrive`), own client ID, scope `drive.file`.
-- [ ] `rclone config`: one remote named `gdrive` for the owner's Google Drive. This opens a
-      browser to sign in, so the owner does it at the desktop.
+- [ ] `rclone config`: one remote named `gdrive` for Kenny's Google Drive. This opens a
+      browser to sign in, so Kenny does it at the desktop.
 - [ ] In Drive, create `Editor/Inbox/` and `Editor/Done/`.
 - [ ] Prove the round trip: share three photos from the phone into `Editor/Inbox/test/`,
       `rclone copy gdrive:Editor/Inbox/test pocket-editor/photos/test`, and check each file's
       dimensions and size against the phone's original (SPEC open question 1).
-- [ ] Confirm the owner can reach the desktop's Claude Code session from the phone.
+- [ ] Confirm Kenny can reach the desktop's Claude Code session from the phone.
 
 ## Session 1 — the engine (done, 2026-11-17)
 
@@ -77,11 +77,11 @@ cloud session, and is done.
       session that built the tools, so it proves the engine and not the skill.
 - [ ] A second album of 30 or more, with `/editalbum` run cold in a fresh session, from the
       phone. Time it. Note every place it needed help, and fix the skill.
-- [ ] The owner judges the result against "would I have been happy paying a Fiverr editor for
+- [ ] Kenny judges the result against "would I have been happy paying a Fiverr editor for
       this?" Optionally send the same album to one for about £15 as a real comparison.
 - [ ] Write the verdict in SPEC: keep building, or stop and use Fiverr.
 
-## After that, one per session, in the order the owner picks
+## After that, one per session, in the order Kenny picks
 
 - [ ] Auto-straighten.
 - [ ] Best-of-burst.
@@ -174,3 +174,4 @@ cloud session, and is done.
   5 dB quieter than the phone's own (now −14).
 - Not done: watching a clip. Frames, durations, dates and loudness were checked; motion was not.
 
+2026-11-27 — In earlier entries, “the owner” means Kenny in personal attributions. The application role `owner` keeps its technical meaning.

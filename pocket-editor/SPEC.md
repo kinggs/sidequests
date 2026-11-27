@@ -1,6 +1,6 @@
 # Pocket Editor — Spec
 
-An editor in the owner's pocket: hand it an album of phone photos from an event, get back the
+An editor in Kenny's pocket: hand it an album of phone photos from an event, get back the
 same album culled, cropped and colour-corrected, the way a hired editor would return it. The
 alternative it has to beat is paying someone on Fiverr about £15–50 an album and waiting a day
 or two.
@@ -20,7 +20,7 @@ build sessions.
 
 ## Who uses it, and how often
 
-The owner, about once a month, after an event (a festival, a trip). Roughly 12 albums a year.
+Kenny, about once a month, after an event (a festival, a trip). Roughly 12 albums a year.
 That volume justifies a small tool and not a polished product.
 
 ## What it is, and is not
@@ -46,9 +46,9 @@ synthetic images only.
 4. **Judge:** Claude looks at every photo (a downscaled copy) and writes one recipe per photo:
    a verdict, a crop, and the corrections.
 5. **Render:** the engine applies each recipe to the full-resolution original.
-6. **Return:** when the owner says so, the skill pushes `done/` to `Editor/Done/<album>/` on
-   Drive with `rclone copy`. The owner opens it on the phone.
-7. **Overrule:** the owner replies in the same chat ("keep number 7", "that one's too warm");
+6. **Return:** when Kenny says so, the skill pushes `done/` to `Editor/Done/<album>/` on
+   Drive with `rclone copy`. Kenny opens it on the phone.
+7. **Overrule:** Kenny replies in the same chat ("keep number 7", "that one's too warm");
    the skill edits the recipe and re-renders that photo.
 
 ## What comes back
@@ -73,7 +73,7 @@ pixels.
 **1. Judgment plus engine (the default).** A vision model decides; a deterministic script
 applies. Faces and resolution are untouched. Proven in the taste test.
 
-**2. Light-touch generative (proven on five photos, 2026-11-17; findings below).** The owner wants this tested from the
+**2. Light-touch generative (proven on five photos, 2026-11-17; findings below).** Kenny wants this tested from the
 start, with the emphasis on *light touch*. It is for what sliders cannot do: a sky the camera
 blew out, a face lost in shadow, mixed light. Guardrails, all of them:
 
@@ -91,7 +91,7 @@ Removing people or objects, replacing skies and stylised looks are out of scope.
 
 ### What the proof showed
 
-Five photos with a real light problem, each sent to Codex with the owner's own brief (Leica
+Five photos with a real light problem, each sent to Codex with Kenny's own brief (Leica
 colouring, gentle HDR, skies a little richer than life; light and colour only, same framing).
 The sheets are in the album's `fourway/`: original, engine, as generated, tone-transferred.
 
@@ -116,7 +116,7 @@ light. The "faces drift" check the plan asked for became the alignment check: to
 cannot change a face's shape, because no detail comes from the generated image; what it can do
 is put light in the wrong place if the picture was reframed, and alignment measures that.
 
-### The owner's verdict on the sheets, and what changed (2026-11-17)
+### Kenny's verdict on the sheets, and what changed (2026-11-17)
 
 - Preferred the Codex version on the lunch, the cloudy landscape and the art car; Antigravity's
   on the selfie at the stage ("the best out of all of them"); and on the night selfie Codex
@@ -126,19 +126,19 @@ is put light in the wrong place if the picture was reframed, and alignment measu
   skin nearly alone.
 - **How often:** "rare-ish". The skill's rule: the judge picks about a quarter of the kept
   daylight photos (the cover, the share picks, and bad light), eight at most, runs them, and
-  chooses engine or tone transfer per photo itself. The owner is not asked.
+  chooses engine or tone transfer per photo itself. Kenny is not asked.
 - **Tone transfer was too timid.** It moved light region by region, which left the generated
   image's contrast and richness behind: blacks stayed lifted and colour thinner, so it looked
-  weaker than the picture the owner liked. It now also matches one tone curve and one
+  weaker than the picture Kenny liked. It now also matches one tone curve and one
   saturation factor across the whole picture (the curve's slope is limited, so a model that
   smoothed the photo cannot flatten its texture). Measured on four photos, brightness, blacks
   and saturation now land within a few percent of the generated image, at full resolution.
 - **A photo that takes the AI edit skips the album style.** The model's edit is a finished
   look; the style on top would grade it twice.
 - **Antigravity is kept for one job:** a second opinion on the cover, when it is 4:3 or 3:4.
-- **Review fatigue.** Comparing versions photo by photo wore the owner out ("so many nuances to
+- **Review fatigue.** Comparing versions photo by photo wore Kenny out ("so many nuances to
   each photo that I'm almost starting to lose it"). That was style development and is over. The
-  skill now says: the owner sees the contact sheet and five lines, and nothing else.
+  skill now says: Kenny sees the contact sheet and five lines, and nothing else.
 
 ## The recipe
 
@@ -180,15 +180,15 @@ A line-up poster, a ticket, a map, a screenshot, a flyer. They belong in the alb
 not be edited: a grade would shift a designer's colours and a crop would cut text. The verdict
 `as-is` copies the file into `edited/` byte for byte, and it shows on the contact sheet in its
 own colour. The judge gives this verdict itself to anything that is a graphic and not a
-photograph (no camera in its EXIF is a strong hint, and it is plain to the eye); the owner does
+photograph (no camera in its EXIF is a strong hint, and it is plain to the eye); Kenny does
 not have to flag it. It is never dropped as a duplicate or for quality.
 
 ## The cull
 
 Every photo gets **great**, **fine** or **drop** (or **as-is**, above), with a one-line reason. Dropped photos are
-left out of `edited/` by default and shown on the contact sheet, so the owner can overrule.
+left out of `edited/` by default and shown on the contact sheet, so Kenny can overrule.
 Nothing is ever deleted. Near-duplicates collapse to the best one (eyes open, sharpest).
-In the taste test the owner agreed with all seven verdicts and wants the "suggest dropping"
+In the taste test Kenny agreed with all seven verdicts and wants the "suggest dropping"
 call made firmly.
 
 ## The house style: Gentle punch
@@ -205,11 +205,11 @@ Starting values, as deltas on top of each photo's own corrections, in the test e
 | +0.25 | +0.22 | +0.20 | +0.15 (pull down) | +0.10 (lift) |
 
 One grade per album: night and day shots are treated differently but feel like one set. The
-style lives in `style.json` so it can drift with the owner's taste.
+style lives in `style.json` so it can drift with Kenny's taste.
 
 ## A second style to try: Muted bronze
 
-On 2026-11-17 the owner pointed at a festival photographer's gallery and said "I really like
+On 2026-11-17 Kenny pointed at a festival photographer's gallery and said "I really like
 this editing style". The gallery's JPEGs carry their full Lightroom Classic settings in XMP, so
 the look is known exactly and not guessed: 15 of 16 images sampled had them, and the settings
 below were identical in all 15. It is a preset plus a per-photo exposure pass.
@@ -261,10 +261,10 @@ curve at 0.9 strength, and red and orange desaturated about half as much. Hue sh
 approximate: the engine turns a Lightroom hue slider into 0.3° per unit, and treats the
 calibration primaries as three wide colour bands.
 
-## The owner's verdict on the first album: Punch and olive
+## Kenny's verdict on the first album: Punch and olive
 
-After looking at both styles on the Elemental album (2026-11-17): Gentle punch is the one the
-owner mostly enjoys, but it "occasionally makes faces really red". Muted bronze was better on
+After looking at both styles on the Elemental album (2026-11-17): Gentle punch is the one
+Kenny mostly enjoys, but it "occasionally makes faces really red". Muted bronze was better on
 parts of some photos (the trees, the art car, the purples of the tent, and all of the busy
 forest-floor shot), always at the cost of a less vivid sky.
 
@@ -274,16 +274,16 @@ and the channel S-curve at 0.6 for deeper darks. It leaves out what dulled the s
 and aqua desaturation, the matte whites and the added warmth.
 
 **Red faces** had two causes. Vibrance boosted skin as much as anything else; the engine now
-gives hues between red and orange half the boost, in every style (a quarter at first; the
-owner asked for half). Punch and olive also takes red and orange saturation down a little. For
+gives hues between red and orange half the boost, in every style (a quarter at first;
+Kenny asked for half). Punch and olive also takes red and orange saturation down a little. For
 a face that is still flushed or too dark, the judge marks it (`faces`, in The recipe).
 
-The owner confirmed Punch and olive on 2026-11-17. It is `style.json`, the default; Gentle
+Kenny confirmed Punch and olive on 2026-11-17. It is `style.json`, the default; Gentle
 punch is kept as `style-gentle-punch.json`.
 
 ## Night: the same preset, treated differently
 
-The owner noticed the same photographer's night photos look different, and pointed at a second
+Kenny noticed the same photographer's night photos look different, and pointed at a second
 gallery (an indoor club night, 21 images sampled). The settings say: **16 of 21 use the day
 preset unchanged.** The night look is these, on top:
 
@@ -302,14 +302,14 @@ In the engine a style file has a `night` block whose values replace the day ones
 sets `"light": "night"` on the recipe. Both shipped styles have one: less contrast and clarity,
 plus `glow`, `grain` and (Muted bronze) `fade`.
 
-Status: a candidate. The first album is rendered in both styles, side by side, for the owner
+Status: a candidate. The first album is rendered in both styles, side by side, for Kenny
 to pick. The gallery's photos are the photographer's and are not kept: the numbers above
 are the record.
 
 ## Editor's notes
 
 `notes.md` ends each album with two or three plain lines on what would have made the photos
-better ("four shots were backlit: turn so the sun is on faces"). The owner is not a
+better ("four shots were backlit: turn so the sun is on faces"). Kenny is not a
 photographer and this is how the albums improve. Photo Coach (`photo-coach/`) covers
 deliberate practice; these notes are the passing remark from the editor, and may feed it later.
 
@@ -338,28 +338,28 @@ deliberate practice; these notes are the passing remark from the editor, and may
     tidy itself changes.
 - **The judge reads videos as strips:** `small` writes five frames across each clip. That is
   enough for the verdict and for day or night. It cannot hear, and it cannot see a moment
-  between frames, so anything private in a clip has to come from the owner.
-- **Not checked by anyone yet: the motion.** The steadying was tuned from still frames; the
-  owner should watch one daylight clip.
+  between frames, so anything private in a clip has to come from Kenny.
+- **Not checked by anyone yet: the motion.** The steadying was tuned from still frames;
+  Kenny should watch one daylight clip.
 - **Later: judged trims** (a few sampled frames per clip) and a **highlights reel**.
 - **Never: generative video editing.** That is where the cost is.
 
 ## Models and cost
 
-- **Judging:** the frontier model in the Claude Code session on the desktop, on the owner's
+- **Judging:** the frontier model in the Claude Code session on the desktop, on Kenny's
   subscription. About nothing per album beyond usage limits.
 - **Building:** Opus, on the desktop.
-- **Generative arm: Codex, on the owner's ChatGPT subscription.** Claude cannot edit pixels.
+- **Generative arm: Codex, on Kenny's ChatGPT subscription.** Claude cannot edit pixels.
   Proven on the desktop on 2026-11-17 (codex-cli 0.169.0, signed in with ChatGPT, no API key):
   `codex exec --skip-git-repo-check --ephemeral -s workspace-write -C <dir> -i in.jpg -- "<prompt>"`
   edited a synthetic 3000×2000 image with its built-in `image_gen` tool in 44 seconds and
   saved a 1536×1024 PNG. Put `--` before the prompt, or `-i` swallows it. It costs Codex usage
   allowance and no money. The output is small, which does not matter: tone transfer takes only
   the colour and light from it and keeps the original's pixels.
-- **Not yet tested: Google.** The owner also has a Gemini subscription. Antigravity CLI (`agy`,
+- **Not yet tested: Google.** Kenny also has a Gemini subscription. Antigravity CLI (`agy`,
   Google's newer agent CLI, on the desktop but not signed in) generates images itself on the
   subscription's quota; reports say a handful per five hours and 1024 px. Gemini CLI (0.68.0,
-  signed in) was not tested. Session 2 runs the same five photos through `agy` once the owner
+  signed in) was not tested. Session 2 runs the same five photos through `agy` once Kenny
   has signed in, and keeps whichever holds faces better. An API key is the last resort.
 - **Codex is not used for judging.** One engine is simpler to keep working.
 
@@ -395,7 +395,7 @@ deliberate practice; these notes are the passing remark from the editor, and may
    and 4000×3000 from a Galaxy S25 FE, EXIF intact). A zip in Downloads works as an input today.
 2. Answered: Codex, by tone transfer (The two engines, "What the proof showed").
 3. Phone photo formats: the engine reads HEIC through `pillow-heif`, but no HEIC file has been
-   through it yet. The owner's phone saves JPEG.
+   through it yet. Kenny's phone saves JPEG.
 5. **How photos get in.** With `drive.file` (see Decisions) rclone cannot see files the phone
    shared to Drive. Either widen the scope to `drive.readonly` plus `drive.file`, or keep the
    Google Photos zip download as the way in. Until decided, the zip is the input.
@@ -406,3 +406,5 @@ deliberate practice; these notes are the passing remark from the editor, and may
 
 Auto-straighten, best-of-burst, the video tidy, a phone page for swiping through the cull,
 publishing the skill for use outside this repo.
+
+2026-11-27 — In earlier entries, “the owner” means Kenny in personal attributions. The application role `owner` keeps its technical meaning.

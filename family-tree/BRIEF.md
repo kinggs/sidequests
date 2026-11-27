@@ -154,3 +154,5 @@ Decisions still needed from Kenny:
 - [x] Members: Kenny only at launch, with invites built in from day one. First invitee is Kenny's father, who is not technical: the invite must work from a phone (QR or a link) and viewing must need nothing beyond Google sign-in. Second: John himself, at an address the data repo's `report.md` lists, if one still works; otherwise ask the wider family who has a current contact for him.
 
 Parked for later: members claiming their own profile and editing it directly.
+
+2026-11-27 — In earlier entries, “the owner” means Kenny in personal attributions. The application role `owner` keeps its technical meaning.

@@ -13,9 +13,9 @@ specified below in full; don't re-plan them, do them.
 
 1. `CLAUDE.md` — the repo rules. Direct to `main`, one file per app, bump `APP_VERSION` and
    `CACHE` together, deploy with `/deployquest`, test with `?mock`.
-2. `family-tree/SPEC.md` — the app as it will be: screens, data, rules, invites, privacy, and the
-   owner's decisions. Update it in the same commit when a decision here changes it.
-3. `family-tree/BRIEF.md` — the owner's brief, for the why. The spec and this doc override it
+2. `family-tree/SPEC.md` — the app as it will be: screens, data, rules, invites, privacy, and
+   Kenny's decisions. Update it in the same commit when a decision here changes it.
+3. `family-tree/BRIEF.md` — Kenny's brief, for the why. The spec and this doc override it
    where they differ (the Decisions table in the spec says where).
 4. `shared/KIT.md` (Connect, accounts, the owner), `shared/CONNECT.md` §1–§2 and §8 (My QR,
    `handleInvite`), `shared/DESIGN.md` (before touching a screen).
@@ -44,7 +44,7 @@ specified below in full; don't re-plan them, do them.
   that can't finish its list deploys what works and writes the rest into Handover. The data repo
   is committed and pushed at the end of every session too; a cloud container is wiped afterwards.
 - **Don't build ahead.** Each session's list is the whole of that session. Ideas go in Parked.
-- Ask the owner nothing the spec, the brief or this doc already answers. If something is
+- Ask the maintainer nothing the spec, the brief or this doc already answers. If something is
   genuinely open, pick the simplest reading, do it, and say so in Handover.
 - A cloud session may lack Playwright: `npm i playwright-core` in the scratchpad and point
   `PLAYWRIGHT` at its `index.mjs` (Chromium is at `/opt/pw-browsers`); Session 1 did this and
@@ -1145,3 +1145,4 @@ open briefs before run 1; with the softening, a living person's "parents" gap is
 from an Export overrides the owner's own line, so the consent sheet's None must reach
 `export.json` before the next run.
 
+2026-11-27 — In earlier entries, “the owner” means Kenny in personal attributions. The application role `owner` keeps its technical meaning.

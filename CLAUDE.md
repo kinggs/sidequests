@@ -1,7 +1,7 @@
 # sidequests
 
 A monorepo of small personal web apps, built conversationally and deployed by pushing to `main`.
-The owner builds these from a phone. Optimise every decision for "works first time, no faff".
+Kenny builds these from a phone. Optimise every decision for "works first time, no faff".
 
 ## How this repo is laid out
 
@@ -9,7 +9,7 @@ The owner builds these from a phone. Optimise every decision for "works first ti
 sidequests/
   CLAUDE.md               ← you are here
   SESSIONS-MIGRATION.md   ← the notebook for the Sessions app (its own repo, its own backend, soon):
-                            when the owner says "Sessions migration", add it there
+                            when Kenny says "Sessions migration", add it there
   GRADUATING.md           ← how a sidequest leaves for its own repository, and what each move taught
                             (Pocket Instruments was the first; Sessions may be next)
   .claude/skills/         ← /sidequest, /deployquest, /deletequest, /graduatequest and /editalbum (committed so cloud sessions get them)
@@ -95,6 +95,8 @@ folder here is then a pointer and nothing in it is maintained.
 - Offline works out of the box: `cloud.js` turns on Firestore's persistent local cache, and each app's `sw.js` caches the shell.
 
 ## Working style
+
+- Attribute personal rulings, quotes and observations to Kenny. Use “the maintainer” for contributor rules. Keep past entries in decision logs and notebooks intact.
 
 - Small commits, one intent each, messages in plain English ("Make the swap button taller").
 - After any change, sanity-check by reading the file back for unbalanced tags and a matching version bump.
